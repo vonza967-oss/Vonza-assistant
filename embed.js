@@ -104,25 +104,25 @@
           display: grid;
           place-items: center;
           cursor: pointer;
-          color: #ffffff;
+          color: #ede9fe;
           background:
-            radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.26), transparent 30%),
-            linear-gradient(145deg, #6D28D9 0%, #9333EA 52%, #C084FC 100%);
+            radial-gradient(circle at 28% 24%, rgba(192, 132, 252, 0.12), transparent 34%),
+            linear-gradient(145deg, #0F0A1F 0%, #181028 52%, #25163b 100%);
           box-shadow:
-            0 18px 42px rgba(76, 29, 149, 0.34),
-            0 0 22px rgba(192, 132, 252, 0.22),
-            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            0 14px 30px rgba(6, 4, 17, 0.34),
+            0 0 18px rgba(147, 51, 234, 0.14),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
           transition:
             transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
             box-shadow 220ms ease;
         }
 
         .launcher:hover {
-          transform: translateY(-2px) scale(1.05);
+          transform: translateY(-1px) scale(1.05);
           box-shadow:
-            0 22px 50px rgba(76, 29, 149, 0.4),
-            0 0 28px rgba(192, 132, 252, 0.34),
-            inset 0 1px 0 rgba(255, 255, 255, 0.24);
+            0 18px 36px rgba(6, 4, 17, 0.38),
+            0 0 24px rgba(147, 51, 234, 0.2),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
         .launcher::before {
@@ -130,8 +130,8 @@
           position: absolute;
           inset: -8px;
           border-radius: 999px;
-          background: radial-gradient(circle, rgba(192, 132, 252, 0.28), transparent 68%);
-          opacity: 0.7;
+          background: radial-gradient(circle, rgba(147, 51, 234, 0.16), transparent 70%);
+          opacity: 0.55;
           transform: scale(0.92);
           animation: ring 2.6s infinite ease-out;
           pointer-events: none;
@@ -143,11 +143,11 @@
           border-radius: 999px;
           display: grid;
           place-items: center;
-          font-size: 24px;
-          font-weight: 900;
-          letter-spacing: -0.12em;
-          color: #ffffff;
-          text-shadow: 0 4px 18px rgba(76, 29, 149, 0.32);
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: 0.03em;
+          color: #ede9fe;
+          text-shadow: 0 2px 10px rgba(76, 29, 149, 0.18);
         }
 
         .launcher-label {
