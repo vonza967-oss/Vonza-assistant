@@ -144,10 +144,17 @@
           display: grid;
           place-items: center;
           font-size: 22px;
-          font-weight: 700;
-          letter-spacing: 0.03em;
-          color: #ede9fe;
-          text-shadow: 0 2px 10px rgba(76, 29, 149, 0.18);
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          color: transparent;
+          background: linear-gradient(180deg, #c4b5fd 0%, #ede9fe 58%, #faf5ff 100%);
+          background-clip: text;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          text-shadow:
+            0 0 10px rgba(196, 181, 253, 0.18),
+            0 0 18px rgba(147, 51, 234, 0.12);
+          filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.16));
         }
 
         .launcher-label {

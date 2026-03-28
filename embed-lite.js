@@ -41,7 +41,7 @@
     <style>
       #${ROOT_ID}{position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
       #${ROOT_ID} *{box-sizing:border-box}
-      #${ROOT_ID} .vonza-lite-button{width:58px;height:58px;border:0;border-radius:999px;cursor:pointer;background:radial-gradient(circle at 28% 24%,rgba(192,132,252,.12),transparent 34%),linear-gradient(145deg,#0F0A1F 0%,#181028 52%,#25163b 100%);color:#ede9fe;font:700 22px/1 inherit;letter-spacing:.03em;text-shadow:0 2px 10px rgba(76,29,149,.18);box-shadow:0 14px 30px rgba(6,4,17,.34),0 0 18px rgba(147,51,234,.14),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,box-shadow .22s ease}
+      #${ROOT_ID} .vonza-lite-button{width:58px;height:58px;border:0;border-radius:999px;cursor:pointer;background:radial-gradient(circle at 28% 24%,rgba(192,132,252,.12),transparent 34%),linear-gradient(145deg,#0F0A1F 0%,#181028 52%,#25163b 100%);color:transparent;font:500 22px/1 inherit;letter-spacing:.08em;background-clip:padding-box;text-shadow:0 0 10px rgba(196,181,253,.18),0 0 18px rgba(147,51,234,.12);box-shadow:0 14px 30px rgba(6,4,17,.34),0 0 18px rgba(147,51,234,.14),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,box-shadow .22s ease}
       #${ROOT_ID} .vonza-lite-button:hover{transform:translateY(-1px) scale(1.05);box-shadow:0 18px 36px rgba(6,4,17,.38),0 0 24px rgba(147,51,234,.2),inset 0 1px 0 rgba(255,255,255,.1)}
       #${ROOT_ID} .vonza-lite-modal{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:flex-end;padding:18px;background:rgba(3,8,18,.24)}
       #${ROOT_ID} .vonza-lite-modal[data-open="true"]{display:flex}
@@ -50,7 +50,7 @@
       #${ROOT_ID} .vonza-lite-frame{width:100%;height:100%;border:0;background:#09101d}
       @media (max-width:640px){#${ROOT_ID}{right:16px;bottom:16px}#${ROOT_ID} .vonza-lite-button{width:56px;height:56px}#${ROOT_ID} .vonza-lite-modal{padding:0}#${ROOT_ID} .vonza-lite-panel{width:100vw;height:100vh;border-radius:0}}
     </style>
-    <button class="vonza-lite-button" type="button" aria-label="${label}">V</button>
+    <button class="vonza-lite-button" type="button" aria-label="${label}"><span style="background:linear-gradient(180deg,#c4b5fd 0%,#ede9fe 58%,#faf5ff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 6px rgba(147,51,234,.16));display:inline-block">V</span></button>
     <div class="vonza-lite-modal" data-open="false" aria-hidden="true">
       <div class="vonza-lite-panel" role="dialog" aria-modal="true" aria-label="Vonza assistant">
         <button class="vonza-lite-close" type="button" aria-label="Close">&times;</button>
