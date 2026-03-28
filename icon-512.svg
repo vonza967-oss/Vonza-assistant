@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Vonza icon">
+  <defs>
+    <linearGradient id="vonza512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="55%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#14213d"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#vonza512)"/>
+  <path d="M128 138h58l70 153 70-153h58l-106 236h-44z" fill="#ecfff9"/>
+</svg>

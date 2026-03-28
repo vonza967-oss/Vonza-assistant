@@ -1,22 +1,67 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Hoodie Finder</title>
+  <title>Vonza</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vonza">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.svg">
+  <script>
+    if (new URLSearchParams(window.location.search).get("embedded") === "1") {
+      document.documentElement.classList.add("embedded-mode");
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="app-shell">
+    <div class="ambient ambient-left"></div>
+    <div class="ambient ambient-right"></div>
 
-<div class="chat-container">
-  <h1>🧥 Hoodie Finder</h1>
+    <main class="chat-container">
+      <header class="chat-header">
+        <div class="brand">
+          <div class="brand-mark" aria-label="Vonza logo">
+            <span class="brand-mark-v">V</span>
+          </div>
+          <div>
+            <p class="eyebrow">YOUR PERSONAL ASSISTANT</p>
+            <h1>Vonza</h1>
+          </div>
+        </div>
+        <div class="status-pill">
+          <span class="status-dot"></span>
+          Online
+        </div>
+      </header>
 
-  <div id="chat"></div>
+      <section id="chat" class="chat-feed">
+        <div class="message bot intro">
+          <div class="avatar">V</div>
+          <div class="bubble">
+            <p class="message-label">Assistant</p>
+            <p>How may I be of your service today?</p>
+          </div>
+        </div>
+      </section>
 
-  <div class="input-area">
-    <input id="input" placeholder="Ask about hoodies..." />
-    <button onclick="sendMessage()">Send</button>
+      <div class="composer-shell">
+        <div class="input-area">
+          <input id="input" placeholder="Type here" />
+          <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+        <p class="composer-hint">Press Enter to send. Answers are generated from the live website content.</p>
+      </div>
+    </main>
   </div>
-</div>
 
-<script src="./script.js"></script>
+  <script src="./script.js"></script>
 </body>
 </html>
