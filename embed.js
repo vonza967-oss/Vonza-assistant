@@ -96,6 +96,38 @@
         }
 
         .launcher {
+        .launcher {
+  position: relative;
+  overflow: visible;
+}
+
+.launcher::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+
+  background: conic-gradient(
+    from 0deg,
+    transparent,
+    rgba(168, 85, 247, 0.5),
+    transparent
+  );
+
+  filter: blur(12px);
+  opacity: 0.6;
+
+  animation: orbitSpin 10s linear infinite;
+  pointer-events: none;
+}
+  @keyframes orbitSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
           width: 60px;
           height: 60px;
           border: none;

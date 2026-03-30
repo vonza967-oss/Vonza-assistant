@@ -372,6 +372,13 @@ button:disabled {
   font-size: 0.84rem;
 }
 
+.powered-by {
+  margin: 8px 6px 0;
+  color: rgba(158, 171, 199, 0.72);
+  font-size: 0.78rem;
+  text-align: left;
+}
+
 @keyframes riseIn {
   from {
     opacity: 0;
@@ -547,4 +554,10 @@ body.embedded button {
 html.embedded-mode .composer-hint,
 body.embedded .composer-hint {
   display: none;
+}
+
+html.embedded-mode .powered-by,
+body.embedded .powered-by {
+  margin-top: 10px;
+  font-size: 0.76rem;
 }
