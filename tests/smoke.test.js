@@ -155,6 +155,10 @@ async function requestWithHost(baseUrl, pathname, { method = "GET", host, header
 }
 
 function createAgentTestDeps(state) {
+  if (!state.actionQueueStatuses) {
+    state.actionQueueStatuses = new Map();
+  }
+
   return {
     getSupabaseClient: () => ({ test: true }),
     getAuthenticatedUser: async () => ({
@@ -229,13 +233,32 @@ function createAgentTestDeps(state) {
       error.statusCode = 403;
       throw error;
     },
-    listAgentMessages: async () => [
-      {
-        id: "message-1",
-        role: "user",
-        content: "Do you offer pricing?",
-      },
-    ],
+    listAgentMessages: async () =>
+      state.messages || [
+        {
+          id: "message-1",
+          role: "user",
+          content: "Do you offer pricing?",
+          createdAt: "2026-04-01T10:00:00.000Z",
+        },
+      ],
+    listActionQueueStatuses: async () =>
+      [...state.actionQueueStatuses.entries()].map(([actionKey, status]) => ({
+        agentId: "agent-1",
+        ownerUserId: "owner-1",
+        actionKey,
+        status,
+      })),
+    updateActionQueueStatus: async (_supabase, { agentId, ownerUserId, actionKey, status }) => {
+      state.actionQueueStatuses.set(actionKey, status);
+      return {
+        agentId,
+        ownerUserId,
+        actionKey,
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+    },
     updateOwnedAccessStatus: async (_supabase, { ownerUserId, accessStatus }) => {
       assert.equal(ownerUserId, "owner-1", "simulate unlock should target the authenticated owner");
       state.accessStatus = accessStatus;
@@ -431,6 +454,9 @@ test("dashboard bundle exposes the canonical purchase-first flow and paid worksp
         assert.match(dashboardScript.text, /Answers needing work/);
         assert.match(dashboardScript.text, /Top customer questions/);
         assert.match(dashboardScript.text, /Lead \/ contact/);
+        assert.match(dashboardScript.text, /Action queue/);
+        assert.match(dashboardScript.text, /No actionable items yet/);
+        assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
       } finally {
         await server.close();
@@ -546,6 +572,11 @@ test("locked owners stay blocked until local dev fake billing simulates activati
         );
         assert.equal(lockedMessages.status, 403);
 
+        const lockedActionQueue = await withMutedConsoleError(() =>
+          getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1")
+        );
+        assert.equal(lockedActionQueue.status, 403);
+
         const lockedUpdate = await withMutedConsoleError(() =>
           getJson(server.baseUrl, "/agents/update", {
             method: "POST",
@@ -611,6 +642,175 @@ test("locked owners stay blocked until local dev fake billing simulates activati
         const refreshList = await getJson(server.baseUrl, "/agents/list");
         assert.equal(refreshList.status, 200);
         assert.equal(refreshList.json.agents[0].accessStatus, "active");
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
+test("action queue surfaces high-intent and weak-answer conversation signals for owners", { concurrency: false }, async () => {
+  const state = {
+    accessStatus: "active",
+    messages: [
+      {
+        role: "user",
+        content: "Can I book a consultation next week?",
+        createdAt: "2026-04-01T10:00:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Please contact the business directly for that.",
+        createdAt: "2026-04-01T10:00:05.000Z",
+      },
+      {
+        role: "user",
+        content: "What are your prices for a monthly plan?",
+        createdAt: "2026-04-01T10:02:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Packages start at $99 per month.",
+        createdAt: "2026-04-01T10:02:05.000Z",
+      },
+      {
+        role: "user",
+        content: "Can someone email me at hello@example.com about the best option?",
+        createdAt: "2026-04-01T10:03:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Please reach out directly.",
+        createdAt: "2026-04-01T10:03:05.000Z",
+      },
+      {
+        role: "user",
+        content: "My order is broken and I need support today.",
+        createdAt: "2026-04-01T10:04:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "I don't know the current support policy.",
+        createdAt: "2026-04-01T10:04:05.000Z",
+      },
+    ],
+  };
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(createTestApp(createAgentTestDeps(state)));
+
+      try {
+        const result = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
+        assert.equal(result.status, 200);
+        assert.ok(Array.isArray(result.json.items));
+        assert.ok(result.json.summary.total >= 4);
+        assert.ok(result.json.items.some((item) => item.type === "booking"));
+        assert.ok(result.json.items.some((item) => item.type === "pricing"));
+        assert.ok(result.json.items.some((item) => item.type === "contact"));
+        assert.ok(result.json.items.some((item) => item.type === "support"));
+        assert.ok(result.json.items.some((item) => item.type === "weak_answer"));
+
+        const contactItem = result.json.items.find((item) => item.type === "contact");
+        assert.equal(contactItem.contactCaptured, true);
+        assert.equal(contactItem.contactInfo.email, "hello@example.com");
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
+test("action queue stays honestly empty when there are no actionable conversation signals", { concurrency: false }, async () => {
+  const state = {
+    accessStatus: "active",
+    messages: [
+      {
+        role: "user",
+        content: "What do you do?",
+        createdAt: "2026-04-01T10:00:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "We help businesses add a website assistant.",
+        createdAt: "2026-04-01T10:00:05.000Z",
+      },
+    ],
+  };
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(createTestApp(createAgentTestDeps(state)));
+
+      try {
+        const result = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
+        assert.equal(result.status, 200);
+        assert.equal(result.json.items.length, 0);
+        assert.equal(result.json.summary.total, 0);
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
+test("action queue status changes persist cleanly through the lightweight owner workflow", { concurrency: false }, async () => {
+  const state = {
+    accessStatus: "active",
+    messages: [
+      {
+        role: "user",
+        content: "Can someone email me at hello@example.com about the best option?",
+        createdAt: "2026-04-01T10:03:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Please reach out directly.",
+        createdAt: "2026-04-01T10:03:05.000Z",
+      },
+    ],
+  };
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(createTestApp(createAgentTestDeps(state)));
+
+      try {
+        const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            agent_id: "agent-1",
+            action_key: "intent:contact",
+            status: "reviewed",
+          }),
+        });
+
+        assert.equal(updated.status, 200);
+        assert.equal(updated.json.ok, true);
+        assert.equal(updated.json.item.status, "reviewed");
+
+        const refreshed = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
+        assert.equal(refreshed.status, 200);
+        const contactItem = refreshed.json.items.find((item) => item.key === "intent:contact");
+        assert.equal(contactItem.status, "reviewed");
       } finally {
         await server.close();
       }

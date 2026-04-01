@@ -19,6 +19,11 @@ import {
 import { listAgentMessages } from "../services/chat/messageService.js";
 import { getProductFunnelSummary, trackProductEvent } from "../services/analytics/productEventService.js";
 import {
+  buildActionQueue,
+  listActionQueueStatuses,
+  updateActionQueueStatus,
+} from "../services/analytics/actionQueueService.js";
+import {
   createHostedCheckoutSession,
   constructStripeWebhookEvent,
   getPaidOwnerIdFromCheckoutSession,
@@ -37,6 +42,9 @@ export function createAgentRouter(deps = {}) {
   const requireAgentAccessImpl = deps.requireAgentAccess || requireAgentAccess;
   const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
   const listAgentMessagesImpl = deps.listAgentMessages || listAgentMessages;
+  const buildActionQueueImpl = deps.buildActionQueue || buildActionQueue;
+  const listActionQueueStatusesImpl = deps.listActionQueueStatuses || listActionQueueStatuses;
+  const updateActionQueueStatusImpl = deps.updateActionQueueStatus || updateActionQueueStatus;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
@@ -295,6 +303,76 @@ export function createAgentRouter(deps = {}) {
       });
       const result = await deleteAgentImpl(supabase, req.body.agent_id || req.body.agentId);
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/action-queue", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const [messages, statuses] = await Promise.all([
+        listAgentMessagesImpl(supabase, agentId),
+        listActionQueueStatusesImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        }),
+      ]);
+
+      res.json(buildActionQueueImpl(messages, statuses));
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/action-queue/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateActionQueueStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        actionKey: req.body.action_key || req.body.actionKey,
+        status: req.body.status,
+      });
+
+      res.json({
+        ok: true,
+        item: result,
+      });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

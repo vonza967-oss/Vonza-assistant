@@ -36,6 +36,7 @@ const LAUNCH_STEPS = [
 ];
 const trackedEventKeys = new Set();
 const SHELL_SECTIONS = ["overview", "customize", "analytics"];
+const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 let authClient = null;
 let authSession = null;
 let authUser = null;
@@ -1034,16 +1035,16 @@ function buildWorkspaceTabs(activeSection, setup) {
       </button>
       <button class="workspace-tab ${activeSection === "analytics" ? "active" : ""}" type="button" data-shell-target="analytics">
         <span class="nav-label">Analytics</span>
-        <span class="nav-note">Usage, common questions, and empty-state insights</span>
+        <span class="nav-note">Usage, action queue signals, and where the assistant needs work</span>
       </button>
     </nav>
   `;
 }
 
-function buildOverviewPanel(agent, messages, setup) {
+function buildOverviewPanel(agent, messages, setup, actionQueue) {
   return `
     <section class="workspace-panel workspace-panel-overview" data-shell-section="overview">
-      ${buildOverviewSection(agent, messages, setup)}
+      ${buildOverviewSection(agent, messages, setup, actionQueue)}
       <div class="workspace-utility-grid">
         <section class="preview-card">
           ${buildPreviewSection(agent, setup)}
@@ -1797,7 +1798,203 @@ function analyzeConversationSignals(messages) {
   };
 }
 
-function buildOverviewState(agent, messages, setup) {
+function createEmptyActionQueue() {
+  return {
+    items: [],
+    summary: {
+      total: 0,
+      new: 0,
+      reviewed: 0,
+      done: 0,
+      dismissed: 0,
+    },
+  };
+}
+
+function normalizeActionQueueStatus(value) {
+  const normalized = trimText(value).toLowerCase();
+  return ACTION_QUEUE_STATUSES.includes(normalized) ? normalized : "new";
+}
+
+function getActionQueueStatusLabel(status) {
+  switch (normalizeActionQueueStatus(status)) {
+    case "reviewed":
+      return "Reviewed";
+    case "done":
+      return "Done";
+    case "dismissed":
+      return "Dismissed";
+    default:
+      return "New";
+  }
+}
+
+function getActionQueueStatusBadgeClass(status) {
+  switch (normalizeActionQueueStatus(status)) {
+    case "done":
+      return "badge success";
+    case "reviewed":
+      return "badge warning";
+    default:
+      return "badge pending";
+  }
+}
+
+function formatActionQueueContact(item) {
+  const email = trimText(item?.contactInfo?.email);
+  const phone = trimText(item?.contactInfo?.phone);
+
+  if (email && phone) {
+    return `${email} · ${phone}`;
+  }
+
+  if (email) {
+    return email;
+  }
+
+  if (phone) {
+    return phone;
+  }
+
+  return "Contact not captured yet";
+}
+
+function getActionQueueTypeLabel(type) {
+  if (type === "weak_answer") {
+    return "Weak answers";
+  }
+
+  return getIntentLabel(type);
+}
+
+function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), options = {}) {
+  const items = Array.isArray(actionQueue.items) ? actionQueue.items : [];
+  const summary = {
+    ...createEmptyActionQueue().summary,
+    ...(actionQueue.summary || {}),
+  };
+  const compact = Boolean(options.compact);
+  const allowStatusUpdates = options.allowStatusUpdates !== false;
+  const visibleItems = compact ? items.slice(0, 3) : items;
+  const sectionTitle = compact ? "Action queue feed" : "Action queue";
+  const sectionCopy = compact
+    ? "Analytics turns into action here. These are the conversation patterns that deserve owner follow-up or a better answer path."
+    : "These items are surfaced from real visitor conversations so the owner can quickly see what matters, what needs follow-up, and what should be improved next.";
+  const emptyCopy = compact
+    ? "No conversation-derived actions yet. As soon as visitors show stronger commercial intent or Vonza gives a weak answer, the next owner actions will appear here."
+    : "No actionable items yet. Once Vonza sees high-intent conversations or weak answers, the next owner actions will appear here instead of a fake busy state.";
+
+  const buildStatusOptions = (currentStatus) =>
+    ACTION_QUEUE_STATUSES.map((status) => `
+      <option value="${status}" ${normalizeActionQueueStatus(currentStatus) === status ? "selected" : ""}>${getActionQueueStatusLabel(status)}</option>
+    `).join("");
+
+  const itemsMarkup = visibleItems.map((item) => `
+    <article
+      class="action-queue-item"
+      data-action-queue-item
+      data-action-queue-type="${escapeHtml(item.type || "")}"
+      data-action-queue-status="${escapeHtml(normalizeActionQueueStatus(item.status))}"
+    >
+      <div class="action-queue-item-top">
+        <div class="action-queue-headline">
+          <div class="action-queue-badges">
+            <span class="pill">${escapeHtml(getActionQueueTypeLabel(item.type))}</span>
+            <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
+            <span class="pill">${escapeHtml(`${item.count || 0} conversation${item.count === 1 ? "" : "s"}`)}</span>
+          </div>
+          <h4 class="action-queue-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))}</h4>
+          <p class="action-queue-copy">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</p>
+        </div>
+        ${allowStatusUpdates ? `
+          <label class="action-queue-control">
+            <span class="action-queue-control-label">Status</span>
+            <select
+              data-action-queue-status
+              data-action-key="${escapeHtml(item.key || "")}"
+            >
+              ${buildStatusOptions(item.status)}
+            </select>
+          </label>
+        ` : `
+          <div class="action-queue-meta-inline">${escapeHtml(item.lastSeenAt ? `Last seen ${formatSeenAt(item.lastSeenAt)}` : "Recent signal")}</div>
+        `}
+      </div>
+      <div class="action-queue-details">
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Latest customer signal</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.snippet || "No customer question stored yet.")}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Contact</span>
+          <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Suggested next action</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Business context</span>
+          <strong class="action-queue-detail-value">${escapeHtml(agent.installStatus?.host || agent.websiteUrl || "This assistant workspace")}</strong>
+        </div>
+      </div>
+      ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml(item.lastSeenAt ? `Last seen ${formatSeenAt(item.lastSeenAt)}` : "Recent signal")}</p>` : ""}
+    </article>
+  `).join("");
+
+  return `
+    <section class="${compact ? "workspace-card-soft action-queue-shell compact" : "overview-card overview-card-queue action-queue-shell"}" ${compact ? "" : 'data-action-queue-section'}>
+      <div class="action-queue-header">
+        <div>
+          <h3 class="${compact ? "studio-group-title" : "overview-card-title"}">${sectionTitle}</h3>
+          <p class="${compact ? "studio-group-copy" : "overview-card-copy"}">${escapeHtml(sectionCopy)}</p>
+        </div>
+        <div class="action-queue-summary">
+          <span class="pill">${escapeHtml(`${summary.total} total`)}</span>
+          <span class="pill">${escapeHtml(`${summary.new} new`)}</span>
+          <span class="pill">${escapeHtml(`${summary.reviewed} reviewed`)}</span>
+          <span class="pill">${escapeHtml(`${summary.done} done`)}</span>
+        </div>
+      </div>
+      ${visibleItems.length ? `
+        ${compact ? `
+          <div class="action-queue-secondary-action">
+            <button class="ghost-button" type="button" data-overview-target="overview">Review in Overview</button>
+          </div>
+        ` : `
+          <div class="action-queue-filter-row">
+            <label class="action-queue-filter">
+              <span class="action-queue-filter-label">Filter by type</span>
+              <select data-action-queue-filter-type>
+                <option value="all">All types</option>
+                <option value="contact">Lead / contact</option>
+                <option value="booking">Booking</option>
+                <option value="pricing">Pricing / purchase</option>
+                <option value="support">Support / complaint</option>
+                <option value="weak_answer">Weak answers</option>
+              </select>
+            </label>
+            <label class="action-queue-filter">
+              <span class="action-queue-filter-label">Filter by status</span>
+              <select data-action-queue-filter-status>
+                <option value="all">All statuses</option>
+                ${ACTION_QUEUE_STATUSES.map((status) => `
+                  <option value="${status}">${getActionQueueStatusLabel(status)}</option>
+                `).join("")}
+              </select>
+            </label>
+          </div>
+        `}
+        <div class="action-queue-list">
+          ${itemsMarkup}
+        </div>
+        ${compact ? "" : `<div class="placeholder-card action-queue-filter-empty" hidden>No action items match the current filters. Adjust the filters to see the queue again.</div>`}
+      ` : `<div class="placeholder-card">${escapeHtml(emptyCopy)}</div>`}
+    </section>
+  `;
+}
+
+function buildOverviewState(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const installStatus = agent.installStatus || {
     state: "not_detected",
     label: "Not detected on a live site yet",
@@ -1809,6 +2006,11 @@ function buildOverviewState(agent, messages, setup) {
   const lastActivity = agent.lastMessageAt || installStatus.lastSeenAt || null;
   const activity = getActivityLevel(signals.userMessageCount || messageCount, agent.lastMessageAt);
   const topIntent = signals.topIntentEntries[0];
+  const recentQuestions = signals.recentQuestions || [];
+  const queueSummary = {
+    ...createEmptyActionQueue().summary,
+    ...(actionQueue.summary || {}),
+  };
 
   const nextActions = [];
   let primaryAction = null;
@@ -1830,7 +2032,20 @@ function buildOverviewState(agent, messages, setup) {
       });
     }
   } else if (installStatus.state === "live") {
-    if (signals.weakAnswerCount > 0) {
+    if (queueSummary.new > 0) {
+      title = `Your assistant is live and ${queueSummary.new} action item${queueSummary.new === 1 ? "" : "s"} need review`;
+      copy = `Vonza is live on ${installStatus.host || "your site"} and is surfacing visitor conversations that deserve owner follow-up or a stronger answer path.`;
+      primaryAction = {
+        label: "Review action queue",
+        type: "focus",
+        value: "action-queue",
+      };
+      nextActions.push({
+        label: "Review analytics",
+        type: "section",
+        value: "analytics",
+      });
+    } else if (signals.weakAnswerCount > 0) {
       title = "Your assistant is live, and a few answers need strengthening";
       copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the assistant still needs help.`;
       primaryAction = {
@@ -1993,6 +2208,7 @@ function buildOverviewState(agent, messages, setup) {
     lastActivity,
     activity,
     signals,
+    queueSummary,
     cards,
     primaryAction,
     nextActions: nextActions.slice(0, 2),
@@ -2002,8 +2218,8 @@ function buildOverviewState(agent, messages, setup) {
   };
 }
 
-function buildOverviewSection(agent, messages, setup) {
-  const overview = buildOverviewState(agent, messages, setup);
+function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
+  const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const topQuestionMarkup = overview.signals.topQuestions.length
     ? overview.signals.topQuestions.map((item) => `
       <div class="overview-list-item">
@@ -2022,6 +2238,10 @@ function buildOverviewSection(agent, messages, setup) {
     ? "Strengthen website knowledge"
     : overview.installStatus.state !== "live"
       ? "Finish live install"
+      : overview.queueSummary.new > 0
+        ? "Review action queue"
+        : overview.queueSummary.total > 0
+          ? "Close the loop on follow-up"
       : overview.signals.weakAnswerCount > 0
         ? "Review weak answers"
         : highIntentSignals > 0
@@ -2031,6 +2251,10 @@ function buildOverviewSection(agent, messages, setup) {
     ? "Run another website import so the assistant can answer with stronger business context."
     : overview.installStatus.state !== "live"
       ? "Place Vonza on the live site so it can start detecting real visitor behavior and customer intent."
+      : overview.queueSummary.new > 0
+        ? "New high-intent or weak-answer items are in the Action Queue. Review them first so the owner knows which visitors or answer paths need attention."
+        : overview.queueSummary.total > 0
+          ? "The Action Queue already holds important conversation follow-up. Keep moving items through review so the assistant becomes more operational, not just informative."
       : overview.signals.weakAnswerCount > 0
         ? "Several live questions ended in weak or uncertain answers. Use Analytics to review those conversations, then refine website knowledge or assistant setup."
         : highIntentSignals > 0
@@ -2110,6 +2334,8 @@ function buildOverviewSection(agent, messages, setup) {
       </section>
 
       <div class="overview-grid">
+        ${buildActionQueueMarkup(agent, actionQueue)}
+
         <section class="overview-card">
           <h3 class="overview-card-title">Top customer question themes</h3>
           <p class="overview-card-copy">${escapeHtml(
@@ -2151,8 +2377,9 @@ function buildOverviewSection(agent, messages, setup) {
   `;
 }
 
-function buildAnalyticsPanel(agent, messages, setup) {
+function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const signals = analyzeConversationSignals(messages);
+  const { intentCounts } = signals;
   const activity = getActivityLevel(agent.messageCount || messages.length || 0, agent.lastMessageAt);
   const recentInteractions = messages.slice(0, 12);
   const installStatus = agent.installStatus || {
@@ -2308,6 +2535,8 @@ function buildAnalyticsPanel(agent, messages, setup) {
           ` : `<div class="placeholder-card">No weak-answer signal yet. If visitors ask questions that Vonza cannot answer well, they will appear here so the owner knows what to improve next.</div>`}
         </section>
 
+        ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
+
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">What needs attention</h3>
           <p class="studio-group-copy">Practical opportunities surfaced from current usage, install state, and assistant behavior.</p>
@@ -2356,7 +2585,7 @@ function buildCalendarPanel() {
   `;
 }
 
-function renderAssistantShell(agent, messages, setup) {
+function renderAssistantShell(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup);
   const shellStatus = setup.isReady ? "Setup complete" : "Setup in progress";
@@ -2396,21 +2625,21 @@ function renderAssistantShell(agent, messages, setup) {
         </div>
       ` : ""}
 
-      ${buildOverviewPanel(agent, messages, setup)}
+      ${buildOverviewPanel(agent, messages, setup, actionQueue)}
       ${buildCustomizePanel(agent, setup)}
-      ${buildAnalyticsPanel(agent, messages, setup)}
+      ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
     </div>
   `;
 
-  bindSharedDashboardEvents(agent, messages, setup);
+  bindSharedDashboardEvents(agent, messages, setup, actionQueue);
 }
 
-function renderSetupState(agent, messages, setup) {
-  renderAssistantShell(agent, messages, setup);
+function renderSetupState(agent, messages, setup, actionQueue) {
+  renderAssistantShell(agent, messages, setup, actionQueue);
 }
 
-function renderReadyState(agent, messages) {
-  renderAssistantShell(agent, messages, inferSetup(agent));
+function renderReadyState(agent, messages, actionQueue) {
+  renderAssistantShell(agent, messages, inferSetup(agent), actionQueue);
 }
 
 function buildPreviewSection(agent, setup) {
@@ -2656,6 +2885,26 @@ async function loadAgentMessages(agentId) {
   url.searchParams.set("client_id", getClientId());
   const data = await fetchJson(url.toString());
   return data.messages || [];
+}
+
+async function loadActionQueue(agentId) {
+  const url = new URL("/agents/action-queue", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+
+  try {
+    const data = await fetchJson(url.toString());
+    return {
+      items: Array.isArray(data.items) ? data.items : [],
+      summary: {
+        ...createEmptyActionQueue().summary,
+        ...(data.summary || {}),
+      },
+    };
+  } catch (error) {
+    console.warn("[action queue] Falling back to an empty queue:", error.message);
+    return createEmptyActionQueue();
+  }
 }
 
 async function importKnowledge(agent, options = {}) {
@@ -3308,7 +3557,7 @@ function bindStudioState(form, agent) {
 }
 
 // Event wiring for the rendered shell
-function bindSharedDashboardEvents(agent, messages, setup) {
+function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
   const settingsForms = document.querySelectorAll("form[data-settings-form]");
   const appearancePresetButtons = document.querySelectorAll("[data-appearance-preset]");
   const configurationPresetButtons = document.querySelectorAll("[data-configuration-preset]");
@@ -3323,6 +3572,30 @@ function bindSharedDashboardEvents(agent, messages, setup) {
   const resetPreviewButton = document.querySelector('[data-action="reset-preview"]');
   const promptButtons = document.querySelectorAll('[data-preview-prompt]');
   const sectionButtons = document.querySelectorAll("[data-shell-target]");
+  const actionQueueSections = document.querySelectorAll("[data-action-queue-section]");
+  const actionQueueStatusInputs = document.querySelectorAll("[data-action-queue-status]");
+
+  const applyActionQueueFilters = (section) => {
+    const typeFilter = section.querySelector("[data-action-queue-filter-type]")?.value || "all";
+    const statusFilter = section.querySelector("[data-action-queue-filter-status]")?.value || "all";
+    const items = section.querySelectorAll("[data-action-queue-item]");
+    let visibleCount = 0;
+
+    items.forEach((item) => {
+      const matchesType = typeFilter === "all" || item.dataset.actionQueueType === typeFilter;
+      const matchesStatus = statusFilter === "all" || item.dataset.actionQueueStatus === statusFilter;
+      const visible = matchesType && matchesStatus;
+      item.hidden = !visible;
+      if (visible) {
+        visibleCount += 1;
+      }
+    });
+
+    const filteredEmptyState = section.querySelector(".action-queue-filter-empty");
+    if (filteredEmptyState) {
+      filteredEmptyState.hidden = visibleCount > 0;
+    }
+  };
 
   settingsForms.forEach((form) => {
     form.addEventListener("submit", (event) => saveAssistant(event, agent));
@@ -3397,6 +3670,50 @@ function bindSharedDashboardEvents(agent, messages, setup) {
       setDashboardFocus(target);
       boot();
     });
+  });
+
+  actionQueueSections.forEach((section) => {
+    section.querySelector("[data-action-queue-filter-type]")?.addEventListener("change", () => {
+      applyActionQueueFilters(section);
+    });
+    section.querySelector("[data-action-queue-filter-status]")?.addEventListener("change", () => {
+      applyActionQueueFilters(section);
+    });
+    applyActionQueueFilters(section);
+  });
+
+  actionQueueStatusInputs.forEach((input) => {
+    input.addEventListener("change", async () => {
+      const previousStatus = input.dataset.previousStatus || "new";
+      const nextStatus = input.value;
+      input.disabled = true;
+      setStatus("Updating action queue item...");
+
+      try {
+        await fetchJson("/agents/action-queue/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            action_key: input.dataset.actionKey,
+            status: nextStatus,
+          }),
+        });
+        input.dataset.previousStatus = nextStatus;
+        setDashboardFocus("action-queue");
+        setStatus(`Action item marked ${getActionQueueStatusLabel(nextStatus).toLowerCase()}.`);
+        await boot();
+      } catch (error) {
+        input.value = previousStatus;
+        setStatus(error.message || "We couldn't update that action item.");
+      } finally {
+        input.disabled = false;
+      }
+    });
+    input.dataset.previousStatus = input.value;
   });
 
   importButtons.forEach((button) => {
@@ -3480,6 +3797,7 @@ function bindSharedDashboardEvents(agent, messages, setup) {
       preview: ".preview-card",
       install: ".install-card",
       setup: '[data-shell-section="customize"]',
+      "action-queue": "[data-action-queue-section]",
     };
     const selector = focusMap[focusTarget];
     const target = selector ? document.querySelector(selector) : null;
@@ -3598,16 +3916,17 @@ async function boot() {
     }
 
     const messages = await loadAgentMessages(agent.id);
+    const actionQueue = await loadActionQueue(agent.id);
     const setup = inferSetup(agent);
 
     clearLaunchState();
 
     if (setup.isReady) {
-      renderReadyState(agent, messages);
+      renderReadyState(agent, messages, actionQueue);
       return;
     }
 
-    renderSetupState(agent, messages, setup);
+    renderSetupState(agent, messages, setup, actionQueue);
   } catch (error) {
     clearLaunchState();
     setStatus(error.message || "We couldn't load your Vonza workspace right now.");
