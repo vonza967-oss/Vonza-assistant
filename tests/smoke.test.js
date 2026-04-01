@@ -373,6 +373,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(marketingHome.text, /Make your website feel like it already has a smart first salesperson/);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /Vonza workspace/);
+        assert.match(marketingHome.text, /see what visitors want and what to improve next/i);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
@@ -426,6 +427,11 @@ test("dashboard bundle exposes the canonical purchase-first flow and paid worksp
         assert.match(dashboardScript.text, /Analytics/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
+        assert.match(dashboardScript.text, /High-intent signals/);
+        assert.match(dashboardScript.text, /Answers needing work/);
+        assert.match(dashboardScript.text, /Top customer questions/);
+        assert.match(dashboardScript.text, /Lead \/ contact/);
+        assert.match(dashboardScript.text, /No weak-answer signal yet/);
       } finally {
         await server.close();
       }

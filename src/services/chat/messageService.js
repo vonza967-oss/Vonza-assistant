@@ -67,7 +67,7 @@ export async function listAgentMessages(supabase, agentId) {
     .select("agent_id, role, content, created_at")
     .eq("agent_id", normalizedAgentId)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(50);
 
   if (error) {
     if (isMissingMessagesTable(error)) {

@@ -1450,13 +1450,50 @@ function categorizeIntent(message) {
   }
 
   if (
+    normalized.includes("book")
+    || normalized.includes("booking")
+    || normalized.includes("appointment")
+    || normalized.includes("schedule")
+    || normalized.includes("availability")
+    || normalized.includes("calendar")
+    || normalized.includes("reserve")
+    || normalized.includes("consultation")
+    || normalized.includes("consult")
+    || normalized.includes("meeting")
+    || normalized.includes("demo")
+  ) {
+    return "booking";
+  }
+
+  if (
     normalized.includes("price")
     || normalized.includes("pricing")
     || normalized.includes("cost")
     || normalized.includes("quote")
+    || normalized.includes("fee")
+    || normalized.includes("buy")
+    || normalized.includes("purchase")
+    || normalized.includes("plan")
+    || normalized.includes("package")
     || normalized.includes("how much")
   ) {
     return "pricing";
+  }
+
+  if (
+    normalized.includes("problem")
+    || normalized.includes("issue")
+    || normalized.includes("broken")
+    || normalized.includes("not working")
+    || normalized.includes("complaint")
+    || normalized.includes("refund")
+    || normalized.includes("cancel")
+    || normalized.includes("unhappy")
+    || normalized.includes("support")
+    || normalized.includes("frustrated")
+    || normalized.includes("late")
+  ) {
+    return "support";
   }
 
   if (
@@ -1464,8 +1501,11 @@ function categorizeIntent(message) {
     || normalized.includes("reach")
     || normalized.includes("call")
     || normalized.includes("email")
-    || normalized.includes("book")
-    || normalized.includes("appointment")
+    || normalized.includes("phone")
+    || normalized.includes("talk to")
+    || normalized.includes("speak to")
+    || normalized.includes("get in touch")
+    || normalized.includes("someone")
   ) {
     return "contact";
   }
@@ -1492,6 +1532,271 @@ function normalizeQuestion(message) {
     .trim();
 }
 
+function getIntentLabel(intent) {
+  switch (intent) {
+    case "contact":
+      return "Lead / contact";
+    case "booking":
+      return "Booking";
+    case "pricing":
+      return "Pricing / purchase";
+    case "support":
+      return "Support / complaint";
+    case "services":
+      return "Services";
+    default:
+      return "General";
+  }
+}
+
+function getIntentDescription(intent) {
+  switch (intent) {
+    case "contact":
+      return "Visitors are trying to speak to someone, call, email, or take a direct lead step.";
+    case "booking":
+      return "Visitors are asking to book, schedule, reserve, or check availability.";
+    case "pricing":
+      return "Visitors want pricing, quote, package, or purchase clarity.";
+    case "support":
+      return "Visitors may have a problem, concern, or support-style need.";
+    case "services":
+      return "Visitors are still learning what the business offers.";
+    default:
+      return "Questions are broad and exploratory rather than clearly commercial yet.";
+  }
+}
+
+function getMessageTimestamp(message) {
+  const value = new Date(message?.createdAt || "").getTime();
+  return Number.isFinite(value) ? value : 0;
+}
+
+function getMessagesChronologically(messages) {
+  return [...messages].sort((left, right) => getMessageTimestamp(left) - getMessageTimestamp(right));
+}
+
+function hasWeakAssistantReply(reply) {
+  const normalized = trimText(String(reply || "")).toLowerCase();
+
+  if (!normalized) {
+    return true;
+  }
+
+  return [
+    "i don't know",
+    "i do not know",
+    "i'm not sure",
+    "i am not sure",
+    "i don't have",
+    "i do not have",
+    "i couldn't find",
+    "i could not find",
+    "i can't find",
+    "i cannot find",
+    "not available on the website",
+    "not mentioned on the website",
+    "not provided on the website",
+    "please contact the business directly",
+    "please reach out directly",
+    "reach out to the business directly",
+  ].some((snippet) => normalized.includes(snippet));
+}
+
+function createEmptyIntentCounts() {
+  return {
+    general: 0,
+    services: 0,
+    pricing: 0,
+    contact: 0,
+    booking: 0,
+    support: 0,
+  };
+}
+
+function getUsageTrend(userMessages) {
+  if (!userMessages.length) {
+    return {
+      label: "No real customer usage yet",
+      copy: "Once visitors start using the assistant on a live site, Vonza will show what they ask about and which conversations need help.",
+      recentCount: 0,
+      previousCount: 0,
+    };
+  }
+
+  const now = Date.now();
+  const recentWindowStart = now - 7 * 24 * 60 * 60 * 1000;
+  const previousWindowStart = now - 14 * 24 * 60 * 60 * 1000;
+  let recentCount = 0;
+  let previousCount = 0;
+  let timestampedCount = 0;
+
+  userMessages.forEach((message) => {
+    const timestamp = getMessageTimestamp(message);
+
+    if (!timestamp) {
+      return;
+    }
+
+    timestampedCount += 1;
+
+    if (timestamp >= recentWindowStart) {
+      recentCount += 1;
+      return;
+    }
+
+    if (timestamp >= previousWindowStart) {
+      previousCount += 1;
+    }
+  });
+
+  if (recentCount > 0 && previousCount === 0) {
+    return {
+      label: "First real usage is coming in",
+      copy: `${recentCount} visitor question${recentCount === 1 ? "" : "s"} came in during the last 7 days.`,
+      recentCount,
+      previousCount,
+    };
+  }
+
+  if (recentCount > previousCount) {
+    return {
+      label: "Usage is increasing",
+      copy: `${recentCount} recent visitor question${recentCount === 1 ? "" : "s"} versus ${previousCount} in the previous 7-day window.`,
+      recentCount,
+      previousCount,
+    };
+  }
+
+  if (recentCount > 0 && recentCount === previousCount) {
+    return {
+      label: "Usage is steady",
+      copy: `${recentCount} visitor question${recentCount === 1 ? "" : "s"} came in during both recent 7-day windows.`,
+      recentCount,
+      previousCount,
+    };
+  }
+
+  if (previousCount > recentCount) {
+    return {
+      label: "Usage slowed recently",
+      copy: `${recentCount} visitor question${recentCount === 1 ? "" : "s"} arrived in the last 7 days versus ${previousCount} in the previous window.`,
+      recentCount,
+      previousCount,
+    };
+  }
+
+  if (timestampedCount === 0) {
+    return {
+      label: "Early signal only",
+      copy: `${userMessages.length} visitor question${userMessages.length === 1 ? "" : "s"} have been captured, but there is not enough dated history yet to show a time trend.`,
+      recentCount: userMessages.length,
+      previousCount: 0,
+    };
+  }
+
+  return {
+    label: "Early signal only",
+    copy: "There is some conversation history, but not enough recent live usage to show a stronger trend yet.",
+    recentCount,
+    previousCount,
+  };
+}
+
+function analyzeConversationSignals(messages) {
+  const chronologicalMessages = getMessagesChronologically(messages);
+  const userMessages = chronologicalMessages.filter((message) => message.role === "user" && trimText(message.content || ""));
+  const intentCounts = createEmptyIntentCounts();
+  const questionThemes = new Map();
+  const weakAnswerExamples = [];
+  let weakAnswerCount = 0;
+
+  userMessages.forEach((message) => {
+    const content = trimText(message.content || "");
+    const intent = categorizeIntent(content);
+    const normalizedQuestion = normalizeQuestion(content);
+    intentCounts[intent] += 1;
+
+    if (!normalizedQuestion) {
+      return;
+    }
+
+    const existing = questionThemes.get(normalizedQuestion) || {
+      label: content,
+      count: 0,
+      intent,
+    };
+
+    existing.count += 1;
+    if (content.length < existing.label.length) {
+      existing.label = content;
+    }
+    questionThemes.set(normalizedQuestion, existing);
+  });
+
+  chronologicalMessages.forEach((message, index) => {
+    if (message.role !== "user") {
+      return;
+    }
+
+    const question = trimText(message.content || "");
+    if (!question) {
+      return;
+    }
+
+    let reply = "";
+
+    for (let cursor = index + 1; cursor < chronologicalMessages.length; cursor += 1) {
+      const nextMessage = chronologicalMessages[cursor];
+
+      if (nextMessage.role === "user") {
+        break;
+      }
+
+      if (nextMessage.role === "assistant") {
+        reply = trimText(nextMessage.content || "");
+        break;
+      }
+    }
+
+    if (!hasWeakAssistantReply(reply)) {
+      return;
+    }
+
+    weakAnswerCount += 1;
+    if (weakAnswerExamples.length < 4) {
+      weakAnswerExamples.push(question);
+    }
+  });
+
+  const topQuestions = [...questionThemes.values()]
+    .sort((left, right) => right.count - left.count || left.label.length - right.label.length)
+    .slice(0, 4);
+  const topIntentEntries = Object.entries(intentCounts)
+    .filter(([, count]) => count > 0)
+    .sort((left, right) => right[1] - left[1]);
+  const recentQuestions = [...userMessages]
+    .slice(-3)
+    .reverse()
+    .map((message) => trimText(message.content || ""))
+    .filter(Boolean);
+  const highValueIntentCount =
+    intentCounts.contact + intentCounts.booking + intentCounts.pricing + intentCounts.support;
+  const usageTrend = getUsageTrend(userMessages);
+
+  return {
+    userMessages,
+    userMessageCount: userMessages.length,
+    recentQuestions,
+    topQuestions,
+    intentCounts,
+    topIntentEntries,
+    highValueIntentCount,
+    weakAnswerCount,
+    weakAnswerExamples,
+    usageTrend,
+  };
+}
+
 function buildOverviewState(agent, messages, setup) {
   const installStatus = agent.installStatus || {
     state: "not_detected",
@@ -1499,27 +1804,11 @@ function buildOverviewState(agent, messages, setup) {
     host: "",
     lastSeenAt: null,
   };
+  const signals = analyzeConversationSignals(messages);
   const messageCount = Number(agent.messageCount || messages.length || 0);
   const lastActivity = agent.lastMessageAt || installStatus.lastSeenAt || null;
-  const activity = getActivityLevel(messageCount, agent.lastMessageAt);
-  const userMessages = messages.filter((message) => message.role === "user");
-  const recentQuestions = userMessages
-    .map((message) => trimText(message.content || ""))
-    .filter(Boolean)
-    .slice(0, 3);
-  const intentCounts = {
-    general: 0,
-    services: 0,
-    pricing: 0,
-    contact: 0,
-  };
-
-  userMessages.forEach((message) => {
-    intentCounts[categorizeIntent(message.content || "")] += 1;
-  });
-
-  const topIntent = Object.entries(intentCounts)
-    .sort((left, right) => right[1] - left[1])[0];
+  const activity = getActivityLevel(signals.userMessageCount || messageCount, agent.lastMessageAt);
+  const topIntent = signals.topIntentEntries[0];
 
   const nextActions = [];
   let primaryAction = null;
@@ -1541,7 +1830,33 @@ function buildOverviewState(agent, messages, setup) {
       });
     }
   } else if (installStatus.state === "live") {
-    if (messageCount > 0) {
+    if (signals.weakAnswerCount > 0) {
+      title = "Your assistant is live, and a few answers need strengthening";
+      copy = `Vonza is active on ${installStatus.host || "your site"}, and some real customer questions are showing where the assistant still needs help.`;
+      primaryAction = {
+        label: "Review weak answers",
+        type: "section",
+        value: "analytics",
+      };
+      nextActions.push({
+        label: "Refine setup",
+        type: "section",
+        value: "customize",
+      });
+    } else if (signals.highValueIntentCount > 0) {
+      title = "Your assistant is live and showing real buyer intent";
+      copy = `Vonza is live on ${installStatus.host || "your site"} and is already capturing high-value visitor intent you can act on.`;
+      primaryAction = {
+        label: "Review analytics",
+        type: "section",
+        value: "analytics",
+      };
+      nextActions.push({
+        label: "Refine setup",
+        type: "section",
+        value: "customize",
+      });
+    } else if (messageCount > 0) {
       title = "Your assistant is live and already working";
       copy = `Vonza is live on ${installStatus.host || "your site"} and has already started handling real customer questions.`;
       primaryAction = {
@@ -1598,10 +1913,13 @@ function buildOverviewState(agent, messages, setup) {
   }
 
   if (!setup.knowledgeReady) {
-    nextActions.unshift({
+    if (primaryAction) {
+      nextActions.unshift(primaryAction);
+    }
+    primaryAction = {
       label: "Strengthen website knowledge",
       type: "import",
-    });
+    };
   }
 
   const progressItems = [
@@ -1639,8 +1957,10 @@ function buildOverviewState(agent, messages, setup) {
     const topIntentLabelMap = {
       general: "general business questions",
       services: "services and what the business offers",
-      pricing: "pricing and quote expectations",
-      contact: "how to contact the business",
+      pricing: "pricing and purchase intent",
+      contact: "direct contact or lead intent",
+      booking: "booking and availability",
+      support: "support or complaint-style requests",
     };
 
     cards.push({
@@ -1672,6 +1992,7 @@ function buildOverviewState(agent, messages, setup) {
     messageCount,
     lastActivity,
     activity,
+    signals,
     cards,
     primaryAction,
     nextActions: nextActions.slice(0, 2),
@@ -1683,6 +2004,46 @@ function buildOverviewState(agent, messages, setup) {
 
 function buildOverviewSection(agent, messages, setup) {
   const overview = buildOverviewState(agent, messages, setup);
+  const topQuestionMarkup = overview.signals.topQuestions.length
+    ? overview.signals.topQuestions.map((item) => `
+      <div class="overview-list-item">
+        <p class="overview-list-title">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""}</p>
+        <p class="overview-list-copy">${escapeHtml(`${getIntentLabel(item.intent)} signal from real visitor questions.`)}</p>
+      </div>
+    `).join("")
+    : `<div class="placeholder-card">No real customer question themes yet. Once the assistant is live and visitors start using it, Vonza will group the strongest recurring questions here.</div>`;
+  const highIntentSignals = overview.signals.highValueIntentCount;
+  const recentUsageValue = overview.signals.usageTrend.recentCount > 0
+    ? `${overview.signals.usageTrend.recentCount} recent`
+    : overview.signals.userMessageCount > 0
+      ? `${overview.signals.userMessageCount} captured`
+      : "No usage yet";
+  const recommendationTitle = !setup.knowledgeReady
+    ? "Strengthen website knowledge"
+    : overview.installStatus.state !== "live"
+      ? "Finish live install"
+      : overview.signals.weakAnswerCount > 0
+        ? "Review weak answers"
+        : highIntentSignals > 0
+          ? "Review buyer intent"
+          : "Keep learning from live usage";
+  const recommendationCopy = !setup.knowledgeReady
+    ? "Run another website import so the assistant can answer with stronger business context."
+    : overview.installStatus.state !== "live"
+      ? "Place Vonza on the live site so it can start detecting real visitor behavior and customer intent."
+      : overview.signals.weakAnswerCount > 0
+        ? "Several live questions ended in weak or uncertain answers. Use Analytics to review those conversations, then refine website knowledge or assistant setup."
+        : highIntentSignals > 0
+          ? "High-intent questions are already coming in. Review Analytics to see whether visitors want pricing, booking, contact, or support help most."
+          : "Keep an eye on the first real visitor questions so you can tighten the welcome, website copy, or install placement if needed.";
+  const weakAnswerMarkup = overview.signals.weakAnswerExamples.length
+    ? overview.signals.weakAnswerExamples.map((question) => `
+      <div class="overview-list-item">
+        <p class="overview-list-title">${escapeHtml(question)}</p>
+        <p class="overview-list-copy">This question ended in a weak or uncertain answer and is a good candidate for improvement.</p>
+      </div>
+    `).join("")
+    : `<div class="placeholder-card">No weak-answer signal yet. Once customers ask questions that Vonza struggles to answer, they will show up here instead of being hidden behind a fake success state.</div>`;
 
   const renderAction = (action, options = {}) => {
     const buttonClass = options.primary ? "primary-button" : "ghost-button";
@@ -1718,20 +2079,20 @@ function buildOverviewSection(agent, messages, setup) {
         <p class="overview-copy">${escapeHtml(overview.copy)}</p>
         <div class="overview-metric-grid">
           <div class="overview-metric">
-            <div class="overview-metric-label">Live host</div>
-            <div class="overview-metric-value">${escapeHtml(overview.installStatus.host || (overview.installStatus.state === "test" ? "Test or preview" : "Not detected"))}</div>
+            <div class="overview-metric-label">Install status</div>
+            <div class="overview-metric-value">${escapeHtml(overview.installStatus.state === "live" ? overview.installStatus.host || "Live" : overview.installStatus.state === "test" ? "Preview only" : "Not live")}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Last seen</div>
-            <div class="overview-metric-value">${escapeHtml(overview.installStatus.lastSeenAt ? formatSeenAt(overview.installStatus.lastSeenAt) : "Not detected yet")}</div>
+            <div class="overview-metric-label">Visitor questions</div>
+            <div class="overview-metric-value">${escapeHtml(recentUsageValue)}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Total messages</div>
-            <div class="overview-metric-value">${overview.messageCount}</div>
+            <div class="overview-metric-label">High-intent signals</div>
+            <div class="overview-metric-value">${highIntentSignals}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Last activity</div>
-            <div class="overview-metric-value">${escapeHtml(overview.lastActivity ? formatSeenAt(overview.lastActivity) : "No activity yet")}</div>
+            <div class="overview-metric-label">Answers needing work</div>
+            <div class="overview-metric-value">${overview.signals.weakAnswerCount || "None yet"}</div>
           </div>
         </div>
         <div class="overview-action-row">
@@ -1750,13 +2111,25 @@ function buildOverviewSection(agent, messages, setup) {
 
       <div class="overview-grid">
         <section class="overview-card">
-          <h3 class="overview-card-title">What Vonza sees right now</h3>
-          <p class="overview-card-copy">${escapeHtml(overview.activity.description)}</p>
+          <h3 class="overview-card-title">Top customer question themes</h3>
+          <p class="overview-card-copy">${escapeHtml(
+            overview.signals.topQuestions.length
+              ? "These are the strongest recurring questions or themes showing up in real visitor usage."
+              : "Vonza will show grouped customer question themes here as soon as real usage comes in."
+          )}</p>
           <div class="overview-list">
-            ${overview.cards.map((card) => `
+            ${topQuestionMarkup}
+          </div>
+        </section>
+
+        <section class="overview-card">
+          <h3 class="overview-card-title">Intent signals</h3>
+          <p class="overview-card-copy">A fast read on the kinds of conversations visitors are trying to have with the business.</p>
+          <div class="overview-list">
+            ${["contact", "booking", "pricing", "support"].map((intent) => `
               <div class="overview-list-item">
-                <p class="overview-list-title">${escapeHtml(card.title)}</p>
-                <p class="overview-list-copy">${escapeHtml(card.copy)}</p>
+                <p class="overview-list-title">${escapeHtml(`${getIntentLabel(intent)}: ${overview.signals.intentCounts[intent] || 0}`)}</p>
+                <p class="overview-list-copy">${escapeHtml(getIntentDescription(intent))}</p>
               </div>
             `).join("")}
           </div>
@@ -1764,36 +2137,13 @@ function buildOverviewSection(agent, messages, setup) {
 
         <section class="overview-card">
           <h3 class="overview-card-title">What to do next</h3>
-          <p class="overview-card-copy">${escapeHtml(
-            overview.installStatus.state !== "live"
-              ? "Your strongest next step is getting the assistant onto the live site so Vonza can start detecting real usage."
-              : overview.messageCount === 0
-              ? "Your assistant is live. Now the goal is making the first interaction strong enough that visitors actually use it."
-                : "Your assistant is live and active. The best next move is refining what visitors see and how Vonza responds to the most common questions."
-          )}</p>
+          <p class="overview-card-copy">${escapeHtml(recommendationCopy)}</p>
           <div class="overview-list">
             <div class="overview-list-item">
-              <p class="overview-list-title">${escapeHtml(
-                overview.installStatus.state !== "live"
-                  ? "Finish install"
-                  : overview.messageCount === 0
-                    ? "Increase first-use confidence"
-                    : "Review recent usage"
-              )}</p>
-              <p class="overview-list-copy">${escapeHtml(
-                overview.installStatus.state !== "live"
-                  ? "Copy the install code, place it on the live site, and let Vonza detect the real host automatically."
-                  : overview.messageCount === 0
-                    ? "Strengthen the welcome message and launcher text, then test common customer questions in preview."
-                    : "Check Analytics for top customer questions, then use Customize to sharpen the assistant if you want it to feel stronger."
-              )}</p>
+              <p class="overview-list-title">${escapeHtml(recommendationTitle)}</p>
+              <p class="overview-list-copy">${escapeHtml(recommendationCopy)}</p>
             </div>
-            ${!setup.knowledgeReady ? `
-              <div class="overview-list-item">
-                <p class="overview-list-title">Keep knowledge strong</p>
-                <p class="overview-list-copy">Website knowledge is still ${setup.knowledgeLimited ? "limited" : "not fully ready"}. Another import can improve the quality of real customer answers.</p>
-              </div>
-            ` : ""}
+            ${weakAnswerMarkup}
           </div>
         </section>
       </div>
@@ -1802,41 +2152,9 @@ function buildOverviewSection(agent, messages, setup) {
 }
 
 function buildAnalyticsPanel(agent, messages, setup) {
-  const userMessages = messages.filter((message) => message.role === "user");
-  const recentInteractions = messages.slice(0, 12);
-  const frequentQuestionMap = new Map();
-  const intentCounts = {
-    general: 0,
-    services: 0,
-    pricing: 0,
-    contact: 0,
-  };
-
-  userMessages.forEach((message) => {
-    const content = trimText(message.content || "");
-    const normalizedQuestion = normalizeQuestion(content);
-
-    if (normalizedQuestion) {
-      const current = frequentQuestionMap.get(normalizedQuestion) || {
-        label: content,
-        count: 0,
-      };
-
-      current.count += 1;
-      if (content.length < current.label.length) {
-        current.label = content;
-      }
-      frequentQuestionMap.set(normalizedQuestion, current);
-    }
-
-    const intent = categorizeIntent(content);
-    intentCounts[intent] += 1;
-  });
-
-  const topQuestions = [...frequentQuestionMap.values()]
-    .sort((left, right) => right.count - left.count || left.label.length - right.label.length)
-    .slice(0, 4);
+  const signals = analyzeConversationSignals(messages);
   const activity = getActivityLevel(agent.messageCount || messages.length || 0, agent.lastMessageAt);
+  const recentInteractions = messages.slice(0, 12);
   const installStatus = agent.installStatus || {
     state: "not_detected",
     label: "Not detected on a live site yet",
@@ -1881,6 +2199,14 @@ function buildAnalyticsPanel(agent, messages, setup) {
     });
   }
 
+  if (signals.weakAnswerCount > 0) {
+    opportunityItems.unshift({
+      title: "Weak answers need review",
+      copy: `${signals.weakAnswerCount} customer question${signals.weakAnswerCount === 1 ? "" : "s"} ended in a weak or uncertain answer.`,
+      subtle: "Review the weak-answer list below, then improve website knowledge or adjust the assistant setup.",
+    });
+  }
+
   if (!opportunityItems.length) {
     opportunityItems.push({
       title: "Your assistant is in a healthy early state",
@@ -1902,16 +2228,16 @@ function buildAnalyticsPanel(agent, messages, setup) {
             <div class="metric-value">${agent.messageCount || messages.length || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Last message</div>
-            <div class="metric-value">${escapeHtml(agent.lastMessageAt ? formatSeenAt(agent.lastMessageAt) : "No messages yet")}</div>
+            <div class="metric-label">Visitor questions</div>
+            <div class="metric-value">${signals.usageTrend.recentCount || signals.userMessageCount || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Install status</div>
-            <div class="metric-value">${escapeHtml(installStatus.state === "live" ? installStatus.host || "Live" : installStatus.state === "test" ? "Test or preview" : "Not detected")}</div>
+            <div class="metric-label">High-intent signals</div>
+            <div class="metric-value">${signals.highValueIntentCount}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Activity level</div>
-            <div class="metric-value">${escapeHtml(activity.label)}</div>
+            <div class="metric-label">Answers needing work</div>
+            <div class="metric-value">${signals.weakAnswerCount || 0}</div>
           </div>
         </div>
 
@@ -1928,25 +2254,30 @@ function buildAnalyticsPanel(agent, messages, setup) {
               <div class="analytics-item">
                 <p class="analytics-item-title">Recent activity</p>
                 <p class="analytics-item-copy">${escapeHtml(activity.description)}</p>
-                <p class="analytics-subtle">${escapeHtml(agent.lastMessageAt ? `Most recent message: ${formatSeenAt(agent.lastMessageAt)}.` : "No recent messages yet.")}</p>
+                <p class="analytics-subtle">${escapeHtml(signals.usageTrend.copy)}</p>
               </div>
               <div class="analytics-item">
                 <p class="analytics-item-title">Knowledge state</p>
                 <p class="analytics-item-copy">${escapeHtml(setup.knowledgeDescription)}</p>
                 <p class="analytics-subtle">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"} currently support the assistant.` : "Website knowledge is still being built from your site.")}</p>
               </div>
+              <div class="analytics-item">
+                <p class="analytics-item-title">Operator signal</p>
+                <p class="analytics-item-copy">${escapeHtml(signals.highValueIntentCount > 0 ? `${signals.highValueIntentCount} high-intent customer signal${signals.highValueIntentCount === 1 ? "" : "s"} have already appeared.` : "There is not a strong lead, booking, pricing, or support signal yet.")}</p>
+                <p class="analytics-subtle">${escapeHtml(signals.weakAnswerCount > 0 ? `${signals.weakAnswerCount} question${signals.weakAnswerCount === 1 ? "" : "s"} may need a better answer path.` : "No weak-answer signal has been detected yet.")}</p>
+              </div>
             </div>
           </section>
 
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Needs attention</h3>
-            <p class="studio-group-copy">A few practical opportunities surfaced from the current real usage and setup signals.</p>
-            <div class="analytics-list">
-              ${opportunityItems.slice(0, 4).map((item) => `
-                <div class="analytics-item">
-                  <p class="analytics-item-title">${escapeHtml(item.title)}</p>
-                  <p class="analytics-item-copy">${escapeHtml(item.copy)}</p>
-                  <p class="analytics-subtle">${escapeHtml(item.subtle)}</p>
+            <h3 class="studio-group-title">Customer intent</h3>
+            <p class="studio-group-copy">These counts show the kinds of commercial or support intent Vonza is seeing in real visitor questions.</p>
+            <div class="intent-grid">
+              ${["contact", "booking", "pricing", "support"].map((intent) => `
+                <div class="intent-card">
+                  <p class="intent-label">${escapeHtml(getIntentLabel(intent))}</p>
+                  <p class="intent-value">${signals.intentCounts[intent] || 0}</p>
+                  <p class="intent-copy">${escapeHtml(getIntentDescription(intent))}</p>
                 </div>
               `).join("")}
             </div>
@@ -1955,43 +2286,40 @@ function buildAnalyticsPanel(agent, messages, setup) {
 
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">Top customer questions</h3>
-          <p class="studio-group-copy">Based on repeated recent user messages. Similar questions are grouped lightly by normalized wording, not by a full AI clustering system.</p>
-          ${topQuestions.length ? `
+          <p class="studio-group-copy">These are the strongest recurring question themes from real visitor usage. Similar wording is grouped lightly so you can see what customers care about most.</p>
+          ${signals.topQuestions.length ? `
             <div class="question-list">
-              ${topQuestions.map((item) => `
-                <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""}</div>
+              ${signals.topQuestions.map((item) => `
+                <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
               `).join("")}
             </div>
-          ` : `<div class="placeholder-card">Once customers start asking questions more than once, you’ll see the strongest themes here.</div>`}
+          ` : `<div class="placeholder-card">No strong question themes yet. As soon as visitors start asking recurring questions, Vonza will group them here so the owner can see what the assistant is really handling.</div>`}
         </section>
 
         <section class="workspace-card-soft">
-          <h3 class="studio-group-title">What customers ask about</h3>
-          <p class="studio-group-copy">A lightweight breakdown based on simple message cues from recent user questions.</p>
-          ${userMessages.length ? `
-            <div class="intent-grid">
-              <div class="intent-card">
-                <p class="intent-label">General</p>
-                <p class="intent-value">${intentCounts.general}</p>
-                <p class="intent-copy">Broad questions about the business, what it does, or what makes it different.</p>
-              </div>
-              <div class="intent-card">
-                <p class="intent-label">Services</p>
-                <p class="intent-value">${intentCounts.services}</p>
-                <p class="intent-copy">Questions about offerings, services, and what customers can hire or buy.</p>
-              </div>
-              <div class="intent-card">
-                <p class="intent-label">Pricing</p>
-                <p class="intent-value">${intentCounts.pricing}</p>
-                <p class="intent-copy">Questions that suggest visitors want cost expectations or quote guidance.</p>
-              </div>
-              <div class="intent-card">
-                <p class="intent-label">Contact</p>
-                <p class="intent-value">${intentCounts.contact}</p>
-                <p class="intent-copy">Questions from visitors who may be ready to reach out or take a next step.</p>
-              </div>
+          <h3 class="studio-group-title">Answers needing work</h3>
+          <p class="studio-group-copy">These are the clearest places where Vonza may have responded with weak, uncertain, or missing answers.</p>
+          ${signals.weakAnswerExamples.length ? `
+            <div class="question-list">
+              ${signals.weakAnswerExamples.map((question) => `
+                <div class="question-row">${escapeHtml(question)}</div>
+              `).join("")}
             </div>
-          ` : `<div class="placeholder-card">Once people start using the assistant, Vonza will show a simple breakdown of what they ask about most.</div>`}
+          ` : `<div class="placeholder-card">No weak-answer signal yet. If visitors ask questions that Vonza cannot answer well, they will appear here so the owner knows what to improve next.</div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">What needs attention</h3>
+          <p class="studio-group-copy">Practical opportunities surfaced from current usage, install state, and assistant behavior.</p>
+          <div class="analytics-list">
+            ${opportunityItems.slice(0, 4).map((item) => `
+              <div class="analytics-item">
+                <p class="analytics-item-title">${escapeHtml(item.title)}</p>
+                <p class="analytics-item-copy">${escapeHtml(item.copy)}</p>
+                <p class="analytics-subtle">${escapeHtml(item.subtle)}</p>
+              </div>
+            `).join("")}
+          </div>
         </section>
 
         <section class="workspace-card-soft">
