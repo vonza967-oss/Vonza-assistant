@@ -18,6 +18,34 @@
       margin: 0 auto;
     }
 
+    .funnel {
+      margin-top: 20px;
+      padding: 18px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: white;
+    }
+
+    .funnel-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .funnel-stage {
+      padding: 14px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .funnel-count {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
     .agent {
       margin-top: 16px;
       padding: 16px;
@@ -30,19 +58,81 @@
       color: #475569;
       font-size: 14px;
     }
+
+    .access-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .access-row select,
+    .access-row button {
+      font: inherit;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      color: #0f172a;
+    }
   </style>
 </head>
 <body>
   <main class="container">
     <h1>Admin Dashboard</h1>
     <p id="status" class="muted">Loading agents...</p>
+    <section id="funnel" class="funnel"></section>
     <div id="agent-list"></div>
   </main>
 
   <script>
     const statusEl = document.getElementById("status");
+    const funnelEl = document.getElementById("funnel");
     const agentListEl = document.getElementById("agent-list");
     const token = new URLSearchParams(window.location.search).get("token");
+
+    function renderFunnel(funnel) {
+      if (!funnel) {
+        funnelEl.innerHTML = "";
+        return;
+      }
+
+      funnelEl.innerHTML = `
+        <h2>Activation funnel</h2>
+        <p class="muted">Last ${funnel.windowDays || 7} days. Counts are based on persisted product events. “Added to site confirmed” is still user-confirmed.</p>
+        <div class="funnel-grid">
+          ${(funnel.stages || []).map((stage) => `
+            <div class="funnel-stage">
+              <div class="muted">${stage.label}</div>
+              <div class="funnel-count">${stage.count || 0}</div>
+              <div class="muted">${stage.percentFromPrevious || 0}% of previous step</div>
+            </div>
+          `).join("")}
+        </div>
+        <p class="muted" style="margin-top:12px;">Knowledge breakdown: imported ${funnel.breakdown?.knowledge_imported || 0}, limited ${funnel.breakdown?.knowledge_limited || 0}</p>
+      `;
+    }
+
+    async function updateAccessStatus(agentId, accessStatus) {
+      const response = await fetch(`/agents/access-status?token=${encodeURIComponent(token || "")}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agent_id: agentId,
+          access_status: accessStatus,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update access status.");
+      }
+
+      return data;
+    }
 
     async function loadAgents() {
       try {
@@ -56,6 +146,7 @@
         }
 
         const agents = data.agents || [];
+        renderFunnel(data.funnel);
         statusEl.textContent = `${agents.length} agent${agents.length === 1 ? "" : "s"} found`;
 
         agentListEl.innerHTML = agents.map((agent) => `
@@ -64,10 +155,47 @@
             <p class="muted">${agent.websiteUrl || "No website URL"}</p>
             <p class="muted">agent_key: ${agent.publicAgentKey || "-"}</p>
             <p class="muted">client_id: ${agent.clientId || "-"}</p>
+            <p class="muted">owner_user_id: ${agent.ownerUserId || "-"}</p>
+            <p class="muted">access: ${agent.accessStatus || "pending"}</p>
+            <p class="muted">install status: ${agent.installStatus?.label || "Not detected on a live site yet"}</p>
+            <p class="muted">latest host: ${agent.installStatus?.host || "-"}</p>
+            <p class="muted">last seen: ${agent.installStatus?.lastSeenAt || "-"}</p>
             <p class="muted">messages: ${agent.messageCount || 0}</p>
             <p class="muted">last message: ${agent.lastMessageAt || "-"}</p>
+            <div class="access-row">
+              <select data-access-select="${agent.id}">
+                <option value="pending" ${agent.accessStatus === "pending" ? "selected" : ""}>pending</option>
+                <option value="active" ${agent.accessStatus === "active" ? "selected" : ""}>active</option>
+                <option value="suspended" ${agent.accessStatus === "suspended" ? "selected" : ""}>suspended</option>
+              </select>
+              <button type="button" data-access-save="${agent.id}">Save access</button>
+            </div>
           </section>
         `).join("");
+
+        document.querySelectorAll("[data-access-save]").forEach((button) => {
+          button.addEventListener("click", async () => {
+            const agentId = button.getAttribute("data-access-save");
+            const select = document.querySelector(`[data-access-select="${agentId}"]`);
+
+            if (!select) {
+              return;
+            }
+
+            button.disabled = true;
+            statusEl.textContent = "Updating access status...";
+
+            try {
+              await updateAccessStatus(agentId, select.value);
+              statusEl.textContent = "Access status updated.";
+              await loadAgents();
+            } catch (error) {
+              statusEl.textContent = error.message || "Failed to update access status.";
+            } finally {
+              button.disabled = false;
+            }
+          });
+        });
       } catch (error) {
         statusEl.textContent = error.message || "Failed to load agents.";
         agentListEl.innerHTML = "";

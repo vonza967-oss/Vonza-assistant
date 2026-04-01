@@ -31,6 +31,11 @@ const DEFAULT_WIDGET_CONFIG = {
 
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
+let hasHiddenWelcomePanel = false;
+
+function trimText(value) {
+  return String(value || "").trim();
+}
 
 function addToHistory(role, content) {
   conversationHistory.push({ role, content });
@@ -57,6 +62,23 @@ function hasAssistantConfig() {
   return Boolean(AGENT_ID || AGENT_KEY || BUSINESS_ID || WEBSITE_URL);
 }
 
+function hideWelcomePanel() {
+  if (hasHiddenWelcomePanel) {
+    return;
+  }
+
+  document.getElementById("welcome-panel")?.classList.add("is-hidden");
+  hasHiddenWelcomePanel = true;
+}
+
+function setComposerStatus(message) {
+  const statusEl = document.getElementById("composer-status");
+
+  if (statusEl) {
+    statusEl.textContent = message;
+  }
+}
+
 function applyWidgetConfig(config = {}) {
   widgetConfig = {
     ...DEFAULT_WIDGET_CONFIG,
@@ -73,6 +95,7 @@ function applyWidgetConfig(config = {}) {
   document.getElementById("brand-mark-v").textContent = getAssistantMark();
   document.getElementById("send-button").textContent = widgetConfig.buttonLabel;
   document.getElementById("powered-by").textContent = `Powered by ${widgetConfig.assistantName}`;
+  setComposerStatus("Ask about services, pricing, contact details, or anything your visitors would want to know.");
   document
     .querySelector('meta[name="apple-mobile-web-app-title"]')
     ?.setAttribute("content", widgetConfig.assistantName);
@@ -84,6 +107,7 @@ async function loadWidgetBootstrap() {
       ...DEFAULT_WIDGET_CONFIG,
       welcomeMessage: "No assistant configured yet. Please create one first.",
     });
+    setComposerStatus("Create an assistant first, then return here to preview the customer experience.");
     return;
   }
 
@@ -103,15 +127,20 @@ async function loadWidgetBootstrap() {
     }
 
     applyWidgetConfig(data.widgetConfig || {});
+    setComposerStatus("Your assistant is ready to answer questions using the current website knowledge.");
   } catch (error) {
     console.error("Vonza assistant bootstrap failed:", error);
     applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
+    setComposerStatus("The assistant loaded with default styling. You can still test the experience.");
   }
 }
 
 function appendMessage(chat, role, text, options = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role}${options.typing ? " typing" : ""}`;
+  if (options.error) {
+    wrapper.classList.add("error");
+  }
 
   const avatar = role === "user" ? "You" : getAssistantMark();
   const label = role === "user" ? "You" : widgetConfig.assistantName;
@@ -142,6 +171,8 @@ async function sendMessage() {
 
   if (!message) return;
 
+  hideWelcomePanel();
+
   if (!hasAssistantConfig()) {
     console.error(
       "Vonza assistant configuration error: missing agent_id, agent_key, business_id, and website_url"
@@ -149,14 +180,18 @@ async function sendMessage() {
     appendMessage(
       chat,
       "bot",
-      "No assistant configured yet. Please create one first."
+      "No assistant configured yet. Please create one first.",
+      { error: true }
     );
+    setComposerStatus("Set up your assistant in Vonza before testing the widget here.");
     return;
   }
 
   appendMessage(chat, "user", message);
   input.value = "";
   button.disabled = true;
+  input.disabled = true;
+  setComposerStatus(`${widgetConfig.assistantName} is preparing a grounded answer...`);
 
   const loading = appendMessage(chat, "bot", "", { typing: true });
 
@@ -180,7 +215,8 @@ async function sendMessage() {
 
     if (!res.ok) {
       console.error("Vonza assistant backend error:", data.error || "Request failed");
-      appendMessage(chat, "bot", data.error || "Request failed");
+      appendMessage(chat, "bot", data.error || "Request failed", { error: true });
+      setComposerStatus("The assistant could not answer that just now. You can try again in a moment.");
       return;
     }
 
@@ -191,14 +227,28 @@ async function sendMessage() {
     appendMessage(chat, "bot", data.reply);
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
+    setComposerStatus("Ask a follow-up to keep exploring what your visitors would experience.");
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
     loading.remove();
-    appendMessage(chat, "bot", "Error connecting to server");
+    appendMessage(chat, "bot", "Error connecting to server", { error: true });
+    setComposerStatus("Connection was interrupted. Try again when the assistant is ready.");
   } finally {
     button.disabled = false;
+    input.disabled = false;
     input.focus();
   }
+}
+
+function sendStarterPrompt(prompt) {
+  const input = document.getElementById("input");
+
+  if (!input || !trimText(prompt)) {
+    return;
+  }
+
+  input.value = prompt;
+  sendMessage();
 }
 
 document.getElementById("input").addEventListener("keydown", (event) => {
@@ -206,6 +256,12 @@ document.getElementById("input").addEventListener("keydown", (event) => {
     event.preventDefault();
     sendMessage();
   }
+});
+
+document.querySelectorAll("[data-starter-prompt]").forEach((button) => {
+  button.addEventListener("click", () => {
+    sendStarterPrompt(button.dataset.starterPrompt || "");
+  });
 });
 
 if (EMBEDDED_MODE) {

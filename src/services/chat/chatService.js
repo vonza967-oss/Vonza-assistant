@@ -57,15 +57,15 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
 
   if (language === "Hungarian") {
     const summary = metaDescription
-      ? `${name} kapcsán jelenleg ennyi biztos látszik: ${metaDescription}`
-      : `${name} kapcsán jelenleg csak korlátozott weboldal-információ érhető el, ezért részletes céges adatokat nem tudok biztosan megmondani.`;
-    return `${summary} Abban viszont tudok segíteni, hogy gyorsan leszűkítsük, mit keresel ezzel a szolgáltatóval kapcsolatban, és mi legyen a következő lépés. Pontosan miben szeretnél segítséget: szolgáltatás választásban, árajánlat irányban, vagy annak tisztázásában, hogy ${siteLabel} valóban neked való-e?`;
+      ? `${name} kapcsán ennyi látszik biztosan a weboldalból: ${metaDescription}`
+      : `${name} kapcsán nem látok elég részletes információt a weboldalból ehhez a kérdéshez.`;
+    return `${summary} Ha szeretnéd, segítek leszűkíteni a következő lépést. Szolgáltatást keresel, árazás érdekel, vagy az a fontos, hogyan tudod felvenni velük a kapcsolatot?`;
   }
 
   const summary = metaDescription
-      ? `${name} can at least be described this way from the available website data: ${metaDescription}`
-      : `${name} currently has only limited website information available, so I should not guess detailed facts about the business.`;
-  return `${summary} I can still help you narrow down what you need and point you toward the most useful next step. What are you looking for specifically: help choosing a service, understanding pricing direction, or deciding whether ${siteLabel} is the right fit for what you need?`;
+      ? `From the website, this is the clearest detail I have about ${name}: ${metaDescription}`
+      : `I don't have enough detail from the website to answer that confidently about ${name}.`;
+  return `${summary} I can still help with the next step. Are you trying to understand their services, pricing, or how to contact ${siteLabel}?`;
 }
 
 async function buildChatResponse({ supabase, agent, businessId, widgetConfig, userMessage, reply }) {
@@ -136,8 +136,8 @@ export async function handleChatRequest({
   if (!websiteContent) {
     const fallbackReply =
       language === "Hungarian"
-        ? "Ez az asszisztens még nincs teljesen felkészítve, mert a weboldal tartalma még nincs betöltve. Kérlek próbáld újra később, vagy kérd meg az adminisztrátort, hogy futtassa a tartalom importálását."
-        : "This assistant is not ready yet because the website content has not been imported. Please try again later or ask an admin to run the content import.";
+        ? "Ehhez még nincs betöltött weboldal-tartalom, ezért nem tudok biztos választ adni a weboldal alapján. Kérlek próbáld újra később, vagy kérd meg az adminisztrátort, hogy futtassa a tartalom importálását."
+        : "I don't have website content for this assistant yet, so I can't answer that from the site. Please try again later or ask an admin to run the content import.";
 
     return buildChatResponse({
       supabase,

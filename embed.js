@@ -522,9 +522,9 @@
           <div class="panel" role="dialog" aria-modal="true" aria-label="Vonza assistant">
             <button class="close" type="button" aria-label="Close">&times;</button>
             <div class="status-layer">
-              <div class="status-spinner"></div>
-              <div class="status-title">Loading assistant</div>
-              <div class="status-copy">The widget is connecting to ${visualConfig.assistantName}.</div>
+            <div class="status-spinner"></div>
+              <div class="status-title">Preparing your assistant</div>
+              <div class="status-copy">${visualConfig.assistantName} is loading with the current website-based setup.</div>
               <div class="status-actions" hidden>
                 <button class="status-button" type="button" data-action="retry">Retry</button>
                 <button class="status-button secondary" type="button" data-action="close">Close</button>

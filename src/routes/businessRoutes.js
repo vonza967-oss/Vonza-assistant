@@ -10,7 +10,7 @@ import { requireAdminToken } from "../utils/httpGuards.js";
 export function createBusinessRouter() {
   const router = express.Router();
 
-  router.get("/businesses/:id/scrape", async (req, res) => {
+  router.get("/businesses/:id/scrape", requireAdminToken, async (req, res) => {
     try {
       const result = await extractBusinessWebsiteContent(getSupabaseClient(), {
         businessId: req.params.id,

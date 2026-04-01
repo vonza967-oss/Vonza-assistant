@@ -1,9 +1,30 @@
 import express from "express";
 import path from "path";
-import { getPublicAppUrl } from "../config/env.js";
+import {
+  getPublicAppUrl,
+  getSupabaseAnonKey,
+  getSupabasePublicUrl,
+  isLocalDevBillingRequestAllowed,
+} from "../config/env.js";
+
+const SETUP_DOCTOR_KEYS = [
+  "PUBLIC_APP_URL",
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "OPENAI_API_KEY",
+  "ADMIN_TOKEN",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_PRICE_ID",
+  "STRIPE_WEBHOOK_SECRET",
+];
 
 export function createPublicRouter({ rootDir }) {
   const router = express.Router();
+
+  router.get("/", (_req, res) => {
+    res.redirect("/dashboard");
+  });
 
   router.get("/widget", (_req, res) => {
     res.sendFile(path.join(rootDir, "frontend", "index.html"));
@@ -27,9 +48,39 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "dashboard.html"));
   });
 
-  router.get("/public-config.js", (_req, res) => {
+  router.get("/public-config.js", (req, res) => {
     res.type("application/javascript");
-    res.send(`window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};`);
+    res.send(`
+window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};
+window.VONZA_SUPABASE_URL = ${JSON.stringify(getSupabasePublicUrl())};
+window.VONZA_SUPABASE_ANON_KEY = ${JSON.stringify(getSupabaseAnonKey())};
+window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed(req))};
+`.trim());
+  });
+
+  router.get("/setup-doctor", (req, res) => {
+    if (!isLocalDevBillingRequestAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    const checks = SETUP_DOCTOR_KEYS.map((key) => ({
+      key,
+      present: Boolean(String(process.env[key] || "").trim()),
+    }));
+
+    res.json({
+      ok: checks.every((check) => check.present),
+      dev_fake_billing: true,
+      checks,
+    });
+  });
+
+  router.get("/supabase-auth.js", (_req, res) => {
+    res.type("application/javascript");
+    res.sendFile(
+      path.join(rootDir, "node_modules", "@supabase", "supabase-js", "dist", "umd", "supabase.js")
+    );
   });
 
   router.get("/admin", (req, res) => {

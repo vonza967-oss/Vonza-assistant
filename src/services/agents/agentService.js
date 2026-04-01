@@ -2,6 +2,7 @@ import { cleanText, slugifyLookupValue } from "../../utils/text.js";
 import { getHostnameFromUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
 import { getAgentMessageStats } from "../chat/messageService.js";
+import { listInstallStatusByAgentIds, recordInstallPresence } from "../install/installPresenceService.js";
 import {
   DEFAULT_AGENT_NAME,
   DEFAULT_LANGUAGE,
@@ -12,6 +13,16 @@ import {
 
 const AGENTS_TABLE = "agents";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
+const WEBSITE_CONTENT_TABLE = "website_content";
+const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
+const DEFAULT_ACCESS_STATUS = "pending";
+
+function normalizeAccessStatus(value) {
+  const normalized = cleanText(value).toLowerCase();
+  return ["pending", "active", "suspended"].includes(normalized)
+    ? normalized
+    : DEFAULT_ACCESS_STATUS;
+}
 
 function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "");
@@ -43,6 +54,8 @@ function mapAgentRow(row) {
     id: row.id,
     businessId: row.business_id,
     clientId: row.client_id || "",
+    ownerUserId: row.owner_user_id || "",
+    accessStatus: normalizeAccessStatus(row.access_status),
     publicAgentKey: row.public_agent_key,
     name: row.name || DEFAULT_AGENT_NAME,
     purpose: row.purpose || DEFAULT_PURPOSE,
@@ -67,6 +80,36 @@ function mapWidgetConfigRow(row) {
           themeMode: row.theme_mode || DEFAULT_WIDGET_CONFIG.themeMode,
         }
       : {}),
+  };
+}
+
+function buildKnowledgeSummary(row) {
+  const content = cleanText(row?.content || "");
+  const contentLength = content.length;
+  const pageCount = Number(row?.page_count || 0);
+  const hasWebsiteContent = Boolean(contentLength);
+  const hasLimitedMarker = content.includes(LIMITED_CONTENT_MARKER);
+
+  let state = "missing";
+  let description = "Website knowledge has not been imported yet.";
+
+  if (hasWebsiteContent) {
+    if (hasLimitedMarker || contentLength < 400) {
+      state = "limited";
+      description = "Website knowledge exists, but it is still limited and may need another import pass.";
+    } else {
+      state = "ready";
+      description = "Website knowledge is imported and ready to support customer questions.";
+    }
+  }
+
+  return {
+    state,
+    description,
+    hasWebsiteContent,
+    contentLength,
+    pageCount,
+    updatedAt: row?.updated_at || null,
   };
 }
 
@@ -130,7 +173,7 @@ async function findAgentById(supabase, agentId) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
     )
     .eq("id", agentId)
     .eq("is_active", true)
@@ -158,7 +201,7 @@ async function findAgentByKey(supabase, agentKey) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
     )
     .eq("is_active", true);
 
@@ -181,16 +224,20 @@ async function findAgentByKey(supabase, agentKey) {
   return mapAgentRow(match || null);
 }
 
-async function findDefaultAgentForBusiness(supabase, businessId, clientId) {
+async function findDefaultAgentForBusiness(supabase, businessId, options = {}) {
+  const clientId = cleanText(options.clientId);
+  const ownerUserId = cleanText(options.ownerUserId);
   let query = supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, client_id, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
     )
     .eq("business_id", businessId)
     .eq("is_active", true);
 
-  if (clientId) {
+  if (ownerUserId) {
+    query = query.eq("owner_user_id", ownerUserId);
+  } else if (clientId) {
     query = query.eq("client_id", clientId);
   }
 
@@ -207,11 +254,51 @@ async function findDefaultAgentForBusiness(supabase, businessId, clientId) {
   return mapAgentRow(data?.[0] || null);
 }
 
-export async function ensureAgentForBusiness(supabase, business, clientId) {
-  const existingAgent = await findDefaultAgentForBusiness(supabase, business.id, clientId);
+async function claimAgentOwnershipById(supabase, agentId, ownerUserId) {
+  const normalizedOwnerUserId = cleanText(ownerUserId);
+
+  if (!agentId || !normalizedOwnerUserId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .update({
+      owner_user_id: normalizedOwnerUserId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", agentId)
+    .select(
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+    )
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return mapAgentRow(data || null);
+}
+
+export async function ensureAgentForBusiness(supabase, business, options = {}) {
+  const clientId = cleanText(options.clientId);
+  const ownerUserId = cleanText(options.ownerUserId);
+  const existingAgent = await findDefaultAgentForBusiness(supabase, business.id, {
+    clientId,
+    ownerUserId,
+  });
 
   if (existingAgent) {
     return existingAgent;
+  }
+
+  if (ownerUserId && clientId) {
+    const bridgeAgent = await findDefaultAgentForBusiness(supabase, business.id, { clientId });
+
+    if (bridgeAgent && (!bridgeAgent.ownerUserId || bridgeAgent.ownerUserId === ownerUserId)) {
+      return claimAgentOwnershipById(supabase, bridgeAgent.id, ownerUserId);
+    }
   }
 
   const defaultKey = buildDefaultAgentKey(business);
@@ -220,6 +307,8 @@ export async function ensureAgentForBusiness(supabase, business, clientId) {
     .insert({
       business_id: business.id,
       client_id: clientId || null,
+      owner_user_id: ownerUserId || null,
+      access_status: DEFAULT_ACCESS_STATUS,
       public_agent_key: defaultKey,
       name: cleanText(business.name) || DEFAULT_AGENT_NAME,
       purpose: DEFAULT_PURPOSE,
@@ -228,7 +317,7 @@ export async function ensureAgentForBusiness(supabase, business, clientId) {
       is_active: true,
     })
     .select(
-      "id, business_id, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
     )
     .single();
 
@@ -237,6 +326,9 @@ export async function ensureAgentForBusiness(supabase, business, clientId) {
       return {
         id: `fallback-${business.id}`,
         businessId: business.id,
+        clientId: clientId || "",
+        ownerUserId: ownerUserId || "",
+        accessStatus: DEFAULT_ACCESS_STATUS,
         publicAgentKey: buildDefaultAgentKey(business),
         name: cleanText(business.name) || DEFAULT_AGENT_NAME,
         purpose: DEFAULT_PURPOSE,
@@ -316,6 +408,9 @@ export async function resolveAgentContext(supabase, options = {}) {
       const fallbackAgent = {
         id: `fallback-${business.id}`,
         businessId: business.id,
+        clientId: "",
+        ownerUserId: "",
+        accessStatus: DEFAULT_ACCESS_STATUS,
         publicAgentKey: buildDefaultAgentKey(business),
         name: cleanText(business.name) || DEFAULT_AGENT_NAME,
         purpose: DEFAULT_PURPOSE,
@@ -339,6 +434,17 @@ export async function resolveAgentContext(supabase, options = {}) {
 export async function getWidgetBootstrap(supabase, options = {}) {
   const context = await resolveAgentContext(supabase, options);
 
+  if (context.agent?.id && !String(context.agent.id).startsWith("fallback-") && options.websiteUrl) {
+    try {
+      await recordInstallPresence(supabase, {
+        agentId: context.agent.id,
+        pageUrl: options.websiteUrl,
+      });
+    } catch (error) {
+      console.warn("Vonza install presence logging failed:", error?.message || error);
+    }
+  }
+
   return {
     agent: context.agent,
     business: {
@@ -353,10 +459,11 @@ export async function getWidgetBootstrap(supabase, options = {}) {
   };
 }
 
-export async function createAgentForBusinessName(supabase, businessName, websiteUrl, clientId) {
+export async function createAgentForBusinessName(supabase, businessName, websiteUrl, clientId, ownerUserId) {
   const normalizedBusinessName = cleanText(businessName);
   const normalizedWebsiteUrl = cleanText(websiteUrl);
   const normalizedClientId = cleanText(clientId);
+  const normalizedOwnerUserId = cleanText(ownerUserId);
 
   if (!normalizedBusinessName) {
     const error = new Error("business_name is required");
@@ -364,8 +471,8 @@ export async function createAgentForBusinessName(supabase, businessName, website
     throw error;
   }
 
-  if (!normalizedClientId) {
-    const error = new Error("client_id is required");
+  if (!normalizedClientId && !normalizedOwnerUserId) {
+    const error = new Error("client_id or authenticated owner is required");
     error.statusCode = 400;
     throw error;
   }
@@ -397,7 +504,10 @@ export async function createAgentForBusinessName(supabase, businessName, website
     business = updatedBusiness;
   }
 
-  const agent = await ensureAgentForBusiness(supabase, business, normalizedClientId);
+  const agent = await ensureAgentForBusiness(supabase, business, {
+    clientId: normalizedClientId,
+    ownerUserId: normalizedOwnerUserId,
+  });
   const widgetConfig = await ensureWidgetConfigForAgent(supabase, agent.id);
 
   return {
@@ -410,24 +520,33 @@ export async function createAgentForBusinessName(supabase, businessName, website
   };
 }
 
-export async function listAgents(supabase, clientId) {
-  const normalizedClientId = cleanText(clientId);
+export async function listAgents(supabase, options = {}) {
+  const normalizedClientId = cleanText(options.clientId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const includeBridgeAgent = options.includeBridgeAgent === true;
 
-  if (!normalizedClientId) {
-    const error = new Error("client_id is required");
+  if (!normalizedClientId && !normalizedOwnerUserId) {
+    const error = new Error("client_id or authenticated owner is required");
     error.statusCode = 400;
     throw error;
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, public_agent_key, name, tone, system_prompt, is_active")
-    .eq("client_id", normalizedClientId)
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
     .order("name", { ascending: true });
+
+  if (normalizedOwnerUserId) {
+    query = query.eq("owner_user_id", normalizedOwnerUserId);
+  } else {
+    query = query.eq("client_id", normalizedClientId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     if (isMissingRelationError(error, AGENTS_TABLE)) {
-      return [];
+      return { agents: [], bridgeAgent: null };
     }
 
     console.error(error);
@@ -439,6 +558,9 @@ export async function listAgents(supabase, clientId) {
   const businessIds = [...new Set(agentRows.map((row) => row.business_id).filter(Boolean))];
   let widgetConfigsByAgentId = new Map();
   let businessesById = new Map();
+  let websiteContentByBusinessId = new Map();
+  let messageStatsByAgentId = new Map();
+  let installStatusByAgentId = new Map();
 
   if (agentIds.length) {
     const { data: widgetRows, error: widgetError } = await supabase
@@ -481,33 +603,89 @@ export async function listAgents(supabase, clientId) {
     businessesById = new Map((businessRows || []).map((row) => [row.id, row]));
   }
 
-  return agentRows.map((row) => ({
-    id: row.id,
-    businessId: row.business_id,
-    clientId: row.client_id || "",
-    name: row.name || DEFAULT_AGENT_NAME,
-    assistantName:
-      widgetConfigsByAgentId.get(row.id)?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
-    publicAgentKey: row.public_agent_key || "",
-    isActive: row.is_active !== false,
-    tone: row.tone || DEFAULT_TONE,
-    systemPrompt: row.system_prompt || "",
-    websiteUrl: businessesById.get(row.business_id)?.website_url || "",
-    welcomeMessage:
-      widgetConfigsByAgentId.get(row.id)?.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
-    buttonLabel:
-      widgetConfigsByAgentId.get(row.id)?.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
-    primaryColor:
-      widgetConfigsByAgentId.get(row.id)?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
-    secondaryColor:
-      widgetConfigsByAgentId.get(row.id)?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
-  }));
+  if (businessIds.length) {
+    const { data: websiteContentRows, error: websiteContentError } = await supabase
+      .from(WEBSITE_CONTENT_TABLE)
+      .select("business_id, content, page_count, updated_at")
+      .in("business_id", businessIds);
+
+    if (websiteContentError) {
+      if (!isMissingRelationError(websiteContentError, WEBSITE_CONTENT_TABLE)) {
+        console.error(websiteContentError);
+        throw websiteContentError;
+      }
+    } else {
+      websiteContentByBusinessId = new Map(
+        (websiteContentRows || []).map((row) => [row.business_id, buildKnowledgeSummary(row)])
+      );
+    }
+  }
+
+  if (agentIds.length) {
+    messageStatsByAgentId = await getAgentMessageStats(supabase, agentIds);
+    installStatusByAgentId = await listInstallStatusByAgentIds(supabase, agentIds);
+  }
+
+  const agents = agentRows.map((row) => {
+    const widgetConfig = widgetConfigsByAgentId.get(row.id);
+    const knowledge = websiteContentByBusinessId.get(row.business_id) || buildKnowledgeSummary(null);
+    const messageStats = messageStatsByAgentId.get(row.id) || {};
+
+    return {
+      id: row.id,
+      businessId: row.business_id,
+      clientId: row.client_id || "",
+      ownerUserId: row.owner_user_id || "",
+      accessStatus: normalizeAccessStatus(row.access_status),
+      name: row.name || DEFAULT_AGENT_NAME,
+      assistantName:
+        widgetConfig?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
+      publicAgentKey: row.public_agent_key || "",
+      isActive: row.is_active !== false,
+      tone: row.tone || DEFAULT_TONE,
+      systemPrompt: row.system_prompt || "",
+      websiteUrl: businessesById.get(row.business_id)?.website_url || "",
+      welcomeMessage:
+        widgetConfig?.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
+      buttonLabel:
+        widgetConfig?.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
+      primaryColor:
+        widgetConfig?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
+      secondaryColor:
+        widgetConfig?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+      hasWidgetConfig: Boolean(widgetConfig),
+      knowledge,
+      installStatus: installStatusByAgentId.get(row.id) || {
+        state: "not_detected",
+        label: "Not detected on a live site yet",
+        host: "",
+        pageUrl: null,
+        lastSeenAt: null,
+      },
+      messageCount: messageStats.messageCount || 0,
+      lastMessageAt: messageStats.lastMessageAt || null,
+    };
+  });
+
+  let bridgeAgent = null;
+
+  if (includeBridgeAgent && normalizedOwnerUserId && normalizedClientId && !agents.length) {
+    bridgeAgent = await findClaimableAgentByClientId(supabase, {
+      clientId: normalizedClientId,
+      ownerUserId: normalizedOwnerUserId,
+    });
+  }
+
+  return {
+    agents,
+    bridgeAgent,
+  };
 }
 
 export async function listAllAgents(supabase) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, public_agent_key, name, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
     .order("name", { ascending: true });
 
   if (error) {
@@ -525,6 +703,7 @@ export async function listAllAgents(supabase) {
   let widgetConfigsByAgentId = new Map();
   let businessesById = new Map();
   let messageStatsByAgentId = new Map();
+  let installStatusByAgentId = new Map();
 
   if (agentIds.length) {
     const { data: widgetRows, error: widgetError } = await supabase
@@ -569,12 +748,15 @@ export async function listAllAgents(supabase) {
 
   if (agentIds.length) {
     messageStatsByAgentId = await getAgentMessageStats(supabase, agentIds);
+    installStatusByAgentId = await listInstallStatusByAgentIds(supabase, agentIds);
   }
 
   return agentRows.map((row) => ({
     id: row.id,
     businessId: row.business_id,
     clientId: row.client_id || "",
+    ownerUserId: row.owner_user_id || "",
+    accessStatus: normalizeAccessStatus(row.access_status),
     name: row.name || DEFAULT_AGENT_NAME,
     assistantName:
       widgetConfigsByAgentId.get(row.id)?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
@@ -591,6 +773,13 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
     secondaryColor:
       widgetConfigsByAgentId.get(row.id)?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+    installStatus: installStatusByAgentId.get(row.id) || {
+      state: "not_detected",
+      label: "Not detected on a live site yet",
+      host: "",
+      pageUrl: null,
+      lastSeenAt: null,
+    },
     messageCount: messageStatsByAgentId.get(row.id)?.messageCount || 0,
     lastMessageAt: messageStatsByAgentId.get(row.id)?.lastMessageAt || null,
   }));
@@ -719,6 +908,213 @@ export async function deleteAgent(supabase, agentId) {
   }
 
   return { ok: true };
+}
+
+export async function findClaimableAgentByClientId(supabase, options = {}) {
+  const normalizedClientId = cleanText(options.clientId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+
+  if (!normalizedClientId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
+    .eq("client_id", normalizedClientId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (error) {
+    if (isMissingRelationError(error, AGENTS_TABLE)) {
+      return null;
+    }
+
+    console.error(error);
+    throw error;
+  }
+
+  const match = (data || []).find((row) => {
+    const existingOwnerUserId = cleanText(row.owner_user_id);
+    return !existingOwnerUserId || existingOwnerUserId === normalizedOwnerUserId;
+  });
+
+  if (!match) {
+    return null;
+  }
+
+  const mappedAgent = mapAgentRow(match);
+  const widgetConfig = await getWidgetConfigForAgent(supabase, mappedAgent.id);
+
+  return {
+    ...mappedAgent,
+    assistantName: widgetConfig.assistantName || mappedAgent.name || DEFAULT_WIDGET_CONFIG.assistantName,
+    welcomeMessage: widgetConfig.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
+    buttonLabel: widgetConfig.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
+    primaryColor: widgetConfig.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
+    secondaryColor: widgetConfig.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+  };
+}
+
+export async function claimAgentForOwner(supabase, options = {}) {
+  const normalizedAgentId = cleanText(options.agentId);
+  const normalizedClientId = cleanText(options.clientId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+
+  if (!normalizedOwnerUserId) {
+    const error = new Error("Authenticated owner is required");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let candidate = null;
+
+  if (normalizedAgentId) {
+    candidate = await findAgentById(supabase, normalizedAgentId);
+
+    if (candidate && normalizedClientId && candidate.clientId && candidate.clientId !== normalizedClientId) {
+      candidate = null;
+    }
+  }
+
+  if (!candidate) {
+    candidate = await findClaimableAgentByClientId(supabase, {
+      clientId: normalizedClientId,
+      ownerUserId: normalizedOwnerUserId,
+    });
+  }
+
+  if (!candidate) {
+    const error = new Error("No claimable assistant found in this browser.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (candidate.ownerUserId && candidate.ownerUserId !== normalizedOwnerUserId) {
+    const error = new Error("This assistant is already claimed by another account.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return claimAgentOwnershipById(supabase, candidate.id, normalizedOwnerUserId);
+}
+
+export async function requireAgentAccess(supabase, options = {}) {
+  const normalizedAgentId = cleanText(options.agentId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const normalizedClientId = cleanText(options.clientId);
+
+  if (!normalizedAgentId) {
+    const error = new Error("agent_id is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const agent = await findAgentById(supabase, normalizedAgentId);
+
+  if (!agent) {
+    const error = new Error("Agent not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (normalizedOwnerUserId) {
+    if (cleanText(agent.ownerUserId) !== normalizedOwnerUserId) {
+      const error = new Error("Forbidden");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    return agent;
+  }
+
+  if (normalizedClientId && cleanText(agent.clientId) === normalizedClientId) {
+    return agent;
+  }
+
+  const error = new Error("Forbidden");
+  error.statusCode = 403;
+  throw error;
+}
+
+export async function requireActiveAgentAccess(supabase, options = {}) {
+  const agent = await requireAgentAccess(supabase, options);
+
+  if (normalizeAccessStatus(agent.accessStatus) !== "active") {
+    const error = new Error("Access is not active yet.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return agent;
+}
+
+export async function updateAgentAccessStatus(supabase, options = {}) {
+  const normalizedAgentId = cleanText(options.agentId);
+
+  if (!normalizedAgentId) {
+    const error = new Error("agent_id is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const nextAccessStatus = normalizeAccessStatus(options.accessStatus);
+  const agent = await findAgentById(supabase, normalizedAgentId);
+
+  if (!agent) {
+    const error = new Error("Agent not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .update({
+      access_status: nextAccessStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", normalizedAgentId)
+    .select(
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+    )
+    .single();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return mapAgentRow(data || null);
+}
+
+export async function updateOwnedAccessStatus(supabase, options = {}) {
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const nextAccessStatus = normalizeAccessStatus(options.accessStatus);
+
+  if (!normalizedOwnerUserId) {
+    const error = new Error("Authenticated owner is required");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .update({
+      access_status: nextAccessStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("owner_user_id", normalizedOwnerUserId)
+    .select(
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+    );
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return (data || []).map((row) => mapAgentRow(row));
 }
 
 export { AGENTS_TABLE, WIDGET_CONFIGS_TABLE };

@@ -1,20 +1,49 @@
 import express from "express";
 
 import { getSupabaseClient } from "../clients/supabaseClient.js";
+import { getAuthenticatedUser } from "../services/auth/authService.js";
 import {
+  claimAgentForOwner,
   createAgentForBusinessName,
   deleteAgent,
   getWidgetBootstrap,
   listAllAgents,
   listAgents,
+  requireActiveAgentAccess,
+  requireAgentAccess,
   resolveAgentContext,
+  updateAgentAccessStatus,
+  updateOwnedAccessStatus,
   updateAgentSettings,
 } from "../services/agents/agentService.js";
 import { listAgentMessages } from "../services/chat/messageService.js";
+import { getProductFunnelSummary, trackProductEvent } from "../services/analytics/productEventService.js";
+import {
+  createHostedCheckoutSession,
+  constructStripeWebhookEvent,
+  getPaidOwnerIdFromCheckoutSession,
+  isStripeConfigError,
+  verifySuccessfulCheckout,
+} from "../services/billing/checkoutService.js";
+import { isLocalDevBillingRequestAllowed } from "../config/env.js";
 import { extractBusinessWebsiteContent } from "../services/scraping/websiteContentService.js";
 
-export function createAgentRouter() {
+export function createAgentRouter(deps = {}) {
   const router = express.Router();
+  const getSupabase = deps.getSupabaseClient || getSupabaseClient;
+  const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
+  const listAgentsImpl = deps.listAgents || listAgents;
+  const requireAgentAccessImpl = deps.requireAgentAccess || requireAgentAccess;
+  const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
+  const listAgentMessagesImpl = deps.listAgentMessages || listAgentMessages;
+  const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
+  const deleteAgentImpl = deps.deleteAgent || deleteAgent;
+  const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
+  const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
+  const updateOwnedAccessStatusImpl = deps.updateOwnedAccessStatus || updateOwnedAccessStatus;
+  const constructStripeWebhookEventImpl = deps.constructStripeWebhookEvent || constructStripeWebhookEvent;
+  const getPaidOwnerIdFromCheckoutSessionImpl =
+    deps.getPaidOwnerIdFromCheckoutSession || getPaidOwnerIdFromCheckoutSession;
   const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
 
   function ensureAdminAccess(req) {
@@ -32,6 +61,39 @@ export function createAgentRouter() {
       throw error;
     }
   }
+
+  router.post("/stripe/webhook", async (req, res) => {
+    try {
+      const event = constructStripeWebhookEventImpl({
+        payload: req.body,
+        signature: req.headers["stripe-signature"],
+      });
+
+      if (event.type === "checkout.session.completed") {
+        const ownerUserId = await getPaidOwnerIdFromCheckoutSessionImpl(event.data?.object);
+
+        if (ownerUserId) {
+          await updateOwnedAccessStatusImpl(getSupabase(), {
+            ownerUserId,
+            accessStatus: "active",
+          });
+        }
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      if (err?.type === "StripeSignatureVerificationError" || err?.message?.includes("signature")) {
+        console.warn("[stripe webhook] Signature verification failed:", err.message);
+      } else if (isStripeConfigError(err)) {
+        console.warn("[stripe webhook] Stripe webhook configuration error:", err.message);
+      } else {
+        console.error(err);
+      }
+      res.status(err.statusCode || 400).json({
+        error: err.message || "Webhook error",
+      });
+    }
+  });
 
   router.get("/widget/bootstrap", async (req, res) => {
     try {
@@ -53,12 +115,46 @@ export function createAgentRouter() {
 
   router.post("/agents/create", async (req, res) => {
     try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
       const result = await createAgentForBusinessName(
-        getSupabaseClient(),
+        supabase,
         req.body.business_name,
         req.body.website_url || req.body.websiteUrl,
-        req.body.client_id || req.body.clientId
+        req.body.client_id || req.body.clientId,
+        user?.id || null
       );
+
+      const hasInitialSettings = [
+        req.body.assistant_name || req.body.assistantName,
+        req.body.tone,
+        req.body.system_prompt || req.body.systemPrompt,
+        req.body.welcome_message || req.body.welcomeMessage,
+        req.body.button_label || req.body.buttonLabel,
+        req.body.primary_color || req.body.primaryColor,
+        req.body.secondary_color || req.body.secondaryColor,
+        req.body.website_url || req.body.websiteUrl,
+      ].some((value) => Boolean(String(value || "").trim()));
+
+      if (hasInitialSettings) {
+        await updateAgentSettingsImpl(supabase, {
+          agentId: result.agent.id,
+          name: req.body.business_name,
+          assistantName: req.body.assistant_name || req.body.assistantName,
+          tone: req.body.tone,
+          systemPrompt: req.body.system_prompt || req.body.systemPrompt,
+          welcomeMessage: req.body.welcome_message || req.body.welcomeMessage,
+          buttonLabel: req.body.button_label || req.body.buttonLabel,
+          websiteUrl: req.body.website_url || req.body.websiteUrl,
+          primaryColor: req.body.primary_color || req.body.primaryColor,
+          secondaryColor: req.body.secondary_color || req.body.secondaryColor,
+        });
+      }
 
       res.json({
         agent_id: result.agent.id,
@@ -73,13 +169,21 @@ export function createAgentRouter() {
     }
   });
 
-  router.get("/agents/list", async (_req, res) => {
+  router.get("/agents/list", async (req, res) => {
     try {
-      const agents = await listAgents(
-        getSupabaseClient(),
-        _req.query.client_id || _req.query.clientId
-      );
-      res.json({ agents });
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const result = await listAgentsImpl(supabase, {
+        clientId: req.query.client_id || req.query.clientId,
+        ownerUserId: user?.id || null,
+        includeBridgeAgent: Boolean(user),
+      });
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -91,8 +195,9 @@ export function createAgentRouter() {
   router.get("/agents/admin-list", async (req, res) => {
     try {
       ensureAdminAccess(req);
-      const agents = await listAllAgents(getSupabaseClient());
-      res.json({ agents });
+      const agents = await listAllAgents(getSupabase());
+      const funnel = await getProductFunnelSummary(getSupabase(), { days: 7 });
+      res.json({ agents, funnel });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -103,8 +208,20 @@ export function createAgentRouter() {
 
   router.get("/agents/messages", async (req, res) => {
     try {
-      const messages = await listAgentMessages(
-        getSupabaseClient(),
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId: req.query.agent_id || req.query.agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+      const messages = await listAgentMessagesImpl(
+        supabase,
         req.query.agent_id || req.query.agentId
       );
       res.json({ messages });
@@ -118,7 +235,19 @@ export function createAgentRouter() {
 
   router.post("/agents/update", async (req, res) => {
     try {
-      const result = await updateAgentSettings(getSupabaseClient(), {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId: req.body.agent_id || req.body.agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+      const result = await updateAgentSettingsImpl(supabase, {
         agentId: req.body.agent_id || req.body.agentId,
         name: req.body.name,
         assistantName: req.body.assistant_name || req.body.assistantName,
@@ -142,7 +271,19 @@ export function createAgentRouter() {
 
   router.post("/agents/delete", async (req, res) => {
     try {
-      const result = await deleteAgent(getSupabaseClient(), req.body.agent_id || req.body.agentId);
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId: req.body.agent_id || req.body.agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+      const result = await deleteAgentImpl(supabase, req.body.agent_id || req.body.agentId);
       res.json(result);
     } catch (err) {
       console.error(err);
@@ -154,18 +295,162 @@ export function createAgentRouter() {
 
   router.post("/knowledge/import", async (req, res) => {
     try {
-      const supabase = getSupabaseClient();
-      const { business } = await resolveAgentContext(supabase, {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const context = await resolveAgentContextImpl(supabase, {
         agentKey: req.body.agent_key || req.body.agentKey,
         businessId: req.body.business_id || req.body.businessId,
       });
+      if (user) {
+        await requireActiveAgentAccessImpl(supabase, {
+          agentId: context.agent.id,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+        });
+      } else {
+        await requireAgentAccessImpl(supabase, {
+          agentId: context.agent.id,
+          clientId: req.body.client_id || req.body.clientId,
+        });
+      }
 
-      const result = await extractBusinessWebsiteContent(supabase, {
-        businessId: business.id,
-        websiteUrl: business.website_url,
+      const result = await extractBusinessWebsiteContentImpl(supabase, {
+        businessId: context.business.id,
+        websiteUrl: context.business.website_url,
       });
 
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/product-events", async (req, res) => {
+    try {
+      const result = await trackProductEvent(getSupabase(), {
+        clientId: req.body.client_id || req.body.clientId,
+        agentId: req.body.agent_id || req.body.agentId,
+        eventName: req.body.event_name || req.body.eventName,
+        source: req.body.source,
+        metadata: req.body.metadata,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/create-checkout-session", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const action = req.body.action || "create";
+
+      if (action === "simulate") {
+        if (!isLocalDevBillingRequestAllowed(req)) {
+          res.status(404).json({
+            error: "Not found",
+          });
+          return;
+        }
+
+        await updateOwnedAccessStatusImpl(supabase, {
+          ownerUserId: user.id,
+          accessStatus: "active",
+        });
+
+        res.json({
+          ok: true,
+          simulated: true,
+          access_status: "active",
+        });
+        return;
+      }
+
+      if (action === "confirm") {
+        const session = await verifySuccessfulCheckout({
+          sessionId: req.body.session_id || req.body.sessionId,
+          ownerUserId: user.id,
+        });
+
+        res.json({
+          ok: true,
+          payment_status: session.payment_status,
+          session_id: session.id,
+        });
+        return;
+      }
+
+      const session = await createHostedCheckoutSession({
+        user,
+        email: req.body.email,
+      });
+
+      res.json({
+        ok: true,
+        url: session.url,
+        session_id: session.id,
+      });
+    } catch (err) {
+      if (isStripeConfigError(err)) {
+        console.warn("[stripe checkout] Stripe configuration error:", err.message);
+      } else {
+        console.error(err);
+      }
+      res.status(err.statusCode || 500).json({
+        error: isStripeConfigError(err)
+          ? "Stripe checkout is not configured yet. Please check the Stripe environment settings."
+          : err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/claim", async (req, res) => {
+    try {
+      const supabase = getSupabaseClient();
+      const user = await getAuthenticatedUser(supabase, req);
+      const agent = await claimAgentForOwner(supabase, {
+        agentId: req.body.agent_id || req.body.agentId,
+        clientId: req.body.client_id || req.body.clientId,
+        ownerUserId: user.id,
+      });
+
+      res.json({
+        ok: true,
+        agent,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/access-status", async (req, res) => {
+    try {
+      ensureAdminAccess(req);
+      const agent = await updateAgentAccessStatus(getSupabaseClient(), {
+        agentId: req.body.agent_id || req.body.agentId,
+        accessStatus: req.body.access_status || req.body.accessStatus,
+      });
+
+      res.json({
+        ok: true,
+        agent,
+      });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

@@ -43,6 +43,17 @@
       </header>
 
       <section id="chat" class="chat-feed">
+        <section class="welcome-panel" id="welcome-panel">
+          <div class="welcome-badge">Grounded in your website</div>
+          <h2 class="welcome-title">A premium first reply for your visitors.</h2>
+          <p class="welcome-copy">Vonza answers questions using your website content and helps people understand your business with confidence.</p>
+          <div class="starter-prompts" id="starter-prompts">
+            <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">What services do you offer?</button>
+            <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">How much does it cost?</button>
+            <button class="starter-chip" type="button" data-starter-prompt="How can I contact you?">How can I contact you?</button>
+            <button class="starter-chip" type="button" data-starter-prompt="Tell me about your business">Tell me about your business</button>
+          </div>
+        </section>
         <div class="message bot intro">
           <div class="avatar" id="intro-avatar">V</div>
           <div class="bubble">
@@ -57,7 +68,8 @@
           <input id="input" placeholder="Type here" />
           <button id="send-button" onclick="sendMessage()">Send</button>
         </div>
-        <p class="composer-hint">Press Enter to send. Answers are generated from the live website content.</p>
+        <p class="composer-hint" id="composer-hint">Press Enter to send. Answers are grounded in your website content.</p>
+        <p class="composer-status" id="composer-status">Ask about services, pricing, contact details, or anything your visitors would want to know.</p>
         <p class="powered-by" id="powered-by">Powered by Vonza AI</p>
       </div>
     </main>

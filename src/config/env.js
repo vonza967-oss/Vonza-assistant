@@ -5,3 +5,67 @@ export function getPort() {
 export function getPublicAppUrl(port = getPort()) {
   return (process.env.PUBLIC_APP_URL || `http://0.0.0.0:${port}`).replace(/\/$/, "");
 }
+
+export function getSupabasePublicUrl() {
+  return String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
+}
+
+export function getSupabaseAnonKey() {
+  return String(process.env.SUPABASE_ANON_KEY || "");
+}
+
+export function getStripeSecretKey() {
+  return String(process.env.STRIPE_SECRET_KEY || "");
+}
+
+export function getStripePriceId() {
+  return String(process.env.STRIPE_PRICE_ID || "");
+}
+
+export function getStripeWebhookSecret() {
+  return String(process.env.STRIPE_WEBHOOK_SECRET || "");
+}
+
+export function isDevFakeBillingEnabled() {
+  return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
+}
+
+function isLocalHostname(hostname) {
+  const normalized = String(hostname || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
+
+  return normalized === "localhost"
+    || normalized === "127.0.0.1"
+    || normalized === "0.0.0.0"
+    || normalized === "::1"
+    || normalized.endsWith(".local");
+}
+
+function getHostnameFromUrl(value) {
+  try {
+    return new URL(String(value || "")).hostname;
+  } catch {
+    return "";
+  }
+}
+
+export function isLocalDevBillingRequestAllowed(req) {
+  if (!isDevFakeBillingEnabled()) {
+    return false;
+  }
+
+  if (String(process.env.NODE_ENV || "").trim().toLowerCase() === "production") {
+    return false;
+  }
+
+  const configuredHost = getHostnameFromUrl(process.env.PUBLIC_APP_URL);
+
+  if (configuredHost && isLocalHostname(configuredHost)) {
+    return true;
+  }
+
+  const requestHost = req?.hostname || String(req?.headers?.host || "").split(":")[0];
+  return isLocalHostname(requestHost);
+}

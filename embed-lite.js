@@ -30,20 +30,26 @@
   root.id = ROOT_ID;
   root.innerHTML = `
     <style>
-      #${ROOT_ID}{--primary:${defaults.primaryColor};--secondary:${defaults.secondaryColor};position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+      #${ROOT_ID}{--primary:${defaults.primaryColor};--secondary:${defaults.secondaryColor};position:fixed;right:20px;bottom:20px;z-index:2147483647;font-family:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
       #${ROOT_ID} *{box-sizing:border-box}
-      #${ROOT_ID} .vonza-lite-button{width:58px;height:58px;border:0;border-radius:999px;cursor:pointer;background:radial-gradient(circle at 28% 24%,rgba(255,255,255,.12),transparent 34%),linear-gradient(145deg,var(--primary) 0%,var(--secondary) 72%,#25163b 100%);color:#ede9fe;font:500 22px/1 inherit;letter-spacing:.08em;box-shadow:0 14px 30px rgba(6,4,17,.34),0 0 18px color-mix(in srgb,var(--primary) 18%,transparent),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,box-shadow .22s ease}
+      #${ROOT_ID} .vonza-lite-shell{position:relative}
+      #${ROOT_ID} .vonza-lite-button{position:relative;width:58px;height:58px;border:0;border-radius:999px;cursor:pointer;background:radial-gradient(circle at 28% 24%,rgba(255,255,255,.12),transparent 34%),linear-gradient(145deg,var(--primary) 0%,var(--secondary) 72%,#25163b 100%);color:#ede9fe;font:500 22px/1 inherit;letter-spacing:.08em;box-shadow:0 14px 30px rgba(6,4,17,.34),0 0 18px color-mix(in srgb,var(--primary) 18%,transparent),inset 0 1px 0 rgba(255,255,255,.08);transition:transform .22s ease,box-shadow .22s ease}
       #${ROOT_ID} .vonza-lite-button:hover{transform:translateY(-1px) scale(1.05);box-shadow:0 18px 36px rgba(6,4,17,.38),0 0 24px color-mix(in srgb,var(--primary) 22%,transparent),inset 0 1px 0 rgba(255,255,255,.1)}
       #${ROOT_ID} .vonza-lite-mark{display:inline-block;background:linear-gradient(180deg,#c4b5fd 0%,#ede9fe 58%,#faf5ff 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 0 6px color-mix(in srgb,var(--primary) 20%,transparent))}
+      #${ROOT_ID} .vonza-lite-label{position:absolute;right:70px;top:50%;transform:translateY(-50%) translateX(10px);padding:10px 14px;border-radius:999px;white-space:nowrap;background:rgba(8,13,25,.84);border:1px solid rgba(255,255,255,.08);color:#e8edf9;font-size:12px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .22s cubic-bezier(.22,1,.36,1);box-shadow:0 20px 40px rgba(4,10,20,.28)}
+      #${ROOT_ID}:hover .vonza-lite-label{opacity:1;transform:translateY(-50%) translateX(0)}
       #${ROOT_ID} .vonza-lite-modal{position:fixed;inset:0;display:flex;align-items:flex-end;justify-content:flex-end;padding:18px;background:rgba(3,8,18,.24);opacity:0;pointer-events:none;transition:opacity .28s cubic-bezier(.22,1,.36,1)}
       #${ROOT_ID} .vonza-lite-modal[data-open="true"]{opacity:1;pointer-events:auto}
       #${ROOT_ID} .vonza-lite-panel{position:relative;width:min(390px,calc(100vw - 24px));height:min(680px,calc(100vh - 24px));overflow:hidden;border-radius:24px;background:#09101d;box-shadow:0 32px 96px rgba(0,0,0,.34);transform:translateY(10px) scale(.95);opacity:0;transition:transform .28s cubic-bezier(.22,1,.36,1),opacity .28s cubic-bezier(.22,1,.36,1)}
       #${ROOT_ID} .vonza-lite-modal[data-open="true"] .vonza-lite-panel{transform:translateY(0) scale(1);opacity:1}
       #${ROOT_ID} .vonza-lite-close{position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:999px;cursor:pointer;background:rgba(8,13,25,.7);color:#fff;font:400 20px/1 inherit;z-index:1}
       #${ROOT_ID} .vonza-lite-frame{width:100%;height:100%;border:0;background:#09101d}
-      @media (max-width:640px){#${ROOT_ID}{right:16px;bottom:16px}#${ROOT_ID} .vonza-lite-button{width:56px;height:56px}#${ROOT_ID} .vonza-lite-modal{padding:0}#${ROOT_ID} .vonza-lite-panel{width:100vw;height:100vh;border-radius:0}}
+      @media (max-width:640px){#${ROOT_ID}{right:16px;bottom:16px}#${ROOT_ID} .vonza-lite-button{width:56px;height:56px}#${ROOT_ID} .vonza-lite-label{display:none}#${ROOT_ID} .vonza-lite-modal{padding:0}#${ROOT_ID} .vonza-lite-panel{width:100vw;height:100vh;border-radius:0}}
     </style>
-    <button class="vonza-lite-button" type="button" aria-label="${defaults.buttonLabel}" title="${defaults.buttonLabel}"><span class="vonza-lite-mark">V</span></button>
+    <div class="vonza-lite-shell">
+      <button class="vonza-lite-button" type="button" aria-label="${defaults.buttonLabel}" title="${defaults.buttonLabel}"><span class="vonza-lite-mark">V</span></button>
+      <div class="vonza-lite-label">${defaults.buttonLabel}</div>
+    </div>
     <div class="vonza-lite-modal" data-open="false" aria-hidden="true">
       <div class="vonza-lite-panel" role="dialog" aria-modal="true" aria-label="${defaults.assistantName}">
         <button class="vonza-lite-close" type="button" aria-label="Close">&times;</button>
@@ -56,6 +62,7 @@
   window[FLAG] = true;
 
   const button = root.querySelector(".vonza-lite-button");
+  const label = root.querySelector(".vonza-lite-label");
   const modal = root.querySelector(".vonza-lite-modal");
   const panel = root.querySelector(".vonza-lite-panel");
   const closeButton = root.querySelector(".vonza-lite-close");
@@ -70,6 +77,7 @@
     root.style.setProperty("--secondary", nextConfig.secondaryColor);
     button.setAttribute("aria-label", nextConfig.buttonLabel);
     button.setAttribute("title", nextConfig.buttonLabel);
+    if (label) label.textContent = nextConfig.buttonLabel;
     panel.setAttribute("aria-label", nextConfig.assistantName);
     frame.setAttribute("title", nextConfig.assistantName);
   }).catch((error) => console.warn("[Vonza lite] bootstrap failed", error));
