@@ -370,8 +370,9 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /Turn your website into a customer-ready assistant in one clear flow/);
+        assert.match(marketingHome.text, /The premium way to turn your website into a client-ready AI assistant/);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
+        assert.match(marketingHome.text, /Vonza workspace/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
