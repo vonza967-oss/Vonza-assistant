@@ -354,7 +354,7 @@ test("app boot smoke: startup warnings appear and the server still starts", { co
   assert.match(output, /Server running on/, "expected the app to boot successfully");
 });
 
-test("public dashboard/auth surface loads without broken routes", { concurrency: false }, async () => {
+test("marketing homepage and app routes load without broken handoff paths", { concurrency: false }, async () => {
   await withEnv(
     {
       PUBLIC_APP_URL: "http://localhost:3000",
@@ -368,12 +368,22 @@ test("public dashboard/auth surface loads without broken routes", { concurrency:
       const server = await startServer(createTestApp());
 
       try {
+        const marketingHome = await getText(server.baseUrl, "/");
+        assert.equal(marketingHome.status, 200);
+        assert.match(marketingHome.text, /Turn your website into a customer-ready assistant in one clear flow/);
+        assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
+
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
         assert.match(dashboard.text, /dashboard-root/);
         assert.match(dashboard.text, /\/public-config\.js/);
         assert.match(dashboard.text, /\/supabase-auth\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
+
+        const widget = await getText(server.baseUrl, "/widget");
+        assert.equal(widget.status, 200);
+        assert.match(widget.text, /chat-container/);
+        assert.match(widget.text, /Powered by Vonza AI/);
 
         const authScript = await getText(server.baseUrl, "/supabase-auth.js");
         assert.equal(authScript.status, 200);

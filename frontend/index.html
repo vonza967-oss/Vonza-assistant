@@ -1,80 +1,211 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title id="page-title">Vonza AI</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Vonza AI" id="apple-app-title">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icon-192.svg">
-  <script>
-    if (new URLSearchParams(window.location.search).get("embedded") === "1") {
-      document.documentElement.classList.add("embedded-mode");
-    }
-  </script>
+  <title>Vonza | Website AI assistant setup, install, and analytics</title>
+  <meta name="description" content="Vonza helps businesses launch a website AI assistant with one clear flow: sign in, unlock access, customize the assistant, and add it to your site.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/marketing.css">
 </head>
 <body>
-  <div class="app-shell">
-    <div class="ambient ambient-left"></div>
-    <div class="ambient ambient-right"></div>
+  <div class="marketing-shell">
+    <header class="marketing-header">
+      <a class="marketing-brand" href="/" aria-label="Vonza home">
+        <span class="marketing-brand-mark">V</span>
+        <span>Vonza</span>
+      </a>
+      <nav class="marketing-nav" aria-label="Primary">
+        <a href="#how-it-works">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="marketing-header-actions">
+        <a class="header-link" href="/dashboard?from=site">Sign in</a>
+        <a class="header-cta" href="/dashboard?from=site">Get started</a>
+      </div>
+    </header>
 
-    <main class="chat-container">
-      <header class="chat-header">
-        <div class="brand">
-          <div class="brand-mark" aria-label="Vonza AI logo">
-            <span class="brand-mark-v" id="brand-mark-v">V</span>
+    <main>
+      <section class="hero-section">
+        <div class="hero-copy">
+          <p class="hero-kicker">Website AI assistant for real businesses</p>
+          <h1>Turn your website into a customer-ready assistant in one clear flow.</h1>
+          <p class="hero-text">Vonza helps you launch a website-grounded AI assistant without a messy setup journey. Sign in, unlock access, customize the assistant, and add it to your site from one workspace.</p>
+          <div class="hero-actions">
+            <a class="primary-cta" href="/dashboard?from=site">Get started</a>
+            <a class="secondary-cta" href="#how-it-works">See how it works</a>
           </div>
-          <div>
-            <p class="eyebrow" id="launcher-text">YOUR PERSONAL ASSISTANT</p>
-            <h1 id="assistant-name">Vonza AI</h1>
+          <div class="hero-points">
+            <span>Website-grounded answers</span>
+            <span>Hosted checkout</span>
+            <span>Customize + install + analytics</span>
           </div>
         </div>
-        <div class="status-pill">
-          <span class="status-dot"></span>
-          Online
-        </div>
-      </header>
 
-      <section id="chat" class="chat-feed">
-        <section class="welcome-panel" id="welcome-panel">
-          <div class="welcome-badge">Grounded in your website</div>
-          <h2 class="welcome-title">A premium first reply for your visitors.</h2>
-          <p class="welcome-copy">Vonza answers questions using your website content and helps people understand your business with confidence.</p>
-          <div class="starter-prompts" id="starter-prompts">
-            <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">What services do you offer?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">How much does it cost?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="How can I contact you?">How can I contact you?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="Tell me about your business">Tell me about your business</button>
-          </div>
-        </section>
-        <div class="message bot intro">
-          <div class="avatar" id="intro-avatar">V</div>
-          <div class="bubble">
-            <p class="message-label">Assistant</p>
-            <p id="welcome-message">How may I be of your service today?</p>
+        <div class="hero-card">
+          <p class="hero-card-label">Inside Vonza</p>
+          <div class="hero-card-stack">
+            <div class="hero-card-step">
+              <span class="hero-card-number">1</span>
+              <div>
+                <p class="hero-card-title">Sign in</p>
+                <p class="hero-card-copy">Enter your email and open the magic link.</p>
+              </div>
+            </div>
+            <div class="hero-card-step">
+              <span class="hero-card-number">2</span>
+              <div>
+                <p class="hero-card-title">Unlock Vonza</p>
+                <p class="hero-card-copy">Use one secure checkout to open your workspace.</p>
+              </div>
+            </div>
+            <div class="hero-card-step">
+              <span class="hero-card-number">3</span>
+              <div>
+                <p class="hero-card-title">Customize and add to site</p>
+                <p class="hero-card-copy">Use Overview, Customize, and Analytics to launch with confidence.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <div class="composer-shell">
-        <div class="input-area">
-          <input id="input" placeholder="Type here" />
-          <button id="send-button" onclick="sendMessage()">Send</button>
+      <section id="how-it-works" class="content-section">
+        <div class="section-heading">
+          <p class="section-kicker">How it works</p>
+          <h2>A simple 3-step journey from first visit to live assistant.</h2>
         </div>
-        <p class="composer-hint" id="composer-hint">Press Enter to send. Answers are grounded in your website content.</p>
-        <p class="composer-status" id="composer-status">Ask about services, pricing, contact details, or anything your visitors would want to know.</p>
-        <p class="powered-by" id="powered-by">Powered by Vonza AI</p>
-      </div>
-    </main>
-  </div>
+        <div class="steps-grid">
+          <article class="step-card">
+            <span class="step-number">01</span>
+            <h3>Sign up with email</h3>
+            <p>Start at the Vonza app, sign in with email, and come back through a secure magic link.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">02</span>
+            <h3>Pay once to unlock the workspace</h3>
+            <p>Checkout is focused and simple. You are not forced through a confusing setup before payment.</p>
+          </article>
+          <article class="step-card">
+            <span class="step-number">03</span>
+            <h3>Customize and add it to your site</h3>
+            <p>Use the paid workspace to shape the assistant, connect your website, and install it when you are ready.</p>
+          </article>
+        </div>
+      </section>
 
-  <script src="./script.js"></script>
+      <section id="features" class="content-section">
+        <div class="section-heading">
+          <p class="section-kicker">What Vonza helps you do</p>
+          <h2>Give your website a clearer first response.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Answer common customer questions</h3>
+            <p>Vonza uses your website as the source so visitors can ask about services, pricing, contact, and the business itself.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Keep the assistant on-brand</h3>
+            <p>Set the assistant name, welcome message, tone, and colors so the experience feels like part of your business.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Add it to your website clearly</h3>
+            <p>Copy one embed script when you are ready to install. Vonza keeps installation and setup in one place.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Review what happens after launch</h3>
+            <p>Use Analytics to see basic activity, common questions, and whether the assistant has been seen live on the site.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section split-section">
+        <div class="section-heading">
+          <p class="section-kicker">Setup and installation</p>
+          <h2>Customize first, install when the assistant feels right.</h2>
+          <p class="section-copy">The paid workspace is designed for one job: help you get the assistant ready, then help you add it to your site without guesswork.</p>
+        </div>
+        <div class="setup-card">
+          <div class="setup-row">
+            <span class="setup-label">Overview</span>
+            <p>See the assistant summary, setup progress, install status, and the main next step.</p>
+          </div>
+          <div class="setup-row">
+            <span class="setup-label">Customize</span>
+            <p>Update the assistant name, welcome message, website URL, colors, behavior, and website import.</p>
+          </div>
+          <div class="setup-row">
+            <span class="setup-label">Analytics</span>
+            <p>See current usage and simple insights, or a clean placeholder if activity is still early.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" class="content-section pricing-section">
+        <div class="section-heading">
+          <p class="section-kicker">Pricing</p>
+          <h2>One premium Vonza workspace. No fake tiers.</h2>
+          <p class="section-copy">Vonza keeps pricing intentionally simple. Checkout unlocks the workspace where you customize, install, and manage the assistant for your business.</p>
+        </div>
+        <div class="pricing-card-marketing">
+          <p class="pricing-plan">Vonza premium workspace</p>
+          <h3>Unlock setup, install, and analytics in one product flow.</h3>
+          <ul>
+            <li>Sign in with email</li>
+            <li>Secure hosted checkout</li>
+            <li>Paid setup workspace with Overview, Customize, and Analytics</li>
+            <li>Website-grounded assistant and install tools</li>
+          </ul>
+          <a class="primary-cta" href="/dashboard?from=site">Get started</a>
+        </div>
+      </section>
+
+      <section id="faq" class="content-section">
+        <div class="section-heading">
+          <p class="section-kicker">FAQ</p>
+          <h2>What people usually want to know before they start.</h2>
+        </div>
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Do I customize the assistant before I pay?</summary>
+            <p>No. The flow is sign in, unlock Vonza, then customize the assistant inside the paid workspace.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What happens after payment?</summary>
+            <p>You land in the setup workspace where you can review Overview, make changes in Customize, and check Analytics.</p>
+          </details>
+          <details class="faq-item">
+            <summary>Can I add it to my website myself?</summary>
+            <p>Yes. Vonza gives you an embed script and an install-focused workspace so you can add it when you are ready.</p>
+          </details>
+          <details class="faq-item">
+            <summary>What does Vonza use to answer customer questions?</summary>
+            <p>Vonza uses your website as the main source of business information and lets you refresh that knowledge from the workspace.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta-section">
+        <div>
+          <p class="section-kicker">Ready to launch?</p>
+          <h2>Open Vonza, unlock the workspace, and get the assistant onto your site.</h2>
+        </div>
+        <a class="primary-cta" href="/dashboard?from=site">Get started</a>
+      </section>
+    </main>
+
+    <footer class="marketing-footer">
+      <p>Vonza</p>
+      <div class="footer-links">
+        <a href="/dashboard?from=site">App</a>
+        <a href="/widget">Preview widget</a>
+        <a href="#faq">FAQ</a>
+      </div>
+    </footer>
+  </div>
 </body>
 </html>

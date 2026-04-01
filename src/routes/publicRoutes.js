@@ -23,11 +23,11 @@ export function createPublicRouter({ rootDir }) {
   const router = express.Router();
 
   router.get("/", (_req, res) => {
-    res.redirect("/dashboard");
+    res.sendFile(path.join(rootDir, "frontend", "index.html"));
   });
 
   router.get("/widget", (_req, res) => {
-    res.sendFile(path.join(rootDir, "frontend", "index.html"));
+    res.sendFile(path.join(rootDir, "frontend", "widget.html"));
   });
 
   router.get("/embed.js", (_req, res) => {
