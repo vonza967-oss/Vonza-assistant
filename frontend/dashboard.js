@@ -185,7 +185,8 @@ function clearPaymentStateFromUrl() {
 
 function getAuthFlowType() {
   const searchParams = new URLSearchParams(window.location.search);
-  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const hashValue = typeof window.location.hash === "string" ? window.location.hash : "";
+  const hashParams = new URLSearchParams(hashValue.replace(/^#/, ""));
   return trimText(searchParams.get("type") || hashParams.get("type")).toLowerCase();
 }
 
@@ -199,7 +200,7 @@ function clearAuthFlowStateFromUrl() {
   }
 
   if (url.hash) {
-    const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+    const hashParams = new URLSearchParams(String(url.hash || "").replace(/^#/, ""));
 
     if (hashParams.has("type") || hashParams.has("access_token") || hashParams.has("refresh_token")) {
       url.hash = "";
