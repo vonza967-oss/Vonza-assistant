@@ -972,20 +972,20 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Analytics/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
-        assert.match(dashboardScript.text, /High-intent signals/);
+        assert.match(dashboardScript.text, /Open operator actions/);
         assert.match(dashboardScript.text, /Answers needing work/);
         assert.match(dashboardScript.text, /Top customer questions/);
-        assert.match(dashboardScript.text, /Lead \/ contact/);
+        assert.match(dashboardScript.text, /Pricing interest/);
         assert.match(dashboardScript.text, /Action queue/);
         assert.match(dashboardScript.text, /No actionable items yet/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
-        assert.match(dashboardScript.text, /Attention now/);
+        assert.match(dashboardScript.text, /High priority/);
         assert.match(dashboardScript.text, /Resolved items/);
-        assert.match(dashboardScript.text, /Returning people/);
+        assert.match(dashboardScript.text, /with queue items/);
         assert.match(dashboardScript.text, /Owner attention now/);
         assert.match(dashboardScript.text, /Owner follow-up state/);
-        assert.match(dashboardScript.text, /Conversation summary/);
+        assert.match(dashboardScript.text, /What happened/);
         assert.match(dashboardScript.text, /Visitor thread/);
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open owner handoff/);
@@ -1740,7 +1740,7 @@ test("locked owners stay blocked until local dev fake billing simulates activati
   );
 });
 
-test("action queue creates separate owner items for important individual conversations", { concurrency: false }, async () => {
+test("action queue creates typed operator actions from important conversations", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
     messages: [
@@ -1822,18 +1822,24 @@ test("action queue creates separate owner items for important individual convers
         assert.ok(Array.isArray(result.json.items));
         assert.equal(result.json.summary.total, 6);
         assert.equal(result.json.items.length, 6);
-        assert.ok(result.json.items.some((item) => item.type === "booking"));
-        assert.ok(result.json.items.some((item) => item.type === "pricing"));
-        assert.equal(result.json.items.filter((item) => item.type === "contact").length, 2);
-        assert.ok(result.json.items.some((item) => item.type === "support"));
-        assert.ok(result.json.items.some((item) => item.type === "weak_answer"));
+        assert.ok(result.json.items.some((item) => item.type === "booking_intent"));
+        assert.ok(result.json.items.some((item) => item.type === "pricing_interest"));
+        assert.equal(result.json.items.filter((item) => item.type === "lead_follow_up").length, 2);
+        assert.equal(result.json.items.filter((item) => item.type === "knowledge_gap").length, 2);
+        assert.ok(result.json.items.every((item) => ["high", "medium", "low"].includes(item.priority)));
         assert.ok(result.json.items.every((item) => item.ownerWorkflow && typeof item.ownerWorkflow.label === "string"));
-        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("conversation:")));
+        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("operator:")));
+        assert.equal(result.json.summary.leadFollowUp, 2);
+        assert.equal(result.json.summary.pricingInterest, 1);
+        assert.equal(result.json.summary.bookingIntent, 1);
+        assert.equal(result.json.summary.knowledgeGap, 2);
 
         const contactItem = result.json.items.find((item) => item.contactInfo?.email === "hello@example.com");
         assert.equal(contactItem.contactCaptured, true);
         assert.equal(contactItem.contactInfo.email, "hello@example.com");
-        assert.match(contactItem.snippet, /Visitor asked:/);
+        assert.match(contactItem.operatorSummary, /follow-up/i);
+        assert.match(contactItem.suggestedAction, /follow-up/i);
+        assert.ok(contactItem.evidence);
       } finally {
         await server.close();
       }
@@ -1841,12 +1847,12 @@ test("action queue creates separate owner items for important individual convers
   );
 });
 
-test("action queue groups repeat interactions under one lightweight person thread when contact identity is captured", () => {
+test("repeat pricing signals for the same known visitor update the existing pricing action instead of duplicating that issue", () => {
   const messages = [
     {
       id: "message-1",
       role: "user",
-      content: "Email me at hello@example.com with pricing for the monthly plan.",
+      content: "hello@example.com here. What does the monthly plan cost?",
       createdAt: "2026-04-01T10:00:00.000Z",
     },
     {
@@ -1870,7 +1876,15 @@ test("action queue groups repeat interactions under one lightweight person threa
   ];
 
   const result = buildActionQueue(messages, []);
+  const pricingItems = result.items.filter((item) => item.type === "pricing_interest");
+  const repeatHighIntentItems = result.items.filter((item) => item.type === "repeat_high_intent_visitor");
+  const leadItems = result.items.filter((item) => item.type === "lead_follow_up");
 
+  assert.equal(pricingItems.length, 1);
+  assert.equal(pricingItems[0].count, 2);
+  assert.equal(pricingItems[0].evidence.interactionCount, 2);
+  assert.equal(leadItems.length, 0);
+  assert.equal(repeatHighIntentItems.length, 1);
   assert.equal(result.people.length, 1);
   assert.equal(result.peopleSummary.total, 1);
   assert.equal(result.peopleSummary.returning, 1);
@@ -1881,7 +1895,7 @@ test("action queue groups repeat interactions under one lightweight person threa
   assert.equal(new Set(result.items.map((item) => item.person?.key)).size, 1);
 });
 
-test("action queue links multiple queue items to the same person when session continuity is the only shared signal", () => {
+test("repeat high-intent visitors create one dedicated operator action without duplicate spam", () => {
   const messages = [
     {
       id: "message-1",
@@ -1911,17 +1925,34 @@ test("action queue links multiple queue items to the same person when session co
       sessionKey: "visitor-session-1",
       createdAt: "2026-04-03T10:00:05.000Z",
     },
+    {
+      id: "message-5",
+      role: "user",
+      content: "What does the premium plan cost?",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-04T10:00:00.000Z",
+    },
+    {
+      id: "message-6",
+      role: "assistant",
+      content: "Premium pricing depends on scope.",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-04T10:00:05.000Z",
+    },
   ];
 
   const result = buildActionQueue(messages, []);
   const personKeys = new Set(result.items.map((item) => item.person?.key));
+  const repeatVisitorItems = result.items.filter((item) => item.type === "repeat_high_intent_visitor");
 
   assert.equal(result.people.length, 1);
   assert.equal(result.people[0].identityType, "session");
-  assert.equal(result.people[0].queueItemCount, 2);
+  assert.equal(repeatVisitorItems.length, 1);
+  assert.equal(result.people[0].queueItemCount, 4);
   assert.equal(personKeys.size, 1);
-  assert.equal(result.items[0].person?.relatedQueueItemCount, 2);
-  assert.equal(result.items[0].person?.relatedInteractionCount, 2);
+  assert.equal(result.items[0].person?.relatedQueueItemCount, 4);
+  assert.equal(result.items[0].person?.relatedInteractionCount, 3);
+  assert.equal(result.summary.repeatHighIntentVisitor, 1);
 });
 
 test("action queue keeps unknown identities separate instead of over-stitching visitors", () => {
@@ -1999,6 +2030,29 @@ test("action queue stays honestly empty when there are no actionable conversatio
   );
 });
 
+test("weak answers can produce an unanswered question action when the issue is not yet a clear knowledge gap", () => {
+  const messages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "Can you send me the exact parking instructions?",
+      createdAt: "2026-04-01T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Please contact the business directly.",
+      createdAt: "2026-04-01T10:00:05.000Z",
+    },
+  ];
+
+  const result = buildActionQueue(messages, []);
+
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].type, "unanswered_question");
+  assert.equal(result.summary.unansweredQuestion, 1);
+});
+
 test("action queue status changes persist cleanly through the lightweight owner workflow", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
@@ -2028,7 +2082,7 @@ test("action queue status changes persist cleanly through the lightweight owner 
       try {
         const initial = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
         assert.equal(initial.status, 200);
-        const contactActionKey = initial.json.items.find((item) => item.type === "contact")?.key;
+        const contactActionKey = initial.json.items.find((item) => item.type === "lead_follow_up")?.key;
         assert.ok(contactActionKey);
 
         const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {
@@ -2106,8 +2160,8 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
     },
   ];
   const baseline = buildActionQueue(messages, []);
-  const contactKey = baseline.items.find((item) => item.type === "contact")?.key;
-  const pricingKey = baseline.items.find((item) => item.type === "pricing")?.key;
+  const contactKey = baseline.items.find((item) => item.type === "lead_follow_up")?.key;
+  const pricingKey = baseline.items.find((item) => item.type === "pricing_interest")?.key;
   const result = buildActionQueue(messages, [
     {
       action_key: contactKey,
@@ -2133,6 +2187,8 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
   assert.equal(result.summary.followUpNeeded, 1);
   assert.equal(result.summary.resolved, 1);
   assert.equal(result.summary.attentionNeeded, 1);
+  assert.equal(result.summary.leadFollowUp, 1);
+  assert.equal(result.summary.pricingInterest, 1);
 });
 
 test("lightweight owner handoff updates auto-advance queue status when appropriate", async () => {
@@ -2290,7 +2346,7 @@ test("action queue follow-up persists through website re-imports", { concurrency
       try {
         const initial = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
         assert.equal(initial.status, 200);
-        const actionKey = initial.json.items.find((item) => item.type === "contact")?.key;
+        const actionKey = initial.json.items.find((item) => item.type === "lead_follow_up")?.key;
         assert.ok(actionKey);
 
         const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {

@@ -2380,6 +2380,7 @@ function createEmptyActionQueue() {
     },
     summary: {
       total: 0,
+      open: 0,
       new: 0,
       reviewed: 0,
       done: 0,
@@ -2388,6 +2389,13 @@ function createEmptyActionQueue() {
       followUpCompleted: 0,
       resolved: 0,
       attentionNeeded: 0,
+      highPriority: 0,
+      leadFollowUp: 0,
+      pricingInterest: 0,
+      bookingIntent: 0,
+      unansweredQuestion: 0,
+      knowledgeGap: 0,
+      repeatHighIntentVisitor: 0,
     },
     persistenceAvailable: true,
     migrationRequired: false,
@@ -2633,11 +2641,88 @@ function formatActionQueueContact(item) {
 }
 
 function getActionQueueTypeLabel(type) {
-  if (type === "weak_answer") {
-    return "Weak answers";
+  switch (trimText(type)) {
+    case "lead_follow_up":
+      return "Lead follow-up";
+    case "pricing_interest":
+      return "Pricing interest";
+    case "booking_intent":
+      return "Booking intent";
+    case "knowledge_gap":
+      return "Knowledge gap";
+    case "repeat_high_intent_visitor":
+      return "Repeat high-intent visitor";
+    case "unanswered_question":
+      return "Unanswered question";
+    default:
+      if (type === "weak_answer") {
+        return "Weak answers";
+      }
+      return getIntentLabel(type);
+  }
+}
+
+function getActionQueuePriorityLabel(priority) {
+  const normalized = trimText(priority).toLowerCase();
+
+  if (normalized === "high") {
+    return "High priority";
   }
 
-  return getIntentLabel(type);
+  if (normalized === "medium") {
+    return "Medium priority";
+  }
+
+  return "Low priority";
+}
+
+function getActionQueuePriorityBadgeClass(priority) {
+  const normalized = trimText(priority).toLowerCase();
+
+  if (normalized === "high") {
+    return "badge pending";
+  }
+
+  if (normalized === "medium") {
+    return "badge warning";
+  }
+
+  return "pill";
+}
+
+function formatActionQueueEvidence(item = {}) {
+  const evidence = item.evidence || {};
+  const snippets = [];
+
+  if (Number(evidence.interactionCount || item.count || 0) > 1) {
+    snippets.push(`${Number(evidence.interactionCount || item.count || 0)} related conversations`);
+  }
+
+  if (Array.isArray(evidence.intents) && evidence.intents.length) {
+    snippets.push(evidence.intents.map((intent) => getIntentLabel(intent)).join(" · "));
+  }
+
+  if (evidence.contactCaptured) {
+    snippets.push("Contact details captured");
+  }
+
+  if (evidence.repeatedQuestion) {
+    snippets.push("Repeated question pattern");
+  }
+
+  if (Number(evidence.weakAnswerCount || 0) > 0) {
+    snippets.push(`${evidence.weakAnswerCount} weak answer signal${Number(evidence.weakAnswerCount) === 1 ? "" : "s"}`);
+  }
+
+  if (Number(evidence.unresolvedCount || 0) > 0) {
+    snippets.push(`${evidence.unresolvedCount} unanswered`);
+  }
+
+  if (!snippets.length) {
+    return "No extra evidence captured yet.";
+  }
+
+  return snippets.join(" · ");
 }
 
 function buildActionQueueSummaryPills(summary = {}) {
@@ -2648,9 +2733,10 @@ function buildActionQueueSummaryPills(summary = {}) {
 
   return [
     `${counts.total} total`,
+    `${counts.open} open`,
     `${counts.attentionNeeded} need attention`,
     `${counts.followUpNeeded} follow-up needed`,
-    `${counts.resolved} resolved`,
+    `${counts.highPriority} high priority`,
   ];
 }
 
@@ -2850,6 +2936,29 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
     const personThreadLabel = item.person?.relatedInteractionCount > 1
       ? `${item.person.label || "Returning visitor"} · ${item.person.relatedInteractionCount} interactions`
       : "";
+    const quickActions = [];
+
+    if (allowStatusUpdates && normalizeActionQueueStatus(item.status) !== "reviewed") {
+      quickActions.push(`<button class="ghost-button" type="button" data-action-queue-quick-status="reviewed" data-action-key="${escapeHtml(item.key || "")}">Mark reviewed</button>`);
+    }
+
+    if (allowStatusUpdates && normalizeActionQueueStatus(item.status) !== "done") {
+      quickActions.push(`<button class="ghost-button" type="button" data-action-queue-quick-status="done" data-action-key="${escapeHtml(item.key || "")}">Mark done</button>`);
+    }
+
+    if (allowStatusUpdates && normalizeActionQueueStatus(item.status) !== "dismissed") {
+      quickActions.push(`<button class="ghost-button" type="button" data-action-queue-quick-status="dismissed" data-action-key="${escapeHtml(item.key || "")}">Dismiss</button>`);
+    }
+
+    quickActions.push(`<button class="ghost-button" type="button" data-shell-target="analytics">Open related conversation</button>`);
+
+    if (item.type === "knowledge_gap" || item.type === "unanswered_question") {
+      quickActions.push(`<button class="ghost-button" type="button" data-shell-target="customize">Jump to Customize</button>`);
+    }
+
+    if (item.contactCaptured) {
+      quickActions.push(`<button class="ghost-button" type="button" data-action-queue-open-handoff data-action-key="${escapeHtml(item.key || "")}">Open follow-up</button>`);
+    }
 
     return `
     <article
@@ -2863,13 +2972,14 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         <div class="action-queue-headline">
           <div class="action-queue-badges">
             <span class="pill">${escapeHtml(getActionQueueTypeLabel(item.type))}</span>
+            <span class="${getActionQueuePriorityBadgeClass(item.priority)}">${escapeHtml(getActionQueuePriorityLabel(item.priority))}</span>
             <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
             <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
             <span class="pill">${escapeHtml(`${item.count || 0} conversation${item.count === 1 ? "" : "s"}`)}</span>
             ${personThreadLabel ? `<span class="pill">${escapeHtml(personThreadLabel)}</span>` : ""}
           </div>
           <h4 class="action-queue-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))}</h4>
-          <p class="action-queue-copy">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</p>
+          <p class="action-queue-copy">${escapeHtml(item.operatorSummary || item.whyFlagged || "Flagged from recent conversation activity.")}</p>
         </div>
         ${allowStatusUpdates ? `
           <label class="action-queue-control">
@@ -2888,16 +2998,30 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       </div>
       <div class="action-queue-details">
         <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Conversation summary</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.snippet || "No customer question stored yet.")}</strong>
+          <span class="action-queue-detail-label">What happened</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.operatorSummary || item.snippet || "No customer question stored yet.")}</strong>
+          <p class="action-queue-copy">${escapeHtml(item.snippet || "No customer question stored yet.")}</p>
         </div>
         <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Why it was flagged</span>
+          <span class="action-queue-detail-label">Why it matters</span>
           <strong class="action-queue-detail-value">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">What to do next</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.recommendedAction || item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Evidence</span>
+          <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueEvidence(item))}</strong>
+          <p class="action-queue-copy">${escapeHtml((item.evidence?.questionExamples || []).slice(0, 2).join(" • ") || "No example questions stored yet.")}</p>
         </div>
         <div class="action-queue-detail">
           <span class="action-queue-detail-label">Contact</span>
           <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Related conversation</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.relatedConversationId || "Recent signal")}</strong>
         </div>
         <div class="action-queue-detail">
           <span class="action-queue-detail-label">Visitor thread</span>
@@ -2910,15 +3034,12 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           <p class="action-queue-copy">${escapeHtml(workflow.copy)}</p>
         </div>
         <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Suggested next action</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
-        </div>
-        <div class="action-queue-detail">
           <span class="action-queue-detail-label">Recency</span>
           <strong class="action-queue-detail-value">${escapeHtml(recencyLabel)}</strong>
         </div>
       </div>
       ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml(metaLine)}</p>` : ""}
+      ${compact ? "" : `<div class="action-queue-secondary-action">${quickActions.join("")}</div>`}
       ${compact ? "" : `
         <div class="action-queue-handoff">
           <div class="action-queue-handoff-summary">
@@ -3037,11 +3158,12 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
               <span class="action-queue-filter-label">Filter by type</span>
               <select data-action-queue-filter-type>
                 <option value="all">All types</option>
-                <option value="contact">Lead / contact</option>
-                <option value="booking">Booking</option>
-                <option value="pricing">Pricing / purchase</option>
-                <option value="support">Support / complaint</option>
-                <option value="weak_answer">Weak answers</option>
+                <option value="lead_follow_up">Lead follow-up</option>
+                <option value="pricing_interest">Pricing interest</option>
+                <option value="booking_intent">Booking intent</option>
+                <option value="unanswered_question">Unanswered question</option>
+                <option value="knowledge_gap">Knowledge gap</option>
+                <option value="repeat_high_intent_visitor">Repeat high-intent visitor</option>
               </select>
             </label>
             <label class="action-queue-filter">
@@ -3381,7 +3503,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
       const workflow = getActionQueueOwnerWorkflow(item);
       const nextLine = trimText(item.nextStep)
         ? `Next step: ${trimText(item.nextStep)}`
-        : workflow.copy;
+        : (item.recommendedAction || item.suggestedAction || workflow.copy);
       const recencyLine = item.lastSeenAt ? `Flagged ${formatSeenAt(item.lastSeenAt)}` : "Recent signal";
 
       return `
@@ -3433,24 +3555,28 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
             <div class="overview-metric-value">${escapeHtml(overview.installStatus.state === "live" ? overview.installStatus.host || "Live" : overview.installStatus.state === "test" ? "Preview only" : "Not live")}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Visitor questions</div>
-            <div class="overview-metric-value">${escapeHtml(recentUsageValue)}</div>
+            <div class="overview-metric-label">Open actions</div>
+            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.open || 0))}</div>
           </div>
           <div class="overview-metric">
             <div class="overview-metric-label">Follow-up needed</div>
             <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.followUpNeeded || 0))}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Attention now</div>
-            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.attentionNeeded || 0))}</div>
+            <div class="overview-metric-label">Answer gaps</div>
+            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String((overview.queueSummary.unansweredQuestion || 0) + (overview.queueSummary.knowledgeGap || 0)))}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Resolved items</div>
-            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.resolved || 0))}</div>
+            <div class="overview-metric-label">Pricing interest</div>
+            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.pricingInterest || 0))}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Returning people</div>
-            <div class="overview-metric-value">${overview.peopleSummary.returning || 0}</div>
+            <div class="overview-metric-label">Booking intent</div>
+            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.bookingIntent || 0))}</div>
+          </div>
+          <div class="overview-metric">
+            <div class="overview-metric-label">High priority</div>
+            <div class="overview-metric-value">${escapeHtml(overview.queueLoadError ? "Unavailable" : String(overview.queueSummary.highPriority || 0))}</div>
           </div>
         </div>
         <div class="overview-action-row">
@@ -3491,13 +3617,19 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         </section>
 
         <section class="overview-card">
-          <h3 class="overview-card-title">Intent signals</h3>
-          <p class="overview-card-copy">A fast read on the kinds of conversations visitors are trying to have with the business.</p>
+          <h3 class="overview-card-title">Operator insight snapshot</h3>
+          <p class="overview-card-copy">These are the business actions Vonza is surfacing right now from real visitor behavior.</p>
           <div class="overview-list">
-            ${["contact", "booking", "pricing", "support"].map((intent) => `
+            ${[
+              { label: "Lead follow-up", value: overview.queueSummary.leadFollowUp || 0, copy: "Visitors who asked to be contacted and gave the business a direct follow-up path." },
+              { label: "Pricing interest", value: overview.queueSummary.pricingInterest || 0, copy: "Visitors asking for prices, quotes, or package clarity." },
+              { label: "Booking intent", value: overview.queueSummary.bookingIntent || 0, copy: "Visitors trying to schedule, book, or confirm availability." },
+              { label: "Answer gaps", value: (overview.queueSummary.unansweredQuestion || 0) + (overview.queueSummary.knowledgeGap || 0), copy: "Questions where the assistant still needs stronger business knowledge or guidance." },
+              { label: "Repeat high-intent visitors", value: overview.queueSummary.repeatHighIntentVisitor || 0, copy: "Returning visitors showing the same strong commercial intent more than once." },
+            ].map((item) => `
               <div class="overview-list-item">
-                <p class="overview-list-title">${escapeHtml(`${getIntentLabel(intent)}: ${overview.signals.intentCounts[intent] || 0}`)}</p>
-                <p class="overview-list-copy">${escapeHtml(getIntentDescription(intent))}</p>
+                <p class="overview-list-title">${escapeHtml(`${item.label}: ${item.value}`)}</p>
+                <p class="overview-list-copy">${escapeHtml(item.copy)}</p>
               </div>
             `).join("")}
           </div>
@@ -3524,6 +3656,10 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   const { intentCounts } = signals;
   const activity = getActivityLevel(agent.messageCount || messages.length || 0, agent.lastMessageAt);
   const recentInteractions = messages.slice(0, 12);
+  const queueSummary = {
+    ...createEmptyActionQueue().summary,
+    ...(actionQueue.summary || {}),
+  };
   const peopleSummary = {
     ...createEmptyActionQueue().peopleSummary,
     ...(actionQueue.peopleSummary || {}),
@@ -3556,34 +3692,34 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     });
   }
 
-  if (intentCounts.pricing >= 2) {
+  if (queueSummary.pricingInterest >= 1) {
     opportunityItems.push({
       title: "Customers ask about pricing",
-      copy: "Pricing questions are coming up more than once, which usually means visitors want clearer guidance before reaching out.",
+      copy: `${queueSummary.pricingInterest} pricing-focused action item${queueSummary.pricingInterest === 1 ? "" : "s"} are open right now.`,
       subtle: "Consider adding pricing context or quote guidance to your website copy.",
     });
   }
 
-  if (intentCounts.contact >= 2) {
+  if (queueSummary.leadFollowUp >= 1 || queueSummary.bookingIntent >= 1) {
     opportunityItems.push({
       title: "Customers want a next step",
-      copy: "Contact-focused questions are appearing repeatedly, which suggests visitors are ready to move forward.",
-      subtle: "Make your contact route easier to find on the site and in the assistant responses.",
+      copy: `${(queueSummary.leadFollowUp || 0) + (queueSummary.bookingIntent || 0)} action item${(queueSummary.leadFollowUp || 0) + (queueSummary.bookingIntent || 0) === 1 ? "" : "s"} are asking for direct follow-up or booking clarity.`,
+      subtle: "Make your contact and booking path easier to find on the site and in the assistant responses.",
     });
   }
 
-  if (signals.weakAnswerCount > 0) {
+  if ((queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0) > 0) {
     opportunityItems.unshift({
       title: "Weak answers need review",
-      copy: `${signals.weakAnswerCount} customer question${signals.weakAnswerCount === 1 ? "" : "s"} ended in a weak or uncertain answer.`,
+      copy: `${(queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0)} operator action${(queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0) === 1 ? "" : "s"} show missing answer paths or knowledge gaps.`,
       subtle: "Review the weak-answer list below, then improve website knowledge or adjust the assistant setup.",
     });
   }
 
-  if (peopleSummary.returning > 0) {
+  if ((queueSummary.repeatHighIntentVisitor || 0) > 0 || peopleSummary.returning > 0) {
     opportunityItems.unshift({
       title: "Repeat visitors are showing up",
-      copy: `${peopleSummary.returning} stitched visitor thread${peopleSummary.returning === 1 ? "" : "s"} already show returning behavior.`,
+      copy: `${queueSummary.repeatHighIntentVisitor || 0} repeat high-intent operator action${queueSummary.repeatHighIntentVisitor === 1 ? "" : "s"} and ${peopleSummary.returning} stitched visitor thread${peopleSummary.returning === 1 ? "" : "s"} already show returning behavior.`,
       subtle: "Use the People view to see whether the same lead came back or the same support issue kept evolving.",
     });
   }
@@ -3605,24 +3741,28 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
       <div class="analytics-stack">
         <div class="metric-grid">
           <div class="metric-card">
-            <div class="metric-label">Total messages</div>
-            <div class="metric-value">${agent.messageCount || messages.length || 0}</div>
+            <div class="metric-label">Open operator actions</div>
+            <div class="metric-value">${queueSummary.open || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Visitor questions</div>
-            <div class="metric-value">${signals.usageTrend.recentCount || signals.userMessageCount || 0}</div>
+            <div class="metric-label">Follow-ups needed</div>
+            <div class="metric-value">${queueSummary.followUpNeeded || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">High-intent signals</div>
-            <div class="metric-value">${signals.highValueIntentCount}</div>
+            <div class="metric-label">Pricing interest</div>
+            <div class="metric-value">${queueSummary.pricingInterest || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Answers needing work</div>
-            <div class="metric-value">${signals.weakAnswerCount || 0}</div>
+            <div class="metric-label">Booking intent</div>
+            <div class="metric-value">${queueSummary.bookingIntent || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Returning people</div>
-            <div class="metric-value">${peopleSummary.returning || 0}</div>
+            <div class="metric-label">Answer gaps</div>
+            <div class="metric-value">${(queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0)}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">High priority</div>
+            <div class="metric-value">${queueSummary.highPriority || 0}</div>
           </div>
         </div>
 
@@ -3648,8 +3788,8 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               </div>
               <div class="analytics-item">
                 <p class="analytics-item-title">Operator signal</p>
-                <p class="analytics-item-copy">${escapeHtml(signals.highValueIntentCount > 0 ? `${signals.highValueIntentCount} high-intent customer signal${signals.highValueIntentCount === 1 ? "" : "s"} have already appeared.` : "There is not a strong lead, booking, pricing, or support signal yet.")}</p>
-                <p class="analytics-subtle">${escapeHtml(signals.weakAnswerCount > 0 ? `${signals.weakAnswerCount} question${signals.weakAnswerCount === 1 ? "" : "s"} may need a better answer path.` : "No weak-answer signal has been detected yet.")}</p>
+                <p class="analytics-item-copy">${escapeHtml(queueSummary.highPriority > 0 ? `${queueSummary.highPriority} high-priority operator action${queueSummary.highPriority === 1 ? "" : "s"} are open right now.` : "There is not a strong high-priority operator action yet.")}</p>
+                <p class="analytics-subtle">${escapeHtml(((queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0)) > 0 ? `${(queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0)} answer-gap action${(queueSummary.unansweredQuestion || 0) + (queueSummary.knowledgeGap || 0) === 1 ? "" : "s"} may need a better answer path.` : "No answer-gap action has been detected yet.")}</p>
               </div>
             </div>
           </section>
@@ -4968,6 +5108,29 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
   const actionQueueStatusInputs = document.querySelectorAll("[data-action-queue-status]");
   const actionQueueForms = document.querySelectorAll("[data-action-queue-form]");
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
+  const actionQueueQuickStatusButtons = document.querySelectorAll("[data-action-queue-quick-status]");
+  const actionQueueOpenHandoffButtons = document.querySelectorAll("[data-action-queue-open-handoff]");
+
+  const openShellSection = (targetSection) => {
+    if (!SHELL_SECTIONS.includes(targetSection)) {
+      return;
+    }
+
+    setActiveShellSection(targetSection);
+
+    document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
+      navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
+    });
+
+    document.querySelectorAll("[data-shell-section]").forEach((section) => {
+      section.hidden = section.dataset.shellSection !== targetSection;
+    });
+
+    const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
+    if (sectionEl) {
+      sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   const applyActionQueueFilters = (section) => {
     const typeFilter = section.querySelector("[data-action-queue-filter-type]")?.value || "all";
@@ -5032,24 +5195,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
     button.addEventListener("click", () => {
       const targetSection = button.dataset.overviewTarget;
 
-      if (!SHELL_SECTIONS.includes(targetSection)) {
-        return;
-      }
-
-      setActiveShellSection(targetSection);
-
-      document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
-        navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
-      });
-
-      document.querySelectorAll("[data-shell-section]").forEach((section) => {
-        section.hidden = section.dataset.shellSection !== targetSection;
-      });
-
-      const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
-      if (sectionEl) {
-        sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      openShellSection(targetSection);
     });
   });
 
@@ -5111,6 +5257,44 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
     input.dataset.previousStatus = input.value;
   });
 
+  actionQueueQuickStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const actionKey = button.dataset.actionKey;
+      const nextStatus = button.dataset.actionQueueQuickStatus;
+
+      if (!actionKey || !nextStatus) {
+        return;
+      }
+
+      button.disabled = true;
+      setStatus(`Updating action queue item...`);
+
+      try {
+        const result = await fetchJson("/agents/action-queue/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            action_key: actionKey,
+            status: nextStatus,
+          }),
+        });
+
+        applyActiveWorkspaceActionQueue(result.queue, {
+          focus: "action-queue",
+        });
+        setStatus(`Action item marked ${getActionQueueStatusLabel(nextStatus).toLowerCase()}.`);
+      } catch (error) {
+        setStatus(error.message || "We couldn't update that action item.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
   actionQueueToggleButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const actionKey = button.dataset.actionKey;
@@ -5125,6 +5309,21 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       button.textContent = opening
         ? (button.dataset.closeLabel || "Hide owner handoff")
         : (button.dataset.openLabel || "Open owner handoff");
+    });
+  });
+
+  actionQueueOpenHandoffButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const actionKey = button.dataset.actionKey;
+      const toggleButton = document.querySelector(`[data-action-queue-toggle][data-action-key="${actionKey}"]`);
+
+      if (!toggleButton) {
+        return;
+      }
+
+      if (typeof toggleButton.click === "function") {
+        toggleButton.click();
+      }
     });
   });
 

@@ -390,7 +390,9 @@ export function createAgentRouter(deps = {}) {
 
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
 
-      res.json(buildActionQueueImpl(messages, persistedRecords));
+      res.json(buildActionQueueImpl(messages, persistedRecords, {
+        logDecisions: true,
+      }));
     } catch (err) {
       console.error("[action queue] Failed to load action queue:", {
         agentId: req.query.agent_id || req.query.agentId || null,
@@ -447,7 +449,9 @@ export function createAgentRouter(deps = {}) {
         }),
       ]);
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
-      const queue = buildActionQueueImpl(messages, persistedRecords);
+      const queue = buildActionQueueImpl(messages, persistedRecords, {
+        logDecisions: true,
+      });
 
       res.json({
         ok: true,
