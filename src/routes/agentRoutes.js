@@ -34,6 +34,7 @@ import {
 } from "../services/billing/checkoutService.js";
 import { isLocalDevBillingRequestAllowed } from "../config/env.js";
 import { extractBusinessWebsiteContent } from "../services/scraping/websiteContentService.js";
+import { importBusinessWebsiteKnowledge } from "../services/scraping/websiteImportCoordinator.js";
 
 export function createAgentRouter(deps = {}) {
   const router = express.Router();
@@ -51,6 +52,12 @@ export function createAgentRouter(deps = {}) {
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
+  const importBusinessWebsiteKnowledgeImpl =
+    deps.importBusinessWebsiteKnowledge
+    || ((supabase, options) =>
+      importBusinessWebsiteKnowledge(supabase, options, {
+        extractBusinessWebsiteContent: extractBusinessWebsiteContentImpl,
+      }));
   const updateOwnedAccessStatusImpl = deps.updateOwnedAccessStatus || updateOwnedAccessStatus;
   const createHostedCheckoutSessionImpl =
     deps.createHostedCheckoutSession || createHostedCheckoutSession;
@@ -306,6 +313,13 @@ export function createAgentRouter(deps = {}) {
         secondaryColor: req.body.secondary_color || req.body.secondaryColor,
       });
 
+      console.info("[agents/update] Saved agent settings.", {
+        agentId: result.id,
+        businessId: result.businessId || null,
+        websiteChanged: result.websiteSync?.changed === true,
+        websiteUrl: result.websiteUrl || null,
+      });
+
       res.json({ ok: true, agent: result });
     } catch (err) {
       console.error("[agents/update] Failed to update agent settings:", {
@@ -463,16 +477,24 @@ export function createAgentRouter(deps = {}) {
         });
       }
 
-      const result = await extractBusinessWebsiteContentImpl(supabase, {
+      const result = await importBusinessWebsiteKnowledgeImpl(supabase, {
         businessId: context.business.id,
         websiteUrl: context.business.website_url,
       });
 
       res.json(result);
     } catch (err) {
-      console.error(err);
+      console.error("[knowledge/import] Request failed.", {
+        agentKey: req.body.agent_key || req.body.agentKey || null,
+        businessId: req.body.business_id || req.body.businessId || null,
+        clientId: req.body.client_id || req.body.clientId || null,
+        code: err?.code || null,
+        statusCode: err?.statusCode || 500,
+        message: err?.message || "Something went wrong",
+      });
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
+        import: err.import || null,
       });
     }
   });

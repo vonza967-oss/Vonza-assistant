@@ -50,6 +50,9 @@ let authUser = null;
 let authViewMode = AUTH_VIEW_MODES.SIGN_UP;
 let authFeedback = null;
 let authStateListenerBound = false;
+let activeWorkspaceState = null;
+const knowledgeImportStateByAgentId = new Map();
+const knowledgeImportPromiseByAgentId = new Map();
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -592,6 +595,33 @@ function trimText(value) {
   return String(value || "").trim();
 }
 
+function normalizeComparableWebsiteUrl(value) {
+  const normalizedValue = trimText(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(normalizedValue);
+    parsed.hash = "";
+    parsed.hostname = parsed.hostname.toLowerCase();
+
+    if (
+      (parsed.protocol === "https:" && parsed.port === "443") ||
+      (parsed.protocol === "http:" && parsed.port === "80")
+    ) {
+      parsed.port = "";
+    }
+
+    const normalizedPath = parsed.pathname.replace(/\/{2,}/g, "/");
+    parsed.pathname = normalizedPath === "/" ? "" : normalizedPath.replace(/\/+$/, "");
+    return parsed.toString();
+  } catch {
+    return normalizedValue.replace(/\/+$/, "").toLowerCase();
+  }
+}
+
 function formatSeenAt(value) {
   if (!value) {
     return "";
@@ -612,6 +642,34 @@ function isMeaningfulWebsite(value) {
 }
 
 function classifyImportResult(result) {
+  const knowledge = result?.knowledge || result || {};
+
+  if (knowledge.state === "ready") {
+    return {
+      knowledgeState: "ready",
+      label: knowledge.label || "Ready",
+      description:
+        knowledge.description || "Your assistant has website knowledge and is ready to answer real customer questions.",
+      lastImportedUrl: knowledge.importedWebsiteUrl || result?.websiteUrl || "",
+      lastImportedAt: knowledge.updatedAt || result?.import?.lastImportedAt || null,
+      pageCount: Number(knowledge.pageCount || result?.pageCount || 0),
+      contentLength: Number(knowledge.contentLength || trimText(result?.content || "").length || 0),
+    };
+  }
+
+  if (knowledge.state === "limited") {
+    return {
+      knowledgeState: "limited",
+      label: knowledge.label || "Limited",
+      description:
+        knowledge.description || "Some website content was imported, but the assistant still needs a better knowledge pass.",
+      lastImportedUrl: knowledge.importedWebsiteUrl || result?.websiteUrl || "",
+      lastImportedAt: knowledge.updatedAt || result?.import?.lastImportedAt || null,
+      pageCount: Number(knowledge.pageCount || result?.pageCount || 0),
+      contentLength: Number(knowledge.contentLength || trimText(result?.content || "").length || 0),
+    };
+  }
+
   const content = trimText(result?.content || "");
 
   if (!content) {
@@ -619,6 +677,10 @@ function classifyImportResult(result) {
       knowledgeState: "missing",
       label: "Not ready",
       description: "Website knowledge is not available yet. Import it again once your site is live.",
+      lastImportedUrl: "",
+      lastImportedAt: null,
+      pageCount: 0,
+      contentLength: 0,
     };
   }
 
@@ -627,6 +689,10 @@ function classifyImportResult(result) {
       knowledgeState: "limited",
       label: "Limited",
       description: "Some website content was imported, but the assistant still needs a better knowledge pass.",
+      lastImportedUrl: trimText(result?.websiteUrl || ""),
+      lastImportedAt: result?.import?.lastImportedAt || null,
+      pageCount: Number(result?.pageCount || 0),
+      contentLength: content.length,
     };
   }
 
@@ -634,7 +700,34 @@ function classifyImportResult(result) {
     knowledgeState: "ready",
     label: "Ready",
     description: "Your assistant has website knowledge and is ready to answer real customer questions.",
+    lastImportedUrl: trimText(result?.websiteUrl || ""),
+    lastImportedAt: result?.import?.lastImportedAt || null,
+    pageCount: Number(result?.pageCount || 0),
+    contentLength: content.length,
   };
+}
+
+function getKnowledgeImportState(agentId) {
+  return knowledgeImportStateByAgentId.get(agentId) || null;
+}
+
+function setKnowledgeImportState(agentId, nextState) {
+  if (!agentId) {
+    return;
+  }
+
+  knowledgeImportStateByAgentId.set(agentId, {
+    ...(knowledgeImportStateByAgentId.get(agentId) || {}),
+    ...nextState,
+  });
+}
+
+function clearKnowledgeImportState(agentId) {
+  if (!agentId) {
+    return;
+  }
+
+  knowledgeImportStateByAgentId.delete(agentId);
 }
 
 function inferSetup(agent) {
@@ -643,26 +736,80 @@ function inferSetup(agent) {
     description: "Website knowledge has not been imported yet.",
     contentLength: 0,
     pageCount: 0,
+    importedWebsiteUrl: "",
+    updatedAt: null,
   };
+  const importState = getKnowledgeImportState(agent.id);
   const personalityReady = Boolean(trimText(agent.assistantName) && trimText(agent.welcomeMessage) && trimText(agent.tone));
   const hasWebsite = isMeaningfulWebsite(agent.websiteUrl);
-  const knowledgeState = hasWebsite ? (knowledge.state || "missing") : "missing";
+  const normalizedCurrentWebsite = normalizeComparableWebsiteUrl(agent.websiteUrl);
+  const normalizedImportedWebsite = normalizeComparableWebsiteUrl(knowledge.importedWebsiteUrl);
+  const hasImportedWebsite = Boolean(normalizedImportedWebsite);
+  const knowledgeStale = hasWebsite && hasImportedWebsite && normalizedImportedWebsite !== normalizedCurrentWebsite;
+  let knowledgeState = hasWebsite ? (knowledge.state || "missing") : "missing";
+  let knowledgeDescription = hasWebsite
+    ? (knowledge.description || "Website knowledge has not been imported yet.")
+    : "Add a real website to import knowledge.";
+  let knowledgeStatusLabel = knowledgeState === "ready"
+    ? "Ready"
+    : knowledgeState === "limited"
+      ? "Limited"
+      : "Not ready";
+
+  if (hasWebsite && knowledgeStale) {
+    knowledgeState = "stale";
+    knowledgeStatusLabel = "Needs refresh";
+    knowledgeDescription = "Your website URL changed. Import website knowledge again so Vonza answers from the latest site.";
+  }
+
+  if (importState?.status === "queued") {
+    knowledgeState = "queued";
+    knowledgeStatusLabel = "Queued";
+    knowledgeDescription = "Website saved. A fresh website knowledge import is queued for this URL.";
+  } else if (importState?.status === "importing") {
+    knowledgeState = "importing";
+    knowledgeStatusLabel = "Importing";
+    knowledgeDescription = "Vonza is importing website knowledge for the latest saved website URL.";
+  } else if (importState?.status === "failed") {
+    knowledgeState = "failed";
+    knowledgeStatusLabel = "Retry needed";
+    knowledgeDescription =
+      importState.errorMessage || "Website saved, but importing website knowledge failed. Retry the import when you're ready.";
+  }
+
   const previewReady = Boolean(trimText(agent.publicAgentKey));
   const installReady = previewReady;
+  const knowledgeLastImportedUrl = trimText(knowledge.importedWebsiteUrl || importState?.lastImportedUrl || "");
+  const knowledgeLastImportedAt = knowledge.updatedAt || importState?.lastImportedAt || null;
+  const knowledgeNeedsRetry = hasWebsite && ["missing", "limited", "stale", "failed"].includes(knowledgeState);
+  const knowledgeImportInProgress = knowledgeState === "queued" || knowledgeState === "importing";
 
   return {
     personalityReady,
     hasWebsite,
     websiteConnected: hasWebsite,
     knowledgeState,
+    knowledgeStatusLabel,
     knowledgeReady: knowledgeState === "ready",
     knowledgeLimited: knowledgeState === "limited",
     knowledgeMissing: knowledgeState === "missing",
-    knowledgeDescription: hasWebsite
-      ? (knowledge.description || "Website knowledge has not been imported yet.")
-      : "Add a real website to import knowledge.",
+    knowledgeStale,
+    knowledgeFailed: knowledgeState === "failed",
+    knowledgeQueued: knowledgeState === "queued",
+    knowledgeImporting: knowledgeState === "importing",
+    knowledgeNeedsRetry,
+    knowledgeDescription,
     knowledgePageCount: Number(knowledge.pageCount || 0),
     knowledgeContentLength: Number(knowledge.contentLength || 0),
+    knowledgeLastImportedUrl,
+    knowledgeLastImportedAt,
+    knowledgeImportActionLabel: knowledgeImportInProgress
+      ? "Importing website knowledge..."
+      : knowledgeNeedsRetry && (knowledgeState === "failed" || knowledgeState === "limited" || knowledgeState === "stale")
+        ? "Retry website import"
+        : "Import website knowledge",
+    showKnowledgeImportAction: hasWebsite && (knowledgeState !== "ready" || knowledgeImportInProgress),
+    disableKnowledgeImportAction: !hasWebsite || knowledgeImportInProgress,
     previewReady,
     installReady,
     isReady: personalityReady && hasWebsite && knowledgeState === "ready" && previewReady && installReady,
@@ -677,6 +824,53 @@ function getBadgeClass(type) {
     return "badge warning";
   }
   return "badge pending";
+}
+
+function getKnowledgeBadgeClass(setup) {
+  if (setup.knowledgeReady) {
+    return "badge success";
+  }
+
+  if (setup.knowledgeLimited || setup.knowledgeQueued || setup.knowledgeImporting) {
+    return "badge warning";
+  }
+
+  if (setup.knowledgeFailed || setup.knowledgeStale) {
+    return "badge pending";
+  }
+
+  return "badge pending";
+}
+
+function buildKnowledgeDetailMarkup(setup) {
+  const details = [];
+
+  details.push(`
+    <div class="overview-list-item">
+      <p class="overview-list-title">Import status</p>
+      <p class="overview-list-copy">${escapeHtml(setup.knowledgeStatusLabel)}</p>
+    </div>
+  `);
+
+  if (setup.knowledgeLastImportedUrl) {
+    details.push(`
+      <div class="overview-list-item">
+        <p class="overview-list-title">Last imported URL</p>
+        <p class="overview-list-copy">${escapeHtml(setup.knowledgeLastImportedUrl)}</p>
+      </div>
+    `);
+  }
+
+  if (setup.knowledgeLastImportedAt) {
+    details.push(`
+      <div class="overview-list-item">
+        <p class="overview-list-title">Last import time</p>
+        <p class="overview-list-copy">${escapeHtml(formatSeenAt(setup.knowledgeLastImportedAt))}</p>
+      </div>
+    `);
+  }
+
+  return details.join("");
 }
 
 function normalizeAccessStatus(value) {
@@ -1427,7 +1621,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue) {
 }
 
 function buildCustomizePanel(agent, setup) {
-  const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
 
   return `
@@ -1492,10 +1685,18 @@ function buildCustomizePanel(agent, setup) {
 
             <section class="studio-group">
               <h3 class="studio-group-title">Website knowledge</h3>
-              <p class="studio-group-copy">Run an import after adding or changing your website so Vonza can answer with the right context.</p>
-              <div class="inline-actions">
-                <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
+              <p class="studio-group-copy">Vonza automatically refreshes website knowledge after a real website URL change, and this section shows whether the current website and imported knowledge are in sync.</p>
+              <div class="studio-summary-badge-row">
+                <span class="${getKnowledgeBadgeClass(setup)}">${escapeHtml(setup.knowledgeStatusLabel)}</span>
               </div>
+              <div class="overview-list">
+                ${buildKnowledgeDetailMarkup(setup)}
+              </div>
+              ${setup.showKnowledgeImportAction ? `
+                <div class="inline-actions">
+                  <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.disableKnowledgeImportAction ? "disabled" : ""}>${escapeHtml(setup.knowledgeImportActionLabel)}</button>
+                </div>
+              ` : ""}
               <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
             </section>
 
@@ -1666,8 +1867,6 @@ function buildAppearanceStudio(agent) {
 }
 
 function buildConfigurationStudio(agent, setup) {
-  const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
-
   return `
     <section class="workspace-panel" data-shell-section="configuration" hidden>
       <div class="workspace-panel-header">
@@ -1724,9 +1923,17 @@ function buildConfigurationStudio(agent, setup) {
                 <p class="field-help">Use the main public website your customers actually visit.</p>
               </div>
             </div>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
+            <div class="studio-summary-badge-row">
+              <span class="${getKnowledgeBadgeClass(setup)}">${escapeHtml(setup.knowledgeStatusLabel)}</span>
             </div>
+            <div class="overview-list">
+              ${buildKnowledgeDetailMarkup(setup)}
+            </div>
+            ${setup.showKnowledgeImportAction ? `
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.disableKnowledgeImportAction ? "disabled" : ""}>${escapeHtml(setup.knowledgeImportActionLabel)}</button>
+              </div>
+            ` : ""}
             <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
           </section>
 
@@ -2980,8 +3187,13 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       nextActions.unshift(primaryAction);
     }
     primaryAction = {
-      label: "Strengthen website knowledge",
+      label: setup.knowledgeImporting || setup.knowledgeQueued
+        ? "Importing website knowledge"
+        : setup.knowledgeNeedsRetry
+          ? "Strengthen website knowledge"
+          : "Import website knowledge",
       type: "import",
+      disabled: setup.disableKnowledgeImportAction,
     };
   }
 
@@ -2993,10 +3205,19 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     },
     {
       title: "Assistant setup",
-      copy: setup.isReady
-        ? "The assistant has the core details it needs."
-        : "The assistant still needs a few setup details before launch.",
-      done: setup.isReady,
+      copy: setup.personalityReady
+        ? "The assistant has the core identity and welcome details it needs."
+        : "The assistant still needs a few core details before launch.",
+      done: setup.personalityReady,
+    },
+    {
+      title: "Website knowledge",
+      copy: setup.knowledgeReady
+        ? "Vonza has fresh knowledge for the current website."
+        : setup.knowledgeQueued || setup.knowledgeImporting
+          ? "Vonza is importing the latest saved website now."
+          : setup.knowledgeDescription,
+      done: setup.knowledgeReady,
     },
     {
       title: "Website install",
@@ -3151,7 +3372,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
     }
 
     if (action.type === "import") {
-      return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${action.label}</button>`;
+      return `<button class="${buttonClass}" type="button" data-action="import-knowledge" ${action.disabled ? "disabled" : ""}>${action.label}</button>`;
     }
 
     if (action.type === "install") {
@@ -3510,14 +3731,14 @@ function renderAssistantShell(agent, messages, setup, actionQueue = createEmptyA
             <p class="workspace-subtitle">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
             <div class="workspace-badge-row">
               <span class="${getBadgeClass(shellStatus)}">${shellStatus}</span>
-              <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Not imported")}">${setup.knowledgeReady ? "Knowledge ready" : setup.knowledgeLimited ? "Knowledge limited" : "Knowledge not imported"}</span>
+              <span class="${getKnowledgeBadgeClass(setup)}">${escapeHtml(`Knowledge ${setup.knowledgeStatusLabel.toLowerCase()}`)}</span>
               <span class="${getBadgeClass(agent.installStatus?.state === "live" ? "Ready" : agent.installStatus?.state === "test" ? "Limited" : "Not imported")}">${escapeHtml(agent.installStatus?.label || "Not detected on a live site yet")}</span>
             </div>
           </div>
           <div class="workspace-actions">
             ${secondaryAction}
             ${primaryAction}
-            ${!setup.knowledgeReady ? `<button class="ghost-button" data-action="import-knowledge">Retry website import</button>` : ""}
+            ${setup.showKnowledgeImportAction ? `<button class="ghost-button" data-action="import-knowledge" ${setup.disableKnowledgeImportAction ? "disabled" : ""}>${escapeHtml(setup.knowledgeImportActionLabel)}</button>` : ""}
           </div>
         </div>
         ${buildWorkspaceTabs(activeSection, setup)}
@@ -3539,28 +3760,105 @@ function renderAssistantShell(agent, messages, setup, actionQueue = createEmptyA
 }
 
 function renderSetupState(agent, messages, setup, actionQueue) {
+  activeWorkspaceState = {
+    agent,
+    messages,
+    actionQueue,
+  };
   renderAssistantShell(agent, messages, setup, actionQueue);
 }
 
 function renderReadyState(agent, messages, actionQueue) {
+  activeWorkspaceState = {
+    agent,
+    messages,
+    actionQueue,
+  };
   renderAssistantShell(agent, messages, inferSetup(agent), actionQueue);
+}
+
+function getActiveWorkspaceState() {
+  return activeWorkspaceState;
+}
+
+function updateActiveWorkspaceAgent(nextAgent) {
+  if (!activeWorkspaceState?.agent || !nextAgent?.id || activeWorkspaceState.agent.id !== nextAgent.id) {
+    return;
+  }
+
+  activeWorkspaceState = {
+    ...activeWorkspaceState,
+    agent: {
+      ...activeWorkspaceState.agent,
+      ...nextAgent,
+    },
+  };
+}
+
+function renderActiveWorkspace() {
+  if (!activeWorkspaceState?.agent) {
+    return;
+  }
+
+  const setup = inferSetup(activeWorkspaceState.agent);
+
+  if (setup.isReady) {
+    renderReadyState(activeWorkspaceState.agent, activeWorkspaceState.messages || [], activeWorkspaceState.actionQueue || createEmptyActionQueue());
+    return;
+  }
+
+  renderSetupState(
+    activeWorkspaceState.agent,
+    activeWorkspaceState.messages || [],
+    setup,
+    activeWorkspaceState.actionQueue || createEmptyActionQueue()
+  );
+}
+
+async function refreshActiveWorkspace(agentId) {
+  const { agents } = await loadAgents();
+  const nextAgent = (agents || []).find((candidate) => candidate.id === agentId) || agents?.[0] || null;
+
+  if (!nextAgent) {
+    throw new Error("Your workspace could not be refreshed because the assistant is no longer available.");
+  }
+
+  const [messages, actionQueue] = await Promise.all([
+    loadAgentMessages(nextAgent.id),
+    loadActionQueue(nextAgent.id),
+  ]);
+  const setup = inferSetup(nextAgent);
+
+  if (setup.isReady) {
+    renderReadyState(nextAgent, messages, actionQueue);
+    return {
+      agent: nextAgent,
+      messages,
+      actionQueue,
+      setup,
+    };
+  }
+
+  renderSetupState(nextAgent, messages, setup, actionQueue);
+  return {
+    agent: nextAgent,
+    messages,
+    actionQueue,
+    setup,
+  };
 }
 
 function buildPreviewSection(agent, setup) {
   const statusPills = [
     `<span class="preview-status-pill">Website connected</span>`,
-    setup.knowledgeState === "ready"
-      ? `<span class="preview-status-pill">Knowledge imported</span>`
-      : setup.knowledgeState === "limited"
-        ? `<span class="preview-status-pill">Knowledge limited</span>`
-        : `<span class="preview-status-pill">Knowledge not imported</span>`,
+    `<span class="preview-status-pill">${escapeHtml(`Knowledge ${setup.knowledgeStatusLabel.toLowerCase()}`)}</span>`,
     setup.knowledgePageCount
       ? `<span class="preview-status-pill">${escapeHtml(`${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported`)}</span>`
       : "",
   ].join("");
 
   const warning = setup.knowledgeState !== "ready"
-    ? `<p class="preview-warning">Your assistant can already be tested here, but the website knowledge is still ${setup.knowledgeState === "limited" ? "limited" : "incomplete"}. Run another import if you want a stronger launch-ready result.</p>`
+    ? `<p class="preview-warning">${escapeHtml(setup.knowledgeDescription)}</p>`
     : "";
 
   return `
@@ -3582,7 +3880,7 @@ function buildPreviewSection(agent, setup) {
     <div class="preview-control-row">
       <a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
       <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
-      ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Retry import</button>` : ""}
+      ${setup.showKnowledgeImportAction ? `<button class="ghost-button" type="button" data-action="import-knowledge" ${setup.disableKnowledgeImportAction ? "disabled" : ""}>${escapeHtml(setup.knowledgeImportActionLabel)}</button>` : ""}
     </div>
     <iframe
       id="preview-frame"
@@ -3776,7 +4074,10 @@ async function fetchJson(url, options) {
   }
 
   if (!response.ok) {
-    throw new Error(data.error || getReadableResponseError(response.status, responseText));
+    const error = new Error(data.error || getReadableResponseError(response.status, responseText));
+    error.status = response.status;
+    error.responseData = data;
+    throw error;
   }
 
   return data;
@@ -3837,6 +4138,7 @@ async function importKnowledge(agent, options = {}) {
       auth: options.auth,
       body: JSON.stringify({
         agent_key: agent.publicAgentKey,
+        business_id: agent.businessId,
         client_id: options.clientId || getClientId(),
       })
     });
@@ -3855,12 +4157,20 @@ async function importKnowledge(agent, options = {}) {
     return {
       ...nextSetup,
       hadError: false,
+      import: importData.import || null,
     };
   } catch (error) {
     const fallbackSetup = {
-      knowledgeState: "limited",
-      label: "Limited",
-      description: "Your assistant was created, but the website knowledge needs another pass before it feels fully grounded.",
+      knowledgeState: "failed",
+      label: "Retry needed",
+      description:
+        error.responseData?.import?.message
+        || error.message
+        || "Website knowledge import failed. Retry when you're ready.",
+      lastImportedUrl: trimText(error.responseData?.import?.lastImportedUrl || ""),
+      lastImportedAt: error.responseData?.import?.lastImportedAt || null,
+      pageCount: 0,
+      contentLength: 0,
     };
 
     trackProductEvent("knowledge_limited", {
@@ -3873,24 +4183,99 @@ async function importKnowledge(agent, options = {}) {
     return {
       ...fallbackSetup,
       hadError: true,
-      errorMessage: error.message || "Import failed. The assistant may have limited knowledge.",
+      import: error.responseData?.import || null,
+      errorMessage:
+        error.responseData?.import?.message
+        || error.message
+        || "Website knowledge import failed. Retry when you're ready.",
     };
   }
 }
 
-async function runKnowledgeImport(agent) {
-  setStatus("Importing website knowledge...");
-  const nextSetup = await importKnowledge(agent);
+async function runKnowledgeImport(agent, options = {}) {
+  if (!agent?.id) {
+    return null;
+  }
+
+  const existingImport = knowledgeImportPromiseByAgentId.get(agent.id);
+
+  if (existingImport) {
+    setStatus("Website knowledge import is already in progress.");
+    return existingImport;
+  }
+
+  const saveState = options.saveState || null;
+  const task = (async () => {
+    const startedAt = new Date().toISOString();
+    setKnowledgeImportState(agent.id, {
+      status: options.queued === true ? "queued" : "importing",
+      currentWebsiteUrl: agent.websiteUrl,
+      startedAt,
+      errorMessage: "",
+      lastImportedUrl: getKnowledgeImportState(agent.id)?.lastImportedUrl || "",
+      lastImportedAt: getKnowledgeImportState(agent.id)?.lastImportedAt || null,
+    });
+    updateActiveWorkspaceAgent({
+      id: agent.id,
+      websiteUrl: agent.websiteUrl,
+      businessId: agent.businessId,
+    });
+
+    if (saveState) {
+      saveState.textContent = "Importing website knowledge...";
+      saveState.className = "save-state saving";
+    }
+
+    setStatus(options.statusMessage || "Importing website knowledge...");
+
+    const nextSetup = await importKnowledge(agent, {
+      auth: options.auth,
+      clientId: options.clientId,
+    });
+
+    if (nextSetup.hadError) {
+      setKnowledgeImportState(agent.id, {
+        status: "failed",
+        currentWebsiteUrl: agent.websiteUrl,
+        errorMessage: nextSetup.errorMessage,
+        lastImportedUrl: nextSetup.lastImportedUrl || "",
+        lastImportedAt: nextSetup.lastImportedAt || null,
+      });
+      if (saveState) {
+        saveState.textContent = "Website saved. Import needs retry.";
+        saveState.className = "save-state unsaved";
+        saveState.title = nextSetup.errorMessage || "";
+      }
+      setStatus(nextSetup.errorMessage || "Website saved, but the knowledge import needs another try.");
+      await refreshActiveWorkspace(agent.id);
+      return nextSetup;
+    }
+
+    clearKnowledgeImportState(agent.id);
+    await refreshActiveWorkspace(agent.id);
+    if (saveState) {
+      saveState.textContent = nextSetup.knowledgeState === "ready"
+        ? "Changes saved and website imported."
+        : "Changes saved. Website import is limited.";
+      saveState.className = nextSetup.knowledgeState === "ready" ? "save-state saved" : "save-state unsaved";
+      saveState.removeAttribute("title");
+    }
+    setStatus(
+      nextSetup.knowledgeState === "ready"
+        ? "Website saved and website knowledge is ready."
+        : "Website saved. Website knowledge imported with limited detail."
+    );
+    return nextSetup;
+  })();
+
+  knowledgeImportPromiseByAgentId.set(agent.id, task);
 
   try {
-    setStatus(nextSetup.knowledgeState === "ready"
-      ? "Website knowledge is ready."
-      : "Website knowledge was imported with limited detail."
-    );
-    await boot();
-  } catch (error) {
-    setStatus(nextSetup.errorMessage || error.message || "Import failed. The assistant may have limited knowledge.");
-    await boot();
+    return await task;
+  } finally {
+    if (knowledgeImportPromiseByAgentId.get(agent.id) === task) {
+      knowledgeImportPromiseByAgentId.delete(agent.id);
+    }
   }
 }
 
@@ -4035,8 +4420,6 @@ async function saveAssistant(event, agent) {
   const submitButton = form.querySelector('button[type="submit"]');
   const saveState = form.querySelector("[data-save-state]");
   const formData = new FormData(form);
-  const nextWebsiteUrl = trimText(formData.get("website_url"));
-  const websiteChanged = Boolean(nextWebsiteUrl && nextWebsiteUrl !== trimText(agent.websiteUrl));
 
   const getNextValue = (fieldName, fallbackValue = "") => {
     if (formData.has(fieldName)) {
@@ -4074,11 +4457,39 @@ async function saveAssistant(event, agent) {
       },
       body: JSON.stringify(payload)
     });
+    const savedAgent = {
+      ...agent,
+      ...(updateData.agent || {}),
+    };
+    const websiteSync = updateData.agent?.websiteSync || {};
+    updateActiveWorkspaceAgent(savedAgent);
 
-    if (websiteChanged) {
+    if (websiteSync.changed && websiteSync.currentUrl) {
+      setKnowledgeImportState(agent.id, {
+        status: "queued",
+        currentWebsiteUrl: websiteSync.currentUrl,
+        errorMessage: "",
+      });
+      updateActiveWorkspaceAgent({
+        ...savedAgent,
+        websiteUrl: websiteSync.currentUrl,
+        businessId: savedAgent.businessId || agent.businessId,
+      });
+      renderActiveWorkspace();
+      if (saveState) {
+        saveState.textContent = "Website saved. Importing website knowledge...";
+        saveState.className = "save-state saving";
+      }
+      setStatus("Website saved. Importing website knowledge...");
       await runKnowledgeImport({
         id: agent.id,
-        publicAgentKey: updateData.agent?.publicAgentKey || agent.publicAgentKey,
+        businessId: savedAgent.businessId || agent.businessId,
+        publicAgentKey: savedAgent.publicAgentKey || agent.publicAgentKey,
+        websiteUrl: websiteSync.currentUrl,
+      }, {
+        queued: true,
+        saveState,
+        statusMessage: "Website saved. Importing website knowledge...",
       });
       return;
     }
@@ -4089,7 +4500,7 @@ async function saveAssistant(event, agent) {
       saveState.className = "save-state saved";
       saveState.removeAttribute("title");
     }
-    await boot();
+    await refreshActiveWorkspace(agent.id);
   } catch (error) {
     const message = error.message || "We couldn't save those changes just yet.";
     console.error("[dashboard customize] Failed to save assistant settings:", {
@@ -4828,6 +5239,7 @@ async function boot() {
   });
 
   if (!hasAuthConfig()) {
+    activeWorkspaceState = null;
     setStatus("Supabase Auth is not configured yet.");
     renderAuthEntry();
     return;
@@ -4838,12 +5250,14 @@ async function boot() {
 
   if (!authSession || !authUser) {
     clearLaunchState();
+    activeWorkspaceState = null;
     renderAuthEntry();
     return;
   }
 
   if (getAuthFlowType() === "recovery") {
     authViewMode = AUTH_VIEW_MODES.UPDATE_PASSWORD;
+    activeWorkspaceState = null;
     renderAuthEntry();
     return;
   }
@@ -4901,6 +5315,7 @@ async function boot() {
         clearLaunchState();
         setStatus("Setup was interrupted before your assistant was created. You can start again whenever you're ready.");
       }
+      activeWorkspaceState = null;
       setStatus("Sign in complete. Unlock Vonza to open your setup workspace.");
       renderAccessLocked(null);
       return;
@@ -4911,6 +5326,7 @@ async function boot() {
 
     if (accessStatus !== "active") {
       clearLaunchState();
+      activeWorkspaceState = null;
       setStatus(accessStatus === "suspended"
         ? "Workspace access is currently paused."
         : "Finish payment to open your Vonza setup workspace."
@@ -4933,6 +5349,7 @@ async function boot() {
     renderSetupState(agent, messages, setup, actionQueue);
   } catch (error) {
     clearLaunchState();
+    activeWorkspaceState = null;
     setStatus(error.message || "We couldn't load your Vonza workspace right now.");
     renderErrorState(
       "We couldn't load your Vonza workspace.",

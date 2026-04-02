@@ -185,9 +185,13 @@ test("updateAgentSettings normalizes website URLs and reuses an existing busines
   });
 
   assert.equal(result.assistantName, "Vonza Pro");
+  assert.equal(result.businessId, "business-2");
   assert.equal(result.tone, "professional");
   assert.equal(result.buttonLabel, "Ask Vonza");
   assert.equal(result.websiteUrl, "https://new-example.com/");
+  assert.equal(result.websiteSync.previousUrl, "https://old-example.com/");
+  assert.equal(result.websiteSync.currentUrl, "https://new-example.com/");
+  assert.equal(result.websiteSync.changed, true);
   assert.equal(result.welcomeMessage, "Welcome to Vonza");
   assert.equal(result.primaryColor, "#111111");
   assert.equal(result.secondaryColor, "#222222");
@@ -244,6 +248,7 @@ test("updateAgentSettings persists a website-only change without disturbing othe
   });
 
   assert.equal(result.websiteUrl, "https://new-example.com/");
+  assert.equal(result.websiteSync.changed, true);
   assert.equal(result.assistantName, "Vonza");
   assert.equal(result.tone, "friendly");
   assert.equal(result.buttonLabel, "Chat now");
@@ -306,6 +311,7 @@ test("updateAgentSettings keeps unchanged values persisted and rejects invalid w
   });
 
   assert.equal(unchangedResult.websiteUrl, "https://example.com/");
+  assert.equal(unchangedResult.websiteSync.changed, false);
   assert.equal(state.agents[0].business_id, "business-1");
   assert.equal(state.widget_configs[0].assistant_name, "Vonza");
 

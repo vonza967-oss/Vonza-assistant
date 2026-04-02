@@ -320,6 +320,7 @@ function createDashboardHarness({
       session_id: "cs_test_checkout",
     },
   },
+  customFetch = null,
 } = {}) {
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
@@ -334,6 +335,7 @@ function createDashboardHarness({
       this.hidden = false;
       this.disabled = false;
       this.value = "";
+      this.attributes = new Map();
       this._innerHTML = "";
       this._textContent = "";
       this.listeners = new Map();
@@ -373,6 +375,14 @@ function createDashboardHarness({
       this.listeners.set(type, handlers.filter((entry) => entry !== handler));
     }
 
+    setAttribute(name, value) {
+      this.attributes.set(name, String(value));
+    }
+
+    removeAttribute(name) {
+      this.attributes.delete(name);
+    }
+
     async dispatch(type) {
       const handlers = this.listeners.get(type) || [];
 
@@ -387,6 +397,31 @@ function createDashboardHarness({
 
     async click() {
       await this.dispatch("click");
+    }
+  }
+
+  class TestFormData {
+    constructor(form) {
+      this.entriesList = Array.isArray(form?.__formDataEntries)
+        ? form.__formDataEntries.map(([key, value]) => [key, value])
+        : [];
+    }
+
+    get(name) {
+      const match = this.entriesList.find(([key]) => key === name);
+      return match ? match[1] : null;
+    }
+
+    has(name) {
+      return this.entriesList.some(([key]) => key === name);
+    }
+
+    entries() {
+      return this.entriesList[Symbol.iterator]();
+    }
+
+    [Symbol.iterator]() {
+      return this.entries();
     }
   }
 
@@ -437,6 +472,21 @@ function createDashboardHarness({
       options,
     });
 
+    if (typeof customFetch === "function") {
+      const customResponse = await customFetch({
+        url: resolvedUrl.toString(),
+        pathname: resolvedUrl.pathname,
+        options,
+        buildResponse,
+      });
+
+      if (customResponse) {
+        return customResponse;
+      }
+    }
+
+    const resolvedAgents = typeof agents === "function" ? agents() : agents;
+
     if (resolvedUrl.pathname === "/product-events") {
       return buildResponse({ status: 200, body: { ok: true } });
     }
@@ -445,8 +495,31 @@ function createDashboardHarness({
       return buildResponse({
         status: 200,
         body: {
-          agents,
+          agents: resolvedAgents,
           bridgeAgent: null,
+        },
+      });
+    }
+
+    if (resolvedUrl.pathname === "/agents/messages") {
+      return buildResponse({
+        status: 200,
+        body: {
+          messages: [],
+        },
+      });
+    }
+
+    if (resolvedUrl.pathname === "/agents/action-queue") {
+      return buildResponse({
+        status: 200,
+        body: {
+          items: [],
+          people: [],
+          peopleSummary: {},
+          summary: {},
+          persistenceAvailable: true,
+          migrationRequired: false,
         },
       });
     }
@@ -507,6 +580,7 @@ function createDashboardHarness({
     document,
     console,
     fetch: fetchImpl,
+    FormData: TestFormData,
     URL,
     URLSearchParams,
     setTimeout,
@@ -535,6 +609,9 @@ function createDashboardHarness({
     },
     getAssignedUrl() {
       return assignedUrl;
+    },
+    getGlobal(name) {
+      return context[name];
     },
     fetchCalls,
   };
@@ -692,6 +769,26 @@ function createAgentTestDeps(state) {
       ok: true,
       pageCount: 1,
       content: "Imported website content",
+    }),
+    importBusinessWebsiteKnowledge: async (_supabase, options) => ({
+      ok: true,
+      businessId: options.businessId || "business-1",
+      websiteUrl: options.websiteUrl || "https://example.com",
+      pageCount: 1,
+      content: "Imported website content",
+      knowledge: {
+        state: "ready",
+        description: "Your assistant has website knowledge and is ready to answer real customer questions.",
+        pageCount: 1,
+        contentLength: "Imported website content".length,
+        importedWebsiteUrl: options.websiteUrl || "https://example.com",
+        updatedAt: new Date().toISOString(),
+      },
+      import: {
+        status: "success",
+        lastImportedUrl: options.websiteUrl || "https://example.com",
+        lastImportedAt: new Date().toISOString(),
+      },
     }),
     createHostedCheckoutSession: async ({ user, email }) => ({
       id: "cs_test_checkout",
@@ -983,6 +1080,480 @@ test("signed-in marketing header hydrates My Account immediately from stored aut
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard");
   assert.equal(harness.authLink.hidden, true);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard");
+});
+
+test("dashboard save automatically imports website knowledge after a real website URL change", async () => {
+  const state = {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+      accessStatus: "active",
+      name: "Vonza Assistant",
+      assistantName: "Vonza Assistant",
+      publicAgentKey: "agent-key",
+      tone: "friendly",
+      systemPrompt: "",
+      websiteUrl: "https://old-example.com/",
+      welcomeMessage: "Welcome",
+      buttonLabel: "Chat",
+      primaryColor: "#14b8a6",
+      secondaryColor: "#0f766e",
+      installStatus: {
+        state: "not_detected",
+        label: "Not detected on a live site yet",
+      },
+      knowledge: {
+        state: "ready",
+        description: "Knowledge is ready.",
+        pageCount: 2,
+        contentLength: 1200,
+        importedWebsiteUrl: "https://old-example.com/",
+        updatedAt: "2026-04-01T10:00:00.000Z",
+      },
+    },
+  };
+  let importCalls = 0;
+
+  const harness = createDashboardHarness({
+    search: "?from=app",
+    agents: () => [state.agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/update") {
+        state.agent = {
+          ...state.agent,
+          businessId: "business-2",
+          websiteUrl: "https://new-example.com/",
+        };
+
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            agent: {
+              ...state.agent,
+              websiteSync: {
+                previousUrl: "https://old-example.com/",
+                currentUrl: "https://new-example.com/",
+                changed: true,
+              },
+            },
+          },
+        });
+      }
+
+      if (pathname === "/knowledge/import") {
+        importCalls += 1;
+        state.agent = {
+          ...state.agent,
+          knowledge: {
+            state: "ready",
+            description: "Your assistant has website knowledge and is ready to answer real customer questions.",
+            pageCount: 4,
+            contentLength: 2400,
+            importedWebsiteUrl: "https://new-example.com/",
+            updatedAt: "2026-04-02T18:00:00.000Z",
+          },
+        };
+
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            websiteUrl: "https://new-example.com/",
+            pageCount: 4,
+            content: "Fresh website content",
+            knowledge: {
+              state: "ready",
+              description: "Your assistant has website knowledge and is ready to answer real customer questions.",
+              pageCount: 4,
+              contentLength: 2400,
+              importedWebsiteUrl: "https://new-example.com/",
+              updatedAt: "2026-04-02T18:00:00.000Z",
+            },
+            import: {
+              status: "success",
+              lastImportedUrl: "https://new-example.com/",
+              lastImportedAt: "2026-04-02T18:00:00.000Z",
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+
+  await harness.settle();
+
+  const saveAssistant = harness.getGlobal("saveAssistant");
+  const submitButton = { disabled: false };
+  const saveState = {
+    textContent: "",
+    className: "",
+    removeAttribute() {},
+  };
+  const form = {
+    __formDataEntries: [
+      ["assistant_name", "Vonza Assistant"],
+      ["tone", "friendly"],
+      ["system_prompt", ""],
+      ["welcome_message", "Welcome"],
+      ["button_label", "Chat"],
+      ["website_url", "https://new-example.com"],
+      ["primary_color", "#14b8a6"],
+      ["secondary_color", "#0f766e"],
+    ],
+    querySelector(selector) {
+      if (selector === 'button[type="submit"]') {
+        return submitButton;
+      }
+
+      if (selector === "[data-save-state]") {
+        return saveState;
+      }
+
+      return null;
+    },
+  };
+
+  await saveAssistant(
+    {
+      preventDefault() {},
+      currentTarget: form,
+    },
+    state.agent
+  );
+  await harness.settle();
+
+  assert.equal(importCalls, 1);
+  assert.equal(harness.getStatus(), "Website saved and website knowledge is ready.");
+  assert.match(harness.getRootHtml(), /https:\/\/new-example\.com\//);
+});
+
+test("dashboard save skips redundant website import when the normalized URL does not change", async () => {
+  const state = {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+      accessStatus: "active",
+      name: "Vonza Assistant",
+      assistantName: "Vonza Assistant",
+      publicAgentKey: "agent-key",
+      tone: "friendly",
+      systemPrompt: "",
+      websiteUrl: "https://example.com/",
+      welcomeMessage: "Welcome",
+      buttonLabel: "Chat",
+      primaryColor: "#14b8a6",
+      secondaryColor: "#0f766e",
+      installStatus: {
+        state: "not_detected",
+        label: "Not detected on a live site yet",
+      },
+      knowledge: {
+        state: "ready",
+        description: "Knowledge is ready.",
+        pageCount: 2,
+        contentLength: 1200,
+        importedWebsiteUrl: "https://example.com/",
+        updatedAt: "2026-04-01T10:00:00.000Z",
+      },
+    },
+  };
+
+  const harness = createDashboardHarness({
+    search: "?from=app",
+    agents: () => [state.agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/update") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            agent: {
+              ...state.agent,
+              websiteSync: {
+                previousUrl: "https://example.com/",
+                currentUrl: "https://example.com/",
+                changed: false,
+              },
+            },
+          },
+        });
+      }
+
+      if (pathname === "/knowledge/import") {
+        assert.fail("Knowledge import should not run when the normalized website URL is unchanged.");
+      }
+
+      return null;
+    },
+  });
+
+  await harness.settle();
+
+  const saveAssistant = harness.getGlobal("saveAssistant");
+  const form = {
+    __formDataEntries: [
+      ["assistant_name", "Vonza Assistant"],
+      ["tone", "friendly"],
+      ["system_prompt", ""],
+      ["welcome_message", "Welcome"],
+      ["button_label", "Chat"],
+      ["website_url", "https://example.com"],
+      ["primary_color", "#14b8a6"],
+      ["secondary_color", "#0f766e"],
+    ],
+    querySelector(selector) {
+      if (selector === 'button[type="submit"]') {
+        return { disabled: false };
+      }
+
+      if (selector === "[data-save-state]") {
+        return {
+          textContent: "",
+          className: "",
+          removeAttribute() {},
+        };
+      }
+
+      return null;
+    },
+  };
+
+  await saveAssistant(
+    {
+      preventDefault() {},
+      currentTarget: form,
+    },
+    state.agent
+  );
+  await harness.settle();
+
+  assert.equal(harness.getStatus(), "Your assistant has been updated.");
+  assert.equal(
+    harness.fetchCalls.filter((call) => call.pathname === "/knowledge/import").length,
+    0
+  );
+});
+
+test("dashboard save keeps the website URL and shows a retry state when auto import fails", async () => {
+  const state = {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+      accessStatus: "active",
+      name: "Vonza Assistant",
+      assistantName: "Vonza Assistant",
+      publicAgentKey: "agent-key",
+      tone: "friendly",
+      systemPrompt: "",
+      websiteUrl: "https://old-example.com/",
+      welcomeMessage: "Welcome",
+      buttonLabel: "Chat",
+      primaryColor: "#14b8a6",
+      secondaryColor: "#0f766e",
+      installStatus: {
+        state: "not_detected",
+        label: "Not detected on a live site yet",
+      },
+      knowledge: {
+        state: "ready",
+        description: "Knowledge is ready.",
+        pageCount: 2,
+        contentLength: 1200,
+        importedWebsiteUrl: "https://old-example.com/",
+        updatedAt: "2026-04-01T10:00:00.000Z",
+      },
+    },
+  };
+
+  const harness = createDashboardHarness({
+    search: "?from=app",
+    agents: () => [state.agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/update") {
+        state.agent = {
+          ...state.agent,
+          websiteUrl: "https://new-example.com/",
+        };
+
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            agent: {
+              ...state.agent,
+              websiteSync: {
+                previousUrl: "https://old-example.com/",
+                currentUrl: "https://new-example.com/",
+                changed: true,
+              },
+            },
+          },
+        });
+      }
+
+      if (pathname === "/knowledge/import") {
+        return buildResponse({
+          status: 500,
+          body: {
+            error: "Website saved, but importing website knowledge failed. Retry in a moment.",
+            import: {
+              status: "failed",
+              message: "Website saved, but importing website knowledge failed. Retry in a moment.",
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+
+  await harness.settle();
+
+  const saveAssistant = harness.getGlobal("saveAssistant");
+  const form = {
+    __formDataEntries: [
+      ["assistant_name", "Vonza Assistant"],
+      ["tone", "friendly"],
+      ["system_prompt", ""],
+      ["welcome_message", "Welcome"],
+      ["button_label", "Chat"],
+      ["website_url", "https://new-example.com"],
+      ["primary_color", "#14b8a6"],
+      ["secondary_color", "#0f766e"],
+    ],
+    querySelector(selector) {
+      if (selector === 'button[type="submit"]') {
+        return { disabled: false };
+      }
+
+      if (selector === "[data-save-state]") {
+        return {
+          textContent: "",
+          className: "",
+          title: "",
+          removeAttribute() {},
+        };
+      }
+
+      return null;
+    },
+  };
+
+  await saveAssistant(
+    {
+      preventDefault() {},
+      currentTarget: form,
+    },
+    state.agent
+  );
+  await harness.settle();
+
+  assert.equal(
+    harness.getStatus(),
+    "Website saved, but importing website knowledge failed. Retry in a moment."
+  );
+  assert.match(harness.getRootHtml(), /https:\/\/new-example\.com\//);
+  assert.match(harness.getRootHtml(), /Retry website import/);
+});
+
+test("dashboard deduplicates repeated import requests while one is already pending", async () => {
+  const state = {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+      accessStatus: "active",
+      name: "Vonza Assistant",
+      assistantName: "Vonza Assistant",
+      publicAgentKey: "agent-key",
+      tone: "friendly",
+      systemPrompt: "",
+      websiteUrl: "https://example.com/",
+      welcomeMessage: "Welcome",
+      buttonLabel: "Chat",
+      primaryColor: "#14b8a6",
+      secondaryColor: "#0f766e",
+      installStatus: {
+        state: "not_detected",
+        label: "Not detected on a live site yet",
+      },
+      knowledge: {
+        state: "missing",
+        description: "Website knowledge has not been imported yet.",
+        pageCount: 0,
+        contentLength: 0,
+        importedWebsiteUrl: "",
+        updatedAt: null,
+      },
+    },
+  };
+  let resolveImport;
+  let importCalls = 0;
+  const importResponse = new Promise((resolve) => {
+    resolveImport = resolve;
+  });
+
+  const harness = createDashboardHarness({
+    search: "?from=app",
+    agents: () => [state.agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/knowledge/import") {
+        importCalls += 1;
+        await importResponse;
+        state.agent = {
+          ...state.agent,
+          knowledge: {
+            state: "ready",
+            description: "Knowledge is ready.",
+            pageCount: 1,
+            contentLength: 800,
+            importedWebsiteUrl: "https://example.com/",
+            updatedAt: "2026-04-02T18:30:00.000Z",
+          },
+        };
+
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            websiteUrl: "https://example.com/",
+            content: "Imported content",
+            pageCount: 1,
+            knowledge: {
+              state: "ready",
+              description: "Knowledge is ready.",
+              pageCount: 1,
+              contentLength: 800,
+              importedWebsiteUrl: "https://example.com/",
+              updatedAt: "2026-04-02T18:30:00.000Z",
+            },
+            import: {
+              status: "success",
+              lastImportedUrl: "https://example.com/",
+              lastImportedAt: "2026-04-02T18:30:00.000Z",
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+
+  await harness.settle();
+
+  const runKnowledgeImport = harness.getGlobal("runKnowledgeImport");
+  const firstImport = runKnowledgeImport(state.agent);
+  const secondImport = runKnowledgeImport(state.agent);
+
+  resolveImport();
+  await Promise.all([firstImport, secondImport]);
+  await harness.settle();
+
+  assert.equal(importCalls, 1);
 });
 
 test("setup doctor is only available in local dev mode and never exposes values", { concurrency: false }, async () => {

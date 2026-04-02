@@ -167,6 +167,7 @@ function buildKnowledgeSummary(row) {
     hasWebsiteContent,
     contentLength,
     pageCount,
+    importedWebsiteUrl: row?.website_url || "",
     updatedAt: row?.updated_at || null,
   };
 }
@@ -674,7 +675,7 @@ export async function listAgents(supabase, options = {}) {
   if (businessIds.length) {
     const { data: websiteContentRows, error: websiteContentError } = await supabase
       .from(WEBSITE_CONTENT_TABLE)
-      .select("business_id, content, page_count, updated_at")
+      .select("business_id, website_url, content, page_count, updated_at")
       .in("business_id", businessIds);
 
     if (websiteContentError) {
@@ -915,6 +916,7 @@ export async function updateAgentSettings(
   }
 
   let resolvedWebsiteUrl = currentWebsiteUrl;
+  let resolvedBusinessId = agent.businessId;
 
   if (normalizedWebsiteUrl) {
     try {
@@ -926,6 +928,7 @@ export async function updateAgentSettings(
             await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
           }
           await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+          resolvedBusinessId = existingBusiness.id;
         } else {
           await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
         }
@@ -941,6 +944,7 @@ export async function updateAgentSettings(
             await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
           }
           await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+          resolvedBusinessId = existingBusiness.id;
         } else {
           throw buildAgentSettingsError(
             "That website is already connected elsewhere in Vonza. Try again in a moment.",
@@ -986,12 +990,18 @@ export async function updateAgentSettings(
 
   return {
     id: normalizedAgentId,
+    businessId: resolvedBusinessId,
     publicAgentKey: agent.publicAgentKey,
     name: nextAssistantName,
     assistantName: nextAssistantName,
     tone: nextTone,
     systemPrompt: nextSystemPrompt,
     websiteUrl: resolvedWebsiteUrl,
+    websiteSync: {
+      previousUrl: currentWebsiteUrl,
+      currentUrl: resolvedWebsiteUrl,
+      changed: Boolean(normalizedWebsiteUrl && normalizedWebsiteUrl !== currentWebsiteUrl),
+    },
     welcomeMessage: cleanText(welcomeMessage) || currentWidgetConfig.welcomeMessage,
     buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
     primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
