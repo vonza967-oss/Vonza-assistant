@@ -3993,11 +3993,24 @@ async function saveAssistant(event, agent) {
 
     return fallbackValue;
   };
+  const payload = {
+    client_id: getClientId(),
+    agent_id: agent.id,
+    assistant_name: getNextValue("assistant_name", agent.assistantName || agent.name || ""),
+    tone: getNextValue("tone", agent.tone || ""),
+    system_prompt: getNextValue("system_prompt", agent.systemPrompt || ""),
+    welcome_message: getNextValue("welcome_message", agent.welcomeMessage || ""),
+    button_label: getNextValue("button_label", agent.buttonLabel || ""),
+    website_url: getNextValue("website_url", agent.websiteUrl || ""),
+    primary_color: getNextValue("primary_color", agent.primaryColor || ""),
+    secondary_color: getNextValue("secondary_color", agent.secondaryColor || ""),
+  };
 
   submitButton.disabled = true;
   if (saveState) {
     saveState.textContent = "Saving changes...";
     saveState.className = "save-state saving";
+    saveState.removeAttribute("title");
   }
   setStatus("Saving your assistant...");
 
@@ -4007,18 +4020,7 @@ async function saveAssistant(event, agent) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        client_id: getClientId(),
-        agent_id: agent.id,
-        assistant_name: getNextValue("assistant_name", agent.assistantName || agent.name || ""),
-        tone: getNextValue("tone", agent.tone || ""),
-        system_prompt: getNextValue("system_prompt", agent.systemPrompt || ""),
-        welcome_message: getNextValue("welcome_message", agent.welcomeMessage || ""),
-        button_label: getNextValue("button_label", agent.buttonLabel || ""),
-        website_url: getNextValue("website_url", agent.websiteUrl || ""),
-        primary_color: getNextValue("primary_color", agent.primaryColor || ""),
-        secondary_color: getNextValue("secondary_color", agent.secondaryColor || ""),
-      })
+      body: JSON.stringify(payload)
     });
 
     if (websiteChanged) {
@@ -4033,13 +4035,21 @@ async function saveAssistant(event, agent) {
     if (saveState) {
       saveState.textContent = "Changes saved.";
       saveState.className = "save-state saved";
+      saveState.removeAttribute("title");
     }
     await boot();
   } catch (error) {
-    setStatus("We couldn't save those changes just yet.");
+    const message = error.message || "We couldn't save those changes just yet.";
+    console.error("[dashboard customize] Failed to save assistant settings:", {
+      agentId: agent.id,
+      payload,
+      message,
+    });
+    setStatus(message);
     if (saveState) {
       saveState.textContent = "Could not save changes.";
       saveState.className = "save-state unsaved";
+      saveState.title = message;
     }
   } finally {
     submitButton.disabled = false;
