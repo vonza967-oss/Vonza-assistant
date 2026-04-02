@@ -1893,6 +1893,113 @@ function getContactStatusLabel(value) {
   }
 }
 
+function hasActionQueueOwnerHandoff(item = {}) {
+  return Boolean(
+    trimText(item.note)
+    || trimText(item.outcome)
+    || trimText(item.nextStep)
+    || normalizeActionQueueBoolean(item.followUpNeeded) !== null
+    || normalizeActionQueueBoolean(item.followUpCompleted) !== null
+    || trimText(item.contactStatus)
+  );
+}
+
+function getActionQueueOwnerWorkflow(item = {}) {
+  if (item.ownerWorkflow && typeof item.ownerWorkflow === "object") {
+    return {
+      key: trimText(item.ownerWorkflow.key) || "needs_review",
+      label: trimText(item.ownerWorkflow.label) || "Needs owner review",
+      copy: trimText(item.ownerWorkflow.copy) || "This flagged conversation still needs an owner decision on what happened next.",
+      attention: item.ownerWorkflow.attention !== false,
+      resolved: item.ownerWorkflow.resolved === true,
+      rank: Number.isFinite(Number(item.ownerWorkflow.rank)) ? Number(item.ownerWorkflow.rank) : 99,
+    };
+  }
+
+  const status = normalizeActionQueueStatus(item.status);
+  const followUpCompleted = normalizeActionQueueBoolean(item.followUpCompleted);
+  const followUpNeeded = normalizeActionQueueBoolean(item.followUpNeeded);
+  const handoffStarted = hasActionQueueOwnerHandoff(item);
+  const resolved = followUpCompleted === true || status === "done";
+
+  if (status === "dismissed") {
+    return {
+      key: "dismissed",
+      label: "Dismissed",
+      copy: "This item was intentionally dismissed from the owner follow-up workflow.",
+      attention: false,
+      resolved: false,
+      rank: 5,
+    };
+  }
+
+  if (resolved) {
+    return {
+      key: "resolved",
+      label: "Resolved",
+      copy: trimText(item.outcome)
+        ? "A resolution is recorded and this queue item no longer needs active follow-up."
+        : "This queue item is marked complete and no longer needs active follow-up.",
+      attention: false,
+      resolved: true,
+      rank: 4,
+    };
+  }
+
+  if (followUpNeeded === true) {
+    return {
+      key: handoffStarted ? "follow_up_in_progress" : "follow_up_needed",
+      label: handoffStarted ? "Follow-up in progress" : "Needs follow-up",
+      copy: trimText(item.nextStep)
+        ? `Next step: ${trimText(item.nextStep)}`
+        : "The owner still needs to follow up on this conversation signal.",
+      attention: true,
+      resolved: false,
+      rank: handoffStarted ? 1 : 0,
+    };
+  }
+
+  if (status === "reviewed" || handoffStarted) {
+    return {
+      key: "reviewed_pending",
+      label: "Reviewed",
+      copy: trimText(item.outcome)
+        ? "Owner context is recorded, but the item is not marked resolved yet."
+        : "The owner has started reviewing this item, but the final outcome is not recorded yet.",
+      attention: true,
+      resolved: false,
+      rank: 2,
+    };
+  }
+
+  return {
+    key: "needs_review",
+    label: "Needs owner review",
+    copy: "This flagged conversation still needs an owner decision on what happened next.",
+    attention: true,
+    resolved: false,
+    rank: 3,
+  };
+}
+
+function getActionQueueOwnerWorkflowBadgeClass(item = {}) {
+  const workflow = getActionQueueOwnerWorkflow(item);
+
+  if (workflow.key === "resolved") {
+    return "badge success";
+  }
+
+  if (workflow.key === "follow_up_in_progress" || workflow.key === "reviewed_pending") {
+    return "badge warning";
+  }
+
+  if (workflow.key === "dismissed") {
+    return "pill";
+  }
+
+  return "badge pending";
+}
+
 function formatActionQueueContact(item) {
   const email = trimText(item?.contactInfo?.email);
   const phone = trimText(item?.contactInfo?.phone);
@@ -1972,7 +2079,11 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
     `).join("");
   };
 
-  const itemsMarkup = visibleItems.map((item) => `
+  const itemsMarkup = visibleItems.map((item, index) => {
+    const workflow = getActionQueueOwnerWorkflow(item);
+    const handoffOpenByDefault = !compact && workflow.attention && index === 0;
+
+    return `
     <article
       class="action-queue-item"
       data-action-queue-item
@@ -1985,6 +2096,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           <div class="action-queue-badges">
             <span class="pill">${escapeHtml(getActionQueueTypeLabel(item.type))}</span>
             <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
+            <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
             <span class="pill">${escapeHtml(`${item.count || 0} conversation${item.count === 1 ? "" : "s"}`)}</span>
           </div>
           <h4 class="action-queue-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))}</h4>
@@ -2011,16 +2123,25 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           <strong class="action-queue-detail-value">${escapeHtml(item.snippet || "No customer question stored yet.")}</strong>
         </div>
         <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Why it was flagged</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</strong>
+        </div>
+        <div class="action-queue-detail">
           <span class="action-queue-detail-label">Contact</span>
           <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Owner follow-up state</span>
+          <strong class="action-queue-detail-value">${escapeHtml(workflow.label)}</strong>
+          <p class="action-queue-copy">${escapeHtml(workflow.copy)}</p>
         </div>
         <div class="action-queue-detail">
           <span class="action-queue-detail-label">Suggested next action</span>
           <strong class="action-queue-detail-value">${escapeHtml(item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
         </div>
         <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Follow-up state</span>
-          <strong class="action-queue-detail-value">${escapeHtml(`Needed: ${getFollowUpBooleanLabel(item.followUpNeeded)} · Completed: ${getFollowUpBooleanLabel(item.followUpCompleted)}`)}</strong>
+          <span class="action-queue-detail-label">Last owner update</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.updatedAt ? formatSeenAt(item.updatedAt) : "No owner update yet.")}</strong>
         </div>
       </div>
       ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml(item.lastSeenAt ? `Last seen ${formatSeenAt(item.lastSeenAt)}` : "Recent signal")}</p>` : ""}
@@ -2028,7 +2149,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         <div class="action-queue-handoff">
           <div class="action-queue-handoff-summary">
             <div class="action-queue-handoff-item">
-              <span class="action-queue-detail-label">Saved note</span>
+              <span class="action-queue-detail-label">Owner note</span>
               <strong class="action-queue-detail-value">${escapeHtml(item.note || "No owner note yet.")}</strong>
             </div>
             <div class="action-queue-handoff-item">
@@ -2040,19 +2161,34 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
               <strong class="action-queue-detail-value">${escapeHtml(item.nextStep || "No next step recorded yet.")}</strong>
             </div>
             <div class="action-queue-handoff-item">
+              <span class="action-queue-detail-label">Follow-up needed</span>
+              <strong class="action-queue-detail-value">${escapeHtml(getFollowUpBooleanLabel(item.followUpNeeded))}</strong>
+            </div>
+            <div class="action-queue-handoff-item">
+              <span class="action-queue-detail-label">Follow-up completed</span>
+              <strong class="action-queue-detail-value">${escapeHtml(getFollowUpBooleanLabel(item.followUpCompleted))}</strong>
+            </div>
+            <div class="action-queue-handoff-item">
               <span class="action-queue-detail-label">Contact status</span>
               <strong class="action-queue-detail-value">${escapeHtml(item.contactCaptured ? getContactStatusLabel(item.contactStatus) : "Contact not captured")}</strong>
             </div>
           </div>
           <div class="action-queue-secondary-action">
-            <button class="ghost-button" type="button" data-action-queue-toggle data-action-key="${escapeHtml(item.key || "")}">
-              ${item.note || item.outcome || item.nextStep || item.contactStatus ? "Edit follow-up" : "Open follow-up"}
+            <button
+              class="ghost-button"
+              type="button"
+              data-action-queue-toggle
+              data-action-key="${escapeHtml(item.key || "")}"
+              data-open-label="${escapeHtml(item.note || item.outcome || item.nextStep || item.contactStatus ? "Edit owner handoff" : "Open owner handoff")}"
+              data-close-label="Hide owner handoff"
+            >
+              ${handoffOpenByDefault ? "Hide owner handoff" : escapeHtml(item.note || item.outcome || item.nextStep || item.contactStatus ? "Edit owner handoff" : "Open owner handoff")}
             </button>
           </div>
-          <form class="action-queue-form" data-action-queue-form data-action-key="${escapeHtml(item.key || "")}" hidden>
+          <form class="action-queue-form" data-action-queue-form data-action-key="${escapeHtml(item.key || "")}" ${handoffOpenByDefault ? "" : "hidden"}>
             <div class="form-grid two-col">
               <div class="field">
-                <label for="queue-note-${escapeHtml(item.key || "")}">Note</label>
+                <label for="queue-note-${escapeHtml(item.key || "")}">Owner note</label>
                 <textarea id="queue-note-${escapeHtml(item.key || "")}" name="note" ${allowStatusUpdates ? "" : "disabled"}>${escapeHtml(item.note || "")}</textarea>
               </div>
               <div class="field">
@@ -2092,14 +2228,15 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
               </div>
             </div>
             <div class="action-queue-form-actions">
-              <button class="primary-button" type="submit" ${allowStatusUpdates ? "" : "disabled"}>Save follow-up</button>
-              <span class="action-queue-meta-inline">${escapeHtml(migrationRequired ? "Apply the action queue migration before follow-up can be saved." : "Keep this lightweight: short note, outcome, next step.")}</span>
+              <button class="primary-button" type="submit" ${allowStatusUpdates ? "" : "disabled"}>Save owner handoff</button>
+              <span class="action-queue-meta-inline">${escapeHtml(migrationRequired ? "Apply the action queue migration before follow-up can be saved." : "Keep this lightweight: note what happened, record the outcome, and decide whether follow-up is still needed.")}</span>
             </div>
           </form>
         </div>
       `}
     </article>
-  `).join("");
+  `;
+  }).join("");
 
   return `
     <section class="${compact ? "workspace-card-soft action-queue-shell compact" : "overview-card overview-card-queue action-queue-shell"}" ${compact ? "" : 'data-action-queue-section'}>
@@ -2379,6 +2516,9 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
 function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
+  const attentionItems = (actionQueue.items || [])
+    .filter((item) => getActionQueueOwnerWorkflow(item).attention)
+    .slice(0, 3);
   const topQuestionMarkup = overview.signals.topQuestions.length
     ? overview.signals.topQuestions.map((item) => `
       <div class="overview-list-item">
@@ -2427,6 +2567,22 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
       </div>
     `).join("")
     : `<div class="placeholder-card">No weak-answer signal yet. Once customers ask questions that Vonza struggles to answer, they will show up here instead of being hidden behind a fake success state.</div>`;
+  const attentionMarkup = attentionItems.length
+    ? attentionItems.map((item) => {
+      const workflow = getActionQueueOwnerWorkflow(item);
+      const nextLine = trimText(item.nextStep)
+        ? `Next step: ${trimText(item.nextStep)}`
+        : workflow.copy;
+
+      return `
+        <div class="overview-list-item">
+          <p class="overview-list-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))} · ${escapeHtml(workflow.label)}</p>
+          <p class="overview-list-copy">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</p>
+          <p class="overview-list-copy">${escapeHtml(nextLine)}</p>
+        </div>
+      `;
+    }).join("")
+    : `<div class="placeholder-card">No queue items need owner attention right now. Resolved items and dismissed items stay out of the way here.</div>`;
 
   const renderAction = (action, options = {}) => {
     const buttonClass = options.primary ? "primary-button" : "ghost-button";
@@ -2474,6 +2630,10 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
             <div class="overview-metric-value">${overview.queueSummary.followUpNeeded || 0}</div>
           </div>
           <div class="overview-metric">
+            <div class="overview-metric-label">Attention now</div>
+            <div class="overview-metric-value">${overview.queueSummary.attentionNeeded || 0}</div>
+          </div>
+          <div class="overview-metric">
             <div class="overview-metric-label">Resolved items</div>
             <div class="overview-metric-value">${overview.queueSummary.resolved || 0}</div>
           </div>
@@ -2504,6 +2664,14 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
           )}</p>
           <div class="overview-list">
             ${topQuestionMarkup}
+          </div>
+        </section>
+
+        <section class="overview-card">
+          <h3 class="overview-card-title">Owner attention now</h3>
+          <p class="overview-card-copy">These are the flagged conversations that still need an owner decision, follow-up, or final resolution.</p>
+          <div class="overview-list">
+            ${attentionMarkup}
           </div>
         </section>
 
@@ -3890,7 +4058,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
 
       const opening = form.hidden;
       form.hidden = !form.hidden;
-      button.textContent = opening ? "Hide follow-up" : "Open follow-up";
+      button.textContent = opening
+        ? (button.dataset.closeLabel || "Hide owner handoff")
+        : (button.dataset.openLabel || "Open owner handoff");
     });
   });
 
@@ -3904,7 +4074,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       const statusInput = itemEl?.querySelector('[data-action-queue-status]');
 
       submitButton.disabled = true;
-      setStatus("Saving follow-up...");
+      setStatus("Saving owner handoff...");
 
       try {
         const result = await fetchJson("/agents/action-queue/status", {
@@ -3930,7 +4100,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
         if (result.migrationRequired) {
           setStatus("Follow-up could not be persisted yet. Apply the action queue migration first.");
         } else {
-          setStatus("Follow-up saved.");
+          setStatus("Owner handoff saved.");
         }
         await boot();
       } catch (error) {

@@ -15,6 +15,10 @@ import {
   getPaidOwnerIdFromCheckoutSession,
   verifySuccessfulCheckout,
 } from "../src/services/billing/checkoutService.js";
+import {
+  buildActionQueue,
+  updateActionQueueStatus,
+} from "../src/services/analytics/actionQueueService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -478,9 +482,12 @@ test("dashboard bundle exposes the canonical purchase-first flow and paid worksp
         assert.match(dashboardScript.text, /No actionable items yet/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
+        assert.match(dashboardScript.text, /Attention now/);
         assert.match(dashboardScript.text, /Resolved items/);
-        assert.match(dashboardScript.text, /Open follow-up/);
-        assert.match(dashboardScript.text, /Save follow-up/);
+        assert.match(dashboardScript.text, /Owner attention now/);
+        assert.match(dashboardScript.text, /Owner follow-up state/);
+        assert.match(dashboardScript.text, /Open owner handoff/);
+        assert.match(dashboardScript.text, /Save owner handoff/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
       } finally {
         await server.close();
@@ -739,6 +746,7 @@ test("action queue surfaces high-intent and weak-answer conversation signals for
         assert.ok(result.json.items.some((item) => item.type === "contact"));
         assert.ok(result.json.items.some((item) => item.type === "support"));
         assert.ok(result.json.items.some((item) => item.type === "weak_answer"));
+        assert.ok(result.json.items.every((item) => item.ownerWorkflow && typeof item.ownerWorkflow.label === "string"));
 
         const contactItem = result.json.items.find((item) => item.type === "contact");
         assert.equal(contactItem.contactCaptured, true);
@@ -854,6 +862,7 @@ test("action queue status changes persist cleanly through the lightweight owner 
         assert.equal(contactItem.followUpNeeded, true);
         assert.equal(contactItem.followUpCompleted, false);
         assert.equal(contactItem.contactStatus, "attempted");
+        assert.equal(contactItem.ownerWorkflow.label, "Follow-up in progress");
         assert.ok(refreshed.json.summary.followUpNeeded >= 1);
         assert.ok(refreshed.json.summary.attentionNeeded >= 1);
       } finally {
@@ -861,6 +870,111 @@ test("action queue status changes persist cleanly through the lightweight owner 
       }
     }
   );
+});
+
+test("action queue prioritizes owner follow-up and reports attention cleanly", () => {
+  const result = buildActionQueue(
+    [
+      {
+        role: "user",
+        content: "Can someone email me at hello@example.com?",
+        createdAt: "2026-04-01T10:03:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Yes, our team can follow up.",
+        createdAt: "2026-04-01T10:03:05.000Z",
+      },
+      {
+        role: "user",
+        content: "What are your prices for monthly support?",
+        createdAt: "2026-04-01T10:05:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Packages start at $99 per month.",
+        createdAt: "2026-04-01T10:05:05.000Z",
+      },
+    ],
+    [
+      {
+        action_key: "intent:contact",
+        status: "reviewed",
+        note: "Owner called the lead.",
+        next_step: "Send pricing details this afternoon.",
+        follow_up_needed: true,
+        follow_up_completed: false,
+      },
+      {
+        action_key: "intent:pricing",
+        status: "done",
+        outcome: "Quote already shared and no follow-up is needed.",
+        follow_up_needed: false,
+        follow_up_completed: true,
+      },
+    ]
+  );
+
+  assert.equal(result.items[0].key, "intent:contact");
+  assert.equal(result.items[0].ownerWorkflow.label, "Follow-up in progress");
+  assert.equal(result.items[1].key, "intent:pricing");
+  assert.equal(result.items[1].ownerWorkflow.label, "Resolved");
+  assert.equal(result.summary.followUpNeeded, 1);
+  assert.equal(result.summary.resolved, 1);
+  assert.equal(result.summary.attentionNeeded, 1);
+});
+
+test("lightweight owner handoff updates auto-advance queue status when appropriate", async () => {
+  let capturedPayload = null;
+  const supabase = {
+    from(tableName) {
+      assert.equal(tableName, "agent_action_queue_statuses");
+      return {
+        upsert(payload) {
+          capturedPayload = payload;
+          return {
+            select() {
+              return {
+                async single() {
+                  return {
+                    data: payload,
+                    error: null,
+                  };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const reviewed = await updateActionQueueStatus(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    actionKey: "intent:contact",
+    status: "new",
+    note: "Owner called the lead.",
+    nextStep: "Send pricing details this afternoon.",
+    followUpNeeded: true,
+    followUpCompleted: false,
+  });
+
+  assert.equal(capturedPayload.status, "reviewed");
+  assert.equal(reviewed.item.status, "reviewed");
+
+  const resolved = await updateActionQueueStatus(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    actionKey: "intent:contact",
+    status: "reviewed",
+    outcome: "Lead booked a consultation.",
+    followUpNeeded: false,
+    followUpCompleted: true,
+  });
+
+  assert.equal(capturedPayload.status, "done");
+  assert.equal(resolved.item.status, "done");
 });
 
 test("action queue surfaces migration-required state instead of silently pretending follow-up is persistent", { concurrency: false }, async () => {

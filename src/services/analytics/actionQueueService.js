@@ -80,6 +80,17 @@ function normalizePersistedItem(item = {}) {
   };
 }
 
+function hasOwnerHandoffContent(item = {}) {
+  return Boolean(
+    cleanText(item.note)
+    || cleanText(item.outcome)
+    || cleanText(item.nextStep || item.next_step)
+    || normalizeBooleanFlag(item.followUpNeeded ?? item.follow_up_needed) !== null
+    || normalizeBooleanFlag(item.followUpCompleted ?? item.follow_up_completed) !== null
+    || normalizeContactStatus(item.contactStatus || item.contact_status)
+  );
+}
+
 function isFollowUpNeeded(item = {}) {
   if (item.followUpCompleted === true || normalizeStatus(item.status) === "done" || normalizeStatus(item.status) === "dismissed") {
     return false;
@@ -94,6 +105,72 @@ function isFollowUpNeeded(item = {}) {
 
 function isResolved(item = {}) {
   return item.followUpCompleted === true || normalizeStatus(item.status) === "done";
+}
+
+function buildOwnerWorkflow(item = {}) {
+  const status = normalizeStatus(item.status);
+  const followUpNeeded = isFollowUpNeeded(item);
+  const resolved = isResolved(item);
+  const handoffStarted = hasOwnerHandoffContent(item);
+
+  if (status === "dismissed") {
+    return {
+      key: "dismissed",
+      label: "Dismissed",
+      copy: "This item was intentionally dismissed from the lightweight owner follow-up flow.",
+      attention: false,
+      resolved: false,
+      rank: 5,
+    };
+  }
+
+  if (resolved) {
+    return {
+      key: "resolved",
+      label: "Resolved",
+      copy: cleanText(item.outcome)
+        ? "A resolution is recorded and this queue item no longer needs active follow-up."
+        : "This queue item is marked complete and no longer needs active follow-up.",
+      attention: false,
+      resolved: true,
+      rank: 4,
+    };
+  }
+
+  if (followUpNeeded) {
+    return {
+      key: handoffStarted ? "follow_up_in_progress" : "follow_up_needed",
+      label: handoffStarted ? "Follow-up in progress" : "Needs follow-up",
+      copy: cleanText(item.nextStep)
+        ? `Next step: ${cleanText(item.nextStep)}`
+        : "The owner still needs to follow up on this conversation signal.",
+      attention: true,
+      resolved: false,
+      rank: handoffStarted ? 1 : 0,
+    };
+  }
+
+  if (status === "reviewed" || handoffStarted) {
+    return {
+      key: "reviewed_pending",
+      label: "Reviewed",
+      copy: cleanText(item.outcome)
+        ? "Owner context is recorded, but the item is not marked resolved yet."
+        : "The owner has started reviewing this item, but the final outcome is not recorded yet.",
+      attention: true,
+      resolved: false,
+      rank: 2,
+    };
+  }
+
+  return {
+    key: "needs_review",
+    label: "Needs owner review",
+    copy: "This flagged conversation still needs an owner decision on what happened next.",
+    attention: true,
+    resolved: false,
+    rank: 3,
+  };
 }
 
 function normalizeQuestion(message) {
@@ -306,6 +383,7 @@ function buildStatusSummary(items = []) {
 
   items.forEach((item) => {
     const status = normalizeStatus(item.status);
+    const workflow = item.ownerWorkflow || buildOwnerWorkflow(item);
     summary[status] += 1;
 
     if (isFollowUpNeeded(item)) {
@@ -320,7 +398,7 @@ function buildStatusSummary(items = []) {
       summary.resolved += 1;
     }
 
-    if (isFollowUpNeeded(item) && !isResolved(item) && status !== "dismissed") {
+    if (workflow.attention) {
       summary.attentionNeeded += 1;
     }
   });
@@ -398,6 +476,7 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
     );
 
     const persistedItem = persistedMap.get(key) || {};
+    const ownerWorkflow = buildOwnerWorkflow(persistedItem);
 
     return {
       key,
@@ -416,6 +495,7 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       followUpCompleted: persistedItem.followUpCompleted,
       contactStatus: persistedItem.contactStatus || "",
       updatedAt: persistedItem.updatedAt || null,
+      ownerWorkflow,
       contactCaptured: Boolean(combinedContactInfo.email || combinedContactInfo.phone),
       contactInfo: combinedContactInfo.email || combinedContactInfo.phone
         ? {
@@ -434,7 +514,15 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
     buildItem("signal:weak_answer", "weak_answer", grouped.weak_answer),
   ]
     .filter(Boolean)
-    .sort((left, right) => getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt }));
+    .sort((left, right) => {
+      const rankDelta = (left.ownerWorkflow?.rank ?? 99) - (right.ownerWorkflow?.rank ?? 99);
+
+      if (rankDelta !== 0) {
+        return rankDelta;
+      }
+
+      return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
+    });
 
   return {
     items,
@@ -480,13 +568,32 @@ export async function updateActionQueueStatus(supabase, options = {}) {
   const agentId = cleanText(options.agentId);
   const ownerUserId = cleanText(options.ownerUserId);
   const actionKey = cleanText(options.actionKey);
-  const status = options.status === undefined ? null : normalizeStatus(options.status);
   const note = options.note === undefined ? undefined : cleanText(options.note);
   const outcome = options.outcome === undefined ? undefined : cleanText(options.outcome);
   const nextStep = options.nextStep === undefined ? undefined : cleanText(options.nextStep);
   const followUpNeeded = options.followUpNeeded === undefined ? undefined : normalizeBooleanFlag(options.followUpNeeded);
   const followUpCompleted = options.followUpCompleted === undefined ? undefined : normalizeBooleanFlag(options.followUpCompleted);
   const contactStatus = options.contactStatus === undefined ? undefined : normalizeContactStatus(options.contactStatus);
+  const explicitStatus = options.status === undefined ? null : normalizeStatus(options.status);
+  const hasHandoffUpdate = [
+    note,
+    outcome,
+    nextStep,
+    contactStatus,
+  ].some((value) => value !== undefined && value !== "") || followUpNeeded !== undefined || followUpCompleted !== undefined;
+  let status = explicitStatus;
+
+  if (!status) {
+    status = "new";
+  }
+
+  if (status !== "dismissed") {
+    if (followUpCompleted === true || (followUpNeeded === false && outcome)) {
+      status = "done";
+    } else if (hasHandoffUpdate && status === "new") {
+      status = "reviewed";
+    }
+  }
 
   if (!agentId || !ownerUserId || !actionKey) {
     const error = new Error("agent_id, owner_user_id, and action_key are required");
@@ -501,9 +608,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
     updated_at: new Date().toISOString(),
   };
 
-  if (status) {
-    payload.status = status;
-  }
+  payload.status = status;
 
   if (note !== undefined) {
     payload.note = note;
@@ -542,7 +647,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
           agentId,
           ownerUserId,
           actionKey,
-          status: status || "new",
+          status,
           note,
           outcome,
           nextStep,
