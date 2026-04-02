@@ -4,9 +4,11 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "setup": "npm install",
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "test:smoke": "node --test tests/smoke.test.js"
+    "test:smoke": "node --test tests/smoke.test.js",
+    "test:supabase": "node test-supabase.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",
