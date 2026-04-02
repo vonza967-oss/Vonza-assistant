@@ -1692,6 +1692,51 @@ test("knowledge import still supports the unauthenticated client bridge during o
   );
 });
 
+test("agent updates return specific validation errors for customize saves", { concurrency: false }, async () => {
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(
+        createTestApp({
+          ...createAgentTestDeps({ accessStatus: "active" }),
+          updateAgentSettings: async () => {
+            const error = new Error("Enter a valid public https URL, like https://example.com.");
+            error.statusCode = 400;
+            throw error;
+          },
+        })
+      );
+
+      try {
+        const result = await withMutedConsoleError(() =>
+          getJson(server.baseUrl, "/agents/update", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              agent_id: "agent-1",
+              website_url: "not-a-valid-url",
+            }),
+          })
+        );
+
+        assert.equal(result.status, 400);
+        assert.equal(
+          result.json.error,
+          "Enter a valid public https URL, like https://example.com."
+        );
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
 test("first-time owner assistant creation stays allowed before payment and returns pending access state", { concurrency: false }, async () => {
   const state = { accessStatus: "pending" };
 

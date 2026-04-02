@@ -278,9 +278,11 @@ export function createAgentRouter(deps = {}) {
   });
 
   router.post("/agents/update", async (req, res) => {
+    let user = null;
+
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
+      user = await authenticateUser(supabase, req).catch((error) => {
         if (error.statusCode === 401) {
           return null;
         }
@@ -306,7 +308,15 @@ export function createAgentRouter(deps = {}) {
 
       res.json({ ok: true, agent: result });
     } catch (err) {
-      console.error(err);
+      console.error("[agents/update] Failed to update agent settings:", {
+        agentId: req.body.agent_id || req.body.agentId || null,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId || null,
+        websiteUrl: req.body.website_url || req.body.websiteUrl || null,
+        code: err?.code || null,
+        statusCode: err?.statusCode || 500,
+        message: err?.message || "Something went wrong",
+      });
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
       });

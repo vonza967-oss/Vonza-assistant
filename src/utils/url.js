@@ -35,6 +35,73 @@ export function getHostnameFromUrl(value) {
   }
 }
 
-export function normalizeWebsiteUrl(value) {
-  return cleanText(value);
+function hasExplicitScheme(value) {
+  return /^[a-z][a-z0-9+.-]*:\/\//i.test(value);
+}
+
+function hasPublicHostname(hostname) {
+  if (!hostname) {
+    return false;
+  }
+
+  const normalizedHostname = hostname.toLowerCase();
+
+  if (
+    normalizedHostname === "localhost" ||
+    normalizedHostname.endsWith(".local") ||
+    normalizedHostname.endsWith(".localhost")
+  ) {
+    return false;
+  }
+
+  return normalizedHostname.includes(".");
+}
+
+export function normalizeWebsiteUrl(value, options = {}) {
+  const {
+    requireHttps = false,
+    requirePublicHostname = false,
+  } = options;
+  const normalizedValue = cleanText(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  const candidateUrl = hasExplicitScheme(normalizedValue)
+    ? normalizedValue
+    : `https://${normalizedValue}`;
+
+  try {
+    const parsed = new URL(candidateUrl);
+
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return "";
+    }
+
+    if (requireHttps && parsed.protocol !== "https:") {
+      return "";
+    }
+
+    if (requirePublicHostname && !hasPublicHostname(parsed.hostname)) {
+      return "";
+    }
+
+    parsed.hash = "";
+    parsed.hostname = parsed.hostname.toLowerCase();
+
+    if (
+      (parsed.protocol === "https:" && parsed.port === "443") ||
+      (parsed.protocol === "http:" && parsed.port === "80")
+    ) {
+      parsed.port = "";
+    }
+
+    const normalizedPath = parsed.pathname.replace(/\/{2,}/g, "/");
+    parsed.pathname = normalizedPath === "/" ? "" : normalizedPath.replace(/\/+$/, "");
+
+    return parsed.toString();
+  } catch {
+    return "";
+  }
 }

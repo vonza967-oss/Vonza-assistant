@@ -1,5 +1,5 @@
 import { cleanText, slugifyLookupValue } from "../../utils/text.js";
-import { getHostnameFromUrl } from "../../utils/url.js";
+import { getHostnameFromUrl, normalizeWebsiteUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
 import { getAgentMessageStats } from "../chat/messageService.js";
 import { listInstallStatusByAgentIds, recordInstallPresence } from "../install/installPresenceService.js";
@@ -36,6 +36,64 @@ function isMissingRelationError(error, relationName) {
 
 function normalizeAgentKey(value) {
   return slugifyLookupValue(value).replace(/_+/g, "");
+}
+
+function buildInvalidWebsiteUrlError() {
+  const error = new Error("Enter a valid public https URL, like https://example.com.");
+  error.statusCode = 400;
+  return error;
+}
+
+function buildAgentSettingsError(message, statusCode = 500, code = "") {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  if (code) {
+    error.code = code;
+  }
+  return error;
+}
+
+async function findBusinessByWebsiteUrl(supabase, websiteUrl) {
+  const business = await findBusinessByIdentifier(supabase, websiteUrl);
+  return business?.website_url ? business : null;
+}
+
+async function updateBusinessWebsiteUrl(supabase, businessId, websiteUrl) {
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      website_url: websiteUrl,
+    })
+    .eq("id", businessId);
+
+  if (error) {
+    console.error("[agentService] Failed to update business website URL:", {
+      businessId,
+      websiteUrl,
+      code: error.code,
+      message: error.message,
+    });
+    throw error;
+  }
+}
+
+async function reassignAgentBusiness(supabase, agentId, businessId) {
+  const { error } = await supabase
+    .from(AGENTS_TABLE)
+    .update({
+      business_id: businessId,
+    })
+    .eq("id", agentId);
+
+  if (error) {
+    console.error("[agentService] Failed to reassign agent business:", {
+      agentId,
+      businessId,
+      code: error.code,
+      message: error.message,
+    });
+    throw error;
+  }
 }
 
 function buildDefaultAgentKey(business) {
@@ -461,7 +519,13 @@ export async function getWidgetBootstrap(supabase, options = {}) {
 
 export async function createAgentForBusinessName(supabase, businessName, websiteUrl, clientId, ownerUserId) {
   const normalizedBusinessName = cleanText(businessName);
-  const normalizedWebsiteUrl = cleanText(websiteUrl);
+  const providedWebsiteUrl = cleanText(websiteUrl);
+  const normalizedWebsiteUrl = providedWebsiteUrl
+    ? normalizeWebsiteUrl(providedWebsiteUrl, {
+        requireHttps: true,
+        requirePublicHostname: true,
+      })
+    : "";
   const normalizedClientId = cleanText(clientId);
   const normalizedOwnerUserId = cleanText(ownerUserId);
 
@@ -475,6 +539,10 @@ export async function createAgentForBusinessName(supabase, businessName, website
     const error = new Error("client_id or authenticated owner is required");
     error.statusCode = 400;
     throw error;
+  }
+
+  if (providedWebsiteUrl && !normalizedWebsiteUrl) {
+    throw buildInvalidWebsiteUrlError();
   }
 
   let business = await findBusinessByIdentifier(supabase, normalizedBusinessName);
@@ -790,12 +858,22 @@ export async function updateAgentSettings(
   { agentId, name, assistantName, tone, systemPrompt, welcomeMessage, buttonLabel, websiteUrl, primaryColor, secondaryColor }
 ) {
   const normalizedAgentId = cleanText(agentId);
-  const normalizedWebsiteUrl = cleanText(websiteUrl);
+  const providedWebsiteUrl = cleanText(websiteUrl);
+  const normalizedWebsiteUrl = providedWebsiteUrl
+    ? normalizeWebsiteUrl(providedWebsiteUrl, {
+        requireHttps: true,
+        requirePublicHostname: true,
+      })
+    : "";
 
   if (!normalizedAgentId) {
     const error = new Error("agent_id is required");
     error.statusCode = 400;
     throw error;
+  }
+
+  if (providedWebsiteUrl && !normalizedWebsiteUrl) {
+    throw buildInvalidWebsiteUrlError();
   }
 
   const agent = await findAgentById(supabase, normalizedAgentId);
@@ -810,6 +888,13 @@ export async function updateAgentSettings(
   const nextTone = cleanText(tone) || agent.tone || DEFAULT_TONE;
   const nextSystemPrompt = cleanText(systemPrompt) || "";
   const currentWidgetConfig = await ensureWidgetConfigForAgent(supabase, normalizedAgentId);
+  const currentBusiness = agent.businessId
+    ? await findBusinessByIdentifier(supabase, agent.businessId)
+    : null;
+  const currentWebsiteUrl =
+    normalizeWebsiteUrl(currentBusiness?.website_url || "", {
+      requirePublicHostname: false,
+    }) || cleanText(currentBusiness?.website_url || "");
 
   const { error: agentError } = await supabase
     .from(AGENTS_TABLE)
@@ -821,22 +906,54 @@ export async function updateAgentSettings(
     .eq("id", normalizedAgentId);
 
   if (agentError) {
-    console.error(agentError);
+    console.error("[agentService] Failed to update agent core settings:", {
+      agentId: normalizedAgentId,
+      code: agentError.code,
+      message: agentError.message,
+    });
     throw agentError;
   }
 
-  if (normalizedWebsiteUrl) {
-    const { error: businessError } = await supabase
-      .from("businesses")
-      .update({
-        website_url: normalizedWebsiteUrl,
-      })
-      .eq("id", agent.businessId);
+  let resolvedWebsiteUrl = currentWebsiteUrl;
 
-    if (businessError) {
-      console.error(businessError);
-      throw businessError;
+  if (normalizedWebsiteUrl) {
+    try {
+      if (normalizedWebsiteUrl !== currentWebsiteUrl) {
+        const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
+
+        if (existingBusiness && existingBusiness.id !== agent.businessId) {
+          if (existingBusiness.website_url !== normalizedWebsiteUrl) {
+            await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+          }
+          await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+        } else {
+          await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
+        }
+      } else if (currentBusiness?.website_url !== normalizedWebsiteUrl) {
+        await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
+      }
+    } catch (businessError) {
+      if (businessError?.code === "23505") {
+        const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
+
+        if (existingBusiness?.id) {
+          if (existingBusiness.website_url !== normalizedWebsiteUrl) {
+            await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+          }
+          await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+        } else {
+          throw buildAgentSettingsError(
+            "That website is already connected elsewhere in Vonza. Try again in a moment.",
+            409,
+            businessError.code
+          );
+        }
+      } else {
+        throw businessError;
+      }
     }
+
+    resolvedWebsiteUrl = normalizedWebsiteUrl;
   }
 
   const { error: widgetError } = await supabase
@@ -858,7 +975,11 @@ export async function updateAgentSettings(
 
   if (widgetError) {
     if (!isMissingRelationError(widgetError, WIDGET_CONFIGS_TABLE)) {
-      console.error(widgetError);
+      console.error("[agentService] Failed to update widget config:", {
+        agentId: normalizedAgentId,
+        code: widgetError.code,
+        message: widgetError.message,
+      });
       throw widgetError;
     }
   }
@@ -870,7 +991,7 @@ export async function updateAgentSettings(
     assistantName: nextAssistantName,
     tone: nextTone,
     systemPrompt: nextSystemPrompt,
-    websiteUrl: normalizedWebsiteUrl,
+    websiteUrl: resolvedWebsiteUrl,
     welcomeMessage: cleanText(welcomeMessage) || currentWidgetConfig.welcomeMessage,
     buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
     primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
