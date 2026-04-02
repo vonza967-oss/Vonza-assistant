@@ -2141,6 +2141,8 @@ function createEmptyActionQueue() {
     },
     persistenceAvailable: true,
     migrationRequired: false,
+    followUpWorkflowAvailable: true,
+    followUpWorkflowMigrationRequired: false,
   };
 }
 
@@ -2368,7 +2370,88 @@ function getActionQueueTypeLabel(type) {
     return "Weak answers";
   }
 
+  if (type === "repeat_high_intent") {
+    return "Repeat visitor";
+  }
+
   return getIntentLabel(type);
+}
+
+function getOperatorActionTypeLabel(item = {}) {
+  switch (trimText(item.actionType).toLowerCase()) {
+    case "lead_follow_up":
+      return "Lead follow-up";
+    case "pricing_interest":
+      return "Pricing interest";
+    case "booking_intent":
+      return "Booking intent";
+    case "repeat_high_intent_visitor":
+      return "Repeat high-intent visitor";
+    case "knowledge_gap":
+      return "Knowledge gap";
+    case "unanswered_question":
+      return "Unanswered question";
+    default:
+      return getActionQueueTypeLabel(item.type);
+  }
+}
+
+function getFollowUpStatusLabel(value) {
+  const normalized = trimText(value).toLowerCase();
+
+  switch (normalized) {
+    case "draft":
+      return "Draft";
+    case "ready":
+      return "Ready";
+    case "sent":
+      return "Sent";
+    case "failed":
+      return "Failed";
+    case "dismissed":
+      return "Dismissed";
+    case "missing_contact":
+      return "Missing contact";
+    default:
+      return "Not prepared";
+  }
+}
+
+function getFollowUpStatusBadgeClass(value) {
+  const normalized = trimText(value).toLowerCase();
+
+  if (normalized === "sent") {
+    return "badge success";
+  }
+
+  if (normalized === "dismissed") {
+    return "pill";
+  }
+
+  if (normalized === "failed" || normalized === "missing_contact") {
+    return "badge pending";
+  }
+
+  if (normalized === "ready") {
+    return "badge warning";
+  }
+
+  return "badge pending";
+}
+
+function formatFollowUpChannel(value) {
+  const normalized = trimText(value).toLowerCase();
+
+  switch (normalized) {
+    case "email":
+      return "Email";
+    case "phone":
+      return "Phone / text";
+    case "manual":
+      return "Manual";
+    default:
+      return "Not set";
+  }
 }
 
 function buildActionQueueSummaryPills(summary = {}) {
@@ -2541,6 +2624,8 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
   };
   const persistenceAvailable = actionQueue.persistenceAvailable !== false;
   const migrationRequired = actionQueue.migrationRequired === true;
+  const followUpWorkflowAvailable = actionQueue.followUpWorkflowAvailable !== false;
+  const followUpWorkflowMigrationRequired = actionQueue.followUpWorkflowMigrationRequired === true;
   const compact = Boolean(options.compact);
   const allowStatusUpdates = options.allowStatusUpdates !== false && persistenceAvailable;
   const visibleItems = compact ? items.slice(0, 3) : items;
@@ -2581,6 +2666,69 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
     const personThreadLabel = item.person?.relatedInteractionCount > 1
       ? `${item.person.label || "Returning visitor"} · ${item.person.relatedInteractionCount} interactions`
       : "";
+    const followUp = item.followUp && typeof item.followUp === "object" ? item.followUp : null;
+    const followUpStatus = trimText(followUp?.status).toLowerCase();
+    const followUpSupported = item.followUpSupported === true;
+    const followUpActionsDisabled = !allowStatusUpdates || !followUpWorkflowAvailable || !followUp?.id;
+    const followUpNeedsContact = followUpStatus === "missing_contact";
+    const followUpReadOnly = followUpStatus === "sent" || followUpStatus === "dismissed";
+    const toggleOpenLabel = item.note || item.outcome || item.nextStep || item.contactStatus
+      ? "Edit owner handoff"
+      : "Open owner handoff";
+    const followUpSummary = followUpSupported
+      ? `
+        ${followUpWorkflowMigrationRequired ? `<div class="placeholder-card">Prepared follow-up is read-only until the workflow migration is applied. Run db/agent_follow_up_workflows.sql before using this live.</div>` : ""}
+        ${followUp ? `
+          <form class="action-queue-follow-up-form" data-follow-up-form data-follow-up-id="${escapeHtml(followUp.id || "")}" data-action-key="${escapeHtml(item.key || "")}">
+            <div class="action-queue-handoff-summary">
+              <div class="action-queue-handoff-item">
+                <span class="action-queue-detail-label">Operator action</span>
+                <strong class="action-queue-detail-value">${escapeHtml(getOperatorActionTypeLabel(item))}</strong>
+              </div>
+              <div class="action-queue-handoff-item">
+                <span class="action-queue-detail-label">Follow-up status</span>
+                <strong class="action-queue-detail-value">${escapeHtml(getFollowUpStatusLabel(followUp.status))}</strong>
+              </div>
+              <div class="action-queue-handoff-item">
+                <span class="action-queue-detail-label">Channel</span>
+                <strong class="action-queue-detail-value">${escapeHtml(formatFollowUpChannel(followUp.channel))}</strong>
+              </div>
+              <div class="action-queue-handoff-item">
+                <span class="action-queue-detail-label">Why this was prepared</span>
+                <strong class="action-queue-detail-value">${escapeHtml(followUp.whyPrepared || item.whyFlagged || "Prepared from this queue item.")}</strong>
+              </div>
+            </div>
+            <div class="action-queue-secondary-action">
+              ${item.messageId ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open related conversation</button>` : ""}
+              <button class="ghost-button" type="button" data-copy-follow-up ${trimText(followUp.draftContent) ? "" : "disabled"}>Copy draft</button>
+            </div>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="follow-up-subject-${escapeHtml(item.key || "")}">Subject</label>
+                <input id="follow-up-subject-${escapeHtml(item.key || "")}" name="subject" type="text" value="${escapeHtml(followUp.subject || "")}" ${followUpActionsDisabled || followUpReadOnly ? "disabled" : ""}>
+              </div>
+              <div class="field">
+                <label for="follow-up-status-${escapeHtml(item.key || "")}">Current status</label>
+                <input id="follow-up-status-${escapeHtml(item.key || "")}" type="text" value="${escapeHtml(getFollowUpStatusLabel(followUp.status))}" disabled>
+                <p class="field-help">${escapeHtml(followUpNeedsContact ? "No sendable contact is stored yet. Keep the draft context, review the conversation, and wait for contact capture." : followUpStatus === "sent" ? "This follow-up is resolved unless you deliberately reopen it." : "Mark sent after you send this outreach outside Vonza." )}</p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="follow-up-draft-${escapeHtml(item.key || "")}">Draft</label>
+              <textarea id="follow-up-draft-${escapeHtml(item.key || "")}" name="draft_content" ${followUpActionsDisabled || followUpReadOnly ? "disabled" : ""}>${escapeHtml(followUp.draftContent || "")}</textarea>
+            </div>
+            ${followUp.lastError ? `<p class="action-queue-copy">${escapeHtml(`Last failure: ${followUp.lastError}`)}</p>` : ""}
+            <div class="action-queue-form-actions">
+              <button class="primary-button" type="submit" ${followUpActionsDisabled || followUpReadOnly ? "disabled" : ""}>Save draft</button>
+              <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready" ${followUpActionsDisabled || followUpNeedsContact || followUpReadOnly ? "disabled" : ""}>Mark ready</button>
+              <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="sent" ${followUpActionsDisabled || followUpNeedsContact || followUpReadOnly ? "disabled" : ""}>Mark sent</button>
+              <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed" ${followUpActionsDisabled || followUpStatus === "sent" ? "disabled" : ""}>Dismiss</button>
+              <span class="action-queue-meta-inline">${escapeHtml(followUpNeedsContact ? "Vonza kept the draft context but blocked sending until contact capture exists." : "This draft stays deterministic and grounded in the captured conversation context.")}</span>
+            </div>
+          </form>
+        ` : `<div class="placeholder-card">Vonza will prepare a follow-up workflow for this queue item as soon as the server bridge syncs it.</div>`}
+      `
+      : "";
 
     return `
     <article
@@ -2593,9 +2741,10 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       <div class="action-queue-item-top">
         <div class="action-queue-headline">
           <div class="action-queue-badges">
-            <span class="pill">${escapeHtml(getActionQueueTypeLabel(item.type))}</span>
+            <span class="pill">${escapeHtml(getOperatorActionTypeLabel(item))}</span>
             <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
             <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
+            ${followUp ? `<span class="${getFollowUpStatusBadgeClass(followUp.status)}">${escapeHtml(getFollowUpStatusLabel(followUp.status))}</span>` : ""}
             <span class="pill">${escapeHtml(`${item.count || 0} conversation${item.count === 1 ? "" : "s"}`)}</span>
             ${personThreadLabel ? `<span class="pill">${escapeHtml(personThreadLabel)}</span>` : ""}
           </div>
@@ -2627,6 +2776,10 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           <strong class="action-queue-detail-value">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</strong>
         </div>
         <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Operator action</span>
+          <strong class="action-queue-detail-value">${escapeHtml(getOperatorActionTypeLabel(item))}</strong>
+        </div>
+        <div class="action-queue-detail">
           <span class="action-queue-detail-label">Contact</span>
           <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
         </div>
@@ -2652,6 +2805,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml(metaLine)}</p>` : ""}
       ${compact ? "" : `
         <div class="action-queue-handoff">
+          ${followUpSummary}
           <div class="action-queue-handoff-summary">
             <div class="action-queue-handoff-item">
               <span class="action-queue-detail-label">Owner note</span>
@@ -2684,10 +2838,10 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
               type="button"
               data-action-queue-toggle
               data-action-key="${escapeHtml(item.key || "")}"
-              data-open-label="${escapeHtml(item.note || item.outcome || item.nextStep || item.contactStatus ? "Edit owner handoff" : "Open owner handoff")}"
+              data-open-label="${escapeHtml(toggleOpenLabel)}"
               data-close-label="Hide owner handoff"
             >
-              ${handoffOpenByDefault ? "Hide owner handoff" : escapeHtml(item.note || item.outcome || item.nextStep || item.contactStatus ? "Edit owner handoff" : "Open owner handoff")}
+              ${handoffOpenByDefault ? "Hide owner handoff" : escapeHtml(toggleOpenLabel)}
             </button>
           </div>
           <form class="action-queue-form" data-action-queue-form data-action-key="${escapeHtml(item.key || "")}" ${handoffOpenByDefault ? "" : "hidden"}>
@@ -2756,7 +2910,8 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           `).join("")}
         </div>
       </div>
-      ${migrationRequired ? `<div class="placeholder-card">Action queue follow-up is currently read-only because the database migration for persistent follow-up fields is not applied yet. Apply db/action_queue_statuses.sql before using this operational handoff live.</div>` : ""}
+      ${migrationRequired ? `<div class="placeholder-card">Action queue follow-up is currently read-only because the database migration for persistent queue fields is not applied yet. Apply db/action_queue_statuses.sql before using this operational handoff live.</div>` : ""}
+      ${!migrationRequired && followUpWorkflowMigrationRequired ? `<div class="placeholder-card">Prepared follow-up workflows are read-only because the workflow migration is not applied yet. Apply db/agent_follow_up_workflows.sql before using outbound follow-up from the queue.</div>` : ""}
       ${visibleItems.length ? `
         ${compact ? `
           <div class="action-queue-secondary-action">
@@ -2771,6 +2926,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
                 <option value="contact">Lead / contact</option>
                 <option value="booking">Booking</option>
                 <option value="pricing">Pricing / purchase</option>
+                <option value="repeat_high_intent">Repeat high intent</option>
                 <option value="support">Support / complaint</option>
                 <option value="weak_answer">Weak answers</option>
               </select>
@@ -3418,7 +3574,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           ${recentInteractions.length ? `
             <div class="messages-list">
               ${recentInteractions.map((message) => `
-                <div class="message-row ${escapeHtml(message.role || "")}">
+                <div class="message-row ${escapeHtml(message.role || "")}" data-conversation-message="${escapeHtml(message.id || "")}">
                   <div class="message-role">${escapeHtml(message.role === "user" ? "Customer" : "Assistant")}</div>
                   <div class="message-content">${escapeHtml(message.content)}</div>
                 </div>
@@ -3768,6 +3924,8 @@ async function loadActionQueue(agentId) {
       },
       persistenceAvailable: data.persistenceAvailable !== false,
       migrationRequired: data.migrationRequired === true,
+      followUpWorkflowAvailable: data.followUpWorkflowAvailable !== false,
+      followUpWorkflowMigrationRequired: data.followUpWorkflowMigrationRequired === true,
     };
   } catch (error) {
     console.warn("[action queue] Could not load the action queue:", error.message);
@@ -4454,6 +4612,67 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
   const actionQueueStatusInputs = document.querySelectorAll("[data-action-queue-status]");
   const actionQueueForms = document.querySelectorAll("[data-action-queue-form]");
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
+  const followUpForms = document.querySelectorAll("[data-follow-up-form]");
+  const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
+  const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
+  const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
+
+  const showShellSection = (targetSection) => {
+    if (!SHELL_SECTIONS.includes(targetSection)) {
+      return;
+    }
+
+    setActiveShellSection(targetSection);
+
+    document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
+      navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
+    });
+
+    document.querySelectorAll("[data-shell-section]").forEach((section) => {
+      section.hidden = section.dataset.shellSection !== targetSection;
+    });
+  };
+
+  const saveFollowUp = async (form, nextStatus = "") => {
+    const formData = new FormData(form);
+    const followUpId = form.dataset.followUpId;
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    setStatus(nextStatus
+      ? `Updating follow-up to ${getFollowUpStatusLabel(nextStatus).toLowerCase()}...`
+      : "Saving prepared follow-up...");
+
+    try {
+      const result = await fetchJson("/agents/follow-ups/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          follow_up_id: followUpId,
+          status: nextStatus || undefined,
+          subject: trimText(formData.get("subject")),
+          draft_content: trimText(formData.get("draft_content")),
+        }),
+      });
+
+      setDashboardFocus("action-queue");
+      setStatus(result.message || "Follow-up updated.");
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that follow-up.");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+  };
 
   const applyActionQueueFilters = (section) => {
     const typeFilter = section.querySelector("[data-action-queue-filter-type]")?.value || "all";
@@ -4518,19 +4737,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
     button.addEventListener("click", () => {
       const targetSection = button.dataset.overviewTarget;
 
-      if (!SHELL_SECTIONS.includes(targetSection)) {
-        return;
-      }
-
-      setActiveShellSection(targetSection);
-
-      document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
-        navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
-      });
-
-      document.querySelectorAll("[data-shell-section]").forEach((section) => {
-        section.hidden = section.dataset.shellSection !== targetSection;
-      });
+      showShellSection(targetSection);
 
       const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
       if (sectionEl) {
@@ -4656,6 +4863,67 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
         setStatus(error.message || "We couldn't save that follow-up yet.");
       } finally {
         submitButton.disabled = false;
+      }
+    });
+  });
+
+  followUpForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveFollowUp(form);
+    });
+  });
+
+  followUpStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-follow-up-form]");
+
+      if (!form) {
+        return;
+      }
+
+      await saveFollowUp(form, button.dataset.nextStatus || "");
+    });
+  });
+
+  openConversationButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const messageId = button.dataset.messageId;
+
+      showShellSection("analytics");
+
+      const sectionEl = document.querySelector('[data-shell-section="analytics"]');
+      if (sectionEl) {
+        sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      window.setTimeout(() => {
+        const row = document.querySelector(`[data-conversation-message="${messageId}"]`);
+
+        if (row) {
+          row.scrollIntoView({ behavior: "smooth", block: "center" });
+          row.classList.add("active");
+          window.setTimeout(() => row.classList.remove("active"), 1500);
+        }
+      }, 120);
+    });
+  });
+
+  copyFollowUpButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const form = button.closest("[data-follow-up-form]");
+      const draftValue = trimText(form?.querySelector('textarea[name="draft_content"]')?.value || "");
+
+      if (!draftValue) {
+        setStatus("There is no draft content to copy yet.");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(draftValue);
+        setStatus("Follow-up draft copied.");
+      } catch (error) {
+        setStatus("We couldn't copy that draft.");
       }
     });
   });

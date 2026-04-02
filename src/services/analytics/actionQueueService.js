@@ -4,6 +4,12 @@ import { cleanText } from "../../utils/text.js";
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const CONTACT_STATUSES = ["not_contacted", "attempted", "contacted", "qualified"];
 const ACTIONABLE_INTENTS = ["contact", "booking", "pricing", "support"];
+const SUPPORTED_FOLLOW_UP_ACTION_TYPES = [
+  "lead_follow_up",
+  "pricing_interest",
+  "booking_intent",
+  "repeat_high_intent_visitor",
+];
 const ACTION_QUEUE_PERSISTENCE_COLUMNS = [
   "note",
   "outcome",
@@ -81,6 +87,106 @@ function normalizePersistedItem(item = {}) {
   };
 }
 
+function normalizeActionType(value) {
+  const normalized = cleanText(value).toLowerCase();
+  return [
+    "lead_follow_up",
+    "pricing_interest",
+    "booking_intent",
+    "repeat_high_intent_visitor",
+    "knowledge_gap",
+    "unanswered_question",
+  ].includes(normalized)
+    ? normalized
+    : "";
+}
+
+function isSupportedFollowUpActionType(value) {
+  return SUPPORTED_FOLLOW_UP_ACTION_TYPES.includes(normalizeActionType(value));
+}
+
+function buildActionType(interaction = {}) {
+  switch (interaction.type) {
+    case "contact":
+      return "lead_follow_up";
+    case "pricing":
+      return "pricing_interest";
+    case "booking":
+      return "booking_intent";
+    case "weak_answer":
+      return interaction.unresolved ? "unanswered_question" : "knowledge_gap";
+    default:
+      return "";
+  }
+}
+
+function buildFollowUpWorkflowState(followUp = {}) {
+  const status = cleanText(followUp.status).toLowerCase();
+
+  switch (status) {
+    case "ready":
+      return {
+        key: "follow_up_ready",
+        label: "Follow-up ready",
+        copy: cleanText(followUp.subject)
+          ? `Prepared and ready to review: ${cleanText(followUp.subject)}`
+          : "A prepared follow-up is ready for review.",
+        attention: true,
+        resolved: false,
+        rank: 0,
+      };
+    case "draft":
+      return {
+        key: "follow_up_draft",
+        label: "Draft prepared",
+        copy: "A prepared follow-up draft is waiting for owner review.",
+        attention: true,
+        resolved: false,
+        rank: 1,
+      };
+    case "failed":
+      return {
+        key: "follow_up_failed",
+        label: "Follow-up failed",
+        copy: cleanText(followUp.lastError)
+          ? `Last failure: ${cleanText(followUp.lastError)}`
+          : "The prepared follow-up failed and still needs owner attention.",
+        attention: true,
+        resolved: false,
+        rank: 0,
+      };
+    case "missing_contact":
+      return {
+        key: "missing_contact",
+        label: "Missing contact",
+        copy: "Vonza prepared the context, but this conversation still needs a usable email address or phone number.",
+        attention: true,
+        resolved: false,
+        rank: 0,
+      };
+    case "sent":
+      return {
+        key: "follow_up_sent",
+        label: "Follow-up sent",
+        copy: "The prepared follow-up was marked sent, so this queue item is resolved.",
+        attention: false,
+        resolved: true,
+        rank: 4,
+      };
+    case "dismissed":
+      return {
+        key: "follow_up_dismissed",
+        label: "Dismissed",
+        copy: "This prepared follow-up was intentionally dismissed.",
+        attention: false,
+        resolved: false,
+        rank: 5,
+      };
+    default:
+      return null;
+  }
+}
+
 function hasOwnerHandoffContent(item = {}) {
   return Boolean(
     cleanText(item.note)
@@ -109,6 +215,12 @@ function isResolved(item = {}) {
 }
 
 function buildOwnerWorkflow(item = {}) {
+  const followUpWorkflow = buildFollowUpWorkflowState(item.followUp || {});
+
+  if (followUpWorkflow) {
+    return followUpWorkflow;
+  }
+
   const status = normalizeStatus(item.status);
   const followUpNeeded = isFollowUpNeeded(item);
   const resolved = isResolved(item);
@@ -747,6 +859,7 @@ function buildConversationInteractions(messages = []) {
 
     interactions.push({
       key: actionKey,
+      messageId: cleanText(message.id || message.messageId),
       type,
       label: type === "weak_answer"
         ? unresolved ? "Unresolved conversation" : "Weak answer"
@@ -779,6 +892,74 @@ function buildConversationInteractions(messages = []) {
   });
 
   return interactions;
+}
+
+function buildRepeatHighIntentItems(people = [], persistedMap = new Map()) {
+  return people
+    .map((person) => {
+      const highIntentTimeline = (person.timeline || [])
+        .filter((entry) => ["contact", "pricing", "booking"].includes(entry.intent));
+
+      if (!person.isReturning || highIntentTimeline.length < 2) {
+        return null;
+      }
+
+      const actionKey = `person:${person.key}:repeat_high_intent`;
+      const persistedItem = persistedMap.get(actionKey) || {};
+      const snippets = (person.snippets || [])
+        .filter((entry) => ["contact", "pricing", "booking"].includes(entry.intent))
+        .slice(0, 2)
+        .map((entry) => cleanText(entry.text))
+        .filter(Boolean);
+      const intentLabels = [...new Set(
+        highIntentTimeline
+          .map((entry) => getIntentLabel(entry.intent))
+          .filter(Boolean)
+      )];
+      const ownerWorkflow = buildOwnerWorkflow({
+        ...persistedItem,
+      });
+
+      return {
+        key: actionKey,
+        type: "repeat_high_intent",
+        actionType: "repeat_high_intent_visitor",
+        followUpSupported: true,
+        label: "Repeat high-intent visitor",
+        status: persistedItem.status || "new",
+        count: highIntentTimeline.length,
+        snippet: truncateText(snippets.join(" ")),
+        question: snippets[0] || "",
+        reply: "",
+        whyFlagged: `Flagged because this same visitor returned across ${highIntentTimeline.length} high-intent interactions${intentLabels.length ? ` around ${intentLabels.join(", ")}` : ""}.`,
+        suggestedAction: "Use the prepared follow-up to reconnect while the visitor is still showing active intent.",
+        lastSeenAt: person.lastSeenAt || null,
+        note: persistedItem.note || "",
+        outcome: persistedItem.outcome || "",
+        nextStep: persistedItem.nextStep || "",
+        followUpNeeded: persistedItem.followUpNeeded,
+        followUpCompleted: persistedItem.followUpCompleted,
+        contactStatus: persistedItem.contactStatus || "",
+        updatedAt: persistedItem.updatedAt || null,
+        ownerWorkflow,
+        contactCaptured: Boolean(person.email || person.phone),
+        contactInfo: person.email || person.phone || person.name
+          ? {
+            email: person.email || null,
+            phone: person.phone || null,
+            name: person.name || null,
+          }
+          : null,
+        unresolved: false,
+        weakAnswer: false,
+        intent: highIntentTimeline[0]?.intent || "contact",
+        sessionKey: null,
+        personKey: person.key,
+        relatedActionKeys: highIntentTimeline.map((entry) => entry.actionKey).filter(Boolean),
+        messageId: highIntentTimeline[0]?.messageId || "",
+      };
+    })
+    .filter(Boolean);
 }
 
 function buildPersonKeyIntents(intentCounts = new Map()) {
@@ -944,7 +1125,12 @@ function stitchPeople(interactions = [], actionItems = []) {
 
   const people = [...peopleByKey.values()]
     .map((person) => {
-      const queueItems = [...person.actionKeys]
+      const queueItems = [...new Set([
+        ...person.actionKeys,
+        ...actionItems
+          .filter((item) => cleanText(item.personKey) === person.key)
+          .map((item) => item.key),
+      ])]
         .map((actionKey) => actionItemMap.get(actionKey))
         .filter(Boolean)
         .sort((left, right) => getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt }));
@@ -973,6 +1159,7 @@ function stitchPeople(interactions = [], actionItems = []) {
         keyIntents: buildPersonKeyIntents(person.intentCounts),
         snippets: interactionsDesc.slice(0, 3).map((interaction) => ({
           actionKey: interaction.key,
+          messageId: interaction.messageId || "",
           text: interaction.snippet || buildConversationSummary(interaction.question, interaction.reply),
           at: interaction.lastSeenAt || interaction.createdAt || null,
           intent: interaction.intent,
@@ -980,6 +1167,7 @@ function stitchPeople(interactions = [], actionItems = []) {
         })),
         timeline: interactionsDesc.slice(0, 5).map((interaction) => ({
           actionKey: interaction.key,
+          messageId: interaction.messageId || "",
           at: interaction.lastSeenAt || interaction.createdAt || null,
           label: interaction.label,
           intent: interaction.intent,
@@ -1015,7 +1203,7 @@ function stitchPeople(interactions = [], actionItems = []) {
   return {
     people,
     items: actionItems.map((item) => {
-      const personKey = peopleByActionKey.get(item.key);
+      const personKey = cleanText(item.personKey) || peopleByActionKey.get(item.key);
       const person = peopleIndex.get(personKey);
 
       if (!person) {
@@ -1093,7 +1281,7 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
     })
   );
   const interactions = buildConversationInteractions(messages);
-  const items = interactions
+  const baseItems = interactions
     .filter((interaction) => interaction.actionable)
     .map((interaction) => {
       const persistedItem = persistedMap.get(interaction.key) || {};
@@ -1102,6 +1290,8 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       return {
         key: interaction.key,
         type: interaction.type,
+        actionType: buildActionType(interaction),
+        followUpSupported: isSupportedFollowUpActionType(buildActionType(interaction)),
         label: interaction.label,
         status: persistedItem.status || "new",
         count: 1,
@@ -1111,6 +1301,7 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
         whyFlagged: interaction.whyFlagged,
         suggestedAction: interaction.suggestedAction,
         lastSeenAt: interaction.lastSeenAt,
+        messageId: interaction.messageId || "",
         note: persistedItem.note || "",
         outcome: persistedItem.outcome || "",
         nextStep: persistedItem.nextStep || "",
@@ -1127,6 +1318,35 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
         sessionKey: interaction.sessionKey,
       };
     });
+  const preliminarySortedItems = [...baseItems]
+    .sort((left, right) => {
+      const rankDelta = (left.ownerWorkflow?.rank ?? 99) - (right.ownerWorkflow?.rank ?? 99);
+
+      if (rankDelta !== 0) {
+        return rankDelta;
+      }
+
+      return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
+    });
+  const preliminaryStitched = stitchPeople(interactions, preliminarySortedItems);
+  const repeatHighIntentItems = buildRepeatHighIntentItems(preliminaryStitched.people, persistedMap);
+  const items = [...baseItems, ...repeatHighIntentItems];
+  const followUpsByActionKey = new Map();
+
+  (Array.isArray(options.followUps) ? options.followUps : []).forEach((followUp) => {
+    const linkedActionKeys = [
+      cleanText(followUp.sourceActionKey || followUp.source_action_key),
+      ...(Array.isArray(followUp.linkedActionKeys || followUp.linked_action_keys)
+        ? followUp.linkedActionKeys || followUp.linked_action_keys
+        : []),
+    ]
+      .map((actionKey) => cleanText(actionKey))
+      .filter(Boolean);
+
+    linkedActionKeys.forEach((actionKey) => {
+      followUpsByActionKey.set(actionKey, followUp);
+    });
+  });
 
   const sortedItems = items
     .sort((left, right) => {
@@ -1139,14 +1359,31 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
     });
   const stitched = stitchPeople(interactions, sortedItems);
+  const hydratedItems = stitched.items.map((item) => {
+    const followUp = followUpsByActionKey.get(item.key) || null;
+    const ownerWorkflow = buildOwnerWorkflow({
+      ...item,
+      followUp,
+    });
+
+    return {
+      ...item,
+      actionType: normalizeActionType(item.actionType) || "",
+      followUpSupported: item.followUpSupported === true || isSupportedFollowUpActionType(item.actionType),
+      followUp,
+      ownerWorkflow,
+    };
+  });
 
   return {
-    items: stitched.items,
+    items: hydratedItems,
     people: stitched.people,
     peopleSummary: buildPeopleSummary(stitched.people),
-    summary: buildStatusSummary(stitched.items),
+    summary: buildStatusSummary(hydratedItems),
     persistenceAvailable: options.persistenceAvailable !== false,
     migrationRequired: options.persistenceAvailable === false,
+    followUpWorkflowAvailable: options.followUpWorkflowAvailable !== false,
+    followUpWorkflowMigrationRequired: options.followUpWorkflowAvailable === false,
   };
 }
 

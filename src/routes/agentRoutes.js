@@ -24,6 +24,10 @@ import {
   updateActionQueueStatus,
 } from "../services/analytics/actionQueueService.js";
 import {
+  syncFollowUpWorkflows,
+  updateFollowUpWorkflow,
+} from "../services/followup/followUpService.js";
+import {
   createHostedCheckoutSession,
   constructStripeWebhookEvent,
   getStripeCheckoutConfigurationErrorMessage,
@@ -47,6 +51,8 @@ export function createAgentRouter(deps = {}) {
   const buildActionQueueImpl = deps.buildActionQueue || buildActionQueue;
   const listActionQueueStatusesImpl = deps.listActionQueueStatuses || listActionQueueStatuses;
   const updateActionQueueStatusImpl = deps.updateActionQueueStatus || updateActionQueueStatus;
+  const syncFollowUpWorkflowsImpl = deps.syncFollowUpWorkflows || syncFollowUpWorkflows;
+  const updateFollowUpWorkflowImpl = deps.updateFollowUpWorkflow || updateFollowUpWorkflow;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
@@ -340,11 +346,15 @@ export function createAgentRouter(deps = {}) {
         clientId: req.query.client_id || req.query.clientId,
       });
 
-      const [messages, statuses] = await Promise.all([
+      const [messages, statuses, agentListResult] = await Promise.all([
         listAgentMessagesImpl(supabase, agentId),
         listActionQueueStatusesImpl(supabase, {
           agentId,
           ownerUserId: user?.id || null,
+        }),
+        listAgentsImpl(supabase, {
+          ownerUserId: user?.id || null,
+          includeBridgeAgent: false,
         }),
       ]);
 
@@ -352,10 +362,37 @@ export function createAgentRouter(deps = {}) {
       const persistenceAvailable = Array.isArray(statuses)
         ? true
         : statuses?.persistenceAvailable !== false;
+      const agentProfile = (agentListResult?.agents || []).find((candidate) => candidate.id === agentId) || null;
+      const preliminaryQueue = buildActionQueueImpl(messages, persistedRecords, {
+        persistenceAvailable,
+      });
+      const followUpSync = await syncFollowUpWorkflowsImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        queueItems: preliminaryQueue.items || [],
+        agentProfile: {
+          agentId,
+          ownerUserId: user?.id || null,
+          businessName: agentProfile?.name || "",
+          assistantName: agentProfile?.assistantName || agentProfile?.name || "",
+        },
+      });
+      const latestStatuses = followUpSync?.persistenceAvailable === false
+        ? statuses
+        : await listActionQueueStatusesImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        });
+      const finalPersistedRecords = Array.isArray(latestStatuses) ? latestStatuses : latestStatuses?.records || [];
+      const finalPersistenceAvailable = Array.isArray(latestStatuses)
+        ? true
+        : latestStatuses?.persistenceAvailable !== false;
 
       res.json(
-        buildActionQueueImpl(messages, persistedRecords, {
-          persistenceAvailable,
+        buildActionQueueImpl(messages, finalPersistedRecords, {
+          persistenceAvailable: finalPersistenceAvailable,
+          followUps: followUpSync?.records || [],
+          followUpWorkflowAvailable: followUpSync?.persistenceAvailable !== false,
         })
       );
     } catch (err) {
@@ -404,6 +441,57 @@ export function createAgentRouter(deps = {}) {
         item,
         persistenceAvailable,
         migrationRequired: !persistenceAvailable,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/follow-ups/update", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateFollowUpWorkflowImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        followUpId: req.body.follow_up_id || req.body.followUpId,
+        status: req.body.status,
+        subject: req.body.subject,
+        draftContent: req.body.draft_content ?? req.body.draftContent,
+        errorMessage: req.body.error_message ?? req.body.errorMessage,
+        reopen: req.body.reopen === true || req.body.reopen === "true",
+      });
+
+      res.json({
+        ok: true,
+        followUp: result?.followUp || null,
+        queueSync: result?.queueSync || null,
+        persistenceAvailable: result?.persistenceAvailable !== false,
+        message: result?.followUp?.status === "sent"
+          ? "Follow-up marked sent."
+          : result?.followUp?.status === "dismissed"
+            ? "Follow-up dismissed."
+            : result?.followUp?.status === "ready"
+              ? "Follow-up marked ready."
+              : result?.followUp?.status === "failed"
+                ? "Follow-up marked failed."
+                : "Follow-up saved.",
       });
     } catch (err) {
       console.error(err);
