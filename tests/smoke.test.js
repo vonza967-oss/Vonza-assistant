@@ -484,9 +484,12 @@ test("dashboard bundle exposes the canonical purchase-first flow and paid worksp
         assert.match(dashboardScript.text, /Follow-up needed/);
         assert.match(dashboardScript.text, /Attention now/);
         assert.match(dashboardScript.text, /Resolved items/);
+        assert.match(dashboardScript.text, /Returning people/);
         assert.match(dashboardScript.text, /Owner attention now/);
         assert.match(dashboardScript.text, /Owner follow-up state/);
         assert.match(dashboardScript.text, /Conversation summary/);
+        assert.match(dashboardScript.text, /Visitor thread/);
+        assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open owner handoff/);
         assert.match(dashboardScript.text, /Save owner handoff/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
@@ -780,6 +783,126 @@ test("action queue creates separate owner items for important individual convers
       }
     }
   );
+});
+
+test("action queue groups repeat interactions under one lightweight person thread when contact identity is captured", () => {
+  const messages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "Email me at hello@example.com with pricing for the monthly plan.",
+      createdAt: "2026-04-01T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Pricing starts at $99 per month.",
+      createdAt: "2026-04-01T10:00:05.000Z",
+    },
+    {
+      id: "message-3",
+      role: "user",
+      content: "hello@example.com again here. Can you explain the premium pricing too?",
+      createdAt: "2026-04-02T09:00:00.000Z",
+    },
+    {
+      id: "message-4",
+      role: "assistant",
+      content: "Premium pricing depends on scope.",
+      createdAt: "2026-04-02T09:00:05.000Z",
+    },
+  ];
+
+  const result = buildActionQueue(messages, []);
+
+  assert.equal(result.people.length, 1);
+  assert.equal(result.peopleSummary.total, 1);
+  assert.equal(result.peopleSummary.returning, 1);
+  assert.equal(result.people[0].identityType, "email");
+  assert.equal(result.people[0].interactionCount, 2);
+  assert.equal(result.people[0].queueItemCount, 2);
+  assert.match(result.people[0].story, /pricing 2 times/i);
+  assert.equal(new Set(result.items.map((item) => item.person?.key)).size, 1);
+});
+
+test("action queue links multiple queue items to the same person when session continuity is the only shared signal", () => {
+  const messages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "Can someone call me about the premium option?",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-01T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Please reach out directly.",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-01T10:00:05.000Z",
+    },
+    {
+      id: "message-3",
+      role: "user",
+      content: "I am back. My order is broken and I need support today.",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-03T10:00:00.000Z",
+    },
+    {
+      id: "message-4",
+      role: "assistant",
+      content: "I don't know the current support policy.",
+      sessionKey: "visitor-session-1",
+      createdAt: "2026-04-03T10:00:05.000Z",
+    },
+  ];
+
+  const result = buildActionQueue(messages, []);
+  const personKeys = new Set(result.items.map((item) => item.person?.key));
+
+  assert.equal(result.people.length, 1);
+  assert.equal(result.people[0].identityType, "session");
+  assert.equal(result.people[0].queueItemCount, 2);
+  assert.equal(personKeys.size, 1);
+  assert.equal(result.items[0].person?.relatedQueueItemCount, 2);
+  assert.equal(result.items[0].person?.relatedInteractionCount, 2);
+});
+
+test("action queue keeps unknown identities separate instead of over-stitching visitors", () => {
+  const messages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "What are your prices for a monthly plan?",
+      createdAt: "2026-04-01T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Packages start at $99 per month.",
+      createdAt: "2026-04-01T10:00:05.000Z",
+    },
+    {
+      id: "message-3",
+      role: "user",
+      content: "My order is broken and I need support today.",
+      createdAt: "2026-04-02T10:00:00.000Z",
+    },
+    {
+      id: "message-4",
+      role: "assistant",
+      content: "I don't know the current support policy.",
+      createdAt: "2026-04-02T10:00:05.000Z",
+    },
+  ];
+
+  const result = buildActionQueue(messages, []);
+
+  assert.equal(result.items.length, 2);
+  assert.equal(result.people.length, 2);
+  assert.equal(result.peopleSummary.returning, 0);
+  assert.equal(new Set(result.items.map((item) => item.person?.key)).size, 2);
+  assert.ok(result.people.every((person) => person.identityType === "unknown"));
 });
 
 test("action queue stays honestly empty when there are no actionable conversation signals", { concurrency: false }, async () => {

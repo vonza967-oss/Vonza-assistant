@@ -33,6 +33,29 @@ const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
 let hasHiddenWelcomePanel = false;
 
+function getVisitorSessionStorageKey() {
+  const assistantScope =
+    trimText(AGENT_ID)
+    || trimText(AGENT_KEY)
+    || trimText(BUSINESS_ID)
+    || trimText(WEBSITE_URL)
+    || "default";
+
+  return `vonza_visitor_session_${assistantScope}`;
+}
+
+function getVisitorSessionKey() {
+  const storageKey = getVisitorSessionStorageKey();
+  let sessionKey = window.localStorage.getItem(storageKey);
+
+  if (!sessionKey) {
+    sessionKey = window.crypto?.randomUUID?.() || `visitor_${Date.now()}`;
+    window.localStorage.setItem(storageKey, sessionKey);
+  }
+
+  return sessionKey;
+}
+
 function trimText(value) {
   return String(value || "").trim();
 }
@@ -205,6 +228,7 @@ async function sendMessage() {
         agent_key: AGENT_KEY,
         business_id: BUSINESS_ID,
         website_url: WEBSITE_URL,
+        visitor_session_key: getVisitorSessionKey(),
         history: historySnapshot,
       }),
     });

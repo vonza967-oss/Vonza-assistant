@@ -11,14 +11,16 @@ function isMissingMessagesTable(error) {
   );
 }
 
-export async function storeAgentMessages(supabase, agentId, entries = []) {
+export async function storeAgentMessages(supabase, agentId, entries = [], options = {}) {
   const normalizedAgentId = cleanText(agentId);
+  const normalizedSessionKey = cleanText(options.sessionKey);
   const seenEntries = new Set();
   const payload = entries
     .map((entry) => ({
       agent_id: normalizedAgentId,
       role: cleanText(entry.role),
       content: cleanText(entry.content),
+      session_key: cleanText(entry.sessionKey || normalizedSessionKey) || null,
       created_at: new Date().toISOString(),
     }))
     .filter((entry) => {
@@ -26,7 +28,7 @@ export async function storeAgentMessages(supabase, agentId, entries = []) {
         return false;
       }
 
-      const dedupeKey = `${entry.role}::${entry.content}`;
+      const dedupeKey = `${entry.role}::${entry.content}::${entry.session_key || ""}`;
 
       if (seenEntries.has(dedupeKey)) {
         return false;
@@ -64,7 +66,7 @@ export async function listAgentMessages(supabase, agentId) {
 
   const { data, error } = await supabase
     .from(MESSAGES_TABLE)
-    .select("id, agent_id, role, content, created_at")
+    .select("id, agent_id, role, content, session_key, created_at")
     .eq("agent_id", normalizedAgentId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -83,6 +85,7 @@ export async function listAgentMessages(supabase, agentId) {
     agentId: row.agent_id,
     role: row.role,
     content: row.content,
+    sessionKey: row.session_key || null,
     createdAt: row.created_at,
   }));
 }

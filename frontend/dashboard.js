@@ -1801,6 +1801,12 @@ function analyzeConversationSignals(messages) {
 function createEmptyActionQueue() {
   return {
     items: [],
+    people: [],
+    peopleSummary: {
+      total: 0,
+      returning: 0,
+      linkedQueueItems: 0,
+    },
     summary: {
       total: 0,
       new: 0,
@@ -2001,8 +2007,25 @@ function getActionQueueOwnerWorkflowBadgeClass(item = {}) {
 }
 
 function formatActionQueueContact(item) {
+  const name = trimText(item?.contactInfo?.name);
   const email = trimText(item?.contactInfo?.email);
   const phone = trimText(item?.contactInfo?.phone);
+
+  if (name && email && phone) {
+    return `${name} · ${email} · ${phone}`;
+  }
+
+  if (name && email) {
+    return `${name} · ${email}`;
+  }
+
+  if (name && phone) {
+    return `${name} · ${phone}`;
+  }
+
+  if (name) {
+    return name;
+  }
 
   if (email && phone) {
     return `${email} · ${phone}`;
@@ -2039,6 +2062,154 @@ function buildActionQueueSummaryPills(summary = {}) {
     `${counts.followUpNeeded} follow-up needed`,
     `${counts.resolved} resolved`,
   ];
+}
+
+function buildPeopleSummaryPills(summary = {}) {
+  const counts = {
+    ...createEmptyActionQueue().peopleSummary,
+    ...summary,
+  };
+
+  return [
+    `${counts.total} people`,
+    `${counts.returning} returning`,
+    `${counts.linkedQueueItems} with queue items`,
+  ];
+}
+
+function formatPersonIdentity(person = {}) {
+  const name = trimText(person.name);
+  const email = trimText(person.email);
+  const phone = trimText(person.phone);
+
+  if (name && email && phone) {
+    return `${name} · ${email} · ${phone}`;
+  }
+
+  if (name && email) {
+    return `${name} · ${email}`;
+  }
+
+  if (name && phone) {
+    return `${name} · ${phone}`;
+  }
+
+  if (name || email || phone) {
+    return name || email || phone;
+  }
+
+  if (trimText(person.identityType) === "session") {
+    return "Session continuity only";
+  }
+
+  return "Identity unknown";
+}
+
+function formatPersonIntents(person = {}) {
+  if (!Array.isArray(person.keyIntents) || !person.keyIntents.length) {
+    return "No clear intent pattern yet";
+  }
+
+  return person.keyIntents
+    .map((entry) => `${trimText(entry.label) || getIntentLabel(entry.intent)}${Number(entry.count) > 1 ? ` (${entry.count})` : ""}`)
+    .join(" · ");
+}
+
+function buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
+  const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
+  const peopleSummary = {
+    ...createEmptyActionQueue().peopleSummary,
+    ...(actionQueue.peopleSummary || {}),
+  };
+
+  if (!people.length) {
+    return `
+      <section class="workspace-card-soft people-shell">
+        <div class="people-header">
+          <div>
+            <h3 class="studio-group-title">People view</h3>
+            <p class="studio-group-copy">When Vonza sees strong enough repeat-visitor signals, it stitches them into a lightweight person thread here.</p>
+          </div>
+        </div>
+        <div class="placeholder-card">No repeat-visitor stitching yet. As soon as Vonza can confidently connect multiple interactions to the same person, this view will show their snippets, intents, timeline, and follow-up state.</div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="workspace-card-soft people-shell">
+      <div class="people-header">
+        <div>
+          <h3 class="studio-group-title">People view</h3>
+          <p class="studio-group-copy">This is the lightweight person layer behind the queue. It helps the owner see when the same lead comes back or the same issue keeps evolving.</p>
+        </div>
+        <div class="action-queue-summary">
+          ${buildPeopleSummaryPills(peopleSummary).map((label) => `
+            <span class="pill">${escapeHtml(label)}</span>
+          `).join("")}
+        </div>
+      </div>
+      <div class="people-list">
+        ${people.slice(0, 6).map((person) => `
+          <article class="person-card">
+            <div class="person-card-top">
+              <div class="action-queue-headline">
+                <div class="action-queue-badges">
+                  <span class="pill">${escapeHtml(person.label || "Unknown visitor")}</span>
+                  <span class="pill">${escapeHtml(`${person.interactionCount || 0} interaction${person.interactionCount === 1 ? "" : "s"}`)}</span>
+                  <span class="pill">${escapeHtml(`${person.queueItemCount || 0} queue item${person.queueItemCount === 1 ? "" : "s"}`)}</span>
+                  <span class="${person.followUp?.attentionCount > 0 ? "badge pending" : person.followUp?.key === "resolved" ? "badge success" : "pill"}">${escapeHtml(person.followUp?.label || "No queue items yet")}</span>
+                </div>
+                <h4 class="action-queue-title">${escapeHtml(person.story || "Person-level thread")}</h4>
+                <p class="action-queue-copy">${escapeHtml(person.isReturning ? "Vonza detected repeat visitor signals across these interactions." : "Vonza has one stitched interaction for this visitor so far.")}</p>
+              </div>
+              <div class="action-queue-meta-inline">${escapeHtml(person.lastSeenAt ? `Last seen ${formatSeenAt(person.lastSeenAt)}` : "Recent signal")}</div>
+            </div>
+            <div class="action-queue-details">
+              <div class="action-queue-detail">
+                <span class="action-queue-detail-label">Identity signal</span>
+                <strong class="action-queue-detail-value">${escapeHtml(formatPersonIdentity(person))}</strong>
+              </div>
+              <div class="action-queue-detail">
+                <span class="action-queue-detail-label">Key intents</span>
+                <strong class="action-queue-detail-value">${escapeHtml(formatPersonIntents(person))}</strong>
+              </div>
+              <div class="action-queue-detail">
+                <span class="action-queue-detail-label">Follow-up status</span>
+                <strong class="action-queue-detail-value">${escapeHtml(person.followUp?.label || "No queue items yet")}</strong>
+                <p class="action-queue-copy">${escapeHtml(person.followUp?.copy || "This visitor has no queue-linked follow-up yet.")}</p>
+              </div>
+              <div class="action-queue-detail">
+                <span class="action-queue-detail-label">Timeline</span>
+                <strong class="action-queue-detail-value">${escapeHtml(person.firstSeenAt && person.lastSeenAt && person.firstSeenAt !== person.lastSeenAt ? `${formatSeenAt(person.firstSeenAt)} to ${formatSeenAt(person.lastSeenAt)}` : person.lastSeenAt ? formatSeenAt(person.lastSeenAt) : "Recent signal")}</strong>
+              </div>
+            </div>
+            <div class="person-snippets">
+              <div class="person-subsection">
+                <span class="action-queue-detail-label">Combined conversation snippets</span>
+                <div class="question-list">
+                  ${Array.isArray(person.snippets) && person.snippets.length ? person.snippets.map((snippet) => `
+                    <div class="question-row">${escapeHtml(snippet.text || "No snippet stored yet.")}</div>
+                  `).join("") : `<div class="placeholder-card">No stored snippets yet.</div>`}
+                </div>
+              </div>
+              <div class="person-subsection">
+                <span class="action-queue-detail-label">Basic timeline</span>
+                <div class="timeline-list">
+                  ${Array.isArray(person.timeline) && person.timeline.length ? person.timeline.map((entry) => `
+                    <div class="timeline-row">
+                      <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
+                      <span>${escapeHtml(entry.summary || entry.label || "Conversation signal")}</span>
+                    </div>
+                  `).join("") : `<div class="placeholder-card">No timeline yet.</div>`}
+                </div>
+              </div>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), options = {}) {
@@ -2086,6 +2257,9 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
     const metaLine = item.updatedAt
       ? `Flagged ${recencyLabel} · Updated ${formatSeenAt(item.updatedAt)}`
       : `Flagged ${recencyLabel}`;
+    const personThreadLabel = item.person?.relatedInteractionCount > 1
+      ? `${item.person.label || "Returning visitor"} · ${item.person.relatedInteractionCount} interactions`
+      : "";
 
     return `
     <article
@@ -2102,6 +2276,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
             <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
             <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
             <span class="pill">${escapeHtml(`${item.count || 0} conversation${item.count === 1 ? "" : "s"}`)}</span>
+            ${personThreadLabel ? `<span class="pill">${escapeHtml(personThreadLabel)}</span>` : ""}
           </div>
           <h4 class="action-queue-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))}</h4>
           <p class="action-queue-copy">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</p>
@@ -2133,6 +2308,11 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         <div class="action-queue-detail">
           <span class="action-queue-detail-label">Contact</span>
           <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
+        </div>
+        <div class="action-queue-detail">
+          <span class="action-queue-detail-label">Visitor thread</span>
+          <strong class="action-queue-detail-value">${escapeHtml(item.person?.label || "Unknown visitor")}</strong>
+          <p class="action-queue-copy">${escapeHtml(item.person?.story || "Vonza could not confidently stitch this item to another visitor interaction yet.")}</p>
         </div>
         <div class="action-queue-detail">
           <span class="action-queue-detail-label">Owner follow-up state</span>
@@ -2310,6 +2490,10 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
   const queueSummary = {
     ...createEmptyActionQueue().summary,
     ...(actionQueue.summary || {}),
+  };
+  const peopleSummary = {
+    ...createEmptyActionQueue().peopleSummary,
+    ...(actionQueue.peopleSummary || {}),
   };
 
   const nextActions = [];
@@ -2509,6 +2693,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     activity,
     signals,
     queueSummary,
+    peopleSummary,
     cards,
     primaryAction,
     nextActions: nextActions.slice(0, 2),
@@ -2643,6 +2828,10 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
             <div class="overview-metric-label">Resolved items</div>
             <div class="overview-metric-value">${overview.queueSummary.resolved || 0}</div>
           </div>
+          <div class="overview-metric">
+            <div class="overview-metric-label">Returning people</div>
+            <div class="overview-metric-value">${overview.peopleSummary.returning || 0}</div>
+          </div>
         </div>
         <div class="overview-action-row">
           ${overview.primaryAction ? renderAction(overview.primaryAction, { primary: true }) : ""}
@@ -2715,6 +2904,10 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   const { intentCounts } = signals;
   const activity = getActivityLevel(agent.messageCount || messages.length || 0, agent.lastMessageAt);
   const recentInteractions = messages.slice(0, 12);
+  const peopleSummary = {
+    ...createEmptyActionQueue().peopleSummary,
+    ...(actionQueue.peopleSummary || {}),
+  };
   const installStatus = agent.installStatus || {
     state: "not_detected",
     label: "Not detected on a live site yet",
@@ -2767,6 +2960,14 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     });
   }
 
+  if (peopleSummary.returning > 0) {
+    opportunityItems.unshift({
+      title: "Repeat visitors are showing up",
+      copy: `${peopleSummary.returning} stitched visitor thread${peopleSummary.returning === 1 ? "" : "s"} already show returning behavior.`,
+      subtle: "Use the People view to see whether the same lead came back or the same support issue kept evolving.",
+    });
+  }
+
   if (!opportunityItems.length) {
     opportunityItems.push({
       title: "Your assistant is in a healthy early state",
@@ -2798,6 +2999,10 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           <div class="metric-card">
             <div class="metric-label">Answers needing work</div>
             <div class="metric-value">${signals.weakAnswerCount || 0}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Returning people</div>
+            <div class="metric-value">${peopleSummary.returning || 0}</div>
           </div>
         </div>
 
@@ -2869,6 +3074,8 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
         </section>
 
         ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
+
+        ${buildPeopleMarkup(actionQueue)}
 
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">What needs attention</h3>
@@ -3229,6 +3436,11 @@ async function loadActionQueue(agentId) {
     const data = await fetchJson(url.toString());
     return {
       items: Array.isArray(data.items) ? data.items : [],
+      people: Array.isArray(data.people) ? data.people : [],
+      peopleSummary: {
+        ...createEmptyActionQueue().peopleSummary,
+        ...(data.peopleSummary || {}),
+      },
       summary: {
         ...createEmptyActionQueue().summary,
         ...(data.summary || {}),

@@ -783,6 +783,73 @@ button:disabled {
   margin-top: 0;
 }
 
+.people-shell {
+  display: grid;
+  gap: 16px;
+}
+
+.people-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.people-list {
+  display: grid;
+  gap: 14px;
+}
+
+.person-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.person-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.person-snippets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.person-subsection {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.timeline-row strong {
+  color: white;
+  font-size: 13px;
+}
+
 /* Shared workspace panels */
 .workspace-panel {
   padding: 24px;
@@ -1986,7 +2053,8 @@ button:disabled {
   .intent-grid,
   .overview-metric-grid,
   .action-queue-details,
-  .action-queue-handoff-summary {
+  .action-queue-handoff-summary,
+  .person-snippets {
     grid-template-columns: 1fr;
   }
 
@@ -2018,7 +2086,9 @@ button:disabled {
   .action-queue-filter-row,
   .action-queue-header,
   .action-queue-item-top,
-  .action-queue-form-actions {
+  .action-queue-form-actions,
+  .people-header,
+  .person-card-top {
     flex-direction: column;
     align-items: stretch;
   }

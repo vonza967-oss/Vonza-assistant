@@ -456,10 +456,25 @@ function extractContactInfo(text = "") {
   const normalized = String(text || "");
   const emailMatch = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   const phoneMatch = normalized.match(/(?:\+?\d[\d().\-\s]{6,}\d)/);
+  const namePatterns = [
+    /\b(?:my name is|i am|i'm|this is)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){1,2})\b/iu,
+    /\b(?:a nevem|az en nevem|nevem)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){1,2})\b/iu,
+  ];
+  let name = "";
+
+  for (const pattern of namePatterns) {
+    const match = normalized.match(pattern);
+
+    if (cleanText(match?.[1])) {
+      name = cleanText(match[1]);
+      break;
+    }
+  }
 
   return {
     email: emailMatch ? cleanText(emailMatch[0]) : "",
     phone: phoneMatch ? cleanText(phoneMatch[0]) : "",
+    name,
   };
 }
 
@@ -467,6 +482,568 @@ function mergeContactInfo(existing = {}, next = {}) {
   return {
     email: existing.email || next.email || "",
     phone: existing.phone || next.phone || "",
+    name: existing.name || next.name || "",
+  };
+}
+
+function normalizeEmail(value) {
+  return cleanText(value).toLowerCase();
+}
+
+function normalizePhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 7 ? digits : "";
+}
+
+function normalizePersonName(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/[^\p{L}\s'-]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isLikelyPersonName(value) {
+  const normalized = normalizePersonName(value);
+  const parts = normalized.split(" ").filter(Boolean);
+  const blockedParts = new Set([
+    "hello",
+    "support",
+    "pricing",
+    "team",
+    "thanks",
+    "thank",
+    "customer",
+    "visitor",
+    "there",
+    "someone",
+  ]);
+
+  return (
+    parts.length >= 2 &&
+    parts.length <= 3 &&
+    parts.every((part) => part.length >= 2 && !blockedParts.has(part))
+  );
+}
+
+function toTitleCase(value) {
+  return cleanText(value)
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function getInteractionCreatedAt(interaction = {}) {
+  return interaction.createdAt || interaction.lastSeenAt || null;
+}
+
+function buildInteractionIdentity(interaction = {}) {
+  const email = normalizeEmail(interaction.contactInfo?.email);
+  const phone = normalizePhone(interaction.contactInfo?.phone);
+  const sessionKey = cleanText(interaction.sessionKey);
+  const normalizedName = isLikelyPersonName(interaction.contactInfo?.name)
+    ? normalizePersonName(interaction.contactInfo?.name)
+    : "";
+
+  return {
+    email,
+    phone,
+    sessionKey,
+    name: normalizedName,
+  };
+}
+
+function createPersonRecord(interaction = {}) {
+  const identity = buildInteractionIdentity(interaction);
+  const personKey = identity.email
+    ? `person:email:${identity.email}`
+    : identity.phone
+      ? `person:phone:${identity.phone}`
+      : identity.sessionKey
+        ? `person:session:${identity.sessionKey}`
+        : identity.name
+          ? `person:name:${identity.name}`
+          : `person:unknown:${interaction.key}`;
+
+  return {
+    key: personKey,
+    email: identity.email || "",
+    phone: identity.phone || "",
+    phoneRaw: cleanText(interaction.contactInfo?.phone),
+    name: identity.name || "",
+    nameRaw: cleanText(interaction.contactInfo?.name),
+    sessionKeys: new Set(identity.sessionKey ? [identity.sessionKey] : []),
+    interactions: [],
+    actionKeys: new Set(),
+    intentCounts: new Map(),
+    firstSeenAt: getInteractionCreatedAt(interaction),
+    lastSeenAt: interaction.lastSeenAt || getInteractionCreatedAt(interaction),
+  };
+}
+
+function addInteractionToPerson(person, interaction = {}) {
+  const identity = buildInteractionIdentity(interaction);
+
+  if (!person.email && identity.email) {
+    person.email = identity.email;
+  }
+
+  if (!person.phone && identity.phone) {
+    person.phone = identity.phone;
+  }
+
+  if (!person.phoneRaw && cleanText(interaction.contactInfo?.phone)) {
+    person.phoneRaw = cleanText(interaction.contactInfo.phone);
+  }
+
+  if (!person.name && identity.name) {
+    person.name = identity.name;
+  }
+
+  if (!person.nameRaw && cleanText(interaction.contactInfo?.name)) {
+    person.nameRaw = cleanText(interaction.contactInfo.name);
+  }
+
+  if (identity.sessionKey) {
+    person.sessionKeys.add(identity.sessionKey);
+  }
+
+  person.interactions.push(interaction);
+
+  if (interaction.actionable) {
+    person.actionKeys.add(interaction.key);
+  }
+
+  person.intentCounts.set(
+    interaction.intent,
+    (person.intentCounts.get(interaction.intent) || 0) + 1
+  );
+
+  const createdAt = getInteractionCreatedAt(interaction);
+
+  if (!person.firstSeenAt || getMessageTimestamp({ createdAt }) < getMessageTimestamp({ createdAt: person.firstSeenAt })) {
+    person.firstSeenAt = createdAt;
+  }
+
+  if (!person.lastSeenAt || getMessageTimestamp({ createdAt }) > getMessageTimestamp({ createdAt: person.lastSeenAt })) {
+    person.lastSeenAt = createdAt;
+  }
+}
+
+function mergePersonRecords(primary, secondary) {
+  if (!primary || !secondary || primary.key === secondary.key) {
+    return primary;
+  }
+
+  if (!primary.email && secondary.email) {
+    primary.email = secondary.email;
+  }
+
+  if (!primary.phone && secondary.phone) {
+    primary.phone = secondary.phone;
+  }
+
+  if (!primary.phoneRaw && secondary.phoneRaw) {
+    primary.phoneRaw = secondary.phoneRaw;
+  }
+
+  if (!primary.name && secondary.name) {
+    primary.name = secondary.name;
+  }
+
+  if (!primary.nameRaw && secondary.nameRaw) {
+    primary.nameRaw = secondary.nameRaw;
+  }
+
+  secondary.sessionKeys.forEach((sessionKey) => {
+    primary.sessionKeys.add(sessionKey);
+  });
+  secondary.interactions.forEach((interaction) => {
+    primary.interactions.push(interaction);
+  });
+  secondary.actionKeys.forEach((actionKey) => {
+    primary.actionKeys.add(actionKey);
+  });
+  secondary.intentCounts.forEach((count, intent) => {
+    primary.intentCounts.set(intent, (primary.intentCounts.get(intent) || 0) + count);
+  });
+
+  if (!primary.firstSeenAt || getMessageTimestamp({ createdAt: secondary.firstSeenAt }) < getMessageTimestamp({ createdAt: primary.firstSeenAt })) {
+    primary.firstSeenAt = secondary.firstSeenAt;
+  }
+
+  if (!primary.lastSeenAt || getMessageTimestamp({ createdAt: secondary.lastSeenAt }) > getMessageTimestamp({ createdAt: primary.lastSeenAt })) {
+    primary.lastSeenAt = secondary.lastSeenAt;
+  }
+
+  return primary;
+}
+
+function registerPersonSignals(person, signalMaps) {
+  if (person.email) {
+    signalMaps.email.set(person.email, person.key);
+  }
+
+  if (person.phone) {
+    signalMaps.phone.set(person.phone, person.key);
+  }
+
+  person.sessionKeys.forEach((sessionKey) => {
+    signalMaps.session.set(sessionKey, person.key);
+  });
+
+  if (person.name) {
+    signalMaps.name.set(person.name, person.key);
+  }
+}
+
+function buildConversationInteractions(messages = []) {
+  const chronological = getChronologicalMessages(messages);
+  const interactions = [];
+
+  chronological.forEach((message, index) => {
+    if (message.role !== "user") {
+      return;
+    }
+
+    const question = cleanText(message.content || "");
+
+    if (!question) {
+      return;
+    }
+
+    const intent = categorizeIntent(question);
+    let reply = "";
+    let assistantMessage = null;
+
+    for (let cursor = index + 1; cursor < chronological.length; cursor += 1) {
+      const nextMessage = chronological[cursor];
+
+      if (nextMessage.role === "user") {
+        break;
+      }
+
+      if (nextMessage.role === "assistant") {
+        reply = cleanText(nextMessage.content || "");
+        assistantMessage = nextMessage;
+        break;
+      }
+    }
+
+    const actionableIntent = ACTIONABLE_INTENTS.includes(intent);
+    const weakAnswer = hasWeakAssistantReply(reply);
+    const unresolved = !cleanText(reply);
+    const type = actionableIntent ? intent : "weak_answer";
+    const contactInfo = mergeContactInfo(extractContactInfo(question), extractContactInfo(reply));
+    const actionKey = buildConversationActionKey(message, index);
+    const lastSeenAt = assistantMessage?.createdAt || assistantMessage?.created_at || message.createdAt || message.created_at || null;
+    const sessionKey = cleanText(
+      message.sessionKey
+      || message.session_key
+      || assistantMessage?.sessionKey
+      || assistantMessage?.session_key
+    );
+
+    interactions.push({
+      key: actionKey,
+      type,
+      label: type === "weak_answer"
+        ? unresolved ? "Unresolved conversation" : "Weak answer"
+        : getIntentLabel(type),
+      question,
+      reply,
+      snippet: buildConversationSummary(question, reply),
+      whyFlagged: getConversationFlagReason(intent, { weakAnswer, unresolved }),
+      suggestedAction: getConversationSuggestedAction(type, {
+        weakAnswer,
+        unresolved,
+        contactCaptured: Boolean(contactInfo.email || contactInfo.phone),
+      }),
+      createdAt: message.createdAt || message.created_at || null,
+      lastSeenAt,
+      unresolved,
+      weakAnswer,
+      intent,
+      actionable: actionableIntent || weakAnswer,
+      contactCaptured: Boolean(contactInfo.email || contactInfo.phone),
+      contactInfo: contactInfo.email || contactInfo.phone || contactInfo.name
+        ? {
+            email: contactInfo.email || null,
+            phone: contactInfo.phone || null,
+            name: contactInfo.name || null,
+          }
+        : null,
+      sessionKey: sessionKey || null,
+    });
+  });
+
+  return interactions;
+}
+
+function buildPersonKeyIntents(intentCounts = new Map()) {
+  return [...intentCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3)
+    .map(([intent, count]) => ({
+      intent,
+      count,
+      label: getIntentLabel(intent),
+    }));
+}
+
+function buildPersonFollowUp(queueItems = []) {
+  if (!queueItems.length) {
+    return {
+      key: "no_queue_items",
+      label: "No queue items yet",
+      copy: "This visitor has not created a follow-up item yet.",
+      attentionCount: 0,
+      resolvedCount: 0,
+    };
+  }
+
+  const workflows = queueItems.map((item) => item.ownerWorkflow || buildOwnerWorkflow(item));
+  const attentionCount = workflows.filter((workflow) => workflow.attention).length;
+  const resolvedCount = workflows.filter((workflow) => workflow.resolved).length;
+
+  if (attentionCount > 0) {
+    return {
+      key: "needs_attention",
+      label: attentionCount === 1 ? "1 item needs attention" : `${attentionCount} items need attention`,
+      copy: attentionCount === queueItems.length
+        ? "Every linked queue item still needs owner attention."
+        : "Some linked queue items still need owner attention.",
+      attentionCount,
+      resolvedCount,
+    };
+  }
+
+  if (resolvedCount === queueItems.length) {
+    return {
+      key: "resolved",
+      label: "Resolved",
+      copy: "All linked queue items are resolved.",
+      attentionCount,
+      resolvedCount,
+    };
+  }
+
+  return {
+    key: "monitored",
+    label: "Monitored",
+    copy: "This visitor has queue history, but nothing urgent is open right now.",
+    attentionCount,
+    resolvedCount,
+  };
+}
+
+function buildPersonStory(person) {
+  const interactionCount = Number(person.interactionCount || person.interactions?.length || 0);
+  const topIntent = person.keyIntents.find((entry) => entry.intent !== "general" && entry.intent !== "services") || person.keyIntents[0];
+
+  if (topIntent?.intent === "pricing" && topIntent.count > 1) {
+    return `This same person asked about pricing ${topIntent.count} times.`;
+  }
+
+  if (topIntent?.intent === "support" && topIntent.count > 1) {
+    return `This support issue appears to be evolving across ${topIntent.count} interactions.`;
+  }
+
+  if (topIntent?.intent === "contact" && interactionCount > 1) {
+    return `This lead came back across ${interactionCount} interactions.`;
+  }
+
+  if (interactionCount > 1) {
+    return `This same visitor returned across ${interactionCount} interactions.`;
+  }
+
+  return "Single interaction so far.";
+}
+
+function buildPersonDisplayLabel(person) {
+  if (cleanText(person.nameRaw)) {
+    return cleanText(person.nameRaw);
+  }
+
+  if (person.email) {
+    return person.email;
+  }
+
+  if (person.phoneRaw) {
+    return person.phoneRaw;
+  }
+
+  if (person.sessionKeys.size > 0) {
+    return person.interactions.length > 1 ? "Returning visitor" : "Known visitor";
+  }
+
+  return "Unknown visitor";
+}
+
+function stitchPeople(interactions = [], actionItems = []) {
+  const peopleByKey = new Map();
+  const signalMaps = {
+    email: new Map(),
+    phone: new Map(),
+    session: new Map(),
+    name: new Map(),
+  };
+  const actionItemMap = new Map(actionItems.map((item) => [item.key, item]));
+
+  interactions.forEach((interaction) => {
+    const identity = buildInteractionIdentity(interaction);
+    const matchingKeys = new Set();
+
+    if (identity.email && signalMaps.email.has(identity.email)) {
+      matchingKeys.add(signalMaps.email.get(identity.email));
+    }
+
+    if (identity.phone && signalMaps.phone.has(identity.phone)) {
+      matchingKeys.add(signalMaps.phone.get(identity.phone));
+    }
+
+    if (identity.sessionKey && signalMaps.session.has(identity.sessionKey)) {
+      matchingKeys.add(signalMaps.session.get(identity.sessionKey));
+    }
+
+    if (
+      identity.name &&
+      signalMaps.name.has(identity.name) &&
+      !identity.email &&
+      !identity.phone &&
+      !identity.sessionKey
+    ) {
+      matchingKeys.add(signalMaps.name.get(identity.name));
+    }
+
+    let person = null;
+
+    if (!matchingKeys.size) {
+      person = createPersonRecord(interaction);
+      peopleByKey.set(person.key, person);
+    } else {
+      const [primaryKey, ...otherKeys] = [...matchingKeys];
+      person = peopleByKey.get(primaryKey);
+
+      otherKeys.forEach((otherKey) => {
+        const otherPerson = peopleByKey.get(otherKey);
+
+        if (!otherPerson) {
+          return;
+        }
+
+        person = mergePersonRecords(person, otherPerson);
+        peopleByKey.delete(otherKey);
+      });
+    }
+
+    addInteractionToPerson(person, interaction);
+    registerPersonSignals(person, signalMaps);
+  });
+
+  const people = [...peopleByKey.values()]
+    .map((person) => {
+      const queueItems = [...person.actionKeys]
+        .map((actionKey) => actionItemMap.get(actionKey))
+        .filter(Boolean)
+        .sort((left, right) => getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt }));
+      const interactionsDesc = [...person.interactions]
+        .sort((left, right) => getMessageTimestamp({ createdAt: right.lastSeenAt || right.createdAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt || left.createdAt }));
+      const normalizedPerson = {
+        key: person.key,
+        label: buildPersonDisplayLabel(person),
+        identityType: person.email
+          ? "email"
+          : person.phone
+            ? "phone"
+            : person.sessionKeys.size > 0
+              ? "session"
+              : person.name
+                ? "name"
+                : "unknown",
+        email: person.email || null,
+        phone: person.phoneRaw || null,
+        name: cleanText(person.nameRaw) || (person.name ? toTitleCase(person.name) : null),
+        firstSeenAt: person.firstSeenAt || null,
+        lastSeenAt: person.lastSeenAt || null,
+        interactionCount: interactionsDesc.length,
+        queueItemCount: queueItems.length,
+        isReturning: interactionsDesc.length > 1,
+        keyIntents: buildPersonKeyIntents(person.intentCounts),
+        snippets: interactionsDesc.slice(0, 3).map((interaction) => ({
+          actionKey: interaction.key,
+          text: interaction.snippet || buildConversationSummary(interaction.question, interaction.reply),
+          at: interaction.lastSeenAt || interaction.createdAt || null,
+          intent: interaction.intent,
+          actionable: interaction.actionable,
+        })),
+        timeline: interactionsDesc.slice(0, 5).map((interaction) => ({
+          actionKey: interaction.key,
+          at: interaction.lastSeenAt || interaction.createdAt || null,
+          label: interaction.label,
+          intent: interaction.intent,
+          summary: interaction.snippet || buildConversationSummary(interaction.question, interaction.reply),
+          actionable: interaction.actionable,
+        })),
+        queueItemKeys: queueItems.map((item) => item.key),
+        queueItems: queueItems.map((item) => ({
+          key: item.key,
+          label: item.label,
+          status: item.status,
+          ownerWorkflow: item.ownerWorkflow,
+          lastSeenAt: item.lastSeenAt,
+        })),
+      };
+
+      normalizedPerson.followUp = buildPersonFollowUp(queueItems);
+      normalizedPerson.story = buildPersonStory(normalizedPerson);
+
+      return normalizedPerson;
+    })
+    .sort((left, right) => getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt }));
+  const peopleByActionKey = new Map();
+
+  people.forEach((person) => {
+    person.timeline.forEach((entry) => {
+      peopleByActionKey.set(entry.actionKey, person.key);
+    });
+  });
+
+  const peopleIndex = new Map(people.map((person) => [person.key, person]));
+
+  return {
+    people,
+    items: actionItems.map((item) => {
+      const personKey = peopleByActionKey.get(item.key);
+      const person = peopleIndex.get(personKey);
+
+      if (!person) {
+        return item;
+      }
+
+      return {
+        ...item,
+        person: {
+          key: person.key,
+          label: person.label,
+          identityType: person.identityType,
+          relatedInteractionCount: person.interactionCount,
+          relatedQueueItemCount: person.queueItemCount,
+          isReturning: person.isReturning,
+          story: person.story,
+          followUp: person.followUp,
+        },
+      };
+    }),
+  };
+}
+
+function buildPeopleSummary(people = []) {
+  return {
+    total: people.length,
+    returning: people.filter((person) => person.isReturning).length,
+    linkedQueueItems: people.filter((person) => person.queueItemCount > 0).length,
   };
 }
 
@@ -515,90 +1092,41 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       return [normalized.actionKey, normalized];
     })
   );
-  const chronological = getChronologicalMessages(messages);
-  const items = [];
+  const interactions = buildConversationInteractions(messages);
+  const items = interactions
+    .filter((interaction) => interaction.actionable)
+    .map((interaction) => {
+      const persistedItem = persistedMap.get(interaction.key) || {};
+      const ownerWorkflow = buildOwnerWorkflow(persistedItem);
 
-  chronological.forEach((message, index) => {
-    if (message.role !== "user") {
-      return;
-    }
-
-    const question = cleanText(message.content || "");
-    if (!question) {
-      return;
-    }
-
-    const intent = categorizeIntent(question);
-    let reply = "";
-    let assistantMessage = null;
-
-    for (let cursor = index + 1; cursor < chronological.length; cursor += 1) {
-      const nextMessage = chronological[cursor];
-
-      if (nextMessage.role === "user") {
-        break;
-      }
-
-      if (nextMessage.role === "assistant") {
-        reply = cleanText(nextMessage.content || "");
-        assistantMessage = nextMessage;
-        break;
-      }
-    }
-
-    const actionableIntent = ACTIONABLE_INTENTS.includes(intent);
-    const weakAnswer = hasWeakAssistantReply(reply);
-
-    if (!actionableIntent && !weakAnswer) {
-      return;
-    }
-    const type = actionableIntent ? intent : "weak_answer";
-    const unresolved = !cleanText(reply);
-    const contactInfo = mergeContactInfo(extractContactInfo(question), extractContactInfo(reply));
-    const actionKey = buildConversationActionKey(message, index);
-    const persistedItem = persistedMap.get(actionKey) || {};
-    const label = type === "weak_answer"
-      ? unresolved ? "Unresolved conversation" : "Weak answer"
-      : getIntentLabel(type);
-    const lastSeenAt = assistantMessage?.createdAt || assistantMessage?.created_at || message.createdAt || message.created_at || null;
-    const ownerWorkflow = buildOwnerWorkflow(persistedItem);
-
-    items.push({
-      key: actionKey,
-      type,
-      label,
-      status: persistedItem.status || "new",
-      count: 1,
-      snippet: buildConversationSummary(question, reply),
-      question,
-      reply,
-      whyFlagged: getConversationFlagReason(intent, { weakAnswer, unresolved }),
-      suggestedAction: getConversationSuggestedAction(type, {
-        weakAnswer,
-        unresolved,
-        contactCaptured: Boolean(contactInfo.email || contactInfo.phone),
-      }),
-      lastSeenAt,
-      note: persistedItem.note || "",
-      outcome: persistedItem.outcome || "",
-      nextStep: persistedItem.nextStep || "",
-      followUpNeeded: persistedItem.followUpNeeded,
-      followUpCompleted: persistedItem.followUpCompleted,
-      contactStatus: persistedItem.contactStatus || "",
-      updatedAt: persistedItem.updatedAt || null,
-      ownerWorkflow,
-      contactCaptured: Boolean(contactInfo.email || contactInfo.phone),
-      contactInfo: contactInfo.email || contactInfo.phone
-        ? {
-            email: contactInfo.email || null,
-            phone: contactInfo.phone || null,
-          }
-        : null,
-      unresolved,
-      weakAnswer,
-      intent,
+      return {
+        key: interaction.key,
+        type: interaction.type,
+        label: interaction.label,
+        status: persistedItem.status || "new",
+        count: 1,
+        snippet: interaction.snippet,
+        question: interaction.question,
+        reply: interaction.reply,
+        whyFlagged: interaction.whyFlagged,
+        suggestedAction: interaction.suggestedAction,
+        lastSeenAt: interaction.lastSeenAt,
+        note: persistedItem.note || "",
+        outcome: persistedItem.outcome || "",
+        nextStep: persistedItem.nextStep || "",
+        followUpNeeded: persistedItem.followUpNeeded,
+        followUpCompleted: persistedItem.followUpCompleted,
+        contactStatus: persistedItem.contactStatus || "",
+        updatedAt: persistedItem.updatedAt || null,
+        ownerWorkflow,
+        contactCaptured: interaction.contactCaptured,
+        contactInfo: interaction.contactInfo,
+        unresolved: interaction.unresolved,
+        weakAnswer: interaction.weakAnswer,
+        intent: interaction.intent,
+        sessionKey: interaction.sessionKey,
+      };
     });
-  });
 
   const sortedItems = items
     .sort((left, right) => {
@@ -610,10 +1138,13 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
 
       return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
     });
+  const stitched = stitchPeople(interactions, sortedItems);
 
   return {
-    items: sortedItems,
-    summary: buildStatusSummary(sortedItems),
+    items: stitched.items,
+    people: stitched.people,
+    peopleSummary: buildPeopleSummary(stitched.people),
+    summary: buildStatusSummary(stitched.items),
     persistenceAvailable: options.persistenceAvailable !== false,
     migrationRequired: options.persistenceAvailable === false,
   };

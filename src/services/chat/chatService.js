@@ -68,11 +68,13 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
   return `${summary} I can still help with the next step. Are you trying to understand their services, pricing, or how to contact ${siteLabel}?`;
 }
 
-async function buildChatResponse({ supabase, agent, businessId, widgetConfig, userMessage, reply }) {
+async function buildChatResponse({ supabase, agent, businessId, widgetConfig, userMessage, reply, sessionKey }) {
   await storeAgentMessages(supabase, agent.id, [
     { role: "user", content: userMessage },
     { role: "assistant", content: reply },
-  ]);
+  ], {
+    sessionKey,
+  });
 
   return {
     reply,
@@ -98,6 +100,7 @@ export async function handleChatRequest({
   const agentKey = body.agent_key || body.agentKey;
   const businessId = body.business_id || body.businessId;
   const websiteUrl = cleanText(body.website_url || body.websiteUrl || "");
+  const sessionKey = cleanText(body.visitor_session_key || body.visitorSessionKey || "");
   const history = sanitizeChatHistory(body.history);
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const conversationHistory = formatConversationHistory(history);
@@ -146,6 +149,7 @@ export async function handleChatRequest({
       widgetConfig,
       userMessage: message,
       reply: fallbackReply,
+      sessionKey,
     });
   }
 
@@ -165,6 +169,7 @@ export async function handleChatRequest({
         websiteContent,
         message
       ),
+      sessionKey,
     });
   }
 
@@ -235,5 +240,6 @@ export async function handleChatRequest({
     widgetConfig,
     userMessage: message,
     reply: appendImageLines(finalReply, websiteContent, message),
+    sessionKey,
   });
 }
