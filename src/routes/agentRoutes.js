@@ -19,7 +19,10 @@ import {
 } from "../services/agents/agentService.js";
 import { listAgentMessages } from "../services/chat/messageService.js";
 import { getProductFunnelSummary, trackProductEvent } from "../services/analytics/productEventService.js";
-import { trackWidgetEvent } from "../services/analytics/widgetTelemetryService.js";
+import {
+  listWidgetRoutingEventsByAgentId,
+  trackWidgetEvent,
+} from "../services/analytics/widgetTelemetryService.js";
 import {
   buildActionQueue,
   listActionQueueStatuses,
@@ -73,6 +76,8 @@ export function createAgentRouter(deps = {}) {
   const syncKnowledgeFixWorkflowsImpl = deps.syncKnowledgeFixWorkflows || syncKnowledgeFixWorkflows;
   const updateKnowledgeFixWorkflowImpl = deps.updateKnowledgeFixWorkflow || updateKnowledgeFixWorkflow;
   const listLeadCapturesImpl = deps.listLeadCaptures || listLeadCaptures;
+  const listWidgetRoutingEventsByAgentIdImpl =
+    deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
@@ -369,6 +374,14 @@ export function createAgentRouter(deps = {}) {
         primaryColor: req.body.primary_color || req.body.primaryColor,
         secondaryColor: req.body.secondary_color || req.body.secondaryColor,
         allowedDomains: req.body.allowed_domains || req.body.allowedDomains,
+        bookingUrl: req.body.booking_url || req.body.bookingUrl,
+        quoteUrl: req.body.quote_url || req.body.quoteUrl,
+        checkoutUrl: req.body.checkout_url || req.body.checkoutUrl,
+        contactEmail: req.body.contact_email || req.body.contactEmail,
+        contactPhone: req.body.contact_phone || req.body.contactPhone,
+        primaryCtaMode: req.body.primary_cta_mode || req.body.primaryCtaMode,
+        fallbackCtaMode: req.body.fallback_cta_mode || req.body.fallbackCtaMode,
+        businessHoursNote: req.body.business_hours_note || req.body.businessHoursNote,
       });
 
       res.json({ ok: true, agent: result });
@@ -500,11 +513,15 @@ export function createAgentRouter(deps = {}) {
         agentId,
         ownerUserId: user?.id || null,
       });
+      const routingEvents = await listWidgetRoutingEventsByAgentIdImpl(supabase, {
+        agentId,
+      });
 
       res.json(
         hydrateActionQueueWithLeadCaptures(baseQueue, {
           records: leadCaptures.records || [],
           followUps: followUpSync?.records || [],
+          widgetEvents: routingEvents,
           persistenceAvailable: leadCaptures.persistenceAvailable !== false,
         })
       );

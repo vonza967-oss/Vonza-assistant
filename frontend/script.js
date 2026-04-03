@@ -56,6 +56,7 @@ let resolvedAgentId = AGENT_ID;
 let resolvedAgentKey = AGENT_KEY;
 let resolvedBusinessId = BUSINESS_ID;
 let liveLeadCapture = null;
+let liveDirectRouting = null;
 const sentTelemetryKeys = new Set();
 
 function getVisitorSessionStorageKey() {
@@ -132,6 +133,39 @@ function getLeadCaptureSlot() {
   return document.getElementById("lead-capture-slot");
 }
 
+function getDirectRoutingSlot() {
+  return document.getElementById("direct-routing-slot");
+}
+
+function getDismissedRouteStorageKey() {
+  return `${getVisitorSessionStorageKey()}_dismissed_routes`;
+}
+
+function getDismissedRouteKeys() {
+  try {
+    const value = window.localStorage.getItem(getDismissedRouteStorageKey());
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed.map((entry) => trimText(entry)).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function isRouteDismissed(decisionKey) {
+  return getDismissedRouteKeys().includes(trimText(decisionKey));
+}
+
+function rememberDismissedRoute(decisionKey) {
+  const normalized = trimText(decisionKey);
+
+  if (!normalized) {
+    return;
+  }
+
+  const nextKeys = [...new Set([...getDismissedRouteKeys(), normalized])];
+  window.localStorage.setItem(getDismissedRouteStorageKey(), JSON.stringify(nextKeys.slice(-12)));
+}
+
 function formatLeadContact(contact = {}) {
   const name = trimText(contact.name);
   const email = trimText(contact.email);
@@ -150,6 +184,148 @@ function formatLeadContact(contact = {}) {
   }
 
   return name || email || phone || "";
+}
+
+function buildRoutingMetadata(routing, cta) {
+  return {
+    decisionKey: trimText(routing?.decisionKey || ""),
+    ctaType: trimText(cta?.ctaType || ""),
+    targetType: trimText(cta?.targetType || ""),
+    relatedIntentType: trimText(routing?.intentType || ""),
+    relatedActionKey: trimText(routing?.relatedActionKey || ""),
+    relatedConversationId: trimText(routing?.relatedConversationId || ""),
+    relatedPersonKey: trimText(routing?.relatedPersonKey || ""),
+    routingMode: trimText(routing?.routingMode || routing?.mode || ""),
+    sourceUrl: getPageUrl(),
+  };
+}
+
+function shouldHoldLeadCaptureForRoute() {
+  return Boolean(
+    liveDirectRouting
+    && ["direct_cta", "direct_then_capture"].includes(trimText(liveDirectRouting.mode))
+    && !isRouteDismissed(liveDirectRouting.decisionKey)
+  );
+}
+
+function openRoutingTarget(cta = {}) {
+  const href = trimText(cta.href);
+
+  if (!href) {
+    return;
+  }
+
+  if (cta.targetType === "phone" || cta.targetType === "email") {
+    window.location.href = href;
+    return;
+  }
+
+  window.open(href, "_blank", "noopener,noreferrer");
+}
+
+function bindDirectRoutingInteractions(slot, routing) {
+  const continueButton = slot.querySelector("[data-routing-continue]");
+  const ctaButtons = slot.querySelectorAll("[data-routing-cta]");
+
+  ctaButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const cta = {
+        ctaType: trimText(button.dataset.ctaType),
+        targetType: trimText(button.dataset.targetType),
+        href: trimText(button.dataset.href),
+        targetValue: trimText(button.dataset.targetValue),
+      };
+
+      rememberDismissedRoute(routing.decisionKey);
+      renderDirectRouting(null);
+      setComposerStatus(`Opening ${trimText(button.textContent).toLowerCase()}...`);
+      void trackWidgetEvent("cta_clicked", buildRoutingMetadata(routing, cta), {
+        dedupeKey: `${INSTALL_ID}::cta_clicked::${trimText(routing.decisionKey)}::${trimText(cta.ctaType)}::${trimText(cta.targetType)}`,
+      });
+      openRoutingTarget(cta);
+    });
+  });
+
+  if (continueButton) {
+    continueButton.addEventListener("click", () => {
+      rememberDismissedRoute(routing.decisionKey);
+      renderDirectRouting(null);
+
+      if (trimText(routing?.continueButton?.action) === "reveal_capture" && liveLeadCapture) {
+        renderLeadCapture(liveLeadCapture);
+        setComposerStatus(trimText(liveLeadCapture.prompt?.body) || "No problem. We can keep going here, and you can share details if that helps.");
+        return;
+      }
+
+      setComposerStatus("No problem. We can keep going here in chat.");
+    });
+  }
+}
+
+function renderDirectRouting(routing) {
+  const slot = getDirectRoutingSlot();
+
+  if (!slot) {
+    return;
+  }
+
+  liveDirectRouting = routing && typeof routing === "object" ? routing : null;
+
+  const shouldShow = Boolean(
+    liveDirectRouting
+    && ["direct_cta", "direct_then_capture"].includes(trimText(liveDirectRouting.mode))
+    && liveDirectRouting.primaryCta
+    && !isRouteDismissed(liveDirectRouting.decisionKey)
+  );
+
+  if (!shouldShow) {
+    slot.hidden = true;
+    slot.innerHTML = "";
+    return;
+  }
+
+  const primaryCta = liveDirectRouting.primaryCta || {};
+  const secondaryCtas = Array.isArray(liveDirectRouting.secondaryCtas)
+    ? liveDirectRouting.secondaryCtas.filter((entry) => entry && trimText(entry.href))
+    : [];
+
+  slot.hidden = false;
+  slot.innerHTML = `
+    <article class="lead-capture-card routing-card">
+      <p class="lead-capture-eyebrow">Front desk handoff</p>
+      <h3 class="lead-capture-title">${escapeHtml(trimText(primaryCta.label) || "Next step")}</h3>
+      <p class="lead-capture-copy">${escapeHtml(trimText(liveDirectRouting.reason) || "Vonza found a stronger direct path for this conversation.")}</p>
+      ${trimText(liveDirectRouting.availabilityNote) ? `<p class="lead-capture-meta">${escapeHtml(trimText(liveDirectRouting.availabilityNote))}</p>` : ""}
+      <div class="routing-actions">
+        <button
+          type="button"
+          class="routing-primary-button"
+          data-routing-cta
+          data-cta-type="${escapeHtml(trimText(primaryCta.ctaType))}"
+          data-target-type="${escapeHtml(trimText(primaryCta.targetType))}"
+          data-href="${escapeHtml(trimText(primaryCta.href))}"
+          data-target-value="${escapeHtml(trimText(primaryCta.targetValue))}"
+        >${escapeHtml(trimText(primaryCta.label) || "Continue")}</button>
+        ${secondaryCtas.map((cta) => `
+          <button
+            type="button"
+            class="ghost-button routing-secondary-button"
+            data-routing-cta
+            data-cta-type="${escapeHtml(trimText(cta.ctaType))}"
+            data-target-type="${escapeHtml(trimText(cta.targetType))}"
+            data-href="${escapeHtml(trimText(cta.href))}"
+            data-target-value="${escapeHtml(trimText(cta.targetValue))}"
+          >${escapeHtml(trimText(cta.label) || "Open")}</button>
+        `).join("")}
+        <button type="button" class="ghost-button routing-secondary-button" data-routing-continue>${escapeHtml(trimText(liveDirectRouting.continueButton?.label) || "Continue here")}</button>
+      </div>
+    </article>
+  `;
+
+  bindDirectRoutingInteractions(slot, liveDirectRouting);
+  void trackWidgetEvent("cta_shown", buildRoutingMetadata(liveDirectRouting, primaryCta), {
+    dedupeKey: `${INSTALL_ID}::cta_shown::${trimText(liveDirectRouting.decisionKey)}`,
+  });
 }
 
 async function postLeadCaptureAction(payload = {}) {
@@ -274,6 +450,12 @@ function renderLeadCapture(leadCapture) {
   const promptBody = trimText(liveLeadCapture.prompt?.body || "");
   const returningCopy = liveLeadCapture.isReturningVisitor ? "Returning visitor" : "New visitor";
 
+  if (shouldHoldLeadCaptureForRoute() && ["prompt_ready", "partial_contact"].includes(state)) {
+    slot.hidden = true;
+    slot.innerHTML = "";
+    return;
+  }
+
   if (state === "captured") {
     slot.hidden = false;
     slot.innerHTML = `
@@ -352,6 +534,15 @@ function renderLeadCapture(leadCapture) {
   `;
 
   bindLeadCaptureInteractions(slot, liveLeadCapture);
+  if (liveLeadCapture?.shouldPrompt && (!liveDirectRouting || trimText(liveDirectRouting.mode) === "capture_only")) {
+    void trackWidgetEvent("capture_fallback_offered", {
+      relatedIntentType: trimText(liveDirectRouting?.intentType || liveLeadCapture.trigger || ""),
+      relatedConversationId: trimText(liveDirectRouting?.relatedConversationId || getVisitorSessionKey()),
+      routingMode: trimText(liveDirectRouting?.mode || "capture_only"),
+    }, {
+      dedupeKey: `${INSTALL_ID}::capture_fallback_offered::${getVisitorSessionKey()}::${trimText(liveLeadCapture.trigger || "capture")}`,
+    });
+  }
 }
 
 async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
@@ -575,6 +766,7 @@ async function sendMessage() {
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
+    renderDirectRouting(data.directRouting || null);
     renderLeadCapture(data.leadCapture || null);
     if (trimText(data.leadCapture?.state).toLowerCase() === "captured") {
       void trackWidgetEvent("contact_captured", {
@@ -595,7 +787,9 @@ async function sendMessage() {
       }
     );
     setComposerStatus(
-      trimText(data.leadCapture?.message)
+      trimText(data.directRouting?.primaryCta?.label)
+        ? `${trimText(data.directRouting.primaryCta.label)} is ready if the visitor wants the fastest next step.`
+      : trimText(data.leadCapture?.message)
       || (data.leadCapture?.shouldPrompt
         ? "If the visitor wants to keep moving, Vonza can capture a clean handoff without interrupting the chat."
         : "Ask a follow-up to keep exploring what your visitors would experience.")

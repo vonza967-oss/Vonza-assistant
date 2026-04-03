@@ -319,6 +319,69 @@ function detectExplicitCaptureLanguage(message = "") {
   return "";
 }
 
+function detectCurrentHighIntentAction(message = "") {
+  const normalized = cleanText(message).toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (
+    normalized.includes("call me")
+    || normalized.includes("call back")
+    || normalized.includes("callback")
+    || normalized.includes("contact me")
+    || normalized.includes("reach me")
+    || normalized.includes("email me")
+    || normalized.includes("phone me")
+    || normalized.includes("get in touch")
+  ) {
+    return {
+      actionType: "lead_follow_up",
+      intent: "contact",
+      whyFlagged: "Flagged because this visitor asked for direct contact or a callback.",
+    };
+  }
+
+  if (
+    normalized.includes("book")
+    || normalized.includes("booking")
+    || normalized.includes("appointment")
+    || normalized.includes("schedule")
+    || normalized.includes("availability")
+    || normalized.includes("reserve")
+    || normalized.includes("consultation")
+    || normalized.includes("demo")
+  ) {
+    return {
+      actionType: "booking_intent",
+      intent: "booking",
+      whyFlagged: "Flagged because this visitor asked about booking, scheduling, or availability.",
+    };
+  }
+
+  if (
+    normalized.includes("quote")
+    || normalized.includes("estimate")
+    || normalized.includes("pricing")
+    || normalized.includes("price")
+    || normalized.includes("cost")
+    || normalized.includes("how much")
+    || normalized.includes("buy")
+    || normalized.includes("purchase")
+    || normalized.includes("order")
+    || normalized.includes("checkout")
+  ) {
+    return {
+      actionType: "pricing_interest",
+      intent: "pricing",
+      whyFlagged: "Flagged because this visitor asked about pricing, quotes, or purchase intent.",
+    };
+  }
+
+  return null;
+}
+
 function buildPromptBody(actionType, language, reason, businessName) {
   const label = cleanText(businessName) || "the team";
 
@@ -376,6 +439,18 @@ function getSessionLeadContext(actionQueue = {}, sessionKey = "", message = "") 
       && cleanText(item.person?.key || item.personKey) === personKey)
     : null;
   const explicitTrigger = detectExplicitCaptureLanguage(message);
+  const currentHighIntent = detectCurrentHighIntentAction(message);
+  const syntheticTriggerItem = currentHighIntent
+    ? {
+      key: cleanText(latestSessionItem?.key) || `live:${cleanText(sessionKey) || "session"}:${cleanText(currentHighIntent.actionType)}`,
+      actionType: currentHighIntent.actionType,
+      intent: currentHighIntent.intent,
+      whyFlagged: currentHighIntent.whyFlagged,
+      messageId: cleanText(latestSessionItem?.messageId),
+      sessionKey: cleanText(sessionKey),
+      personKey,
+    }
+    : null;
 
   let triggerItem = null;
   let triggerCode = "";
@@ -395,8 +470,18 @@ function getSessionLeadContext(actionQueue = {}, sessionKey = "", message = "") 
     triggerCode = "unresolved_high_value_question";
   }
 
+  if (syntheticTriggerItem) {
+    triggerItem = syntheticTriggerItem;
+    triggerCode = cleanText(syntheticTriggerItem.actionType);
+  }
+
   if (explicitTrigger && latestSessionItem && ACTIVE_HIGH_INTENT_ACTION_TYPES.has(cleanText(latestSessionItem.actionType))) {
     triggerItem = latestSessionItem;
+    triggerCode = explicitTrigger;
+  }
+
+  if (explicitTrigger && syntheticTriggerItem) {
+    triggerItem = syntheticTriggerItem;
     triggerCode = explicitTrigger;
   }
 
@@ -1092,6 +1177,16 @@ function buildEmptyLeadCaptureSummary() {
     followUpsSent: 0,
     pricingCaptures: 0,
     bookingCaptures: 0,
+    directCtasShown: 0,
+    ctaClicks: 0,
+    ctaClickThroughRate: 0,
+    bookingDirectHandoffs: 0,
+    quoteDirectHandoffs: 0,
+    contactDirectHandoffs: 0,
+    checkoutDirectHandoffs: 0,
+    followUpFallbackCount: 0,
+    directRouteCount: 0,
+    captureFallbackCount: 0,
   };
 }
 
@@ -1107,10 +1202,30 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
   const queue = actionQueue && typeof actionQueue === "object" ? actionQueue : {};
   const leadRecords = (options.records || []).map((record) => normalizeLeadRecord(record));
   const followUps = Array.isArray(options.followUps) ? options.followUps : [];
+  const widgetEvents = (options.widgetEvents || []).map((event) => {
+    const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
+
+    return {
+      eventName: cleanText(event.event_name || event.eventName),
+      sessionKey: cleanText(event.session_id || event.sessionId),
+      pageUrl: cleanText(event.page_url || event.pageUrl),
+      createdAt: event.created_at || event.createdAt || null,
+      ctaType: cleanText(metadata.ctaType),
+      targetType: cleanText(metadata.targetType),
+      relatedIntentType: cleanText(metadata.relatedIntentType),
+      relatedActionKey: cleanText(metadata.relatedActionKey),
+      relatedConversationId: cleanText(metadata.relatedConversationId),
+      relatedPersonKey: cleanText(metadata.relatedPersonKey),
+      routingMode: cleanText(metadata.routingMode),
+    };
+  });
   const items = Array.isArray(queue.items) ? queue.items : [];
   const actionMap = new Map();
   const personMap = new Map();
   const sessionMap = new Map();
+  const widgetEventsByActionKey = new Map();
+  const widgetEventsByPersonKey = new Map();
+  const widgetEventsBySessionKey = new Map();
 
   leadRecords.forEach((record) => {
     record.relatedActionKeys.forEach((actionKey) => {
@@ -1128,16 +1243,87 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
     }
   });
 
+  widgetEvents.forEach((event) => {
+    if (event.relatedActionKey) {
+      widgetEventsByActionKey.set(
+        event.relatedActionKey,
+        [...(widgetEventsByActionKey.get(event.relatedActionKey) || []), event]
+      );
+    }
+
+    if (event.relatedPersonKey) {
+      widgetEventsByPersonKey.set(
+        event.relatedPersonKey,
+        [...(widgetEventsByPersonKey.get(event.relatedPersonKey) || []), event]
+      );
+    }
+
+    if (event.sessionKey) {
+      widgetEventsBySessionKey.set(
+        event.sessionKey,
+        [...(widgetEventsBySessionKey.get(event.sessionKey) || []), event]
+      );
+    }
+  });
+
   const hydratedItems = items.map((item) => {
     const leadRecord = actionMap.get(cleanText(item.key))
       || personMap.get(cleanText(item.person?.key || item.personKey))
       || sessionMap.get(cleanText(item.sessionKey))
       || null;
     const followUp = resolveFollowUpForLead(followUps, leadRecord);
+    const relatedEvents = [
+      ...(widgetEventsByActionKey.get(cleanText(item.key)) || []),
+      ...(widgetEventsByPersonKey.get(cleanText(item.person?.key || item.personKey)) || []),
+      ...(widgetEventsBySessionKey.get(cleanText(item.sessionKey)) || []),
+    ];
+    const uniqueEventKeys = new Set();
+    const dedupedEvents = relatedEvents.filter((event) => {
+      const key = [
+        event.eventName,
+        event.createdAt,
+        event.relatedActionKey,
+        event.relatedPersonKey,
+        event.sessionKey,
+        event.ctaType,
+        event.targetType,
+      ].join("::");
+
+      if (uniqueEventKeys.has(key)) {
+        return false;
+      }
+
+      uniqueEventKeys.add(key);
+      return true;
+    });
+    const shownEvents = dedupedEvents.filter((event) => event.eventName === "cta_shown");
+    const clickedEvents = dedupedEvents.filter((event) => event.eventName === "cta_clicked");
+    const latestShownEvent = [...shownEvents]
+      .sort((left, right) => getTimestamp(right.createdAt) - getTimestamp(left.createdAt))[0] || null;
+    const latestClickedEvent = [...clickedEvents]
+      .sort((left, right) => getTimestamp(right.createdAt) - getTimestamp(left.createdAt))[0] || null;
+    const latestRoutingEvent = [...clickedEvents, ...shownEvents]
+      .sort((left, right) => getTimestamp(right.createdAt) - getTimestamp(left.createdAt))[0] || null;
+    const routing = latestRoutingEvent
+      ? {
+        offered: shownEvents.length > 0,
+        clicked: clickedEvents.length > 0,
+        shownCount: shownEvents.length,
+        clickCount: clickedEvents.length,
+        ctaType: cleanText(latestRoutingEvent.ctaType),
+        targetType: cleanText(latestRoutingEvent.targetType),
+        relatedIntentType: cleanText(latestRoutingEvent.relatedIntentType),
+        routingMode: cleanText(latestRoutingEvent.routingMode),
+        lastShownAt: latestShownEvent?.createdAt || null,
+        lastClickedAt: latestClickedEvent?.createdAt || null,
+        sourcePageUrl: cleanText(latestRoutingEvent.pageUrl),
+      }
+      : null;
 
     return {
       ...item,
       followUp: item.followUp || followUp || null,
+      routing,
       leadCapture: leadRecord
         ? buildPublicLeadCapture(leadRecord, {
           followUp,
@@ -1159,6 +1345,9 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
     : 0;
   const preparedFollowUpIds = new Set();
   const sentFollowUpIds = new Set();
+  const shownEvents = widgetEvents.filter((event) => event.eventName === "cta_shown");
+  const clickedEvents = widgetEvents.filter((event) => event.eventName === "cta_clicked");
+  const fallbackEvents = widgetEvents.filter((event) => event.eventName === "capture_fallback_offered");
 
   hydratedItems.forEach((item) => {
     if (item.followUp?.id && cleanText(item.followUp.status) !== "dismissed") {
@@ -1193,6 +1382,18 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
       bookingCaptures: leadRecords.filter((record) =>
         normalizeState(record.captureState) === "captured" && cleanText(record.latestActionType) === "booking_intent"
       ).length,
+      directCtasShown: shownEvents.length,
+      ctaClicks: clickedEvents.length,
+      ctaClickThroughRate: shownEvents.length > 0
+        ? Number((clickedEvents.length / shownEvents.length).toFixed(3))
+        : 0,
+      bookingDirectHandoffs: clickedEvents.filter((event) => event.ctaType === "booking").length,
+      quoteDirectHandoffs: clickedEvents.filter((event) => event.ctaType === "quote").length,
+      contactDirectHandoffs: clickedEvents.filter((event) => event.ctaType === "contact").length,
+      checkoutDirectHandoffs: clickedEvents.filter((event) => event.ctaType === "checkout").length,
+      followUpFallbackCount: fallbackEvents.length,
+      directRouteCount: shownEvents.length,
+      captureFallbackCount: fallbackEvents.length,
     },
     liveConversionAvailable: options.persistenceAvailable !== false,
     liveConversionMigrationRequired: options.persistenceAvailable === false,

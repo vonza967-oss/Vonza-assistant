@@ -1504,6 +1504,64 @@ function buildCustomizePanel(agent, setup) {
             </section>
 
             <section class="studio-group">
+              <h3 class="studio-group-title">Front-desk routing</h3>
+              <p class="studio-group-copy">Tell Vonza where to send high-intent visitors when the best next step is to book, request a quote, call, email, or buy now.</p>
+              <div class="form-grid two-col">
+                <div class="field">
+                  <label for="assistant-primary-cta-mode">Primary CTA mode</label>
+                  <select id="assistant-primary-cta-mode" name="primary_cta_mode">
+                    <option value="contact" ${trimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
+                    <option value="booking" ${trimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
+                    <option value="quote" ${trimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
+                    <option value="checkout" ${trimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+                    <option value="capture" ${trimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
+                    <option value="chat" ${trimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
+                  </select>
+                  <p class="field-help">This is the default route Vonza reaches for when an intent-specific destination is missing.</p>
+                </div>
+                <div class="field">
+                  <label for="assistant-fallback-cta-mode">Fallback CTA mode</label>
+                  <select id="assistant-fallback-cta-mode" name="fallback_cta_mode">
+                    <option value="capture" ${trimText(agent.fallbackCtaMode || "capture") === "capture" ? "selected" : ""}>capture</option>
+                    <option value="contact" ${trimText(agent.fallbackCtaMode) === "contact" ? "selected" : ""}>contact</option>
+                    <option value="booking" ${trimText(agent.fallbackCtaMode) === "booking" ? "selected" : ""}>booking</option>
+                    <option value="quote" ${trimText(agent.fallbackCtaMode) === "quote" ? "selected" : ""}>quote</option>
+                    <option value="checkout" ${trimText(agent.fallbackCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+                    <option value="chat" ${trimText(agent.fallbackCtaMode) === "chat" ? "selected" : ""}>chat</option>
+                  </select>
+                  <p class="field-help">If a booking, quote, checkout, or contact target is missing, Vonza follows this fallback instead of guessing.</p>
+                </div>
+                <div class="field">
+                  <label for="assistant-booking-url">Booking URL</label>
+                  <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
+                </div>
+                <div class="field">
+                  <label for="assistant-quote-url">Quote URL</label>
+                  <input id="assistant-quote-url" name="quote_url" type="text" value="${escapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
+                </div>
+                <div class="field">
+                  <label for="assistant-checkout-url">Checkout URL</label>
+                  <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
+                </div>
+                <div class="field">
+                  <label for="assistant-contact-email">Contact email</label>
+                  <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+                </div>
+                <div class="field">
+                  <label for="assistant-contact-phone">Contact phone</label>
+                  <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
+                </div>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="assistant-business-hours-note">Availability note</label>
+                  <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
+                  <p class="field-help">Optional. This appears in the in-widget handoff card so the next step feels concrete and trustworthy.</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="studio-group">
               <h3 class="studio-group-title">Brand colors</h3>
               <p class="studio-group-copy">Keep the assistant aligned with the brand your customers already know.</p>
               <div class="form-grid two-col">
@@ -1675,7 +1733,7 @@ function buildAppearanceStudio(agent) {
                       <p class="brand-widget-subtitle">Your website assistant</p>
                     </div>
                   </div>
-                  <div id="brand-widget-message" class="brand-message">${escapeHtml(agent.welcomeMessage || "Welcome. I’m here to answer questions and help your visitors find the right next step.")}</div>
+                  <div id="brand-widget-message" class="brand-message">${escapeHtml(agent.welcomeMessage || "Welcome. I’m here to answer questions, route ready visitors to the right next step, and capture follow-up when needed.")}</div>
                   <div class="brand-cta-row">
                     <span class="brand-cta-note">This preview reflects the real name, opening message, button text, and brand colors you support today.</span>
                     <div id="brand-launcher" class="brand-launcher" style="--brand-primary:${escapeHtml(agent.primaryColor || "#14b8a6")};--brand-secondary:${escapeHtml(agent.secondaryColor || "#0f766e")}">
@@ -2219,6 +2277,16 @@ function createEmptyActionQueue() {
       followUpsSent: 0,
       pricingCaptures: 0,
       bookingCaptures: 0,
+      directCtasShown: 0,
+      ctaClicks: 0,
+      ctaClickThroughRate: 0,
+      bookingDirectHandoffs: 0,
+      quoteDirectHandoffs: 0,
+      contactDirectHandoffs: 0,
+      checkoutDirectHandoffs: 0,
+      followUpFallbackCount: 0,
+      directRouteCount: 0,
+      captureFallbackCount: 0,
     },
     recentLeadCaptures: [],
     persistenceAvailable: true,
@@ -2639,9 +2707,10 @@ function buildConversionSummaryPills(summary = {}) {
 
   return [
     `${counts.highIntentConversations} high-intent chats`,
-    `${counts.capturePromptsShown} prompts shown`,
+    `${counts.directCtasShown} direct CTAs shown`,
+    `${formatCaptureRate(counts.ctaClickThroughRate)} CTA CTR`,
     `${counts.contactsCaptured} contacts captured`,
-    `${formatCaptureRate(counts.captureRate)} capture rate`,
+    `${counts.followUpFallbackCount} fallback captures`,
   ];
 }
 
@@ -2709,7 +2778,7 @@ function buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
       <div class="people-header">
         <div>
           <h3 class="studio-group-title">People view</h3>
-          <p class="studio-group-copy">This is the lightweight person layer behind the queue. It helps the owner see when the same lead comes back or the same issue keeps evolving.</p>
+          <p class="studio-group-copy">This is the lightweight person layer behind the queue. Returning people still surface here so the owner can see when the same lead comes back or the same issue keeps evolving.</p>
         </div>
         <div class="action-queue-summary">
           ${buildPeopleSummaryPills(peopleSummary).map((label) => `
@@ -2833,6 +2902,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       ? `${item.person.label || "Returning visitor"} · ${item.person.relatedInteractionCount} interactions`
       : "";
     const leadCapture = item.leadCapture && typeof item.leadCapture === "object" ? item.leadCapture : null;
+    const routing = item.routing && typeof item.routing === "object" ? item.routing : null;
     const followUp = item.followUp && typeof item.followUp === "object" ? item.followUp : null;
     const followUpStatus = trimText(followUp?.status).toLowerCase();
     const followUpSupported = item.followUpSupported === true;
@@ -2864,6 +2934,28 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         </div>
         <div class="action-queue-secondary-action">
           ${item.messageId ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open related conversation</button>` : ""}
+        </div>
+      `
+      : "";
+    const routingSummary = routing
+      ? `
+        <div class="action-queue-handoff-summary">
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Direct path offered</span>
+            <strong class="action-queue-detail-value">${escapeHtml(routing.ctaType ? `${routing.ctaType} via ${routing.targetType || "route"}` : "No direct path offered")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">CTA clicked</span>
+            <strong class="action-queue-detail-value">${escapeHtml(routing.clicked ? `Yes${routing.lastClickedAt ? ` · ${formatSeenAt(routing.lastClickedAt)}` : ""}` : "No click yet")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Intent behind route</span>
+            <strong class="action-queue-detail-value">${escapeHtml(trimText(routing.relatedIntentType) || "Not stored")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">What happened next</span>
+            <strong class="action-queue-detail-value">${escapeHtml(routing.clicked && leadCapture?.state === "captured" ? "CTA clicked and contact captured" : routing.clicked ? "CTA clicked" : leadCapture?.state === "captured" ? "Contact captured without CTA click" : "Still in chat")}</strong>
+          </div>
         </div>
       `
       : "";
@@ -3086,6 +3178,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         <div class="action-queue-handoff">
           ${followUpSummary}
           ${knowledgeFixSummary}
+          ${routingSummary}
           ${leadCaptureSummary}
           <div class="action-queue-handoff-summary">
             <div class="action-queue-handoff-item">
@@ -3613,8 +3706,8 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
             <div class="overview-metric-value">${overview.conversionSummary.contactsCaptured || 0}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Returning people</div>
-            <div class="overview-metric-value">${overview.peopleSummary.returning || 0}</div>
+            <div class="overview-metric-label">Direct CTAs shown</div>
+            <div class="overview-metric-value">${overview.conversionSummary.directCtasShown || 0}</div>
           </div>
         </div>
         <div class="overview-action-row">
@@ -3794,16 +3887,16 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             <div class="metric-value">${conversionSummary.highIntentConversations || 0}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Prompts shown</div>
-            <div class="metric-value">${conversionSummary.capturePromptsShown || 0}</div>
+            <div class="metric-label">Direct CTAs shown</div>
+            <div class="metric-value">${conversionSummary.directCtasShown || 0}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">CTA click-through</div>
+            <div class="metric-value">${escapeHtml(formatCaptureRate(conversionSummary.ctaClickThroughRate))}</div>
           </div>
           <div class="metric-card">
             <div class="metric-label">Contacts captured</div>
             <div class="metric-value">${conversionSummary.contactsCaptured || 0}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Capture rate</div>
-            <div class="metric-value">${escapeHtml(formatCaptureRate(conversionSummary.captureRate))}</div>
           </div>
         </div>
 
@@ -3870,7 +3963,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">Conversion loop</h3>
-          <p class="studio-group-copy">This is the front-desk loop: which high-intent chats were prompted, which contacts were captured, and whether follow-up is already prepared.</p>
+          <p class="studio-group-copy">This is the front-desk loop: which high-intent chats were routed directly, which ones fell back to capture, and whether follow-up is already prepared.</p>
           <div class="action-queue-summary">
             ${buildConversionSummaryPills(conversionSummary).map((label) => `
               <span class="pill">${escapeHtml(label)}</span>
@@ -3878,19 +3971,19 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           </div>
           <div class="analytics-list" style="margin-top:16px;">
             <div class="analytics-item">
-              <p class="analytics-item-title">Follow-ups prepared</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.followUpsPrepared || 0} prepared`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.followUpsSent || 0} marked sent so far.`)}</p>
+              <p class="analytics-item-title">Direct handoffs</p>
+              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks`)}</p>
+              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.bookingDirectHandoffs || 0} booking · ${conversionSummary.quoteDirectHandoffs || 0} quote · ${conversionSummary.contactDirectHandoffs || 0} contact · ${conversionSummary.checkoutDirectHandoffs || 0} checkout`)}</p>
             </div>
             <div class="analytics-item">
-              <p class="analytics-item-title">Pricing captures</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.pricingCaptures || 0} captured`)}</p>
-              <p class="analytics-subtle">High-intent pricing chats that turned into a stored contact.</p>
+              <p class="analytics-item-title">Fallback to capture</p>
+              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.followUpFallbackCount || 0} fallback prompts`)}</p>
+              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.capturePromptsShown || 0} capture prompts shown overall when direct routing was missing or skipped.`)}</p>
             </div>
             <div class="analytics-item">
-              <p class="analytics-item-title">Booking captures</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.bookingCaptures || 0} captured`)}</p>
-              <p class="analytics-subtle">Booking-intent chats that turned into a stored contact.</p>
+              <p class="analytics-item-title">Capture vs direct</p>
+              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
+              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.followUpsPrepared || 0} follow-ups prepared and ${conversionSummary.followUpsSent || 0} marked sent so far.`)}</p>
             </div>
           </div>
         </section>
@@ -4652,6 +4745,14 @@ async function saveAssistant(event, agent) {
     primary_color: getNextValue("primary_color", agent.primaryColor || ""),
     secondary_color: getNextValue("secondary_color", agent.secondaryColor || ""),
     allowed_domains: getNextValue("allowed_domains", (agent.allowedDomains || []).join("\n")),
+    booking_url: getNextValue("booking_url", agent.bookingUrl || ""),
+    quote_url: getNextValue("quote_url", agent.quoteUrl || ""),
+    checkout_url: getNextValue("checkout_url", agent.checkoutUrl || ""),
+    contact_email: getNextValue("contact_email", agent.contactEmail || ""),
+    contact_phone: getNextValue("contact_phone", agent.contactPhone || ""),
+    primary_cta_mode: getNextValue("primary_cta_mode", agent.primaryCtaMode || "contact"),
+    fallback_cta_mode: getNextValue("fallback_cta_mode", agent.fallbackCtaMode || "capture"),
+    business_hours_note: getNextValue("business_hours_note", agent.businessHoursNote || ""),
   };
 
   submitButton.disabled = true;

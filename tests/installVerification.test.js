@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { trackWidgetEvent } from "../src/services/analytics/widgetTelemetryService.js";
+import {
+  listWidgetEventSummaryByAgentIds,
+  trackWidgetEvent,
+} from "../src/services/analytics/widgetTelemetryService.js";
 import { getWidgetBootstrap } from "../src/services/agents/agentService.js";
 import {
   buildInstallStatus,
@@ -360,4 +363,56 @@ test("widget telemetry accepts valid events and deduplicates duplicates", async 
   assert.equal(first.ok, true);
   assert.equal(duplicate.duplicate, true);
   assert.equal(supabase.state.agent_widget_events.length, 1);
+});
+
+test("widget telemetry summary reports direct routing metrics", async () => {
+  const supabase = createInstallState();
+
+  await trackWidgetEvent(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    eventName: "cta_shown",
+    sessionId: "session-2",
+    origin: "https://example.com",
+    pageUrl: "https://example.com/pricing",
+    metadata: {
+      decisionKey: "session-2::quote",
+      ctaType: "quote",
+      targetType: "url",
+    },
+  });
+
+  await trackWidgetEvent(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    eventName: "cta_clicked",
+    sessionId: "session-2",
+    origin: "https://example.com",
+    pageUrl: "https://example.com/pricing",
+    metadata: {
+      decisionKey: "session-2::quote",
+      ctaType: "quote",
+      targetType: "url",
+    },
+    dedupeKey: "cta-clicked-session-2-quote",
+  });
+
+  await trackWidgetEvent(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    eventName: "capture_fallback_offered",
+    sessionId: "session-3",
+    origin: "https://example.com",
+    pageUrl: "https://example.com/contact",
+    metadata: {
+      relatedConversationId: "session:3",
+      relatedIntentType: "contact",
+    },
+  });
+
+  const summary = await listWidgetEventSummaryByAgentIds(supabase, ["agent-1"]);
+  const metrics = summary.get("agent-1");
+
+  assert.equal(metrics.directCtasShown, 1);
+  assert.equal(metrics.ctaClicks, 1);
+  assert.equal(metrics.ctaClickThroughRate, 1);
+  assert.equal(metrics.quoteHandoffs, 1);
+  assert.equal(metrics.followUpFallbackCount, 1);
 });

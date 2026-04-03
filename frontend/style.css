@@ -508,6 +508,23 @@ h1 {
   font-size: 0.88rem;
 }
 
+.routing-card {
+  border-color: color-mix(in srgb, var(--brand-primary) 24%, rgba(255, 255, 255, 0.08));
+}
+
+.routing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.routing-primary-button,
+.routing-secondary-button {
+  min-height: 44px;
+}
+
 .input-area {
   display: flex;
   align-items: center;

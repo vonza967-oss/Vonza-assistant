@@ -16,6 +16,8 @@ import {
   applyLeadCaptureAction,
   processLiveChatLeadCapture,
 } from "../leads/liveLeadCaptureService.js";
+import { evaluateLiveConversionRouting } from "../conversion/liveConversionRoutingService.js";
+import { listRecentWidgetEvents } from "../analytics/widgetTelemetryService.js";
 import {
   buildEffectiveUserText,
   cleanText,
@@ -81,6 +83,7 @@ async function buildChatResponse({
   reply,
   sessionKey,
   leadCapture = null,
+  directRouting = null,
 }) {
   await storeAgentMessages(supabase, agent.id, [
     { role: "user", content: userMessage },
@@ -99,6 +102,7 @@ async function buildChatResponse({
       assistantName: agent.name || widgetConfig.assistantName,
     },
     leadCapture,
+    directRouting,
   };
 }
 
@@ -261,6 +265,27 @@ export async function handleChatRequest({
     userMessage: message,
     language,
   });
+  const recentWidgetEvents = await listRecentWidgetEvents(supabase, {
+    agentId: agent.id,
+    installId: installId || widgetConfig.installId,
+    sessionId: sessionKey,
+  });
+  const directRouting = evaluateLiveConversionRouting({
+    widgetConfig,
+    userMessage: message,
+    sessionKey,
+    leadCapture,
+    recentWidgetEvents,
+  });
+
+  console.info("[live routing] Evaluated direct conversion routing.", {
+    agentId: agent.id,
+    sessionKey,
+    mode: directRouting?.mode || "chat_only",
+    intentType: directRouting?.intentType || "",
+    ctaType: directRouting?.primaryCta?.ctaType || "",
+    suppressReason: directRouting?.suppressReason || "",
+  });
 
   return buildChatResponse({
     supabase,
@@ -271,6 +296,7 @@ export async function handleChatRequest({
     reply: appendImageLines(finalReply, websiteContent, message),
     sessionKey,
     leadCapture,
+    directRouting,
   });
 }
 
