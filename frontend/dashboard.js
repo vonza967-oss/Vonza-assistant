@@ -129,6 +129,10 @@ function hasAuthConfig() {
   return Boolean(window.VONZA_SUPABASE_URL && window.VONZA_SUPABASE_ANON_KEY && window.supabase?.createClient);
 }
 
+function isOperatorWorkspaceFlagEnabled() {
+  return window.VONZA_OPERATOR_WORKSPACE_V1 === true;
+}
+
 function getAuthHeaders(additionalHeaders = {}) {
   const headers = { ...additionalHeaders };
 

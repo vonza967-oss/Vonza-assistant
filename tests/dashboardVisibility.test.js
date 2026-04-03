@@ -38,6 +38,7 @@ function createDashboardHarness({
   agents = [],
   getSessionError = null,
   customFetch = null,
+  operatorWorkspaceFlag = true,
 } = {}) {
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
@@ -261,6 +262,7 @@ function createDashboardHarness({
       },
     },
     VONZA_PUBLIC_APP_URL: "https://vonza-assistant.onrender.com",
+    VONZA_OPERATOR_WORKSPACE_V1: operatorWorkspaceFlag,
     VONZA_SUPABASE_URL: "https://example.supabase.co",
     VONZA_SUPABASE_ANON_KEY: "anon-key",
     VONZA_DEV_FAKE_BILLING: false,
@@ -414,8 +416,9 @@ test("dashboard renders visible shell content when data loads normally", async (
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Vonza Assistant/);
-  assert.match(harness.getRootHtml(), /Overview/);
+  assert.match(harness.getRootHtml(), /Today/);
   assert.match(harness.getRootHtml(), /Customize/);
+  assert.match(harness.getRootHtml(), /Outcomes/);
 });
 
 test("auth bootstrap failures render a visible error state instead of a blank shell", async () => {
@@ -459,37 +462,22 @@ test("one failed sub-request keeps the dashboard visible and surfaces an explici
 test("operator workspace disabled still keeps the dashboard visible", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],
-    customFetch: async ({ pathname, buildResponse }) => {
-      if (pathname === "/agents/operator-workspace") {
-        return buildResponse({
-          status: 200,
-          body: {
-            capabilities: {
-              featureEnabled: false,
-              googleAvailable: false,
-              googleMissingEnv: [],
-              persistenceAvailable: false,
-              migrationRequired: false,
-              missingTables: [],
-              status: "disabled",
-            },
-            alerts: [
-              "Connected Operator Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 to expose Inbox, Calendar, and Automations.",
-            ],
-          },
-        });
-      }
-
-      return null;
-    },
+    operatorWorkspaceFlag: false,
   });
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Connected Operator Workspace v1 is disabled/i);
-  assert.match(harness.getRootHtml(), /Inbox/);
-  assert.match(harness.getRootHtml(), /Calendar/);
-  assert.match(harness.getRootHtml(), /Automations/);
+  assert.match(harness.getRootHtml(), /Today/);
+  assert.match(harness.getRootHtml(), /Customize/);
+  assert.match(harness.getRootHtml(), /Outcomes/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="contacts"/);
+  assert.equal(
+    harness.fetchCalls.some((call) => call.pathname === "/agents/operator-workspace"),
+    false
+  );
 });
 
 test("missing Google env shows a visible non-breaking operator fallback state", async () => {
@@ -587,7 +575,7 @@ test("dashboard shows visible empty states when no analytics data exists", async
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /No actionable items yet/);
-  assert.match(harness.getRootHtml(), /Recent interactions will appear here once customers start using the assistant/);
+  assert.match(harness.getRootHtml(), /No real customer question themes yet/);
 });
 
 test("tab switching still leaves the selected section rendered as the active view", async () => {
