@@ -37,6 +37,13 @@ import {
   updateKnowledgeFixWorkflow,
 } from "../services/knowledge/knowledgeFixService.js";
 import {
+  detectConversionOutcomesForPage,
+  listConversionOutcomesForAgent,
+  markManualConversionOutcome,
+  recordTrackedCtaClick,
+  trackFollowUpOutcome,
+} from "../services/conversion/conversionOutcomeService.js";
+import {
   hydrateActionQueueWithLeadCaptures,
   listLeadCaptures,
 } from "../services/leads/liveLeadCaptureService.js";
@@ -75,6 +82,14 @@ export function createAgentRouter(deps = {}) {
   const updateFollowUpWorkflowImpl = deps.updateFollowUpWorkflow || updateFollowUpWorkflow;
   const syncKnowledgeFixWorkflowsImpl = deps.syncKnowledgeFixWorkflows || syncKnowledgeFixWorkflows;
   const updateKnowledgeFixWorkflowImpl = deps.updateKnowledgeFixWorkflow || updateKnowledgeFixWorkflow;
+  const listConversionOutcomesForAgentImpl =
+    deps.listConversionOutcomesForAgent || listConversionOutcomesForAgent;
+  const recordTrackedCtaClickImpl = deps.recordTrackedCtaClick || recordTrackedCtaClick;
+  const detectConversionOutcomesForPageImpl =
+    deps.detectConversionOutcomesForPage || detectConversionOutcomesForPage;
+  const markManualConversionOutcomeImpl =
+    deps.markManualConversionOutcome || markManualConversionOutcome;
+  const trackFollowUpOutcomeImpl = deps.trackFollowUpOutcome || trackFollowUpOutcome;
   const listLeadCapturesImpl = deps.listLeadCaptures || listLeadCaptures;
   const listWidgetRoutingEventsByAgentIdImpl =
     deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
@@ -217,6 +232,118 @@ export function createAgentRouter(deps = {}) {
         sessionId: req.body.session_id || req.body.sessionId || null,
         statusCode: err?.statusCode || 500,
         code: err?.code || null,
+        message: err?.message || "Something went wrong",
+      });
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/install/cta", async (req, res) => {
+    try {
+      const result = await recordTrackedCtaClickImpl(getSupabase(), {
+        installId: req.query.install_id || req.query.installId,
+        sessionId: req.query.session_id || req.query.sessionId,
+        visitorId: req.query.visitor_id || req.query.visitorId,
+        fingerprint: req.query.fingerprint,
+        pageUrl: req.query.page_url || req.query.pageUrl,
+        origin: req.query.origin,
+        ctaType: req.query.cta_type || req.query.ctaType,
+        targetType: req.query.target_type || req.query.targetType,
+        targetUrl: req.query.target_url || req.query.targetUrl,
+        decisionKey: req.query.decision_key || req.query.decisionKey,
+        relatedActionType: req.query.related_action_type || req.query.relatedActionType,
+        relatedIntentType: req.query.related_intent_type || req.query.relatedIntentType,
+        actionKey: req.query.action_key || req.query.actionKey,
+        conversationId: req.query.conversation_id || req.query.conversationId,
+        personKey: req.query.person_key || req.query.personKey,
+        leadId: req.query.lead_id || req.query.leadId,
+        followUpId: req.query.follow_up_id || req.query.followUpId,
+        label: req.query.label,
+      });
+
+      res.redirect(302, result.redirectUrl);
+    } catch (err) {
+      console.warn("[conversion] CTA redirect failed:", {
+        installId: req.query.install_id || req.query.installId || null,
+        ctaType: req.query.cta_type || req.query.ctaType || null,
+        targetType: req.query.target_type || req.query.targetType || null,
+        statusCode: err?.statusCode || 500,
+        message: err?.message || "Something went wrong",
+      });
+
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/install/outcomes/detect", async (req, res) => {
+    try {
+      const result = await detectConversionOutcomesForPageImpl(getSupabase(), {
+        installId: req.body.install_id || req.body.installId,
+        sessionId: req.body.session_id || req.body.sessionId,
+        visitorId: req.body.visitor_id || req.body.visitorId,
+        fingerprint: req.body.fingerprint,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        origin: req.body.origin,
+        ctaEventId: req.body.cta_event_id || req.body.ctaEventId,
+        outcomeType: req.body.outcome_type || req.body.outcomeType,
+        ctaType: req.body.cta_type || req.body.ctaType,
+        targetType: req.body.target_type || req.body.targetType,
+        relatedActionType: req.body.related_action_type || req.body.relatedActionType,
+        relatedIntentType: req.body.related_intent_type || req.body.relatedIntentType,
+        actionKey: req.body.action_key || req.body.actionKey,
+        conversationId: req.body.conversation_id || req.body.conversationId,
+        personKey: req.body.person_key || req.body.personKey,
+        leadId: req.body.lead_id || req.body.leadId,
+        followUpId: req.body.follow_up_id || req.body.followUpId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.warn("[conversion] Outcome detection failed:", {
+        installId: req.body.install_id || req.body.installId || null,
+        pageUrl: req.body.page_url || req.body.pageUrl || null,
+        statusCode: err?.statusCode || 500,
+        message: err?.message || "Something went wrong",
+      });
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/install/outcomes/ping", async (req, res) => {
+    try {
+      const result = await detectConversionOutcomesForPageImpl(getSupabase(), {
+        installId: req.body.install_id || req.body.installId,
+        sessionId: req.body.session_id || req.body.sessionId,
+        visitorId: req.body.visitor_id || req.body.visitorId,
+        fingerprint: req.body.fingerprint,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        origin: req.body.origin,
+        ctaEventId: req.body.cta_event_id || req.body.ctaEventId,
+        outcomeType: req.body.outcome_type || req.body.outcomeType,
+        ctaType: req.body.cta_type || req.body.ctaType,
+        targetType: req.body.target_type || req.body.targetType,
+        relatedActionType: req.body.related_action_type || req.body.relatedActionType,
+        relatedIntentType: req.body.related_intent_type || req.body.relatedIntentType,
+        actionKey: req.body.action_key || req.body.actionKey,
+        conversationId: req.body.conversation_id || req.body.conversationId,
+        personKey: req.body.person_key || req.body.personKey,
+        leadId: req.body.lead_id || req.body.leadId,
+        followUpId: req.body.follow_up_id || req.body.followUpId,
+        source: "ping",
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.warn("[conversion] Outcome ping failed:", {
+        installId: req.body.install_id || req.body.installId || null,
+        pageUrl: req.body.page_url || req.body.pageUrl || null,
+        statusCode: err?.statusCode || 500,
         message: err?.message || "Something went wrong",
       });
       res.status(err.statusCode || 500).json({
@@ -377,6 +504,13 @@ export function createAgentRouter(deps = {}) {
         bookingUrl: req.body.booking_url || req.body.bookingUrl,
         quoteUrl: req.body.quote_url || req.body.quoteUrl,
         checkoutUrl: req.body.checkout_url || req.body.checkoutUrl,
+        bookingStartUrl: req.body.booking_start_url || req.body.bookingStartUrl,
+        quoteStartUrl: req.body.quote_start_url || req.body.quoteStartUrl,
+        bookingSuccessUrl: req.body.booking_success_url || req.body.bookingSuccessUrl,
+        quoteSuccessUrl: req.body.quote_success_url || req.body.quoteSuccessUrl,
+        checkoutSuccessUrl: req.body.checkout_success_url || req.body.checkoutSuccessUrl,
+        successUrlMatchMode: req.body.success_url_match_mode || req.body.successUrlMatchMode,
+        manualOutcomeMode: req.body.manual_outcome_mode ?? req.body.manualOutcomeMode,
         contactEmail: req.body.contact_email || req.body.contactEmail,
         contactPhone: req.body.contact_phone || req.body.contactPhone,
         primaryCtaMode: req.body.primary_cta_mode || req.body.primaryCtaMode,
@@ -509,10 +643,16 @@ export function createAgentRouter(deps = {}) {
         followUpWorkflowAvailable: followUpSync?.persistenceAvailable !== false,
         knowledgeFixWorkflowAvailable: knowledgeFixSync?.persistenceAvailable !== false,
       });
-      const leadCaptures = await listLeadCapturesImpl(supabase, {
-        agentId,
-        ownerUserId: user?.id || null,
-      });
+      const [leadCaptures, conversionOutcomes] = await Promise.all([
+        listLeadCapturesImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        }),
+        listConversionOutcomesForAgentImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        }),
+      ]);
       const routingEvents = await listWidgetRoutingEventsByAgentIdImpl(supabase, {
         agentId,
       });
@@ -522,6 +662,7 @@ export function createAgentRouter(deps = {}) {
           records: leadCaptures.records || [],
           followUps: followUpSync?.records || [],
           widgetEvents: routingEvents,
+          outcomes: conversionOutcomes,
           persistenceAvailable: leadCaptures.persistenceAvailable !== false,
         })
       );
@@ -671,6 +812,17 @@ export function createAgentRouter(deps = {}) {
         reopen: req.body.reopen === true || req.body.reopen === "true",
       });
 
+      if (result?.followUp?.status === "sent") {
+        await trackFollowUpOutcomeImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+          followUpId: result.followUp.id,
+          actionKey: result.followUp.sourceActionKey,
+          leadId: req.body.lead_id || req.body.leadId,
+          outcomeType: "follow_up_sent",
+        });
+      }
+
       res.json({
         ok: true,
         followUp: result?.followUp || null,
@@ -686,6 +838,57 @@ export function createAgentRouter(deps = {}) {
                 ? "Follow-up marked failed."
                 : "Follow-up saved.",
       });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/conversion-outcomes/manual", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user?.id || null,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agentProfile = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await markManualConversionOutcomeImpl(supabase, {
+        agentId,
+        businessId: agentProfile?.businessId || req.body.business_id || req.body.businessId,
+        ownerUserId: user?.id || null,
+        installId: req.body.install_id || req.body.installId || agentProfile?.installId || "",
+        outcomeType: req.body.outcome_type || req.body.outcomeType,
+        ctaEventId: req.body.cta_event_id || req.body.ctaEventId,
+        ctaType: req.body.cta_type || req.body.ctaType,
+        targetType: req.body.target_type || req.body.targetType,
+        relatedActionType: req.body.related_action_type || req.body.relatedActionType,
+        relatedIntentType: req.body.related_intent_type || req.body.relatedIntentType,
+        sessionId: req.body.session_id || req.body.sessionId,
+        visitorId: req.body.visitor_id || req.body.visitorId,
+        fingerprint: req.body.fingerprint,
+        pageUrl: req.body.page_url || req.body.pageUrl,
+        origin: req.body.origin,
+        conversationId: req.body.conversation_id || req.body.conversationId,
+        personKey: req.body.person_key || req.body.personKey,
+        leadId: req.body.lead_id || req.body.leadId,
+        actionKey: req.body.action_key || req.body.actionKey,
+        followUpId: req.body.follow_up_id || req.body.followUpId,
+        note: req.body.note,
+      });
+
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

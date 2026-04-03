@@ -1544,6 +1544,33 @@ function buildCustomizePanel(agent, setup) {
                   <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
                 </div>
                 <div class="field">
+                  <label for="assistant-booking-start-url">Booking start URL</label>
+                  <input id="assistant-booking-start-url" name="booking_start_url" type="text" value="${escapeHtml(agent.bookingStartUrl || "")}" placeholder="https://example.com/book/start">
+                </div>
+                <div class="field">
+                  <label for="assistant-quote-start-url">Quote start URL</label>
+                  <input id="assistant-quote-start-url" name="quote_start_url" type="text" value="${escapeHtml(agent.quoteStartUrl || "")}" placeholder="https://example.com/quote/start">
+                </div>
+                <div class="field">
+                  <label for="assistant-booking-success-url">Booking success URL</label>
+                  <input id="assistant-booking-success-url" name="booking_success_url" type="text" value="${escapeHtml(agent.bookingSuccessUrl || "")}" placeholder="https://example.com/book/confirmed">
+                </div>
+                <div class="field">
+                  <label for="assistant-quote-success-url">Quote success URL</label>
+                  <input id="assistant-quote-success-url" name="quote_success_url" type="text" value="${escapeHtml(agent.quoteSuccessUrl || "")}" placeholder="https://example.com/quote/thanks">
+                </div>
+                <div class="field">
+                  <label for="assistant-checkout-success-url">Checkout success URL</label>
+                  <input id="assistant-checkout-success-url" name="checkout_success_url" type="text" value="${escapeHtml(agent.checkoutSuccessUrl || "")}" placeholder="https://example.com/order/complete">
+                </div>
+                <div class="field">
+                  <label for="assistant-success-url-match-mode">Success URL match mode</label>
+                  <select id="assistant-success-url-match-mode" name="success_url_match_mode">
+                    <option value="path_prefix" ${trimText(agent.successUrlMatchMode || "path_prefix") === "path_prefix" ? "selected" : ""}>path prefix</option>
+                    <option value="exact" ${trimText(agent.successUrlMatchMode) === "exact" ? "selected" : ""}>exact</option>
+                  </select>
+                </div>
+                <div class="field">
                   <label for="assistant-contact-email">Contact email</label>
                   <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
                 </div>
@@ -1551,12 +1578,25 @@ function buildCustomizePanel(agent, setup) {
                   <label for="assistant-contact-phone">Contact phone</label>
                   <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
                 </div>
+                <div class="field">
+                  <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
+                  <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
+                    <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
+                    <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
+                  </select>
+                  <p class="field-help">Turn this on when the real success page cannot be instrumented and the owner needs a manual fallback in the action queue.</p>
+                </div>
               </div>
               <div class="form-grid">
                 <div class="field">
                   <label for="assistant-business-hours-note">Availability note</label>
                   <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
                   <p class="field-help">Optional. This appears in the in-widget handoff card so the next step feels concrete and trustworthy.</p>
+                </div>
+                <div class="field">
+                  <label for="assistant-success-snippet">Optional success ping snippet</label>
+                  <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
+                  <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds `vz_cta_event_id` automatically.</p>
                 </div>
               </div>
             </section>
@@ -2287,7 +2327,38 @@ function createEmptyActionQueue() {
       followUpFallbackCount: 0,
       directRouteCount: 0,
       captureFallbackCount: 0,
+      assistedConversions: 0,
+      confirmedBusinessOutcomes: 0,
+      directOutcomeCount: 0,
+      followUpAssistedOutcomeCount: 0,
     },
+    outcomeSummary: {
+      total: 0,
+      assistedConversions: 0,
+      confirmedBusinessOutcomes: 0,
+      directOutcomeCount: 0,
+      followUpAssistedOutcomeCount: 0,
+      bookingStarted: 0,
+      bookingCompleted: 0,
+      quoteStarted: 0,
+      quoteRequested: 0,
+      checkoutStarted: 0,
+      checkoutCompleted: 0,
+      contactClicked: 0,
+      emailClicked: 0,
+      phoneClicked: 0,
+      followUpSent: 0,
+      followUpReplied: 0,
+      manualMarked: 0,
+      directVsFollowUpSplit: {
+        direct: 0,
+        followUp: 0,
+        manual: 0,
+      },
+      topPages: [],
+      topIntents: [],
+    },
+    recentOutcomes: [],
     recentLeadCaptures: [],
     persistenceAvailable: true,
     migrationRequired: false,
@@ -2709,9 +2780,40 @@ function buildConversionSummaryPills(summary = {}) {
     `${counts.highIntentConversations} high-intent chats`,
     `${counts.directCtasShown} direct CTAs shown`,
     `${formatCaptureRate(counts.ctaClickThroughRate)} CTA CTR`,
-    `${counts.contactsCaptured} contacts captured`,
-    `${counts.followUpFallbackCount} fallback captures`,
+    `${counts.assistedConversions || 0} assisted outcomes`,
+    `${counts.followUpAssistedOutcomeCount || 0} follow-up-assisted`,
   ];
+}
+
+function getOutcomeTypeLabel(value) {
+  switch (trimText(value).toLowerCase()) {
+    case "booking_started":
+      return "Booking started";
+    case "booking_completed":
+      return "Booking completed";
+    case "quote_started":
+      return "Quote started";
+    case "quote_requested":
+      return "Quote requested";
+    case "checkout_started":
+      return "Checkout started";
+    case "checkout_completed":
+      return "Checkout completed";
+    case "contact_clicked":
+      return "Contact clicked";
+    case "email_clicked":
+      return "Email clicked";
+    case "phone_clicked":
+      return "Phone clicked";
+    case "follow_up_sent":
+      return "Follow-up sent";
+    case "follow_up_replied":
+      return "Follow-up replied";
+    case "conversion_marked_manual":
+      return "Manual outcome";
+    default:
+      return "Outcome";
+  }
 }
 
 function formatPersonIdentity(person = {}) {
@@ -2903,6 +3005,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       : "";
     const leadCapture = item.leadCapture && typeof item.leadCapture === "object" ? item.leadCapture : null;
     const routing = item.routing && typeof item.routing === "object" ? item.routing : null;
+    const outcomeState = item.outcomes && typeof item.outcomes === "object" ? item.outcomes : null;
     const followUp = item.followUp && typeof item.followUp === "object" ? item.followUp : null;
     const followUpStatus = trimText(followUp?.status).toLowerCase();
     const followUpSupported = item.followUpSupported === true;
@@ -2957,6 +3060,56 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
             <strong class="action-queue-detail-value">${escapeHtml(routing.clicked && leadCapture?.state === "captured" ? "CTA clicked and contact captured" : routing.clicked ? "CTA clicked" : leadCapture?.state === "captured" ? "Contact captured without CTA click" : "Still in chat")}</strong>
           </div>
         </div>
+      `
+      : "";
+    const outcomeSummary = outcomeState
+      ? `
+        <div class="action-queue-handoff-summary">
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Attributed outcomes</span>
+            <strong class="action-queue-detail-value">${escapeHtml(String(outcomeState.count || 0))}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Latest outcome</span>
+            <strong class="action-queue-detail-value">${escapeHtml(outcomeState.latest ? getOutcomeTypeLabel(outcomeState.latest.outcomeType) : "No attributed outcome yet")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Outcome path</span>
+            <strong class="action-queue-detail-value">${escapeHtml(trimText(outcomeState.latest?.attributionPath).replaceAll("_", " ") || "Not attributed yet")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Latest page</span>
+            <strong class="action-queue-detail-value">${escapeHtml(trimText(outcomeState.latest?.pageUrl || outcomeState.latest?.successUrl) || "No page captured")}</strong>
+          </div>
+        </div>
+      `
+      : "";
+    const manualOutcomeSummary = allowStatusUpdates
+      ? `
+        <form class="action-queue-follow-up-form" data-manual-outcome-form data-action-key="${escapeHtml(item.key || "")}" data-lead-id="${escapeHtml(leadCapture?.id || "")}" data-follow-up-id="${escapeHtml(followUp?.id || leadCapture?.relatedFollowUpId || "")}" data-session-id="${escapeHtml(item.sessionKey || "")}" data-person-key="${escapeHtml(item.person?.key || item.personKey || "")}" data-intent-type="${escapeHtml(item.intent || "")}" data-action-type="${escapeHtml(item.actionType || "")}">
+          <div class="form-grid two-col">
+            <div class="field">
+              <label for="manual-outcome-type-${escapeHtml(item.key || "")}">Manual outcome mark</label>
+              <select id="manual-outcome-type-${escapeHtml(item.key || "")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+                <option value="booking_completed">booking completed</option>
+                <option value="quote_requested">quote requested</option>
+                <option value="checkout_completed">checkout completed</option>
+                <option value="contact_clicked">contact action taken</option>
+                <option value="follow_up_replied">follow-up replied</option>
+                <option value="conversion_marked_manual">manual catch-all</option>
+              </select>
+              <p class="field-help">${escapeHtml(agent.manualOutcomeMode === true ? "Use this only when automatic confirmation is unavailable." : "Enable manual outcome mode in Customize before using this fallback.")}</p>
+            </div>
+            <div class="field">
+              <label for="manual-outcome-note-${escapeHtml(item.key || "")}">Context note</label>
+              <input id="manual-outcome-note-${escapeHtml(item.key || "")}" name="note" type="text" placeholder="Owner confirmed this outside the thank-you page." ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+            </div>
+          </div>
+          <div class="action-queue-form-actions">
+            <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record manual outcome</button>
+            <span class="action-queue-meta-inline">Manual marks still attach to the same queue item, lead, and follow-up context when available.</span>
+          </div>
+        </form>
       `
       : "";
     const followUpSummary = followUpSupported
@@ -3179,7 +3332,9 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           ${followUpSummary}
           ${knowledgeFixSummary}
           ${routingSummary}
+          ${outcomeSummary}
           ${leadCaptureSummary}
+          ${manualOutcomeSummary}
           <div class="action-queue-handoff-summary">
             <div class="action-queue-handoff-item">
               <span class="action-queue-detail-label">Owner note</span>
@@ -3346,6 +3501,10 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
   const conversionSummary = {
     ...createEmptyActionQueue().conversionSummary,
     ...(actionQueue.conversionSummary || {}),
+  };
+  const outcomeSummary = {
+    ...createEmptyActionQueue().outcomeSummary,
+    ...(actionQueue.outcomeSummary || {}),
   };
 
   const nextActions = [];
@@ -3571,6 +3730,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
     queueSummary,
     peopleSummary,
     conversionSummary,
+    outcomeSummary,
     cards,
     primaryAction,
     nextActions: nextActions.slice(0, 2),
@@ -3706,8 +3866,8 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
             <div class="overview-metric-value">${overview.conversionSummary.contactsCaptured || 0}</div>
           </div>
           <div class="overview-metric">
-            <div class="overview-metric-label">Direct CTAs shown</div>
-            <div class="overview-metric-value">${overview.conversionSummary.directCtasShown || 0}</div>
+            <div class="overview-metric-label">Assisted outcomes</div>
+            <div class="overview-metric-value">${overview.outcomeSummary.assistedConversions || 0}</div>
           </div>
         </div>
         <div class="overview-action-row">
@@ -3761,6 +3921,27 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         </section>
 
         <section class="overview-card">
+          <h3 class="overview-card-title">Outcome proof</h3>
+          <p class="overview-card-copy">This is where Vonza stops looking like activity tracking and starts proving business impact.</p>
+          <div class="overview-list">
+            <div class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(`${overview.outcomeSummary.confirmedBusinessOutcomes || 0} confirmed business outcomes`)}</p>
+              <p class="overview-list-copy">${escapeHtml(`${overview.outcomeSummary.directOutcomeCount || 0} direct-route and ${overview.outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted outcomes are currently attributed.`)}</p>
+            </div>
+            <div class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(`${overview.conversionSummary.directCtasShown || 0} shown → ${overview.conversionSummary.ctaClicks || 0} clicked → ${overview.outcomeSummary.assistedConversions || 0} outcomes`)}</p>
+              <p class="overview-list-copy">This is the current high-intent to route to click to outcome chain.</p>
+            </div>
+            ${overview.outcomeSummary.topPages.map((entry) => `
+              <div class="overview-list-item">
+                <p class="overview-list-title">${escapeHtml(entry.label)}</p>
+                <p class="overview-list-copy">${escapeHtml(`${entry.count} attributed outcome${entry.count === 1 ? "" : "s"} from this page.`)}</p>
+              </div>
+            `).join("") || `<div class="placeholder-card">No outcome-linked pages yet. As soon as Vonza confirms real business results, the strongest pages will show here.</div>`}
+          </div>
+        </section>
+
+        <section class="overview-card">
           <h3 class="overview-card-title">What to do next</h3>
           <p class="overview-card-copy">${escapeHtml(recommendationCopy)}</p>
           <div class="overview-list">
@@ -3789,6 +3970,11 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     ...createEmptyActionQueue().conversionSummary,
     ...(actionQueue.conversionSummary || {}),
   };
+  const outcomeSummary = {
+    ...createEmptyActionQueue().outcomeSummary,
+    ...(actionQueue.outcomeSummary || {}),
+  };
+  const recentOutcomes = Array.isArray(actionQueue.recentOutcomes) ? actionQueue.recentOutcomes : [];
   const recentLeadCaptures = Array.isArray(actionQueue.recentLeadCaptures)
     ? actionQueue.recentLeadCaptures
     : [];
@@ -3895,8 +4081,8 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             <div class="metric-value">${escapeHtml(formatCaptureRate(conversionSummary.ctaClickThroughRate))}</div>
           </div>
           <div class="metric-card">
-            <div class="metric-label">Contacts captured</div>
-            <div class="metric-value">${conversionSummary.contactsCaptured || 0}</div>
+            <div class="metric-label">Assisted outcomes</div>
+            <div class="metric-value">${outcomeSummary.assistedConversions || 0}</div>
           </div>
         </div>
 
@@ -3983,7 +4169,58 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             <div class="analytics-item">
               <p class="analytics-item-title">Capture vs direct</p>
               <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.followUpsPrepared || 0} follow-ups prepared and ${conversionSummary.followUpsSent || 0} marked sent so far.`)}</p>
+              <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.directOutcomeCount || 0} direct outcomes and ${outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted outcomes are currently attributed.`)}</p>
+            </div>
+            <div class="analytics-item">
+              <p class="analytics-item-title">Confirmed outcomes</p>
+              <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed business outcomes`)}</p>
+              <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.bookingCompleted || 0} booking completed · ${outcomeSummary.quoteRequested || 0} quote requested · ${outcomeSummary.checkoutCompleted || 0} checkout completed`)}</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Recent successful outcomes</h3>
+          <p class="studio-group-copy">These are the most recent business results Vonza could attribute back to a real conversation, visitor, lead, or follow-up path.</p>
+          ${recentOutcomes.length ? `
+            <div class="analytics-list">
+              ${recentOutcomes.map((outcome) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
+                  <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || "No page captured"))}</p>
+                  <p class="analytics-subtle">${escapeHtml([
+                    trimText(outcome.attributionPath) ? `${trimText(outcome.attributionPath).replaceAll("_", " ")} path` : "",
+                    trimText(outcome.relatedCtaType) ? `${trimText(outcome.relatedCtaType)} CTA` : "",
+                    trimText(outcome.relatedIntentType) || "",
+                    outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
+                  ].filter(Boolean).join(" · "))}</p>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No attributed outcomes yet. Once Vonza confirms a booking, quote request, checkout, contact action, or manual fallback mark, it will appear here with context.</div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">What is creating business value</h3>
+          <p class="studio-group-copy">This keeps the reporting operator-facing: which pages and intents are actually producing real results.</p>
+          <div class="analytics-list">
+            <div class="analytics-item">
+              <p class="analytics-item-title">Top outcome pages</p>
+              <p class="analytics-item-copy">${escapeHtml(
+                outcomeSummary.topPages.length
+                  ? outcomeSummary.topPages.map((entry) => `${entry.label} (${entry.count})`).join(" · ")
+                  : "No outcome-linked pages yet."
+              )}</p>
+              <p class="analytics-subtle">Pages are ranked by attributed completed or contact-action outcomes.</p>
+            </div>
+            <div class="analytics-item">
+              <p class="analytics-item-title">Top outcome intents</p>
+              <p class="analytics-item-copy">${escapeHtml(
+                outcomeSummary.topIntents.length
+                  ? outcomeSummary.topIntents.map((entry) => `${entry.label} (${entry.count})`).join(" · ")
+                  : "No outcome-linked intents yet."
+              )}</p>
+              <p class="analytics-subtle">This helps answer which customer intents are producing the most value, not just the most chat activity.</p>
             </div>
           </div>
         </section>
@@ -4748,6 +4985,13 @@ async function saveAssistant(event, agent) {
     booking_url: getNextValue("booking_url", agent.bookingUrl || ""),
     quote_url: getNextValue("quote_url", agent.quoteUrl || ""),
     checkout_url: getNextValue("checkout_url", agent.checkoutUrl || ""),
+    booking_start_url: getNextValue("booking_start_url", agent.bookingStartUrl || ""),
+    quote_start_url: getNextValue("quote_start_url", agent.quoteStartUrl || ""),
+    booking_success_url: getNextValue("booking_success_url", agent.bookingSuccessUrl || ""),
+    quote_success_url: getNextValue("quote_success_url", agent.quoteSuccessUrl || ""),
+    checkout_success_url: getNextValue("checkout_success_url", agent.checkoutSuccessUrl || ""),
+    success_url_match_mode: getNextValue("success_url_match_mode", agent.successUrlMatchMode || "path_prefix"),
+    manual_outcome_mode: getNextValue("manual_outcome_mode", agent.manualOutcomeMode === true ? "true" : "false"),
     contact_email: getNextValue("contact_email", agent.contactEmail || ""),
     contact_phone: getNextValue("contact_phone", agent.contactPhone || ""),
     primary_cta_mode: getNextValue("primary_cta_mode", agent.primaryCtaMode || "contact"),
@@ -5207,6 +5451,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
   const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
   const knowledgeFixStatusButtons = document.querySelectorAll("[data-knowledge-fix-status-action]");
+  const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
   const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
 
@@ -5300,6 +5545,49 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       await boot();
     } catch (error) {
       setStatus(error.message || "We couldn't update that knowledge fix.");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+  };
+
+  const saveManualOutcome = async (form) => {
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+
+    setStatus("Recording manual outcome...");
+
+    try {
+      const result = await fetchJson("/agents/conversion-outcomes/manual", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          outcome_type: trimText(formData.get("outcome_type")),
+          note: trimText(formData.get("note")),
+          action_key: form.dataset.actionKey,
+          lead_id: form.dataset.leadId,
+          follow_up_id: form.dataset.followUpId,
+          session_id: form.dataset.sessionId,
+          person_key: form.dataset.personKey,
+          related_intent_type: form.dataset.intentType,
+          related_action_type: form.dataset.actionType,
+        }),
+      });
+
+      setDashboardFocus("action-queue");
+      setStatus(result.outcome?.label ? `${result.outcome.label} recorded.` : "Manual outcome recorded.");
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't record that outcome.");
     } finally {
       if (submitButton) {
         submitButton.disabled = false;
@@ -5535,6 +5823,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       }
 
       await saveKnowledgeFix(form, button.dataset.nextStatus || "");
+    });
+  });
+
+  manualOutcomeForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveManualOutcome(form);
     });
   });
 

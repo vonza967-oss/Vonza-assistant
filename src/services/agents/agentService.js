@@ -3,6 +3,7 @@ import { getHostnameFromUrl, normalizeWebsiteUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
 import { getAgentMessageStats } from "../chat/messageService.js";
 import { listWidgetEventSummaryByAgentIds } from "../analytics/widgetTelemetryService.js";
+import { normalizeOutcomeSettings, normalizeSuccessUrlMatchMode } from "../conversion/conversionOutcomeService.js";
 import {
   deriveAllowedDomains,
   getWidgetInstallContextByInstallId,
@@ -28,6 +29,13 @@ const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "booking_url",
   "quote_url",
   "checkout_url",
+  "booking_start_url",
+  "quote_start_url",
+  "booking_success_url",
+  "quote_success_url",
+  "checkout_success_url",
+  "success_url_match_mode",
+  "manual_outcome_mode",
   "contact_email",
   "contact_phone",
   "primary_cta_mode",
@@ -65,6 +73,13 @@ const WIDGET_CONFIG_SELECT = [
   "booking_url",
   "quote_url",
   "checkout_url",
+  "booking_start_url",
+  "quote_start_url",
+  "booking_success_url",
+  "quote_success_url",
+  "checkout_success_url",
+  "success_url_match_mode",
+  "manual_outcome_mode",
   "contact_email",
   "contact_phone",
   "primary_cta_mode",
@@ -166,6 +181,22 @@ function normalizeCtaMode(value, fallbackValue) {
   return CTA_MODES.includes(normalized) ? normalized : fallbackValue;
 }
 
+function normalizeManualOutcomeMode(value, fallbackValue = false) {
+  if (value === true || value === false) {
+    return value;
+  }
+
+  const normalized = cleanText(value).toLowerCase();
+  if (["true", "1", "yes"].includes(normalized)) {
+    return true;
+  }
+  if (["false", "0", "no"].includes(normalized)) {
+    return false;
+  }
+
+  return fallbackValue;
+}
+
 function isMissingWidgetRoutingColumnError(error) {
   const message = cleanText(error?.message || "").toLowerCase();
 
@@ -194,6 +225,16 @@ function buildWidgetConfigUpsertPayload(agentId, config, options = {}) {
     payload.booking_url = config.bookingUrl || null;
     payload.quote_url = config.quoteUrl || null;
     payload.checkout_url = config.checkoutUrl || null;
+    payload.booking_start_url = config.bookingStartUrl || null;
+    payload.quote_start_url = config.quoteStartUrl || null;
+    payload.booking_success_url = config.bookingSuccessUrl || null;
+    payload.quote_success_url = config.quoteSuccessUrl || null;
+    payload.checkout_success_url = config.checkoutSuccessUrl || null;
+    payload.success_url_match_mode = normalizeSuccessUrlMatchMode(
+      config.successUrlMatchMode,
+      DEFAULT_WIDGET_CONFIG.successUrlMatchMode
+    );
+    payload.manual_outcome_mode = normalizeManualOutcomeMode(config.manualOutcomeMode, DEFAULT_WIDGET_CONFIG.manualOutcomeMode);
     payload.contact_email = config.contactEmail || null;
     payload.contact_phone = config.contactPhone || null;
     payload.primary_cta_mode = config.primaryCtaMode;
@@ -276,6 +317,8 @@ function mapAgentRow(row) {
 }
 
 function mapWidgetConfigRow(row) {
+  const outcomeSettings = normalizeOutcomeSettings(row || {});
+
   return {
     ...DEFAULT_WIDGET_CONFIG,
     ...(row
@@ -290,6 +333,16 @@ function mapWidgetConfigRow(row) {
           bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
           quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
           checkoutUrl: normalizeOptionalUrl(row.checkout_url) || "",
+          bookingStartUrl: outcomeSettings.bookingStartUrl,
+          quoteStartUrl: outcomeSettings.quoteStartUrl,
+          bookingSuccessUrl: outcomeSettings.bookingSuccessUrl,
+          quoteSuccessUrl: outcomeSettings.quoteSuccessUrl,
+          checkoutSuccessUrl: outcomeSettings.checkoutSuccessUrl,
+          successUrlMatchMode: normalizeSuccessUrlMatchMode(
+            row.success_url_match_mode,
+            DEFAULT_WIDGET_CONFIG.successUrlMatchMode
+          ),
+          manualOutcomeMode: normalizeManualOutcomeMode(row.manual_outcome_mode, DEFAULT_WIDGET_CONFIG.manualOutcomeMode),
           contactEmail: normalizeOptionalEmail(row.contact_email) || "",
           contactPhone: normalizeOptionalPhone(row.contact_phone) || "",
           primaryCtaMode: normalizeCtaMode(row.primary_cta_mode, DEFAULT_WIDGET_CONFIG.primaryCtaMode),
@@ -1157,6 +1210,13 @@ export async function updateAgentSettings(
     bookingUrl,
     quoteUrl,
     checkoutUrl,
+    bookingStartUrl,
+    quoteStartUrl,
+    bookingSuccessUrl,
+    quoteSuccessUrl,
+    checkoutSuccessUrl,
+    successUrlMatchMode,
+    manualOutcomeMode,
     contactEmail,
     contactPhone,
     primaryCtaMode,
@@ -1201,6 +1261,36 @@ export async function updateAgentSettings(
     throw buildInvalidDirectUrlError("the checkout route");
   }
 
+  const providedBookingStartUrl = cleanText(bookingStartUrl);
+  const normalizedBookingStartUrl = normalizeOptionalUrl(providedBookingStartUrl);
+  if (providedBookingStartUrl && !normalizedBookingStartUrl) {
+    throw buildInvalidDirectUrlError("the booking start URL");
+  }
+
+  const providedQuoteStartUrl = cleanText(quoteStartUrl);
+  const normalizedQuoteStartUrl = normalizeOptionalUrl(providedQuoteStartUrl);
+  if (providedQuoteStartUrl && !normalizedQuoteStartUrl) {
+    throw buildInvalidDirectUrlError("the quote start URL");
+  }
+
+  const providedBookingSuccessUrl = cleanText(bookingSuccessUrl);
+  const normalizedBookingSuccessUrl = normalizeOptionalUrl(providedBookingSuccessUrl);
+  if (providedBookingSuccessUrl && !normalizedBookingSuccessUrl) {
+    throw buildInvalidDirectUrlError("the booking success URL");
+  }
+
+  const providedQuoteSuccessUrl = cleanText(quoteSuccessUrl);
+  const normalizedQuoteSuccessUrl = normalizeOptionalUrl(providedQuoteSuccessUrl);
+  if (providedQuoteSuccessUrl && !normalizedQuoteSuccessUrl) {
+    throw buildInvalidDirectUrlError("the quote success URL");
+  }
+
+  const providedCheckoutSuccessUrl = cleanText(checkoutSuccessUrl);
+  const normalizedCheckoutSuccessUrl = normalizeOptionalUrl(providedCheckoutSuccessUrl);
+  if (providedCheckoutSuccessUrl && !normalizedCheckoutSuccessUrl) {
+    throw buildInvalidDirectUrlError("the checkout success URL");
+  }
+
   const providedContactEmail = cleanText(contactEmail);
   const normalizedContactEmail = normalizeOptionalEmail(providedContactEmail);
   if (providedContactEmail && !normalizedContactEmail) {
@@ -1225,6 +1315,10 @@ export async function updateAgentSettings(
   const nextTone = cleanText(tone) || agent.tone || DEFAULT_TONE;
   const nextSystemPrompt = cleanText(systemPrompt) || "";
   const currentWidgetConfig = await ensureWidgetConfigForAgent(supabase, normalizedAgentId);
+  const normalizedManualOutcomeMode = normalizeManualOutcomeMode(
+    manualOutcomeMode,
+    currentWidgetConfig?.manualOutcomeMode || DEFAULT_WIDGET_CONFIG.manualOutcomeMode
+  );
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
     : null;
@@ -1308,6 +1402,16 @@ export async function updateAgentSettings(
       bookingUrl: normalizedBookingUrl || "",
       quoteUrl: normalizedQuoteUrl || "",
       checkoutUrl: normalizedCheckoutUrl || "",
+      bookingStartUrl: normalizedBookingStartUrl || "",
+      quoteStartUrl: normalizedQuoteStartUrl || "",
+      bookingSuccessUrl: normalizedBookingSuccessUrl || "",
+      quoteSuccessUrl: normalizedQuoteSuccessUrl || "",
+      checkoutSuccessUrl: normalizedCheckoutSuccessUrl || "",
+      successUrlMatchMode: normalizeSuccessUrlMatchMode(
+        successUrlMatchMode,
+        currentWidgetConfig.successUrlMatchMode
+      ),
+      manualOutcomeMode: normalizedManualOutcomeMode,
       contactEmail: normalizedContactEmail || "",
       contactPhone: normalizedContactPhone || "",
       primaryCtaMode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),
@@ -1357,6 +1461,16 @@ export async function updateAgentSettings(
     bookingUrl: normalizedBookingUrl || "",
     quoteUrl: normalizedQuoteUrl || "",
     checkoutUrl: normalizedCheckoutUrl || "",
+    bookingStartUrl: normalizedBookingStartUrl || "",
+    quoteStartUrl: normalizedQuoteStartUrl || "",
+    bookingSuccessUrl: normalizedBookingSuccessUrl || "",
+    quoteSuccessUrl: normalizedQuoteSuccessUrl || "",
+    checkoutSuccessUrl: normalizedCheckoutSuccessUrl || "",
+    successUrlMatchMode: normalizeSuccessUrlMatchMode(
+      successUrlMatchMode,
+      currentWidgetConfig.successUrlMatchMode
+    ),
+    manualOutcomeMode: normalizedManualOutcomeMode,
     contactEmail: normalizedContactEmail || "",
     contactPhone: normalizedContactPhone || "",
     primaryCtaMode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),

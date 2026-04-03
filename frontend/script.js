@@ -58,6 +58,7 @@ let resolvedBusinessId = BUSINESS_ID;
 let liveLeadCapture = null;
 let liveDirectRouting = null;
 const sentTelemetryKeys = new Set();
+const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 
 function getVisitorSessionStorageKey() {
   const assistantScope =
@@ -192,12 +193,39 @@ function buildRoutingMetadata(routing, cta) {
     ctaType: trimText(cta?.ctaType || ""),
     targetType: trimText(cta?.targetType || ""),
     relatedIntentType: trimText(routing?.intentType || ""),
-    relatedActionKey: trimText(routing?.relatedActionKey || ""),
+    relatedActionKey: trimText(routing?.relatedActionKey || liveLeadCapture?.latestActionKey || ""),
     relatedConversationId: trimText(routing?.relatedConversationId || ""),
-    relatedPersonKey: trimText(routing?.relatedPersonKey || ""),
+    relatedPersonKey: trimText(routing?.relatedPersonKey || liveLeadCapture?.personKey || ""),
+    leadId: trimText(liveLeadCapture?.id || ""),
+    followUpId: trimText(liveLeadCapture?.relatedFollowUpId || ""),
     routingMode: trimText(routing?.routingMode || routing?.mode || ""),
     sourceUrl: getPageUrl(),
   };
+}
+
+function buildTrackedRedirectUrl(routing, cta) {
+  const metadata = buildRoutingMetadata(routing, cta);
+  const url = new URL("/install/cta", window.location.origin);
+
+  url.searchParams.set("install_id", INSTALL_ID);
+  url.searchParams.set("session_id", getVisitorSessionKey());
+  url.searchParams.set("visitor_id", getFingerprint() || getVisitorSessionKey());
+  if (getFingerprint()) url.searchParams.set("fingerprint", getFingerprint());
+  if (getPageUrl()) url.searchParams.set("page_url", getPageUrl());
+  if (getPageOrigin()) url.searchParams.set("origin", getPageOrigin());
+  if (trimText(cta?.ctaType)) url.searchParams.set("cta_type", trimText(cta.ctaType));
+  if (trimText(cta?.targetType)) url.searchParams.set("target_type", trimText(cta.targetType));
+  if (trimText(cta?.href)) url.searchParams.set("target_url", trimText(cta.href));
+  if (trimText(cta?.label)) url.searchParams.set("label", trimText(cta.label));
+  if (metadata.decisionKey) url.searchParams.set("decision_key", metadata.decisionKey);
+  if (metadata.relatedIntentType) url.searchParams.set("related_intent_type", metadata.relatedIntentType);
+  if (metadata.relatedActionKey) url.searchParams.set("action_key", metadata.relatedActionKey);
+  if (metadata.relatedConversationId) url.searchParams.set("conversation_id", metadata.relatedConversationId);
+  if (metadata.relatedPersonKey) url.searchParams.set("person_key", metadata.relatedPersonKey);
+  if (metadata.leadId) url.searchParams.set("lead_id", metadata.leadId);
+  if (metadata.followUpId) url.searchParams.set("follow_up_id", metadata.followUpId);
+
+  return url.toString();
 }
 
 function shouldHoldLeadCaptureForRoute() {
@@ -208,8 +236,8 @@ function shouldHoldLeadCaptureForRoute() {
   );
 }
 
-function openRoutingTarget(cta = {}) {
-  const href = trimText(cta.href);
+function openRoutingTarget(cta = {}, redirectUrl = "") {
+  const href = trimText(redirectUrl || cta.href);
 
   if (!href) {
     return;
@@ -239,10 +267,11 @@ function bindDirectRoutingInteractions(slot, routing) {
       rememberDismissedRoute(routing.decisionKey);
       renderDirectRouting(null);
       setComposerStatus(`Opening ${trimText(button.textContent).toLowerCase()}...`);
+      const redirectUrl = buildTrackedRedirectUrl(routing, cta);
       void trackWidgetEvent("cta_clicked", buildRoutingMetadata(routing, cta), {
         dedupeKey: `${INSTALL_ID}::cta_clicked::${trimText(routing.decisionKey)}::${trimText(cta.ctaType)}::${trimText(cta.targetType)}`,
       });
-      openRoutingTarget(cta);
+      openRoutingTarget(cta, redirectUrl);
     });
   });
 
@@ -580,6 +609,59 @@ async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
   }
 }
 
+function getOutcomeDetectionStorageKey() {
+  const pageUrl = getPageUrl();
+
+  if (!pageUrl || !INSTALL_ID) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(pageUrl);
+    return `${OUTCOME_DETECTION_STORAGE_PREFIX}${INSTALL_ID}::${parsed.pathname}::${parsed.search}`;
+  } catch {
+    return `${OUTCOME_DETECTION_STORAGE_PREFIX}${INSTALL_ID}::${pageUrl}`;
+  }
+}
+
+async function detectConversionOutcomesOnLoad() {
+  const pageUrl = getPageUrl();
+  const storageKey = getOutcomeDetectionStorageKey();
+
+  if (!INSTALL_ID || !pageUrl || !storageKey) {
+    return;
+  }
+
+  if (window.sessionStorage.getItem(storageKey) === "1") {
+    return;
+  }
+
+  try {
+    const parsedPageUrl = new URL(pageUrl);
+    const ctaEventId = trimText(parsedPageUrl.searchParams.get("vz_cta_event_id"));
+    const response = await fetch("/install/outcomes/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        install_id: INSTALL_ID,
+        session_id: getVisitorSessionKey(),
+        visitor_id: getFingerprint() || getVisitorSessionKey(),
+        fingerprint: getFingerprint(),
+        page_url: pageUrl,
+        origin: getPageOrigin(),
+        cta_event_id: ctaEventId || null,
+      }),
+    });
+
+    if (response.ok) {
+      window.sessionStorage.setItem(storageKey, "1");
+    }
+  } catch (error) {
+    console.warn("Vonza outcome detection failed:", error);
+  }
+}
+
 function hideWelcomePanel() {
   if (hasHiddenWelcomePanel) {
     return;
@@ -652,6 +734,7 @@ async function loadWidgetBootstrap() {
     resolvedAgentKey = trimText(data.agent?.publicAgentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.business?.id || resolvedBusinessId);
     setComposerStatus("Your assistant is ready to answer questions using the current website knowledge.");
+    await detectConversionOutcomesOnLoad();
   } catch (error) {
     console.error("Vonza assistant bootstrap failed:", error);
     applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
@@ -766,8 +849,9 @@ async function sendMessage() {
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
+    liveLeadCapture = data.leadCapture || null;
     renderDirectRouting(data.directRouting || null);
-    renderLeadCapture(data.leadCapture || null);
+    renderLeadCapture(liveLeadCapture);
     if (trimText(data.leadCapture?.state).toLowerCase() === "captured") {
       void trackWidgetEvent("contact_captured", {
         preferredChannel: trimText(data.leadCapture?.preferredChannel || ""),
