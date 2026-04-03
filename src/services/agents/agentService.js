@@ -23,6 +23,33 @@ const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WEBSITE_CONTENT_TABLE = "website_content";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DEFAULT_ACCESS_STATUS = "pending";
+const CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
+const WIDGET_CONFIG_SELECT = [
+  "id",
+  "agent_id",
+  "assistant_name",
+  "welcome_message",
+  "button_label",
+  "primary_color",
+  "secondary_color",
+  "launcher_text",
+  "theme_mode",
+  "booking_url",
+  "quote_url",
+  "checkout_url",
+  "contact_email",
+  "contact_phone",
+  "primary_cta_mode",
+  "fallback_cta_mode",
+  "business_hours_note",
+  "install_id",
+  "allowed_domains",
+  "last_verification_status",
+  "last_verified_at",
+  "last_verification_origin",
+  "last_verification_target_url",
+  "last_verification_details",
+].join(", ");
 
 function normalizeAccessStatus(value) {
   const normalized = cleanText(value).toLowerCase();
@@ -58,6 +85,57 @@ function buildAgentSettingsError(message, statusCode = 500, code = "") {
     error.code = code;
   }
   return error;
+}
+
+function normalizeOptionalUrl(value) {
+  const providedValue = cleanText(value);
+
+  if (!providedValue) {
+    return "";
+  }
+
+  return normalizeWebsiteUrl(providedValue, {
+    requireHttps: true,
+    requirePublicHostname: true,
+  }) || "";
+}
+
+function buildInvalidDirectUrlError(label) {
+  return buildAgentSettingsError(`Enter a valid public https URL for ${label}.`, 400);
+}
+
+function normalizeOptionalEmail(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : "";
+}
+
+function buildInvalidEmailError() {
+  return buildAgentSettingsError("Enter a valid contact email address.", 400);
+}
+
+function normalizeOptionalPhone(value) {
+  const normalized = cleanText(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const digits = normalized.replace(/\D/g, "");
+  return digits.length >= 7 ? normalized : "";
+}
+
+function buildInvalidPhoneError() {
+  return buildAgentSettingsError("Enter a valid contact phone number.", 400);
+}
+
+function normalizeCtaMode(value, fallbackValue) {
+  const normalized = cleanText(value).toLowerCase();
+  return CTA_MODES.includes(normalized) ? normalized : fallbackValue;
 }
 
 async function findBusinessByWebsiteUrl(supabase, websiteUrl) {
@@ -143,6 +221,14 @@ function mapWidgetConfigRow(row) {
           secondaryColor: row.secondary_color || DEFAULT_WIDGET_CONFIG.secondaryColor,
           launcherText: row.launcher_text || DEFAULT_WIDGET_CONFIG.launcherText,
           themeMode: row.theme_mode || DEFAULT_WIDGET_CONFIG.themeMode,
+          bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
+          quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
+          checkoutUrl: normalizeOptionalUrl(row.checkout_url) || "",
+          contactEmail: normalizeOptionalEmail(row.contact_email) || "",
+          contactPhone: normalizeOptionalPhone(row.contact_phone) || "",
+          primaryCtaMode: normalizeCtaMode(row.primary_cta_mode, DEFAULT_WIDGET_CONFIG.primaryCtaMode),
+          fallbackCtaMode: normalizeCtaMode(row.fallback_cta_mode, DEFAULT_WIDGET_CONFIG.fallbackCtaMode),
+          businessHoursNote: cleanText(row.business_hours_note) || "",
           installId: row.install_id || "",
           allowedDomains: deriveAllowedDomains(row.allowed_domains, ""),
           lastVerificationStatus: row.last_verification_status || null,
@@ -212,9 +298,7 @@ function buildDefaultInstallStatus(widgetConfig = null, websiteUrl = "") {
 export async function getWidgetConfigForAgent(supabase, agentId) {
   const { data, error } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
-    .select(
-      "id, agent_id, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, install_id, allowed_domains, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details"
-    )
+    .select(WIDGET_CONFIG_SELECT)
     .eq("agent_id", agentId)
     .maybeSingle();
 
@@ -244,14 +328,20 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
         secondary_color: existingConfig.secondaryColor,
         launcher_text: existingConfig.launcherText,
         theme_mode: existingConfig.themeMode,
+        booking_url: existingConfig.bookingUrl || null,
+        quote_url: existingConfig.quoteUrl || null,
+        checkout_url: existingConfig.checkoutUrl || null,
+        contact_email: existingConfig.contactEmail || null,
+        contact_phone: existingConfig.contactPhone || null,
+        primary_cta_mode: existingConfig.primaryCtaMode,
+        fallback_cta_mode: existingConfig.fallbackCtaMode,
+        business_hours_note: existingConfig.businessHoursNote || null,
         allowed_domains: existingConfig.allowedDomains || [],
         updated_at: new Date().toISOString(),
       },
       { onConflict: "agent_id" }
     )
-    .select(
-      "id, agent_id, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, install_id, allowed_domains, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details"
-    )
+    .select(WIDGET_CONFIG_SELECT)
     .single();
 
   if (error) {
@@ -707,7 +797,7 @@ export async function listAgents(supabase, options = {}) {
   if (agentIds.length) {
     const { data: widgetRows, error: widgetError } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
-      .select("agent_id, assistant_name, welcome_message, button_label, primary_color, secondary_color, install_id, allowed_domains, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details")
+      .select(WIDGET_CONFIG_SELECT)
       .in("agent_id", agentIds);
 
     if (widgetError) {
@@ -797,6 +887,22 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
       secondaryColor:
         widgetConfig?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+      bookingUrl:
+        widgetConfig?.bookingUrl || DEFAULT_WIDGET_CONFIG.bookingUrl,
+      quoteUrl:
+        widgetConfig?.quoteUrl || DEFAULT_WIDGET_CONFIG.quoteUrl,
+      checkoutUrl:
+        widgetConfig?.checkoutUrl || DEFAULT_WIDGET_CONFIG.checkoutUrl,
+      contactEmail:
+        widgetConfig?.contactEmail || DEFAULT_WIDGET_CONFIG.contactEmail,
+      contactPhone:
+        widgetConfig?.contactPhone || DEFAULT_WIDGET_CONFIG.contactPhone,
+      primaryCtaMode:
+        widgetConfig?.primaryCtaMode || DEFAULT_WIDGET_CONFIG.primaryCtaMode,
+      fallbackCtaMode:
+        widgetConfig?.fallbackCtaMode || DEFAULT_WIDGET_CONFIG.fallbackCtaMode,
+      businessHoursNote:
+        widgetConfig?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
       hasWidgetConfig: Boolean(widgetConfig),
       knowledge,
       installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(widgetConfig, websiteUrl),
@@ -848,7 +954,7 @@ export async function listAllAgents(supabase) {
   if (agentIds.length) {
     const { data: widgetRows, error: widgetError } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
-      .select("agent_id, assistant_name, welcome_message, button_label, primary_color, secondary_color, install_id, allowed_domains, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details")
+      .select(WIDGET_CONFIG_SELECT)
       .in("agent_id", agentIds);
 
     if (widgetError) {
@@ -914,6 +1020,22 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
     secondaryColor:
       widgetConfigsByAgentId.get(row.id)?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+    bookingUrl:
+      widgetConfigsByAgentId.get(row.id)?.bookingUrl || DEFAULT_WIDGET_CONFIG.bookingUrl,
+    quoteUrl:
+      widgetConfigsByAgentId.get(row.id)?.quoteUrl || DEFAULT_WIDGET_CONFIG.quoteUrl,
+    checkoutUrl:
+      widgetConfigsByAgentId.get(row.id)?.checkoutUrl || DEFAULT_WIDGET_CONFIG.checkoutUrl,
+    contactEmail:
+      widgetConfigsByAgentId.get(row.id)?.contactEmail || DEFAULT_WIDGET_CONFIG.contactEmail,
+    contactPhone:
+      widgetConfigsByAgentId.get(row.id)?.contactPhone || DEFAULT_WIDGET_CONFIG.contactPhone,
+    primaryCtaMode:
+      widgetConfigsByAgentId.get(row.id)?.primaryCtaMode || DEFAULT_WIDGET_CONFIG.primaryCtaMode,
+    fallbackCtaMode:
+      widgetConfigsByAgentId.get(row.id)?.fallbackCtaMode || DEFAULT_WIDGET_CONFIG.fallbackCtaMode,
+    businessHoursNote:
+      widgetConfigsByAgentId.get(row.id)?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
     installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(
       widgetConfigsByAgentId.get(row.id),
       businessesById.get(row.business_id)?.website_url || ""
@@ -947,7 +1069,27 @@ export async function getAgentWorkspaceSnapshot(supabase, agentId) {
 
 export async function updateAgentSettings(
   supabase,
-  { agentId, name, assistantName, tone, systemPrompt, welcomeMessage, buttonLabel, websiteUrl, primaryColor, secondaryColor, allowedDomains }
+  {
+    agentId,
+    name,
+    assistantName,
+    tone,
+    systemPrompt,
+    welcomeMessage,
+    buttonLabel,
+    websiteUrl,
+    primaryColor,
+    secondaryColor,
+    allowedDomains,
+    bookingUrl,
+    quoteUrl,
+    checkoutUrl,
+    contactEmail,
+    contactPhone,
+    primaryCtaMode,
+    fallbackCtaMode,
+    businessHoursNote,
+  }
 ) {
   const normalizedAgentId = cleanText(agentId);
   const providedWebsiteUrl = cleanText(websiteUrl);
@@ -966,6 +1108,36 @@ export async function updateAgentSettings(
 
   if (providedWebsiteUrl && !normalizedWebsiteUrl) {
     throw buildInvalidWebsiteUrlError();
+  }
+
+  const providedBookingUrl = cleanText(bookingUrl);
+  const normalizedBookingUrl = normalizeOptionalUrl(providedBookingUrl);
+  if (providedBookingUrl && !normalizedBookingUrl) {
+    throw buildInvalidDirectUrlError("the booking route");
+  }
+
+  const providedQuoteUrl = cleanText(quoteUrl);
+  const normalizedQuoteUrl = normalizeOptionalUrl(providedQuoteUrl);
+  if (providedQuoteUrl && !normalizedQuoteUrl) {
+    throw buildInvalidDirectUrlError("the quote route");
+  }
+
+  const providedCheckoutUrl = cleanText(checkoutUrl);
+  const normalizedCheckoutUrl = normalizeOptionalUrl(providedCheckoutUrl);
+  if (providedCheckoutUrl && !normalizedCheckoutUrl) {
+    throw buildInvalidDirectUrlError("the checkout route");
+  }
+
+  const providedContactEmail = cleanText(contactEmail);
+  const normalizedContactEmail = normalizeOptionalEmail(providedContactEmail);
+  if (providedContactEmail && !normalizedContactEmail) {
+    throw buildInvalidEmailError();
+  }
+
+  const providedContactPhone = cleanText(contactPhone);
+  const normalizedContactPhone = normalizeOptionalPhone(providedContactPhone);
+  if (providedContactPhone && !normalizedContactPhone) {
+    throw buildInvalidPhoneError();
   }
 
   const agent = await findAgentById(supabase, normalizedAgentId);
@@ -1065,6 +1237,14 @@ export async function updateAgentSettings(
         secondary_color: cleanText(secondaryColor) || currentWidgetConfig.secondaryColor,
         launcher_text: currentWidgetConfig.launcherText,
         theme_mode: currentWidgetConfig.themeMode,
+        booking_url: normalizedBookingUrl || null,
+        quote_url: normalizedQuoteUrl || null,
+        checkout_url: normalizedCheckoutUrl || null,
+        contact_email: normalizedContactEmail || null,
+        contact_phone: normalizedContactPhone || null,
+        primary_cta_mode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),
+        fallback_cta_mode: normalizeCtaMode(fallbackCtaMode, currentWidgetConfig.fallbackCtaMode),
+        business_hours_note: cleanText(businessHoursNote) || null,
         allowed_domains: resolvedAllowedDomains,
         updated_at: new Date().toISOString(),
       },
@@ -1100,6 +1280,14 @@ export async function updateAgentSettings(
     buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
     primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
     secondaryColor: cleanText(secondaryColor) || currentWidgetConfig.secondaryColor,
+    bookingUrl: normalizedBookingUrl || "",
+    quoteUrl: normalizedQuoteUrl || "",
+    checkoutUrl: normalizedCheckoutUrl || "",
+    contactEmail: normalizedContactEmail || "",
+    contactPhone: normalizedContactPhone || "",
+    primaryCtaMode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),
+    fallbackCtaMode: normalizeCtaMode(fallbackCtaMode, currentWidgetConfig.fallbackCtaMode),
+    businessHoursNote: cleanText(businessHoursNote) || "",
     installId: currentWidgetConfig.installId,
     allowedDomains: resolvedAllowedDomains,
   };

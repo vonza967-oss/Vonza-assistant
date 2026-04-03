@@ -511,15 +511,49 @@ test("queue hydration exposes live conversion summary and recent captured leads"
         status: "draft",
       },
     ],
+    widgetEvents: [
+      {
+        event_name: "cta_shown",
+        session_id: "session-8",
+        page_url: "https://example.com/pricing",
+        created_at: "2026-04-03T09:02:00.000Z",
+        metadata: {
+          ctaType: "quote",
+          targetType: "url",
+          relatedIntentType: "quote",
+          relatedActionKey: actionQueue.items[0].key,
+          relatedConversationId: actionQueue.items[0].key,
+          routingMode: "direct_then_capture",
+        },
+      },
+      {
+        event_name: "cta_clicked",
+        session_id: "session-8",
+        page_url: "https://example.com/pricing",
+        created_at: "2026-04-03T09:02:10.000Z",
+        metadata: {
+          ctaType: "quote",
+          targetType: "url",
+          relatedIntentType: "quote",
+          relatedActionKey: actionQueue.items[0].key,
+          relatedConversationId: actionQueue.items[0].key,
+          routingMode: "direct_then_capture",
+        },
+      },
+    ],
     persistenceAvailable: true,
   });
 
   assert.equal(hydrated.conversionSummary.highIntentConversations, 2);
   assert.equal(hydrated.conversionSummary.capturePromptsShown, 1);
   assert.equal(hydrated.conversionSummary.contactsCaptured, 1);
+  assert.equal(hydrated.conversionSummary.directCtasShown, 1);
+  assert.equal(hydrated.conversionSummary.ctaClicks, 1);
+  assert.equal(hydrated.conversionSummary.quoteDirectHandoffs, 1);
   assert.equal(hydrated.conversionSummary.followUpsPrepared, 1);
   assert.equal(hydrated.recentLeadCaptures.length, 1);
   assert.equal(hydrated.items[0].leadCapture.state, "captured");
+  assert.equal(hydrated.items[0].routing.clicked, true);
 });
 
 test("owner scoping stays strict when live capture runs without an owner", async () => {

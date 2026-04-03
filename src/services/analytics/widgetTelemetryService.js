@@ -10,6 +10,9 @@ export const TRACKED_WIDGET_EVENTS = [
   "message_replied",
   "contact_captured",
   "conversation_started",
+  "cta_shown",
+  "cta_clicked",
+  "capture_fallback_offered",
 ];
 
 function normalizeJsonObject(value) {
@@ -55,6 +58,15 @@ function buildDefaultDedupeKey({ installId, eventName, sessionId, origin, pageUr
     parts.push(cleanText(normalizedMetadata.replyId) || cleanText(normalizedMetadata.replyHash));
   } else if (eventName === "contact_captured") {
     parts.push(cleanText(normalizedMetadata.contactHash));
+  } else if (eventName === "cta_shown" || eventName === "cta_clicked") {
+    parts.push(
+      cleanText(normalizedMetadata.decisionKey)
+      || cleanText(normalizedMetadata.relatedConversationId)
+      || cleanText(normalizedMetadata.ctaType)
+    );
+    parts.push(cleanText(normalizedMetadata.targetType));
+  } else if (eventName === "capture_fallback_offered") {
+    parts.push(cleanText(normalizedMetadata.relatedConversationId) || cleanText(normalizedMetadata.relatedIntentType));
   }
 
   return parts.filter(Boolean).join("::");
@@ -71,8 +83,32 @@ function buildEmptyMetrics() {
     conversationStartedCount: 0,
     conversationsSinceInstall: 0,
     uniqueSessionCount: 0,
+    directCtasShown: 0,
+    ctaClicks: 0,
+    ctaClickThroughRate: 0,
+    bookingHandoffs: 0,
+    quoteHandoffs: 0,
+    contactHandoffs: 0,
+    checkoutHandoffs: 0,
+    followUpFallbackCount: 0,
+    directRouteCount: 0,
     lastEventAt: null,
     lastConversationAt: null,
+  };
+}
+
+function normalizeEventMetadata(metadata = {}) {
+  const normalized = normalizeJsonObject(metadata);
+
+  return {
+    ctaType: cleanText(normalized.ctaType),
+    targetType: cleanText(normalized.targetType),
+    decisionKey: cleanText(normalized.decisionKey),
+    relatedIntentType: cleanText(normalized.relatedIntentType),
+    relatedActionKey: cleanText(normalized.relatedActionKey),
+    relatedConversationId: cleanText(normalized.relatedConversationId),
+    relatedPersonKey: cleanText(normalized.relatedPersonKey),
+    routingMode: cleanText(normalized.routingMode),
   };
 }
 
@@ -168,7 +204,7 @@ export async function listWidgetEventSummaryByAgentIds(supabase, agentIds = [], 
 
   const { data, error } = await supabase
     .from(WIDGET_EVENTS_TABLE)
-    .select("agent_id, event_name, session_id, created_at")
+    .select("agent_id, event_name, session_id, created_at, metadata")
     .in("agent_id", normalizedAgentIds)
     .in("event_name", TRACKED_WIDGET_EVENTS);
 
@@ -206,6 +242,7 @@ export async function listWidgetEventSummaryByAgentIds(supabase, agentIds = [], 
     const happenedAfterInstall = sinceValue
       ? new Date(row.created_at).getTime() >= new Date(sinceValue).getTime()
       : true;
+    const metadata = normalizeEventMetadata(row.metadata);
 
     switch (row.event_name) {
       case "widget_loaded":
@@ -232,6 +269,32 @@ export async function listWidgetEventSummaryByAgentIds(supabase, agentIds = [], 
           metrics.lastConversationAt = row.created_at;
         }
         break;
+      case "cta_shown":
+        metrics.directCtasShown += 1;
+        metrics.directRouteCount += 1;
+        break;
+      case "cta_clicked":
+        metrics.ctaClicks += 1;
+        switch (metadata.ctaType) {
+          case "booking":
+            metrics.bookingHandoffs += 1;
+            break;
+          case "quote":
+            metrics.quoteHandoffs += 1;
+            break;
+          case "checkout":
+            metrics.checkoutHandoffs += 1;
+            break;
+          case "contact":
+            metrics.contactHandoffs += 1;
+            break;
+          default:
+            break;
+        }
+        break;
+      case "capture_fallback_offered":
+        metrics.followUpFallbackCount += 1;
+        break;
       default:
         break;
     }
@@ -252,12 +315,87 @@ export async function listWidgetEventSummaryByAgentIds(supabase, agentIds = [], 
           conversationStartedCount: metrics.conversationStartedCount,
           conversationsSinceInstall: metrics.conversationsSinceInstall,
           uniqueSessionCount: metrics.sessionIds.size,
+          directCtasShown: metrics.directCtasShown,
+          ctaClicks: metrics.ctaClicks,
+          ctaClickThroughRate: metrics.directCtasShown > 0
+            ? Number((metrics.ctaClicks / metrics.directCtasShown).toFixed(3))
+            : 0,
+          bookingHandoffs: metrics.bookingHandoffs,
+          quoteHandoffs: metrics.quoteHandoffs,
+          contactHandoffs: metrics.contactHandoffs,
+          checkoutHandoffs: metrics.checkoutHandoffs,
+          followUpFallbackCount: metrics.followUpFallbackCount,
+          directRouteCount: metrics.directRouteCount,
           lastEventAt: metrics.lastEventAt,
           lastConversationAt: metrics.lastConversationAt,
         },
       ];
     })
   );
+}
+
+export async function listRecentWidgetEvents(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const sessionId = cleanText(options.sessionId);
+  const installId = cleanText(options.installId);
+  const limit = Number(options.limit || 40);
+
+  if (!agentId || !sessionId) {
+    return [];
+  }
+
+  let query = supabase
+    .from(WIDGET_EVENTS_TABLE)
+    .select("agent_id, install_id, session_id, event_name, metadata, created_at")
+    .eq("agent_id", agentId)
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (installId) {
+    query = query.eq("install_id", installId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    if (isMissingRelationError(error, WIDGET_EVENTS_TABLE)) {
+      return [];
+    }
+
+    console.error(error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function listWidgetRoutingEventsByAgentId(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const limit = Number(options.limit || 400);
+
+  if (!agentId || typeof supabase?.from !== "function") {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from(WIDGET_EVENTS_TABLE)
+    .select("agent_id, install_id, session_id, event_name, page_url, metadata, created_at")
+    .eq("agent_id", agentId)
+    .in("event_name", ["cta_shown", "cta_clicked", "capture_fallback_offered"])
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (isMissingRelationError(error, WIDGET_EVENTS_TABLE)) {
+      return [];
+    }
+
+    console.error(error);
+    throw error;
+  }
+
+  return data || [];
 }
 
 export async function assertWidgetTelemetrySchemaReady(supabase) {

@@ -11,4 +11,12 @@ export const DEFAULT_WIDGET_CONFIG = {
   primaryColor: "#10a37f",
   secondaryColor: "#0c7f75",
   themeMode: "dark",
+  bookingUrl: "",
+  quoteUrl: "",
+  checkoutUrl: "",
+  contactEmail: "",
+  contactPhone: "",
+  primaryCtaMode: "contact",
+  fallbackCtaMode: "capture",
+  businessHoursNote: "",
 };
