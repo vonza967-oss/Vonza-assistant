@@ -1,9 +1,12 @@
 import express from "express";
 import path from "path";
 import {
+  getAppVersion,
+  getBuildSha,
   getPublicAppUrl,
   getSupabaseAnonKey,
   getSupabasePublicUrl,
+  isOperatorWorkspaceV1Enabled,
   isLocalDevBillingRequestAllowed,
 } from "../config/env.js";
 
@@ -58,6 +61,9 @@ window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};
 window.VONZA_SUPABASE_URL = ${JSON.stringify(getSupabasePublicUrl())};
 window.VONZA_SUPABASE_ANON_KEY = ${JSON.stringify(getSupabaseAnonKey())};
 window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed(req))};
+window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED = ${JSON.stringify(isOperatorWorkspaceV1Enabled())};
+window.VONZA_APP_VERSION = ${JSON.stringify(getAppVersion())};
+window.VONZA_BUILD_SHA = ${JSON.stringify(getBuildSha())};
 `.trim());
   });
 
@@ -115,7 +121,21 @@ window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed
   });
 
   router.get("/health", (_req, res) => {
-    res.json({ ok: true });
+    res.json({
+      ok: true,
+      version: getAppVersion(),
+      buildSha: getBuildSha() || null,
+      operatorWorkspaceV1Enabled: isOperatorWorkspaceV1Enabled(),
+    });
+  });
+
+  router.get("/build", (_req, res) => {
+    res.json({
+      ok: true,
+      version: getAppVersion(),
+      buildSha: getBuildSha() || null,
+      operatorWorkspaceV1Enabled: isOperatorWorkspaceV1Enabled(),
+    });
   });
 
   return router;

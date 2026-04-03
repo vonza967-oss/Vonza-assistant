@@ -6,9 +6,13 @@
   "scripts": {
     "setup": "npm install",
     "start": "node index.js",
+    "start:prod": "npm run verify:prod-schema && node index.js",
     "dev": "node --watch index.js",
-    "test:smoke": "node --test tests/smoke.test.js",
-    "test:supabase": "node test-supabase.js"
+    "test:smoke": "node --test tests/*.test.js",
+    "test:supabase": "node test-supabase.js",
+    "check:schema-sync": "node scripts/check-schema-sync.js",
+    "validate:clean-db": "node scripts/validate-clean-database.js",
+    "verify:prod-schema": "node scripts/verify-prod-schema.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",
@@ -18,6 +22,7 @@
     "dotenv": "^17.3.1",
     "express": "^4.21.1",
     "openai": "^6.33.0",
+    "pg": "^8.20.0",
     "stripe": "^18.5.0"
   }
 }

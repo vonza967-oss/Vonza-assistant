@@ -197,6 +197,41 @@ function createDashboardHarness({
       });
     }
 
+    if (resolvedUrl.pathname === "/agents/operator-workspace") {
+      return buildResponse({
+        status: 200,
+        body: {
+          connectedAccounts: [],
+          inbox: {
+            threads: [],
+            attentionCount: 0,
+          },
+          calendar: {
+            events: [],
+            suggestedSlots: [],
+            dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
+            missedBookingOpportunities: [],
+          },
+          automations: {
+            tasks: [],
+            campaigns: [],
+            followUps: [],
+          },
+          summary: {},
+          capabilities: {
+            featureEnabled: true,
+            googleAvailable: true,
+            googleMissingEnv: [],
+            persistenceAvailable: true,
+            migrationRequired: false,
+            missingTables: [],
+            status: "ready",
+          },
+          alerts: [],
+        },
+      });
+    }
+
     return buildResponse({ status: 404, body: { error: `Unhandled fetch path: ${resolvedUrl.pathname}` } });
   };
 
@@ -419,6 +454,130 @@ test("one failed sub-request keeps the dashboard visible and surfaces an explici
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Analytics and action queue data are unavailable right now/);
   assert.match(harness.getRootHtml(), /Missing required message persistence schema/);
+});
+
+test("operator workspace disabled still keeps the dashboard visible", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: {
+            capabilities: {
+              featureEnabled: false,
+              googleAvailable: false,
+              googleMissingEnv: [],
+              persistenceAvailable: false,
+              migrationRequired: false,
+              missingTables: [],
+              status: "disabled",
+            },
+            alerts: [
+              "Connected Operator Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 to expose Inbox, Calendar, and Automations.",
+            ],
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /workspace-shell/);
+  assert.match(harness.getRootHtml(), /Connected Operator Workspace v1 is disabled/i);
+  assert.match(harness.getRootHtml(), /Inbox/);
+  assert.match(harness.getRootHtml(), /Calendar/);
+  assert.match(harness.getRootHtml(), /Automations/);
+});
+
+test("missing Google env shows a visible non-breaking operator fallback state", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: {
+            capabilities: {
+              featureEnabled: true,
+              googleAvailable: false,
+              googleMissingEnv: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+              persistenceAvailable: true,
+              migrationRequired: false,
+              missingTables: [],
+              status: "google_unavailable",
+            },
+            alerts: [
+              "Google integration is not configured on this deployment yet. Set the required Google OAuth env vars to unlock Gmail and Calendar connection.",
+            ],
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /workspace-shell/);
+  assert.match(harness.getRootHtml(), /Google integration is not configured on this deployment yet/i);
+});
+
+test("missing operator tables show a visible migration fallback state", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: {
+            capabilities: {
+              featureEnabled: true,
+              googleAvailable: true,
+              googleMissingEnv: [],
+              persistenceAvailable: false,
+              migrationRequired: true,
+              missingTables: ["google_connected_accounts", "operator_inbox_threads"],
+              status: "migration_required",
+            },
+            alerts: [
+              "Operator workspace tables are missing on this deployment. Apply db/connected_operator_workspace.sql before enabling connected Inbox, Calendar, and Automations. Missing tables: google_connected_accounts, operator_inbox_threads.",
+            ],
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /workspace-shell/);
+  assert.match(harness.getRootHtml(), /Operator workspace tables are missing on this deployment/i);
+});
+
+test("a failed operator workspace sub-request does not blank the dashboard", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 500,
+          body: {
+            error: "operator workspace fetch failed",
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /workspace-shell/);
+  assert.match(harness.getRootHtml(), /Inbox, Calendar, and Automations are temporarily unavailable/i);
 });
 
 test("dashboard shows visible empty states when no analytics data exists", async () => {

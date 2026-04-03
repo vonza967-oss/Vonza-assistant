@@ -26,6 +26,72 @@ export function getStripeWebhookSecret() {
   return String(process.env.STRIPE_WEBHOOK_SECRET || "");
 }
 
+function normalizeBooleanEnv(value, fallback = false) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+export function getGoogleClientId() {
+  return String(process.env.GOOGLE_CLIENT_ID || "");
+}
+
+export function getGoogleClientSecret() {
+  return String(process.env.GOOGLE_CLIENT_SECRET || "");
+}
+
+export function getGoogleOAuthRedirectUri() {
+  return String(
+    process.env.GOOGLE_OAUTH_REDIRECT_URI || `${getPublicAppUrl()}/google/oauth/callback`
+  ).replace(/\/$/, "");
+}
+
+export function getGoogleTokenEncryptionSecret() {
+  return String(process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET || "");
+}
+
+export function listMissingGoogleOperatorEnvVars() {
+  const requiredKeys = [
+    ["GOOGLE_CLIENT_ID", getGoogleClientId()],
+    ["GOOGLE_CLIENT_SECRET", getGoogleClientSecret()],
+    ["GOOGLE_OAUTH_REDIRECT_URI", process.env.GOOGLE_OAUTH_REDIRECT_URI],
+    ["GOOGLE_TOKEN_ENCRYPTION_SECRET", getGoogleTokenEncryptionSecret()],
+  ];
+
+  return requiredKeys
+    .filter(([, value]) => !String(value || "").trim())
+    .map(([key]) => key);
+}
+
+export function isOperatorWorkspaceV1Enabled() {
+  return normalizeBooleanEnv(process.env.VONZA_OPERATOR_WORKSPACE_V1, false);
+}
+
+export function getBuildSha() {
+  return String(
+    process.env.RENDER_GIT_COMMIT
+    || process.env.SOURCE_VERSION
+    || process.env.COMMIT_SHA
+    || ""
+  ).trim();
+}
+
+export function getAppVersion() {
+  return String(process.env.npm_package_version || "1.0.0").trim();
+}
+
 export function isDevFakeBillingEnabled() {
   return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
 }

@@ -162,6 +162,13 @@ button:disabled {
   color: var(--muted);
 }
 
+.topbar-build {
+  color: var(--soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .topbar-button {
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -325,26 +332,6 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
-}
-
-.checkout-feedback {
-  min-height: 20px;
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.checkout-feedback[data-state="pending"] {
-  color: var(--soft);
-}
-
-.checkout-feedback[data-state="success"] {
-  color: var(--success);
-}
-
-.checkout-feedback[data-state="error"] {
-  color: var(--danger);
 }
 
 .handoff-card {
@@ -2153,6 +2140,34 @@ button:disabled {
   margin-top: 8px;
 }
 
+.operator-summary-card {
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 28%),
+    rgba(255, 255, 255, 0.03);
+}
+
+.operator-thread-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.operator-thread-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 14px;
+}
+
+.operator-thread-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .spacer {
   margin-top: 24px;
 }
@@ -2175,6 +2190,7 @@ button:disabled {
   .check-grid,
   .metric-grid,
   .analytics-grid,
+  .operator-thread-grid,
   .intent-grid,
   .overview-metric-grid,
   .action-queue-details,

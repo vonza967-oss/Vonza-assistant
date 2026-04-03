@@ -35,7 +35,7 @@ const LAUNCH_STEPS = [
   }
 ];
 const trackedEventKeys = new Set();
-const SHELL_SECTIONS = ["overview", "customize", "analytics"];
+const SHELL_SECTIONS = ["overview", "inbox", "calendar", "automations", "customize", "analytics"];
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const AUTH_VIEW_MODES = {
   SIGN_IN: "sign-in",
@@ -54,6 +54,8 @@ let workspaceState = null;
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
+let pendingKnowledgeImportPromise = null;
+let pendingKnowledgeImportAgentId = "";
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -141,9 +143,15 @@ function renderTopbarMeta() {
     return;
   }
 
+  const buildLabel = [
+    window.VONZA_APP_VERSION ? `v${window.VONZA_APP_VERSION}` : "",
+    window.VONZA_BUILD_SHA ? String(window.VONZA_BUILD_SHA).slice(0, 7) : "",
+  ].filter(Boolean).join(" · ");
+
   if (authUser?.email) {
     topbarMeta.innerHTML = `
       <span class="topbar-email">${escapeHtml(authUser.email)}</span>
+      ${buildLabel ? `<span class="topbar-build">${escapeHtml(buildLabel)}</span>` : ""}
       <button class="topbar-button" type="button" id="sign-out-button">Sign out</button>
     `;
     document.getElementById("sign-out-button")?.addEventListener("click", async () => {
@@ -228,6 +236,30 @@ function getPaymentState() {
     payment: trimText(params.get("payment")).toLowerCase(),
     sessionId: trimText(params.get("session_id") || params.get("sessionId")),
   };
+}
+
+function getGoogleConnectionState() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    status: trimText(params.get("google")).toLowerCase(),
+    reason: trimText(params.get("reason")),
+  };
+}
+
+function clearGoogleConnectionStateFromUrl() {
+  const url = new URL(window.location.href);
+  let changed = false;
+
+  ["google", "reason"].forEach((key) => {
+    if (url.searchParams.has(key)) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    window.history.replaceState({}, "", url.toString());
+  }
 }
 
 function clearPaymentStateFromUrl() {
@@ -591,6 +623,17 @@ function setStatus(message) {
   statusBanner.textContent = message || "";
 }
 
+function setCheckoutFeedback(message, state = "info") {
+  const feedbackEl = document.getElementById("checkout-feedback");
+
+  if (!feedbackEl) {
+    return;
+  }
+
+  feedbackEl.textContent = message || "";
+  feedbackEl.dataset.state = trimText(state) || "info";
+}
+
 function buildScript(agent) {
   const installId = trimText(agent.installId);
 
@@ -651,6 +694,10 @@ function isMeaningfulWebsite(value) {
   return normalized && !normalized.endsWith(".local");
 }
 
+function normalizeComparableWebsiteUrl(value) {
+  return trimText(value).replace(/\/+$/, "").toLowerCase();
+}
+
 function classifyImportResult(result) {
   const content = trimText(result?.content || "");
 
@@ -686,9 +733,19 @@ function inferSetup(agent) {
   };
   const personalityReady = Boolean(trimText(agent.assistantName) && trimText(agent.welcomeMessage) && trimText(agent.tone));
   const hasWebsite = isMeaningfulWebsite(agent.websiteUrl);
-  const knowledgeState = hasWebsite ? (knowledge.state || "missing") : "missing";
+  const currentWebsiteUrl = normalizeComparableWebsiteUrl(agent.websiteUrl);
+  const importedWebsiteUrl = normalizeComparableWebsiteUrl(knowledge.importedWebsiteUrl);
+  const knowledgeOutOfSync = Boolean(hasWebsite && currentWebsiteUrl && importedWebsiteUrl && currentWebsiteUrl !== importedWebsiteUrl);
+  const knowledgeState = hasWebsite
+    ? (knowledgeOutOfSync ? "limited" : (knowledge.state || "missing"))
+    : "missing";
   const previewReady = Boolean(trimText(agent.publicAgentKey));
   const installReady = previewReady;
+  const knowledgeDescription = knowledgeOutOfSync
+    ? "Your website changed since the last successful knowledge import. Retry website import to sync the assistant with the current site."
+    : hasWebsite
+      ? (knowledge.description || "Website knowledge has not been imported yet.")
+      : "Add a real website to import knowledge.";
 
   return {
     personalityReady,
@@ -698,9 +755,7 @@ function inferSetup(agent) {
     knowledgeReady: knowledgeState === "ready",
     knowledgeLimited: knowledgeState === "limited",
     knowledgeMissing: knowledgeState === "missing",
-    knowledgeDescription: hasWebsite
-      ? (knowledge.description || "Website knowledge has not been imported yet.")
-      : "Add a real website to import knowledge.",
+    knowledgeDescription,
     knowledgePageCount: Number(knowledge.pageCount || 0),
     knowledgeContentLength: Number(knowledge.contentLength || 0),
     previewReady,
@@ -834,6 +889,7 @@ function renderAccessLocked(agent) {
           ${showDevTools ? '<button id="setup-doctor-button" class="ghost-button" type="button">Check local setup</button>' : ""}
           <button id="locked-signout-button" class="ghost-button" type="button">Sign out</button>
         </div>
+        <p id="checkout-feedback" class="auth-note" data-state="idle"></p>
       </div>
       ${detailsMarkup}
       <p class="auth-note">Once payment completes successfully, Vonza will unlock your account and bring you straight into the setup workspace.</p>
@@ -848,6 +904,7 @@ function renderAccessLocked(agent) {
   document.getElementById("unlock-vonza-button")?.addEventListener("click", async () => {
     try {
       setStatus("Opening secure checkout...");
+      setCheckoutFeedback("Opening secure checkout...", "loading");
       const result = await fetchJson("/create-checkout-session", {
         method: "POST",
         headers: {
@@ -862,8 +919,10 @@ function renderAccessLocked(agent) {
         throw new Error("Checkout is not available right now.");
       }
 
+      setCheckoutFeedback("Redirecting you to secure checkout...", "success");
       window.location.assign(result.url);
     } catch (error) {
+      setCheckoutFeedback(error.message || "We could not open checkout right now.", "error");
       setStatus(error.message || "We could not open checkout right now.");
     }
   });
@@ -1463,7 +1522,19 @@ function buildWorkspaceTabs(activeSection, setup) {
     <nav class="workspace-tabs" aria-label="Workspace sections">
       <button class="workspace-tab ${activeSection === "overview" ? "active" : ""}" type="button" data-shell-target="overview">
         <span class="nav-label">Overview</span>
-        <span class="nav-note">${setup.isReady ? "Install, preview, and next steps" : "See progress and what comes next"}</span>
+        <span class="nav-note">${setup.isReady ? "Today, workload, approvals, and connected systems" : "Setup progress plus operator rollout"}</span>
+      </button>
+      <button class="workspace-tab ${activeSection === "inbox" ? "active" : ""}" type="button" data-shell-target="inbox">
+        <span class="nav-label">Inbox</span>
+        <span class="nav-note">Connected Gmail threads, complaint drafts, and owner-approved replies</span>
+      </button>
+      <button class="workspace-tab ${activeSection === "calendar" ? "active" : ""}" type="button" data-shell-target="calendar">
+        <span class="nav-label">Calendar</span>
+        <span class="nav-note">Upcoming events, slot suggestions, booking opportunities, and approval-first changes</span>
+      </button>
+      <button class="workspace-tab ${activeSection === "automations" ? "active" : ""}" type="button" data-shell-target="automations">
+        <span class="nav-label">Automations</span>
+        <span class="nav-note">Complaint queue, campaign drafts, send timing, and operator tasks</span>
       </button>
       <button class="workspace-tab ${activeSection === "customize" ? "active" : ""}" type="button" data-shell-target="customize">
         <span class="nav-label">Customize</span>
@@ -1477,9 +1548,84 @@ function buildWorkspaceTabs(activeSection, setup) {
   `;
 }
 
-function buildOverviewPanel(agent, messages, setup, actionQueue) {
+function formatDateTimeLocalValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatOperatorCount(value, singular, plural = `${singular}s`) {
+  const count = Number(value || 0);
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const accounts = operatorWorkspace.connectedAccounts || [];
+  const primaryAccount = accounts[0] || null;
+  const summary = operatorWorkspace.summary || createEmptyOperatorWorkspace().summary;
+  const dailySummary = operatorWorkspace.calendar?.dailySummary
+    || "Connect Google Workspace to see daily operator context here.";
+  const connectable = isOperatorWorkspaceConnectable(operatorWorkspace);
+  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
+
+  return `
+    <section class="workspace-card-soft">
+      <div class="workspace-panel-header">
+        <h2 class="workspace-panel-title">Connected operator workspace</h2>
+        <p class="workspace-panel-copy">Vonza now combines chat, connected inbox, calendar awareness, complaint handling, follow-ups, and approval-first campaigns in one owner workspace.</p>
+      </div>
+      <div class="overview-grid">
+        <div class="overview-card">
+          <p class="overview-label">Google Workspace</p>
+          <p class="overview-value">${escapeHtml(primaryAccount?.status === "connected" ? (primaryAccount.accountEmail || "Connected") : "Not connected")}</p>
+          <p class="overview-card-copy">${escapeHtml(primaryAccount?.status === "connected"
+            ? `Scopes: ${(primaryAccount.scopes || []).length}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "pending"}.`
+            : (availabilityCopy || "Connect Gmail and Calendar so Vonza can manage scheduling, inbox replies, and approval-first sends from one place."))}</p>
+          ${primaryAccount?.status === "connected"
+            ? `<button class="ghost-button" type="button" data-shell-target="inbox">Open Inbox</button>`
+            : `<button class="primary-button" type="button" data-google-connect ${connectable ? "" : "disabled"}>Connect Google Workspace</button>`}
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Inbox needing attention</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(summary.inboxNeedingAttention, "thread"))}</p>
+          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.overdueThreads, "ignored thread")} are at risk of being ignored.`)}</p>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Calendar today</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(summary.upcomingBookings, "booking"))}</p>
+          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.openAvailabilityCount, "open slot")} available.`)}</p>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Active campaigns</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(summary.activeCampaigns, "campaign"))}</p>
+          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} still need approval.`)}</p>
+        </div>
+      </div>
+      <div class="workspace-section-stack">
+        <section class="workspace-card-soft operator-summary-card">
+          <p class="studio-kicker">Daily operator summary</p>
+          <p class="workspace-panel-copy">${escapeHtml(dailySummary)}</p>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   return `
     <section class="workspace-panel workspace-panel-overview" data-shell-section="overview">
+      ${buildOperatorAlertMarkup(operatorWorkspace)}
+      ${buildOperatorOverviewSection(agent, operatorWorkspace)}
       ${buildOverviewSection(agent, messages, setup, actionQueue)}
       <div class="workspace-utility-grid">
         <section class="preview-card">
@@ -1645,7 +1791,7 @@ function buildCustomizePanel(agent, setup) {
                 <div class="field">
                   <label for="assistant-success-snippet">Optional success ping snippet</label>
                   <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
-                  <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds <code>vz_cta_event_id</code> automatically.</p>
+                  <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
                 </div>
               </div>
             </section>
@@ -2419,6 +2565,94 @@ function createEmptyActionQueue() {
     liveConversionMigrationRequired: false,
     analyticsSummary: createEmptyAnalyticsSummary(),
   };
+}
+
+function createEmptyOperatorWorkspace() {
+  return {
+    connectedAccounts: [],
+    inbox: {
+      threads: [],
+      attentionCount: 0,
+    },
+    calendar: {
+      events: [],
+      suggestedSlots: [],
+      dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
+      missedBookingOpportunities: [],
+    },
+    automations: {
+      tasks: [],
+      campaigns: [],
+      followUps: [],
+    },
+    summary: {
+      inboxNeedingAttention: 0,
+      complaintQueue: 0,
+      activeCampaigns: 0,
+      followUpsNeedingApproval: 0,
+      pendingCalendarApprovals: 0,
+      overdueThreads: 0,
+      upcomingBookings: 0,
+      openAvailabilityCount: 0,
+      operatorLoad: 0,
+    },
+    capabilities: {
+      featureEnabled: false,
+      googleAvailable: false,
+      googleMissingEnv: [],
+      persistenceAvailable: false,
+      migrationRequired: false,
+      missingTables: [],
+      status: "disabled",
+    },
+    alerts: [],
+  };
+}
+
+function buildOperatorAlertMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const alerts = Array.isArray(operatorWorkspace.alerts)
+    ? operatorWorkspace.alerts.map((alert) => trimText(alert)).filter(Boolean)
+    : [];
+
+  if (!alerts.length) {
+    return "";
+  }
+
+  return `
+    <section class="workspace-card-soft">
+      <h3 class="studio-group-title">Operator workspace status</h3>
+      <div class="workspace-diagnostics">
+        ${alerts.map((alert) => `<div class="workspace-warning-banner">${escapeHtml(alert)}</div>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function isOperatorWorkspaceConnectable(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const capabilities = operatorWorkspace.capabilities || createEmptyOperatorWorkspace().capabilities;
+  return capabilities.featureEnabled && capabilities.persistenceAvailable && capabilities.googleAvailable;
+}
+
+function getOperatorWorkspaceAvailabilityCopy(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const capabilities = operatorWorkspace.capabilities || createEmptyOperatorWorkspace().capabilities;
+
+  if (capabilities.status === "unavailable") {
+    return "Inbox, Calendar, and Automations are temporarily unavailable on this build. The rest of the dashboard is still usable.";
+  }
+
+  if (!capabilities.featureEnabled) {
+    return "Connected Operator Workspace v1 is disabled on this deployment. Turn on the feature flag to expose Inbox, Calendar, and Automations.";
+  }
+
+  if (capabilities.migrationRequired) {
+    return "Connected Operator Workspace tables are not installed yet. Apply the operator workspace migration, then refresh the dashboard.";
+  }
+
+  if (!capabilities.googleAvailable) {
+    return "Google integration is not configured on this deployment yet. Set the required Google OAuth env vars to unlock Gmail and Calendar connection.";
+  }
+
+  return "";
 }
 
 function createEmptyAnalyticsSummary() {
@@ -4428,15 +4662,334 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   `;
 }
 
-function buildCalendarPanel() {
+function getThreadDraft(thread = {}) {
+  return (thread.messages || []).find((message) => message.direction === "draft") || null;
+}
+
+function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const accounts = operatorWorkspace.connectedAccounts || [];
+  const primaryAccount = accounts[0] || null;
+  const threads = (operatorWorkspace.inbox?.threads || []).slice(0, 10);
+  const connectable = isOperatorWorkspaceConnectable(operatorWorkspace);
+  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
+
+  return `
+    <section class="workspace-panel" data-shell-section="inbox" hidden>
+      <div class="workspace-panel-header">
+        <h2 class="workspace-panel-title">Inbox</h2>
+        <p class="workspace-panel-copy">Connected Gmail threads are classified into operator buckets so the owner can approve replies, spot ignored leads, and handle complaints from one queue.</p>
+      </div>
+      <div class="workspace-section-stack">
+        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
+        <section class="workspace-card-soft">
+          <div class="workspace-panel-header">
+            <h3 class="studio-group-title">Google connection</h3>
+            <p class="workspace-panel-copy">${escapeHtml(primaryAccount?.status === "connected"
+              ? `Connected as ${primaryAccount.accountEmail || primaryAccount.displayName || "Google account"}. Mailbox: ${primaryAccount.selectedMailbox || "INBOX"}.`
+              : "Connect Google Workspace to ingest recent inbox threads and keep Gmail permissions explicit and auditable.")}</p>
+          </div>
+          <div class="inline-actions">
+            <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${connectable ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google Workspace"}</button>
+            <button class="ghost-button" type="button" data-refresh-operator>Refresh workspace</button>
+          </div>
+          ${primaryAccount?.status === "connected"
+            ? `<p class="section-note">Scopes granted: ${(primaryAccount.scopes || []).length}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "pending"}.</p>`
+            : `<p class="section-note">${escapeHtml(connectable
+              ? "Vonza requests Gmail read, compose, and send plus Calendar read and event mutation scopes so all sends and event changes can stay approval-first."
+              : availabilityCopy || "Google connection is unavailable right now.")}</p>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Threads needing attention</h3>
+          <p class="workspace-panel-copy">Lead, support, complaint, billing, and follow-up buckets are preserved on reload and stay linked to related leads or queue context when available.</p>
+          ${threads.length ? `
+            <div class="operator-thread-grid">
+              ${threads.map((thread) => {
+                const draft = getThreadDraft(thread);
+                const latestInbound = (thread.messages || []).slice().reverse().find((message) => message.direction === "inbound");
+                return `
+                  <article class="operator-thread-card">
+                    <div class="operator-thread-head">
+                      <div>
+                        <p class="analytics-item-title">${escapeHtml(thread.subject || "Connected inbox thread")}</p>
+                        <p class="analytics-subtle">${escapeHtml([
+                          thread.classification?.replaceAll("_", " "),
+                          thread.riskLevel,
+                          thread.lastMessageAt ? `last message ${formatSeenAt(thread.lastMessageAt)}` : "",
+                        ].filter(Boolean).join(" · "))}</p>
+                      </div>
+                      <span class="${getBadgeClass(thread.riskLevel === "high" ? "Needs attention" : thread.needsReply ? "Limited" : "Ready")}">${escapeHtml(thread.classification?.replaceAll("_", " ") || "thread")}</span>
+                    </div>
+                    <p class="analytics-item-copy">${escapeHtml(thread.snippet || "No preview available yet.")}</p>
+                    <p class="section-note">${escapeHtml(latestInbound?.bodyPreview || latestInbound?.bodyText || "No inbound message preview stored.")}</p>
+                    <form class="workspace-section-stack" data-inbox-thread-form data-thread-id="${escapeHtml(thread.id)}">
+                      <div class="field">
+                        <label>Draft subject</label>
+                        <input name="subject" type="text" value="${escapeHtml(draft?.subject || "")}">
+                      </div>
+                      <div class="field">
+                        <label>Draft reply</label>
+                        <textarea name="body">${escapeHtml(draft?.bodyText || "")}</textarea>
+                      </div>
+                      <div class="inline-actions">
+                        <button class="ghost-button" type="button" data-draft-inbox-reply data-thread-id="${escapeHtml(thread.id)}">Generate draft</button>
+                        <button class="primary-button" type="submit">Approve and send</button>
+                      </div>
+                    </form>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No connected Gmail threads yet. Once Gmail is connected, Vonza will sync recent threads, bucket them, and prepare owner-approved drafts here.</div>`}
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const accounts = operatorWorkspace.connectedAccounts || [];
+  const primaryAccount = accounts[0] || null;
+  const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
+  const events = (calendar.events || []).slice(0, 8);
+  const pendingApprovals = events.filter((event) => event.approvalStatus === "pending_owner");
+  const connectable = isOperatorWorkspaceConnectable(operatorWorkspace);
+  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
+
   return `
     <section class="workspace-panel" data-shell-section="calendar" hidden>
       <div class="workspace-panel-header">
         <h2 class="workspace-panel-title">Calendar</h2>
-        <p class="workspace-panel-copy">Calendar and booking automation are not part of the product yet, but this is where they can live later.</p>
+        <p class="workspace-panel-copy">Vonza surfaces the day view, suggested slots, booking signals, and approval-first calendar changes without silently mutating the owner calendar.</p>
       </div>
-      <div class="placeholder-card">
-        Calendar and booking automation coming later. For now, Vonza focuses on website-based AI assistant setup, appearance, behavior, preview, and installation.
+      <div class="workspace-section-stack">
+        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Daily summary</h3>
+          <p class="workspace-panel-copy">${escapeHtml(calendar.dailySummary || "Connect Google Calendar to see today’s schedule and open booking slots.")}</p>
+          ${primaryAccount?.status === "connected"
+            ? `<p class="section-note">Connected as ${escapeHtml(primaryAccount.accountEmail || "Google Workspace")}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "pending"}.</p>`
+            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect ${connectable ? "" : "disabled"}>Connect Google Workspace</button></div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Suggested open slots</h3>
+          ${(calendar.suggestedSlots || []).length ? `
+            <div class="analytics-list">
+              ${(calendar.suggestedSlots || []).map((slot) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(slot.label || "")}</p>
+                  <p class="analytics-subtle">${escapeHtml(`${formatSeenAt(slot.startAt)} to ${formatSeenAt(slot.endAt)}`)}</p>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No slot suggestions yet. Once the calendar is connected, Vonza will highlight likely openings.</div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Create event draft</h3>
+          <form class="workspace-section-stack" data-calendar-draft-form>
+            <input type="hidden" name="action_type" value="create">
+            <div class="form-grid two-col">
+              <div class="field">
+                <label>Title</label>
+                <input name="title" type="text" placeholder="Quote review with lead">
+              </div>
+              <div class="field">
+                <label>Attendee email</label>
+                <input name="attendee_email" type="email" placeholder="lead@example.com">
+              </div>
+              <div class="field">
+                <label>Start</label>
+                <input name="start_at" type="datetime-local">
+              </div>
+              <div class="field">
+                <label>End</label>
+                <input name="end_at" type="datetime-local">
+              </div>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea name="description" placeholder="Prepared from booking intent, quote follow-up, or owner scheduling request."></textarea>
+            </div>
+            <div class="inline-actions">
+              <button class="primary-button" type="submit" ${operatorWorkspace.capabilities.featureEnabled && operatorWorkspace.capabilities.persistenceAvailable ? "" : "disabled"}>Create approval draft</button>
+            </div>
+          </form>
+        </section>
+
+        ${pendingApprovals.length ? `
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Pending calendar approvals</h3>
+            <div class="analytics-list">
+              ${pendingApprovals.map((event) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(event.title || "Pending calendar draft")}</p>
+                  <p class="analytics-item-copy">${escapeHtml([
+                    event.actionType,
+                    event.startAt ? formatSeenAt(event.startAt) : "",
+                    event.endAt ? formatSeenAt(event.endAt) : "",
+                  ].filter(Boolean).join(" · "))}</p>
+                  <button class="primary-button" type="button" data-approve-calendar-event data-event-id="${escapeHtml(event.id)}">Approve calendar change</button>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+        ` : ""}
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Upcoming events and booking opportunities</h3>
+          ${events.length ? `
+            <div class="operator-thread-grid">
+              ${events.map((event) => `
+                <article class="operator-thread-card">
+                  <p class="analytics-item-title">${escapeHtml(event.title || "Upcoming event")}</p>
+                  <p class="analytics-subtle">${escapeHtml([
+                    event.startAt ? formatSeenAt(event.startAt) : "",
+                    event.endAt ? `to ${formatSeenAt(event.endAt)}` : "",
+                    event.status,
+                  ].filter(Boolean).join(" "))}</p>
+                  <form class="workspace-section-stack" data-calendar-mutation-form data-event-id="${escapeHtml(event.id)}">
+                    <input type="hidden" name="action_type" value="update">
+                    <div class="form-grid two-col">
+                      <div class="field">
+                        <label>Reschedule start</label>
+                        <input name="start_at" type="datetime-local" value="${escapeHtml(formatDateTimeLocalValue(event.startAt))}">
+                      </div>
+                      <div class="field">
+                        <label>Reschedule end</label>
+                        <input name="end_at" type="datetime-local" value="${escapeHtml(formatDateTimeLocalValue(event.endAt))}">
+                      </div>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="ghost-button" type="submit">Draft update</button>
+                      <button class="ghost-button" type="button" data-cancel-calendar-event data-event-id="${escapeHtml(event.id)}">Draft cancel</button>
+                    </div>
+                  </form>
+                </article>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No calendar events synced yet.</div>`}
+          ${(calendar.missedBookingOpportunities || []).length ? `
+            <div class="analytics-list" style="margin-top:16px;">
+              ${(calendar.missedBookingOpportunities || []).map((opportunity) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(opportunity.contactName || opportunity.contactEmail || "Booking opportunity")}</p>
+                  <p class="analytics-item-copy">${escapeHtml(opportunity.reason || "Booking signal captured without a scheduled event yet.")}</p>
+                </div>
+              `).join("")}
+            </div>
+          ` : ""}
+        </section>
+      </div>
+    </section>
+  `;
+}
+
+function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const automations = operatorWorkspace.automations || createEmptyOperatorWorkspace().automations;
+  const complaintTasks = (automations.tasks || []).filter((task) => ["complaint_queue", "support_follow_up"].includes(task.taskType));
+  const campaigns = automations.campaigns || [];
+  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
+  const workspaceReady = operatorWorkspace.capabilities.featureEnabled && operatorWorkspace.capabilities.persistenceAvailable;
+
+  return `
+    <section class="workspace-panel" data-shell-section="automations" hidden>
+      <div class="workspace-panel-header">
+        <h2 class="workspace-panel-title">Automations</h2>
+        <p class="workspace-panel-copy">Vonza keeps campaigns, complaint workflows, follow-up approvals, and operator tasks structured and approval-first instead of silently sending or mutating on its own.</p>
+      </div>
+      <div class="workspace-section-stack">
+        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Complaint and support queue</h3>
+          ${complaintTasks.length ? `
+            <div class="analytics-list">
+              ${complaintTasks.map((task) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(task.title || "Operator task")}</p>
+                  <p class="analytics-item-copy">${escapeHtml(task.description || "Needs owner review.")}</p>
+                  <div class="inline-actions">
+                    <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="resolved">Mark resolved</button>
+                    <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="escalated">Escalate</button>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No complaint or support tasks are open right now.</div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Create approval-first campaign</h3>
+          <form class="workspace-section-stack" data-campaign-draft-form>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label>Goal</label>
+                <select name="goal">
+                  <option value="welcome">welcome</option>
+                  <option value="quote_follow_up">quote follow-up</option>
+                  <option value="abandoned_lead_reengagement">abandoned lead re-engagement</option>
+                  <option value="review_request">review request</option>
+                  <option value="complaint_recovery">complaint recovery</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Send window hour</label>
+                <input name="send_window_hour" type="number" min="0" max="23" value="10">
+              </div>
+            </div>
+            <div class="inline-actions">
+              <button class="primary-button" type="submit" ${workspaceReady ? "" : "disabled"}>Generate campaign draft</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Campaigns and send timing</h3>
+          ${campaigns.length ? `
+            <div class="operator-thread-grid">
+              ${campaigns.map((campaign) => `
+                <article class="operator-thread-card">
+                  <div class="operator-thread-head">
+                    <div>
+                      <p class="analytics-item-title">${escapeHtml(campaign.title || "Campaign")}</p>
+                      <p class="analytics-subtle">${escapeHtml([
+                        campaign.goal?.replaceAll("_", " "),
+                        campaign.status,
+                        campaign.approvalStatus,
+                        `${(campaign.recipients || []).length} recipients`,
+                      ].filter(Boolean).join(" · "))}</p>
+                    </div>
+                    <span class="${getBadgeClass(campaign.status === "active" ? "Ready" : campaign.approvalStatus === "approved" ? "Limited" : "Needs attention")}">${escapeHtml(campaign.status)}</span>
+                  </div>
+                  <p class="analytics-item-copy">${escapeHtml(campaign.sequenceSummary || "Approval-first outbound campaign draft.")}</p>
+                  <div class="inline-actions">
+                    ${campaign.approvalStatus !== "approved"
+                      ? `<button class="primary-button" type="button" data-approve-campaign data-campaign-id="${escapeHtml(campaign.id)}">Approve activation</button>`
+                      : ""}
+                    ${campaign.status === "active"
+                      ? `<button class="ghost-button" type="button" data-send-campaign-steps data-campaign-id="${escapeHtml(campaign.id)}">Send due steps now</button>`
+                      : ""}
+                  </div>
+                </article>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">No campaigns drafted yet. Generate a goal-based sequence from captured leads when you’re ready.</div>`}
+        </section>
+
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Follow-ups needing approval</h3>
+          ${(automations.followUps || []).length ? `
+            <div class="analytics-list">
+              ${(automations.followUps || []).slice(0, 6).map((followUp) => `
+                <div class="analytics-item">
+                  <p class="analytics-item-title">${escapeHtml(followUp.subject || followUp.topic || "Prepared follow-up")}</p>
+                  <p class="analytics-item-copy">${escapeHtml(`${followUp.status || "draft"} · ${followUp.channel || "email"} · ${followUp.contactEmail || followUp.contactPhone || "missing contact"}`)}</p>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="placeholder-card">Prepared follow-ups from existing Vonza workflows will show up here alongside campaigns and complaint tasks.</div>`}
+        </section>
       </div>
     </section>
   `;
@@ -4447,6 +5000,7 @@ function renderAssistantShell(
   messages,
   setup,
   actionQueue = createEmptyActionQueue(),
+  operatorWorkspace = createEmptyOperatorWorkspace(),
   diagnostics = createEmptyWorkspaceDiagnostics()
 ) {
   renderTopbarMeta();
@@ -4469,6 +5023,7 @@ function renderAssistantShell(
             <p class="workspace-subtitle">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
             <div class="workspace-badge-row">
               <span class="${getBadgeClass(shellStatus)}">${shellStatus}</span>
+              <span class="${getBadgeClass((operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Ready" : "Limited")}">${(operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Google connected" : "Google not connected"}</span>
               <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Not imported")}">${setup.knowledgeReady ? "Knowledge ready" : setup.knowledgeLimited ? "Knowledge limited" : "Knowledge not imported"}</span>
               <span class="${getBadgeClass(isInstallSeen(getDefaultInstallStatus(agent)) ? "Ready" : getDefaultInstallStatus(agent).state === "installed_unseen" ? "Limited" : getDefaultInstallStatus(agent).state === "domain_mismatch" || getDefaultInstallStatus(agent).state === "verify_failed" ? "Needs attention" : "Not imported")}">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</span>
             </div>
@@ -4484,55 +5039,48 @@ function renderAssistantShell(
 
       ${!setup.isReady ? `
         <div class="shell-status-banner">
-          Your assistant is unlocked and this is now your setup workspace. Finish the key details in Customize, then use Overview to preview and add Vonza to the website.
+          Your assistant is unlocked and this is now your operator workspace. Finish the key details in Customize, connect Google, then use Inbox, Calendar, and Automations to run the business side of Vonza.
         </div>
       ` : ""}
 
       ${buildWorkspaceDiagnosticsMarkup(diagnostics)}
-
-      ${buildOverviewPanel(agent, messages, setup, actionQueue)}
+      ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+      ${buildInboxPanel(agent, operatorWorkspace)}
+      ${buildCalendarPanel(agent, operatorWorkspace)}
+      ${buildAutomationsPanel(agent, operatorWorkspace)}
       ${buildCustomizePanel(agent, setup)}
       ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
     </div>
   `;
 
-  bindSharedDashboardEvents(agent, messages, setup, actionQueue);
+  bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
 }
 
-function renderSetupState(
-  agent,
-  messages,
-  setup,
-  actionQueue,
-  diagnostics = createEmptyWorkspaceDiagnostics()
-) {
+function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics = createEmptyWorkspaceDiagnostics()) {
   workspaceState = {
     agent,
     messages,
     setup,
     actionQueue,
+    operatorWorkspace,
     diagnostics,
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, diagnostics);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
 }
 
-function renderReadyState(
-  agent,
-  messages,
-  actionQueue,
-  diagnostics = createEmptyWorkspaceDiagnostics()
-) {
+function renderReadyState(agent, messages, actionQueue, operatorWorkspace, diagnostics = createEmptyWorkspaceDiagnostics()) {
   const setup = inferSetup(agent);
   workspaceState = {
     agent,
     messages,
     setup,
     actionQueue,
+    operatorWorkspace,
     diagnostics,
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, diagnostics);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
 }
 
 function buildPreviewSection(agent, setup) {
@@ -4939,11 +5487,60 @@ function createWorkspaceWarning(label, error) {
   return detail ? `${label} ${detail}` : label;
 }
 
+async function loadOperatorWorkspace(agentId) {
+  const url = new URL("/agents/operator-workspace", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  const data = await fetchJson(url.toString());
+  return {
+    ...createEmptyOperatorWorkspace(),
+    ...(data || {}),
+    inbox: {
+      ...createEmptyOperatorWorkspace().inbox,
+      ...(data?.inbox || {}),
+      threads: Array.isArray(data?.inbox?.threads) ? data.inbox.threads : [],
+    },
+    calendar: {
+      ...createEmptyOperatorWorkspace().calendar,
+      ...(data?.calendar || {}),
+      events: Array.isArray(data?.calendar?.events) ? data.calendar.events : [],
+      suggestedSlots: Array.isArray(data?.calendar?.suggestedSlots) ? data.calendar.suggestedSlots : [],
+      missedBookingOpportunities: Array.isArray(data?.calendar?.missedBookingOpportunities)
+        ? data.calendar.missedBookingOpportunities
+        : [],
+    },
+    automations: {
+      ...createEmptyOperatorWorkspace().automations,
+      ...(data?.automations || {}),
+      tasks: Array.isArray(data?.automations?.tasks) ? data.automations.tasks : [],
+      campaigns: Array.isArray(data?.automations?.campaigns) ? data.automations.campaigns : [],
+      followUps: Array.isArray(data?.automations?.followUps) ? data.automations.followUps : [],
+    },
+    summary: {
+      ...createEmptyOperatorWorkspace().summary,
+      ...(data?.summary || {}),
+    },
+    capabilities: {
+      ...createEmptyOperatorWorkspace().capabilities,
+      ...(data?.capabilities || {}),
+      googleMissingEnv: Array.isArray(data?.capabilities?.googleMissingEnv)
+        ? data.capabilities.googleMissingEnv
+        : [],
+      missingTables: Array.isArray(data?.capabilities?.missingTables)
+        ? data.capabilities.missingTables
+        : [],
+    },
+    alerts: Array.isArray(data?.alerts) ? data.alerts : [],
+    connectedAccounts: Array.isArray(data?.connectedAccounts) ? data.connectedAccounts : [],
+  };
+}
+
 async function loadWorkspaceSupplementalData(agentId) {
   const diagnostics = createEmptyWorkspaceDiagnostics();
-  const [messagesResult, actionQueueResult] = await Promise.allSettled([
+  const [messagesResult, actionQueueResult, operatorResult] = await Promise.allSettled([
     loadAgentMessages(agentId),
     loadActionQueue(agentId),
+    loadOperatorWorkspace(agentId),
   ]);
 
   const messages = messagesResult.status === "fulfilled"
@@ -4952,6 +5549,19 @@ async function loadWorkspaceSupplementalData(agentId) {
   const actionQueue = actionQueueResult.status === "fulfilled"
     ? actionQueueResult.value
     : createEmptyActionQueue();
+  const operatorWorkspace = operatorResult.status === "fulfilled"
+    ? operatorResult.value
+    : {
+      ...createEmptyOperatorWorkspace(),
+      capabilities: {
+        ...createEmptyOperatorWorkspace().capabilities,
+        featureEnabled: true,
+        status: "unavailable",
+      },
+      alerts: [
+        "Inbox, Calendar, and Automations are temporarily unavailable. The rest of the dashboard is still usable.",
+      ],
+    };
 
   if (messagesResult.status === "rejected") {
     console.error("[dashboard data] Failed to load messages:", messagesResult.reason);
@@ -4973,9 +5583,20 @@ async function loadWorkspaceSupplementalData(agentId) {
     );
   }
 
+  if (operatorResult.status === "rejected") {
+    console.error("[dashboard data] Failed to load operator workspace:", operatorResult.reason);
+    diagnostics.warnings.push(
+      createWorkspaceWarning(
+        "Inbox, Calendar, and Automations are temporarily unavailable. The rest of the dashboard is still usable.",
+        operatorResult.reason
+      )
+    );
+  }
+
   return {
     messages,
     actionQueue,
+    operatorWorkspace,
     diagnostics,
   };
 }
@@ -4991,6 +5612,7 @@ function renderWorkspaceFromState() {
       workspaceState.agent,
       workspaceState.messages || [],
       workspaceState.actionQueue || createEmptyActionQueue(),
+      workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
       workspaceState.diagnostics || createEmptyWorkspaceDiagnostics()
     );
     return;
@@ -5001,6 +5623,7 @@ function renderWorkspaceFromState() {
     workspaceState.messages || [],
     setup,
     workspaceState.actionQueue || createEmptyActionQueue(),
+    workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
     workspaceState.diagnostics || createEmptyWorkspaceDiagnostics()
   );
 }
@@ -5018,13 +5641,19 @@ async function refreshAgentInstallState(agentId) {
     return;
   }
 
-  const { messages, actionQueue, diagnostics } = await loadWorkspaceSupplementalData(agentId);
+  const {
+    messages,
+    actionQueue,
+    operatorWorkspace,
+    diagnostics,
+  } = await loadWorkspaceSupplementalData(agentId);
 
   workspaceState = {
     ...workspaceState,
     agent: nextAgent,
     messages,
     actionQueue,
+    operatorWorkspace,
     diagnostics,
     setup: inferSetup(nextAgent),
   };
@@ -5054,15 +5683,19 @@ function bindWorkspaceAutoRefresh(agentId) {
     return;
   }
 
-  window.addEventListener("focus", () => {
-    scheduleWorkspaceRefresh();
-  });
-
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("focus", () => {
       scheduleWorkspaceRefresh();
-    }
-  });
+    });
+  }
+
+  if (typeof document.addEventListener === "function") {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        scheduleWorkspaceRefresh();
+      }
+    });
+  }
 
   workspaceRefreshBound = true;
 }
@@ -5118,19 +5751,52 @@ async function importKnowledge(agent, options = {}) {
   }
 }
 
-async function runKnowledgeImport(agent) {
-  setStatus("Importing website knowledge...");
-  const nextSetup = await importKnowledge(agent);
+async function runKnowledgeImport(agent, options = {}) {
+  const agentId = trimText(agent?.id);
+
+  if (
+    pendingKnowledgeImportPromise
+    && pendingKnowledgeImportAgentId
+    && pendingKnowledgeImportAgentId === agentId
+  ) {
+    return pendingKnowledgeImportPromise;
+  }
+
+  pendingKnowledgeImportAgentId = agentId;
+  pendingKnowledgeImportPromise = (async () => {
+    setStatus("Importing website knowledge...");
+    const nextSetup = await importKnowledge(agent);
+
+    try {
+      if (nextSetup.hadError) {
+        setStatus(
+          options.errorMessage
+            || nextSetup.errorMessage
+            || "Import failed. The assistant may have limited knowledge."
+        );
+      } else {
+        setStatus(nextSetup.knowledgeState === "ready"
+          ? (options.readyMessage || "Website knowledge is ready.")
+          : (options.limitedMessage || "Website knowledge was imported with limited detail.")
+        );
+      }
+      await boot();
+    } catch (error) {
+      setStatus(
+        options.errorMessage
+          || nextSetup.errorMessage
+          || error.message
+          || "Import failed. The assistant may have limited knowledge."
+      );
+      await boot();
+    }
+  })();
 
   try {
-    setStatus(nextSetup.knowledgeState === "ready"
-      ? "Website knowledge is ready."
-      : "Website knowledge was imported with limited detail."
-    );
-    await boot();
-  } catch (error) {
-    setStatus(nextSetup.errorMessage || error.message || "Import failed. The assistant may have limited knowledge.");
-    await boot();
+    return await pendingKnowledgeImportPromise;
+  } finally {
+    pendingKnowledgeImportPromise = null;
+    pendingKnowledgeImportAgentId = "";
   }
 }
 
@@ -5331,10 +5997,16 @@ async function saveAssistant(event, agent) {
       body: JSON.stringify(payload)
     });
 
-    if (websiteChanged) {
+    const websiteSyncChanged = updateData?.agent?.websiteSync?.changed;
+
+    if (websiteSyncChanged === true || (websiteSyncChanged !== false && websiteChanged)) {
       await runKnowledgeImport({
         id: agent.id,
         publicAgentKey: updateData.agent?.publicAgentKey || agent.publicAgentKey,
+      }, {
+        readyMessage: "Website saved and website knowledge is ready.",
+        limitedMessage: "Website saved, but website knowledge was imported with limited detail.",
+        errorMessage: "Website saved, but importing website knowledge failed. Retry in a moment.",
       });
       return;
     }
@@ -5743,7 +6415,14 @@ function bindStudioState(form, agent) {
 }
 
 // Event wiring for the rendered shell
-function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
+function bindSharedDashboardEvents(
+  agent,
+  messages,
+  setup,
+  actionQueue,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  diagnostics = createEmptyWorkspaceDiagnostics()
+) {
   const settingsForms = document.querySelectorAll("form[data-settings-form]");
   const appearancePresetButtons = document.querySelectorAll("[data-appearance-preset]");
   const configurationPresetButtons = document.querySelectorAll("[data-configuration-preset]");
@@ -5769,6 +6448,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
   const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
   const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
+  const googleConnectButtons = document.querySelectorAll("[data-google-connect]");
+  const refreshOperatorButtons = document.querySelectorAll("[data-refresh-operator]");
+  const inboxThreadForms = document.querySelectorAll("[data-inbox-thread-form]");
+  const draftInboxReplyButtons = document.querySelectorAll("[data-draft-inbox-reply]");
+  const calendarDraftForms = document.querySelectorAll("[data-calendar-draft-form]");
+  const calendarMutationForms = document.querySelectorAll("[data-calendar-mutation-form]");
+  const approveCalendarButtons = document.querySelectorAll("[data-approve-calendar-event]");
+  const cancelCalendarButtons = document.querySelectorAll("[data-cancel-calendar-event]");
+  const campaignDraftForms = document.querySelectorAll("[data-campaign-draft-form]");
+  const approveCampaignButtons = document.querySelectorAll("[data-approve-campaign]");
+  const sendCampaignButtons = document.querySelectorAll("[data-send-campaign-steps]");
+  const operatorTaskButtons = document.querySelectorAll("[data-update-operator-task]");
 
   const showShellSection = (targetSection) => {
     if (!SHELL_SECTIONS.includes(targetSection)) {
@@ -5907,6 +6598,49 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       if (submitButton) {
         submitButton.disabled = false;
       }
+    }
+  };
+
+  const connectGoogleWorkspace = async () => {
+    setStatus("Preparing Google Workspace connection...");
+
+    try {
+      const result = await fetchJson("/agents/google/connect/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          redirect_path: "/dashboard",
+        }),
+      });
+
+      window.location.href = result.authUrl;
+    } catch (error) {
+      setStatus(error.message || "We couldn't start the Google connection.");
+    }
+  };
+
+  const refreshOperatorWorkspace = async () => {
+    setStatus("Refreshing connected workspace...");
+
+    try {
+      const operatorSnapshot = await loadOperatorWorkspace(agent.id);
+      workspaceState = {
+        ...(workspaceState || {}),
+        agent,
+        messages,
+        actionQueue,
+        operatorWorkspace: operatorSnapshot,
+        setup,
+        diagnostics,
+      };
+      renderWorkspaceFromState();
+      setStatus("Connected workspace refreshed.");
+    } catch (error) {
+      setStatus(error.message || "We couldn't refresh the connected workspace.");
     }
   };
 
@@ -6194,6 +6928,303 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
     button.addEventListener("click", () => runKnowledgeImport(agent));
   });
 
+  googleConnectButtons.forEach((button) => {
+    button.addEventListener("click", connectGoogleWorkspace);
+  });
+
+  refreshOperatorButtons.forEach((button) => {
+    button.addEventListener("click", refreshOperatorWorkspace);
+  });
+
+  draftInboxReplyButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const threadId = button.dataset.threadId;
+
+      setStatus("Drafting inbox reply...");
+
+      try {
+        await fetchJson("/agents/operator/inbox/draft-reply", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            thread_id: threadId,
+          }),
+        });
+
+        setActiveShellSection("inbox");
+        setStatus("Reply draft prepared.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't prepare that reply.");
+      }
+    });
+  });
+
+  inboxThreadForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+
+      setStatus("Sending owner-approved inbox reply...");
+
+      try {
+        await fetchJson("/agents/operator/inbox/send-reply", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            thread_id: form.dataset.threadId,
+            subject: trimText(formData.get("subject")),
+            body: trimText(formData.get("body")),
+          }),
+        });
+
+        setActiveShellSection("inbox");
+        setStatus("Reply sent from the connected inbox.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't send that inbox reply.");
+      }
+    });
+  });
+
+  calendarDraftForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const attendeeEmail = trimText(formData.get("attendee_email"));
+      const attendeeEmails = attendeeEmail ? [attendeeEmail] : [];
+
+      setStatus("Creating calendar approval draft...");
+
+      try {
+        await fetchJson("/agents/operator/calendar/draft", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            action_type: trimText(formData.get("action_type")),
+            title: trimText(formData.get("title")),
+            description: trimText(formData.get("description")),
+            start_at: trimText(formData.get("start_at")),
+            end_at: trimText(formData.get("end_at")),
+            attendee_emails: attendeeEmails,
+          }),
+        });
+
+        setActiveShellSection("calendar");
+        setStatus("Calendar draft prepared for owner approval.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't draft that calendar change.");
+      }
+    });
+  });
+
+  calendarMutationForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+
+      setStatus("Drafting calendar update...");
+
+      try {
+        await fetchJson("/agents/operator/calendar/draft", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            event_id: form.dataset.eventId,
+            action_type: trimText(formData.get("action_type")) || "update",
+            start_at: trimText(formData.get("start_at")),
+            end_at: trimText(formData.get("end_at")),
+          }),
+        });
+
+        setActiveShellSection("calendar");
+        setStatus("Calendar update draft prepared.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't draft that update.");
+      }
+    });
+  });
+
+  cancelCalendarButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      setStatus("Drafting calendar cancellation...");
+
+      try {
+        await fetchJson("/agents/operator/calendar/draft", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            event_id: button.dataset.eventId,
+            action_type: "cancel",
+          }),
+        });
+
+        setActiveShellSection("calendar");
+        setStatus("Cancellation draft prepared.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't draft that cancellation.");
+      }
+    });
+  });
+
+  approveCalendarButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      setStatus("Approving calendar change...");
+
+      try {
+        await fetchJson("/agents/operator/calendar/approve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            event_id: button.dataset.eventId,
+          }),
+        });
+
+        setActiveShellSection("calendar");
+        setStatus("Calendar change approved.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't approve that calendar change.");
+      }
+    });
+  });
+
+  campaignDraftForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+
+      setStatus("Generating campaign draft...");
+
+      try {
+        await fetchJson("/agents/operator/campaigns/draft", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            goal: trimText(formData.get("goal")),
+            send_window_hour: trimText(formData.get("send_window_hour")),
+          }),
+        });
+
+        setActiveShellSection("automations");
+        setStatus("Campaign draft created.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't create that campaign draft.");
+      }
+    });
+  });
+
+  approveCampaignButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      setStatus("Approving campaign...");
+
+      try {
+        await fetchJson("/agents/operator/campaigns/approve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            campaign_id: button.dataset.campaignId,
+          }),
+        });
+
+        setActiveShellSection("automations");
+        setStatus("Campaign approved and queued.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't approve that campaign.");
+      }
+    });
+  });
+
+  sendCampaignButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      setStatus("Sending due campaign steps...");
+
+      try {
+        await fetchJson("/agents/operator/campaigns/send-due", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            campaign_id: button.dataset.campaignId,
+          }),
+        });
+
+        setActiveShellSection("automations");
+        setStatus("Due campaign steps sent.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't send those campaign steps.");
+      }
+    });
+  });
+
+  operatorTaskButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      setStatus("Updating operator task...");
+
+      try {
+        await fetchJson("/agents/operator/tasks/update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            task_id: button.dataset.taskId,
+            status: button.dataset.taskStatus,
+          }),
+        });
+
+        setActiveShellSection("automations");
+        setStatus("Operator task updated.");
+        await boot();
+      } catch (error) {
+        setStatus(error.message || "We couldn't update that task.");
+      }
+    });
+  });
+
   copyButtons.forEach((button) => {
     button.addEventListener("click", () => copyInstallCode(agent));
   });
@@ -6224,6 +7255,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
           agent: result.agent || agent,
           messages,
           actionQueue,
+          operatorWorkspace,
+          diagnostics,
           setup: inferSetup(result.agent || agent),
         };
         renderWorkspaceFromState();
@@ -6299,6 +7332,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue) {
       install: ".install-card",
       setup: '[data-shell-section="customize"]',
       "action-queue": "[data-action-queue-section]",
+      inbox: '[data-shell-section="inbox"]',
+      calendar: '[data-shell-section="calendar"]',
+      automations: '[data-shell-section="automations"]',
     };
     const selector = focusMap[focusTarget];
     const target = selector ? document.querySelector(selector) : null;
@@ -6359,6 +7395,7 @@ async function boot() {
     setAuthFeedback(null, "");
 
     const paymentState = getPaymentState();
+    const googleConnectionState = getGoogleConnectionState();
 
     if (paymentState.payment === "cancel") {
       setStatus("Checkout was canceled. You can unlock Vonza whenever you're ready.");
@@ -6370,6 +7407,14 @@ async function boot() {
         clearPaymentStateFromUrl();
         setStatus(error.message || "Payment completed, but we could not activate access yet.");
       }
+    }
+
+    if (googleConnectionState.status === "connected") {
+      setStatus("Google Workspace connected successfully.");
+      clearGoogleConnectionStateFromUrl();
+    } else if (googleConnectionState.status === "error") {
+      setStatus(googleConnectionState.reason || "Google Workspace connection did not complete.");
+      clearGoogleConnectionStateFromUrl();
     }
 
     const launchState = getLaunchState();
@@ -6426,17 +7471,22 @@ async function boot() {
       return;
     }
 
-    const { messages, actionQueue, diagnostics } = await loadWorkspaceSupplementalData(agent.id);
+    const {
+      messages,
+      actionQueue,
+      operatorWorkspace,
+      diagnostics,
+    } = await loadWorkspaceSupplementalData(agent.id);
     const setup = inferSetup(agent);
 
     clearLaunchState();
 
     if (setup.isReady) {
-      renderReadyState(agent, messages, actionQueue, diagnostics);
+      renderReadyState(agent, messages, actionQueue, operatorWorkspace, diagnostics);
       return;
     }
 
-    renderSetupState(agent, messages, setup, actionQueue, diagnostics);
+    renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
   } catch (error) {
     handleFatalDashboardError(error);
   }

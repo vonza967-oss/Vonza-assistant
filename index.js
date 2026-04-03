@@ -3,16 +3,20 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { createApp } from "./src/app/createApp.js";
-import { getPort, getPublicAppUrl, isDevFakeBillingEnabled } from "./src/config/env.js";
+import {
+  getAppVersion,
+  getBuildSha,
+  getPort,
+  getPublicAppUrl,
+  isDevFakeBillingEnabled,
+  isOperatorWorkspaceV1Enabled,
+  listMissingGoogleOperatorEnvVars,
+} from "./src/config/env.js";
 import {
   getSupabaseClient,
   logSupabaseStartupCheck,
 } from "./src/clients/supabaseClient.js";
-import { assertWidgetTelemetrySchemaReady } from "./src/services/analytics/widgetTelemetryService.js";
-import { assertMessagesSchemaReady } from "./src/services/chat/messageService.js";
-import { assertLeadCaptureSchemaReady } from "./src/services/leads/liveLeadCaptureService.js";
-import { assertConversionOutcomeSchemaReady } from "./src/services/conversion/conversionOutcomeService.js";
-import { assertInstallSchemaReady } from "./src/services/install/installPresenceService.js";
+import { validateStartupSchemaReady } from "./src/services/schema/startupSchemaService.js";
 
 dotenv.config();
 
@@ -55,6 +59,22 @@ function logCriticalEnvWarnings() {
   if (isDevFakeBillingEnabled()) {
     console.warn("[startup] DEV_FAKE_BILLING is enabled. Local billing simulation is active.");
   }
+
+  console.log(`[startup] Build: version=${getAppVersion()} sha=${getBuildSha() || "local-dev"}`);
+
+  if (isOperatorWorkspaceV1Enabled()) {
+    const missingGoogleKeys = listMissingGoogleOperatorEnvVars();
+
+    if (missingGoogleKeys.length) {
+      console.warn(
+        `[startup] Operator workspace v1 is enabled, but Google integration is unavailable. Missing env: ${missingGoogleKeys.join(", ")}`
+      );
+    } else {
+      console.log("[startup] Operator workspace v1 Google configuration: ready");
+    }
+  } else {
+    console.log("[startup] Operator workspace v1 feature flag: disabled");
+  }
 }
 
 const port = getPort();
@@ -70,11 +90,7 @@ let supabase = null;
 try {
   supabase = getSupabaseClient();
   await logSupabaseStartupCheck(supabase);
-  await assertMessagesSchemaReady(supabase, { phase: "startup" });
-  await assertInstallSchemaReady(supabase);
-  await assertWidgetTelemetrySchemaReady(supabase);
-  await assertLeadCaptureSchemaReady(supabase, { phase: "startup" });
-  await assertConversionOutcomeSchemaReady(supabase, { phase: "startup" });
+  await validateStartupSchemaReady(supabase, { phase: "startup" });
 } catch (error) {
   console.error(error);
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
