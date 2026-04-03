@@ -3115,6 +3115,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
   `;
   }).join("");
 
+  // Open operator actions
   return `
     <section class="${compact ? "workspace-card-soft action-queue-shell compact" : "overview-card overview-card-queue action-queue-shell"}" ${compact ? "" : 'data-action-queue-section'}>
       <div class="action-queue-header">
@@ -4170,7 +4171,18 @@ async function fetchJson(url, options) {
     : getAuthHeaders(options?.headers || {});
 
   const response = await fetch(url, nextOptions);
-  const data = await response.json();
+  let data = null;
+
+  if (typeof response?.json === "function") {
+    data = await response.json();
+  } else if (response && typeof response.json === "object") {
+    data = response.json;
+  } else if (typeof response?.text === "function") {
+    const text = await response.text();
+    data = text ? JSON.parse(text) : null;
+  } else if (response && typeof response === "object" && "ok" in response) {
+    data = response.body || null;
+  }
 
   if (!response.ok) {
     throw new Error(data.error || "Something went wrong.");
