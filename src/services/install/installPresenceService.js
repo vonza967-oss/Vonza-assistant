@@ -845,7 +845,7 @@ export async function listInstallStatusByAgentIds(supabase, agentIds = []) {
   );
 }
 
-export async function assertInstallSchemaReady(supabase) {
+export async function assertInstallSchemaReady(supabase, options = {}) {
   const checks = [
     {
       table: WIDGET_CONFIGS_TABLE,
@@ -863,9 +863,10 @@ export async function assertInstallSchemaReady(supabase) {
     if (error) {
       if (isMissingRelationError(error, check.table) || error?.code === "42703") {
         const schemaError = new Error(
-          `[startup] Missing required install schema for '${check.table}'. Apply the latest database migration before starting this build.`
+          `[${options.phase || "startup"}] Missing required install schema for '${check.table}'. Apply the latest database migration before starting this build.`
         );
         schemaError.statusCode = 500;
+        schemaError.code = "schema_not_ready";
         throw schemaError;
       }
 

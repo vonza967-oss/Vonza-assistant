@@ -72,6 +72,20 @@ import {
   recordInstallPing,
   verifyAgentInstallation,
 } from "../services/install/installPresenceService.js";
+import {
+  approveCalendarAction,
+  approveCampaignDraft,
+  completeGoogleConnection,
+  createCampaignDraft,
+  createGoogleConnectionStart,
+  draftCalendarAction,
+  draftInboxReply,
+  getOperatorWorkspaceSnapshot,
+  sendDueCampaignSteps,
+  sendInboxReply,
+  updateOperatorTaskStatus,
+} from "../services/operator/operatorWorkspaceService.js";
+import { updateOperatorOnboardingState } from "../services/operator/operatorActivationService.js";
 
 export function createAgentRouter(deps = {}) {
   const router = express.Router();
@@ -119,6 +133,30 @@ export function createAgentRouter(deps = {}) {
   const constructStripeWebhookEventImpl = deps.constructStripeWebhookEvent || constructStripeWebhookEvent;
   const getPaidOwnerIdFromCheckoutSessionImpl =
     deps.getPaidOwnerIdFromCheckoutSession || getPaidOwnerIdFromCheckoutSession;
+  const getOperatorWorkspaceSnapshotImpl =
+    deps.getOperatorWorkspaceSnapshot || getOperatorWorkspaceSnapshot;
+  const createGoogleConnectionStartImpl =
+    deps.createGoogleConnectionStart || createGoogleConnectionStart;
+  const completeGoogleConnectionImpl =
+    deps.completeGoogleConnection || completeGoogleConnection;
+  const draftInboxReplyImpl =
+    deps.draftInboxReply || draftInboxReply;
+  const sendInboxReplyImpl =
+    deps.sendInboxReply || sendInboxReply;
+  const draftCalendarActionImpl =
+    deps.draftCalendarAction || draftCalendarAction;
+  const approveCalendarActionImpl =
+    deps.approveCalendarAction || approveCalendarAction;
+  const createCampaignDraftImpl =
+    deps.createCampaignDraft || createCampaignDraft;
+  const approveCampaignDraftImpl =
+    deps.approveCampaignDraft || approveCampaignDraft;
+  const sendDueCampaignStepsImpl =
+    deps.sendDueCampaignSteps || sendDueCampaignSteps;
+  const updateOperatorTaskStatusImpl =
+    deps.updateOperatorTaskStatus || updateOperatorTaskStatus;
+  const updateOperatorOnboardingStateImpl =
+    deps.updateOperatorOnboardingState || updateOperatorOnboardingState;
   const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
 
   function getCheckoutDraftBusinessName(user) {
@@ -423,6 +461,51 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
+  router.post("/agents/google/connect/start", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await createGoogleConnectionStartImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        redirectPath: req.body.redirect_path || req.body.redirectPath || "/dashboard",
+        selectedMailbox: req.body.selected_mailbox || req.body.selectedMailbox,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/google/oauth/callback", async (req, res) => {
+    try {
+      const result = await completeGoogleConnectionImpl(getSupabase(), {
+        stateToken: req.query.state,
+        code: req.query.code,
+        oauthError: req.query.error,
+      });
+
+      res.redirect(302, result.redirectUrl);
+    } catch (err) {
+      console.error(err);
+      const message = encodeURIComponent(err.message || "google_connect_failed");
+      res.redirect(302, `/dashboard?google=error&reason=${message}`);
+    }
+  });
+
   router.get("/agents/list", async (req, res) => {
     try {
       const supabase = getSupabase();
@@ -480,6 +563,34 @@ export function createAgentRouter(deps = {}) {
         req.query.agent_id || req.query.agentId
       );
       res.json({ messages });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/operator-workspace", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await getOperatorWorkspaceSnapshotImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        forceSync: req.query.force_sync === "true",
+      });
+
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -804,6 +915,277 @@ export function createAgentRouter(deps = {}) {
         persistenceAvailable,
         migrationRequired: !persistenceAvailable,
       });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/inbox/draft-reply", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await draftInboxReplyImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        threadId: req.body.thread_id || req.body.threadId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/inbox/send-reply", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await sendInboxReplyImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        threadId: req.body.thread_id || req.body.threadId,
+        subject: req.body.subject,
+        body: req.body.body,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/calendar/draft", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await draftCalendarActionImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        eventId: req.body.event_id || req.body.eventId,
+        actionType: req.body.action_type || req.body.actionType,
+        title: req.body.title,
+        description: req.body.description,
+        startAt: req.body.start_at || req.body.startAt,
+        endAt: req.body.end_at || req.body.endAt,
+        timezone: req.body.timezone,
+        location: req.body.location,
+        attendeeEmails: req.body.attendee_emails || req.body.attendeeEmails,
+        leadId: req.body.lead_id || req.body.leadId,
+        relatedActionKey: req.body.related_action_key || req.body.relatedActionKey,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/calendar/approve", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await approveCalendarActionImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        eventId: req.body.event_id || req.body.eventId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/campaigns/draft", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const campaign = await createCampaignDraftImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        goal: req.body.goal,
+        recipientSource: req.body.recipient_source || req.body.recipientSource,
+        sendWindowHour: req.body.send_window_hour || req.body.sendWindowHour,
+      });
+
+      res.json({ campaign });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/campaigns/approve", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const campaign = await approveCampaignDraftImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        campaignId: req.body.campaign_id || req.body.campaignId,
+        sendWindowHour: req.body.send_window_hour || req.body.sendWindowHour,
+      });
+
+      res.json({ campaign });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/campaigns/send-due", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await sendDueCampaignStepsImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        campaignId: req.body.campaign_id || req.body.campaignId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/tasks/update", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const task = await updateOperatorTaskStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        taskId: req.body.task_id || req.body.taskId,
+        status: req.body.status,
+        taskState: req.body.task_state || req.body.taskState,
+      });
+
+      res.json({ task });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/activation", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const activation = await updateOperatorOnboardingStateImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        selectedMailbox: req.body.selected_mailbox || req.body.selectedMailbox,
+        calendarContext: req.body.calendar_context || req.body.calendarContext,
+        markInboxReviewed: req.body.mark_inbox_reviewed === true || req.body.markInboxReviewed === true,
+        markCalendarReviewed: req.body.mark_calendar_reviewed === true || req.body.markCalendarReviewed === true,
+      });
+
+      res.json({ activation });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

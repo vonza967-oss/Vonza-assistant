@@ -40,6 +40,30 @@ function isMissingRelationError(error, relationName) {
   );
 }
 
+function buildMissingFollowUpWorkflowSchemaError(phase = "request") {
+  const error = new Error(
+    `[${phase}] Missing required follow-up workflow schema for '${FOLLOW_UP_WORKFLOW_TABLE}'. Apply the latest database migration before running this build.`
+  );
+  error.statusCode = 500;
+  error.code = "schema_not_ready";
+  return error;
+}
+
+export async function assertFollowUpWorkflowSchemaReady(supabase, options = {}) {
+  const { error } = await supabase
+    .from(FOLLOW_UP_WORKFLOW_TABLE)
+    .select(FOLLOW_UP_SELECT)
+    .limit(1);
+
+  if (error) {
+    if (isMissingRelationError(error, FOLLOW_UP_WORKFLOW_TABLE) || error?.code === "42703" || error?.code === "PGRST204") {
+      throw buildMissingFollowUpWorkflowSchemaError(options.phase || "startup");
+    }
+
+    throw error;
+  }
+}
+
 function normalizeFollowUpStatus(value, options = {}) {
   const normalized = cleanText(value).toLowerCase();
 

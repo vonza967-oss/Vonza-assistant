@@ -26,6 +26,28 @@ export function getStripeWebhookSecret() {
   return String(process.env.STRIPE_WEBHOOK_SECRET || "");
 }
 
+export function getGoogleClientId() {
+  return String(process.env.GOOGLE_CLIENT_ID || "");
+}
+
+export function getGoogleClientSecret() {
+  return String(process.env.GOOGLE_CLIENT_SECRET || "");
+}
+
+export function getGoogleOAuthRedirectUri() {
+  return String(
+    process.env.GOOGLE_OAUTH_REDIRECT_URI || `${getPublicAppUrl()}/google/oauth/callback`
+  ).replace(/\/$/, "");
+}
+
+export function getGoogleTokenEncryptionSecret() {
+  return String(process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET || "");
+}
+
+export function isOperatorWorkspaceEnabled() {
+  return String(process.env.VONZA_OPERATOR_WORKSPACE_V1 || "").trim().toLowerCase() === "true";
+}
+
 export function isDevFakeBillingEnabled() {
   return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
 }

@@ -52,6 +52,30 @@ function isUnavailablePersistenceError(error) {
   return isMissingRelationError(error, ACTION_QUEUE_STATUS_TABLE) || isMissingPersistenceColumnError(error);
 }
 
+function buildMissingActionQueueSchemaError(phase = "request") {
+  const error = new Error(
+    `[${phase}] Missing required action queue schema for '${ACTION_QUEUE_STATUS_TABLE}'. Apply the latest database migration before running this build.`
+  );
+  error.statusCode = 500;
+  error.code = "schema_not_ready";
+  return error;
+}
+
+export async function assertActionQueueSchemaReady(supabase, options = {}) {
+  const { error } = await supabase
+    .from(ACTION_QUEUE_STATUS_TABLE)
+    .select("agent_id, owner_user_id, action_key, status, note, outcome, next_step, follow_up_needed, follow_up_completed, contact_status, updated_at")
+    .limit(1);
+
+  if (error) {
+    if (isUnavailablePersistenceError(error)) {
+      throw buildMissingActionQueueSchemaError(options.phase || "startup");
+    }
+
+    throw error;
+  }
+}
+
 function normalizeBooleanFlag(value) {
   if (value === true || value === false) {
     return value;

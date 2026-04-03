@@ -8,11 +8,7 @@ import {
   getSupabaseClient,
   logSupabaseStartupCheck,
 } from "./src/clients/supabaseClient.js";
-import { assertWidgetTelemetrySchemaReady } from "./src/services/analytics/widgetTelemetryService.js";
-import { assertMessagesSchemaReady } from "./src/services/chat/messageService.js";
-import { assertLeadCaptureSchemaReady } from "./src/services/leads/liveLeadCaptureService.js";
-import { assertConversionOutcomeSchemaReady } from "./src/services/conversion/conversionOutcomeService.js";
-import { assertInstallSchemaReady } from "./src/services/install/installPresenceService.js";
+import { validateStartupSchemaReady } from "./src/services/schema/startupSchemaService.js";
 
 dotenv.config();
 
@@ -70,11 +66,7 @@ let supabase = null;
 try {
   supabase = getSupabaseClient();
   await logSupabaseStartupCheck(supabase);
-  await assertMessagesSchemaReady(supabase, { phase: "startup" });
-  await assertInstallSchemaReady(supabase);
-  await assertWidgetTelemetrySchemaReady(supabase);
-  await assertLeadCaptureSchemaReady(supabase, { phase: "startup" });
-  await assertConversionOutcomeSchemaReady(supabase, { phase: "startup" });
+  await validateStartupSchemaReady(supabase, { phase: "startup" });
 } catch (error) {
   console.error(error);
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {

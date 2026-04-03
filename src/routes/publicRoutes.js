@@ -5,6 +5,7 @@ import {
   getSupabaseAnonKey,
   getSupabasePublicUrl,
   isLocalDevBillingRequestAllowed,
+  isOperatorWorkspaceEnabled,
 } from "../config/env.js";
 
 const SETUP_DOCTOR_KEYS = [
@@ -58,6 +59,7 @@ window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};
 window.VONZA_SUPABASE_URL = ${JSON.stringify(getSupabasePublicUrl())};
 window.VONZA_SUPABASE_ANON_KEY = ${JSON.stringify(getSupabaseAnonKey())};
 window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed(req))};
+window.VONZA_OPERATOR_WORKSPACE_V1 = ${JSON.stringify(isOperatorWorkspaceEnabled())};
 `.trim());
   });
 

@@ -38,6 +38,30 @@ function isMissingRelationError(error, relationName) {
   );
 }
 
+function buildMissingKnowledgeFixWorkflowSchemaError(phase = "request") {
+  const error = new Error(
+    `[${phase}] Missing required knowledge-fix workflow schema for '${KNOWLEDGE_FIX_WORKFLOW_TABLE}'. Apply the latest database migration before running this build.`
+  );
+  error.statusCode = 500;
+  error.code = "schema_not_ready";
+  return error;
+}
+
+export async function assertKnowledgeFixWorkflowSchemaReady(supabase, options = {}) {
+  const { error } = await supabase
+    .from(KNOWLEDGE_FIX_WORKFLOW_TABLE)
+    .select(KNOWLEDGE_FIX_SELECT)
+    .limit(1);
+
+  if (error) {
+    if (isMissingRelationError(error, KNOWLEDGE_FIX_WORKFLOW_TABLE) || error?.code === "42703" || error?.code === "PGRST204") {
+      throw buildMissingKnowledgeFixWorkflowSchemaError(options.phase || "startup");
+    }
+
+    throw error;
+  }
+}
+
 function hashParts(parts = []) {
   return createHash("sha256")
     .update(parts.map((part) => cleanText(part)).join("|"))
