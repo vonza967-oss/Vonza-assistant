@@ -24,6 +24,7 @@ import {
 import { listLeadCaptures } from "../leads/liveLeadCaptureService.js";
 import { listFollowUpWorkflows } from "../followup/followUpService.js";
 import { updateActionQueueStatus } from "../analytics/actionQueueService.js";
+import { listConversionOutcomesForAgent } from "../conversion/conversionOutcomeService.js";
 import {
   buildOperatorActivationChecklist,
   buildOperatorBriefing,
@@ -35,6 +36,7 @@ import {
   patchOperatorActivationState,
   probeOperatorActivationPersistence,
 } from "./operatorActivationService.js";
+import { getOperatorContactsWorkspace } from "./contactWorkspaceService.js";
 import { cleanText } from "../../utils/text.js";
 import { decryptSecret, encryptSecret, hashToken } from "../../utils/crypto.js";
 
@@ -2341,6 +2343,18 @@ function attachThreadMessages(threads = [], messages = []) {
   }));
 }
 
+function getSettledValue(result, fallbackValue) {
+  return result?.status === "fulfilled" ? result.value : fallbackValue;
+}
+
+function getSettledErrorMessage(result, fallbackMessage = "") {
+  if (result?.status !== "rejected") {
+    return "";
+  }
+
+  return cleanText(result.reason?.message || fallbackMessage);
+}
+
 function buildOperatorSummary({
   threads = [],
   events = [],
@@ -2441,6 +2455,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       health: {
         inboxSyncError: "",
         calendarSyncError: "",
+        contactsError: "",
       },
       connectedAccounts: [],
       inbox: {
@@ -2458,6 +2473,26 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         campaigns: [],
         followUps: [],
       },
+      contacts: {
+        list: [],
+        filters: {
+          quick: [],
+          sources: [],
+        },
+        summary: {
+          totalContacts: 0,
+          contactsNeedingAttention: 0,
+          complaintRiskContacts: 0,
+          leadsWithoutNextStep: 0,
+          customersAwaitingFollowUp: 0,
+        },
+        health: {
+          persistenceAvailable: true,
+          migrationRequired: false,
+          loadError: "",
+          partialData: false,
+        },
+      },
       summary: buildOperatorSummary(),
     };
   }
@@ -2469,6 +2504,8 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   const syncErrors = {
     inboxSyncError: "",
     calendarSyncError: "",
+    contactsError: "",
+    globalError: "",
   };
 
   if (
@@ -2501,7 +2538,17 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     }
   }
 
-  const [accounts, threads, events, tasks, campaigns, followUps, activationState, leadCaptureResult] = await Promise.all([
+  const [
+    accountsResult,
+    threadsResult,
+    eventsResult,
+    tasksResult,
+    campaignsResult,
+    followUpsResult,
+    activationResult,
+    leadCapturesResult,
+    outcomesResult,
+  ] = await Promise.allSettled([
     listConnectedAccountsInternal(supabase, {
       agentId: agent.id,
       ownerUserId,
@@ -2535,18 +2582,55 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       agentId: agent.id,
       ownerUserId,
     }),
+    listConversionOutcomesForAgent(supabase, {
+      agentId: agent.id,
+      ownerUserId,
+    }),
   ]);
-  const threadMessages = await listStoredInboxMessages(supabase, {
-    threadIds: threads.map((thread) => thread.id),
-  });
+
+  const accounts = getSettledValue(accountsResult, []);
+  const threads = getSettledValue(threadsResult, []);
+  const events = getSettledValue(eventsResult, []);
+  const tasks = getSettledValue(tasksResult, []);
+  const campaigns = getSettledValue(campaignsResult, []);
+  const followUpResult = getSettledValue(followUpsResult, { records: [], persistenceAvailable: true });
+  const activationState = getSettledValue(activationResult, createDefaultOperatorActivationState({
+    agentId: agent.id,
+    businessId: agent.businessId,
+    ownerUserId,
+    operatorWorkspaceEnabled: true,
+    persistenceAvailable: persistence.persistenceAvailable !== false,
+    migrationRequired: persistence.migrationRequired === true,
+  }));
+  const leadCaptureResult = getSettledValue(leadCapturesResult, { records: [], persistenceAvailable: true });
+  const conversionOutcomeResult = getSettledValue(outcomesResult, { records: [], persistenceAvailable: true });
+
+  const threadMessagesResult = await Promise.allSettled([
+    listStoredInboxMessages(supabase, {
+      threadIds: threads.map((thread) => thread.id),
+    }),
+  ]);
+  const threadMessages = getSettledValue(threadMessagesResult[0], []);
   const enrichedThreads = attachThreadMessages(threads, threadMessages);
+  const partialLoadErrors = [
+    getSettledErrorMessage(accountsResult),
+    getSettledErrorMessage(threadsResult),
+    getSettledErrorMessage(eventsResult),
+    getSettledErrorMessage(tasksResult),
+    getSettledErrorMessage(campaignsResult),
+    getSettledErrorMessage(followUpsResult),
+    getSettledErrorMessage(activationResult),
+    getSettledErrorMessage(leadCapturesResult),
+    getSettledErrorMessage(outcomesResult),
+    getSettledErrorMessage(threadMessagesResult[0]),
+  ].filter(Boolean);
   const suggestedSlots = suggestCalendarSlots(events);
   const summary = buildOperatorSummary({
     threads: enrichedThreads,
     events,
     tasks,
     campaigns,
-    followUps: followUps.records || [],
+    followUps: followUpResult.records || [],
     suggestedSlots,
   });
   const missedBookingOpportunities = buildMissedBookingOpportunities(
@@ -2575,6 +2659,22 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       activationState.migrationRequired === true
       || persistence.migrationRequired === true,
   });
+  const contactsWorkspace = await getOperatorContactsWorkspace(supabase, {
+    agent,
+    ownerUserId,
+    leads: leadCaptureResult.records || [],
+    threads: enrichedThreads,
+    events,
+    tasks,
+    campaigns,
+    followUps: followUpResult.records || [],
+    outcomes: conversionOutcomeResult.records || [],
+    loadError: partialLoadErrors[0] || "",
+  });
+  syncErrors.contactsError = cleanText(contactsWorkspace.health?.loadError);
+  syncErrors.globalError = partialLoadErrors.length > 1
+    ? `${partialLoadErrors.length} workspace data source${partialLoadErrors.length === 1 ? "" : "s"} returned partial data.`
+    : "";
   const status = {
     enabled: true,
     featureEnabled: true,
@@ -2591,7 +2691,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     summary,
     tasks,
     threads: enrichedThreads,
-    followUps: followUps.records || [],
+    followUps: followUpResult.records || [],
     campaigns,
     events,
     suggestedSlots,
@@ -2619,7 +2719,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     nextAction,
     events,
     suggestedSlots,
-    followUps: followUps.records || [],
+    followUps: followUpResult.records || [],
   });
   const today = buildOperatorTodaySummary({
     summary,
@@ -2627,7 +2727,8 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     events,
     suggestedSlots,
     campaigns,
-    followUps: followUps.records || [],
+    followUps: followUpResult.records || [],
+    contactsSummary: contactsWorkspace.summary,
   });
 
   return {
@@ -2679,8 +2780,9 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     automations: {
       tasks,
       campaigns,
-      followUps: followUps.records || [],
+      followUps: followUpResult.records || [],
     },
+    contacts: contactsWorkspace,
     summary,
   };
 }
@@ -3137,6 +3239,10 @@ export async function createCampaignDraft(supabase, options = {}) {
   const agent = options.agent || {};
   const ownerUserId = cleanText(options.ownerUserId);
   const goal = cleanText(options.goal).toLowerCase();
+  const directContactEmail = normalizeEmail(options.contactEmail || options.contact_email);
+  const directContactName = cleanText(options.contactName || options.contact_name);
+  const directLeadId = cleanText(options.leadId || options.lead_id);
+  const directPersonKey = cleanText(options.personKey || options.person_key);
 
   if (!CAMPAIGN_GOALS.includes(goal)) {
     const error = new Error("Enter a valid campaign goal.");
@@ -3148,7 +3254,7 @@ export async function createCampaignDraft(supabase, options = {}) {
     agentId: agent.id,
     ownerUserId,
   });
-  const recipients = (leadCaptureResult.records || [])
+  const fallbackRecipients = (leadCaptureResult.records || [])
     .filter((lead) => normalizeEmail(lead.contactEmail))
     .filter((lead) => {
       if (goal === "complaint_recovery") {
@@ -3162,6 +3268,16 @@ export async function createCampaignDraft(supabase, options = {}) {
       return true;
     })
     .slice(0, 50);
+  const recipients = directContactEmail
+    ? [{
+      id: "",
+      leadId: directLeadId || null,
+      personKey: directPersonKey || null,
+      contactName: directContactName || null,
+      contactEmail: directContactEmail,
+      latestActionKey: cleanText(options.latestActionKey || options.latest_action_key) || null,
+    }]
+    : fallbackRecipients;
   const steps = buildCampaignSequence(goal, cleanText(agent.assistantName || agent.name) || "Vonza");
 
   const { data: campaignRow, error: campaignError } = await supabase
@@ -3225,7 +3341,7 @@ export async function createCampaignDraft(supabase, options = {}) {
           agent_id: agent.id,
           business_id: agent.businessId || null,
           owner_user_id: ownerUserId,
-          lead_id: lead.id,
+          lead_id: lead.leadId || lead.id,
           person_key: lead.personKey || null,
           contact_name: lead.contactName || null,
           contact_email: lead.contactEmail || null,
