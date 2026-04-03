@@ -630,8 +630,13 @@ function createAgentTestDeps(state) {
     state.knowledgeFixes = new Map();
   }
 
+  if (!state.conversionOutcomes) {
+    state.conversionOutcomes = [];
+  }
+
   let followUpCounter = state.followUpCounter || 0;
   let knowledgeFixCounter = state.knowledgeFixCounter || 0;
+  let conversionOutcomeCounter = state.conversionOutcomeCounter || 0;
 
   const nextFollowUpId = () => {
     followUpCounter += 1;
@@ -643,6 +648,12 @@ function createAgentTestDeps(state) {
     knowledgeFixCounter += 1;
     state.knowledgeFixCounter = knowledgeFixCounter;
     return `knowledge-fix-${knowledgeFixCounter}`;
+  };
+
+  const nextConversionOutcomeId = () => {
+    conversionOutcomeCounter += 1;
+    state.conversionOutcomeCounter = conversionOutcomeCounter;
+    return `conversion-outcome-${conversionOutcomeCounter}`;
   };
 
   const dedupeActionKeys = (values = []) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
@@ -665,6 +676,115 @@ function createAgentTestDeps(state) {
       .split("-")
       .slice(0, 4)
       .join("-") || "gap";
+  };
+
+  const buildOutcomeSummary = () => {
+    const summary = {
+      total: state.conversionOutcomes.length,
+      assistedConversions: 0,
+      confirmedBusinessOutcomes: 0,
+      directOutcomeCount: 0,
+      followUpAssistedOutcomeCount: 0,
+      bookingStarted: 0,
+      bookingCompleted: 0,
+      quoteStarted: 0,
+      quoteRequested: 0,
+      checkoutStarted: 0,
+      checkoutCompleted: 0,
+      contactClicked: 0,
+      emailClicked: 0,
+      phoneClicked: 0,
+      followUpSent: 0,
+      followUpReplied: 0,
+      manualMarked: 0,
+      directVsFollowUpSplit: {
+        direct: 0,
+        followUp: 0,
+        manual: 0,
+      },
+      topPages: [],
+      topIntents: [],
+    };
+
+    state.conversionOutcomes.forEach((outcome) => {
+      switch (outcome.outcomeType) {
+        case "booking_started":
+          summary.bookingStarted += 1;
+          break;
+        case "booking_completed":
+          summary.bookingCompleted += 1;
+          summary.confirmedBusinessOutcomes += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "quote_started":
+          summary.quoteStarted += 1;
+          break;
+        case "quote_requested":
+          summary.quoteRequested += 1;
+          summary.confirmedBusinessOutcomes += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "checkout_started":
+          summary.checkoutStarted += 1;
+          break;
+        case "checkout_completed":
+          summary.checkoutCompleted += 1;
+          summary.confirmedBusinessOutcomes += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "contact_clicked":
+          summary.contactClicked += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "email_clicked":
+          summary.emailClicked += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "phone_clicked":
+          summary.phoneClicked += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "follow_up_sent":
+          summary.followUpSent += 1;
+          break;
+        case "follow_up_replied":
+          summary.followUpReplied += 1;
+          summary.assistedConversions += 1;
+          break;
+        case "conversion_marked_manual":
+          summary.manualMarked += 1;
+          summary.assistedConversions += 1;
+          break;
+        default:
+          break;
+      }
+
+      if (["booking_completed", "quote_requested", "checkout_completed", "contact_clicked", "email_clicked", "phone_clicked", "follow_up_replied", "conversion_marked_manual"].includes(outcome.outcomeType)) {
+        if (outcome.attributionPath === "follow_up") {
+          summary.followUpAssistedOutcomeCount += 1;
+          summary.directVsFollowUpSplit.followUp += 1;
+        } else if (outcome.attributionPath === "manual") {
+          summary.directVsFollowUpSplit.manual += 1;
+        } else {
+          summary.directOutcomeCount += 1;
+          summary.directVsFollowUpSplit.direct += 1;
+        }
+      }
+    });
+
+    return summary;
+  };
+
+  const pushOutcome = (payload = {}) => {
+    const outcome = {
+      id: payload.id || nextConversionOutcomeId(),
+      label: payload.label || payload.outcomeType,
+      attributionPath: payload.attributionPath || (payload.followUpId ? "follow_up" : payload.sourceType === "manual_mark" ? "manual" : "direct"),
+      occurredAt: payload.occurredAt || new Date().toISOString(),
+      ...payload,
+    };
+    state.conversionOutcomes.unshift(outcome);
+    return outcome;
   };
 
   const syncQueueStateFromFollowUp = (followUp) => {
@@ -1003,6 +1123,100 @@ function createAgentTestDeps(state) {
         pricingCaptures: 0,
         bookingCaptures: 0,
       },
+      persistenceAvailable: true,
+    }),
+    listConversionOutcomesForAgent: async () => ({
+      records: [...state.conversionOutcomes],
+      summary: buildOutcomeSummary(),
+      recentOutcomes: state.conversionOutcomes.slice(0, 8),
+      persistenceAvailable: true,
+    }),
+    recordTrackedCtaClick: async (_supabase, payload) => {
+      const outcomeType = payload.ctaType === "booking"
+        ? "booking_started"
+        : payload.ctaType === "quote"
+          ? "quote_started"
+          : payload.ctaType === "checkout"
+            ? "checkout_started"
+            : payload.targetType === "email"
+              ? "email_clicked"
+              : payload.targetType === "phone"
+                ? "phone_clicked"
+                : "contact_clicked";
+      const outcome = pushOutcome({
+        outcomeType,
+        sourceType: payload.followUpId ? "follow_up" : "direct_cta",
+        ctaEventId: "cta-event-1",
+        actionKey: payload.actionKey || "",
+        leadId: payload.leadId || "",
+        followUpId: payload.followUpId || "",
+        pageUrl: payload.pageUrl || "",
+        relatedCtaType: payload.ctaType || "",
+        relatedIntentType: payload.relatedIntentType || "",
+      });
+      return {
+        ok: true,
+        ctaEventId: outcome.ctaEventId,
+        redirectUrl: payload.targetUrl,
+        outcome,
+      };
+    },
+    detectConversionOutcomesForPage: async (_supabase, payload) => {
+      const explicitType = payload.outcomeType;
+      const inferredType = explicitType
+        || (String(payload.pageUrl || "").includes("quote") ? "quote_requested" : String(payload.pageUrl || "").includes("checkout") ? "checkout_completed" : "booking_completed");
+      const outcome = pushOutcome({
+        outcomeType: inferredType,
+        sourceType: payload.source === "ping" ? "external_success_ping" : "success_url_match",
+        actionKey: payload.actionKey || "",
+        leadId: payload.leadId || "",
+        followUpId: payload.followUpId || "",
+        pageUrl: payload.pageUrl || "",
+        relatedIntentType: payload.relatedIntentType || "",
+        attributionPath: payload.followUpId ? "follow_up" : "direct",
+      });
+      return {
+        ok: true,
+        matched: true,
+        detectedOutcomes: [outcome],
+        persistenceAvailable: true,
+      };
+    },
+    markManualConversionOutcome: async (_supabase, payload) => {
+      const outcome = pushOutcome({
+        outcomeType: payload.outcomeType,
+        sourceType: "manual_mark",
+        actionKey: payload.actionKey || "",
+        leadId: payload.leadId || "",
+        followUpId: payload.followUpId || "",
+        pageUrl: payload.pageUrl || "",
+        relatedIntentType: payload.relatedIntentType || "",
+        attributionPath: payload.followUpId ? "follow_up" : "manual",
+        label: payload.outcomeType,
+      });
+      if (payload.actionKey) {
+        const previous = state.actionQueueStatuses.get(payload.actionKey) || {};
+        state.actionQueueStatuses.set(payload.actionKey, {
+          ...previous,
+          outcome: payload.outcomeType,
+        });
+      }
+      return {
+        ok: true,
+        outcome,
+        persistenceAvailable: true,
+      };
+    },
+    trackFollowUpOutcome: async (_supabase, payload) => ({
+      ok: true,
+      outcome: pushOutcome({
+        outcomeType: payload.outcomeType,
+        sourceType: "workflow_sync",
+        actionKey: payload.actionKey || "",
+        leadId: payload.leadId || "",
+        followUpId: payload.followUpId || "",
+        attributionPath: "follow_up",
+      }),
       persistenceAvailable: true,
     }),
     updateFollowUpWorkflow: async (_supabase, { followUpId, status, subject, draftContent }) => {

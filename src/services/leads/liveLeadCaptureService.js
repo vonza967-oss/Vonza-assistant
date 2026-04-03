@@ -278,6 +278,9 @@ function buildPublicLeadCapture(record = {}, options = {}) {
     trigger: normalized.captureTrigger || options.trigger || "",
     latestMessageId: normalized.latestMessageId || "",
     preferredChannel: normalized.preferredChannel || "",
+    personKey: normalized.personKey || "",
+    latestActionKey: normalized.latestActionKey || "",
+    relatedFollowUpId: normalized.relatedFollowUpId || "",
     contact: {
       name: normalized.contactName || "",
       email: normalized.contactEmail || "",
@@ -1201,6 +1204,20 @@ export async function listLeadCaptures(supabase, options = {}) {
 export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {}) {
   const queue = actionQueue && typeof actionQueue === "object" ? actionQueue : {};
   const leadRecords = (options.records || []).map((record) => normalizeLeadRecord(record));
+  const outcomeRecords = (options.outcomes?.records || []).map((record) => ({
+    id: cleanText(record.id),
+    outcomeType: cleanText(record.outcomeType || record.outcome_type),
+    label: cleanText(record.label),
+    attributionPath: cleanText(record.attributionPath),
+    actionKey: cleanText(record.actionKey || record.action_key),
+    leadId: cleanText(record.leadId || record.lead_id),
+    followUpId: cleanText(record.followUpId || record.follow_up_id),
+    personKey: cleanText(record.personKey || record.person_key),
+    sessionId: cleanText(record.sessionId || record.session_id),
+    pageUrl: cleanText(record.pageUrl || record.page_url),
+    relatedIntentType: cleanText(record.relatedIntentType || record.related_intent_type),
+    occurredAt: record.occurredAt || record.occurred_at || record.createdAt || record.created_at || null,
+  }));
   const followUps = Array.isArray(options.followUps) ? options.followUps : [];
   const widgetEvents = (options.widgetEvents || []).map((event) => {
     const metadata = event.metadata && typeof event.metadata === "object" ? event.metadata : {};
@@ -1226,6 +1243,11 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
   const widgetEventsByActionKey = new Map();
   const widgetEventsByPersonKey = new Map();
   const widgetEventsBySessionKey = new Map();
+  const outcomesByActionKey = new Map();
+  const outcomesByLeadId = new Map();
+  const outcomesByFollowUpId = new Map();
+  const outcomesByPersonKey = new Map();
+  const outcomesBySessionKey = new Map();
 
   leadRecords.forEach((record) => {
     record.relatedActionKeys.forEach((actionKey) => {
@@ -1266,6 +1288,43 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
     }
   });
 
+  outcomeRecords.forEach((outcome) => {
+    if (outcome.actionKey) {
+      outcomesByActionKey.set(
+        outcome.actionKey,
+        [...(outcomesByActionKey.get(outcome.actionKey) || []), outcome]
+      );
+    }
+
+    if (outcome.leadId) {
+      outcomesByLeadId.set(
+        outcome.leadId,
+        [...(outcomesByLeadId.get(outcome.leadId) || []), outcome]
+      );
+    }
+
+    if (outcome.followUpId) {
+      outcomesByFollowUpId.set(
+        outcome.followUpId,
+        [...(outcomesByFollowUpId.get(outcome.followUpId) || []), outcome]
+      );
+    }
+
+    if (outcome.personKey) {
+      outcomesByPersonKey.set(
+        outcome.personKey,
+        [...(outcomesByPersonKey.get(outcome.personKey) || []), outcome]
+      );
+    }
+
+    if (outcome.sessionId) {
+      outcomesBySessionKey.set(
+        outcome.sessionId,
+        [...(outcomesBySessionKey.get(outcome.sessionId) || []), outcome]
+      );
+    }
+  });
+
   const hydratedItems = items.map((item) => {
     const leadRecord = actionMap.get(cleanText(item.key))
       || personMap.get(cleanText(item.person?.key || item.personKey))
@@ -1276,6 +1335,13 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
       ...(widgetEventsByActionKey.get(cleanText(item.key)) || []),
       ...(widgetEventsByPersonKey.get(cleanText(item.person?.key || item.personKey)) || []),
       ...(widgetEventsBySessionKey.get(cleanText(item.sessionKey)) || []),
+    ];
+    const relatedOutcomes = [
+      ...(outcomesByActionKey.get(cleanText(item.key)) || []),
+      ...(leadRecord?.id ? outcomesByLeadId.get(cleanText(leadRecord.id)) || [] : []),
+      ...(followUp?.id ? outcomesByFollowUpId.get(cleanText(followUp.id)) || [] : []),
+      ...(outcomesByPersonKey.get(cleanText(item.person?.key || item.personKey)) || []),
+      ...(outcomesBySessionKey.get(cleanText(item.sessionKey)) || []),
     ];
     const uniqueEventKeys = new Set();
     const dedupedEvents = relatedEvents.filter((event) => {
@@ -1319,11 +1385,38 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
         sourcePageUrl: cleanText(latestRoutingEvent.pageUrl),
       }
       : null;
+    const uniqueOutcomeKeys = new Set();
+    const dedupedOutcomes = relatedOutcomes.filter((outcome) => {
+      const key = [
+        outcome.id,
+        outcome.outcomeType,
+        outcome.actionKey,
+        outcome.leadId,
+        outcome.followUpId,
+        outcome.personKey,
+        outcome.sessionId,
+      ].join("::");
+
+      if (uniqueOutcomeKeys.has(key)) {
+        return false;
+      }
+
+      uniqueOutcomeKeys.add(key);
+      return true;
+    });
+    const sortedOutcomes = dedupedOutcomes
+      .slice()
+      .sort((left, right) => getTimestamp(right.occurredAt) - getTimestamp(left.occurredAt));
 
     return {
       ...item,
       followUp: item.followUp || followUp || null,
       routing,
+      outcomes: {
+        count: sortedOutcomes.length,
+        latest: sortedOutcomes[0] || null,
+        recent: sortedOutcomes.slice(0, 3),
+      },
       leadCapture: leadRecord
         ? buildPublicLeadCapture(leadRecord, {
           followUp,
@@ -1362,6 +1455,8 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
   return {
     ...queue,
     items: hydratedItems,
+    outcomeSummary: options.outcomes?.summary || null,
+    recentOutcomes: options.outcomes?.recentOutcomes || [],
     recentLeadCaptures: leadRecords
       .slice()
       .sort((left, right) => getTimestamp(right.lastSeenAt || right.updatedAt) - getTimestamp(left.lastSeenAt || left.updatedAt))
@@ -1394,8 +1489,12 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
       followUpFallbackCount: fallbackEvents.length,
       directRouteCount: shownEvents.length,
       captureFallbackCount: fallbackEvents.length,
+      assistedConversions: Number(options.outcomes?.summary?.assistedConversions || 0),
+      confirmedBusinessOutcomes: Number(options.outcomes?.summary?.confirmedBusinessOutcomes || 0),
+      directOutcomeCount: Number(options.outcomes?.summary?.directOutcomeCount || 0),
+      followUpAssistedOutcomeCount: Number(options.outcomes?.summary?.followUpAssistedOutcomeCount || 0),
     },
-    liveConversionAvailable: options.persistenceAvailable !== false,
-    liveConversionMigrationRequired: options.persistenceAvailable === false,
+    liveConversionAvailable: options.outcomes?.persistenceAvailable !== false,
+    liveConversionMigrationRequired: options.outcomes?.persistenceAvailable === false,
   };
 }

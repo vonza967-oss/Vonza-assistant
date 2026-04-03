@@ -62,6 +62,13 @@ create table if not exists public.widget_configs (
   booking_url text,
   quote_url text,
   checkout_url text,
+  booking_start_url text,
+  quote_start_url text,
+  booking_success_url text,
+  quote_success_url text,
+  checkout_success_url text,
+  success_url_match_mode text,
+  manual_outcome_mode boolean not null default false,
   contact_email text,
   contact_phone text,
   primary_cta_mode text,
@@ -330,3 +337,54 @@ create index if not exists agent_widget_events_event_name_idx
 
 create index if not exists agent_widget_events_created_at_idx
   on public.agent_widget_events (created_at desc);
+
+create table if not exists public.agent_conversion_outcomes (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid references public.agents (id) on delete cascade,
+  business_id uuid references public.businesses (id) on delete cascade,
+  owner_user_id uuid,
+  install_id uuid,
+  outcome_type text not null,
+  source_type text not null,
+  confirmation_level text not null default 'observed',
+  dedupe_key text not null,
+  cta_event_id uuid,
+  related_cta_type text,
+  related_target_type text,
+  related_action_type text,
+  related_intent_type text,
+  visitor_id text,
+  session_id text,
+  fingerprint text,
+  conversation_id text,
+  person_key text,
+  lead_id uuid,
+  action_key text,
+  follow_up_id uuid,
+  page_url text,
+  origin text,
+  target_url text,
+  success_url text,
+  metadata jsonb not null default '{}'::jsonb,
+  occurred_at timestamp with time zone default now(),
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+create unique index if not exists agent_conversion_outcomes_dedupe_key_idx
+  on public.agent_conversion_outcomes (dedupe_key);
+
+create index if not exists agent_conversion_outcomes_agent_owner_idx
+  on public.agent_conversion_outcomes (agent_id, owner_user_id);
+
+create index if not exists agent_conversion_outcomes_cta_event_idx
+  on public.agent_conversion_outcomes (cta_event_id);
+
+create index if not exists agent_conversion_outcomes_lead_idx
+  on public.agent_conversion_outcomes (lead_id);
+
+create index if not exists agent_conversion_outcomes_type_idx
+  on public.agent_conversion_outcomes (outcome_type);
+
+create index if not exists agent_conversion_outcomes_occurred_at_idx
+  on public.agent_conversion_outcomes (occurred_at desc);
