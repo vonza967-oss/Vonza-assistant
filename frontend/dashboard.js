@@ -39,6 +39,7 @@ const FULL_SHELL_SECTIONS = ["overview", "contacts", "inbox", "calendar", "autom
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
+const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const FEATURE_STATE_STABLE = "stable";
 const FEATURE_STATE_BETA = "beta";
@@ -203,6 +204,10 @@ function isOperatorWorkspaceFlagEnabled() {
     OPERATOR_WORKSPACE_BROWSER_FLAG,
     LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG
   );
+}
+
+function isTodayCopilotFlagEnabled() {
+  return readWindowBooleanFlag(TODAY_COPILOT_BROWSER_FLAG);
 }
 
 function getLaunchProfile() {
@@ -2183,6 +2188,153 @@ function buildContactsPanel(operatorWorkspace = createEmptyOperatorWorkspace()) 
   `;
 }
 
+function buildCopilotAnswerCards(copilot = createEmptyOperatorWorkspace().copilot) {
+  const answers = Array.isArray(copilot.answers) ? copilot.answers : [];
+
+  if (!answers.length) {
+    return "";
+  }
+
+  return `
+    <div class="overview-grid operator-metric-grid" style="margin-top:16px;">
+      ${answers.map((answer) => `
+        <div class="overview-card">
+          <p class="overview-label">${escapeHtml(answer.question || "Copilot answer")}</p>
+          <p class="overview-card-copy">${escapeHtml(answer.answer || "Copilot is waiting for more stable-core context.")}</p>
+          <p class="analytics-subtle">${escapeHtml([
+            answer.confidence ? `Confidence: ${answer.confidence}` : "",
+            answer.rationale || "",
+          ].filter(Boolean).join(" · "))}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function buildCopilotRecommendationList(copilot = createEmptyOperatorWorkspace().copilot) {
+  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations : [];
+
+  if (!recommendations.length) {
+    return "";
+  }
+
+  return `
+    <section class="workspace-card-soft" style="margin-top:16px;">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Recommendations</p>
+          <h3 class="workspace-panel-title">Approval-first next moves</h3>
+          <p class="workspace-panel-copy">These are suggestions only. Copilot will not execute writes or sends on its own.</p>
+        </div>
+      </div>
+      <div class="analytics-list">
+        ${recommendations.map((recommendation) => `
+          <div class="analytics-item">
+            <p class="analytics-item-title">${escapeHtml(recommendation.title || "Recommendation")}</p>
+            <p class="analytics-item-copy">${escapeHtml(recommendation.summary || "Copilot surfaced a recommendation from stable-core data.")}</p>
+            <p class="analytics-subtle">${escapeHtml([
+              recommendation.priority ? `Priority: ${recommendation.priority}` : "",
+              recommendation.confidence ? `Confidence: ${recommendation.confidence}` : "",
+              recommendation.rationale || "",
+            ].filter(Boolean).join(" · "))}</p>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildCopilotDraftList(copilot = createEmptyOperatorWorkspace().copilot) {
+  const drafts = Array.isArray(copilot.drafts) ? copilot.drafts : [];
+
+  if (!drafts.length) {
+    return "";
+  }
+
+  return `
+    <section class="workspace-card-soft" style="margin-top:16px;">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Drafts</p>
+          <h3 class="workspace-panel-title">Prepared owner drafts</h3>
+          <p class="workspace-panel-copy">Drafts stay read-first and approval-first here. Nothing is sent automatically.</p>
+        </div>
+      </div>
+      <div class="analytics-list">
+        ${drafts.map((draft) => `
+          <div class="analytics-item">
+            <p class="analytics-item-title">${escapeHtml(draft.title || "Prepared draft")}</p>
+            <p class="analytics-item-copy">${escapeHtml(draft.subject || "No subject prepared yet")}</p>
+            <p class="analytics-subtle">${escapeHtml([
+              draft.channel ? `Channel: ${draft.channel}` : "",
+              draft.confidence ? `Confidence: ${draft.confidence}` : "",
+              "Owner approval required",
+            ].filter(Boolean).join(" · "))}</p>
+            <div class="placeholder-card" style="margin-top:12px;">
+              <p style="white-space:pre-wrap;">${escapeHtml(draft.body || "Draft content is not available yet.")}</p>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
+
+  if (!isTodayCopilotFlagEnabled() || copilot.featureEnabled !== true || copilot.enabled === false) {
+    return "";
+  }
+
+  const readiness = copilot.context?.businessProfile?.readiness || createEmptyOperatorWorkspace().copilot.context.businessProfile.readiness;
+  const warnings = Array.isArray(copilot.context?.warnings) ? copilot.context.warnings : [];
+  const guidance = Array.isArray(copilot.fallback?.guidance) ? copilot.fallback.guidance : [];
+
+  return `
+    <section class="workspace-card-soft" style="margin-top:20px;">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Copilot</p>
+          <h3 class="workspace-panel-title">Today Copilot</h3>
+          <p class="workspace-panel-copy">Read-only summaries and approval-first drafts over Vonza's stable core. Copilot does not silently execute external actions.</p>
+        </div>
+        <div class="workspace-badge-row">
+          <span class="${getBadgeClass(copilot.readOnly ? "Ready" : "Limited")}">${copilot.readOnly ? "Read only" : "Limited"}</span>
+          <span class="${getBadgeClass(copilot.draftOnly ? "Ready" : "Limited")}">${copilot.draftOnly ? "Draft first" : "Mixed mode"}</span>
+        </div>
+      </div>
+      <div class="operator-home-grid">
+        <section class="operator-focus-card">
+          <p class="overview-label">Copilot headline</p>
+          <h3 class="operator-focus-title">${escapeHtml(copilot.headline || "Copilot is ready.")}</h3>
+          <p class="operator-focus-copy">${escapeHtml(copilot.summary || "Copilot is summarizing stable-core data only.")}</p>
+        </section>
+        <section class="operator-focus-card operator-briefing-card">
+          <p class="overview-label">Business context foundation</p>
+          <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Business context readiness will appear here.")}</p>
+          ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} areas are still missing context.`)}</p>` : `<p class="analytics-subtle">Core business context is filled for Copilot.</p>`}
+        </section>
+      </div>
+      ${warnings.length ? `
+        <div class="operator-inline-alert" style="margin-top:16px;">
+          ${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}
+        </div>
+      ` : ""}
+      ${copilot.sparseData ? `
+        <div class="placeholder-card" style="margin-top:16px;">
+          <strong>${escapeHtml(copilot.fallback?.title || "Copilot needs more context")}</strong>
+          <p style="margin-top:8px;">${escapeHtml(copilot.fallback?.description || "There is not enough stable-core data yet for strong recommendations.")}</p>
+          ${guidance.length ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(guidance.join(" "))}</p>` : ""}
+        </div>
+      ` : ""}
+      ${buildCopilotAnswerCards(copilot)}
+      ${buildCopilotRecommendationList(copilot)}
+      ${buildCopilotDraftList(copilot)}
+    </section>
+  `;
+}
+
 function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   if (operatorWorkspace.enabled === false) {
     return "";
@@ -2234,6 +2386,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           ` : ""}
         </section>
       </div>
+      ${buildTodayCopilotSection(operatorWorkspace)}
       ${buildOperatorChecklistMarkup(operatorWorkspace)}
       <div class="overview-grid operator-metric-grid">
             <div class="overview-card">
@@ -3392,6 +3545,46 @@ function createEmptyOperatorWorkspace() {
       },
       overdueHighValueContacts: 0,
       topTask: "",
+    },
+    copilot: {
+      enabled: false,
+      featureEnabled: false,
+      readOnly: true,
+      draftOnly: true,
+      autonomousActionsEnabled: false,
+      sparseData: true,
+      headline: "",
+      summary: "",
+      questions: [],
+      answers: [],
+      recommendations: [],
+      drafts: [],
+      context: {
+        sourceCounts: {
+          messages: 0,
+          actionQueueItems: 0,
+          contacts: 0,
+          followUps: 0,
+          knowledgeFixes: 0,
+          recentOutcomes: 0,
+          widgetEvents: 0,
+        },
+        businessProfile: {
+          readiness: {
+            totalSections: 0,
+            completedSections: 0,
+            missingCount: 0,
+            missingSections: [],
+            summary: "",
+          },
+        },
+        warnings: [],
+      },
+      fallback: {
+        title: "",
+        description: "",
+        guidance: [],
+      },
     },
     contextOptions: {
       mailboxes: [
@@ -6344,9 +6537,20 @@ function normalizeOperatorWorkspace(data = null) {
   const automations = normalizeOperatorRecord(source.automations, emptyWorkspace.automations);
   const outcomes = normalizeOperatorRecord(source.outcomes, emptyWorkspace.outcomes);
   const contacts = normalizeOperatorRecord(source.contacts, emptyWorkspace.contacts);
+  const copilot = normalizeOperatorRecord(source.copilot, emptyWorkspace.copilot);
   const contactsFilters = normalizeOperatorRecord(contacts.filters, emptyWorkspace.contacts.filters);
   const contactsSummary = normalizeOperatorRecord(contacts.summary, emptyWorkspace.contacts.summary);
   const contactsHealth = normalizeOperatorRecord(contacts.health, emptyWorkspace.contacts.health);
+  const copilotContext = normalizeOperatorRecord(copilot.context, emptyWorkspace.copilot.context);
+  const copilotFallback = normalizeOperatorRecord(copilot.fallback, emptyWorkspace.copilot.fallback);
+  const copilotBusinessProfile = normalizeOperatorRecord(
+    copilotContext.businessProfile,
+    emptyWorkspace.copilot.context.businessProfile
+  );
+  const copilotReadiness = normalizeOperatorRecord(
+    copilotBusinessProfile.readiness,
+    emptyWorkspace.copilot.context.businessProfile.readiness
+  );
 
   return {
     ...emptyWorkspace,
@@ -6405,6 +6609,37 @@ function normalizeOperatorWorkspace(data = null) {
       ...emptyWorkspace.outcomes,
       ...outcomes,
       recentOutcomes: normalizeOperatorArray(outcomes.recentOutcomes, normalizeOperatorRecord),
+    },
+    copilot: {
+      ...emptyWorkspace.copilot,
+      ...copilot,
+      questions: normalizeOperatorArray(copilot.questions, (value) => trimText(value)),
+      answers: normalizeOperatorArray(copilot.answers, normalizeOperatorRecord),
+      recommendations: normalizeOperatorArray(copilot.recommendations, normalizeOperatorRecord),
+      drafts: normalizeOperatorArray(copilot.drafts, normalizeOperatorRecord),
+      context: {
+        ...emptyWorkspace.copilot.context,
+        ...copilotContext,
+        sourceCounts: {
+          ...emptyWorkspace.copilot.context.sourceCounts,
+          ...normalizeOperatorRecord(copilotContext.sourceCounts, emptyWorkspace.copilot.context.sourceCounts),
+        },
+        businessProfile: {
+          ...emptyWorkspace.copilot.context.businessProfile,
+          ...copilotBusinessProfile,
+          readiness: {
+            ...emptyWorkspace.copilot.context.businessProfile.readiness,
+            ...copilotReadiness,
+            missingSections: normalizeOperatorArray(copilotReadiness.missingSections, (value) => trimText(value)),
+          },
+        },
+        warnings: normalizeOperatorArray(copilotContext.warnings, (value) => trimText(value)),
+      },
+      fallback: {
+        ...emptyWorkspace.copilot.fallback,
+        ...copilotFallback,
+        guidance: normalizeOperatorArray(copilotFallback.guidance, (value) => trimText(value)),
+      },
     },
     contacts: {
       ...emptyWorkspace.contacts,

@@ -8,6 +8,7 @@ import {
   getGoogleOAuthRedirectUri,
   getGoogleTokenEncryptionSecret,
   isOperatorWorkspaceEnabled,
+  isTodayCopilotEnabled,
 } from "../../config/env.js";
 import {
   CONNECTED_ACCOUNT_AUDIT_TABLE,
@@ -21,10 +22,21 @@ import {
   OPERATOR_INBOX_THREAD_TABLE,
   OPERATOR_TASK_TABLE,
 } from "../../config/constants.js";
-import { listLeadCaptures } from "../leads/liveLeadCaptureService.js";
-import { listFollowUpWorkflows } from "../followup/followUpService.js";
-import { updateActionQueueStatus } from "../analytics/actionQueueService.js";
+import {
+  buildActionQueue,
+  listActionQueueStatuses,
+  updateActionQueueStatus,
+} from "../analytics/actionQueueService.js";
+import { listWidgetRoutingEventsByAgentId } from "../analytics/widgetTelemetryService.js";
+import { listAgentMessages } from "../chat/messageService.js";
 import { listConversionOutcomesForAgent, recordOutcomeEvent } from "../conversion/conversionOutcomeService.js";
+import { listFollowUpWorkflows } from "../followup/followUpService.js";
+import { listKnowledgeFixWorkflows } from "../knowledge/knowledgeFixService.js";
+import {
+  hydrateActionQueueWithLeadCaptures,
+  listLeadCaptures,
+} from "../leads/liveLeadCaptureService.js";
+import { getStoredWebsiteContent } from "../scraping/websiteContentService.js";
 import {
   buildOperatorActivationChecklist,
   buildOperatorBriefing,
@@ -36,7 +48,9 @@ import {
   patchOperatorActivationState,
   probeOperatorActivationPersistence,
 } from "./operatorActivationService.js";
+import { getOperatorBusinessProfile } from "./operatorBusinessProfileService.js";
 import { getOperatorContactsWorkspace } from "./contactWorkspaceService.js";
+import { buildTodayCopilotSnapshot } from "./todayCopilotService.js";
 import { cleanText } from "../../utils/text.js";
 import { decryptSecret, encryptSecret, hashToken } from "../../utils/crypto.js";
 
@@ -2563,6 +2577,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   const agent = options.agent || {};
   const ownerUserId = cleanText(options.ownerUserId);
   const featureEnabled = isOperatorWorkspaceEnabled();
+  const copilotFeatureEnabled = isTodayCopilotEnabled();
 
   if (!cleanText(agent.id) || !ownerUserId) {
     const error = new Error("agent and owner_user_id are required");
@@ -2664,6 +2679,9 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
           partialData: false,
         },
       },
+      copilot: buildTodayCopilotSnapshot({
+        featureEnabled: false,
+      }),
       summary: buildOperatorSummary(),
     };
   }
@@ -2716,6 +2734,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     tasksResult,
     campaignsResult,
     followUpsResult,
+    messagesResult,
+    actionQueueStatusesResult,
+    knowledgeFixesResult,
+    websiteContentResult,
+    routingEventsResult,
+    businessProfileResult,
     activationResult,
     leadCapturesResult,
     outcomesResult,
@@ -2744,6 +2768,35 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       agentId: agent.id,
       ownerUserId,
     }),
+    copilotFeatureEnabled
+      ? listAgentMessages(supabase, agent.id)
+      : Promise.resolve([]),
+    copilotFeatureEnabled
+      ? listActionQueueStatuses(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      })
+      : Promise.resolve({ records: [], persistenceAvailable: true }),
+    copilotFeatureEnabled
+      ? listKnowledgeFixWorkflows(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      })
+      : Promise.resolve({ records: [], persistenceAvailable: true }),
+    copilotFeatureEnabled && cleanText(agent.businessId)
+      ? getStoredWebsiteContent(supabase, agent.businessId)
+      : Promise.resolve(null),
+    copilotFeatureEnabled
+      ? listWidgetRoutingEventsByAgentId(supabase, {
+        agentId: agent.id,
+      })
+      : Promise.resolve([]),
+    copilotFeatureEnabled
+      ? getOperatorBusinessProfile(supabase, {
+        agent,
+        ownerUserId,
+      })
+      : Promise.resolve(null),
     getOperatorActivationState(supabase, {
       agent,
       ownerUserId,
@@ -2790,6 +2843,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     getSettledErrorMessage(tasksResult),
     getSettledErrorMessage(campaignsResult),
     getSettledErrorMessage(followUpsResult),
+    getSettledErrorMessage(messagesResult),
+    getSettledErrorMessage(actionQueueStatusesResult),
+    getSettledErrorMessage(knowledgeFixesResult),
+    getSettledErrorMessage(websiteContentResult),
+    getSettledErrorMessage(routingEventsResult),
+    getSettledErrorMessage(businessProfileResult),
     getSettledErrorMessage(activationResult),
     getSettledErrorMessage(leadCapturesResult),
     getSettledErrorMessage(outcomesResult),
@@ -2904,6 +2963,66 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     contacts: contactsWorkspace.list || [],
     contactsSummary: contactsWorkspace.summary,
   });
+  const messages = getSettledValue(messagesResult, []);
+  const actionQueueStatuses = getSettledValue(actionQueueStatusesResult, {
+    records: [],
+    persistenceAvailable: true,
+  });
+  const knowledgeFixResult = getSettledValue(knowledgeFixesResult, {
+    records: [],
+    persistenceAvailable: true,
+  });
+  const websiteContent = getSettledValue(websiteContentResult, null);
+  const routingEvents = getSettledValue(routingEventsResult, []);
+  const businessProfile = getSettledValue(businessProfileResult, null);
+  const copilotQueue = copilotFeatureEnabled
+    ? hydrateActionQueueWithLeadCaptures(
+      buildActionQueue(messages, actionQueueStatuses.records || [], {
+        persistenceAvailable: actionQueueStatuses.persistenceAvailable !== false,
+        followUps: followUpResult.records || [],
+        knowledgeFixes: knowledgeFixResult.records || [],
+        followUpWorkflowAvailable: followUpResult.persistenceAvailable !== false,
+        knowledgeFixWorkflowAvailable: knowledgeFixResult.persistenceAvailable !== false,
+      }),
+      {
+        records: leadCaptureResult.records || [],
+        followUps: followUpResult.records || [],
+        widgetEvents: routingEvents,
+        outcomes: conversionOutcomeResult,
+        persistenceAvailable: leadCaptureResult.persistenceAvailable !== false,
+      }
+    )
+    : null;
+  const copilotWarnings = [
+    getSettledErrorMessage(messagesResult),
+    getSettledErrorMessage(actionQueueStatusesResult),
+    getSettledErrorMessage(knowledgeFixesResult),
+    getSettledErrorMessage(websiteContentResult),
+    getSettledErrorMessage(routingEventsResult),
+    getSettledErrorMessage(businessProfileResult),
+  ].filter(Boolean);
+  const copilot = buildTodayCopilotSnapshot({
+    featureEnabled: copilotFeatureEnabled,
+    agent,
+    messages,
+    actionQueue: copilotQueue || {},
+    followUps: followUpResult.records || [],
+    knowledgeFixes: knowledgeFixResult.records || [],
+    contacts: contactsWorkspace.list || [],
+    recentOutcomes: conversionOutcomeResult.recentOutcomes || [],
+    routingEvents,
+    websiteContent,
+    businessProfile: businessProfile || {
+      readiness: {
+        totalSections: 0,
+        completedSections: 0,
+        missingCount: 0,
+        missingSections: [],
+        summary: "",
+      },
+    },
+    loadWarnings: copilotWarnings,
+  });
 
   return {
     enabled: true,
@@ -2962,6 +3081,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       persistenceAvailable: conversionOutcomeResult.persistenceAvailable !== false,
     },
     contacts: contactsWorkspace,
+    copilot,
     summary,
   };
 }

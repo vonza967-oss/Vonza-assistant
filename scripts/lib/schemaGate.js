@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const TABLE_BLOCK_PATTERN = /create table if not exists public\.(\w+)\s*\(([\s\S]*?)\);\s*/gi;
+const TABLE_BLOCK_PATTERN = /create table(?: if not exists)? public\.(\w+)\s*\(([\s\S]*?)\);\s*/gi;
 const ALTER_TABLE_PATTERN = /alter table(?: if exists)? public\.(\w+)\s+([\s\S]*?);/gi;
 const STRING_CONSTANT_PATTERN = /(?:export\s+)?const\s+(\w+)\s*=\s*["'`]([^"'`]+)["'`]\s*;/g;
 const ARRAY_JOIN_PATTERN = /(?:export\s+)?const\s+(\w+)\s*=\s*\[([\s\S]*?)\]\.join\(([\s\S]*?)\)\s*;/g;
@@ -118,7 +118,7 @@ export function parseMigrationInventory(files) {
       const body = match[2];
       const columns = [];
 
-      for (const addColumnMatch of body.matchAll(/add column if not exists (\w+)/gi)) {
+      for (const addColumnMatch of body.matchAll(/add column(?: if not exists)? (\w+)/gi)) {
         columns.push(addColumnMatch[1]);
       }
 
@@ -289,18 +289,19 @@ export function evaluateSchemaSync({
 
 export function evaluateSchemaFileChanges(changedFiles = []) {
   const migrationFiles = changedFiles.filter(
-    (filePath) => filePath.startsWith("db/") && filePath.endsWith(".sql") && filePath !== "db/schema.sql"
+    (filePath) =>
+      filePath.startsWith("supabase/migrations/") && filePath.endsWith(".sql")
   );
   const schemaChanged = changedFiles.includes("db/schema.sql");
   const errors = [];
 
   if (schemaChanged && !migrationFiles.length) {
-    errors.push("db/schema.sql changed without a matching incremental migration in db/.");
+    errors.push("db/schema.sql changed without a matching migration in supabase/migrations/.");
   }
 
   if (migrationFiles.length && !schemaChanged) {
     errors.push(
-      `Incremental migrations changed (${migrationFiles.join(", ")}) without updating db/schema.sql.`
+      `Supabase migrations changed (${migrationFiles.join(", ")}) without updating db/schema.sql.`
     );
   }
 

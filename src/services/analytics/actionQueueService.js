@@ -38,6 +38,24 @@ function normalizeStatus(value) {
   return ACTION_QUEUE_STATUSES.includes(normalized) ? normalized : "new";
 }
 
+function parseRequestedStatus(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (!ACTION_QUEUE_STATUSES.includes(normalized)) {
+    const error = new Error(
+      `Unsupported action queue status '${cleanText(value)}'. Supported action queue statuses: ${ACTION_QUEUE_STATUSES.join(", ")}.`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return normalized;
+}
+
 function isMissingPersistenceColumnError(error) {
   const message = cleanText(error?.message || "").toLowerCase();
 
@@ -58,6 +76,15 @@ function buildMissingActionQueueSchemaError(phase = "request") {
   );
   error.statusCode = 500;
   error.code = "schema_not_ready";
+  return error;
+}
+
+function buildUnavailableActionQueuePersistenceError() {
+  const error = new Error(
+    "Action queue persistence is not ready on the server yet. Apply the action queue migration and try again."
+  );
+  error.statusCode = 503;
+  error.code = "action_queue_persistence_unavailable";
   return error;
 }
 
@@ -1522,10 +1549,7 @@ export async function listActionQueueStatuses(supabase, options = {}) {
 
   if (error) {
     if (isUnavailablePersistenceError(error)) {
-      return {
-        records: [],
-        persistenceAvailable: false,
-      };
+      throw buildUnavailableActionQueuePersistenceError();
     }
 
     console.error(error);
@@ -1548,7 +1572,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
   const followUpNeeded = options.followUpNeeded === undefined ? undefined : normalizeBooleanFlag(options.followUpNeeded);
   const followUpCompleted = options.followUpCompleted === undefined ? undefined : normalizeBooleanFlag(options.followUpCompleted);
   const contactStatus = options.contactStatus === undefined ? undefined : normalizeContactStatus(options.contactStatus);
-  const explicitStatus = options.status === undefined ? null : normalizeStatus(options.status);
+  const explicitStatus = options.status === undefined ? "" : parseRequestedStatus(options.status);
   const hasHandoffUpdate = [
     note,
     outcome,
@@ -1571,6 +1595,41 @@ export async function updateActionQueueStatus(supabase, options = {}) {
 
   if (!agentId || !ownerUserId || !actionKey) {
     const error = new Error("agent_id, owner_user_id, and action_key are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (followUpNeeded === true && followUpCompleted === true) {
+    const error = new Error(
+      "Follow-up cannot be marked both needed and completed at the same time."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data: existingRow, error: existingError } = await supabase
+    .from(ACTION_QUEUE_STATUS_TABLE)
+    .select("agent_id, owner_user_id, action_key, status")
+    .eq("agent_id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .eq("action_key", actionKey)
+    .maybeSingle();
+
+  if (existingError) {
+    if (isUnavailablePersistenceError(existingError)) {
+      throw buildUnavailableActionQueuePersistenceError();
+    }
+
+    console.error(existingError);
+    throw existingError;
+  }
+
+  const existingStatus = normalizeStatus(existingRow?.status);
+
+  if (existingStatus === "dismissed" && status === "done") {
+    const error = new Error(
+      "Vonza cannot move an action queue item directly from dismissed to done."
+    );
     error.statusCode = 400;
     throw error;
   }
@@ -1616,22 +1675,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
 
   if (error) {
     if (isUnavailablePersistenceError(error)) {
-      return {
-        item: normalizePersistedItem({
-          agentId,
-          ownerUserId,
-          actionKey,
-          status,
-          note,
-          outcome,
-          nextStep,
-          followUpNeeded,
-          followUpCompleted,
-          contactStatus,
-          updatedAt: new Date().toISOString(),
-        }),
-        persistenceAvailable: false,
-      };
+      throw buildUnavailableActionQueuePersistenceError();
     }
 
     console.error(error);

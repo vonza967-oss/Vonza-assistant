@@ -2,10 +2,10 @@ services:
   - type: web
     name: vonza-assistant
     runtime: node
-    buildCommand: npm install
+    buildCommand: npm install && npm run verify:deploy-readiness
     startCommand: npm run start:prod
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: OPENAI_API_KEY
         sync: false

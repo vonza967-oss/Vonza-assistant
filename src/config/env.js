@@ -48,6 +48,10 @@ export function isOperatorWorkspaceEnabled() {
   return String(process.env.VONZA_OPERATOR_WORKSPACE_V1 || "").trim().toLowerCase() === "true";
 }
 
+export function isTodayCopilotEnabled() {
+  return String(process.env.VONZA_TODAY_COPILOT_V1 || "").trim().toLowerCase() === "true";
+}
+
 export function isDevFakeBillingEnabled() {
   return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
 }

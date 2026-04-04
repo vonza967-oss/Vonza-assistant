@@ -1887,12 +1887,36 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
 
 test("lightweight owner handoff updates auto-advance queue status when appropriate", async () => {
   let capturedPayload = null;
+  let persistedRow = null;
   const supabase = {
     from(tableName) {
       assert.equal(tableName, "agent_action_queue_statuses");
       return {
+        select() {
+          return {
+            eq() {
+              return {
+                eq() {
+                  return {
+                    eq() {
+                      return {
+                        async maybeSingle() {
+                          return {
+                            data: persistedRow,
+                            error: null,
+                          };
+                        },
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        },
         upsert(payload) {
           capturedPayload = payload;
+          persistedRow = payload;
           return {
             select() {
               return {
@@ -1938,7 +1962,7 @@ test("lightweight owner handoff updates auto-advance queue status when appropria
   assert.equal(resolved.item.status, "done");
 });
 
-test("action queue surfaces migration-required state instead of silently pretending follow-up is persistent", { concurrency: false }, async () => {
+test("action queue returns a clear persistence error instead of silently pretending follow-up is persistent", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
     messages: [
@@ -1957,10 +1981,11 @@ test("action queue surfaces migration-required state instead of silently pretend
 
   const deps = {
     ...createAgentTestDeps(state),
-    listActionQueueStatuses: async () => ({
-      records: [],
-      persistenceAvailable: false,
-    }),
+    listActionQueueStatuses: async () => {
+      const error = new Error("Action queue persistence is not ready on the server yet. Apply the action queue migration and try again.");
+      error.statusCode = 503;
+      throw error;
+    },
   };
 
   await withEnv(
@@ -1974,9 +1999,11 @@ test("action queue surfaces migration-required state instead of silently pretend
 
       try {
         const result = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
-        assert.equal(result.status, 200);
-        assert.equal(result.json.persistenceAvailable, false);
-        assert.equal(result.json.migrationRequired, true);
+        assert.equal(result.status, 503);
+        assert.equal(
+          result.json.error,
+          "Action queue persistence is not ready on the server yet. Apply the action queue migration and try again."
+        );
       } finally {
         await server.close();
       }

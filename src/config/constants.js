@@ -19,4 +19,5 @@ export const OPERATOR_CAMPAIGN_STEP_TABLE = "operator_campaign_steps";
 export const OPERATOR_ACTIVATION_TABLE = "operator_workspace_activations";
 export const OPERATOR_CONTACT_TABLE = "operator_contacts";
 export const OPERATOR_CONTACT_IDENTITY_TABLE = "operator_contact_identities";
+export const OPERATOR_BUSINESS_PROFILE_TABLE = "operator_business_profiles";
 export const MAX_CRAWL_PAGES = 8;
