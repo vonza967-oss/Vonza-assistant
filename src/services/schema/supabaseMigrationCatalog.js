@@ -127,6 +127,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "operator-only",
     note: "Adds durable operator-focused business profile context for Today + Copilot summaries and approval-first drafts.",
   }),
+  Object.freeze({
+    id: "copilot_proposal_states",
+    version: "20260404001400",
+    name: "copilot_proposal_states",
+    file: "supabase/migrations/20260404001400_copilot_proposal_states.sql",
+    legacySources: Object.freeze(["db/copilot_proposal_states.sql"]),
+    tier: "operator-only",
+    note: "Adds lightweight proposal state persistence so Today Copilot can hide applied or dismissed proposals without autonomous execution.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

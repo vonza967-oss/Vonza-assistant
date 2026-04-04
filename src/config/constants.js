@@ -20,4 +20,5 @@ export const OPERATOR_ACTIVATION_TABLE = "operator_workspace_activations";
 export const OPERATOR_CONTACT_TABLE = "operator_contacts";
 export const OPERATOR_CONTACT_IDENTITY_TABLE = "operator_contact_identities";
 export const OPERATOR_BUSINESS_PROFILE_TABLE = "operator_business_profiles";
+export const COPILOT_PROPOSAL_STATE_TABLE = "agent_copilot_proposal_states";
 export const MAX_CRAWL_PAGES = 8;

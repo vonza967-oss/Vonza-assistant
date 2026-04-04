@@ -2375,96 +2375,98 @@ function buildCopilotSummaryCards(copilot = createEmptyOperatorWorkspace().copil
   `;
 }
 
-function buildCopilotRecommendationList(copilot = createEmptyOperatorWorkspace().copilot) {
-  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations : [];
+function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copilot) {
+  const proposals = Array.isArray(copilot.proposals) ? copilot.proposals : [];
+  const summary = copilot.proposalSummary || createEmptyOperatorWorkspace().copilot.proposalSummary;
 
-  if (!recommendations.length) {
-    return "";
-  }
+  if (!proposals.length) {
+    if ((summary.hiddenCount || 0) === 0) {
+      return "";
+    }
 
-  return `
-    <section class="workspace-card-soft" style="margin-top:16px;">
-      <div class="workspace-panel-header">
-        <div>
-          <p class="studio-kicker">Recommendations</p>
-          <h3 class="workspace-panel-title">Approval-first next moves</h3>
-          <p class="workspace-panel-copy">These are suggestions only. Copilot will not execute writes or sends on its own.</p>
-        </div>
-      </div>
-      <div class="analytics-list">
-        ${recommendations.map((recommendation) => `
-          <div class="analytics-item">
-            <p class="analytics-item-title">${escapeHtml(recommendation.title || "Recommendation")}</p>
-            <p class="analytics-item-copy">${escapeHtml(recommendation.summary || "Copilot surfaced a recommendation from stable-core data.")}</p>
-            <p class="analytics-subtle">${escapeHtml([
-              recommendation.priority ? `Priority: ${recommendation.priority}` : "",
-              recommendation.confidence ? `Confidence: ${recommendation.confidence}` : "",
-              recommendation.surfaceLabel ? `Best surface: ${recommendation.surfaceLabel}` : "",
-              recommendation.rationale || "",
-            ].filter(Boolean).join(" · "))}</p>
-            ${recommendation.targetSection ? `
-              <div class="inline-actions" style="margin-top:12px;">
-                <button
-                  class="ghost-button"
-                  type="button"
-                  data-copilot-open-target
-                  data-shell-target="${escapeHtml(recommendation.targetSection || "overview")}"
-                  data-target-id="${escapeHtml(recommendation.targetId || "")}"
-                >
-                  ${escapeHtml(recommendation.surfaceLabel || "Open workflow")}
-                </button>
-              </div>
-            ` : ""}
+    return `
+      <section class="workspace-card-soft" style="margin-top:16px;">
+        <div class="workspace-panel-header">
+          <div>
+            <p class="studio-kicker">Proposals</p>
+            <h3 class="workspace-panel-title">Approval-first proposals</h3>
+            <p class="workspace-panel-copy">There are no active Copilot proposals right now because the current ones were already handled or dismissed.</p>
           </div>
-        `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function buildCopilotDraftList(copilot = createEmptyOperatorWorkspace().copilot) {
-  const drafts = Array.isArray(copilot.drafts) ? copilot.drafts : [];
-
-  if (!drafts.length) {
-    return "";
+        </div>
+      </section>
+    `;
   }
 
   return `
     <section class="workspace-card-soft" style="margin-top:16px;">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Drafts</p>
-          <h3 class="workspace-panel-title">Prepared owner drafts</h3>
-          <p class="workspace-panel-copy">Drafts stay read-first and approval-first here. Nothing is sent automatically.</p>
+          <p class="studio-kicker">Proposals</p>
+          <h3 class="workspace-panel-title">Approval-first proposals</h3>
+          <p class="workspace-panel-copy">Each proposal explains what Copilot recommends, why it matters, what will happen if you apply it, and where the real workflow object will land.</p>
+        </div>
+        <div class="workspace-badge-row">
+          <span class="${getBadgeClass(summary.blockedCount ? "Needs attention" : "Ready")}">${escapeHtml(`${summary.activeCount || proposals.length} active`)}</span>
+          ${summary.blockedCount ? `<span class="${getBadgeClass("Needs attention")}">${escapeHtml(`${summary.blockedCount} blocked`)}</span>` : ""}
         </div>
       </div>
       <div class="analytics-list">
-        ${drafts.map((draft) => `
+        ${proposals.map((proposal) => `
           <div class="analytics-item">
-            <p class="analytics-item-title">${escapeHtml(draft.title || "Prepared draft")}</p>
-            <p class="analytics-item-copy">${escapeHtml(draft.subject || "No subject prepared yet")}</p>
-            <p class="analytics-subtle">${escapeHtml([
-              draft.channel ? `Channel: ${draft.channel}` : "",
-              draft.confidence ? `Confidence: ${draft.confidence}` : "",
-              draft.surfaceLabel ? `Best surface: ${draft.surfaceLabel}` : "",
-              "Owner approval required",
-            ].filter(Boolean).join(" · "))}</p>
-            <div class="placeholder-card" style="margin-top:12px;">
-              <p style="white-space:pre-wrap;">${escapeHtml(draft.body || "Draft content is not available yet.")}</p>
+            <div class="workspace-panel-header" style="gap:12px; align-items:flex-start;">
+              <div>
+                <p class="analytics-item-title">${escapeHtml(proposal.title || "Copilot proposal")}</p>
+                <p class="analytics-item-copy">${escapeHtml(proposal.summary || "Copilot prepared an approval-first proposal from stable-core data.")}</p>
+              </div>
+              <span class="${getBadgeClass(
+                proposal.state === "blocked"
+                  ? "Needs attention"
+                  : proposal.state === "stale"
+                    ? "Limited"
+                    : "Ready"
+              )}">${escapeHtml((proposal.state || "new").replaceAll("_", " "))}</span>
             </div>
-            ${draft.targetSection ? `
-              <div class="inline-actions" style="margin-top:12px;">
-                <button
-                  class="ghost-button"
-                  type="button"
-                  data-copilot-open-target
-                  data-shell-target="${escapeHtml(draft.targetSection || "overview")}"
-                  data-target-id="${escapeHtml(draft.targetId || "")}"
-                >
-                  ${escapeHtml(draft.surfaceLabel || "Open workflow")}
-                </button>
+            <p class="analytics-subtle">${escapeHtml([
+              proposal.type ? `Type: ${proposal.type.replaceAll("_", " ")}` : "",
+              proposal.priority ? `Priority: ${proposal.priority}` : "",
+              proposal.confidence ? `Confidence: ${proposal.confidence}` : "",
+            ].filter(Boolean).join(" · "))}</p>
+            ${proposal.why ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(`Why: ${proposal.why}`)}</p>` : ""}
+            ${proposal.whatHappens ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`If applied: ${proposal.whatHappens}`)}</p>` : ""}
+            ${proposal.target?.label || proposal.target?.section ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Target: ${proposal.target.label || proposal.target.section || "Existing workflow"}`)}</p>` : ""}
+            ${proposal.approvalNote ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Approval-first: ${proposal.approvalNote}`)}</p>` : ""}
+            ${proposal.stateReason ? `
+              <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
+                <p>${escapeHtml(proposal.stateReason)}</p>
               </div>
             ` : ""}
+            <div class="inline-actions" style="margin-top:12px;">
+              <button
+                class="primary-button"
+                type="button"
+                data-copilot-apply-proposal
+                data-proposal-key="${escapeHtml(proposal.key || "")}"
+              >
+                ${escapeHtml(proposal.applyLabel || "Apply")}
+              </button>
+              <button
+                class="ghost-button"
+                type="button"
+                data-copilot-open-target
+                data-shell-target="${escapeHtml(proposal.target?.section || "overview")}"
+                data-target-id="${escapeHtml(proposal.target?.id || "")}"
+              >
+                ${escapeHtml(proposal.openLabel || proposal.target?.label || "Open")}
+              </button>
+              <button
+                class="ghost-button"
+                type="button"
+                data-copilot-dismiss-proposal
+                data-proposal-key="${escapeHtml(proposal.key || "")}"
+              >
+                ${escapeHtml(proposal.dismissLabel || "Dismiss")}
+              </button>
+            </div>
           </div>
         `).join("")}
       </div>
@@ -2527,8 +2529,7 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
         </div>
       ` : ""}
       ${buildCopilotSummaryCards(copilot)}
-      ${buildCopilotRecommendationList(copilot)}
-      ${buildCopilotDraftList(copilot)}
+      ${buildCopilotProposalList(copilot)}
     </section>
   `;
 }
@@ -3897,6 +3898,12 @@ function createEmptyOperatorWorkspace() {
       answers: [],
       recommendations: [],
       drafts: [],
+      proposals: [],
+      proposalSummary: {
+        activeCount: 0,
+        blockedCount: 0,
+        hiddenCount: 0,
+      },
       context: {
         sourceCounts: {
           messages: 0,
@@ -6300,7 +6307,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
 
 function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const automations = operatorWorkspace.automations || createEmptyOperatorWorkspace().automations;
-  const complaintTasks = (automations.tasks || []).filter((task) => ["complaint_queue", "support_follow_up"].includes(task.taskType));
+  const allTasks = automations.tasks || [];
   const campaigns = automations.campaigns || [];
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleConnected = status.googleConnected === true;
@@ -6313,17 +6320,19 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
       </div>
       <div class="workspace-section-stack">
         <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Complaint and support queue</h3>
-          ${!googleConnected ? buildOperatorEmptyState({
-            title: "Connect Google to unlock Automations beta",
-            copy: "Once Google is connected, Vonza can draft complaint recovery, support follow-up, and campaign work without silently sending on its own.",
-            actionMarkup: buildOperatorNextActionButton(operatorWorkspace.nextAction),
-          }) : complaintTasks.length ? `
+          <h3 class="studio-group-title">Owner task queue</h3>
+          <p class="workspace-panel-copy">Copilot-created tasks, complaint follow-up, and other approval-first work land here as real owner queue objects.</p>
+          ${allTasks.length ? `
             <div class="analytics-list">
-              ${complaintTasks.map((task) => `
-                <div class="analytics-item">
+              ${allTasks.map((task) => `
+                <div class="analytics-item" data-operator-task-card data-task-id="${escapeHtml(task.id)}">
                   <p class="analytics-item-title">${escapeHtml(task.title || "Operator task")}</p>
                   <p class="analytics-item-copy">${escapeHtml(task.description || "Needs owner review.")}</p>
+                  <p class="analytics-subtle">${escapeHtml([
+                    task.taskType ? task.taskType.replaceAll("_", " ") : "",
+                    task.priority || "",
+                    task.status || "open",
+                  ].filter(Boolean).join(" · "))}</p>
                   <div class="inline-actions">
                     <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="resolved">Mark resolved</button>
                     <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="escalated">Escalate</button>
@@ -6332,8 +6341,8 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
               `).join("")}
             </div>
           ` : buildOperatorEmptyState({
-            title: "No complaint or support tasks are open",
-            copy: "That means Vonza is not currently holding any support or complaint work in the approval queue.",
+            title: "No owner tasks are open",
+            copy: "Copilot-created tasks and other approval-first operator work will show up here once something needs a tracked review object.",
           })}
         </section>
 
@@ -6970,6 +6979,8 @@ function normalizeOperatorWorkspace(data = null) {
       answers: normalizeOperatorArray(copilot.answers, normalizeOperatorRecord),
       recommendations: normalizeOperatorArray(copilot.recommendations, normalizeOperatorRecord),
       drafts: normalizeOperatorArray(copilot.drafts, normalizeOperatorRecord),
+      proposals: normalizeOperatorArray(copilot.proposals, normalizeOperatorRecord),
+      proposalSummary: normalizeOperatorRecord(copilot.proposalSummary, emptyWorkspace.copilot.proposalSummary),
       context: {
         ...emptyWorkspace.copilot.context,
         ...copilotContext,
@@ -8041,6 +8052,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const operatorContextForms = document.querySelectorAll("[data-operator-context-form]");
   const operatorChecklistButtons = document.querySelectorAll("[data-complete-operator-step]");
   const copilotTargetButtons = document.querySelectorAll("[data-copilot-open-target]");
+  const copilotApplyButtons = document.querySelectorAll("[data-copilot-apply-proposal]");
+  const copilotDismissButtons = document.querySelectorAll("[data-copilot-dismiss-proposal]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
 
   const showShellSection = (targetSection) => {
@@ -8072,7 +8085,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       case "calendar":
         return `[data-calendar-event-card][data-event-id="${targetId}"]`;
       case "automations":
-        return `[data-follow-up-card][data-follow-up-id="${targetId}"]`;
+        return `[data-follow-up-card][data-follow-up-id="${targetId}"], [data-operator-task-card][data-task-id="${targetId}"], [data-campaign-card][data-campaign-id="${targetId}"]`;
       case "analytics":
         return `[data-action-queue-item][data-action-key="${targetId}"]`;
       default:
@@ -8146,6 +8159,78 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       if (submitButton) {
         submitButton.disabled = false;
       }
+    }
+  };
+
+  const applyCopilotProposal = async (button) => {
+    const proposalKey = trimText(button.dataset.proposalKey);
+
+    if (!proposalKey) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus("Applying Copilot proposal...");
+
+    try {
+      const result = await fetchJson("/agents/operator/copilot/proposals/apply", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          proposal_key: proposalKey,
+        }),
+      });
+
+      setStatus(result.message || "Copilot proposal applied.");
+      await boot();
+
+      if (result.result?.section) {
+        showSectionAndHighlight(
+          result.result.section,
+          getCopilotTargetSelector(result.result.section, result.result.id || "")
+        );
+      }
+    } catch (error) {
+      setStatus(error.message || "We couldn't apply that Copilot proposal.");
+      await boot();
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  const dismissCopilotProposal = async (button) => {
+    const proposalKey = trimText(button.dataset.proposalKey);
+
+    if (!proposalKey) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus("Dismissing Copilot proposal...");
+
+    try {
+      const result = await fetchJson("/agents/operator/copilot/proposals/dismiss", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          proposal_key: proposalKey,
+        }),
+      });
+
+      setStatus(result.message || "Copilot proposal dismissed.");
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't dismiss that Copilot proposal.");
+    } finally {
+      button.disabled = false;
     }
   };
 
@@ -8552,6 +8637,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const targetSection = button.dataset.shellTarget || "overview";
       showSectionAndHighlight(targetSection, getCopilotTargetSelector(targetSection, button.dataset.targetId || ""));
     });
+  });
+
+  copilotApplyButtons.forEach((button) => {
+    button.addEventListener("click", () => applyCopilotProposal(button));
+  });
+
+  copilotDismissButtons.forEach((button) => {
+    button.addEventListener("click", () => dismissCopilotProposal(button));
   });
 
   appearancePresetButtons.forEach((button) => {

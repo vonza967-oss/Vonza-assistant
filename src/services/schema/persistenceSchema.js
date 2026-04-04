@@ -675,6 +675,27 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationColumns: ["contact_id"],
   },
+  agent_copilot_proposal_states: {
+    requiredColumns: [
+      "id",
+      "agent_id",
+      "business_id",
+      "owner_user_id",
+      "proposal_key",
+      "proposal_type",
+      "status",
+      "proposal_hash",
+      "status_reason",
+      "result_type",
+      "result_id",
+      "result_section",
+      "applied_at",
+      "dismissed_at",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.copilot_proposal_states],
+  },
   operator_audit_logs: {
     requiredColumns: [
       "id",
