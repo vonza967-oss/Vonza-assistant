@@ -48,7 +48,11 @@ import {
   patchOperatorActivationState,
   probeOperatorActivationPersistence,
 } from "./operatorActivationService.js";
-import { getOperatorBusinessProfile } from "./operatorBusinessProfileService.js";
+import {
+  attachBusinessProfilePrefill,
+  createDefaultOperatorBusinessProfile,
+  getOperatorBusinessProfile,
+} from "./operatorBusinessProfileService.js";
 import { getOperatorContactsWorkspace } from "./contactWorkspaceService.js";
 import { buildTodayCopilotSnapshot } from "./todayCopilotService.js";
 import { cleanText } from "../../utils/text.js";
@@ -2679,6 +2683,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
           partialData: false,
         },
       },
+      businessProfile: createDefaultOperatorBusinessProfile({
+        agent,
+        ownerUserId,
+      }),
       copilot: buildTodayCopilotSnapshot({
         featureEnabled: false,
       }),
@@ -2974,7 +2982,19 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   });
   const websiteContent = getSettledValue(websiteContentResult, null);
   const routingEvents = getSettledValue(routingEventsResult, []);
-  const businessProfile = getSettledValue(businessProfileResult, null);
+  const businessProfile = attachBusinessProfilePrefill(
+    getSettledValue(
+      businessProfileResult,
+      createDefaultOperatorBusinessProfile({
+        agent,
+        ownerUserId,
+      })
+    ),
+    {
+      agent,
+      websiteContent,
+    }
+  );
   const copilotQueue = copilotFeatureEnabled
     ? hydrateActionQueueWithLeadCaptures(
       buildActionQueue(messages, actionQueueStatuses.records || [], {
@@ -3075,6 +3095,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       campaigns,
       followUps: followUpResult.records || [],
     },
+    businessProfile,
     outcomes: {
       summary: conversionOutcomeResult.summary || null,
       recentOutcomes: conversionOutcomeResult.recentOutcomes || [],
