@@ -210,7 +210,8 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
 
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google to unlock Calendar/);
-  assert.match(harness.buildAutomationsPanel({}, workspace), /Connect Google to unlock Automations beta/);
+  assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
+  assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
 });
 
 test("today copilot stays hidden when the browser flag is off", () => {
@@ -297,6 +298,30 @@ test("today copilot renders inside Today when the flag is on", () => {
           surfaceLabel: "Open Automations",
         },
       ],
+      proposals: [
+        {
+          key: "follow-up-draft:contact-1",
+          type: "create_follow_up_draft",
+          title: "Draft follow-up for Taylor Reed",
+          summary: "A visitor asked about pricing and still has no recorded outcome.",
+          whatHappens: "Create or refresh a real approval-first follow-up draft using the deterministic follow-up workflow service.",
+          approvalNote: "This only prepares the draft. Nothing is sent automatically.",
+          applyLabel: "Create draft",
+          openLabel: "Open Automations",
+          dismissLabel: "Dismiss",
+          target: {
+            section: "automations",
+            id: "follow-up-1",
+            label: "Open Automations",
+          },
+          state: "new",
+        },
+      ],
+      proposalSummary: {
+        activeCount: 1,
+        blockedCount: 0,
+        hiddenCount: 0,
+      },
       context: {
         businessProfile: {
           readiness: {
@@ -326,8 +351,9 @@ test("today copilot renders inside Today when the flag is on", () => {
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Today Copilot/);
   assert.match(overview, /Operational summary/);
-  assert.match(overview, /Approval-first next moves/);
+  assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
+  assert.match(overview, /Create draft/);
   const customize = harness.buildCustomizePanel({}, {}, workspace);
   assert.match(customize, /Business context setup/);
   assert.match(customize, /Save business context/);

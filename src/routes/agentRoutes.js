@@ -77,6 +77,7 @@ import {
   approveCalendarAction,
   approveCampaignDraft,
   completeGoogleConnection,
+  createOperatorTask,
   createCampaignDraft,
   createGoogleConnectionStart,
   draftCalendarAction,
@@ -93,6 +94,11 @@ import {
   getOperatorBusinessProfile,
   upsertOperatorBusinessProfile,
 } from "../services/operator/operatorBusinessProfileService.js";
+import {
+  applyTodayCopilotProposal,
+  dismissTodayCopilotProposal,
+  findTodayCopilotProposal,
+} from "../services/operator/copilotProposalService.js";
 import { cleanText } from "../utils/text.js";
 
 function expandGroupedFollowUpItems(queue = {}) {
@@ -216,6 +222,8 @@ export function createAgentRouter(deps = {}) {
     deps.approveCampaignDraft || approveCampaignDraft;
   const sendDueCampaignStepsImpl =
     deps.sendDueCampaignSteps || sendDueCampaignSteps;
+  const createOperatorTaskImpl =
+    deps.createOperatorTask || createOperatorTask;
   const updateOperatorTaskStatusImpl =
     deps.updateOperatorTaskStatus || updateOperatorTaskStatus;
   const updateOperatorContactLifecycleStateImpl =
@@ -226,6 +234,12 @@ export function createAgentRouter(deps = {}) {
     deps.getOperatorBusinessProfile || getOperatorBusinessProfile;
   const upsertOperatorBusinessProfileImpl =
     deps.upsertOperatorBusinessProfile || upsertOperatorBusinessProfile;
+  const applyTodayCopilotProposalImpl =
+    deps.applyTodayCopilotProposal || applyTodayCopilotProposal;
+  const dismissTodayCopilotProposalImpl =
+    deps.dismissTodayCopilotProposal || dismissTodayCopilotProposal;
+  const findTodayCopilotProposalImpl =
+    deps.findTodayCopilotProposal || findTodayCopilotProposal;
   const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
 
   function getCheckoutDraftBusinessName(user) {
@@ -1402,6 +1416,110 @@ export function createAgentRouter(deps = {}) {
         followUp: result.followUp,
         queueSync: result.queueSync || null,
         persistenceAvailable: result.persistenceAvailable !== false,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/copilot/proposals/apply", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+      const proposalKey = req.body.proposal_key || req.body.proposalKey;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const operatorWorkspace = await getOperatorWorkspaceSnapshotImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+      });
+      const proposal = findTodayCopilotProposalImpl(operatorWorkspace.copilot || {}, proposalKey);
+
+      if (!proposal) {
+        const error = new Error("That Copilot proposal is no longer active.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const result = await applyTodayCopilotProposalImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        proposal,
+        workspace: operatorWorkspace,
+        deps: {
+          createManualFollowUpWorkflow: createManualFollowUpWorkflowImpl,
+          createOperatorTask: createOperatorTaskImpl,
+        },
+      });
+
+      res.json({
+        ok: result.ok === true,
+        proposal: result.proposal,
+        result: result.result,
+        message: result.ok
+          ? "Copilot proposal applied."
+          : result.proposal?.stateReason || "Copilot blocked this proposal until the required context is available.",
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/copilot/proposals/dismiss", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+      const proposalKey = req.body.proposal_key || req.body.proposalKey;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const operatorWorkspace = await getOperatorWorkspaceSnapshotImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+      });
+      const proposal = findTodayCopilotProposalImpl(operatorWorkspace.copilot || {}, proposalKey);
+
+      if (!proposal) {
+        const error = new Error("That Copilot proposal is no longer active.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const result = await dismissTodayCopilotProposalImpl(supabase, {
+        agentId,
+        businessId: agent.businessId,
+        ownerUserId: user.id,
+        proposal,
+      });
+
+      res.json({
+        ok: true,
+        proposal: {
+          key: cleanText(proposal.key),
+          type: cleanText(proposal.type),
+          state: "dismissed",
+        },
+        persistenceAvailable: result.persistenceAvailable !== false,
+        message: "Copilot proposal dismissed.",
       });
     } catch (err) {
       console.error(err);

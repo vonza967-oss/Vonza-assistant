@@ -17,6 +17,7 @@ test("copilot feature flag off keeps the contract inert", () => {
   assert.equal(copilot.autonomousActionsEnabled, false);
   assert.deepEqual(Array.from(copilot.summaryCards), []);
   assert.deepEqual(Array.from(copilot.answers), []);
+  assert.deepEqual(Array.from(copilot.proposals), []);
 });
 
 test("copilot produces read-only answers, recommendations, and drafts from stable-core data", () => {
@@ -121,6 +122,9 @@ test("copilot produces read-only answers, recommendations, and drafts from stabl
   assert.equal(copilot.drafts[0].writeBehavior, "draft_only");
   assert.match(copilot.drafts[0].subject, /pricing/i);
   assert.ok(copilot.drafts.some((draft) => draft.type === "task_proposal"));
+  assert.ok(copilot.proposals.some((proposal) => proposal.type === "create_follow_up_draft"));
+  assert.ok(copilot.proposals.some((proposal) => proposal.type === "create_operator_task"));
+  assert.ok(copilot.proposals.every((proposal) => ["new", "blocked", "stale"].includes(proposal.state)));
   assert.equal(copilot.recommendedNextActionId.length > 0, true);
 });
 
@@ -158,6 +162,7 @@ test("copilot sparse-data fallback stays honest and guidance-first", () => {
   assert.ok(copilot.fallback.guidance.some((entry) => /Re-import website knowledge/i.test(entry)));
   assert.ok(copilot.fallback.guidance.some((entry) => /Fill the business context foundation next/i.test(entry)));
   assert.ok(copilot.summaryCards.some((card) => card.id === "what_matters"));
+  assert.ok(copilot.proposals.some((proposal) => proposal.type === "open_existing_surface"));
 });
 
 test("empty copilot state defaults to no autonomous writes", () => {
@@ -168,4 +173,5 @@ test("empty copilot state defaults to no autonomous writes", () => {
   assert.equal(copilot.readOnly, true);
   assert.equal(copilot.draftOnly, true);
   assert.equal(copilot.autonomousActionsEnabled, false);
+  assert.deepEqual(Array.from(copilot.proposals), []);
 });

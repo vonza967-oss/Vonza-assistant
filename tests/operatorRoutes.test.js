@@ -178,6 +178,25 @@ function buildRouteDeps(overrides = {}) {
       inboxContextSelected: true,
       calendarContextSelected: true,
     }),
+    findTodayCopilotProposal: (copilot, proposalKey) =>
+      (copilot?.proposals || []).find((proposal) => proposal.key === proposalKey) || null,
+    applyTodayCopilotProposal: async () => ({
+      ok: true,
+      proposal: {
+        key: "follow-up-draft:contact-1",
+        type: "create_follow_up_draft",
+        state: "applied",
+      },
+      result: {
+        type: "follow_up_workflow",
+        id: "follow-up-1",
+        section: "automations",
+      },
+    }),
+    dismissTodayCopilotProposal: async () => ({
+      ok: true,
+      persistenceAvailable: true,
+    }),
     ...overrides,
   };
 }
@@ -248,6 +267,73 @@ test("business profile routes stay owner-scoped and return hydrated context", as
     assert.equal(postResponse.json.ok, true);
     assert.equal(postResponse.json.profile.businessSummary, "Emergency plumbing and water heater installs.");
     assert.equal(postResponse.json.profile.prefill.available, true);
+  } finally {
+    await server.close();
+  }
+});
+
+test("copilot proposal apply route executes the selected proposal without autonomous sends", async () => {
+  const server = await startServer(createApp(buildRouteDeps({
+    getOperatorWorkspaceSnapshot: async () => ({
+      enabled: true,
+      featureEnabled: true,
+      copilot: {
+        proposals: [
+          {
+            key: "follow-up-draft:contact-1",
+            type: "create_follow_up_draft",
+          },
+        ],
+      },
+    }),
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/operator/copilot/proposals/apply", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        proposal_key: "follow-up-draft:contact-1",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.proposal.state, "applied");
+    assert.equal(response.json.result.id, "follow-up-1");
+  } finally {
+    await server.close();
+  }
+});
+
+test("copilot proposal dismiss route persists the dismissal", async () => {
+  const server = await startServer(createApp(buildRouteDeps({
+    getOperatorWorkspaceSnapshot: async () => ({
+      enabled: true,
+      featureEnabled: true,
+      copilot: {
+        proposals: [
+          {
+            key: "follow-up-draft:contact-1",
+            type: "create_follow_up_draft",
+          },
+        ],
+      },
+    }),
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/operator/copilot/proposals/dismiss", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        proposal_key: "follow-up-draft:contact-1",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.proposal.state, "dismissed");
   } finally {
     await server.close();
   }

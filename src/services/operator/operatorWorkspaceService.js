@@ -54,6 +54,10 @@ import {
   createDefaultOperatorBusinessProfile,
   getOperatorBusinessProfile,
 } from "./operatorBusinessProfileService.js";
+import {
+  hydrateTodayCopilotProposals,
+  listCopilotProposalStates,
+} from "./copilotProposalService.js";
 import { getOperatorContactsWorkspace } from "./contactWorkspaceService.js";
 import {
   buildTodayCopilotSnapshot,
@@ -1935,6 +1939,7 @@ async function upsertOperatorTask(supabase, agent, ownerUserId, payload = {}) {
     status: payload.status || "open",
     priority: payload.priority || "normal",
     approval_required: payload.approvalRequired === true,
+    contact_id: payload.contactId || null,
     related_thread_id: payload.relatedThreadId || null,
     related_event_id: payload.relatedEventId || null,
     related_campaign_id: payload.relatedCampaignId || null,
@@ -1971,6 +1976,43 @@ async function upsertOperatorTask(supabase, agent, ownerUserId, payload = {}) {
   }
 
   return mapTaskRow(data);
+}
+
+export async function createOperatorTask(supabase, options = {}) {
+  const agent = options.agent || {};
+  const ownerUserId = cleanText(options.ownerUserId);
+
+  if (!cleanText(agent.id) || !ownerUserId) {
+    const error = new Error("agent and owner_user_id are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const task = await upsertOperatorTask(supabase, agent, ownerUserId, {
+    sourceType: cleanText(options.sourceType) || "copilot_proposal",
+    sourceId: cleanText(options.sourceId),
+    taskType: cleanText(options.taskType) || "copilot_owner_next_step",
+    title: cleanText(options.title) || "Owner task",
+    description: cleanText(options.description),
+    status: cleanText(options.status) || "open",
+    priority: cleanText(options.priority) || "normal",
+    approvalRequired: options.approvalRequired !== false,
+    contactId: cleanText(options.contactId),
+    relatedThreadId: cleanText(options.relatedThreadId),
+    relatedEventId: cleanText(options.relatedEventId),
+    relatedCampaignId: cleanText(options.relatedCampaignId),
+    relatedLeadId: cleanText(options.relatedLeadId),
+    relatedActionKey: cleanText(options.relatedActionKey),
+    taskState: options.taskState && typeof options.taskState === "object" ? options.taskState : {},
+  });
+
+  if (!task?.id) {
+    const error = new Error("The operator task could not be created.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  return task;
 }
 
 function buildReplySubject(thread, businessName) {
@@ -3110,6 +3152,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     activationResult,
     leadCapturesResult,
     outcomesResult,
+    proposalStatesResult,
   ] = await Promise.allSettled([
     listConnectedAccountsInternal(supabase, {
       agentId: agent.id,
@@ -3177,6 +3220,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       agentId: agent.id,
       ownerUserId,
     }),
+    copilotFeatureEnabled
+      ? listCopilotProposalStates(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      })
+      : Promise.resolve({ records: [], persistenceAvailable: true }),
   ]);
 
   const accounts = getSettledValue(accountsResult, []);
@@ -3219,6 +3268,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     getSettledErrorMessage(activationResult),
     getSettledErrorMessage(leadCapturesResult),
     getSettledErrorMessage(outcomesResult),
+    getSettledErrorMessage(proposalStatesResult),
     getSettledErrorMessage(threadMessagesResult[0]),
   ].filter(Boolean);
   const suggestedSlots = suggestCalendarSlots(events);
@@ -3383,8 +3433,14 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     getSettledErrorMessage(websiteContentResult),
     getSettledErrorMessage(routingEventsResult),
     getSettledErrorMessage(businessProfileResult),
+    getSettledErrorMessage(proposalStatesResult),
   ].filter(Boolean);
-  const copilot = buildTodayCopilotSnapshot({
+  const proposalStates = getSettledValue(proposalStatesResult, {
+    records: [],
+    persistenceAvailable: true,
+  });
+  const copilot = hydrateTodayCopilotProposals({
+    ...buildTodayCopilotSnapshot({
     featureEnabled: copilotFeatureEnabled,
     agent,
     messages,
@@ -3405,6 +3461,9 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       },
     },
     loadWarnings: copilotWarnings,
+    }),
+    proposalStates: proposalStates.records || [],
+    proposalPersistenceAvailable: proposalStates.persistenceAvailable !== false,
   });
 
   return {

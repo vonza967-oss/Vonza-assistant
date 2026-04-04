@@ -1,4 +1,5 @@
 import { cleanText } from "../../utils/text.js";
+import { hydrateTodayCopilotProposals } from "./copilotProposalService.js";
 
 const COPILOT_QUESTIONS = Object.freeze([
   "What needs attention today?",
@@ -26,6 +27,43 @@ function normalizeArray(value) {
 function cleanSource(source = {}) {
   return source && typeof source === "object" && !Array.isArray(source) ? source : {};
 }
+
+function cleanProposalTarget(target = {}) {
+  return {
+    section: cleanText(target.section),
+    id: cleanText(target.id),
+    label: cleanText(target.label),
+  };
+}
+
+function cleanProposal(proposal = {}) {
+  if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) {
+    return null;
+  }
+
+  return {
+    key: cleanText(proposal.key),
+    type: cleanText(proposal.type),
+    hash: cleanText(proposal.hash),
+    summary: cleanText(proposal.summary),
+    rationale: cleanText(proposal.rationale),
+    effect: cleanText(proposal.effect),
+    approvalNote: cleanText(proposal.approvalNote),
+    applyLabel: cleanText(proposal.applyLabel),
+    dismissLabel: cleanText(proposal.dismissLabel),
+    openLabel: cleanText(proposal.openLabel),
+    blockedReason: cleanText(proposal.blockedReason),
+    target: cleanProposalTarget(proposal.target),
+    applyPayload:
+      proposal.applyPayload && typeof proposal.applyPayload === "object" && !Array.isArray(proposal.applyPayload)
+        ? proposal.applyPayload
+        : {},
+  };
+}
+
+function createProposalHash(parts = []) {
+  return parts.map((value) => cleanText(value)).filter(Boolean).join("::");
+}
 function createRecommendation({
   id,
   type,
@@ -39,6 +77,7 @@ function createRecommendation({
   targetId = "",
   actionType = "",
   surfaceLabel = "",
+  proposal = null,
 } = {}) {
   return {
     id: cleanText(id),
@@ -53,6 +92,7 @@ function createRecommendation({
     targetId: cleanText(targetId),
     actionType: cleanText(actionType),
     surfaceLabel: cleanText(surfaceLabel),
+    proposal: cleanProposal(proposal),
     approvalRequired: true,
     writeBehavior: "recommendation_only",
   };
@@ -73,6 +113,7 @@ function createDraft({
   actionType = "",
   surfaceLabel = "",
   structuredPayload = {},
+  proposal = null,
 } = {}) {
   return {
     id: cleanText(id),
@@ -88,6 +129,7 @@ function createDraft({
     targetId: cleanText(targetId),
     actionType: cleanText(actionType),
     surfaceLabel: cleanText(surfaceLabel),
+    proposal: cleanProposal(proposal),
     structuredPayload:
       structuredPayload && typeof structuredPayload === "object" && !Array.isArray(structuredPayload)
         ? structuredPayload
@@ -169,22 +211,24 @@ function buildGeneratedDraft(contact = {}, options = {}) {
   const topic = cleanText(contact.topic || "your request");
   const contactName = cleanText(contact.contactName);
   const greeting = contactName ? `Hi ${contactName},` : "Hi there,";
+  const subject = cleanText(options.subject) || `${businessName}: following up on ${topic}`;
+  const body = [
+    greeting,
+    "",
+    `This is ${assistantName} from ${businessName}.`,
+    `I’m following up on ${topic} and wanted to make sure you have the right next step from us.`,
+    "If you reply with the detail or timing you need, we can keep things moving without losing context.",
+    "",
+    `${assistantName}`,
+  ].join("\n");
 
   return createDraft({
     id: cleanText(options.id) || "generated-follow-up",
     type: "follow_up_draft",
     title: cleanText(options.title) || `Draft follow-up for ${contactName || "this contact"}`,
     channel: cleanText(contact.channel) || "email",
-    subject: cleanText(options.subject) || `${businessName}: following up on ${topic}`,
-    body: [
-      greeting,
-      "",
-      `This is ${assistantName} from ${businessName}.`,
-      `I’m following up on ${topic} and wanted to make sure you have the right next step from us.`,
-      "If you reply with the detail or timing you need, we can keep things moving without losing context.",
-      "",
-      `${assistantName}`,
-    ].join("\n"),
+    subject,
+    body,
     confidence: "medium",
     rationale: cleanText(options.rationale) || "No stored follow-up draft existed, so Copilot prepared a deterministic approval-first draft from the latest stable-core context.",
     targetSection: cleanText(options.targetSection) || "automations",
@@ -194,6 +238,52 @@ function buildGeneratedDraft(contact = {}, options = {}) {
     source: {
       contactId: cleanText(contact.contactId),
       actionKey: cleanText(contact.actionKey),
+    },
+    proposal: {
+      key: cleanText(options.proposalKey)
+        || `follow-up-draft:${cleanText(contact.contactId || contact.contactEmail || contact.contactPhone || contact.actionKey)}`,
+      type: "create_follow_up_draft",
+      hash: createProposalHash([
+        "create_follow_up_draft",
+        contact.contactId,
+        contact.contactEmail,
+        contact.contactPhone,
+        contact.actionKey,
+        topic,
+        options.subject,
+      ]),
+      summary: cleanText(options.title) || `Prepare a follow-up for ${contactName || "this contact"}`,
+      rationale: cleanText(options.rationale),
+      effect: "Create or refresh a real approval-first follow-up draft using the deterministic follow-up workflow service.",
+      approvalNote: "This only prepares the draft. Nothing is sent automatically.",
+      applyLabel: "Create draft",
+      dismissLabel: "Dismiss",
+      openLabel: cleanText(options.surfaceLabel) || "Open workflow",
+      blockedReason: !cleanText(contact.contactEmail || contact.contactPhone)
+        ? "A usable email address or phone number is required before Copilot can create this follow-up draft safely."
+        : "",
+      target: {
+        section: cleanText(options.targetSection) || "automations",
+        id: cleanText(options.targetId),
+        label: cleanText(options.surfaceLabel) || "Open workflow",
+      },
+      applyPayload: {
+        actionType: cleanText(options.followUpActionType || "lead_follow_up"),
+        contactId: cleanText(contact.contactId),
+        contactName,
+        contactEmail: cleanText(contact.contactEmail),
+        contactPhone: cleanText(contact.contactPhone),
+        personKey: cleanText(contact.personKey),
+        sourceActionKey: cleanText(contact.actionKey),
+        linkedActionKeys: cleanText(contact.actionKey) ? [cleanText(contact.actionKey)] : [],
+        topic,
+        subject,
+        draftContent: body,
+        whyPrepared: cleanText(options.rationale),
+        evidence: cleanText(options.evidence),
+        contextQuestion: cleanText(options.contextQuestion),
+        contextSnippet: cleanText(options.contextSnippet),
+      },
     },
   });
 }
@@ -249,6 +339,33 @@ function buildSupportRiskRecommendation(contact = {}) {
     targetId: cleanText(contact.nextAction?.targetId || contact.id),
     actionType: cleanText(contact.nextAction?.actionType) || "open_contact",
     surfaceLabel: "Open Contacts",
+    proposal: {
+      key: `open-contact:${cleanText(contact.id)}:support-risk`,
+      type: "open_existing_surface",
+      hash: createProposalHash([
+        "open_existing_surface",
+        contact.id,
+        "support_risk",
+        contact.nextAction?.title,
+        contact.nextAction?.description,
+      ]),
+      summary: cleanText(contact.nextAction?.title) || "Route into support-risk review",
+      rationale: "Complaint and support risk should route straight into the existing owner surface instead of spawning a freeform write.",
+      effect: "Open the related contact record so the owner can review the complaint or support issue in context.",
+      approvalNote: "This is routing only. Copilot does not resolve the issue or send anything automatically.",
+      applyLabel: "Route there",
+      dismissLabel: "Dismiss",
+      openLabel: "Open Contacts",
+      target: {
+        section: cleanText(contact.nextAction?.targetSection) || "contacts",
+        id: cleanText(contact.nextAction?.targetId || contact.id),
+        label: "Open Contacts",
+      },
+      applyPayload: {
+        targetSection: cleanText(contact.nextAction?.targetSection) || "contacts",
+        targetId: cleanText(contact.nextAction?.targetId || contact.id),
+      },
+    },
   });
 }
 
@@ -256,6 +373,16 @@ function buildContactNextStepRecommendation(contact = {}) {
   if (!contact?.id) {
     return null;
   }
+
+  const nextAction = contact.nextAction || {};
+  const nextActionType = cleanText(nextAction.actionType);
+  const targetSection = cleanText(nextAction.targetSection) || "contacts";
+  const targetId = cleanText(nextAction.targetId || contact.id);
+  const canCreateFollowUp = nextActionType === "draft_follow_up";
+  const hasUsableContact = Boolean(cleanText(contact.primaryEmail || contact.primaryPhone));
+  const blockedReason = canCreateFollowUp && !hasUsableContact
+    ? "This contact still needs a usable email address or phone number before Copilot can prepare the next-step draft safely."
+    : "";
 
   return createRecommendation({
     id: `contact-next-step:${cleanText(contact.id)}`,
@@ -271,10 +398,66 @@ function buildContactNextStepRecommendation(contact = {}) {
       contactId: cleanText(contact.id),
       lifecycleState: cleanText(contact.lifecycleState),
     },
-    targetSection: cleanText(contact.nextAction?.targetSection) || "contacts",
-    targetId: cleanText(contact.nextAction?.targetId || contact.id),
-    actionType: cleanText(contact.nextAction?.actionType) || "open_contact",
+    targetSection,
+    targetId,
+    actionType: nextActionType || "open_contact",
     surfaceLabel: "Open Contacts",
+    proposal: {
+      key: `contact-next-step:${cleanText(contact.id)}`,
+      type: "create_contact_next_step",
+      hash: createProposalHash([
+        "create_contact_next_step",
+        contact.id,
+        nextAction.key,
+        nextAction.title,
+        nextAction.description,
+        nextActionType,
+        contact.primaryEmail,
+        contact.primaryPhone,
+      ]),
+      summary: cleanText(nextAction.title) || "Create the next-step object",
+      rationale: "Copilot is following the deterministic contact next-action signal instead of inventing a freeform write path.",
+      effect: canCreateFollowUp
+        ? "Create a real approval-first follow-up draft if the contact details are complete enough."
+        : "Route you into the existing deterministic surface for this contact's next step.",
+      approvalNote: canCreateFollowUp
+        ? "This prepares the next-step object only. It does not send or mutate anything externally."
+        : "This routes you to the right surface without silently creating follow-on actions.",
+      applyLabel: canCreateFollowUp ? "Create next step" : "Route there",
+      dismissLabel: "Dismiss",
+      openLabel: "Open Contacts",
+      blockedReason,
+      target: {
+        section: targetSection,
+        id: targetId,
+        label: "Open Contacts",
+      },
+      applyPayload: {
+        executionMode: canCreateFollowUp
+          ? "create_follow_up_draft"
+          : "open_existing_surface",
+        contactId: cleanText(contact.id),
+        contactName: cleanText(contact.displayName || contact.primaryEmail || contact.primaryPhone),
+        contactEmail: cleanText(contact.primaryEmail),
+        contactPhone: cleanText(contact.primaryPhone),
+        personKey: cleanText(contact.personKey || contact.primaryPersonKey),
+        lifecycleState: cleanText(contact.lifecycleState),
+        nextActionType,
+        nextActionKey: cleanText(nextAction.key),
+        targetSection,
+        targetId,
+        followUpPayload: {
+          actionType: "lead_follow_up",
+          contactId: cleanText(contact.id),
+          contactName: cleanText(contact.displayName),
+          contactEmail: cleanText(contact.primaryEmail),
+          contactPhone: cleanText(contact.primaryPhone),
+          personKey: cleanText(contact.personKey || contact.primaryPersonKey),
+          topic: cleanText(nextAction.title || nextAction.description || "Lead follow-up"),
+          whyPrepared: cleanText(nextAction.description) || "Prepared from the deterministic contact next-step signal.",
+        },
+      },
+    },
   });
 }
 
@@ -301,6 +484,33 @@ function buildOutcomeReviewRecommendation(contact = {}) {
     targetId: cleanText(contact.id),
     actionType: "open_contact",
     surfaceLabel: "Open Contacts",
+    proposal: {
+      key: `open-contact:${cleanText(contact.id)}:outcome-review`,
+      type: "open_existing_surface",
+      hash: createProposalHash([
+        "open_existing_surface",
+        contact.id,
+        "outcome_review",
+        contact.displayName,
+        contact.lifecycleState,
+      ]),
+      summary: "Route into outcome review",
+      rationale: "When Copilot cannot safely create a stronger object, it should still route the owner into the right existing review surface.",
+      effect: "Open the contact record with the current outcome-review context so the owner can confirm the real result.",
+      approvalNote: "This does not record an outcome automatically.",
+      applyLabel: "Route there",
+      dismissLabel: "Dismiss",
+      openLabel: "Open Contacts",
+      target: {
+        section: "contacts",
+        id: cleanText(contact.id),
+        label: "Open Contacts",
+      },
+      applyPayload: {
+        targetSection: "contacts",
+        targetId: cleanText(contact.id),
+      },
+    },
   });
 }
 
@@ -334,6 +544,41 @@ function buildTaskProposal(topRecommendation = null) {
       title: cleanText(topRecommendation.title),
       summary: cleanText(topRecommendation.summary),
     },
+    proposal: {
+      key: `task-proposal:${cleanText(topRecommendation.id)}`,
+      type: "create_operator_task",
+      hash: createProposalHash([
+        "create_operator_task",
+        topRecommendation.id,
+        topRecommendation.title,
+        topRecommendation.summary,
+        topRecommendation.priority,
+      ]),
+      summary: cleanText(topRecommendation.title) || "Create owner task",
+      rationale: "Turn the current top Copilot recommendation into a real tracked task without changing any core record directly.",
+      effect: "Create a real approval-first operator task linked back to this recommendation.",
+      approvalNote: "The task is created for review only. It does not trigger autonomous follow-on work.",
+      applyLabel: "Create task",
+      dismissLabel: "Dismiss",
+      openLabel: cleanText(topRecommendation.surfaceLabel) || "Open workflow",
+      target: {
+        section: cleanText(topRecommendation.targetSection),
+        id: cleanText(topRecommendation.targetId),
+        label: cleanText(topRecommendation.surfaceLabel) || "Open workflow",
+      },
+      applyPayload: {
+        taskType: "copilot_owner_next_step",
+        title: cleanText(topRecommendation.title) || "Review the next owner task",
+        description: cleanText(topRecommendation.summary),
+        priority: cleanText(topRecommendation.priority) || "normal",
+        contactId: cleanText(topRecommendation.source?.contactId),
+        relatedActionKey: cleanText(topRecommendation.source?.actionKey),
+        targetSection: cleanText(topRecommendation.targetSection),
+        targetId: cleanText(topRecommendation.targetId),
+        targetLabel: cleanText(topRecommendation.surfaceLabel),
+        recommendationId: cleanText(topRecommendation.id),
+      },
+    },
   });
 }
 
@@ -366,6 +611,38 @@ function buildOutcomeReviewProposal(contact = {}) {
     structuredPayload: {
       contactId: cleanText(contact.id),
       requestedReview: "outcome_confirmation",
+    },
+    proposal: {
+      key: `outcome-review:${cleanText(contact.id)}`,
+      type: "create_outcome_review",
+      hash: createProposalHash([
+        "create_outcome_review",
+        contact.id,
+        contact.displayName,
+        contact.lifecycleState,
+      ]),
+      summary: "Create outcome review",
+      rationale: "Copilot can safely create a review task, but it should never confirm or apply an outcome automatically.",
+      effect: "Create a real review object so the owner can confirm whether a booking, quote, follow-up reply, or complaint resolution happened.",
+      approvalNote: "This creates a review task only. It does not mark the outcome.",
+      applyLabel: "Create review",
+      dismissLabel: "Dismiss",
+      openLabel: "Open Contacts",
+      target: {
+        section: "contacts",
+        id: cleanText(contact.id),
+        label: "Open Contacts",
+      },
+      applyPayload: {
+        taskType: "outcome_review",
+        contactId: cleanText(contact.id),
+        leadId: cleanText(contact.leadId),
+        actionKey: cleanText(contact.related?.actionKeys?.[0]),
+        title: `Review outcome for ${cleanText(contact.displayName || contact.primaryEmail || contact.primaryPhone || "this contact")}`,
+        description: "Confirm whether a real outcome should be recorded from the current stable-core activity.",
+        targetSection: "contacts",
+        targetId: cleanText(contact.id),
+      },
     },
   });
 }
@@ -412,6 +689,12 @@ export function createEmptyTodayCopilotState({ featureEnabled = false } = {}) {
     answers: [],
     recommendations: [],
     drafts: [],
+    proposals: [],
+    proposalSummary: {
+      activeCount: 0,
+      blockedCount: 0,
+      hiddenCount: 0,
+    },
     fallback: {
       title: "Copilot needs a little more context",
       description: "There is not enough stable-core data yet to make strong recommendations.",
@@ -571,6 +854,31 @@ export function buildTodayCopilotSnapshot(options = {}) {
       targetId: "business-context-setup",
       actionType: "open_business_context",
       surfaceLabel: "Open Customize",
+      proposal: {
+        key: "business-context:foundation",
+        type: "open_existing_surface",
+        hash: createProposalHash([
+          "open_existing_surface",
+          "business-context-setup",
+          ...(businessProfile.readiness?.missingSections || []),
+        ]),
+        summary: "Open business context setup",
+        rationale: "When context is missing, the safest next move is routing the owner back into the existing business-context surface.",
+        effect: "Open Customize on the business-context setup so the missing sections can be filled deterministically.",
+        approvalNote: "This only routes the owner. Copilot does not change business context automatically.",
+        applyLabel: "Route there",
+        dismissLabel: "Dismiss",
+        openLabel: "Open Customize",
+        target: {
+          section: "customize",
+          id: "business-context-setup",
+          label: "Open Customize",
+        },
+        applyPayload: {
+          targetSection: "customize",
+          targetId: "business-context-setup",
+        },
+      },
     }));
   }
 
@@ -598,12 +906,55 @@ export function buildTodayCopilotSnapshot(options = {}) {
         contactId: cleanText(storedDraft.contactId),
         actionKey: cleanText(storedDraft.sourceActionKey),
       },
+      proposal: {
+        key: `follow-up-draft:${cleanText(storedDraft.contactId || storedDraft.contactEmail || storedDraft.contactPhone || storedDraft.sourceActionKey || storedDraft.id)}`,
+        type: "create_follow_up_draft",
+        hash: createProposalHash([
+          "create_follow_up_draft",
+          storedDraft.contactId,
+          storedDraft.contactEmail,
+          storedDraft.contactPhone,
+          storedDraft.sourceActionKey,
+          storedDraft.subject,
+          storedDraft.topic,
+        ]),
+        summary: `Create or refresh the follow-up draft for ${cleanText(storedDraft.contactName) || "this contact"}`,
+        rationale: cleanText(storedDraft.whyPrepared) || "Vonza already prepared this deterministic follow-up from stable-core lead and queue data.",
+        effect: "Reuse the deterministic follow-up workflow service to create or refresh the real draft object.",
+        approvalNote: "This only prepares the draft. Nothing is sent automatically.",
+        applyLabel: "Create draft",
+        dismissLabel: "Dismiss",
+        openLabel: "Open Automations",
+        target: {
+          section: "automations",
+          id: cleanText(storedDraft.id),
+          label: "Open Automations",
+        },
+        applyPayload: {
+          actionType: cleanText(storedDraft.actionType) || "lead_follow_up",
+          contactId: cleanText(storedDraft.contactId),
+          contactName: cleanText(storedDraft.contactName),
+          contactEmail: cleanText(storedDraft.contactEmail),
+          contactPhone: cleanText(storedDraft.contactPhone),
+          personKey: cleanText(storedDraft.personKey),
+          sourceActionKey: cleanText(storedDraft.sourceActionKey),
+          linkedActionKeys: normalizeArray(storedDraft.linkedActionKeys),
+          topic: cleanText(storedDraft.topic),
+          subject: cleanText(storedDraft.subject),
+          draftContent: cleanText(storedDraft.draftContent),
+          whyPrepared: cleanText(storedDraft.whyPrepared),
+          evidence: cleanText(storedDraft.evidence),
+          contextSnippet: cleanText(storedDraft.evidence),
+        },
+      },
     }));
   } else if (attentionQueueItems[0] && attentionQueueItems[0].contactInfo) {
     drafts.push(buildGeneratedDraft({
       contactId: cleanText(attentionQueueItems[0].contactId),
       actionKey: cleanText(attentionQueueItems[0].key),
       contactName: cleanText(attentionQueueItems[0].contactInfo?.name),
+      contactEmail: cleanText(attentionQueueItems[0].contactInfo?.email),
+      contactPhone: cleanText(attentionQueueItems[0].contactInfo?.phone),
       channel: attentionQueueItems[0].contactInfo?.email ? "email" : "phone",
       topic: cleanText(attentionQueueItems[0].topic || attentionQueueItems[0].label || attentionQueueItems[0].type),
     }, {
@@ -618,6 +969,9 @@ export function buildTodayCopilotSnapshot(options = {}) {
       targetId: cleanText(attentionQueueItems[0].key),
       actionType: "open_action_queue",
       surfaceLabel: "Open Outcomes",
+      evidence: cleanText(attentionQueueItems[0].operatorSummary || attentionQueueItems[0].snippet),
+      contextSnippet: cleanText(attentionQueueItems[0].snippet),
+      subject: `${cleanText(agent.name)}: following up on ${cleanText(attentionQueueItems[0].topic || attentionQueueItems[0].label || attentionQueueItems[0].type || "your request")}`,
     }));
   }
 
@@ -786,7 +1140,17 @@ export function buildTodayCopilotSnapshot(options = {}) {
     }),
   ];
 
-  return {
+  const sourceCounts = {
+    messages: messages.length,
+    actionQueueItems: queueItems.length,
+    contacts: contacts.length,
+    followUps: followUps.length,
+    knowledgeFixes: knowledgeFixes.length,
+    recentOutcomes: recentOutcomes.length,
+    widgetEvents: routingEvents.length,
+  };
+
+  return hydrateTodayCopilotProposals({
     enabled: true,
     featureEnabled: true,
     readOnly: true,
@@ -809,15 +1173,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       agentId: cleanText(agent.id),
       businessId: cleanText(agent.businessId),
       businessName: cleanText(agent.name),
-      sourceCounts: {
-        messages: messages.length,
-        actionQueueItems: queueItems.length,
-        contacts: contacts.length,
-        followUps: followUps.length,
-        knowledgeFixes: knowledgeFixes.length,
-        recentOutcomes: recentOutcomes.length,
-        widgetEvents: routingEvents.length,
-      },
+      sourceCounts,
       installLive,
       websiteKnowledgeReady: websiteReady,
       businessProfile,
@@ -826,6 +1182,12 @@ export function buildTodayCopilotSnapshot(options = {}) {
     answers,
     recommendations,
     drafts,
+    proposals: [],
+    proposalSummary: {
+      activeCount: 0,
+      blockedCount: 0,
+      hiddenCount: 0,
+    },
     fallback: {
       title: sparseData ? "Copilot needs a little more real operating context" : "Copilot fallback",
       description: sparseData
@@ -837,5 +1199,5 @@ export function buildTodayCopilotSnapshot(options = {}) {
         installLive,
       }),
     },
-  };
+  });
 }
