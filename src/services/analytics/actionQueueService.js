@@ -22,6 +22,19 @@ const ACTION_QUEUE_PERSISTENCE_COLUMNS = [
   "follow_up_completed",
   "contact_status",
 ];
+const ACTION_TYPE_SUMMARY_KEYS = {
+  lead_follow_up: "leadFollowUp",
+  pricing_interest: "pricingInterest",
+  booking_intent: "bookingIntent",
+  knowledge_gap: "knowledgeGap",
+  unanswered_question: "unansweredQuestion",
+  repeat_high_intent_visitor: "repeatHighIntentVisitor",
+};
+const GROUPED_ACTION_TYPES = new Set([
+  "lead_follow_up",
+  "pricing_interest",
+  "booking_intent",
+]);
 
 function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "");
@@ -36,6 +49,24 @@ function isMissingRelationError(error, relationName) {
 function normalizeStatus(value) {
   const normalized = cleanText(value).toLowerCase();
   return ACTION_QUEUE_STATUSES.includes(normalized) ? normalized : "new";
+}
+
+function parseRequestedStatus(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (!ACTION_QUEUE_STATUSES.includes(normalized)) {
+    const error = new Error(
+      `Unsupported action queue status '${cleanText(value)}'. Supported action queue statuses: ${ACTION_QUEUE_STATUSES.join(", ")}.`
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return normalized;
 }
 
 function isMissingPersistenceColumnError(error) {
@@ -58,6 +89,15 @@ function buildMissingActionQueueSchemaError(phase = "request") {
   );
   error.statusCode = 500;
   error.code = "schema_not_ready";
+  return error;
+}
+
+function buildUnavailableActionQueuePersistenceError() {
+  const error = new Error(
+    "Action queue persistence is not ready on the server yet. Apply the action queue migration and try again."
+  );
+  error.statusCode = 503;
+  error.code = "action_queue_persistence_unavailable";
   return error;
 }
 
@@ -129,6 +169,10 @@ function normalizeActionType(value) {
     : "";
 }
 
+function getSummaryKeyForActionType(actionType = "") {
+  return ACTION_TYPE_SUMMARY_KEYS[normalizeActionType(actionType)] || "";
+}
+
 function isSupportedFollowUpActionType(value) {
   return SUPPORTED_FOLLOW_UP_ACTION_TYPES.includes(normalizeActionType(value));
 }
@@ -145,10 +189,33 @@ function buildActionType(interaction = {}) {
       return "pricing_interest";
     case "booking":
       return "booking_intent";
+    case "support":
+      return "knowledge_gap";
     case "weak_answer":
-      return interaction.unresolved ? "unanswered_question" : "knowledge_gap";
+      return interaction.unresolved || isDirectHandoffWeakAnswer(interaction.reply)
+        ? "unanswered_question"
+        : "knowledge_gap";
     default:
       return "";
+  }
+}
+
+function getActionTypeLabel(actionType = "") {
+  switch (normalizeActionType(actionType)) {
+    case "lead_follow_up":
+      return "Lead / contact";
+    case "pricing_interest":
+      return "Pricing / purchase";
+    case "booking_intent":
+      return "Booking";
+    case "repeat_high_intent_visitor":
+      return "Repeat high-intent visitor";
+    case "knowledge_gap":
+      return "Knowledge gap";
+    case "unanswered_question":
+      return "Unanswered question";
+    default:
+      return "Action";
   }
 }
 
@@ -524,7 +591,7 @@ function getIntentLabel(intent) {
 function getSuggestedAction(intent) {
   switch (intent) {
     case "contact":
-      return "Review whether the site and assistant make the contact path obvious enough, then follow up manually if contact details were captured.";
+      return "Review whether the site and assistant make the contact path obvious enough, then follow-up manually if contact details were captured.";
     case "booking":
       return "Clarify the booking path, availability, or consultation steps so the visitor can move forward faster.";
     case "pricing":
@@ -596,6 +663,20 @@ function getConversationFlagReason(intent, options = {}) {
   return `Flagged because ${reasons.slice(0, -1).join(", ")} and ${reasons[reasons.length - 1]}.`;
 }
 
+function isDirectHandoffWeakAnswer(reply = "") {
+  const normalized = cleanText(String(reply || "")).toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return [
+    "please contact the business directly",
+    "please reach out directly",
+    "reach out to the business directly",
+  ].some((snippet) => normalized.includes(snippet));
+}
+
 function hasWeakAssistantReply(reply) {
   const normalized = cleanText(String(reply || "")).toLowerCase();
 
@@ -640,6 +721,77 @@ function buildConversationSummary(question, reply) {
   }
 
   return "";
+}
+
+function buildOperatorActionKey(baseKey = "") {
+  const normalized = cleanText(baseKey);
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.startsWith("operator:") ? normalized : `operator:${normalized}`;
+}
+
+function buildActionQueuePriority(item = {}) {
+  const actionType = normalizeActionType(item.actionType || item.type);
+
+  switch (actionType) {
+    case "lead_follow_up":
+      return item.contactCaptured ? "high" : "medium";
+    case "repeat_high_intent_visitor":
+      return "high";
+    case "booking_intent":
+      return item.weakAnswer || item.unresolved ? "high" : "medium";
+    case "pricing_interest":
+      return item.contactCaptured || Number(item.count || 0) > 1 ? "high" : "medium";
+    case "knowledge_gap":
+      return item.intent === "support" ? "high" : "medium";
+    case "unanswered_question":
+      return "medium";
+    default:
+      return "low";
+  }
+}
+
+function buildOperatorSummary(item = {}) {
+  const actionType = normalizeActionType(item.actionType || item.type);
+
+  switch (actionType) {
+    case "lead_follow_up":
+      return item.contactCaptured
+        ? "A direct follow-up path is available because the visitor shared contact details."
+        : "This lead signal still needs a manual follow-up path.";
+    case "pricing_interest":
+      return Number(item.count || 0) > 1
+        ? "Pricing intent repeated, so Vonza kept one pricing issue instead of duplicating it."
+        : "Pricing intent was strong enough to create one owner-visible pricing issue.";
+    case "booking_intent":
+      return "This booking question needs an owner-visible next step so the visitor can move forward.";
+    case "repeat_high_intent_visitor":
+      return "One returning visitor generated multiple high-intent moments, so Vonza created a dedicated follow-up issue.";
+    case "knowledge_gap":
+      return "This answer looks like a real knowledge gap that should be fixed in the assistant guidance.";
+    case "unanswered_question":
+      return "This question still needs a usable answer before it becomes a clearer knowledge-gap pattern.";
+    default:
+      return "This conversation pattern still needs an owner-visible operator action.";
+  }
+}
+
+function buildActionEvidence(group = {}) {
+  const entries = Array.isArray(group.entries) ? group.entries : [];
+  const latest = entries[entries.length - 1] || {};
+
+  return {
+    interactionCount: entries.length,
+    question: latest.question || "",
+    reply: latest.reply || "",
+    questions: entries.map((entry) => entry.question).filter(Boolean),
+    replies: entries.map((entry) => entry.reply).filter(Boolean),
+    snippets: entries.map((entry) => entry.snippet).filter(Boolean),
+    lastSeenAt: group.lastSeenAt || null,
+  };
 }
 
 function getConversationSuggestedAction(type, options = {}) {
@@ -715,8 +867,10 @@ function isLikelyPersonName(value) {
   const parts = normalized.split(" ").filter(Boolean);
   const blockedParts = new Set([
     "hello",
+    "not",
     "support",
     "pricing",
+    "sure",
     "team",
     "thanks",
     "thank",
@@ -989,7 +1143,7 @@ function buildConversationInteractions(messages = []) {
   return interactions;
 }
 
-function buildRepeatHighIntentItems(people = [], persistedMap = new Map()) {
+function buildRepeatHighIntentItems(people = [], actionItems = [], persistedMap = new Map()) {
   return people
     .map((person) => {
       const highIntentTimeline = (person.timeline || [])
@@ -999,8 +1153,15 @@ function buildRepeatHighIntentItems(people = [], persistedMap = new Map()) {
         return null;
       }
 
-      const actionKey = `person:${person.key}:repeat_high_intent`;
+      const actionKey = buildOperatorActionKey(`person:${person.key}:repeat_high_intent`);
       const persistedItem = persistedMap.get(actionKey) || {};
+      const relatedActionKeys = actionItems
+        .filter((item) =>
+          cleanText(item.personKey) === person.key
+          && ["lead_follow_up", "pricing_interest", "booking_intent"].includes(normalizeActionType(item.actionType))
+        )
+        .map((item) => item.key)
+        .filter(Boolean);
       const snippets = (person.snippets || [])
         .filter((entry) => ["contact", "pricing", "booking"].includes(entry.intent))
         .slice(0, 2)
@@ -1017,7 +1178,7 @@ function buildRepeatHighIntentItems(people = [], persistedMap = new Map()) {
 
       return {
         key: actionKey,
-        type: "repeat_high_intent",
+        type: "repeat_high_intent_visitor",
         actionType: "repeat_high_intent_visitor",
         followUpSupported: true,
         knowledgeFixSupported: false,
@@ -1051,8 +1212,15 @@ function buildRepeatHighIntentItems(people = [], persistedMap = new Map()) {
         intent: highIntentTimeline[0]?.intent || "contact",
         sessionKey: null,
         personKey: person.key,
-        relatedActionKeys: highIntentTimeline.map((entry) => entry.actionKey).filter(Boolean),
+        relatedActionKeys,
         messageId: highIntentTimeline[0]?.messageId || "",
+        priority: "high",
+        operatorSummary: "A returning visitor showed multiple high-intent moments, so Vonza created one dedicated operator action.",
+        evidence: {
+          interactionCount: highIntentTimeline.length,
+          relatedActionKeys,
+          intents: [...new Set(highIntentTimeline.map((entry) => entry.intent).filter(Boolean))],
+        },
       };
     })
     .filter(Boolean);
@@ -1250,7 +1418,10 @@ function stitchPeople(interactions = [], actionItems = []) {
         firstSeenAt: person.firstSeenAt || null,
         lastSeenAt: person.lastSeenAt || null,
         interactionCount: interactionsDesc.length,
-        queueItemCount: queueItems.length,
+        queueItemCount: person.actionKeys.size + actionItems.filter((item) =>
+          cleanText(item.personKey) === person.key
+          && normalizeActionType(item.actionType) === "repeat_high_intent_visitor"
+        ).length,
         isReturning: interactionsDesc.length > 1,
         keyIntents: buildPersonKeyIntents(person.intentCounts),
         snippets: interactionsDesc.slice(0, 3).map((interaction) => ({
@@ -1342,12 +1513,23 @@ function buildStatusSummary(items = []) {
     followUpCompleted: 0,
     resolved: 0,
     attentionNeeded: 0,
+    leadFollowUp: 0,
+    pricingInterest: 0,
+    bookingIntent: 0,
+    knowledgeGap: 0,
+    unansweredQuestion: 0,
+    repeatHighIntentVisitor: 0,
   };
 
   items.forEach((item) => {
     const status = normalizeStatus(item.status);
     const workflow = item.ownerWorkflow || buildOwnerWorkflow(item);
+    const summaryKey = getSummaryKeyForActionType(item.actionType || item.type);
     summary[status] += 1;
+
+    if (summaryKey) {
+      summary[summaryKey] += 1;
+    }
 
     if (isFollowUpNeeded(item)) {
       summary.followUpNeeded += 1;
@@ -1380,16 +1562,17 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
   const baseItems = interactions
     .filter((interaction) => interaction.actionable)
     .map((interaction) => {
-      const persistedItem = persistedMap.get(interaction.key) || {};
+      const actionType = buildActionType(interaction);
+      const persistedItem = persistedMap.get(buildOperatorActionKey(interaction.key)) || {};
       const ownerWorkflow = buildOwnerWorkflow(persistedItem);
 
       return {
         key: interaction.key,
-        type: interaction.type,
-        actionType: buildActionType(interaction),
-        followUpSupported: isSupportedFollowUpActionType(buildActionType(interaction)),
-        knowledgeFixSupported: isSupportedKnowledgeFixActionType(buildActionType(interaction)),
-        label: interaction.label,
+        type: actionType,
+        actionType,
+        followUpSupported: isSupportedFollowUpActionType(actionType),
+        knowledgeFixSupported: isSupportedKnowledgeFixActionType(actionType),
+        label: getActionTypeLabel(actionType),
         status: persistedItem.status || "new",
         count: 1,
         snippet: interaction.snippet,
@@ -1413,6 +1596,26 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
         weakAnswer: interaction.weakAnswer,
         intent: interaction.intent,
         sessionKey: interaction.sessionKey,
+        priority: buildActionQueuePriority({
+          actionType,
+          count: 1,
+          contactCaptured: interaction.contactCaptured,
+          weakAnswer: interaction.weakAnswer,
+          unresolved: interaction.unresolved,
+          intent: interaction.intent,
+        }),
+        operatorSummary: buildOperatorSummary({
+          actionType,
+          count: 1,
+          contactCaptured: interaction.contactCaptured,
+          weakAnswer: interaction.weakAnswer,
+          unresolved: interaction.unresolved,
+          intent: interaction.intent,
+        }),
+        evidence: buildActionEvidence({
+          entries: [interaction],
+          lastSeenAt: interaction.lastSeenAt,
+        }),
       };
     });
   const preliminarySortedItems = [...baseItems]
@@ -1426,8 +1629,82 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
     });
   const preliminaryStitched = stitchPeople(interactions, preliminarySortedItems);
-  const repeatHighIntentItems = buildRepeatHighIntentItems(preliminaryStitched.people, persistedMap);
-  const items = [...baseItems, ...repeatHighIntentItems];
+  const preliminaryItemMap = new Map(preliminaryStitched.items.map((item) => [item.key, item]));
+  const groupedItems = [];
+  const groupedIndex = new Map();
+
+  baseItems.forEach((baseItem) => {
+    const stitchedItem = preliminaryItemMap.get(baseItem.key) || baseItem;
+    const personKey = cleanText(stitchedItem.person?.key || "");
+    const actionType = normalizeActionType(baseItem.actionType);
+    const groupedKey = GROUPED_ACTION_TYPES.has(actionType) && personKey
+      ? buildOperatorActionKey(`${personKey}:${actionType}`)
+      : buildOperatorActionKey(baseItem.key);
+    const persistedItem = persistedMap.get(groupedKey) || {};
+    const existingGroup = groupedIndex.get(groupedKey);
+
+    if (!existingGroup) {
+      const nextGroup = {
+        ...baseItem,
+        key: groupedKey,
+        type: actionType,
+        actionType,
+        personKey,
+        person: stitchedItem.person,
+        label: getActionTypeLabel(actionType),
+        status: persistedItem.status || "new",
+        note: persistedItem.note || "",
+        outcome: persistedItem.outcome || "",
+        nextStep: persistedItem.nextStep || "",
+        followUpNeeded: persistedItem.followUpNeeded,
+        followUpCompleted: persistedItem.followUpCompleted,
+        contactStatus: persistedItem.contactStatus || "",
+        updatedAt: persistedItem.updatedAt || null,
+        ownerWorkflow: buildOwnerWorkflow(persistedItem),
+        count: 1,
+        lastSeenAt: baseItem.lastSeenAt,
+        relatedActionKeys: [],
+        entries: [baseItem],
+      };
+
+      groupedIndex.set(groupedKey, nextGroup);
+      groupedItems.push(nextGroup);
+      return;
+    }
+
+    existingGroup.count += 1;
+    existingGroup.lastSeenAt = getMessageTimestamp({ createdAt: baseItem.lastSeenAt }) > getMessageTimestamp({ createdAt: existingGroup.lastSeenAt })
+      ? baseItem.lastSeenAt
+      : existingGroup.lastSeenAt;
+    existingGroup.question = baseItem.question || existingGroup.question;
+    existingGroup.reply = baseItem.reply || existingGroup.reply;
+    existingGroup.snippet = baseItem.snippet || existingGroup.snippet;
+    existingGroup.contactCaptured = existingGroup.contactCaptured || baseItem.contactCaptured;
+    existingGroup.contactInfo = mergeContactInfo(existingGroup.contactInfo || {}, baseItem.contactInfo || {});
+    existingGroup.weakAnswer = existingGroup.weakAnswer || baseItem.weakAnswer;
+    existingGroup.unresolved = existingGroup.unresolved || baseItem.unresolved;
+    existingGroup.entries.push(baseItem);
+  });
+
+  const itemsBeforeRepeat = groupedItems.map((item) => {
+    const priority = buildActionQueuePriority(item);
+
+    return {
+      ...item,
+      contactInfo: item.contactInfo?.email || item.contactInfo?.phone || item.contactInfo?.name
+        ? item.contactInfo
+        : null,
+      priority,
+      operatorSummary: buildOperatorSummary(item),
+      evidence: buildActionEvidence(item),
+      suggestedAction: item.suggestedAction,
+      followUpSupported: isSupportedFollowUpActionType(item.actionType),
+      knowledgeFixSupported: isSupportedKnowledgeFixActionType(item.actionType),
+      ownerWorkflow: buildOwnerWorkflow(item),
+    };
+  });
+  const repeatHighIntentItems = buildRepeatHighIntentItems(preliminaryStitched.people, itemsBeforeRepeat, persistedMap);
+  const items = [...itemsBeforeRepeat, ...repeatHighIntentItems];
   const followUpsByActionKey = new Map();
   const knowledgeFixesByActionKey = new Map();
 
@@ -1464,9 +1741,16 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
   const sortedItems = items
     .sort((left, right) => {
       const rankDelta = (left.ownerWorkflow?.rank ?? 99) - (right.ownerWorkflow?.rank ?? 99);
+      const priorityRank = { high: 0, medium: 1, low: 2 };
 
       if (rankDelta !== 0) {
         return rankDelta;
+      }
+
+      const priorityDelta = (priorityRank[left.priority] ?? 99) - (priorityRank[right.priority] ?? 99);
+
+      if (priorityDelta !== 0) {
+        return priorityDelta;
       }
 
       return getMessageTimestamp({ createdAt: right.lastSeenAt }) - getMessageTimestamp({ createdAt: left.lastSeenAt });
@@ -1489,6 +1773,8 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
       followUp,
       knowledgeFix,
       ownerWorkflow,
+      priority: buildActionQueuePriority(item),
+      operatorSummary: buildOperatorSummary(item),
     };
   });
 
@@ -1522,10 +1808,7 @@ export async function listActionQueueStatuses(supabase, options = {}) {
 
   if (error) {
     if (isUnavailablePersistenceError(error)) {
-      return {
-        records: [],
-        persistenceAvailable: false,
-      };
+      throw buildUnavailableActionQueuePersistenceError();
     }
 
     console.error(error);
@@ -1548,7 +1831,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
   const followUpNeeded = options.followUpNeeded === undefined ? undefined : normalizeBooleanFlag(options.followUpNeeded);
   const followUpCompleted = options.followUpCompleted === undefined ? undefined : normalizeBooleanFlag(options.followUpCompleted);
   const contactStatus = options.contactStatus === undefined ? undefined : normalizeContactStatus(options.contactStatus);
-  const explicitStatus = options.status === undefined ? null : normalizeStatus(options.status);
+  const explicitStatus = options.status === undefined ? "" : parseRequestedStatus(options.status);
   const hasHandoffUpdate = [
     note,
     outcome,
@@ -1571,6 +1854,41 @@ export async function updateActionQueueStatus(supabase, options = {}) {
 
   if (!agentId || !ownerUserId || !actionKey) {
     const error = new Error("agent_id, owner_user_id, and action_key are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (followUpNeeded === true && followUpCompleted === true) {
+    const error = new Error(
+      "Follow-up cannot be marked both needed and completed at the same time."
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const { data: existingRow, error: existingError } = await supabase
+    .from(ACTION_QUEUE_STATUS_TABLE)
+    .select("agent_id, owner_user_id, action_key, status")
+    .eq("agent_id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .eq("action_key", actionKey)
+    .maybeSingle();
+
+  if (existingError) {
+    if (isUnavailablePersistenceError(existingError)) {
+      throw buildUnavailableActionQueuePersistenceError();
+    }
+
+    console.error(existingError);
+    throw existingError;
+  }
+
+  const existingStatus = normalizeStatus(existingRow?.status);
+
+  if (existingStatus === "dismissed" && status === "done") {
+    const error = new Error(
+      "Vonza cannot move an action queue item directly from dismissed to done."
+    );
     error.statusCode = 400;
     throw error;
   }
@@ -1616,22 +1934,7 @@ export async function updateActionQueueStatus(supabase, options = {}) {
 
   if (error) {
     if (isUnavailablePersistenceError(error)) {
-      return {
-        item: normalizePersistedItem({
-          agentId,
-          ownerUserId,
-          actionKey,
-          status,
-          note,
-          outcome,
-          nextStep,
-          followUpNeeded,
-          followUpCompleted,
-          contactStatus,
-          updatedAt: new Date().toISOString(),
-        }),
-        persistenceAvailable: false,
-      };
+      throw buildUnavailableActionQueuePersistenceError();
     }
 
     console.error(error);

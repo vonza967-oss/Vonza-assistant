@@ -76,7 +76,7 @@ export function listMissingGoogleOperatorEnvVars() {
 }
 
 export function isOperatorWorkspaceV1Enabled() {
-  return normalizeBooleanEnv(process.env.VONZA_OPERATOR_WORKSPACE_V1, false);
+  return normalizeBooleanEnv(process.env.VONZA_OPERATOR_WORKSPACE_V1, true);
 }
 
 export function getBuildSha() {

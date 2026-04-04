@@ -89,6 +89,60 @@ import {
 import { updateOperatorOnboardingState } from "../services/operator/operatorActivationService.js";
 import { updateOperatorContactLifecycleState } from "../services/operator/contactWorkspaceService.js";
 
+function expandGroupedFollowUpItems(queue = {}) {
+  const items = Array.isArray(queue.items) ? queue.items : [];
+  const expandedItems = [];
+
+  items.forEach((item) => {
+    expandedItems.push(item);
+
+    const groupedCount = Number(item.count || 0);
+    const actionType = String(item.actionType || "").trim().toLowerCase();
+
+    if (
+      groupedCount < 2
+      || !item.followUp?.id
+      || !["lead_follow_up", "pricing_interest", "booking_intent"].includes(actionType)
+    ) {
+      return;
+    }
+
+    const evidence = item.evidence && typeof item.evidence === "object" ? item.evidence : {};
+    const questions = Array.isArray(evidence.questions) ? evidence.questions : [];
+    const replies = Array.isArray(evidence.replies) ? evidence.replies : [];
+    const snippets = Array.isArray(evidence.snippets) ? evidence.snippets : [];
+
+    for (let index = 1; index < groupedCount; index += 1) {
+      expandedItems.push({
+        ...item,
+        key: `${item.key}:linked-${index}`,
+        count: 1,
+        question: questions[index] || item.question,
+        reply: replies[index] || item.reply,
+        snippet: snippets[index] || item.snippet,
+        evidence: {
+          ...evidence,
+          interactionCount: 1,
+          question: questions[index] || item.question,
+          reply: replies[index] || item.reply,
+          questions: questions[index] ? [questions[index]] : [],
+          replies: replies[index] ? [replies[index]] : [],
+          snippets: snippets[index] ? [snippets[index]] : [],
+        },
+      });
+    }
+  });
+
+  if (expandedItems.length === items.length) {
+    return queue;
+  }
+
+  return {
+    ...queue,
+    items: expandedItems,
+  };
+}
+
 export function createAgentRouter(deps = {}) {
   const router = express.Router();
   const getSupabase = deps.getSupabaseClient || getSupabaseClient;
@@ -806,9 +860,10 @@ export function createAgentRouter(deps = {}) {
         outcomes: conversionOutcomes,
         persistenceAvailable: leadCaptures.persistenceAvailable !== false,
       });
+      const responseQueue = expandGroupedFollowUpItems(hydratedQueue);
 
       res.json({
-        ...hydratedQueue,
+        ...responseQueue,
         analyticsSummary: buildAnalyticsSummary({
           messages,
           actionQueue: hydratedQueue,
@@ -919,10 +974,22 @@ export function createAgentRouter(deps = {}) {
 
       const item = result?.item || result;
       const persistenceAvailable = result?.persistenceAvailable !== false;
+      const [messages, statuses] = await Promise.all([
+        listAgentMessagesImpl(supabase, agentId),
+        listActionQueueStatusesImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        }),
+      ]);
+      const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
+      const queue = buildActionQueueImpl(messages, persistedRecords, {
+        persistenceAvailable,
+      });
 
       res.json({
         ok: true,
         item,
+        queue,
         persistenceAvailable,
         migrationRequired: !persistenceAvailable,
       });
@@ -1614,9 +1681,12 @@ export function createAgentRouter(deps = {}) {
       }
 
       const configurationErrorMessage = getStripeCheckoutConfigurationErrorMessage(err);
+      const isCheckoutAuthError = err.statusCode === 401;
 
       res.status(err.statusCode || 500).json({
-        error: isStripeConfigError(err)
+        error: isCheckoutAuthError
+          ? "Your sign-in session expired. Please sign in again to open checkout."
+          : isStripeConfigError(err)
           ? "Stripe checkout is not configured yet. Please check the Stripe environment settings."
           : configurationErrorMessage || err.message || "Something went wrong",
       });

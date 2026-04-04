@@ -1041,8 +1041,8 @@ function getAccessCopy(agent) {
   if (!agent?.id) {
     return {
       eyebrow: "Purchase step",
-      headline: "Unlock Vonza to open your AI front desk workspace.",
-      copy: `Start with secure checkout. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
+      headline: "Unlock Vonza to open your setup workspace.",
+      copy: `Unlock Vonza to open your AI front desk workspace, then continue setup in one place. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
     };
   }
 
@@ -3302,6 +3302,12 @@ function createEmptyActionQueue() {
       followUpCompleted: 0,
       resolved: 0,
       attentionNeeded: 0,
+      leadFollowUp: 0,
+      pricingInterest: 0,
+      bookingIntent: 0,
+      knowledgeGap: 0,
+      unansweredQuestion: 0,
+      repeatHighIntentVisitor: 0,
     },
     conversionSummary: {
       highIntentConversations: 0,
@@ -3911,15 +3917,25 @@ function formatActionQueueContact(item) {
 }
 
 function getActionQueueTypeLabel(type) {
-  if (type === "weak_answer") {
-    return "Weak answers";
+  switch (trimText(type).toLowerCase()) {
+    case "lead_follow_up":
+      return "Lead / contact";
+    case "pricing_interest":
+      return "Pricing / purchase";
+    case "booking_intent":
+      return "Booking";
+    case "repeat_high_intent":
+    case "repeat_high_intent_visitor":
+      return "Repeat visitor";
+    case "knowledge_gap":
+      return "Knowledge gap";
+    case "unanswered_question":
+      return "Unanswered question";
+    case "weak_answer":
+      return "Weak answers";
+    default:
+      return getIntentLabel(type);
   }
-
-  if (type === "repeat_high_intent") {
-    return "Repeat visitor";
-  }
-
-  return getIntentLabel(type);
 }
 
 function getOperatorActionTypeLabel(item = {}) {
@@ -3938,6 +3954,28 @@ function getOperatorActionTypeLabel(item = {}) {
       return "Unanswered question";
     default:
       return getActionQueueTypeLabel(item.type);
+  }
+}
+
+function getActionQueuePriorityLabel(value) {
+  switch (trimText(value).toLowerCase()) {
+    case "high":
+      return "High priority";
+    case "medium":
+      return "Medium priority";
+    default:
+      return "Low priority";
+  }
+}
+
+function getActionQueuePriorityBadgeClass(value) {
+  switch (trimText(value).toLowerCase()) {
+    case "high":
+      return "badge warning";
+    case "medium":
+      return "badge pending";
+    default:
+      return "pill";
   }
 }
 
@@ -4600,6 +4638,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         <div class="action-queue-headline">
           <div class="action-queue-badges">
             <span class="pill">${escapeHtml(getOperatorActionTypeLabel(item))}</span>
+            <span class="${getActionQueuePriorityBadgeClass(item.priority)}">${escapeHtml(getActionQueuePriorityLabel(item.priority))}</span>
             <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
             <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
             ${followUp ? `<span class="${getFollowUpStatusBadgeClass(followUp.status)}">${escapeHtml(getFollowUpStatusLabel(followUp.status))}</span>` : ""}
