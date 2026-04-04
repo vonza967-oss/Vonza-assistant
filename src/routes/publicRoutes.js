@@ -55,13 +55,15 @@ export function createPublicRouter({ rootDir }) {
   });
 
   router.get("/public-config.js", (req, res) => {
+    const operatorWorkspaceEnabled = isOperatorWorkspaceV1Enabled();
     res.type("application/javascript");
     res.send(`
 window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};
 window.VONZA_SUPABASE_URL = ${JSON.stringify(getSupabasePublicUrl())};
 window.VONZA_SUPABASE_ANON_KEY = ${JSON.stringify(getSupabaseAnonKey())};
 window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed(req))};
-window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED = ${JSON.stringify(isOperatorWorkspaceV1Enabled())};
+window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED = ${JSON.stringify(operatorWorkspaceEnabled)};
+window.VONZA_OPERATOR_WORKSPACE_V1 = window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED;
 window.VONZA_APP_VERSION = ${JSON.stringify(getAppVersion())};
 window.VONZA_BUILD_SHA = ${JSON.stringify(getBuildSha())};
 `.trim());

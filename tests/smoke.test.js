@@ -1611,6 +1611,15 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(marketingScript.text, /My Account/);
         assert.match(marketingScript.text, /\/dashboard/);
         assert.match(marketingScript.text, /auth\.onAuthStateChange/);
+
+        const publicConfig = await getText(server.baseUrl, "/public-config.js");
+        assert.equal(publicConfig.status, 200);
+        assert.match(publicConfig.text, /VONZA_OPERATOR_WORKSPACE_V1_ENABLED/);
+        assert.match(publicConfig.text, /VONZA_OPERATOR_WORKSPACE_V1/);
+
+        const health = await getJson(server.baseUrl, "/health");
+        assert.equal(health.status, 200);
+        assert.equal(health.json.operatorWorkspaceV1Enabled, true);
       } finally {
         await server.close();
       }
