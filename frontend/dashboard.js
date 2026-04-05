@@ -2106,6 +2106,84 @@ function buildWorkspaceTabs(activeSection, setup, operatorWorkspace = createEmpt
   `;
 }
 
+function buildShellSidebar(
+  agent,
+  setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  activeSection = "overview",
+  workspaceMode = getWorkspaceMode(operatorWorkspace)
+) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const connectedAccounts = operatorWorkspace.connectedAccounts || [];
+  const connectedToolsLabel = connectedAccounts.some((account) => account.status === "connected")
+    ? "Connected tools live"
+    : isCapabilityVisibleForWorkspace("google_connect", operatorWorkspace)
+      ? "Connected tools available"
+      : "Core workspace only";
+  const statusCards = [
+    {
+      label: "Mode",
+      value: workspaceMode.title,
+      copy: workspaceMode.copy,
+    },
+    {
+      label: "Setup",
+      value: setup.isReady ? "Ready" : "In progress",
+      copy: setup.isReady
+        ? "Core surfaces are live and ready for daily use."
+        : "Finish Front Desk setup to unlock the cleanest operator loop.",
+    },
+    {
+      label: "Knowledge",
+      value: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Missing",
+      copy: setup.knowledgeReady
+        ? "Website grounding is loaded for routing and Today."
+        : "Refresh website knowledge for a stronger operator readout.",
+    },
+    {
+      label: "Install",
+      value: agent.installStatus?.label || "Not installed yet",
+      copy: isInstallSeen(installStatus)
+        ? "Vonza is seen on the live site."
+        : "Install coverage still needs owner attention.",
+    },
+    {
+      label: "Connected tools",
+      value: connectedToolsLabel,
+      copy: "Inbox, Calendar, and Automations stay secondary to the core operator loop.",
+    },
+  ];
+
+  return `
+    <aside class="sidebar-shell">
+      <div class="sidebar-brand-block">
+        <div class="sidebar-brand-row">
+          <span class="brand-mark sidebar-brand-mark">V</span>
+          <div>
+            <p class="sidebar-kicker">Vonza operator workspace</p>
+            <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Your workspace")}</h2>
+          </div>
+        </div>
+        <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
+      </div>
+
+      <div class="sidebar-status-stack">
+        ${statusCards.map((card) => `
+          <article class="sidebar-status-card ${card.value.toLowerCase().includes("ready") || card.value.toLowerCase().includes("live") ? "ready" : ""}">
+            <p class="sidebar-status-label">${escapeHtml(card.label)}</p>
+            <h3 class="sidebar-status-value">${escapeHtml(card.value)}</h3>
+            <p class="sidebar-status-copy">${escapeHtml(card.copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+
+      <div class="sidebar-nav-shell" data-active-section="${escapeHtml(activeSection)}">
+        ${buildWorkspaceTabs(activeSection, setup, operatorWorkspace)}
+      </div>
+    </aside>
+  `;
+}
+
 function formatDateTimeLocalValue(value) {
   if (!value) {
     return "";
@@ -2800,9 +2878,10 @@ function buildTodaySection({
   emptyTitle = "",
   emptyCopy = "",
   emptyActionMarkup = "",
+  tone = "",
 } = {}) {
   return `
-    <section class="workspace-card-soft today-section-card">
+    <section class="workspace-card-soft today-section-card ${tone ? `today-section-card-${escapeHtml(tone)}` : ""}">
       <div class="workspace-panel-header">
         <div>
           <p class="studio-kicker">Today</p>
@@ -3078,6 +3157,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
         ${buildTodaySection({
           title: "Needs Attention",
           description: "The highest-signal gaps across contacts, follow-up, and proof that still need owner action.",
+          tone: "attention",
           cards: needsAttentionCards,
           emptyTitle: "Nothing urgent is standing out",
           emptyCopy: "Today is currently steady. Vonza will surface the first real issue here instead of filling the space with low-signal noise.",
@@ -3085,6 +3165,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
         ${buildTodaySection({
           title: "Today’s Schedule",
           description: "Calendar context should read like the working day, not a list of disconnected events.",
+          tone: "schedule",
           cards: scheduleCards,
           emptyTitle: "Today’s schedule is still quiet",
           emptyCopy: "As soon as appointments are visible, Today will explain why each one matters and what should happen next.",
@@ -3092,6 +3173,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
         ${buildTodaySection({
           title: "Ready / Waiting",
           description: "Prepared work, proof, and front-desk readiness that are steady, waiting, or ready for review.",
+          tone: "ready",
           cards: readyWaitingCards,
         })}
       </div>
@@ -7023,51 +7105,58 @@ function renderAssistantShell(
     : "";
 
   rootEl.innerHTML = `
-    <div class="workspace-shell">
-      <section class="workspace-header">
-        <div class="workspace-header-top">
-          <div>
-            <span class="eyebrow">${escapeHtml(workspaceMode.eyebrow)}</span>
-            <h1 class="workspace-title">${escapeHtml(agent.assistantName || agent.name)}</h1>
-            <p class="workspace-subtitle">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
+    <div class="app-shell">
+      ${buildShellSidebar(agent, setup, operatorWorkspace, activeSection, workspaceMode)}
+      <div class="workspace-shell">
+        <section class="workspace-header">
+          <div class="workspace-header-top">
+            <div class="workspace-header-copy">
+              <span class="eyebrow">${escapeHtml(workspaceMode.eyebrow)}</span>
+              <h1 class="workspace-title">${escapeHtml(agent.assistantName || agent.name)}</h1>
+              <p class="workspace-subtitle">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
+            </div>
+            <div class="workspace-actions">
+              ${secondaryAction}
+              ${primaryAction}
+              ${!setup.knowledgeReady ? `<button class="ghost-button" data-action="import-knowledge">Retry website import</button>` : ""}
+            </div>
+          </div>
+          <div class="workspace-header-bottom">
             <div class="workspace-badge-row">
               <span class="${getBadgeClass(shellStatus)}">${shellStatus}</span>
               ${googleBetaVisible ? `<span class="${getBadgeClass((operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Ready" : "Limited")}">${(operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Connected tools live" : "Connected tools available"}</span>` : ""}
               <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Not imported")}">${setup.knowledgeReady ? "Knowledge ready" : setup.knowledgeLimited ? "Knowledge limited" : "Knowledge not imported"}</span>
               <span class="${getBadgeClass(isInstallSeen(getDefaultInstallStatus(agent)) ? "Ready" : getDefaultInstallStatus(agent).state === "installed_unseen" ? "Limited" : getDefaultInstallStatus(agent).state === "domain_mismatch" || getDefaultInstallStatus(agent).state === "verify_failed" ? "Needs attention" : "Not imported")}">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</span>
             </div>
+            <p class="workspace-command-copy"><strong>${escapeHtml(workspaceMode.title)}</strong> ${escapeHtml(workspaceMode.copy)}</p>
           </div>
-          <div class="workspace-actions">
-            ${secondaryAction}
-            ${primaryAction}
-            ${!setup.knowledgeReady ? `<button class="ghost-button" data-action="import-knowledge">Retry website import</button>` : ""}
-          </div>
-        </div>
-        ${buildWorkspaceTabs(activeSection, setup, operatorWorkspace)}
-      </section>
+        </section>
 
-      <div class="shell-status-banner">
-        <strong>${escapeHtml(workspaceMode.title)}</strong> ${escapeHtml(workspaceMode.copy)}
+        ${operatorEnabled && !setup.isReady ? `
+          <div class="shell-status-banner">
+            Finish the front-desk basics in Front Desk, make the preview strong, add the widget to the live site, and then use Today, Contacts, Front Desk, and Outcomes to confirm the first real lead path.
+          </div>
+        ` : ""}
+
+        ${buildWorkspaceDiagnosticsMarkup(diagnostics)}
+        ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+        ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(operatorWorkspace) : ""}
+        ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
+        ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
+        ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
+        ${buildCustomizePanel(agent, setup, operatorWorkspace)}
+        ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
       </div>
-
-      ${operatorEnabled && !setup.isReady ? `
-        <div class="shell-status-banner">
-          Finish the front-desk basics in Front Desk, make the preview strong, add the widget to the live site, and then use Today, Contacts, Front Desk, and Outcomes to confirm the first real lead path.
-        </div>
-      ` : ""}
-
-      ${buildWorkspaceDiagnosticsMarkup(diagnostics)}
-      ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-      ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(operatorWorkspace) : ""}
-      ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
-      ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
-      ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
-      ${buildCustomizePanel(agent, setup, operatorWorkspace)}
-      ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
     </div>
   `;
 
   bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
+  window.requestAnimationFrame(() => {
+    const appShell = typeof rootEl?.querySelector === "function"
+      ? rootEl.querySelector(".app-shell")
+      : document.querySelector(".app-shell");
+    appShell?.classList.add("is-ready");
+  });
 }
 
 function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics = createEmptyWorkspaceDiagnostics()) {
@@ -8816,19 +8905,52 @@ function bindSharedDashboardEvents(
   const copilotDismissButtons = document.querySelectorAll("[data-copilot-dismiss-proposal]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
 
-  const showShellSection = (targetSection) => {
-    if (!getAvailableShellSections(operatorWorkspace).includes(targetSection)) {
+  const updateShellSectionUi = (targetSection) => {
+    if (!availableSections.includes(targetSection)) {
       return;
     }
 
     setActiveShellSection(targetSection, operatorWorkspace);
+    rootEl.dataset.activeSection = targetSection;
 
     document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
       navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
+      if (navButton.dataset.shellTarget === targetSection) {
+        navButton.setAttribute("aria-current", "page");
+      } else {
+        navButton.removeAttribute("aria-current");
+      }
     });
 
     document.querySelectorAll("[data-shell-section]").forEach((section) => {
-      section.hidden = section.dataset.shellSection !== targetSection;
+      const isActive = section.dataset.shellSection === targetSection;
+      section.hidden = !isActive;
+      section.classList.toggle("section-enter", isActive);
+    });
+  };
+
+  const showShellSection = (targetSection, options = {}) => {
+    if (!availableSections.includes(targetSection)) {
+      return;
+    }
+
+    const renderChange = () => updateShellSectionUi(targetSection);
+
+    if (options.animate && typeof document.startViewTransition === "function") {
+      document.startViewTransition(renderChange);
+    } else {
+      renderChange();
+    }
+
+    window.requestAnimationFrame(() => {
+      const activeSection = document.querySelector(`[data-shell-section="${targetSection}"]`);
+      if (!activeSection) {
+        return;
+      }
+
+      activeSection.classList.remove("section-enter");
+      void activeSection.offsetWidth;
+      activeSection.classList.add("section-enter");
     });
   };
 
@@ -10109,26 +10231,16 @@ function bindSharedDashboardEvents(
     button.addEventListener("click", () => {
       const targetSection = button.dataset.shellTarget;
 
-      if (!getAvailableShellSections(operatorWorkspace).includes(targetSection)) {
+      if (!availableSections.includes(targetSection)) {
         return;
       }
 
-      setActiveShellSection(targetSection, operatorWorkspace);
-
-      document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
-        navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
-      });
-
-      document.querySelectorAll("[data-shell-section]").forEach((section) => {
-        section.hidden = section.dataset.shellSection !== targetSection;
-      });
+      showShellSection(targetSection, { animate: true });
     });
   });
 
   const initialSection = getActiveShellSection(setup, operatorWorkspace);
-  document.querySelectorAll("[data-shell-section]").forEach((section) => {
-    section.hidden = section.dataset.shellSection !== initialSection;
-  });
+  showShellSection(initialSection);
 
   if (contactFilterButtons.length) {
     applyContactFilter("all");
@@ -10152,13 +10264,7 @@ function bindSharedDashboardEvents(
 
     if (target) {
       if (focusTarget === "setup") {
-        setActiveShellSection("customize");
-        document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
-          navButton.classList.toggle("active", navButton.dataset.shellTarget === "customize");
-        });
-        document.querySelectorAll("[data-shell-section]").forEach((section) => {
-          section.hidden = section.dataset.shellSection !== "customize";
-        });
+        showShellSection("customize");
       }
 
       window.requestAnimationFrame(() => {

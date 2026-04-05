@@ -2,6 +2,7 @@
   const authLink = document.getElementById("site-auth-link");
   const primaryCta = document.getElementById("site-primary-cta");
   const appLinks = Array.from(document.querySelectorAll("[data-app-link]"));
+  const revealNodes = Array.from(document.querySelectorAll("[data-reveal]"));
 
   function hasAuthConfig() {
     return Boolean(
@@ -112,6 +113,39 @@
       });
     }
   }
+
+  function bootRevealMotion() {
+    document.body?.classList?.add("marketing-ready");
+
+    if (!revealNodes.length) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+
+    if (prefersReducedMotion || typeof window.IntersectionObserver !== "function") {
+      revealNodes.forEach((node) => node.classList.add("is-visible"));
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, {
+      rootMargin: "0px 0px -12% 0px",
+      threshold: 0.18,
+    });
+
+    revealNodes.forEach((node) => observer.observe(node));
+  }
+
+  bootRevealMotion();
 
   bootMarketingAuth().catch((error) => {
     console.warn("[marketing auth] Could not load session state:", error?.message || error);
