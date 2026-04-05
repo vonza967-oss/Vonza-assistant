@@ -298,12 +298,12 @@ test("dismissing a proposal keeps it from immediately resurfacing until the cont
     recommendations: [
       {
         id: "business-context:foundation",
-        title: "Open business context setup",
+        title: "Open Front Desk context",
         proposal: {
           key: "business-context:foundation",
           type: "open_existing_surface",
           hash: "hash-1",
-          target: { section: "customize", id: "business-context-setup", label: "Open Customize" },
+          target: { section: "customize", id: "business-context-setup", label: "Open Front Desk" },
         },
       },
     ],
@@ -323,12 +323,12 @@ test("dismissing a proposal keeps it from immediately resurfacing until the cont
     recommendations: [
       {
         id: "business-context:foundation",
-        title: "Open business context setup",
+        title: "Open Front Desk context",
         proposal: {
           key: "business-context:foundation",
           type: "open_existing_surface",
           hash: "hash-2",
-          target: { section: "customize", id: "business-context-setup", label: "Open Customize" },
+          target: { section: "customize", id: "business-context-setup", label: "Open Front Desk" },
         },
       },
     ],

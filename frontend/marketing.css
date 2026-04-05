@@ -136,7 +136,7 @@ button:hover {
 .header-actions,
 .hero-actions,
 .hero-meta,
-.workspace-tabs,
+.workspace-tab-row,
 .footer-links,
 .final-callout-actions {
   display: flex;
@@ -241,8 +241,7 @@ button:hover {
 .faq-item p,
 .footer-copy,
 .workspace-card p,
-.detail-row span,
-.progress-row span {
+.detail-row span {
   color: var(--muted);
   line-height: 1.72;
 }
@@ -356,12 +355,22 @@ button:hover {
   padding: 10px 14px;
 }
 
-.workspace-tabs {
+.workspace-tab-row {
   position: relative;
   z-index: 1;
   margin-top: 18px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
+}
+
+.workspace-tab-row-secondary {
+  margin-top: 0;
+  margin-bottom: 18px;
+}
+
+.workspace-tab-row-secondary .workspace-tab {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .workspace-tab {
@@ -406,13 +415,13 @@ button:hover {
   letter-spacing: -0.05em;
 }
 
-.progress-list {
+.today-preview {
   margin-top: 20px;
   display: grid;
   gap: 12px;
 }
 
-.progress-row,
+.today-preview-section,
 .detail-row {
   display: grid;
   gap: 5px;
@@ -422,7 +431,45 @@ button:hover {
   border: 1px solid rgba(24, 31, 43, 0.08);
 }
 
-.progress-row strong,
+.today-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-preview-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.today-preview-copy,
+.today-preview-meta,
+.today-preview-action {
+  margin: 0;
+}
+
+.today-preview-copy {
+  color: var(--ink-soft);
+  line-height: 1.65;
+}
+
+.today-preview-meta,
+.today-preview-action {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.today-preview-action {
+  color: var(--brand-deep);
+  font-weight: 700;
+}
+
+.today-preview-head strong,
 .detail-row strong,
 .journey-item h3,
 .workspace-summary h3,
@@ -430,11 +477,6 @@ button:hover {
 .footer-brand,
 .faq-item summary {
   letter-spacing: -0.03em;
-}
-
-.progress-row.done {
-  background: rgba(20, 104, 93, 0.08);
-  border-color: rgba(20, 104, 93, 0.18);
 }
 
 .workspace-card-side {
@@ -570,6 +612,23 @@ button:hover {
   background: var(--surface);
 }
 
+.workspace-secondary-note {
+  margin-top: 18px;
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+  border-top: 1px solid rgba(24, 31, 43, 0.1);
+}
+
+.workspace-secondary-note strong {
+  letter-spacing: -0.02em;
+}
+
+.workspace-secondary-note span {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
 .pricing-panel {
   grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
   align-items: stretch;
@@ -691,7 +750,7 @@ button:hover {
   .site-nav,
   .header-actions,
   .hero-meta,
-  .workspace-tabs,
+  .workspace-tab-row,
   .footer-links,
   .final-callout-actions {
     flex-wrap: wrap;

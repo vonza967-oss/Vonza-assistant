@@ -3510,8 +3510,8 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       nextAction: {
         key: "legacy_workspace",
         title: "Open workspace",
-        description: "Today, Customize, and Outcomes stay available while the website front desk continues to work.",
-        buttonLabel: "Open workspace",
+        description: "Today, Front Desk, and Outcomes stay available while the website front desk continues to work.",
+        buttonLabel: "Open Front Desk",
         actionType: "open_customize",
         targetSection: "customize",
       },
