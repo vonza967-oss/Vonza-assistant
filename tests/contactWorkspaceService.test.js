@@ -111,6 +111,9 @@ test("inbox thread links to the existing contact when the email matches", () => 
 });
 
 test("calendar event links to an existing contact when attendee data is sufficient", () => {
+  const futureStartAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const futureEndAt = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+
   const result = buildContactWorkspaceFromRecords({
     leads: [
       {
@@ -127,8 +130,8 @@ test("calendar event links to an existing contact when attendee data is sufficie
         id: "event-1",
         title: "Estimate call",
         attendeeEmails: ["morgan@example.com"],
-        startAt: "2026-04-05T10:00:00.000Z",
-        endAt: "2026-04-05T10:30:00.000Z",
+        startAt: futureStartAt,
+        endAt: futureEndAt,
         status: "confirmed",
       },
     ],
