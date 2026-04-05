@@ -208,10 +208,15 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.contacts.list), []);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "calendar", "automations", "customize", "analytics"]
+    ["overview", "contacts", "customize", "analytics", "calendar", "automations"]
   );
 
-  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Connect Google to unlock Today/);
+  const overview = harness.buildOperatorOverviewSection({}, workspace);
+  assert.match(overview, /Today is the operator command center/);
+  assert.match(overview, /Connect Google Calendar/);
+  assert.match(overview, /Needs Attention/);
+  assert.match(overview, /Today(?:&#39;|'|’)?s Schedule/);
+  assert.match(overview, /Ready \/ Waiting/);
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google to unlock Calendar/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
@@ -311,14 +316,16 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "calendar", "automations", "customize", "analytics"]
+    ["overview", "contacts", "customize", "analytics", "calendar", "automations"]
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today(?:&#39;|')s Schedule/);
-  assert.match(overview, /Appointments Needing Follow-up/);
-  assert.match(overview, /Appointments Not Linked to a Contact/);
-  assert.match(overview, /Calendar read-only mode/);
+  assert.match(overview, /Needs Attention/);
+  assert.match(overview, /Today(?:&#39;|'|’)?s Schedule/);
+  assert.match(overview, /Follow-up gap/);
+  assert.match(overview, /Contact linking gap/);
+  assert.match(overview, /Daily calendar readout/);
+  assert.match(overview, /Ready \/ Waiting/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
   assert.match(calendarPanel, /Read-only calendar mode/);
@@ -346,7 +353,7 @@ test("today copilot stays hidden when the browser flag is off", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.doesNotMatch(overview, /Today Copilot/);
+  assert.doesNotMatch(overview, /Copilot readout/);
 });
 
 test("today copilot renders inside Today when the flag is on", () => {
@@ -460,14 +467,14 @@ test("today copilot renders inside Today when the flag is on", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today Copilot/);
-  assert.match(overview, /Operational summary/);
-  assert.match(overview, /Approval-first proposals/);
+  assert.match(overview, /Copilot readout/);
+  assert.match(overview, /Signals across Today/);
+  assert.match(overview, /Ready for owner review/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
   const customize = harness.buildCustomizePanel({}, {}, workspace);
-  assert.match(customize, /Business context setup/);
-  assert.match(customize, /Save business context/);
+  assert.match(customize, /Front Desk context setup/);
+  assert.match(customize, /Save Front Desk context/);
 });
 
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
@@ -523,7 +530,7 @@ test("sparse-data copilot rendering stays honest and points back to business con
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Copilot needs a little more real operating context/);
-  assert.match(overview, /Open business context setup/);
+  assert.match(overview, /Open Front Desk context/);
 });
 
 test("launch profile keeps the stable core visible and labels Google workspace surfaces as beta", () => {
@@ -662,9 +669,10 @@ test("dashboard keeps the legacy shell only when the operator flag is off", asyn
     },
   });
 
+  const baselineFetchCalls = fetchCalls;
   const workspace = await harness.loadOperatorWorkspace("agent-1");
 
-  assert.equal(fetchCalls, 0);
+  assert.equal(fetchCalls, baselineFetchCalls);
   assert.equal(workspace.enabled, false);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),

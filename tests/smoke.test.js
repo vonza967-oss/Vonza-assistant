@@ -1494,15 +1494,16 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /The AI front desk for your website, plus the daily workspace to prove it is working/i);
-        assert.match(marketingHome.text, /service businesses with inbound leads/i);
-        assert.match(marketingHome.text, /optional Google beta/i);
+        assert.match(marketingHome.text, /AI front desk and operator command center/i);
+        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove outcomes/i);
+        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Outcomes/i);
+        assert.match(marketingHome.text, /Connected tools stay secondary/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Public launch core/);
-        assert.match(marketingHome.text, /Today, Contacts, Outcomes/i);
+        assert.match(marketingHome.text, /Operator command center/i);
+        assert.match(marketingHome.text, /Today(?:&#39;|'|’)?s Schedule/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
@@ -1568,13 +1569,13 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Unlock Vonza to open your AI front desk workspace/);
         assert.match(dashboardScript.text, /Today/);
         assert.match(dashboardScript.text, /Contacts/);
-        assert.match(dashboardScript.text, /Customize/);
+        assert.match(dashboardScript.text, /Front Desk/);
         assert.match(dashboardScript.text, /Outcomes/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
         assert.match(dashboardScript.text, /Today/);
         assert.match(dashboardScript.text, /Activation checklist/);
-        assert.match(dashboardScript.text, /Single best next action/);
+        assert.match(dashboardScript.text, /Recommended next action/);
         assert.match(dashboardScript.text, /Connect Google to unlock Inbox/);
         assert.match(dashboardScript.text, /Connect Google to unlock Calendar/);
         assert.match(dashboardScript.text, /Run first sync/);
@@ -1585,7 +1586,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Top customer questions/);
         assert.match(dashboardScript.text, /Lead \/ contact/);
         assert.match(dashboardScript.text, /Follow-up queue/);
-        assert.match(dashboardScript.text, /No actionable items yet/);
+        assert.match(dashboardScript.text, /Nothing urgent is standing out/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
         assert.match(dashboardScript.text, /High priority/);

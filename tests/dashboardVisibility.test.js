@@ -417,7 +417,7 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Vonza Assistant/);
   assert.match(harness.getRootHtml(), /Today/);
-  assert.match(harness.getRootHtml(), /Customize/);
+  assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Outcomes/);
 });
 
@@ -468,7 +468,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Today/);
-  assert.match(harness.getRootHtml(), /Customize/);
+  assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Outcomes/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
@@ -574,8 +574,8 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /No actionable items yet/);
-  assert.match(harness.getRootHtml(), /No real customer question themes yet/);
+  assert.match(harness.getRootHtml(), /Nothing urgent is standing out/);
+  assert.match(harness.getRootHtml(), /No recent outcomes are confirmed yet/);
 });
 
 test("tab switching still leaves the selected section rendered as the active view", async () => {

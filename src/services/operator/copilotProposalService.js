@@ -549,7 +549,7 @@ export async function dismissTodayCopilotProposal(supabase, options = {}) {
     proposalType: cleanText(proposal.type),
     status: "dismissed",
     proposalHash: cleanText(proposal.hash),
-    statusReason: "Dismissed by owner from Today Copilot.",
+    statusReason: "Dismissed by owner from Today.",
   });
 
   return {

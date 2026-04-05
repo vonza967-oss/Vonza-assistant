@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vonza | AI front desk for service businesses</title>
-  <meta name="description" content="Vonza gives service businesses an AI front desk for their website plus a daily owner workspace with Today, Contacts, and Outcomes. Google-connected Inbox, Calendar, and Automations are optional beta surfaces.">
+  <title>Vonza | AI front desk and operator command center</title>
+  <meta name="description" content="Vonza gives service businesses an AI front desk that captures and routes inbound demand, a Today command center that shows what needs attention next, and Outcomes that prove what closed.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
@@ -19,8 +19,9 @@
       </a>
 
       <nav class="site-nav" aria-label="Primary">
-        <a href="#journey">How it works</a>
-        <a href="#workspace">Workspace</a>
+        <a href="#story">How it works</a>
+        <a href="#command-center">Command center</a>
+        <a href="#proof">Proof</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
       </nav>
@@ -34,19 +35,19 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">AI front desk for service businesses with inbound leads</p>
-          <h1>The AI front desk for your website, plus the daily workspace to prove it is working.</h1>
-          <p class="hero-text">Vonza answers questions on your website, routes ready visitors to booking, quote, callback, or checkout, captures clean lead details when needed, and gives the owner a daily workspace with Today, Contacts, Customize, and Outcomes. Google-connected Inbox, Calendar, and Automations are optional beta when enabled.</p>
+          <p class="eyebrow">AI front desk and operator command center</p>
+          <h1>Capture inbound demand, show what needs attention, and prove outcomes.</h1>
+          <p class="hero-text">Vonza puts an AI front desk on your website to answer customer questions and route the next step, then gives the owner a command center with Today, Contacts, Front Desk, and Outcomes. Inbox, Calendar, and Automations stay clearly secondary connected tools when enabled.</p>
 
           <div class="hero-actions">
             <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
-            <a class="button button-secondary" href="#workspace">See the workspace</a>
+            <a class="button button-secondary" href="#command-center">See the command center</a>
           </div>
 
           <div class="hero-meta">
-            <span>Answer and route inbound leads</span>
-            <span>Today, Contacts, Outcomes</span>
-            <span>Optional Google beta</span>
+            <span>Capture and route inbound demand</span>
+            <span>Show what needs attention next</span>
+            <span>Prove outcomes with real context</span>
           </div>
         </div>
 
@@ -60,61 +61,78 @@
                   <p class="workspace-name">Studio Élan</p>
                 </div>
               </div>
-              <span class="workspace-badge">Public launch core</span>
+              <span class="workspace-badge">Operator command center</span>
             </div>
 
-            <div class="workspace-tabs">
+            <div class="workspace-tab-row">
               <span class="workspace-tab active">Today</span>
               <span class="workspace-tab">Contacts</span>
-              <span class="workspace-tab">Customize</span>
+              <span class="workspace-tab">Front Desk</span>
               <span class="workspace-tab">Outcomes</span>
-              <span class="workspace-tab">Inbox beta</span>
-              <span class="workspace-tab">Calendar beta</span>
-              <span class="workspace-tab">Automations beta</span>
+            </div>
+            <div class="workspace-tab-row workspace-tab-row-secondary">
+              <span class="workspace-tab">Inbox</span>
+              <span class="workspace-tab">Calendar</span>
+              <span class="workspace-tab">Automations</span>
             </div>
 
             <div class="workspace-body">
               <section class="workspace-card workspace-card-main">
-                <p class="card-label">Operator home</p>
-                <h2>Today</h2>
-                <p>Start the day with the one next action: review the front desk, confirm the newest contact, install or test the widget, and see the latest proof without jumping across tools. Connect Google later if you want the optional workspace beta.</p>
+                <p class="card-label">Today</p>
+                <h2>Command center</h2>
+                <p>Copilot organizes the day into three clear lanes so the owner can see what happened, why it matters, and what to do next without jumping across tools.</p>
 
-                <div class="progress-list">
-                  <div class="progress-row done">
-                    <strong>Front desk live</strong>
-                    <span>Website answers and routing are ready</span>
-                  </div>
-                  <div class="progress-row done">
-                    <strong>First live lead captured</strong>
-                    <span>Contact record and proof path are visible</span>
-                  </div>
-                  <div class="progress-row">
-                    <strong>Next owner action</strong>
-                    <span>Review Today, open the contact, or close the loop</span>
-                  </div>
+                <div class="today-preview">
+                  <article class="today-preview-section">
+                    <div class="today-preview-head">
+                      <strong>Needs Attention</strong>
+                      <span>2 items</span>
+                    </div>
+                    <p class="today-preview-copy">A quote follow-up still has no confirmed next step after this morning’s appointment.</p>
+                    <p class="today-preview-meta">Why it matters: ready demand can go stale if nobody closes the loop.</p>
+                    <p class="today-preview-action">Next: open the contact and review the draft.</p>
+                  </article>
+                  <article class="today-preview-section">
+                    <div class="today-preview-head">
+                      <strong>Today’s Schedule</strong>
+                      <span>3 appointments</span>
+                    </div>
+                    <p class="today-preview-copy">The next appointment is linked to an active lead and one attendee still needs contact linking.</p>
+                    <p class="today-preview-meta">Why it matters: schedule context keeps Today grounded in the real day.</p>
+                    <p class="today-preview-action">Next: open Calendar before the next appointment starts.</p>
+                  </article>
+                  <article class="today-preview-section">
+                    <div class="today-preview-head">
+                      <strong>Ready / Waiting</strong>
+                      <span>1 approval</span>
+                    </div>
+                    <p class="today-preview-copy">One approval-first follow-up is prepared, and the latest booking is already counted in Outcomes.</p>
+                    <p class="today-preview-meta">Why it matters: work stays safe until the owner approves it, and proof stays visible.</p>
+                    <p class="today-preview-action">Next: clear the waiting draft, then review the latest outcome.</p>
+                  </article>
                 </div>
               </section>
 
               <aside class="workspace-card workspace-card-side">
-                <p class="card-label">What the owner sees</p>
+                <p class="card-label">What Vonza does</p>
                 <div class="detail-row">
-                  <span>Stable launch core</span>
-                  <strong>Front desk, Today, Contacts, Outcomes</strong>
+                  <span>Capture and route</span>
+                  <strong>Answer questions and move visitors to booking, quote, callback, or checkout</strong>
                 </div>
                 <div class="detail-row">
-                  <span>Best fit</span>
-                  <strong>Service businesses with quotes, bookings, callbacks</strong>
+                  <span>Show what needs attention</span>
+                  <strong>Turn calendar, contacts, and approvals into a clear next action</strong>
                 </div>
                 <div class="detail-row">
-                  <span>Optional beta</span>
-                  <strong>Google-connected Inbox, Calendar, Automations</strong>
+                  <span>Prove outcomes</span>
+                  <strong>Keep bookings, quote requests, follow-ups, and complaint recovery tied back to real proof</strong>
                 </div>
 
                 <div class="widget-preview">
-                  <p class="card-label">Live preview</p>
+                  <p class="card-label">Front desk moment</p>
                   <div class="widget-panel">
-                    <div class="widget-bubble">Can I book or get a quote?</div>
-                    <div class="widget-bubble widget-bubble-strong">Yes. I answer from your website, route high-intent visitors to the right next step, capture details when direct routing is not possible, and feed the owner workspace so nothing important gets lost.</div>
+                    <div class="widget-bubble">Can I get a quote for this week?</div>
+                    <div class="widget-bubble widget-bubble-strong">Yes. I can answer from your website, route you to the right quote path, capture details if needed, and make sure the owner sees what needs attention next.</div>
                   </div>
                 </div>
               </aside>
@@ -125,73 +143,105 @@
 
       <section class="proof-band" aria-label="Product framing">
         <div>
-          <strong>The first product is intentionally narrow</strong>
-          <span>Vonza sells the stable core first: AI front desk, Today, Contacts, Outcomes, website import, and install.</span>
+          <strong>Capture and route inbound demand</strong>
+          <span>The front desk answers questions, routes ready visitors, and captures clean follow-up details when direct routing is not possible.</span>
         </div>
         <div>
-          <strong>Google is optional beta, not the headline promise</strong>
-          <span>Connect Gmail and Calendar when you want Inbox, Calendar, and Automations beta on top of the stable launch core.</span>
+          <strong>Show the owner what needs attention</strong>
+          <span>Today, Contacts, and Calendar context become a command center that explains what happened and the next action to take.</span>
         </div>
         <div>
-          <strong>Approval-first by design</strong>
-          <span>Vonza drafts replies, follow-ups, campaigns, and calendar actions when those beta surfaces are enabled, but the owner stays in control of sends and approvals.</span>
+          <strong>Prove outcomes without hand-wavy attribution</strong>
+          <span>Outcomes keeps the proof loop concrete, so bookings, quote requests, follow-up replies, and recovery work stay tied to real customer context.</span>
         </div>
       </section>
 
-      <section id="journey" class="section section-journey">
+      <section id="story" class="section section-journey">
         <div class="section-intro">
           <p class="eyebrow">How it works</p>
-          <h2>Launch the front desk, then use the workspace every day.</h2>
+          <h2>One product story, three concrete jobs.</h2>
         </div>
 
         <div class="journey-rail">
           <article class="journey-item">
             <span class="journey-number">01</span>
             <div>
-              <h3>Connect the website and install the front desk</h3>
-              <p>Vonza learns from the website, answers customer questions, routes booking or quote intent, and captures clean follow-up details when direct routing is not available.</p>
+              <h3>Capture and route inbound demand</h3>
+              <p>Vonza learns from the website, answers customer questions, routes booking or quote intent, and captures clean lead details when direct routing is not available.</p>
             </div>
           </article>
           <article class="journey-item">
             <span class="journey-number">02</span>
             <div>
-              <h3>See the first live lead path</h3>
-              <p>Run a real conversation, capture the lead, watch the contact appear, and confirm the first outcome so the owner sees proof instead of setup screens.</p>
+              <h3>Show the owner what needs attention</h3>
+              <p>Today turns schedule, contacts, follow-up work, and approvals into a clear operating readout instead of a pile of lists and disconnected tools.</p>
             </div>
           </article>
           <article class="journey-item">
             <span class="journey-number">03</span>
             <div>
-              <h3>Optional: connect Google for workflow beta</h3>
-              <p>When you want more, connect Gmail and Calendar to add Inbox, Calendar, and Automations beta without changing the core front-desk workflow.</p>
+              <h3>Prove the loop closed</h3>
+              <p>Outcomes keeps the proof visible so the owner can see which contacts moved forward, which follow-ups closed the loop, and where the front desk is producing real business value.</p>
             </div>
           </article>
         </div>
       </section>
 
-      <section id="workspace" class="section section-workspace">
+      <section id="command-center" class="section section-workspace">
         <div class="section-intro">
           <p class="eyebrow">Inside the workspace</p>
-          <h2>The paid workspace is built around a stable public core.</h2>
-          <p class="section-copy">The first public cohort buys a narrower, more honest product: AI front desk, Today, Contacts, Customize, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.</p>
+          <h2>The core workspace is opinionated on purpose.</h2>
+          <p class="section-copy">The primary navigation stays focused on Today, Contacts, Front Desk, and Outcomes. Inbox, Calendar, and Automations can exist when connected, but they stay clearly secondary to the core operating loop.</p>
         </div>
 
         <div class="workspace-columns">
           <article class="workspace-summary">
             <h3>Today</h3>
-            <p>The owner starts here with the daily summary, install state, newest proof, and the single best next action.</p>
+            <p>The operator command center for Needs Attention, Today’s Schedule, and Ready / Waiting.</p>
           </article>
           <article class="workspace-summary">
-            <h3>Contacts and Outcomes</h3>
-            <p>See lead capture, contact progression, and conservative proof in one place instead of bouncing between chat logs and ad hoc notes.</p>
+            <h3>Contacts</h3>
+            <p>Every person record pulls together chat, lead capture, follow-up, and the next owner action in one timeline.</p>
           </article>
           <article class="workspace-summary">
-            <h3>Customize and Install</h3>
-            <p>Keep the front desk grounded in the website, tune routing and messaging, preview it, and install it on the live site without switching products.</p>
+            <h3>Front Desk</h3>
+            <p>Configure identity, routing, knowledge, preview, and install for the customer-facing system that feeds the rest of the workspace.</p>
           </article>
           <article class="workspace-summary">
-            <h3>Optional Google beta</h3>
-            <p>Connect Gmail and Calendar later if you want Inbox, Calendar, and Automations beta on top of the stable public launch core.</p>
+            <h3>Outcomes</h3>
+            <p>Keep proof concrete with conservative attribution back to the contact path, route, follow-up, or recovery flow that actually closed.</p>
+          </article>
+        </div>
+
+        <div class="workspace-secondary-note">
+          <strong>Connected tools stay secondary</strong>
+          <span>Inbox, Calendar, and Automations can deepen the workflow when Google is connected, but they should never blur the core story of front desk, command center, and outcomes.</span>
+        </div>
+      </section>
+
+      <section id="proof" class="section section-workspace">
+        <div class="section-intro">
+          <p class="eyebrow">Proof loop</p>
+          <h2>Outcomes turns activity into proof.</h2>
+          <p class="section-copy">Vonza does not stop at conversations or drafts. It keeps the owner focused on whether the front desk created a booking, quote request, follow-up reply, or complaint recovery that can actually be explained.</p>
+        </div>
+
+        <div class="workspace-columns">
+          <article class="workspace-summary">
+            <h3>Front-desk proof</h3>
+            <p>See whether visitors moved from question to route to click to real next step instead of just reading chat volume.</p>
+          </article>
+          <article class="workspace-summary">
+            <h3>Contact proof</h3>
+            <p>Understand which people progressed, which ones are still waiting, and which high-value paths still have no confirmed result.</p>
+          </article>
+          <article class="workspace-summary">
+            <h3>Follow-up proof</h3>
+            <p>Track which owner-approved follow-ups actually led to replies, bookings, or recovered opportunities.</p>
+          </article>
+          <article class="workspace-summary">
+            <h3>Owner proof</h3>
+            <p>Keep the operator loop honest by showing what still needs review and what has already been confirmed.</p>
           </article>
         </div>
       </section>
@@ -200,20 +250,20 @@
         <div class="pricing-panel">
           <div class="pricing-copy">
             <p class="eyebrow">Pricing</p>
-            <h2>One paid workspace for the front desk and the daily owner loop.</h2>
-            <p>Vonza keeps the decision simple: one secure checkout, one paid workspace, and one place to run the AI front desk plus the daily owner loop around Today, Contacts, and Outcomes.</p>
+            <h2>One paid workspace for the front desk and the owner operating loop.</h2>
+            <p>Vonza keeps the decision simple: one secure checkout, one paid workspace, and one place to run the AI front desk plus the operator loop around Today, Contacts, Front Desk, and Outcomes.</p>
             <ul class="pricing-points">
-              <li>AI front desk, routing, and lead capture</li>
-              <li>Today, Contacts, Customize, and Outcomes</li>
+              <li>AI front desk that captures and routes inbound demand</li>
+              <li>Today command center with clear attention and schedule structure</li>
+              <li>Contacts, Front Desk, and Outcomes in the same workspace</li>
               <li>Website-grounded setup, preview, and install</li>
-              <li>Outcome and proof reporting with conservative attribution</li>
-              <li>Optional Google-connected Inbox, Calendar, and Automations beta</li>
+              <li>Optional connected Inbox, Calendar, and Automations tools</li>
             </ul>
           </div>
 
           <div class="pricing-action">
             <p class="pricing-title">What happens after payment</p>
-            <p>You land in the workspace, connect your website, import knowledge, preview the front desk, install it on the site, and then use Today, Contacts, and Outcomes to confirm the first real customer path. Google connection is optional later.</p>
+            <p>You land in the workspace, connect your website, import knowledge, preview the front desk, install it on the site, and then use Today, Contacts, Front Desk, and Outcomes to confirm the first real customer path. Google connection is optional later.</p>
             <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
           </div>
         </div>
@@ -228,11 +278,11 @@
         <div class="faq-list">
           <details class="faq-item">
             <summary>What does Vonza do beyond website chat?</summary>
-            <p>Vonza starts with the website front desk, but the paid workspace adds Today, Contacts, Customize, and Outcomes so the owner can operate from one place. Google-connected Inbox, Calendar, and Automations are optional beta for customers who want that deeper workflow.</p>
+            <p>Vonza starts with the website front desk, but the paid workspace adds Today, Contacts, Front Desk, and Outcomes so the owner can operate from one place. Inbox, Calendar, and Automations are optional connected tools for customers who want that deeper workflow.</p>
           </details>
           <details class="faq-item">
             <summary>Does Vonza support Gmail and Google Calendar?</summary>
-            <p>Yes, as an optional beta when Google is connected and enabled on the deployment. Vonza can sync Gmail and Google Calendar for review, drafts, scheduling context, and approval-first actions. If Google is not connected, the stable front-desk core still works safely.</p>
+            <p>Yes, as optional connected tools when Google is connected and enabled on the deployment. Vonza can sync Gmail and Google Calendar for review, drafts, scheduling context, and approval-first actions. If Google is not connected, the core front-desk workflow still works safely.</p>
           </details>
           <details class="faq-item">
             <summary>Does Vonza send replies or automations autonomously?</summary>
@@ -244,7 +294,7 @@
           </details>
           <details class="faq-item">
             <summary>What setup is required?</summary>
-            <p>At minimum, add your website, tune the front desk, import knowledge, and install the snippet. Then run a real test conversation and confirm the lead, contact, and outcome path. Connect Google later if you want the optional Inbox and Calendar beta.</p>
+            <p>At minimum, add your website, tune the front desk, import knowledge, and install the snippet. Then run a real test conversation and confirm the lead, contact, and outcome path. Connect Google later if you want the optional connected tools.</p>
           </details>
         </div>
       </section>
@@ -252,7 +302,7 @@
       <section class="final-callout">
         <div>
           <p class="eyebrow">Ready to start?</p>
-          <h2>Open the app, launch the front desk, and run the public launch core in one place.</h2>
+          <h2>Open the app, launch the front desk, and run the operator command center in one place.</h2>
         </div>
         <div class="final-callout-actions">
           <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
@@ -264,7 +314,7 @@
     <footer class="site-footer">
       <div>
         <p class="footer-brand">Vonza</p>
-        <p class="footer-copy">An AI front desk for service businesses with a daily owner workspace.</p>
+        <p class="footer-copy">An AI front desk for service businesses with a command center for what needs attention next.</p>
       </div>
       <div class="footer-links">
         <a href="/">Home</a>
