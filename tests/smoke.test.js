@@ -1221,6 +1221,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Outcomes/);
         assert.match(dashboardScript.text, /Install/);
         assert.match(dashboardScript.text, /Settings/);
+        assert.match(dashboardScript.text, /Primary/);
+        assert.match(dashboardScript.text, /Connected tools/);
+        assert.match(dashboardScript.text, /Utilities/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
         assert.match(dashboardScript.text, /Operator home/);
@@ -1230,14 +1233,17 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Single best next action/);
         assert.match(dashboardScript.text, /Run first sync/);
         assert.match(dashboardScript.text, /Needs Attention/);
+        assert.match(dashboardScript.text, /today-queue-row/);
+        assert.match(dashboardScript.text, /data-today-filter="needs_review"/);
         assert.match(dashboardScript.text, /Search contacts/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
-        assert.match(dashboardScript.text, /High-intent signals/);
+        assert.match(dashboardScript.text, /High-intent/);
         assert.match(dashboardScript.text, /Answers needing work/);
         assert.match(dashboardScript.text, /Top customer questions/);
+        assert.match(dashboardScript.text, /results-workspace/);
         assert.match(dashboardScript.text, /Lead \/ contact/);
         assert.match(dashboardScript.text, /Follow-up queue/);
         assert.match(dashboardScript.text, /No actionable items yet/);
