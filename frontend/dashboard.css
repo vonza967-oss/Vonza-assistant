@@ -2883,6 +2883,112 @@ button:disabled {
   gap: 16px;
 }
 
+.today-operator-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.82fr);
+  gap: 18px;
+}
+
+.today-queue-spine,
+.today-support-lane {
+  display: grid;
+  gap: 16px;
+}
+
+.today-queue-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68));
+}
+
+.today-queue-header-actions,
+.today-queue-actions,
+.today-support-actions,
+.today-queue-meta-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.today-queue-list {
+  display: grid;
+  gap: 14px;
+}
+
+.today-queue-item {
+  padding: 20px 22px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.48);
+  display: grid;
+  gap: 14px;
+}
+
+.today-queue-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.today-queue-kicker,
+.today-support-kicker {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.today-queue-title,
+.today-support-title {
+  margin: 0;
+  color: white;
+  font-size: 1.08rem;
+}
+
+.today-queue-copy-block {
+  display: grid;
+  gap: 12px;
+}
+
+.today-queue-detail-label {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.84);
+}
+
+.today-queue-copy,
+.today-support-copy,
+.today-support-quiet {
+  margin: 0;
+  color: var(--soft);
+  line-height: 1.65;
+}
+
+.today-support-card {
+  padding: 18px 18px 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.024);
+  display: grid;
+  gap: 12px;
+}
+
+.today-support-quiet {
+  font-size: 0.92rem;
+  color: rgba(148, 163, 184, 0.88);
+}
+
 .operator-focus-card {
   padding: 22px;
   border-radius: 20px;
@@ -3084,6 +3190,7 @@ button:disabled {
   .state-grid,
   .overview-grid,
   .operator-home-grid,
+  .today-operator-layout,
   .today-workspace-layout,
   .today-mini-grid,
   .overview-progress-row,
@@ -3130,6 +3237,8 @@ button:disabled {
 
   .action-queue-filter-row,
   .action-queue-header,
+  .today-queue-header,
+  .today-queue-item-top,
   .action-queue-item-top,
   .action-queue-form-actions,
   .section-toolbar,
