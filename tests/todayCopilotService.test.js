@@ -119,6 +119,20 @@ test("copilot produces read-only answers, recommendations, and drafts from stabl
           actionLabel: "Open Contact",
         },
       ],
+      reviewItems: [
+        {
+          id: "event-2",
+          title: "Quote review",
+          reviewReason: "Missing follow-up after the appointment ended.",
+          followUpReason: "Missing follow-up after the appointment ended.",
+          linkedContactId: "contact-1",
+          linkedContactName: "Taylor Reed",
+          linkedContactEmail: "taylor@example.com",
+          actionTargetSection: "contacts",
+          actionTargetId: "contact-1",
+          actionLabel: "Open Contact",
+        },
+      ],
       followUpItems: [
         {
           id: "event-2",

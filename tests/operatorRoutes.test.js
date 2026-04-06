@@ -147,6 +147,11 @@ function buildRouteDeps(overrides = {}) {
     approveCalendarAction: async () => ({
       event: { id: "event-1", approvalStatus: "approved" },
     }),
+    resolveCalendarAppointmentReview: async (_supabase, payload) => ({
+      ok: true,
+      resolution: payload.resolution,
+      event: { id: payload.eventId },
+    }),
     createCampaignDraft: async () => ({
       id: "campaign-1",
       steps: [{ id: "step-1" }],
@@ -533,6 +538,52 @@ test("campaign approval and send routes preserve owner approval before outbound 
     });
     assert.equal(sendDue.status, 200);
     assert.equal(sendDue.json.sentRecipients.length, 1);
+  } finally {
+    await server.close();
+  }
+});
+
+test("appointment review route stays owner-scoped and forwards the chosen resolution", async () => {
+  let receivedPayload = null;
+  let receivedDeps = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    resolveCalendarAppointmentReview: async (_supabase, payload, deps) => {
+      receivedPayload = payload;
+      receivedDeps = deps;
+      return {
+        ok: true,
+        resolution: payload.resolution,
+        event: { id: payload.eventId },
+        followUp: { id: "follow-up-1" },
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/operator/calendar/reviews/resolve", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        event_id: "event-1",
+        resolution: "prepare_follow_up",
+        contact_id: "contact-1",
+        outcome_type: "quote_requested",
+        note: "Owner wants a follow-up draft before tomorrow morning.",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.resolution, "prepare_follow_up");
+    assert.equal(receivedPayload.agent.id, "agent-1");
+    assert.equal(receivedPayload.ownerUserId, "owner-1");
+    assert.equal(receivedPayload.eventId, "event-1");
+    assert.equal(receivedPayload.resolution, "prepare_follow_up");
+    assert.equal(receivedPayload.contactId, "contact-1");
+    assert.equal(receivedPayload.outcomeType, "quote_requested");
+    assert.equal(receivedPayload.note, "Owner wants a follow-up draft before tomorrow morning.");
+    assert.equal(typeof receivedDeps.createManualFollowUpWorkflow, "function");
+    assert.equal(typeof receivedDeps.markManualConversionOutcome, "function");
   } finally {
     await server.close();
   }

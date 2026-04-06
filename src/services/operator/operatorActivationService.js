@@ -752,6 +752,7 @@ export function buildOperatorTodaySummary({
     followUpsAwaitingApproval: Number(summary.followUpsNeedingApproval || 0),
     activeCampaigns: Number(summary.activeCampaigns || 0),
     upcomingBookings: Number(summary.upcomingBookings || 0),
+    appointmentsNeedingReview: Array.isArray(calendarInsights.reviewItems) ? calendarInsights.reviewItems.length : 0,
     appointmentsNeedingFollowUp: Array.isArray(calendarInsights.followUpItems) ? calendarInsights.followUpItems.length : 0,
     unlinkedAppointments: Array.isArray(calendarInsights.unlinkedItems) ? calendarInsights.unlinkedItems.length : 0,
     nextEventTitle: cleanText(nextEvent?.title),
