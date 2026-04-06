@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildAppointmentReviewActionKey,
+  buildCalendarInsights,
   buildCalendarDailySummary,
   buildCampaignSequence,
   buildReplyDraft,
@@ -86,6 +88,9 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
     followUpItems: [
       { id: "event-1" },
     ],
+    reviewItems: [
+      { id: "event-3" },
+    ],
     unlinkedItems: [
       { id: "event-2" },
     ],
@@ -95,8 +100,80 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
   assert.match(summary, /conflict/i);
   assert.match(summary, /complaint/i);
   assert.match(summary, /recent appointment/i);
+  assert.match(summary, /explicit review resolution/i);
   assert.match(summary, /not linked to a contact/i);
   assert.match(summary, /11:00 AM/);
+});
+
+test("calendar insights keep ended appointment review items deterministic until resolved", () => {
+  const now = "2026-04-06T18:00:00.000Z";
+  const event = {
+    id: "event-1",
+    title: "Quote review",
+    startAt: "2026-04-06T09:00:00.000Z",
+    endAt: "2026-04-06T09:30:00.000Z",
+    status: "confirmed",
+    attendees: [
+      {
+        displayName: "Taylor Reed",
+        email: "taylor@example.com",
+      },
+    ],
+    attendeeEmails: ["taylor@example.com"],
+    attendeeNames: ["Taylor Reed"],
+  };
+
+  const reviewKey = buildAppointmentReviewActionKey(event.id);
+  const unresolved = buildCalendarInsights({
+    events: [event],
+    contacts: [
+      {
+        id: "contact-1",
+        name: "Taylor Reed",
+        email: "taylor@example.com",
+      },
+    ],
+    followUps: [],
+    recentOutcomes: [],
+    tasks: [],
+    reviewStatuses: [],
+    businessName: "Vonza Plumbing",
+    assistantName: "Vonza Plumbing",
+    now,
+  });
+
+  assert.equal(unresolved.reviewItems.length, 1);
+  assert.equal(unresolved.reviewItems[0].reviewActionKey, reviewKey);
+  assert.equal(unresolved.reviewItems[0].needsEndedAppointmentReview, true);
+  assert.match(unresolved.reviewItems[0].reviewReason, /no recorded outcome/i);
+  assert.match(unresolved.reviewItems[0].copilot.summary, /Taylor Reed/i);
+  assert.equal(unresolved.reviewItems[0].copilot.followUpDraftAvailable, true);
+
+  const resolved = buildCalendarInsights({
+    events: [event],
+    contacts: [
+      {
+        id: "contact-1",
+        name: "Taylor Reed",
+        email: "taylor@example.com",
+      },
+    ],
+    followUps: [],
+    recentOutcomes: [],
+    tasks: [],
+    reviewStatuses: [
+      {
+        actionKey: reviewKey,
+        status: "dismissed",
+        outcome: "no_action_needed",
+      },
+    ],
+    businessName: "Vonza Plumbing",
+    assistantName: "Vonza Plumbing",
+    now,
+  });
+
+  assert.equal(resolved.reviewItems.length, 0);
 });
 
 test("campaign sequence stays deterministic for quote follow-up", () => {

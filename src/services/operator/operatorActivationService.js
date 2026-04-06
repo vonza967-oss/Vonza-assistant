@@ -469,6 +469,7 @@ export function buildOperatorSingleNextAction({
     .filter((task) => cleanText(task.taskType) === "support_follow_up")
     .sort((left, right) => getTaskOrderScore(left).localeCompare(getTaskOrderScore(right)))[0];
   const leadTask = openTasks.find((task) => cleanText(task.taskType) === "missed_booking_opportunity");
+  const endedAppointmentReview = (events || []).find((event) => event.needsEndedAppointmentReview);
   const followUpAppointment = (events || []).find((event) => event.needsFollowUp);
   const unlinkedAppointment = (events || []).find((event) => event.isUnlinked && (event.isUpcomingToday || event.isRecentPast || event.isInProgress));
 
@@ -538,6 +539,17 @@ export function buildOperatorSingleNextAction({
       buttonLabel: "Review calendar",
       actionType: "open_calendar",
       targetSection: "calendar",
+    };
+  }
+
+  if (endedAppointmentReview) {
+    return {
+      key: "review_ended_appointment",
+      title: cleanText(endedAppointmentReview.title) || "Review ended appointment",
+      description: cleanText(endedAppointmentReview.reviewReason) || "A recent appointment still needs an explicit operator resolution.",
+      buttonLabel: "Review appointment",
+      actionType: "review_context",
+      targetSection: "overview",
     };
   }
 
@@ -752,6 +764,7 @@ export function buildOperatorTodaySummary({
     followUpsAwaitingApproval: Number(summary.followUpsNeedingApproval || 0),
     activeCampaigns: Number(summary.activeCampaigns || 0),
     upcomingBookings: Number(summary.upcomingBookings || 0),
+    appointmentReviewsNeedingAttention: Array.isArray(calendarInsights.reviewItems) ? calendarInsights.reviewItems.length : 0,
     appointmentsNeedingFollowUp: Array.isArray(calendarInsights.followUpItems) ? calendarInsights.followUpItems.length : 0,
     unlinkedAppointments: Array.isArray(calendarInsights.unlinkedItems) ? calendarInsights.unlinkedItems.length : 0,
     nextEventTitle: cleanText(nextEvent?.title),

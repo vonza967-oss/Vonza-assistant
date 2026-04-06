@@ -169,6 +169,18 @@ function buildRouteDeps(overrides = {}) {
       followUp: { id: "follow-up-1", status: "draft" },
       persistenceAvailable: true,
     }),
+    resolveEndedAppointmentReview: async () => ({
+      resolution: "prepare_follow_up",
+      resultType: "follow_up",
+      resultId: "follow-up-1",
+      resultSection: "automations",
+      target: {
+        section: "automations",
+        id: "follow-up-1",
+        label: "Open Automations",
+      },
+      message: "Follow-up draft prepared from the appointment review.",
+    }),
     updateOperatorContactLifecycleState: async () => ({
       id: "contact-1",
       lifecycleState: "customer",
@@ -504,6 +516,50 @@ test("contact lifecycle route preserves owner-scoped lifecycle updates", async (
     assert.equal(response.status, 200);
     assert.equal(response.json.contact.id, "contact-1");
     assert.equal(response.json.contact.lifecycleState, "customer");
+  } finally {
+    await server.close();
+  }
+});
+
+test("ended appointment review route preserves deterministic resolution payloads", async () => {
+  let captured = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    resolveEndedAppointmentReview: async (_supabase, input) => {
+      captured = input;
+      return {
+        resolution: "record_outcome",
+        resultType: "outcome",
+        resultId: "outcome-1",
+        resultSection: "contacts",
+        target: {
+          section: "contacts",
+          id: "contact-1",
+          label: "Open Contacts",
+        },
+        message: "Appointment outcome recorded.",
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/operator/appointments/review", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        event_id: "event-1",
+        resolution: "record_outcome",
+        outcome_type: "quote_requested",
+        note: "Quote requested on the call.",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.resolution, "record_outcome");
+    assert.equal(response.json.resultSection, "contacts");
+    assert.equal(captured.eventId, "event-1");
+    assert.equal(captured.resolution, "record_outcome");
+    assert.equal(captured.outcomeType, "quote_requested");
+    assert.equal(captured.note, "Quote requested on the call.");
   } finally {
     await server.close();
   }

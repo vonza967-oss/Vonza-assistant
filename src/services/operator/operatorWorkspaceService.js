@@ -38,7 +38,11 @@ import {
   listLeadCaptures,
 } from "../leads/liveLeadCaptureService.js";
 import { getStoredWebsiteContent } from "../scraping/websiteContentService.js";
-import { listConversionOutcomesForAgent, recordOutcomeEvent } from "../conversion/conversionOutcomeService.js";
+import {
+  listConversionOutcomesForAgent,
+  markManualConversionOutcome,
+  recordOutcomeEvent,
+} from "../conversion/conversionOutcomeService.js";
 import {
   buildOperatorActivationChecklist,
   buildOperatorBriefing,
@@ -117,7 +121,17 @@ const STALE_REPLY_WINDOW_HOURS = 24;
 const CALENDAR_SYNC_LOOKBACK_HOURS = 30;
 const CALENDAR_SYNC_LOOKAHEAD_DAYS = 2;
 const CALENDAR_AUTO_SYNC_STALE_MINUTES = 20;
-const RECENT_APPOINTMENT_WINDOW_HOURS = 18;
+const RECENT_APPOINTMENT_WINDOW_HOURS = 24;
+const APPOINTMENT_REVIEW_RESOLUTION_KEYS = new Set([
+  "prepare_follow_up",
+  "link_contact",
+  "record_outcome",
+  "no_action_needed",
+]);
+const APPOINTMENT_REVIEW_OUTCOME_KEYS = new Set([
+  ...APPOINTMENT_REVIEW_RESOLUTION_KEYS,
+  "no_action",
+]);
 const TODAY_SCHEDULE_LIMIT = 5;
 const FOLLOW_UP_APPOINTMENT_LIMIT = 4;
 const UNLINKED_APPOINTMENT_LIMIT = 4;
@@ -442,6 +456,7 @@ export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
       dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
       missedBookingOpportunities: [],
       scheduleItems: [],
+      reviewItems: [],
       followUpItems: [],
       unlinkedItems: [],
       syncMode: "disconnected",
@@ -2313,6 +2328,7 @@ export function buildCalendarDailySummary(options = {}) {
   const tasks = Array.isArray(options.tasks) ? options.tasks : [];
   const slots = Array.isArray(options.slots) ? options.slots : [];
   const followUpItems = Array.isArray(options.followUpItems) ? options.followUpItems : [];
+  const reviewItems = Array.isArray(options.reviewItems) ? options.reviewItems : [];
   const unlinkedItems = Array.isArray(options.unlinkedItems) ? options.unlinkedItems : [];
   const openComplaints = tasks.filter((task) => task.taskType === "complaint_queue" && task.status === "open").length;
   const openConflicts = tasks.filter((task) => task.taskType === "calendar_conflict" && task.status === "open").length;
@@ -2342,6 +2358,10 @@ export function buildCalendarDailySummary(options = {}) {
 
   if (followUpItems.length > 0) {
     parts.push(`${followUpItems.length} recent appointment${followUpItems.length === 1 ? "" : "s"} likely need follow-up.`);
+  }
+
+  if (reviewItems.length > 0) {
+    parts.push(`${reviewItems.length} ended appointment${reviewItems.length === 1 ? "" : "s"} still need an explicit review resolution.`);
   }
 
   if (unlinkedItems.length > 0) {
@@ -2572,12 +2592,131 @@ function buildCalendarInsightTarget(event = {}, contact = null) {
   };
 }
 
-function buildCalendarInsights({
+export function buildAppointmentReviewActionKey(eventId = "") {
+  const normalizedEventId = cleanText(eventId);
+
+  return normalizedEventId ? `appointment_review:${normalizedEventId}` : "";
+}
+
+function normalizeAppointmentReviewResolution(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (normalized === "no_action") {
+    return "no_action_needed";
+  }
+
+  return APPOINTMENT_REVIEW_RESOLUTION_KEYS.has(normalized) ? normalized : "";
+}
+
+function getAppointmentReviewStatus(reviewStatuses = [], event = {}) {
+  const reviewActionKey = buildAppointmentReviewActionKey(event.id);
+  const persisted = reviewStatuses.find((record) => cleanText(record.actionKey) === reviewActionKey) || null;
+  const resolution = normalizeAppointmentReviewResolution(persisted?.outcome);
+  const dismissed = cleanText(persisted?.status) === "dismissed";
+  const done = cleanText(persisted?.status) === "done";
+  const resolved = Boolean(resolution) || dismissed || done;
+
+  return {
+    actionKey: reviewActionKey,
+    resolution,
+    status: cleanText(persisted?.status) || "",
+    note: cleanText(persisted?.note),
+    nextStep: cleanText(persisted?.nextStep),
+    updatedAt: persisted?.updatedAt || null,
+    resolved,
+  };
+}
+
+function buildAppointmentReviewReason({
+  event = {},
+  linkedContact = null,
+  openFollowUp = null,
+  openTask = null,
+  postAppointmentOutcomes = [],
+} = {}) {
+  const appointmentTitle = cleanText(event.title || "this appointment");
+
+  if (postAppointmentOutcomes.length) {
+    return `Vonza found ${postAppointmentOutcomes.length} recorded outcome${postAppointmentOutcomes.length === 1 ? "" : "s"} after ${appointmentTitle}, so this appointment no longer needs outcome review.`;
+  }
+
+  if (openFollowUp?.id) {
+    return "A follow-up draft already exists, but this appointment still has no recorded outcome.";
+  }
+
+  if (openTask?.id) {
+    return "An operator task already exists for this appointment, but there is still no recorded outcome.";
+  }
+
+  if (!cleanText(linkedContact?.id)) {
+    return "The appointment ended in the last 24 hours, the attendee is still unlinked, and no outcome is recorded yet.";
+  }
+
+  return "The appointment ended in the last 24 hours and still has no recorded outcome or explicit resolution.";
+}
+
+function buildAppointmentReviewCopilot({
+  event = {},
+  linkedContact = null,
+  primaryAttendee = null,
+  attendeeEmails = [],
+  attendeeNames = [],
+  reviewReason = "",
+  businessName = "",
+  assistantName = "",
+} = {}) {
+  const appointmentTitle = cleanText(event.title || "your appointment");
+  const attendeeLabel = cleanText(
+    linkedContact?.name
+      || linkedContact?.displayName
+      || primaryAttendee?.displayName
+      || attendeeNames[0]
+      || attendeeEmails[0]
+      || "the attendee"
+  );
+  const linkedContactEmail = normalizeEmail(linkedContact?.email || linkedContact?.primaryEmail || primaryAttendee?.email || attendeeEmails[0]);
+  const linkedContactPhone = normalizePhoneDigits(linkedContact?.phone || linkedContact?.primaryPhone);
+  const followUpDraftAvailable = Boolean(linkedContactEmail || linkedContactPhone);
+  const greeting = attendeeLabel && attendeeLabel !== "the attendee" ? `Hi ${attendeeLabel},` : "Hi there,";
+  const resolvedBusinessName = cleanText(businessName) || "Vonza";
+  const resolvedAssistantName = cleanText(assistantName || businessName) || resolvedBusinessName;
+
+  return {
+    summary: attendeeLabel && attendeeLabel !== "the attendee"
+      ? `${attendeeLabel} finished ${appointmentTitle}. ${reviewReason}`
+      : `${appointmentTitle} needs an operator review. ${reviewReason}`,
+    linkingSuggestion: cleanText(linkedContact?.id)
+      ? `${attendeeLabel || "This attendee"} is already linked to ${cleanText(linkedContact?.name || linkedContact?.displayName || "a contact")}.`
+      : attendeeLabel && attendeeEmails[0]
+        ? `Check whether ${attendeeLabel} <${attendeeEmails[0]}> should be linked to an existing contact before follow-up or outcome work continues.`
+        : attendeeEmails[0]
+          ? `Check whether ${attendeeEmails[0]} should be linked to an existing contact before follow-up or outcome work continues.`
+          : "Review attendee details in Calendar and Contacts before follow-up or outcome work continues.",
+    followUpDraftAvailable,
+    followUpDraft: followUpDraftAvailable ? {
+      subject: `${resolvedBusinessName}: following up after ${appointmentTitle}`,
+      body: [
+        greeting,
+        "",
+        `This is ${resolvedAssistantName} from ${resolvedBusinessName}.`,
+        `I’m following up after ${appointmentTitle} and wanted to make sure you have the right next step from us.`,
+        "If you want, reply with any questions or the best next time for us to continue.",
+        "",
+        resolvedAssistantName,
+      ].join("\n"),
+    } : null,
+  };
+}
+
+export function buildCalendarInsights({
   events = [],
   contacts = [],
   followUps = [],
   recentOutcomes = [],
   tasks = [],
+  reviewStatuses = [],
+  businessName = "",
+  assistantName = "",
   now = new Date().toISOString(),
 } = {}) {
   const nowTimestamp = parseTimestamp(now) || Date.now();
@@ -2614,6 +2753,7 @@ function buildCalendarInsights({
         && (nowTimestamp - endAt) <= RECENT_APPOINTMENT_WINDOW_HOURS * 60 * 60 * 1000;
       const isUnlinked = !cleanText(linkedContact?.id);
       const target = buildCalendarInsightTarget(event, linkedContact);
+      const reviewStatus = getAppointmentReviewStatus(reviewStatuses, event);
 
       let followUpReason = "";
       if (isRecentPast && !isUnlinked) {
@@ -2648,6 +2788,17 @@ function buildCalendarInsights({
             : "This appointment is coming up today.";
       }
 
+      const reviewReason = buildAppointmentReviewReason({
+        event,
+        linkedContact,
+        openFollowUp,
+        openTask,
+        postAppointmentOutcomes,
+      });
+      const needsEndedAppointmentReview = isRecentPast
+        && !postAppointmentOutcomes.length
+        && reviewStatus.resolved !== true;
+
       return {
         ...event,
         linkedContactId: cleanText(linkedContact?.id || event.contactId),
@@ -2663,9 +2814,27 @@ function buildCalendarInsights({
         isRecentPast,
         isUnlinked,
         needsFollowUp: Boolean(followUpReason),
+        needsEndedAppointmentReview,
         scheduleReason,
         followUpReason,
         unlinkedReason,
+        reviewReason,
+        reviewActionKey: reviewStatus.actionKey,
+        reviewResolution: reviewStatus.resolution,
+        reviewStatus: reviewStatus.status,
+        reviewResolved: reviewStatus.resolved,
+        reviewUpdatedAt: reviewStatus.updatedAt,
+        attendeeLabel: cleanText(primaryAttendee?.displayName || attendeeNames[0] || attendeeEmails[0]),
+        copilot: buildAppointmentReviewCopilot({
+          event,
+          linkedContact,
+          primaryAttendee,
+          attendeeEmails,
+          attendeeNames,
+          reviewReason,
+          businessName,
+          assistantName,
+        }),
         actionLabel: target.label,
         actionTargetSection: target.targetSection,
         actionTargetId: target.targetId,
@@ -2680,6 +2849,9 @@ function buildCalendarInsights({
       .slice(0, TODAY_SCHEDULE_LIMIT),
     followUpItems: enrichedEvents
       .filter((event) => event.needsFollowUp)
+      .slice(0, FOLLOW_UP_APPOINTMENT_LIMIT),
+    reviewItems: enrichedEvents
+      .filter((event) => event.needsEndedAppointmentReview)
       .slice(0, FOLLOW_UP_APPOINTMENT_LIMIT),
     unlinkedItems: enrichedEvents
       .filter((event) => event.isUnlinked && (event.isInProgress || event.isUpcomingToday || event.isRecentPast))
@@ -3520,6 +3692,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         dailySummary: "Operator Workspace v1 is currently turned off for this deployment.",
         missedBookingOpportunities: [],
         scheduleItems: [],
+        reviewItems: [],
         followUpItems: [],
         unlinkedItems: [],
         syncMode: "disabled",
@@ -3702,12 +3875,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     copilotFeatureEnabled
       ? listAgentMessages(supabase, agent.id)
       : Promise.resolve([]),
-    copilotFeatureEnabled
-      ? listActionQueueStatuses(supabase, {
-        agentId: agent.id,
-        ownerUserId,
-      })
-      : Promise.resolve({ records: [], persistenceAvailable: true }),
+    listActionQueueStatuses(supabase, {
+      agentId: agent.id,
+      ownerUserId,
+    }),
     copilotFeatureEnabled
       ? listKnowledgeFixWorkflows(supabase, {
         agentId: agent.id,
@@ -3755,6 +3926,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   const tasks = getSettledValue(tasksResult, []);
   const campaigns = getSettledValue(campaignsResult, []);
   const followUpResult = getSettledValue(followUpsResult, { records: [], persistenceAvailable: true });
+  const actionQueueStatuses = getSettledValue(actionQueueStatusesResult, {
+    records: [],
+    persistenceAvailable: true,
+  });
   const activationState = getSettledValue(activationResult, createDefaultOperatorActivationState({
     agentId: agent.id,
     businessId: agent.businessId,
@@ -3844,6 +4019,9 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     followUps: followUpResult.records || [],
     recentOutcomes: conversionOutcomeResult.recentOutcomes || [],
     tasks,
+    reviewStatuses: actionQueueStatuses.records || [],
+    businessName: cleanText(agent.name),
+    assistantName: cleanText(agent.assistantName || agent.name),
     now: options.now || new Date().toISOString(),
   });
   const enrichedEvents = calendarInsights.events;
@@ -3926,10 +4104,6 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     calendarInsights,
   });
   const messages = getSettledValue(messagesResult, []);
-  const actionQueueStatuses = getSettledValue(actionQueueStatusesResult, {
-    records: [],
-    persistenceAvailable: true,
-  });
   const knowledgeFixResult = getSettledValue(knowledgeFixesResult, {
     records: [],
     persistenceAvailable: true,
@@ -3997,10 +4171,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         events: enrichedEvents,
         tasks,
         slots: suggestedSlots,
+        reviewItems: calendarInsights.reviewItems,
         followUpItems: calendarInsights.followUpItems,
         unlinkedItems: calendarInsights.unlinkedItems,
       }),
       scheduleItems: calendarInsights.scheduleItems,
+      reviewItems: calendarInsights.reviewItems,
       followUpItems: calendarInsights.followUpItems,
       unlinkedItems: calendarInsights.unlinkedItems,
     },
@@ -4056,11 +4232,13 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         events: enrichedEvents,
         tasks,
         slots: suggestedSlots,
+        reviewItems: calendarInsights.reviewItems,
         followUpItems: calendarInsights.followUpItems,
         unlinkedItems: calendarInsights.unlinkedItems,
       }),
       missedBookingOpportunities,
       scheduleItems: calendarInsights.scheduleItems,
+      reviewItems: calendarInsights.reviewItems,
       followUpItems: calendarInsights.followUpItems,
       unlinkedItems: calendarInsights.unlinkedItems,
       syncMode: googleCapabilities.calendarRead
@@ -4083,6 +4261,241 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     summary,
     capabilities,
     alerts: uniqueAlerts(alerts),
+  };
+}
+
+function getAppointmentReviewResolutionCopy(resolution = "") {
+  switch (resolution) {
+    case "prepare_follow_up":
+      return {
+        note: "Owner resolved this appointment by preparing an approval-first follow-up draft.",
+        nextStep: "Review the prepared follow-up draft.",
+      };
+    case "link_contact":
+      return {
+        note: "Owner resolved this appointment by routing it into contact-linking review.",
+        nextStep: "Link the attendee to the right contact from Calendar or Contacts.",
+      };
+    case "record_outcome":
+      return {
+        note: "Owner resolved this appointment by recording an explicit outcome.",
+        nextStep: "Outcome is now attached to this appointment review.",
+      };
+    case "no_action_needed":
+      return {
+        note: "Owner explicitly marked that no action is needed after this appointment.",
+        nextStep: "No additional workflow was requested.",
+      };
+    default:
+      return {
+        note: "",
+        nextStep: "",
+      };
+  }
+}
+
+function normalizeAppointmentReviewResolutionInput(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!APPOINTMENT_REVIEW_RESOLUTION_KEYS.has(normalized)) {
+    const error = new Error("Choose a valid appointment review resolution.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return normalized;
+}
+
+export async function resolveEndedAppointmentReview(supabase, options = {}) {
+  await assertOperatorWorkspaceMutationReady(supabase);
+  const agent = options.agent || {};
+  const ownerUserId = cleanText(options.ownerUserId);
+  const eventId = cleanText(options.eventId || options.calendarEventId);
+  const resolution = normalizeAppointmentReviewResolutionInput(options.resolution);
+
+  if (!cleanText(agent.id) || !ownerUserId || !eventId) {
+    const error = new Error("agent, owner_user_id, and event_id are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const workspace = await getOperatorWorkspaceSnapshot(supabase, {
+    agent,
+    ownerUserId,
+  });
+  const reviewItem = (workspace.calendar?.reviewItems || []).find((item) => cleanText(item.id) === eventId) || null;
+
+  if (!reviewItem) {
+    const error = new Error("That appointment no longer needs review.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const actionKey = cleanText(reviewItem.reviewActionKey) || buildAppointmentReviewActionKey(reviewItem.id);
+  const copy = getAppointmentReviewResolutionCopy(resolution);
+  let resultType = "";
+  let resultId = "";
+  let resultSection = "";
+  let target = {
+    section: cleanText(reviewItem.actionTargetSection || "overview"),
+    id: cleanText(reviewItem.actionTargetId || reviewItem.id),
+    label: cleanText(reviewItem.actionLabel || "Open Today"),
+  };
+  let followUp = null;
+  let task = null;
+  let outcome = null;
+
+  if (resolution === "prepare_follow_up") {
+    if (reviewItem.copilot?.followUpDraftAvailable !== true) {
+      const error = new Error("A usable email address or phone number is required before Vonza can prepare this follow-up draft.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const draftPreview = reviewItem.copilot?.followUpDraft || {};
+    const followUpResult = await createManualFollowUpWorkflow(supabase, {
+      agentId: agent.id,
+      ownerUserId,
+      businessName: cleanText(agent.name),
+      assistantName: cleanText(agent.assistantName || agent.name),
+      actionType: "post_appointment_follow_up",
+      contactId: cleanText(reviewItem.linkedContactId),
+      contactName: cleanText(reviewItem.linkedContactName || reviewItem.attendeeLabel),
+      contactEmail: cleanText(reviewItem.linkedContactEmail),
+      contactPhone: cleanText(reviewItem.linkedContactPhone),
+      personKey: cleanText(reviewItem.personKey),
+      sourceActionKey: actionKey,
+      linkedActionKeys: [actionKey],
+      topic: `Follow-up after ${cleanText(reviewItem.title || "this appointment")}`,
+      subject: cleanText(draftPreview.subject),
+      draftContent: cleanText(draftPreview.body),
+      evidence: cleanText(reviewItem.reviewReason),
+      whyPrepared: cleanText(reviewItem.copilot?.summary) || cleanText(reviewItem.reviewReason),
+      contextSnippet: cleanText(reviewItem.reviewReason),
+    });
+
+    if (followUpResult.persistenceAvailable === false || !followUpResult.followUp?.id) {
+      const error = new Error("Follow-up drafts are not ready on this workspace yet.");
+      error.statusCode = 503;
+      throw error;
+    }
+
+    followUp = followUpResult.followUp;
+    resultType = "follow_up";
+    resultId = cleanText(followUp.id);
+    resultSection = "automations";
+    target = {
+      section: "automations",
+      id: cleanText(followUp.id),
+      label: "Open Automations",
+    };
+  } else if (resolution === "link_contact") {
+    task = await createOperatorTask(supabase, {
+      agent,
+      ownerUserId,
+      sourceType: "calendar_event",
+      sourceId: cleanText(reviewItem.id),
+      taskType: "link_calendar_attendee",
+      title: `Link contact for ${cleanText(reviewItem.title || "this appointment")}`,
+      description: cleanText(reviewItem.copilot?.linkingSuggestion || reviewItem.reviewReason),
+      priority: "normal",
+      approvalRequired: true,
+      relatedEventId: cleanText(reviewItem.id),
+      relatedActionKey: actionKey,
+      contactId: cleanText(reviewItem.linkedContactId),
+      taskState: {
+        targetSection: "calendar",
+        targetId: cleanText(reviewItem.id),
+        targetLabel: "Open Calendar",
+      },
+    });
+
+    resultType = "operator_task";
+    resultId = cleanText(task?.id);
+    resultSection = "automations";
+    target = {
+      section: "automations",
+      id: cleanText(task?.id),
+      label: "Open Automations",
+    };
+  } else if (resolution === "record_outcome") {
+    const outcomeType = cleanText(options.outcomeType);
+
+    if (!outcomeType) {
+      const error = new Error("Choose an outcome type before recording the outcome.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    outcome = (await markManualConversionOutcome(supabase, {
+      agentId: agent.id,
+      businessId: cleanText(agent.businessId),
+      ownerUserId,
+      installId: cleanText(agent.installId),
+      outcomeType,
+      note: cleanText(options.note || copy.note),
+      contactId: cleanText(reviewItem.linkedContactId),
+      actionKey,
+      followUpId: cleanText(reviewItem.openFollowUpId),
+      calendarEventId: cleanText(reviewItem.id),
+      personKey: cleanText(reviewItem.personKey),
+      relatedActionType: "post_appointment_review",
+      relatedIntentType: "appointment_review",
+      manualOutcomeLabel: "Ended appointment review",
+      manualResolution: "record_outcome",
+      attributionPath: "manual_owner",
+      syncOperationalState: true,
+    })).outcome;
+
+    resultType = "outcome";
+    resultId = cleanText(outcome?.id);
+    resultSection = cleanText(reviewItem.linkedContactId) ? "contacts" : "analytics";
+    target = cleanText(reviewItem.linkedContactId)
+      ? {
+        section: "contacts",
+        id: cleanText(reviewItem.linkedContactId),
+        label: "Open Contacts",
+      }
+      : {
+        section: "analytics",
+        id: actionKey,
+        label: "Open Outcomes",
+      };
+  }
+
+  const nextStatus = resolution === "no_action_needed" ? "dismissed" : "done";
+  const saved = await updateActionQueueStatus(supabase, {
+    agentId: agent.id,
+    ownerUserId,
+    actionKey,
+    status: nextStatus,
+    note: cleanText(options.note || copy.note),
+    outcome: resolution,
+    nextStep: copy.nextStep,
+    followUpNeeded: resolution === "prepare_follow_up" ? true : false,
+    followUpCompleted: resolution === "record_outcome" ? true : false,
+  });
+
+  return {
+    ok: true,
+    resolution,
+    reviewStatus: saved.item || null,
+    actionKey,
+    followUp,
+    task,
+    outcome,
+    resultType,
+    resultId,
+    resultSection,
+    target,
+    message:
+      resolution === "prepare_follow_up"
+        ? "Follow-up draft prepared from the appointment review."
+        : resolution === "link_contact"
+          ? "Contact-linking review task created."
+          : resolution === "record_outcome"
+            ? "Appointment outcome recorded."
+            : "Appointment review dismissed as no action needed.",
   };
 }
 

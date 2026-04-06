@@ -499,6 +499,27 @@ test("today workspace render uses a dominant queue and support rail shell", () =
       title: "Review pricing follow-up",
     },
     calendar: {
+      reviewItems: [
+        {
+          id: "event-review-1",
+          title: "Quote review",
+          attendeeLabel: "Taylor Reed",
+          endAt: "2026-04-05T09:30:00.000Z",
+          reviewReason: "The appointment ended in the last 24 hours and still has no recorded outcome or explicit resolution.",
+          linkedContactId: "contact-1",
+          linkedContactName: "Taylor Reed",
+          linkedContactEmail: "taylor@example.com",
+          copilot: {
+            summary: "Taylor Reed finished Quote review. The appointment still needs an explicit operator resolution.",
+            linkingSuggestion: "Taylor Reed is already linked to a contact.",
+            followUpDraftAvailable: true,
+            followUpDraft: {
+              subject: "Vonza Plumbing: following up after Quote review",
+              body: "Hi Taylor Reed,\n\nThis is Vonza Plumbing from Vonza Plumbing.",
+            },
+          },
+        },
+      ],
       scheduleItems: [
         {
           id: "event-1",
@@ -508,6 +529,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
       ],
     },
     today: {
+      appointmentReviewsNeedingAttention: 1,
       recentSuccessfulOutcomes: [
         {
           outcomeType: "quote_requested",
@@ -532,6 +554,11 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Needs Attention/);
   assert.match(overviewPanel, /today-workspace/);
   assert.match(overviewPanel, /support-panel/);
+  assert.match(overviewPanel, /Ended appointment reviews/);
+  assert.match(overviewPanel, /Prepare follow-up/);
+  assert.match(overviewPanel, /Link contact/);
+  assert.match(overviewPanel, /Record outcome/);
+  assert.match(overviewPanel, /No action needed/);
   assert.match(overviewPanel, /Refresh workspace/);
 });
 
