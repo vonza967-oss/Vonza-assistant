@@ -3238,7 +3238,101 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   `;
 }
 
+function isAppointmentReviewQueueItem(item = {}) {
+  return trimText(item.queueType) === "appointment_review";
+}
+
+function getOperatorContactDisplayLabel(contact = {}) {
+  return trimText(
+    contact.displayName
+    || contact.name
+    || contact.primaryEmail
+    || contact.email
+    || contact.primaryPhone
+    || contact.phone
+  );
+}
+
+function listAppointmentReviewContacts(reviewItem = {}, contacts = []) {
+  const currentContactId = trimText(reviewItem.linkedContactId);
+  const currentContactLabel = trimText(reviewItem.linkedContactName);
+  const options = [];
+  const seen = new Set();
+
+  if (currentContactId) {
+    options.push({
+      id: currentContactId,
+      label: currentContactLabel || "Linked contact",
+    });
+    seen.add(currentContactId);
+  }
+
+  (contacts || []).forEach((contact) => {
+    const contactId = trimText(contact.id);
+    const label = getOperatorContactDisplayLabel(contact);
+
+    if (!contactId || !label || seen.has(contactId)) {
+      return;
+    }
+
+    options.push({
+      id: contactId,
+      label,
+    });
+    seen.add(contactId);
+  });
+
+  return options.sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function buildAppointmentReviewOutcomeOptions(selectedOutcome = "quote_requested") {
+  const options = [
+    { value: "quote_requested", label: "Quote requested" },
+    { value: "follow_up_replied", label: "Follow-up replied" },
+    { value: "booking_started", label: "Booking started" },
+    { value: "booking_confirmed", label: "Booking confirmed" },
+    { value: "complaint_resolved", label: "Complaint resolved" },
+  ];
+
+  return options.map((option) => `
+    <option value="${escapeHtml(option.value)}" ${option.value === selectedOutcome ? "selected" : ""}>${escapeHtml(option.label)}</option>
+  `).join("");
+}
+
+function buildTodayAppointmentQueueItem(reviewItem = {}) {
+  return {
+    ...reviewItem,
+    queueType: "appointment_review",
+    queueId: trimText(reviewItem.id),
+  };
+}
+
+function buildTodayQueueItems(actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const reviewItems = Array.isArray(operatorWorkspace.calendar?.reviewItems)
+    ? operatorWorkspace.calendar.reviewItems.map((item) => buildTodayAppointmentQueueItem(item))
+    : [];
+  const actionItems = Array.isArray(actionQueue.items)
+    ? actionQueue.items.map((item) => ({
+      ...item,
+      queueType: "action_queue",
+      queueId: trimText(item.key),
+    }))
+    : [];
+
+  return reviewItems.concat(actionItems);
+}
+
 function getTodayQueueFilterKeys(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    const keys = ["all", "needs_review"];
+    if (!trimText(item.linkedContactId)) {
+      keys.push("follow_up");
+    } else {
+      keys.push("follow_up");
+    }
+    return keys;
+  }
+
   const keys = ["all"];
   const normalizedType = trimText(item.type).toLowerCase();
   const workflow = getActionQueueOwnerWorkflow(item);
@@ -3264,6 +3358,14 @@ function getTodayQueueFilterKeys(item = {}) {
 }
 
 function buildTodayQueuePrimaryAction(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return `
+      <button class="primary-button" type="button" data-select-appointment-review data-appointment-review-id="${escapeHtml(item.id || "")}">
+        Review item
+      </button>
+    `;
+  }
+
   if (item.followUp?.id) {
     return `
       <button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">
@@ -3296,6 +3398,58 @@ function buildTodayQueuePrimaryAction(item = {}) {
 }
 
 function buildTodayQueueRow(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    const filterKeys = getTodayQueueFilterKeys(item);
+    const contactLabel = trimText(item.linkedContactName || item.attendeeLabel || "Unknown attendee");
+    const linkState = trimText(item.linkedContactId) ? "Linked" : "Unlinked";
+    const reason = trimText(item.reviewReason || item.followUpReason || item.unlinkedReason)
+      || "This appointment ended recently and still needs an explicit operator resolution.";
+    const metaLine = [
+      item.endAt ? `Ended ${formatSeenAt(item.endAt)}` : "Ended recently",
+      contactLabel,
+    ].filter(Boolean).join(" · ");
+    const actionMenuMarkup = buildRowActionMenu(
+      "More",
+      [
+        `<button class="ghost-button" type="button" data-select-appointment-review data-appointment-review-id="${escapeHtml(item.id || "")}">Open review panel</button>`,
+        trimText(item.linkedContactId)
+          ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
+          : `<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>`,
+      ].filter(Boolean).join("")
+    );
+
+    return `
+      <article
+        class="today-queue-row today-queue-row-appointment"
+        data-today-queue-row
+        data-appointment-review-row
+        data-appointment-review-id="${escapeHtml(item.id || "")}"
+        data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
+        data-today-search-text="${escapeHtml([item.title, contactLabel, reason, linkState].filter(Boolean).join(" ").toLowerCase())}"
+      >
+        <div class="today-queue-row-main">
+          <div class="action-queue-badges">
+            <span class="pill">Ended appointment</span>
+            <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+            <span class="${getBadgeClass(trimText(item.linkedContactId) ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
+          </div>
+          <h3 class="today-queue-row-title">${escapeHtml(item.title || "Ended appointment")}</h3>
+          <p class="today-queue-row-copy">${escapeHtml(reason)}</p>
+          <p class="today-queue-row-meta">${escapeHtml(metaLine)}</p>
+        </div>
+        <div class="today-queue-row-context">
+          <span class="contact-row-column-label">Reason for review</span>
+          <strong>${escapeHtml(contactLabel)}</strong>
+          <span class="contact-row-column-copy">${escapeHtml(reason)}</span>
+        </div>
+        <div class="today-queue-row-actions">
+          ${buildTodayQueuePrimaryAction(item)}
+          ${actionMenuMarkup}
+        </div>
+      </article>
+    `;
+  }
+
   const workflow = getActionQueueOwnerWorkflow(item);
   const filterKeys = getTodayQueueFilterKeys(item);
   const contactLabel = formatActionQueueContact(item);
@@ -3327,6 +3481,7 @@ function buildTodayQueueRow(item = {}) {
       data-action-queue-item
       data-action-key="${escapeHtml(item.key || "")}"
       data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
+      data-today-search-text="${escapeHtml([item.label, item.whyFlagged, item.snippet, contactLabel].filter(Boolean).join(" ").toLowerCase())}"
     >
       <div class="today-queue-row-main">
         <div class="action-queue-badges">
@@ -3351,17 +3506,94 @@ function buildTodayQueueRow(item = {}) {
   `;
 }
 
-function buildTodayQueueList(actionQueue = createEmptyActionQueue()) {
+function buildTodayAppointmentReviewPanel(reviewItems = [], contacts = []) {
+  if (!reviewItems.length) {
+    return "";
+  }
+
+  return `
+    <section class="support-panel appointment-review-support-panel" data-appointment-review-shell>
+      <p class="support-panel-kicker">Appointment review</p>
+      <h3 class="support-panel-title">Ended appointment loop</h3>
+      <p class="support-panel-copy">Use one explicit resolution per completed appointment so follow-up, linking, and outcomes do not split across the workspace.</p>
+      <div class="appointment-review-panels">
+        ${reviewItems.map((item, index) => {
+          const selectedContactId = trimText(item.appointmentReviewState?.contactId || item.linkedContactId);
+          const contactOptions = listAppointmentReviewContacts(item, contacts);
+          const hasFollowUpTarget = Boolean(
+            trimText(item.linkedContactEmail)
+            || trimText(item.linkedContactPhone)
+            || trimText((Array.isArray(item.attendeeEmails) ? item.attendeeEmails[0] : ""))
+            || selectedContactId
+          );
+
+          return `
+            <article class="appointment-review-panel ${index === 0 ? "active" : ""}" data-appointment-review-panel-item data-appointment-review-id="${escapeHtml(item.id || "")}" ${index === 0 ? "" : "hidden"}>
+              <div class="appointment-review-panel-meta">
+                <div>
+                  <span class="support-mini-label">Meeting</span>
+                  <strong>${escapeHtml(item.title || "Ended appointment")}</strong>
+                </div>
+                <div>
+                  <span class="support-mini-label">Ended</span>
+                  <strong>${escapeHtml(item.endAt ? formatSeenAt(item.endAt) : "Recently")}</strong>
+                </div>
+                <div>
+                  <span class="support-mini-label">Status</span>
+                  <strong>${escapeHtml(trimText(item.linkedContactId) ? "Linked" : "Unlinked")}</strong>
+                </div>
+              </div>
+              <div class="appointment-review-panel-copy">
+                <p><strong>Attendee / contact:</strong> ${escapeHtml(trimText(item.linkedContactName || item.attendeeLabel || "Unknown attendee"))}</p>
+                <p><strong>Reason for review:</strong> ${escapeHtml(trimText(item.reviewReason || item.followUpReason || item.unlinkedReason) || "This appointment still needs an explicit operator resolution.")}</p>
+                <p><strong>Copilot readout:</strong> ${escapeHtml(trimText(item.reviewWhyItMatters) || "Copilot is surfacing this because explicit review keeps follow-up and proof grounded in one operator loop.")}</p>
+              </div>
+              <div class="appointment-review-field-grid">
+                <div class="field">
+                  <label>Link contact</label>
+                  <select name="contact_id" data-appointment-review-contact>
+                    <option value="">${escapeHtml(contactOptions.length ? "Choose a contact" : "No contact available yet")}</option>
+                    ${contactOptions.map((option) => `
+                      <option value="${escapeHtml(option.id)}" ${option.id === selectedContactId ? "selected" : ""}>${escapeHtml(option.label)}</option>
+                    `).join("")}
+                  </select>
+                </div>
+                <div class="field">
+                  <label>Record outcome</label>
+                  <select name="outcome_type" data-appointment-review-outcome>
+                    ${buildAppointmentReviewOutcomeOptions(trimText(item.appointmentReviewState?.outcomeType) || "quote_requested")}
+                  </select>
+                </div>
+              </div>
+              <div class="field">
+                <label>Operator note</label>
+                <textarea rows="3" data-appointment-review-note placeholder="Add a short note if future review context will matter.">${escapeHtml(item.appointmentReviewState?.note || "")}</textarea>
+              </div>
+              <div class="appointment-review-actions">
+                <button class="primary-button" type="button" data-appointment-review-action="prepare_follow_up" data-event-id="${escapeHtml(item.id || "")}" ${hasFollowUpTarget ? "" : "disabled"}>Prepare follow-up</button>
+                <button class="ghost-button" type="button" data-appointment-review-action="link_contact" data-event-id="${escapeHtml(item.id || "")}" ${contactOptions.length ? "" : "disabled"}>Link contact</button>
+                <button class="ghost-button" type="button" data-appointment-review-action="record_outcome" data-event-id="${escapeHtml(item.id || "")}">Record outcome</button>
+                <button class="ghost-button" type="button" data-appointment-review-action="no_action_needed" data-event-id="${escapeHtml(item.id || "")}">No action needed</button>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildTodayQueueList(actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
   const summary = {
     ...createEmptyActionQueue().summary,
     ...(actionQueue.summary || {}),
   };
-  const items = Array.isArray(actionQueue.items) ? actionQueue.items : [];
+  const items = buildTodayQueueItems(actionQueue, operatorWorkspace);
 
   if (!items.length) {
     return buildOperatorEmptyState({
       title: "Queue is clear",
-      copy: "Nothing urgent is blocking the operator loop right now. This queue stays ready for the next draft, weak answer, or follow-up that needs review.",
+      copy: "Nothing urgent is blocking the operator loop right now. This queue stays ready for the next draft, weak answer, follow-up, or appointment review that needs attention.",
     });
   }
 
@@ -3371,6 +3603,9 @@ function buildTodayQueueList(actionQueue = createEmptyActionQueue()) {
         ${buildActionQueueSummaryPills(summary).map((label) => `
           <span class="pill">${escapeHtml(label)}</span>
         `).join("")}
+        ${Array.isArray(operatorWorkspace.calendar?.reviewItems) && operatorWorkspace.calendar.reviewItems.length
+          ? `<span class="pill">${escapeHtml(`${operatorWorkspace.calendar.reviewItems.length} ended appointment${operatorWorkspace.calendar.reviewItems.length === 1 ? "" : "s"} to review`)}</span>`
+          : ""}
       </div>
       <div class="today-queue-list">
         ${items.map((item) => buildTodayQueueRow(item)).join("")}
@@ -3384,8 +3619,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const briefing = operatorWorkspace.briefing || createEmptyOperatorWorkspace().briefing;
   const nextAction = operatorWorkspace.nextAction || createEmptyOperatorWorkspace().nextAction;
+  const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const scheduleItems = Array.isArray(operatorWorkspace.calendar?.scheduleItems)
     ? operatorWorkspace.calendar.scheduleItems.slice(0, 4)
+    : [];
+  const reviewItems = Array.isArray(operatorWorkspace.calendar?.reviewItems)
+    ? operatorWorkspace.calendar.reviewItems.slice(0, 6)
     : [];
   const recentOutcomes = Array.isArray(today.recentSuccessfulOutcomes)
     ? today.recentSuccessfulOutcomes.slice(0, 4)
@@ -3420,12 +3659,17 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       })}
       ${buildPageToolbar({
         filtersMarkup: `
-          <div class="toolbar-filter-group">
-            <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
-            <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs review</button>
-            <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
-            <button class="toolbar-chip" type="button" data-today-filter="knowledge">Knowledge</button>
-            <button class="toolbar-chip" type="button" data-today-filter="complaints">Complaints</button>
+          <div class="today-toolbar-filters">
+            <label class="toolbar-search">
+              <input type="search" placeholder="Search queue" data-today-search>
+            </label>
+            <div class="toolbar-filter-group">
+              <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
+              <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs review</button>
+              <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
+              <button class="toolbar-chip" type="button" data-today-filter="knowledge">Knowledge</button>
+              <button class="toolbar-chip" type="button" data-today-filter="complaints">Complaints</button>
+            </div>
           </div>
         `,
         actionsMarkup: toolbarActions,
@@ -3443,13 +3687,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <div>
                 <p class="overview-label">Needs Attention</p>
                 <h2 class="today-section-title">${escapeHtml(
-                  overview.queueSummary.attentionNeeded > 0
-                    ? `${overview.queueSummary.attentionNeeded} item${overview.queueSummary.attentionNeeded === 1 ? "" : "s"} need review`
+                  (overview.queueSummary.attentionNeeded + reviewItems.length) > 0
+                    ? `${overview.queueSummary.attentionNeeded + reviewItems.length} item${(overview.queueSummary.attentionNeeded + reviewItems.length) === 1 ? "" : "s"} need review`
                     : "Queue is clear"
                 )}</h2>
                 <p class="today-section-copy">${escapeHtml(
-                  overview.queueSummary.attentionNeeded > 0
-                    ? "This is the dominant operator workspace. Review drafts, weak answers, and follow-up work from here before anything else."
+                  (overview.queueSummary.attentionNeeded + reviewItems.length) > 0
+                    ? "This is the dominant operator workspace. Review ended appointments, drafts, weak answers, and follow-up work from here before anything else."
                     : "Nothing urgent is blocking the operator loop right now. The queue stays here as the primary work surface."
                 )}</p>
               </div>
@@ -3460,17 +3704,21 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               ` : ""}
             </div>
-            ${buildTodayQueueList(actionQueue)}
+            ${buildTodayQueueList(actionQueue, operatorWorkspace)}
           </section>
           <aside class="today-side-column">
-            <section class="support-panel">
-              <p class="support-panel-kicker">Copilot briefing</p>
-              <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
-              <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
-              <p class="today-support-meta">${escapeHtml(overview.queueSummary.attentionNeeded > 0
-                ? `${overview.queueSummary.attentionNeeded} queue item${overview.queueSummary.attentionNeeded === 1 ? "" : "s"} still need review.`
-                : "No urgent operator queue items are open right now.")}</p>
-            </section>
+            ${reviewItems.length
+              ? buildTodayAppointmentReviewPanel(reviewItems, contactsList)
+              : `
+                <section class="support-panel">
+                  <p class="support-panel-kicker">Copilot briefing</p>
+                  <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
+                  <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
+                  <p class="today-support-meta">${escapeHtml(overview.queueSummary.attentionNeeded > 0
+                    ? `${overview.queueSummary.attentionNeeded} queue item${overview.queueSummary.attentionNeeded === 1 ? "" : "s"} still need review.`
+                    : "No urgent operator queue items are open right now.")}</p>
+                </section>
+              `}
             <section class="support-panel">
               <p class="support-panel-kicker">Schedule context</p>
               <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "Today on deck" : "Schedule is quiet")}</h3>
@@ -5043,6 +5291,7 @@ function createEmptyOperatorWorkspace() {
       followUpsAwaitingApproval: 0,
       activeCampaigns: 0,
       upcomingBookings: 0,
+      appointmentsNeedingReview: 0,
       appointmentsNeedingFollowUp: 0,
       unlinkedAppointments: 0,
       nextEventTitle: "",
@@ -5166,6 +5415,7 @@ function createEmptyOperatorWorkspace() {
       dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
       missedBookingOpportunities: [],
       scheduleItems: [],
+      reviewItems: [],
       followUpItems: [],
       unlinkedItems: [],
       syncMode: "disconnected",
@@ -8243,6 +8493,7 @@ function normalizeOperatorWorkspace(data = null) {
       events: normalizeOperatorArray(calendar.events, normalizeOperatorRecord),
       suggestedSlots: normalizeOperatorArray(calendar.suggestedSlots, normalizeOperatorRecord),
       scheduleItems: normalizeOperatorArray(calendar.scheduleItems, normalizeOperatorRecord),
+      reviewItems: normalizeOperatorArray(calendar.reviewItems, normalizeOperatorRecord),
       followUpItems: normalizeOperatorArray(calendar.followUpItems, normalizeOperatorRecord),
       unlinkedItems: normalizeOperatorArray(calendar.unlinkedItems, normalizeOperatorRecord),
       missedBookingOpportunities: normalizeOperatorArray(
@@ -9304,7 +9555,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const overviewSectionButtons = document.querySelectorAll("[data-overview-target]");
   const overviewFocusButtons = document.querySelectorAll("[data-overview-focus]");
   const todayFilterButtons = document.querySelectorAll("[data-today-filter]");
+  const todaySearchInput = document.querySelector("[data-today-search]");
   const todayQueueRows = document.querySelectorAll("[data-today-queue-row]");
+  const appointmentReviewRows = document.querySelectorAll("[data-appointment-review-row]");
+  const appointmentReviewSelectButtons = document.querySelectorAll("[data-select-appointment-review]");
+  const appointmentReviewPanels = document.querySelectorAll("[data-appointment-review-panel-item]");
+  const appointmentReviewActionButtons = document.querySelectorAll("[data-appointment-review-action]");
   const importButtons = document.querySelectorAll('[data-action="import-knowledge"]');
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
@@ -9362,6 +9618,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const availableSettingsSections = getAvailableSettingsSections();
   let activeContactFilter = "all";
   let activeTodayFilter = "all";
+  let activeAppointmentReviewId = trimText(appointmentReviewPanels[0]?.dataset.appointmentReviewId);
 
   const closeShellNavigation = () => {
     appShell?.classList.remove("nav-open");
@@ -9695,9 +9952,82 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   };
 
+  const selectAppointmentReview = (reviewId = "") => {
+    activeAppointmentReviewId = reviewId || activeAppointmentReviewId;
+
+    appointmentReviewRows.forEach((row) => {
+      row.classList.toggle("active", row.dataset.appointmentReviewId === activeAppointmentReviewId);
+    });
+
+    appointmentReviewPanels.forEach((panel) => {
+      const isActive = panel.dataset.appointmentReviewId === activeAppointmentReviewId;
+      panel.hidden = !isActive;
+      panel.classList.toggle("active", isActive);
+    });
+  };
+
+  const resolveAppointmentReview = async (button) => {
+    const panel = button.closest("[data-appointment-review-panel-item]");
+
+    if (!panel) {
+      return;
+    }
+
+    const resolution = trimText(button.dataset.appointmentReviewAction);
+    const eventId = trimText(button.dataset.eventId);
+    const contactId = trimText(panel.querySelector("[data-appointment-review-contact]")?.value || "");
+    const outcomeType = trimText(panel.querySelector("[data-appointment-review-outcome]")?.value || "");
+    const note = trimText(panel.querySelector("[data-appointment-review-note]")?.value || "");
+    const statusCopy = {
+      prepare_follow_up: "Preparing follow-up from the appointment review...",
+      link_contact: "Linking appointment to contact...",
+      record_outcome: "Recording appointment outcome...",
+      no_action_needed: "Clearing appointment review...",
+    };
+
+    button.disabled = true;
+    setStatus(statusCopy[resolution] || "Updating appointment review...");
+
+    try {
+      const result = await fetchJson("/agents/operator/calendar/reviews/resolve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          event_id: eventId,
+          resolution,
+          contact_id: contactId || undefined,
+          outcome_type: outcomeType || undefined,
+          note,
+        }),
+      });
+
+      if (result.followUp?.id) {
+        setDashboardFocus("automations");
+        setStatus("Follow-up draft prepared from the ended appointment review.");
+      } else if (result.outcome?.id) {
+        setDashboardFocus("action-queue");
+        setStatus("Appointment outcome recorded.");
+      } else if (resolution === "link_contact") {
+        setStatus("Appointment linked to the selected contact.");
+      } else {
+        setStatus("Appointment review updated.");
+      }
+
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that appointment review.");
+      button.disabled = false;
+    }
+  };
+
   const applyTodayFilter = (filterKey = "all") => {
     const queueList = document.querySelector(".today-queue-list");
     const existingEmpty = document.querySelector(".today-queue-empty");
+    const searchTerm = trimText(todaySearchInput?.value || "").toLowerCase();
     let visibleCount = 0;
 
     todayFilterButtons.forEach((button) => {
@@ -9706,7 +10036,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
     todayQueueRows.forEach((row) => {
       const keys = trimText(row.dataset.todayFilterKeys).split("|").filter(Boolean);
-      const visible = filterKey === "all" || keys.includes(filterKey);
+      const matchesFilter = filterKey === "all" || keys.includes(filterKey);
+      const searchText = trimText(row.dataset.todaySearchText).toLowerCase();
+      const visible = matchesFilter && (!searchTerm || searchText.includes(searchTerm));
       row.hidden = !visible;
 
       if (visible) {
@@ -9721,6 +10053,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       empty.className = "placeholder-card today-queue-empty";
       empty.textContent = "No queue items match this filter yet.";
       queueList.parentElement?.appendChild(empty);
+    }
+
+    if (appointmentReviewRows.length && ![...appointmentReviewRows].some((row) => !row.hidden && row.classList.contains("active"))) {
+      const nextVisibleReview = [...appointmentReviewRows].find((row) => !row.hidden);
+      if (nextVisibleReview) {
+        selectAppointmentReview(nextVisibleReview.dataset.appointmentReviewId || "");
+      }
     }
   };
 
@@ -10163,6 +10502,34 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", () => {
       activeTodayFilter = button.dataset.todayFilter || "all";
       applyTodayFilter(activeTodayFilter);
+    });
+  });
+
+  todaySearchInput?.addEventListener("input", () => {
+    applyTodayFilter(activeTodayFilter);
+  });
+
+  appointmentReviewSelectButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const reviewId = button.dataset.appointmentReviewId || "";
+      selectAppointmentReview(reviewId);
+      document.querySelector("[data-appointment-review-shell]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  appointmentReviewRows.forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, details, summary")) {
+        return;
+      }
+
+      selectAppointmentReview(row.dataset.appointmentReviewId || "");
+    });
+  });
+
+  appointmentReviewActionButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await resolveAppointmentReview(button);
     });
   });
 
@@ -10891,6 +11258,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   if (todayFilterButtons.length) {
     applyTodayFilter(activeTodayFilter);
+  }
+
+  if (activeAppointmentReviewId) {
+    selectAppointmentReview(activeAppointmentReviewId);
   }
 
   const focusTarget = getDashboardFocus();

@@ -18,6 +18,7 @@ import {
   OPERATOR_CAMPAIGN_RECIPIENT_TABLE,
   OPERATOR_CAMPAIGN_STEP_TABLE,
   OPERATOR_CAMPAIGN_TABLE,
+  OPERATOR_CONTACT_TABLE,
   OPERATOR_INBOX_MESSAGE_TABLE,
   OPERATOR_INBOX_THREAD_TABLE,
   OPERATOR_TASK_TABLE,
@@ -113,10 +114,18 @@ const STALE_REPLY_WINDOW_HOURS = 24;
 const CALENDAR_SYNC_LOOKBACK_HOURS = 30;
 const CALENDAR_SYNC_LOOKAHEAD_DAYS = 2;
 const CALENDAR_AUTO_SYNC_STALE_MINUTES = 20;
-const RECENT_APPOINTMENT_WINDOW_HOURS = 18;
+const RECENT_APPOINTMENT_WINDOW_HOURS = 24;
 const TODAY_SCHEDULE_LIMIT = 5;
+const APPOINTMENT_REVIEW_LIMIT = 6;
 const FOLLOW_UP_APPOINTMENT_LIMIT = 4;
 const UNLINKED_APPOINTMENT_LIMIT = 4;
+const APPOINTMENT_REVIEW_TASK_TYPES = ["appointment_outcome_review", "link_calendar_attendee"];
+const APPOINTMENT_REVIEW_RESOLUTIONS = new Set([
+  "prepare_follow_up",
+  "link_contact",
+  "record_outcome",
+  "no_action_needed",
+]);
 const CALENDAR_SLOT_MINUTES = 60;
 const SLOT_SEARCH_DAYS = 5;
 const BUSINESS_START_HOUR = 9;
@@ -1674,6 +1683,61 @@ async function upsertCalendarEvent(supabase, payload) {
   return mapCalendarEventRow(data);
 }
 
+async function getCalendarEventById(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const ownerUserId = cleanText(options.ownerUserId);
+  const eventId = cleanText(options.eventId);
+
+  const { data, error } = await supabase
+    .from(OPERATOR_CALENDAR_EVENT_TABLE)
+    .select(CALENDAR_EVENT_SELECT)
+    .eq("id", eventId)
+    .eq("agent_id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapCalendarEventRow(data);
+}
+
+async function updateCalendarEventById(supabase, event = {}, changes = {}) {
+  const payload = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (Object.prototype.hasOwnProperty.call(changes, "contactId")) {
+    payload.contact_id = cleanText(changes.contactId) || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(changes, "leadId")) {
+    payload.lead_id = cleanText(changes.leadId) || null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(changes, "relatedActionKey")) {
+    payload.related_action_key = cleanText(changes.relatedActionKey) || null;
+  }
+
+  if (changes.metadata && typeof changes.metadata === "object") {
+    payload.metadata = changes.metadata;
+  }
+
+  const { data, error } = await supabase
+    .from(OPERATOR_CALENDAR_EVENT_TABLE)
+    .update(payload)
+    .eq("id", cleanText(event.id))
+    .select(CALENDAR_EVENT_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return mapCalendarEventRow(data);
+}
+
 async function upsertOperatorTask(supabase, agent, ownerUserId, payload = {}) {
   if (!payload.sourceType || !payload.sourceId || !payload.taskType) {
     return null;
@@ -1744,6 +1808,65 @@ async function upsertOperatorTask(supabase, agent, ownerUserId, payload = {}) {
   return mapTaskRow(data);
 }
 
+async function upsertAppointmentReviewTask(supabase, agent, ownerUserId, event = {}, payload = {}) {
+  const eventId = cleanText(event.id);
+  if (!eventId) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from(OPERATOR_TASK_TABLE)
+    .select(TASK_SELECT)
+    .eq("agent_id", cleanText(agent.id))
+    .eq("owner_user_id", ownerUserId)
+    .eq("related_event_id", eventId)
+    .in("task_type", APPOINTMENT_REVIEW_TASK_TYPES)
+    .order("updated_at", { ascending: false });
+
+  if (error && !isMissingRelationError(error, OPERATOR_TASK_TABLE)) {
+    throw error;
+  }
+
+  const existingTask = (data || []).map(mapTaskRow)[0] || null;
+  const rowPayload = {
+    agent_id: cleanText(agent.id),
+    business_id: cleanText(agent.businessId) || null,
+    owner_user_id: ownerUserId,
+    source_type: cleanText(payload.sourceType) || cleanText(existingTask?.sourceType) || "calendar_event",
+    source_id: cleanText(payload.sourceId) || cleanText(existingTask?.sourceId) || eventId,
+    task_type: cleanText(payload.taskType) || cleanText(existingTask?.taskType) || "appointment_outcome_review",
+    title: cleanText(payload.title) || cleanText(existingTask?.title) || `Review appointment outcome for ${cleanText(event.title || "appointment")}`,
+    description: cleanText(payload.description) || cleanText(existingTask?.description) || "Resolve the next step after this completed appointment.",
+    status: cleanText(payload.status) || cleanText(existingTask?.status) || "open",
+    priority: cleanText(payload.priority) || cleanText(existingTask?.priority) || "high",
+    approval_required: payload.approvalRequired === true || existingTask?.approvalRequired === true,
+    contact_id: cleanText(payload.contactId) || cleanText(existingTask?.contactId) || cleanText(event.contactId) || null,
+    related_thread_id: cleanText(payload.relatedThreadId) || cleanText(existingTask?.relatedThreadId) || null,
+    related_event_id: eventId,
+    related_campaign_id: cleanText(payload.relatedCampaignId) || cleanText(existingTask?.relatedCampaignId) || null,
+    related_lead_id: cleanText(payload.relatedLeadId) || cleanText(existingTask?.relatedLeadId) || cleanText(event.leadId) || null,
+    related_action_key: cleanText(payload.relatedActionKey) || cleanText(existingTask?.relatedActionKey) || cleanText(event.relatedActionKey) || null,
+    task_state: payload.taskState && typeof payload.taskState === "object"
+      ? payload.taskState
+      : (existingTask?.taskState || {}),
+    resolved_at: cleanText(payload.status) === "resolved"
+      ? new Date().toISOString()
+      : (cleanText(payload.status) ? null : existingTask?.resolvedAt || null),
+    updated_at: new Date().toISOString(),
+  };
+
+  const query = existingTask?.id
+    ? supabase.from(OPERATOR_TASK_TABLE).update(rowPayload).eq("id", existingTask.id)
+    : supabase.from(OPERATOR_TASK_TABLE).insert(rowPayload);
+  const selected = await query.select(TASK_SELECT).single();
+
+  if (selected.error) {
+    throw selected.error;
+  }
+
+  return mapTaskRow(selected.data);
+}
+
 export async function createOperatorTask(supabase, options = {}) {
   const agent = options.agent || {};
   const ownerUserId = cleanText(options.ownerUserId);
@@ -1779,6 +1902,239 @@ export async function createOperatorTask(supabase, options = {}) {
   }
 
   return task;
+}
+
+export async function resolveCalendarAppointmentReview(supabase, options = {}, deps = {}) {
+  const agent = options.agent || {};
+  const ownerUserId = cleanText(options.ownerUserId);
+  const eventId = cleanText(options.eventId);
+  const resolution = cleanText(options.resolution);
+  const note = cleanText(options.note);
+  const selectedContactId = cleanText(options.contactId);
+  const outcomeType = cleanText(options.outcomeType);
+
+  if (!cleanText(agent.id) || !ownerUserId || !eventId) {
+    const error = new Error("agent, owner_user_id, and event_id are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!APPOINTMENT_REVIEW_RESOLUTIONS.has(resolution)) {
+    const error = new Error("A supported appointment review resolution is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const event = await getCalendarEventById(supabase, {
+    agentId: cleanText(agent.id),
+    ownerUserId,
+    eventId,
+  });
+
+  if (!event?.id) {
+    const error = new Error("That appointment could not be found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  let selectedContact = null;
+  if (selectedContactId) {
+    const { data, error } = await supabase
+      .from(OPERATOR_CONTACT_TABLE)
+      .select("id, display_name, primary_email, primary_phone, primary_person_key")
+      .eq("id", selectedContactId)
+      .eq("agent_id", cleanText(agent.id))
+      .eq("owner_user_id", ownerUserId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data?.id) {
+      const contactError = new Error("That contact could not be found for this workspace.");
+      contactError.statusCode = 404;
+      throw contactError;
+    }
+
+    selectedContact = {
+      id: cleanText(data.id),
+      displayName: cleanText(data.display_name),
+      primaryEmail: normalizeEmail(data.primary_email),
+      primaryPhone: normalizePhoneDigits(data.primary_phone),
+      primaryPersonKey: cleanText(data.primary_person_key),
+    };
+  }
+
+  const attendeeEmails = uniqueText((event.attendeeEmails || []).map(normalizeEmail));
+  const attendeeNames = uniqueText(event.attendeeNames || []);
+  let updatedEvent = event;
+  let nextContactId = cleanText(selectedContact?.id || event.contactId);
+  let reviewTaskStatus = "resolved";
+  let followUp = null;
+  let outcome = null;
+
+  if (resolution === "link_contact") {
+    if (!selectedContact?.id) {
+      const error = new Error("Choose a contact before linking this appointment.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    nextContactId = selectedContact.id;
+    updatedEvent = await updateCalendarEventById(supabase, event, {
+      contactId: nextContactId,
+    });
+    reviewTaskStatus = "open";
+  }
+
+  if (resolution === "prepare_follow_up") {
+    const createManualFollowUpWorkflowImpl = deps.createManualFollowUpWorkflow;
+
+    if (typeof createManualFollowUpWorkflowImpl !== "function") {
+      const error = new Error("createManualFollowUpWorkflow dependency is required");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    const followUpContact = selectedContact || {
+      id: cleanText(event.contactId),
+      displayName: cleanText(attendeeNames[0] || event.title || "Appointment contact"),
+      primaryEmail: attendeeEmails[0] || "",
+      primaryPhone: "",
+      primaryPersonKey: "",
+    };
+    const contactEmail = normalizeEmail(followUpContact.primaryEmail);
+    const contactPhone = normalizePhoneDigits(followUpContact.primaryPhone);
+    const existingFollowUps = (await listFollowUpWorkflows(supabase, {
+      agentId: cleanText(agent.id),
+      ownerUserId,
+    })) || [];
+    const existingFollowUp = findOpenFollowUpForEvent(existingFollowUps, event, {
+      id: cleanText(followUpContact.id),
+      primaryEmail: contactEmail,
+    });
+
+    if (!contactEmail && !contactPhone) {
+      const error = new Error("A usable email address or phone number is required before preparing a follow-up.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    followUp = existingFollowUp
+      || (await createManualFollowUpWorkflowImpl(supabase, {
+        agentId: cleanText(agent.id),
+        ownerUserId,
+        businessName: cleanText(agent.assistantName || agent.name),
+        assistantName: cleanText(agent.assistantName || agent.name),
+        actionType: "post_appointment_follow_up",
+        contactId: cleanText(followUpContact.id),
+        contactName: cleanText(followUpContact.displayName),
+        contactEmail,
+        contactPhone,
+        personKey: cleanText(followUpContact.primaryPersonKey),
+        sourceActionKey: `appointment_review:${cleanText(event.id)}`,
+        linkedActionKeys: cleanText(event.relatedActionKey) ? [cleanText(event.relatedActionKey)] : [],
+        topic: cleanText(event.title) ? `${cleanText(event.title)} follow-up` : "Appointment follow-up",
+        subject: cleanText(agent.name)
+          ? `${cleanText(agent.name)}: following up after ${cleanText(event.title || "your appointment")}`
+          : "",
+        whyPrepared: note || `Prepared from the ended appointment review loop for ${cleanText(event.title || "this appointment")}.`,
+        evidence: cleanText(event.description),
+        contextQuestion: cleanText(event.title),
+        contextSnippet: cleanText(event.description || event.location),
+      }))?.followUp
+      || null;
+
+    if (!followUp?.id) {
+      const error = new Error("Follow-up drafts are unavailable right now.");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (selectedContact?.id && cleanText(event.contactId) !== selectedContact.id) {
+      updatedEvent = await updateCalendarEventById(supabase, updatedEvent, {
+        contactId: selectedContact.id,
+      });
+      nextContactId = selectedContact.id;
+    }
+  }
+
+  if (resolution === "record_outcome") {
+    const markManualConversionOutcomeImpl = deps.markManualConversionOutcome;
+
+    if (typeof markManualConversionOutcomeImpl !== "function") {
+      const error = new Error("markManualConversionOutcome dependency is required");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    if (!outcomeType) {
+      const error = new Error("Choose an outcome before recording it.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (selectedContact?.id && cleanText(event.contactId) !== selectedContact.id) {
+      updatedEvent = await updateCalendarEventById(supabase, updatedEvent, {
+        contactId: selectedContact.id,
+      });
+      nextContactId = selectedContact.id;
+    }
+
+    outcome = (await markManualConversionOutcomeImpl(supabase, {
+      agentId: cleanText(agent.id),
+      businessId: cleanText(agent.businessId),
+      ownerUserId,
+      installId: cleanText(agent.installId),
+      outcomeType,
+      contactId: cleanText(nextContactId),
+      leadId: cleanText(updatedEvent.leadId),
+      actionKey: cleanText(updatedEvent.relatedActionKey),
+      calendarEventId: cleanText(updatedEvent.id),
+      note,
+    }))?.outcome || null;
+
+    if (!outcome?.id) {
+      const error = new Error("Outcome recording is unavailable right now.");
+      error.statusCode = 409;
+      throw error;
+    }
+  }
+
+  const task = await upsertAppointmentReviewTask(supabase, agent, ownerUserId, updatedEvent, {
+    status: reviewTaskStatus,
+    contactId: nextContactId,
+    title: `Review the next step after ${cleanText(updatedEvent.title || "this appointment")}`,
+    description: resolution === "link_contact"
+      ? "The attendee has been linked, but this appointment may still need a next step or outcome."
+      : "Resolve the next step after this completed appointment.",
+    priority: "high",
+    approvalRequired: true,
+    relatedLeadId: cleanText(updatedEvent.leadId),
+    relatedActionKey: cleanText(updatedEvent.relatedActionKey),
+    taskState: {
+      eventId: cleanText(updatedEvent.id),
+      reviewResolution: resolution,
+      note,
+      contactId: nextContactId,
+      contactLabel: cleanText(selectedContact?.displayName),
+      followUpId: cleanText(followUp?.id),
+      outcomeId: cleanText(outcome?.id),
+      outcomeType: cleanText(outcome?.outcomeType || outcomeType),
+      resolvedAt: reviewTaskStatus === "resolved" ? new Date().toISOString() : null,
+    },
+  });
+
+  return {
+    ok: true,
+    resolution,
+    task,
+    event: updatedEvent,
+    followUp,
+    outcome,
+    contact: selectedContact,
+  };
 }
 
 function buildReplySubject(thread, businessName) {
@@ -1957,6 +2313,7 @@ export function buildCalendarDailySummary(options = {}) {
   const events = Array.isArray(options.events) ? options.events : [];
   const tasks = Array.isArray(options.tasks) ? options.tasks : [];
   const slots = Array.isArray(options.slots) ? options.slots : [];
+  const reviewItems = Array.isArray(options.reviewItems) ? options.reviewItems : [];
   const followUpItems = Array.isArray(options.followUpItems) ? options.followUpItems : [];
   const unlinkedItems = Array.isArray(options.unlinkedItems) ? options.unlinkedItems : [];
   const openComplaints = tasks.filter((task) => task.taskType === "complaint_queue" && task.status === "open").length;
@@ -1985,7 +2342,9 @@ export function buildCalendarDailySummary(options = {}) {
     parts.push(`${openComplaints} complaint${openComplaints === 1 ? "" : "s"} still need coordinated follow-up.`);
   }
 
-  if (followUpItems.length > 0) {
+  if (reviewItems.length > 0) {
+    parts.push(`${reviewItems.length} recent appointment${reviewItems.length === 1 ? "" : "s"} still need review.`);
+  } else if (followUpItems.length > 0) {
     parts.push(`${followUpItems.length} recent appointment${followUpItems.length === 1 ? "" : "s"} likely need follow-up.`);
   }
 
@@ -2161,6 +2520,28 @@ function findOpenFollowUpForEvent(followUps = [], event = {}, contact = null) {
   }) || null;
 }
 
+function findAppointmentReviewTask(tasks = [], event = {}) {
+  const eventId = cleanText(event.id);
+
+  if (!eventId) {
+    return null;
+  }
+
+  const matches = tasks.filter((task) => {
+    if (!APPOINTMENT_REVIEW_TASK_TYPES.includes(cleanText(task.taskType))) {
+      return false;
+    }
+
+    return cleanText(task.relatedEventId) === eventId
+      || (cleanText(task.sourceType) === "calendar_event" && cleanText(task.sourceId) === eventId)
+      || cleanText(task.taskState?.eventId) === eventId;
+  });
+
+  return matches
+    .slice()
+    .sort((left, right) => parseTimestamp(right.updatedAt) - parseTimestamp(left.updatedAt))[0] || null;
+}
+
 function findOpenTaskForEvent(tasks = [], event = {}, contact = null) {
   const eventId = cleanText(event.id);
   const contactId = cleanText(contact?.id || event.contactId);
@@ -2174,9 +2555,84 @@ function findOpenTaskForEvent(tasks = [], event = {}, contact = null) {
       return false;
     }
 
+    if (APPOINTMENT_REVIEW_TASK_TYPES.includes(cleanText(task.taskType))) {
+      return false;
+    }
+
     return cleanText(task.relatedEventId) === eventId
       || (contactId && cleanText(task.contactId) === contactId);
   }) || null;
+}
+
+function getAppointmentReviewState(task = null) {
+  const review = task?.taskState && typeof task.taskState === "object" ? task.taskState : {};
+  const resolution = cleanText(
+    review.reviewResolution
+    || review.resolution
+  );
+  const status = cleanText(task?.status || review.status)
+    || (resolution ? "resolved" : "open");
+
+  return {
+    taskId: cleanText(task?.id),
+    taskType: cleanText(task?.taskType),
+    status,
+    resolution,
+    note: cleanText(review.note),
+    contactId: cleanText(review.contactId || task?.contactId),
+    contactLabel: cleanText(review.contactLabel),
+    followUpId: cleanText(review.followUpId),
+    outcomeId: cleanText(review.outcomeId),
+    outcomeType: cleanText(review.outcomeType),
+    resolvedAt: review.resolvedAt || task?.resolvedAt || null,
+  };
+}
+
+function isAppointmentReviewResolved(reviewState = {}) {
+  const resolution = cleanText(reviewState.resolution);
+  return cleanText(reviewState.status) === "resolved"
+    && ["prepare_follow_up", "record_outcome", "no_action_needed"].includes(resolution);
+}
+
+function buildAppointmentReviewReason({
+  event = {},
+  linkedContact = null,
+  openFollowUp = null,
+  openTask = null,
+  reviewState = {},
+} = {}) {
+  if (event.isUnlinked) {
+    return cleanText(event.unlinkedReason)
+      || "This appointment is not linked to a contact yet, so follow-up and outcome tracking can fragment.";
+  }
+
+  if (cleanText(reviewState.resolution) === "link_contact") {
+    return "The attendee has been linked, but the appointment still needs an explicit next step or outcome.";
+  }
+
+  if (openFollowUp) {
+    return "A follow-up draft already exists for this appointment, but the operator still needs to confirm that it is the right next step.";
+  }
+
+  if (openTask) {
+    return cleanText(openTask.description || openTask.title)
+      || "A review task already exists for this appointment, but it is not resolved yet.";
+  }
+
+  if (cleanText(linkedContact?.nextAction?.key) && cleanText(linkedContact?.nextAction?.key) !== "no_action_needed") {
+    return cleanText(linkedContact?.nextAction?.description || linkedContact?.nextAction?.title)
+      || "The linked contact still needs a concrete next step after this appointment.";
+  }
+
+  return "The appointment ended in the last 24 hours and no explicit follow-up or outcome is recorded yet.";
+}
+
+function buildAppointmentReviewImpact(event = {}) {
+  if (event.isUnlinked) {
+    return "Until the attendee is linked to the right person, follow-up, attribution, and outcomes can split across Today, Contacts, and Outcomes.";
+  }
+
+  return "Explicit review is what closes the loop between a finished appointment, the next operator move, and real business proof.";
 }
 
 function listMeaningfulOutcomesForEvent(recentOutcomes = [], event = {}, contact = null) {
@@ -2231,6 +2687,8 @@ function buildCalendarInsights({
       const contactMatch = findLinkedContactForEvent(contacts, event);
       const linkedContact = contactMatch.contact || null;
       const openFollowUp = findOpenFollowUpForEvent(followUps, event, linkedContact);
+      const reviewTask = findAppointmentReviewTask(tasks, event);
+      const reviewState = getAppointmentReviewState(reviewTask);
       const openTask = findOpenTaskForEvent(tasks, event, linkedContact);
       const postAppointmentOutcomes = listMeaningfulOutcomesForEvent(recentOutcomes, event, linkedContact);
       const startAt = parseTimestamp(event.startAt);
@@ -2259,24 +2717,10 @@ function buildCalendarInsights({
         && (nowTimestamp - endAt) <= RECENT_APPOINTMENT_WINDOW_HOURS * 60 * 60 * 1000;
       const isUnlinked = !cleanText(linkedContact?.id);
       const target = buildCalendarInsightTarget(event, linkedContact);
-
-      let followUpReason = "";
-      if (isRecentPast && !isUnlinked) {
-        if (openFollowUp) {
-          followUpReason = "A follow-up draft already exists for this appointment, but it still needs review or completion.";
-        } else if (openTask) {
-          followUpReason = cleanText(openTask.description || openTask.title) || "There is already an open task tied to this appointment.";
-        } else if (cleanText(linkedContact?.nextAction?.key) && cleanText(linkedContact?.nextAction?.key) !== "no_action_needed") {
-          followUpReason = cleanText(linkedContact?.nextAction?.description || linkedContact?.nextAction?.title)
-            || "The linked contact still needs a concrete next step after this appointment.";
-        } else if (!postAppointmentOutcomes.length) {
-          followUpReason = "The appointment ended recently and no follow-up, task, or non-booking outcome is visible yet.";
-        }
-      }
+      const attendeeLabel = cleanText(primaryAttendee?.displayName || attendeeNames[0] || attendeeEmails[0] || contactLabel);
 
       let unlinkedReason = "";
-      if (isUnlinked && (isUpcomingToday || isInProgress || isRecentPast)) {
-        const attendeeLabel = cleanText(primaryAttendee?.displayName || attendeeNames[0] || attendeeEmails[0] || "This attendee");
+      if (isUnlinked && (isUpcomingToday || isInProgress || isRecentPast) && cleanText(reviewState.resolution) !== "no_action_needed") {
         unlinkedReason = attendeeLabel
           ? `${attendeeLabel} is not linked to a contact yet, so follow-up and outcome tracking can fragment.`
           : "This appointment is not linked to a contact yet, so follow-up and outcome tracking can fragment.";
@@ -2293,6 +2737,25 @@ function buildCalendarInsights({
             : "This appointment is coming up today.";
       }
 
+      const needsReview = isRecentPast
+        && !postAppointmentOutcomes.length
+        && cleanText(reviewState.resolution) !== "no_action_needed"
+        && !isAppointmentReviewResolved(reviewState);
+      const reviewReason = needsReview
+        ? buildAppointmentReviewReason({
+          event: {
+            ...event,
+            isUnlinked,
+            unlinkedReason,
+          },
+          linkedContact,
+          openFollowUp,
+          openTask,
+          reviewState,
+        })
+        : "";
+      const followUpReason = needsReview && !isUnlinked ? reviewReason : "";
+
       return {
         ...event,
         linkedContactId: cleanText(linkedContact?.id || event.contactId),
@@ -2307,10 +2770,18 @@ function buildCalendarInsights({
         isInProgress,
         isRecentPast,
         isUnlinked,
+        attendeeLabel,
+        appointmentReviewState: reviewState,
         needsFollowUp: Boolean(followUpReason),
+        needsReview,
         scheduleReason,
         followUpReason,
         unlinkedReason,
+        reviewReason,
+        reviewWhyItMatters: buildAppointmentReviewImpact({
+          ...event,
+          isUnlinked,
+        }),
         actionLabel: target.label,
         actionTargetSection: target.targetSection,
         actionTargetId: target.targetId,
@@ -2323,11 +2794,17 @@ function buildCalendarInsights({
     scheduleItems: enrichedEvents
       .filter((event) => event.isInProgress || event.isUpcomingToday)
       .slice(0, TODAY_SCHEDULE_LIMIT),
+    reviewItems: enrichedEvents
+      .filter((event) => event.needsReview)
+      .sort((left, right) => parseTimestamp(right.endAt || right.startAt) - parseTimestamp(left.endAt || left.startAt))
+      .slice(0, APPOINTMENT_REVIEW_LIMIT),
     followUpItems: enrichedEvents
-      .filter((event) => event.needsFollowUp)
+      .filter((event) => event.needsReview && !event.isUnlinked)
+      .sort((left, right) => parseTimestamp(right.endAt || right.startAt) - parseTimestamp(left.endAt || left.startAt))
       .slice(0, FOLLOW_UP_APPOINTMENT_LIMIT),
     unlinkedItems: enrichedEvents
-      .filter((event) => event.isUnlinked && (event.isInProgress || event.isUpcomingToday || event.isRecentPast))
+      .filter((event) => event.needsReview && event.isUnlinked)
+      .sort((left, right) => parseTimestamp(right.endAt || right.startAt) - parseTimestamp(left.endAt || left.startAt))
       .slice(0, UNLINKED_APPOINTMENT_LIMIT),
   };
 }
@@ -3164,6 +3641,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         dailySummary: "Operator Workspace v1 is currently turned off for this deployment.",
         missedBookingOpportunities: [],
         scheduleItems: [],
+        reviewItems: [],
         followUpItems: [],
         unlinkedItems: [],
         syncMode: "disabled",
@@ -3619,10 +4097,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         events: enrichedEvents,
         tasks,
         slots: suggestedSlots,
+        reviewItems: calendarInsights.reviewItems,
         followUpItems: calendarInsights.followUpItems,
         unlinkedItems: calendarInsights.unlinkedItems,
       }),
       scheduleItems: calendarInsights.scheduleItems,
+      reviewItems: calendarInsights.reviewItems,
       followUpItems: calendarInsights.followUpItems,
       unlinkedItems: calendarInsights.unlinkedItems,
     },
@@ -3686,11 +4166,13 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         events: enrichedEvents,
         tasks,
         slots: suggestedSlots,
+        reviewItems: calendarInsights.reviewItems,
         followUpItems: calendarInsights.followUpItems,
         unlinkedItems: calendarInsights.unlinkedItems,
       }),
       missedBookingOpportunities,
       scheduleItems: calendarInsights.scheduleItems,
+      reviewItems: calendarInsights.reviewItems,
       followUpItems: calendarInsights.followUpItems,
       unlinkedItems: calendarInsights.unlinkedItems,
       syncMode: googleCapabilities.calendarRead
