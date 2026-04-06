@@ -591,7 +591,7 @@ test("tab switching still leaves the selected section rendered as the active vie
   assert.equal(harness.getGlobal("getActiveShellSection")(), "analytics");
   assert.match(
     harness.getRootHtml(),
-    /workspace-tab active" type="button" data-shell-target="analytics"/
+    /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
-  assert.match(harness.getRootHtml(), /See what customers are asking/);
+  assert.match(harness.getRootHtml(), /Track what customers are asking/);
 });
