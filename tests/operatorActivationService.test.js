@@ -174,6 +174,7 @@ test("today summary includes people-centered attention counts", () => {
       customersAwaitingFollowUp: 3,
     },
     calendarInsights: {
+      reviewItems: [{ id: "event-1" }, { id: "event-2" }, { id: "event-3" }],
       followUpItems: [{ id: "event-1" }],
       unlinkedItems: [{ id: "event-2" }, { id: "event-3" }],
     },
@@ -183,6 +184,7 @@ test("today summary includes people-centered attention counts", () => {
   assert.equal(today.complaintRiskContacts, 2);
   assert.equal(today.leadsWithoutNextStep, 1);
   assert.equal(today.customersAwaitingFollowUp, 3);
+  assert.equal(today.appointmentsNeedingReview, 3);
   assert.equal(today.appointmentsNeedingFollowUp, 1);
   assert.equal(today.unlinkedAppointments, 2);
 });

@@ -524,6 +524,10 @@ function buildTaskProposal(topRecommendation = null) {
     return null;
   }
 
+  if (["appointment_follow_up", "unlinked_appointment"].includes(cleanText(topRecommendation.type))) {
+    return null;
+  }
+
   return createDraft({
     id: `task-proposal:${cleanText(topRecommendation.id)}`,
     type: "task_proposal",
@@ -683,42 +687,6 @@ function buildAppointmentFollowUpRecommendation(appointment = {}) {
     targetId,
     actionType: contactId ? "open_contact" : "open_calendar_event",
     surfaceLabel,
-    proposal: {
-      key: `appointment-outcome-review:${cleanText(appointment.id)}`,
-      type: "create_outcome_review",
-      hash: createProposalHash([
-        "create_outcome_review",
-        appointment.id,
-        appointment.linkedContactId,
-        appointment.title,
-        appointment.followUpReason,
-      ]),
-      summary: contactId
-        ? `Create outcome review for ${contactLabel}`
-        : `Create follow-up review for ${cleanText(appointment.title || "this appointment")}`,
-      rationale: "Copilot can safely create a review task for a recent appointment, but it should never mark the outcome or send follow-up automatically.",
-      effect: "Create a review task so the owner can confirm the next step, follow-up, or real outcome from this appointment.",
-      approvalNote: "This creates a review task only. It does not send follow-up or mark the outcome automatically.",
-      applyLabel: "Create review",
-      dismissLabel: "Dismiss",
-      openLabel: surfaceLabel,
-      target: {
-        section: targetSection,
-        id: targetId,
-        label: surfaceLabel,
-      },
-      applyPayload: {
-        taskType: "appointment_outcome_review",
-        contactId,
-        actionKey: cleanText(appointment.relatedActionKey),
-        title: contactId
-          ? `Review next step for ${contactLabel}`
-          : `Review attendee follow-up for ${cleanText(appointment.title || "this appointment")}`,
-        description: cleanText(appointment.followUpReason) || "Confirm the next step, follow-up, or outcome after this appointment.",
-        targetSection,
-        targetId,
-      },
-    },
   });
 }
 
@@ -743,40 +711,15 @@ function buildUnlinkedAppointmentRecommendation(appointment = {}) {
     targetId: cleanText(appointment.actionTargetId || appointment.id),
     actionType: "open_calendar_event",
     surfaceLabel: cleanText(appointment.actionLabel || "Open Calendar"),
-    proposal: {
-      key: `unlinked-appointment:${cleanText(appointment.id)}`,
-      type: "create_operator_task",
-      hash: createProposalHash([
-        "create_operator_task",
-        appointment.id,
-        appointment.title,
-        appointment.unlinkedReason,
-      ]),
-      summary: `Create a linking review for ${cleanText(appointment.title || "this appointment")}`,
-      rationale: "Copilot can safely create a review task for attendee linking, but it should not create or merge contacts automatically.",
-      effect: "Create an approval-first operator task to review whether this attendee should be linked to an existing or new contact.",
-      approvalNote: "This creates a review task only. It does not link contacts automatically.",
-      applyLabel: "Create task",
-      dismissLabel: "Dismiss",
-      openLabel: cleanText(appointment.actionLabel || "Open Calendar"),
-      target: {
-        section: cleanText(appointment.actionTargetSection || "calendar"),
-        id: cleanText(appointment.actionTargetId || appointment.id),
-        label: cleanText(appointment.actionLabel || "Open Calendar"),
-      },
-      applyPayload: {
-        taskType: "link_calendar_attendee",
-        title: `Review attendee linking for ${cleanText(appointment.title || "this appointment")}`,
-        description: cleanText(appointment.unlinkedReason) || "Review whether this attendee should be linked to a contact.",
-        targetSection: cleanText(appointment.actionTargetSection || "calendar"),
-        targetId: cleanText(appointment.actionTargetId || appointment.id),
-      },
-    },
   });
 }
 
 function buildAppointmentFollowUpDraft(appointment = {}, agent = {}) {
   if (!appointment?.id) {
+    return null;
+  }
+
+  if (cleanText(appointment.openFollowUpId) || cleanText(appointment.appointmentReviewState?.followUpId)) {
     return null;
   }
 
@@ -893,8 +836,13 @@ export function buildTodayCopilotSnapshot(options = {}) {
   const calendar = options.calendar && typeof options.calendar === "object" ? options.calendar : {};
   const calendarEvents = normalizeArray(calendar.events);
   const scheduleItems = normalizeArray(calendar.scheduleItems);
-  const appointmentFollowUpItems = normalizeArray(calendar.followUpItems);
-  const unlinkedAppointments = normalizeArray(calendar.unlinkedItems);
+  const reviewItems = normalizeArray(calendar.reviewItems);
+  const appointmentFollowUpItems = normalizeArray(calendar.followUpItems).length
+    ? normalizeArray(calendar.followUpItems)
+    : reviewItems.filter((item) => cleanText(item.linkedContactId) || item.isUnlinked !== true);
+  const unlinkedAppointments = normalizeArray(calendar.unlinkedItems).length
+    ? normalizeArray(calendar.unlinkedItems)
+    : reviewItems.filter((item) => item.isUnlinked === true || !cleanText(item.linkedContactId));
   const queueItems = normalizeArray(actionQueue.items);
   const attentionQueueItems = queueItems.filter((item) => item.ownerWorkflow?.attention === true);
   const followUpCandidates = followUps.filter((workflow) =>

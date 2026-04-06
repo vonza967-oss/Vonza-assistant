@@ -83,6 +83,7 @@ import {
   draftCalendarAction,
   draftInboxReply,
   getOperatorWorkspaceSnapshot,
+  resolveCalendarAppointmentReview,
   sendDueCampaignSteps,
   sendInboxReply,
   updateOperatorTaskStatus,
@@ -224,6 +225,8 @@ export function createAgentRouter(deps = {}) {
     deps.sendDueCampaignSteps || sendDueCampaignSteps;
   const createOperatorTaskImpl =
     deps.createOperatorTask || createOperatorTask;
+  const resolveCalendarAppointmentReviewImpl =
+    deps.resolveCalendarAppointmentReview || resolveCalendarAppointmentReview;
   const updateOperatorTaskStatusImpl =
     deps.updateOperatorTaskStatus || updateOperatorTaskStatus;
   const updateOperatorContactLifecycleStateImpl =
@@ -1336,6 +1339,41 @@ export function createAgentRouter(deps = {}) {
       });
 
       res.json({ task });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/calendar/reviews/resolve", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await resolveCalendarAppointmentReviewImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        eventId: req.body.event_id || req.body.eventId,
+        resolution: req.body.resolution,
+        contactId: req.body.contact_id || req.body.contactId,
+        outcomeType: req.body.outcome_type || req.body.outcomeType,
+        note: req.body.note,
+      }, {
+        createManualFollowUpWorkflow: createManualFollowUpWorkflowImpl,
+        markManualConversionOutcome: markManualConversionOutcomeImpl,
+      });
+
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
