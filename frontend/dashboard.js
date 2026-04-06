@@ -3026,6 +3026,153 @@ function buildTodayDecisionCard({
   `;
 }
 
+function getOperatorContactDisplayLabel(contact = {}) {
+  return trimText(
+    contact.displayName
+    || contact.name
+    || contact.primaryEmail
+    || contact.email
+    || contact.primaryPhone
+    || contact.phone
+  );
+}
+
+function listAppointmentReviewContacts(reviewItem = {}, contacts = []) {
+  const currentContactId = trimText(reviewItem.linkedContactId);
+  const currentContactLabel = trimText(reviewItem.linkedContactName);
+  const options = [];
+  const seen = new Set();
+
+  if (currentContactId) {
+    options.push({
+      id: currentContactId,
+      label: currentContactLabel || "Linked contact",
+    });
+    seen.add(currentContactId);
+  }
+
+  (contacts || []).forEach((contact) => {
+    const contactId = trimText(contact.id);
+    const label = getOperatorContactDisplayLabel(contact);
+
+    if (!contactId || !label || seen.has(contactId)) {
+      return;
+    }
+
+    options.push({
+      id: contactId,
+      label,
+    });
+    seen.add(contactId);
+  });
+
+  return options.sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function buildAppointmentReviewOutcomeOptions(selectedOutcome = "booking_confirmed") {
+  const options = [
+    { value: "booking_confirmed", label: "booking confirmed" },
+    { value: "booking_started", label: "booking started" },
+    { value: "quote_requested", label: "quote requested" },
+    { value: "follow_up_replied", label: "follow-up successful" },
+    { value: "complaint_resolved", label: "complaint resolved" },
+  ];
+
+  return options.map((option) => `
+    <option value="${escapeHtml(option.value)}" ${option.value === selectedOutcome ? "selected" : ""}>${escapeHtml(option.label)}</option>
+  `).join("");
+}
+
+function buildAppointmentReviewCard(reviewItem = {}, contacts = [], agent = {}) {
+  const contactOptions = listAppointmentReviewContacts(reviewItem, contacts);
+  const selectedContactId = trimText(reviewItem.linkedContactId);
+  const attendeeOrContact = trimText(reviewItem.linkedContactName || reviewItem.attendeeLabel || "Unknown attendee");
+  const endedAt = reviewItem.endAt || reviewItem.startAt || null;
+  const linkState = selectedContactId ? "Linked" : "Unlinked";
+  const reviewReason = trimText(reviewItem.reviewReason || reviewItem.followUpReason || reviewItem.unlinkedReason)
+    || "This appointment ended recently and still needs an explicit owner resolution.";
+  const reviewImpact = trimText(reviewItem.reviewWhyItMatters)
+    || "Explicit review keeps follow-up, attribution, and outcomes grounded in real operator context.";
+  const hasContactOption = Boolean(selectedContactId || contactOptions.length);
+  const hasFollowUpTarget = Boolean(
+    trimText(reviewItem.linkedContactEmail)
+    || trimText(reviewItem.linkedContactPhone)
+    || trimText(Array.isArray(reviewItem.attendeeEmails) ? reviewItem.attendeeEmails[0] : "")
+  );
+  const selectedOutcome = trimText(reviewItem.appointmentReviewState?.outcomeType) || "booking_confirmed";
+
+  return `
+    <article class="today-decision-card appointment-review-card" data-appointment-review-card data-event-id="${escapeHtml(reviewItem.id || "")}">
+      <div class="today-decision-header">
+        <div>
+          <p class="today-decision-label">Ended appointment review</p>
+          <h4 class="today-decision-title">${escapeHtml(reviewItem.title || "Ended appointment")}</h4>
+        </div>
+        <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+      </div>
+      <div class="appointment-review-meta">
+        <div class="appointment-review-meta-item">
+          <p class="today-decision-label">Attendee / contact</p>
+          <p class="today-decision-copy">${escapeHtml(attendeeOrContact)}</p>
+        </div>
+        <div class="appointment-review-meta-item">
+          <p class="today-decision-label">Ended</p>
+          <p class="today-decision-copy">${escapeHtml(endedAt ? formatSeenAt(endedAt) : "Unknown")}</p>
+        </div>
+        <div class="appointment-review-meta-item">
+          <p class="today-decision-label">Link state</p>
+          <p class="today-decision-copy">${escapeHtml(linkState)}</p>
+        </div>
+      </div>
+      <div class="today-decision-body appointment-review-body">
+        <div class="today-decision-row">
+          <p class="today-decision-label">Why it needs review</p>
+          <p class="today-decision-copy">${escapeHtml(reviewReason)}</p>
+        </div>
+        <div class="today-decision-row">
+          <p class="today-decision-label">Why it matters</p>
+          <p class="today-decision-copy">${escapeHtml(reviewImpact)}</p>
+        </div>
+      </div>
+      <form class="appointment-review-form" data-appointment-review-form data-event-id="${escapeHtml(reviewItem.id || "")}">
+        <div class="appointment-review-field-grid">
+          <div class="field">
+            <label>Contact link</label>
+            <select name="contact_id">
+              <option value="">${escapeHtml(contactOptions.length ? "Choose a contact" : "No contact available yet")}</option>
+              ${contactOptions.map((option) => `
+                <option value="${escapeHtml(option.id)}" ${option.id === selectedContactId ? "selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+            <p class="field-help">${escapeHtml(
+              hasContactOption
+                ? "Use this when the attendee should be tied to a specific contact before follow-up or outcomes."
+                : "Sync or create a contact first if this appointment should be linked."
+            )}</p>
+          </div>
+          <div class="field">
+            <label>Outcome to record</label>
+            <select name="outcome_type">
+              ${buildAppointmentReviewOutcomeOptions(selectedOutcome)}
+            </select>
+            <p class="field-help">Record only what the owner explicitly confirmed from this appointment.</p>
+          </div>
+        </div>
+        <div class="field appointment-review-note">
+          <label>Owner note</label>
+          <textarea name="note" rows="3" placeholder="Add the context behind this review decision if it matters later.">${escapeHtml(reviewItem.appointmentReviewState?.note || "")}</textarea>
+        </div>
+        <div class="appointment-review-actions">
+          <button class="primary-button" type="button" data-appointment-review-action="prepare_follow_up" ${hasFollowUpTarget ? "" : "disabled"}>Prepare follow-up</button>
+          <button class="ghost-button" type="button" data-appointment-review-action="link_to_contact" ${hasContactOption ? "" : "disabled"}>Link to contact</button>
+          <button class="ghost-button" type="button" data-appointment-review-action="record_outcome">Record outcome</button>
+          <button class="ghost-button" type="button" data-appointment-review-action="no_action_needed">No action needed</button>
+        </div>
+      </form>
+    </article>
+  `;
+}
+
 function buildTodaySection({
   title = "",
   description = "",
@@ -3111,10 +3258,12 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   const briefing = operatorWorkspace.briefing || createEmptyOperatorWorkspace().briefing;
   const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
+  const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
   const contactsSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
   const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 2) : [];
+  const reviewItems = Array.isArray(calendar.reviewItems) ? calendar.reviewItems.slice(0, 3) : [];
   const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 2) : [];
   const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 2) : [];
   const dailySummary = operatorWorkspace.calendar?.dailySummary
@@ -3136,29 +3285,38 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
 
   const needsAttentionCards = [];
 
-  if (today.appointmentsNeedingFollowUp > 0 || followUpItems.length) {
-    const topFollowUp = followUpItems[0] || {};
+  if (today.appointmentsNeedingReview > 0 || reviewItems.length) {
+    if (reviewItems.length) {
+      reviewItems.forEach((reviewItem) => {
+        needsAttentionCards.push(buildAppointmentReviewCard(reviewItem, contactsList, agent));
+      });
+    } else if (today.appointmentsNeedingFollowUp > 0 || today.unlinkedAppointments > 0 || followUpItems.length || unlinkedItems.length) {
+      const topFallback = followUpItems[0] || unlinkedItems[0] || {};
+      needsAttentionCards.push(buildTodayDecisionCard({
+        title: "Ended appointment review",
+        badgeLabel: formatOperatorCount(
+          today.appointmentsNeedingReview || today.appointmentsNeedingFollowUp || today.unlinkedAppointments || 1,
+          "appointment"
+        ),
+        badgeTone: "Needs attention",
+        whatHappened: trimText(topFallback.reviewReason || topFallback.followUpReason || topFallback.unlinkedReason)
+          || "A recently ended appointment still needs an explicit owner resolution.",
+        whyItMatters: "Explicit review is what keeps schedule activity, follow-up, contact linking, and proof inside one approval-first loop.",
+        nextAction: "Open Calendar and choose the right resolution before the appointment drops out of context.",
+        actionMarkup: '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
+      }));
+    }
+  } else if (today.appointmentsNeedingFollowUp > 0 || today.unlinkedAppointments > 0 || followUpItems.length || unlinkedItems.length) {
+    const topFallback = followUpItems[0] || unlinkedItems[0] || {};
     needsAttentionCards.push(buildTodayDecisionCard({
-      title: "Follow-up gap",
-      badgeLabel: formatOperatorCount(today.appointmentsNeedingFollowUp || followUpItems.length, "appointment"),
+      title: "Ended appointment review",
+      badgeLabel: formatOperatorCount(today.appointmentsNeedingFollowUp || today.unlinkedAppointments || 1, "appointment"),
       badgeTone: "Needs attention",
-      whatHappened: trimText(topFollowUp.followUpReason) || `${formatOperatorCount(today.appointmentsNeedingFollowUp || followUpItems.length, "appointment")} ended without a clear next step.`,
-      whyItMatters: "When an appointment ends without a next step, ready demand can go stale and the proof loop stays open.",
-      nextAction: "Review the appointment context and decide whether to draft the follow-up or confirm the outcome.",
-      actionMarkup: buildTodayInsightActionButton(topFollowUp, "Review follow-up") || '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
-    }));
-  }
-
-  if (today.unlinkedAppointments > 0 || unlinkedItems.length) {
-    const topUnlinked = unlinkedItems[0] || {};
-    needsAttentionCards.push(buildTodayDecisionCard({
-      title: "Contact linking gap",
-      badgeLabel: formatOperatorCount(today.unlinkedAppointments || unlinkedItems.length, "appointment"),
-      badgeTone: "Needs attention",
-      whatHappened: trimText(topUnlinked.unlinkedReason) || `${formatOperatorCount(today.unlinkedAppointments || unlinkedItems.length, "appointment")} still has attendee data without a safe contact link.`,
-      whyItMatters: "Unlinked attendees break follow-up and outcome tracking across Today, Contacts, and Outcomes.",
-      nextAction: "Review the attendee and link it to the right contact before follow-up or proof gets fragmented.",
-      actionMarkup: buildTodayInsightActionButton(topUnlinked, "Review attendee") || '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
+      whatHappened: trimText(topFallback.followUpReason || topFallback.unlinkedReason)
+        || "A recently ended appointment still needs an explicit owner resolution.",
+      whyItMatters: "Explicit review is what keeps schedule activity, follow-up, contact linking, and proof inside one approval-first loop.",
+      nextAction: "Open Calendar and choose the right resolution before the appointment drops out of context.",
+      actionMarkup: '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
     }));
   }
 
@@ -4840,6 +4998,7 @@ function createEmptyOperatorWorkspace() {
       followUpsAwaitingApproval: 0,
       activeCampaigns: 0,
       upcomingBookings: 0,
+      appointmentsNeedingReview: 0,
       appointmentsNeedingFollowUp: 0,
       unlinkedAppointments: 0,
       nextEventTitle: "",
@@ -4913,6 +5072,7 @@ function createEmptyOperatorWorkspace() {
       dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
       missedBookingOpportunities: [],
       scheduleItems: [],
+      reviewItems: [],
       followUpItems: [],
       unlinkedItems: [],
       syncMode: "disconnected",
@@ -7269,6 +7429,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
   const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
   const canWrite = googleCapabilities.calendarWrite === true;
+  const reviewItems = Array.isArray(calendar.reviewItems) ? calendar.reviewItems : [];
   const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems : [];
   const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems : [];
 
@@ -7377,8 +7538,12 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
         ` : `
           <section class="workspace-card-soft">
             <h3 class="studio-group-title">Read-only calendar mode</h3>
-            <p class="workspace-panel-copy">Vonza is intentionally using read-only Calendar access in this pass. It can sync today’s schedule, spot follow-up gaps, and surface unlinked attendees, but it does not draft or approve calendar mutations here.</p>
-            <p class="analytics-subtle">${escapeHtml(`${formatOperatorCount(followUpItems.length, "recent appointment")} need follow-up review and ${formatOperatorCount(unlinkedItems.length, "appointment")} are still unlinked to contacts.`)}</p>
+            <p class="workspace-panel-copy">Vonza is intentionally using read-only Calendar access in this pass. It can sync today’s schedule, surface ended appointments that still need review, and flag unlinked attendees, but it does not draft or approve calendar mutations here.</p>
+            <p class="analytics-subtle">${escapeHtml(
+              reviewItems.length
+                ? `${formatOperatorCount(reviewItems.length, "recent appointment")} still need explicit review and ${formatOperatorCount(unlinkedItems.length, "appointment")} are still unlinked to contacts.`
+                : `${formatOperatorCount(followUpItems.length, "recent appointment")} need follow-up review and ${formatOperatorCount(unlinkedItems.length, "appointment")} are still unlinked to contacts.`
+            )}</p>
           </section>
         `}
 
@@ -8184,6 +8349,7 @@ function normalizeOperatorWorkspace(data = null) {
       events: normalizeOperatorArray(calendar.events, normalizeOperatorRecord),
       suggestedSlots: normalizeOperatorArray(calendar.suggestedSlots, normalizeOperatorRecord),
       scheduleItems: normalizeOperatorArray(calendar.scheduleItems, normalizeOperatorRecord),
+      reviewItems: normalizeOperatorArray(calendar.reviewItems, normalizeOperatorRecord),
       followUpItems: normalizeOperatorArray(calendar.followUpItems, normalizeOperatorRecord),
       unlinkedItems: normalizeOperatorArray(calendar.unlinkedItems, normalizeOperatorRecord),
       missedBookingOpportunities: normalizeOperatorArray(
@@ -9385,6 +9551,7 @@ function bindSharedDashboardEvents(
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
   const knowledgeFixStatusButtons = document.querySelectorAll("[data-knowledge-fix-status-action]");
   const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
+  const appointmentReviewButtons = document.querySelectorAll("[data-appointment-review-action]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
   const openInboxThreadButtons = document.querySelectorAll("[data-open-inbox-thread]");
   const openFollowUpButtons = document.querySelectorAll("[data-open-follow-up]");
@@ -9959,6 +10126,69 @@ function bindSharedDashboardEvents(
     }
   };
 
+  const resolveAppointmentReview = async (button) => {
+    const form = button.closest("[data-appointment-review-form]");
+
+    if (!form) {
+      return;
+    }
+
+    const resolution = trimText(button.dataset.appointmentReviewAction);
+    const formData = new FormData(form);
+    const actionButtons = form.querySelectorAll("[data-appointment-review-action]");
+    const eventId = form.dataset.eventId;
+    const statusCopy = {
+      prepare_follow_up: "Preparing appointment follow-up...",
+      link_to_contact: "Linking appointment to contact...",
+      record_outcome: "Recording appointment outcome...",
+      no_action_needed: "Resolving appointment review...",
+    };
+
+    actionButtons.forEach((actionButton) => {
+      actionButton.disabled = true;
+    });
+
+    setStatus(statusCopy[resolution] || "Resolving appointment review...");
+
+    try {
+      const result = await fetchJson("/agents/operator/calendar/reviews/resolve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          event_id: eventId,
+          resolution,
+          contact_id: trimText(formData.get("contact_id")),
+          outcome_type: trimText(formData.get("outcome_type")),
+          note: trimText(formData.get("note")),
+        }),
+      });
+
+      setActiveShellSection("overview");
+      if (result.alreadyResolved) {
+        setStatus("That appointment review was already resolved.");
+      } else if (resolution === "prepare_follow_up") {
+        setStatus("Appointment follow-up draft prepared.");
+      } else if (resolution === "link_to_contact") {
+        setStatus("Appointment linked to contact.");
+      } else if (resolution === "record_outcome") {
+        setStatus(result.outcome?.label ? `${result.outcome.label} recorded.` : "Appointment outcome recorded.");
+      } else {
+        setStatus("Appointment marked as no action needed.");
+      }
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't resolve that appointment review.");
+    } finally {
+      actionButtons.forEach((actionButton) => {
+        actionButton.disabled = false;
+      });
+    }
+  };
+
   const connectGoogleWorkspace = async () => {
     setStatus("Preparing Google Workspace connection...");
 
@@ -10290,6 +10520,12 @@ function bindSharedDashboardEvents(
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       await saveManualOutcome(form);
+    });
+  });
+
+  appointmentReviewButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await resolveAppointmentReview(button);
     });
   });
 

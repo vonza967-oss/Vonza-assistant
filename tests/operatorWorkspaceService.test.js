@@ -143,6 +143,9 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
     slots: [
       { label: "Mon, Apr 6, 11:00 AM" },
     ],
+    reviewItems: [
+      { id: "event-1" },
+    ],
     followUpItems: [
       { id: "event-1" },
     ],
@@ -154,7 +157,7 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
   assert.match(summary, /Morning booking/);
   assert.match(summary, /conflict/i);
   assert.match(summary, /complaint/i);
-  assert.match(summary, /recent appointment/i);
+  assert.match(summary, /still need review/i);
   assert.match(summary, /not linked to a contact/i);
   assert.match(summary, /11:00 AM/);
 });
@@ -174,6 +177,7 @@ test("empty operator workspace snapshot starts in a safe disabled state", () => 
   assert.equal(snapshot.connectedAccounts.length, 0);
   assert.equal(snapshot.capabilities.featureEnabled, false);
   assert.equal(snapshot.capabilities.persistenceAvailable, false);
+  assert.deepEqual(snapshot.calendar.reviewItems, []);
   assert.deepEqual(snapshot.alerts, []);
 });
 

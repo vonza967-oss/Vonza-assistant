@@ -119,24 +119,26 @@ test("copilot produces read-only answers, recommendations, and drafts from stabl
           actionLabel: "Open Contact",
         },
       ],
-      followUpItems: [
+      reviewItems: [
         {
           id: "event-2",
           title: "Quote review",
           followUpReason: "The appointment ended recently and no follow-up, task, or non-booking outcome is visible yet.",
+          reviewReason: "The appointment ended recently and no follow-up, task, or non-booking outcome is visible yet.",
           linkedContactId: "contact-1",
           linkedContactName: "Taylor Reed",
           linkedContactEmail: "taylor@example.com",
+          openFollowUpId: "",
           actionTargetSection: "contacts",
           actionTargetId: "contact-1",
           actionLabel: "Open Contact",
         },
-      ],
-      unlinkedItems: [
         {
           id: "event-3",
           title: "Site visit",
           unlinkedReason: "Jordan Lane is not linked to a contact yet, so follow-up and outcome tracking can fragment.",
+          reviewReason: "Jordan Lane is not linked to a contact yet, so follow-up and outcome tracking can fragment.",
+          isUnlinked: true,
           actionTargetSection: "calendar",
           actionTargetId: "event-3",
           actionLabel: "Open Calendar",
@@ -171,13 +173,13 @@ test("copilot produces read-only answers, recommendations, and drafts from stabl
   assert.ok(copilot.recommendations.some((recommendation) => recommendation.type === "support_risk_review"));
   assert.ok(copilot.recommendations.every((recommendation) => recommendation.writeBehavior === "recommendation_only"));
   assert.ok(copilot.recommendations.some((recommendation) => recommendation.targetSection));
+  assert.equal(copilot.recommendations.find((recommendation) => recommendation.type === "appointment_follow_up")?.proposal || null, null);
+  assert.equal(copilot.recommendations.find((recommendation) => recommendation.type === "unlinked_appointment")?.proposal || null, null);
   assert.equal(copilot.drafts[0].approvalRequired, true);
   assert.equal(copilot.drafts[0].writeBehavior, "draft_only");
   assert.match(copilot.drafts[0].subject, /following up after quote review/i);
-  assert.ok(copilot.drafts.some((draft) => draft.type === "task_proposal"));
+  assert.ok(copilot.drafts.every((draft) => draft.type !== "task_proposal"));
   assert.ok(copilot.proposals.some((proposal) => proposal.type === "create_follow_up_draft"));
-  assert.ok(copilot.proposals.some((proposal) => proposal.type === "create_outcome_review"));
-  assert.ok(copilot.proposals.some((proposal) => proposal.type === "create_operator_task"));
   assert.ok(copilot.proposals.every((proposal) => ["new", "blocked", "stale"].includes(proposal.state)));
   assert.equal(copilot.recommendedNextActionId.length > 0, true);
 });

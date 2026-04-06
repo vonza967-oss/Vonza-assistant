@@ -202,6 +202,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.inbox.threads), []);
   assert.deepEqual(Array.from(workspace.calendar.events), []);
   assert.deepEqual(Array.from(workspace.calendar.scheduleItems), []);
+  assert.deepEqual(Array.from(workspace.calendar.reviewItems), []);
   assert.deepEqual(Array.from(workspace.calendar.followUpItems), []);
   assert.deepEqual(Array.from(workspace.calendar.unlinkedItems), []);
   assert.deepEqual(Array.from(workspace.automations.tasks), []);
@@ -258,7 +259,7 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
       },
     ],
     calendar: {
-      dailySummary: "1 upcoming event, 1 recent appointment needs follow-up, and 1 attendee still needs contact linking.",
+      dailySummary: "1 upcoming event, 2 recent appointments still need review, and 1 attendee still needs contact linking.",
       events: [
         {
           id: "event-1",
@@ -284,6 +285,30 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
           actionLabel: "Open Contact",
         },
       ],
+      reviewItems: [
+        {
+          id: "event-2",
+          title: "Quote review",
+          endAt: "2026-04-05T11:30:00.000Z",
+          attendeeLabel: "Taylor Reed",
+          linkedContactId: "contact-1",
+          linkedContactName: "Taylor Reed",
+          linkedContactEmail: "taylor@example.com",
+          reviewReason: "The appointment ended recently and no follow-up, task, or non-booking outcome is visible yet.",
+          reviewWhyItMatters: "Explicit review is what closes the loop between schedule activity, the next owner action, and real business proof.",
+        },
+        {
+          id: "event-3",
+          title: "Site visit",
+          endAt: "2026-04-05T12:30:00.000Z",
+          attendeeLabel: "Jordan Lane",
+          linkedContactId: "",
+          linkedContactName: "",
+          reviewReason: "Jordan Lane is not linked to a contact yet, so follow-up and outcome tracking can fragment.",
+          reviewWhyItMatters: "Until the attendee is linked to the right person, follow-up, attribution, and outcomes can split across Today, Contacts, and Outcomes.",
+          isUnlinked: true,
+        },
+      ],
       followUpItems: [
         {
           id: "event-2",
@@ -307,6 +332,7 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
     },
     today: {
       upcomingBookings: 1,
+      appointmentsNeedingReview: 2,
       appointmentsNeedingFollowUp: 1,
       unlinkedAppointments: 1,
       openAvailabilityCount: 2,
@@ -322,8 +348,15 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Needs Attention/);
   assert.match(overview, /Today(?:&#39;|'|’)?s Schedule/);
-  assert.match(overview, /Follow-up gap/);
-  assert.match(overview, /Contact linking gap/);
+  assert.match(overview, /Ended appointment review/);
+  assert.match(overview, /Quote review/);
+  assert.match(overview, /Site visit/);
+  assert.match(overview, /Prepare follow-up/);
+  assert.match(overview, /Link to contact/);
+  assert.match(overview, /Record outcome/);
+  assert.match(overview, /No action needed/);
+  assert.doesNotMatch(overview, /Follow-up gap/);
+  assert.doesNotMatch(overview, /Contact linking gap/);
   assert.match(overview, /Daily calendar readout/);
   assert.match(overview, /Ready \/ Waiting/);
 

@@ -3037,6 +3037,50 @@ select:focus-visible,
   margin-top: 0;
 }
 
+.appointment-review-card {
+  gap: 16px;
+}
+
+.appointment-review-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.appointment-review-meta-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(199, 210, 224, 0.12);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.appointment-review-body {
+  gap: 12px;
+}
+
+.appointment-review-form {
+  display: grid;
+  gap: 14px;
+}
+
+.appointment-review-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.appointment-review-note textarea {
+  min-height: 96px;
+}
+
+.appointment-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .today-section-card-attention {
   background:
     radial-gradient(circle at top right, rgba(198, 155, 100, 0.12), transparent 28%),
@@ -3258,6 +3302,8 @@ select:focus-visible,
   .overview-grid,
   .operator-home-grid,
   .today-decision-grid,
+  .appointment-review-meta,
+  .appointment-review-field-grid,
   .overview-progress-row,
   .studio-layout,
   .form-grid.two-col,
