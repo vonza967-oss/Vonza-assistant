@@ -2199,7 +2199,9 @@ function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}
   ];
 
   return `
-    <div class="${navClass}">
+    <div class="settings-nav-shell">
+      <p class="settings-nav-heading">Categories</p>
+      <div class="${navClass}">
       ${sections.map((section) => `
         <button
           class="settings-nav-button ${activeSettingsSection === section.key ? "active" : ""}"
@@ -2211,6 +2213,7 @@ function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}
           <span class="settings-nav-note">${escapeHtml(section.note)}</span>
         </button>
       `).join("")}
+      </div>
     </div>
   `;
 }
@@ -3798,34 +3801,35 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
   ];
 
   return `
-    <form data-settings-form data-form-kind="business-context" class="workspace-card-soft settings-form-shell">
-      <div class="workspace-panel-header" id="business-context-setup">
+    <form data-settings-form data-form-kind="business-context" class="settings-form-shell settings-system-form">
+      <div class="settings-section-intro" id="business-context-setup">
         <div>
-          <p class="studio-kicker">Business context</p>
-          <h3 class="workspace-panel-title">Business context setup</h3>
-          <p class="workspace-panel-copy">Give Today and Copilot the real operator context they need: what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
+          <p class="studio-kicker">Business profile</p>
+          <h2 class="settings-section-title">Business profile</h2>
+          <p class="settings-section-copy">Business context setup for Today and Copilot: define what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
         </div>
-        <div class="workspace-badge-row">
+        <div class="settings-inline-meta">
           <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
           <span class="${getBadgeClass(profile.prefill?.available ? "Ready" : "Limited")}">${profile.prefill?.available ? "Safe suggestions loaded" : "No prefill available"}</span>
         </div>
       </div>
-      <div class="operator-home-grid">
-        <section class="operator-focus-card">
-          <p class="overview-label">Readiness</p>
-          <h3 class="operator-focus-title">${escapeHtml(profile.readiness?.completedSections || 0)} / ${escapeHtml(profile.readiness?.totalSections || 0)}</h3>
-          <p class="operator-focus-copy">${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</p>
-        </section>
-        <section class="operator-focus-card operator-briefing-card">
-          <p class="overview-label">Prefill review</p>
-          <p class="workspace-panel-copy">${escapeHtml(profile.prefill?.sourceSummary || "Website import suggestions are not available yet.")}</p>
-          <p class="analytics-subtle">${escapeHtml(profile.prefill?.available ? `${profile.prefill?.fieldCount || 0} fields were safely prefilled for review before save.` : "Run website import to unlock more grounded suggestions.")}</p>
-        </section>
+      <div class="settings-inline-note">
+        <strong>${escapeHtml(`${profile.readiness?.completedSections || 0} / ${profile.readiness?.totalSections || 0} sections ready`)}</strong>
+        <span>${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</span>
       </div>
-      <div class="studio-groups" style="margin-top:20px;">
-        <section class="studio-group">
-          <h3 class="studio-group-title">Core business facts</h3>
-          <p class="studio-group-copy">Keep this concise and operator-facing. This is not website copy; it is the working context Copilot should trust when it prepares approval-first proposals.</p>
+      <div class="settings-inline-note">
+        <strong>Prefill review</strong>
+        <span>${escapeHtml(profile.prefill?.available
+          ? `${profile.prefill?.fieldCount || 0} suggested fields are loaded for review. ${profile.prefill?.sourceSummary || ""}`.trim()
+          : profile.prefill?.sourceSummary || "Website import suggestions are not available yet. Run website import to unlock more grounded suggestions.")}</span>
+      </div>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Core business facts</h3>
+            <p class="settings-form-section-copy">Keep this concise and operator-facing. This is not website copy; it is the working context Copilot should trust when it prepares approval-first proposals.</p>
+          </div>
+        </div>
           <div class="form-grid">
             <div class="field">
               <label for="business-summary">Business summary</label>
@@ -3864,11 +3868,15 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
               <p class="field-help">One schedule line at a time. Format: &#96;Day or range | hours&#96;.</p>
             </div>
           </div>
-        </section>
+      </section>
 
-        <section class="studio-group">
-          <h3 class="studio-group-title">Approved owner paths</h3>
-          <p class="studio-group-copy">Copilot should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Approved owner paths</h3>
+            <p class="settings-form-section-copy">Copilot should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
+          </div>
+        </div>
           <div class="form-grid two-col">
             <div class="field">
               <label>Approved contact channels</label>
@@ -3914,12 +3922,11 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
               </div>
             </div>
           </div>
-        </section>
+      </section>
 
-        <div class="studio-save-row">
-          <button class="primary-button" type="submit">Save business context</button>
-          <span data-save-state class="save-state">No changes yet.</span>
-        </div>
+      <div class="settings-save-row">
+        <button class="primary-button" type="submit">Save business context</button>
+        <span data-save-state class="save-state">No changes yet.</span>
       </div>
     </form>
   `;
@@ -3932,18 +3939,24 @@ function buildFrontDeskSettingsForm(agent, setup) {
   const advancedGuidanceVisible = isCapabilityExplicitlyVisible("advanced_guidance");
 
   return `
-    <form data-settings-form data-form-kind="customize" class="settings-form-shell">
+    <form data-settings-form data-form-kind="customize" class="settings-form-shell settings-system-form">
       <div class="settings-section-intro">
         <p class="studio-kicker">Front Desk</p>
         <h2 class="settings-section-title">Front desk behavior</h2>
         <p class="settings-section-copy">Adjust how the customer-facing front desk sounds, routes, and learns from the website. This page keeps live behavior settings grouped together instead of burying them inside the workflow shell.</p>
+        <div class="settings-inline-meta">
+          <span class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
+          <span class="${getBadgeClass(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeState === "ready" ? "Knowledge ready" : setup.knowledgeState === "limited" ? "Knowledge limited" : "Knowledge missing")}</span>
+        </div>
       </div>
-      <div class="studio-layout">
-        <div class="studio-groups">
-          <section class="studio-group">
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
             <p class="studio-kicker">Identity and welcome</p>
-            <h3 class="studio-group-title">Set the first impression customers meet.</h3>
-            <p class="studio-group-copy">Keep this customer-facing. The goal is a front desk that feels native to the business from the first interaction.</p>
+            <h3 class="settings-form-section-title">Set the first impression customers meet.</h3>
+            <p class="settings-form-section-copy">Keep this customer-facing. The goal is a front desk that feels native to the business from the first interaction.</p>
+          </div>
+        </div>
             <div class="form-grid two-col">
               <div class="field">
                 <label for="assistant-name">Assistant name</label>
@@ -3974,11 +3987,15 @@ function buildFrontDeskSettingsForm(agent, setup) {
                 <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
               </div>
             </div>
-          </section>
+      </section>
 
-          <section class="studio-group">
-            <h3 class="studio-group-title">Routing and handoff</h3>
-            <p class="studio-group-copy">Tell Vonza where high-intent visitors should go when the right next step is to book, request a quote, contact the business, or buy now.</p>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Routing and handoff</h3>
+            <p class="settings-form-section-copy">Tell Vonza where high-intent visitors should go when the right next step is to book, request a quote, contact the business, or buy now.</p>
+          </div>
+        </div>
             <div class="form-grid two-col">
               <div class="field">
                 <label for="assistant-primary-cta-mode">Primary CTA mode</label>
@@ -4079,11 +4096,15 @@ function buildFrontDeskSettingsForm(agent, setup) {
                 <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
               </div>
             </div>
-          </section>
+      </section>
 
-          <section class="studio-group">
-            <h3 class="studio-group-title">Website knowledge and brand</h3>
-            <p class="studio-group-copy">Keep the front desk aligned with the brand your customers already know, and rerun import when the website changes.</p>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Website knowledge and brand</h3>
+            <p class="settings-form-section-copy">Keep the front desk aligned with the brand your customers already know, and rerun import when the website changes.</p>
+          </div>
+        </div>
             <div class="form-grid two-col">
               <div class="field">
                 <label for="assistant-primary-color">Primary color</label>
@@ -4097,13 +4118,20 @@ function buildFrontDeskSettingsForm(agent, setup) {
             <div class="inline-actions">
               <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
             </div>
-            <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
-          </section>
+            <div class="settings-inline-note">
+              <strong>Website knowledge</strong>
+              <span>${escapeHtml(setup.knowledgeDescription)}</span>
+            </div>
+      </section>
 
           ${advancedGuidanceVisible ? `
-            <section class="studio-group secondary">
-              <h3 class="studio-group-title">Advanced guidance</h3>
-              <p class="studio-group-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
+            <section class="settings-form-section">
+              <div class="settings-form-section-header">
+                <div>
+                  <h3 class="settings-form-section-title">Advanced guidance</h3>
+                  <p class="settings-form-section-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
+                </div>
+              </div>
               <div class="form-grid">
                 <div class="field">
                   <label for="assistant-instructions">Advanced guidance</label>
@@ -4113,14 +4141,14 @@ function buildFrontDeskSettingsForm(agent, setup) {
             </section>
           ` : ""}
 
-          <div class="studio-save-row">
-            <button class="primary-button" type="submit">Save front desk settings</button>
-            <span data-save-state class="save-state">No changes yet.</span>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Live summary</h3>
+            <p class="settings-form-section-copy">Review the current customer-facing readout before you save. This stays in the same settings flow instead of living in a separate dashboard card.</p>
           </div>
         </div>
-
-        <aside class="studio-summary">
-          <p class="studio-summary-label">Live summary</p>
+        <div class="settings-live-summary">
           <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name)}</h3>
           <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
           <div class="studio-summary-badge-row">
@@ -4145,7 +4173,12 @@ function buildFrontDeskSettingsForm(agent, setup) {
               <p id="behavior-summary-copy" class="overview-list-copy">${escapeHtml(behaviorSummary.copy)}</p>
             </div>
           </div>
-        </aside>
+        </div>
+      </section>
+
+      <div class="settings-save-row">
+        <button class="primary-button" type="submit">Save front desk settings</button>
+        <span data-save-state class="save-state">No changes yet.</span>
       </div>
     </form>
   `;
@@ -4166,57 +4199,83 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
       : "This workspace is running without the optional Google-connected extensions.";
 
   return `
-    <div class="settings-panel-stack">
-      <section class="workspace-card-soft">
-        <div class="settings-section-intro">
-          <p class="studio-kicker">Connected tools</p>
-          <h2 class="settings-section-title">Connected tools</h2>
-          <p class="settings-section-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
+    <div class="settings-form-shell">
+      <div class="settings-section-intro">
+        <p class="studio-kicker">Connected tools</p>
+        <h2 class="settings-section-title">Connected tools</h2>
+        <p class="settings-section-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
+      </div>
+
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Google workspace connection</h3>
+            <p class="settings-form-section-copy">Manage the real Google connection that powers Inbox, Calendar, and optional operator extensions.</p>
+          </div>
         </div>
-        <div class="settings-summary-grid">
-          <article class="settings-summary-card">
-            <p class="overview-label">Google workspace</p>
-            <h3 class="settings-summary-title">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available" : "Unavailable")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
-            <div class="inline-actions">
+        <div class="settings-status-list">
+          <div class="settings-status-row settings-status-row-actions">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Account</p>
+              <h4 class="settings-status-value">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available to connect" : "Unavailable on this deployment")}</h4>
+              <p class="settings-status-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
+            </div>
+            <div class="settings-status-actions">
               <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
               <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Refresh sync</button>
             </div>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Calendar mode</p>
-            <h3 class="settings-summary-title">${escapeHtml(canWriteCalendar ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(calendarMode)}</p>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Inbox and automations</p>
-            <h3 class="settings-summary-title">${escapeHtml(googleCapabilities.gmailRead ? "Email connected" : "Email not connected")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(googleCapabilities.gmailRead
-              ? "Inbox and approval-first email work can appear in the connected workspace surfaces."
-              : "Inbox stays hidden until Gmail read access is available. Automations stay honest about the missing connection.")}</p>
-          </article>
+          </div>
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Calendar mode</p>
+              <h4 class="settings-status-value">${escapeHtml(canWriteCalendar ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected")}</h4>
+              <p class="settings-status-copy">${escapeHtml(calendarMode)}</p>
+            </div>
+          </div>
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Connection scope</p>
+              <h4 class="settings-status-value">${escapeHtml(googleCapabilities.gmailRead ? "Inbox and email work enabled" : "Email surfaces unavailable")}</h4>
+              <p class="settings-status-copy">${escapeHtml(googleCapabilities.gmailRead
+                ? "Inbox and approval-first email work can appear in the connected workspace surfaces."
+                : "Inbox stays hidden until Gmail read access is available. Automations stay honest about the missing connection.")}</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="workspace-card-soft">
-        <h3 class="studio-group-title">What each extension adds</h3>
-        <p class="studio-group-copy">Connected tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
-        <div class="settings-summary-grid">
-          <article class="settings-summary-card">
-            <p class="overview-label">Inbox</p>
-            <h3 class="settings-summary-title">Approval-first replies</h3>
-            <p class="settings-summary-copy">Recent Gmail threads, reply drafts, and complaint recovery work show up here only when the mailbox connection is ready.</p>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Calendar</p>
-            <h3 class="settings-summary-title">Schedule context</h3>
-            <p class="settings-summary-copy">Vonza can surface today’s schedule, follow-up gaps, and event drafts without silently mutating the owner calendar.</p>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Automations</p>
-            <h3 class="settings-summary-title">Draft-first workflows</h3>
-            <p class="settings-summary-copy">Campaigns, follow-ups, and operator tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
-          </article>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Connected surfaces</h3>
+            <p class="settings-form-section-copy">These tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
+          </div>
+        </div>
+        <div class="settings-key-value-list">
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Inbox</p>
+              <h4 class="settings-key-value-title">Approval-first replies</h4>
+              <p class="settings-key-value-copy">Recent Gmail threads, reply drafts, and complaint recovery work show up here only when the mailbox connection is ready.</p>
+            </div>
+            <span class="${getBadgeClass(googleCapabilities.gmailRead ? "Ready" : "Pending")}">${escapeHtml(googleCapabilities.gmailRead ? "Connected" : "Not connected")}</span>
+          </div>
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Calendar</p>
+              <h4 class="settings-key-value-title">Schedule context</h4>
+              <p class="settings-key-value-copy">Vonza can surface today’s schedule, follow-up gaps, and event drafts without silently mutating the owner calendar.</p>
+            </div>
+            <span class="${getBadgeClass(primaryAccount?.status === "connected" ? "Ready" : "Pending")}">${escapeHtml(primaryAccount?.status === "connected" ? "Available" : "Waiting for connection")}</span>
+          </div>
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Automations</p>
+              <h4 class="settings-key-value-title">Draft-first workflows</h4>
+              <p class="settings-key-value-copy">Campaigns, follow-ups, and operator tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
+            </div>
+            <span class="${getBadgeClass(status.googleConfigReady ? "Limited" : "Pending")}">${escapeHtml(status.googleConfigReady ? "Connection-dependent" : "Unavailable")}</span>
+          </div>
         </div>
       </section>
     </div>
@@ -4229,50 +4288,77 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
   const accessStatus = normalizeAccessStatus(agent.accessStatus);
 
   return `
-    <div class="settings-panel-stack">
-      <section class="workspace-card-soft">
-        <div class="settings-section-intro">
-          <p class="studio-kicker">Workspace</p>
-          <h2 class="settings-section-title">Workspace status</h2>
-          <p class="settings-section-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
+    <div class="settings-form-shell">
+      <div class="settings-section-intro">
+        <p class="studio-kicker">Workspace</p>
+        <h2 class="settings-section-title">Workspace</h2>
+        <p class="settings-section-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
+      </div>
+
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Current workspace status</h3>
+            <p class="settings-form-section-copy">Review the access, launch mode, and install posture that shape how this workspace behaves today.</p>
+          </div>
         </div>
-        <div class="settings-summary-grid">
-          <article class="settings-summary-card">
-            <p class="overview-label">Access</p>
-            <h3 class="settings-summary-title">${escapeHtml(accessStatus)}</h3>
-            <p class="settings-summary-copy">Billing and access are currently managed through secure checkout and workspace activation, not through a separate in-app billing center in this pass.</p>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Workspace mode</p>
-            <h3 class="settings-summary-title">${escapeHtml(workspaceMode.title)}</h3>
-            <p class="settings-summary-copy">${escapeHtml(workspaceMode.copy)}</p>
-          </article>
-          <article class="settings-summary-card">
-            <p class="overview-label">Install visibility</p>
-            <h3 class="settings-summary-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(setup.isReady
-              ? "The front desk is configured well enough to move into live install and verification."
-              : "Finish the front-desk basics before treating install as complete.")}</p>
-          </article>
+        <div class="settings-status-list">
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Access</p>
+              <h4 class="settings-status-value">${escapeHtml(accessStatus)}</h4>
+              <p class="settings-status-copy">Billing and access are currently managed through secure checkout and workspace activation, not through a separate in-app billing center in this pass.</p>
+            </div>
+          </div>
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Workspace mode</p>
+              <h4 class="settings-status-value">${escapeHtml(workspaceMode.title)}</h4>
+              <p class="settings-status-copy">${escapeHtml(workspaceMode.copy)}</p>
+            </div>
+          </div>
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Install visibility</p>
+              <h4 class="settings-status-value">${escapeHtml(installStatus.label || "Not installed yet")}</h4>
+              <p class="settings-status-copy">${escapeHtml(setup.isReady
+                ? "The front desk is configured well enough to move into live install and verification."
+                : "Finish the front-desk basics before treating install as complete.")}</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="workspace-card-soft">
-        <h3 class="studio-group-title">What is intentionally not self-serve here yet</h3>
-        <p class="studio-group-copy">This first shell pass is focused on navigation and information architecture. Billing management, deeper access controls, and broader workspace preferences are intentionally surfaced as status only until the product supports them cleanly.</p>
-        <div class="overview-list">
-          <div class="overview-list-item">
-            <p class="overview-list-title">Billing management</p>
-            <p class="overview-list-copy">Billing still lives in hosted checkout and access activation flow. There is no fake billing settings form here.</p>
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Operator boundaries</h3>
+            <p class="settings-form-section-copy">Keep the product honest about what is and is not self-serve today.</p>
           </div>
-          <div class="overview-list-item">
-            <p class="overview-list-title">Workspace preferences</p>
-            <p class="overview-list-copy">This pass creates the shell for preferences, but avoids pretending there are extra backend preference systems when they are not implemented yet.</p>
+        </div>
+        <div class="settings-key-value-list">
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Billing management</p>
+              <p class="settings-key-value-copy">Billing still lives in hosted checkout and access activation flow. There is no fake billing settings form here.</p>
+            </div>
           </div>
-          <div class="overview-list-item">
-            <p class="overview-list-title">Access controls</p>
-            <p class="overview-list-copy">Owner access, auth, and activation remain preserved exactly as they already work in the product.</p>
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Workspace preferences</p>
+              <p class="settings-key-value-copy">This pass creates the shell for preferences, but avoids pretending there are extra backend preference systems when they are not implemented yet.</p>
+            </div>
           </div>
+          <div class="settings-key-value-row">
+            <div class="settings-key-value-main">
+              <p class="settings-key-value-label">Access controls</p>
+              <p class="settings-key-value-copy">Owner access, auth, and activation remain preserved exactly as they already work in the product.</p>
+            </div>
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
+          <button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>
         </div>
       </section>
     </div>
@@ -4289,14 +4375,6 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
         title: "Settings",
         copy: "Organize business context, front-desk behavior, connected tools, and honest workspace status in one clear settings shell.",
         actionsMarkup: `<button class="primary-button" type="button" data-shell-target="customize">Open Front Desk</button>`,
-      })}
-      ${buildPageToolbar({
-        filtersMarkup: buildLocalSectionNav([
-          { key: "business", label: "Business profile" },
-          { key: "front_desk", label: "Front Desk" },
-          { key: "connected_tools", label: "Connected tools" },
-          { key: "workspace", label: "Workspace" },
-        ], { attribute: "data-settings-target", activeKey: activeSettingsSection }),
       })}
       <div class="workspace-page-body settings-layout">
         <aside class="settings-sidebar">
