@@ -1558,6 +1558,163 @@ button:disabled {
   background: rgba(255, 255, 255, 0.022);
 }
 
+.frontdesk-main-panel {
+  gap: 24px;
+  padding: 24px 26px;
+  border-radius: 24px;
+  border-color: rgba(148, 163, 184, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
+    rgba(9, 13, 24, 0.9);
+  box-shadow: 0 24px 48px rgba(4, 8, 20, 0.2);
+}
+
+.frontdesk-section-intro,
+.frontdesk-readiness-head,
+.frontdesk-step-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.frontdesk-section-title {
+  margin: 0;
+  color: white;
+  font-size: clamp(1.35rem, 2.4vw, 1.65rem);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+
+.frontdesk-section-copy,
+.frontdesk-readiness-copy,
+.frontdesk-detail-copy,
+.frontdesk-step-copy,
+.frontdesk-support-copy {
+  margin: 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.frontdesk-section-copy {
+  margin-top: 8px;
+  max-width: 760px;
+}
+
+.frontdesk-section-actions,
+.frontdesk-readiness-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.frontdesk-section-divider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.frontdesk-readiness-list,
+.frontdesk-detail-stack,
+.frontdesk-step-list {
+  display: grid;
+  gap: 18px;
+}
+
+.frontdesk-readiness-item,
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.frontdesk-readiness-item {
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.frontdesk-readiness-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.frontdesk-detail-block {
+  display: grid;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.frontdesk-detail-block:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.frontdesk-detail-kicker,
+.frontdesk-detail-row-label,
+.frontdesk-step-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.frontdesk-detail-title,
+.frontdesk-support-title,
+.frontdesk-preview-frame-title,
+.frontdesk-step-title {
+  margin: 0;
+  color: white;
+}
+
+.frontdesk-detail-title,
+.frontdesk-step-title {
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.frontdesk-detail-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.frontdesk-detail-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.72fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.frontdesk-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.frontdesk-detail-row-value {
+  color: white;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(255, 255, 255, 0.028);
+}
+
 .today-main-header,
 .flat-section-header,
 .contacts-list-header,
@@ -2930,7 +3087,7 @@ button:disabled {
 .preview-header {
   display: grid;
   gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: 0;
 }
 
 .preview-status-row {
@@ -2957,7 +3114,7 @@ button:disabled {
 }
 
 .preview-warning {
-  margin-top: 10px;
+  margin: 0;
   color: #fde68a;
   font-size: 13px;
   line-height: 1.6;
@@ -3457,20 +3614,34 @@ button:disabled {
   .results-list-item,
   .settings-form-section-header,
   .settings-status-row,
-  .settings-key-value-row {
+  .settings-key-value-row,
+  .frontdesk-section-intro,
+  .frontdesk-readiness-head,
+  .frontdesk-step-head {
     flex-direction: column;
     align-items: stretch;
   }
 
   .workspace-context-actions,
   .page-header-actions,
-  .page-toolbar-actions {
+  .page-toolbar-actions,
+  .frontdesk-section-actions,
+  .frontdesk-readiness-actions {
     justify-content: flex-start;
   }
 
   .today-queue-row,
   .contact-row {
     grid-template-columns: 1fr;
+  }
+
+  .frontdesk-main-panel {
+    padding: 22px 20px;
+  }
+
+  .frontdesk-detail-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .appointment-review-panel-meta,

@@ -629,6 +629,60 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, /Search contacts/);
 });
 
+test("front desk workspace uses focused sub-navigation and one dominant panel", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.setActiveFrontDeskSection("launch");
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    businessProfile: {
+      readiness: {
+        summary: "Service areas and approvals are filled in, but pricing still needs owner review.",
+        missingCount: 1,
+      },
+    },
+  });
+
+  const panel = harness.buildFrontDeskPanel(
+    {
+      publicAgentKey: "agent-key",
+      buttonLabel: "Ask us",
+      primaryCtaMode: "booking",
+      websiteUrl: "https://acme.example",
+      tone: "professional",
+      systemPrompt: "Keep replies concise and route bookings quickly.",
+      installId: "install-123",
+    },
+    {
+      personalityReady: true,
+      knowledgeReady: false,
+      knowledgeLimited: true,
+      knowledgeState: "limited",
+      knowledgeDescription: "Website knowledge is usable, but still needs another review pass before launch.",
+      knowledgePageCount: 5,
+      isReady: false,
+    },
+    workspace
+  );
+
+  assert.match(panel, /Knowledge \/ Context/);
+  assert.match(panel, /Install \/ Launch/);
+  assert.match(panel, /Open settings/);
+  assert.match(panel, /Try front desk/);
+  assert.match(panel, /Review business context/);
+  assert.match(panel, /Open install/);
+  assert.match(panel, /What got moved out of the way/);
+  assert.match(panel, /Configuration depth stays in Settings/);
+  assert.match(panel, /data-frontdesk-section="launch"/);
+  assert.match(panel, /frontdesk-main-panel/);
+  assert.doesNotMatch(panel, /settings-summary-grid/);
+  assert.doesNotMatch(panel, /frontdesk-context-grid/);
+});
+
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
   const harness = createDashboardHarness({
     windowFlags: {

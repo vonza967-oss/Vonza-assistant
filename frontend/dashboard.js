@@ -11,6 +11,7 @@ const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_SETTINGS_SECTION_KEY = "vonza_dashboard_settings_section";
+const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const LAUNCH_STEPS = [
@@ -39,6 +40,7 @@ const trackedEventKeys = new Set();
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const SETTINGS_SECTIONS = ["business", "front_desk", "connected_tools", "workspace"];
+const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -954,6 +956,24 @@ function setActiveSettingsSection(section) {
   }
 
   window.localStorage.setItem(DASHBOARD_SETTINGS_SECTION_KEY, section);
+}
+
+function getActiveFrontDeskSection() {
+  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_FRONTDESK_SECTION_KEY)).toLowerCase();
+
+  if (FRONT_DESK_SECTIONS.includes(storedSection)) {
+    return storedSection;
+  }
+
+  return "overview";
+}
+
+function setActiveFrontDeskSection(section) {
+  if (!FRONT_DESK_SECTIONS.includes(section)) {
+    return;
+  }
+
+  window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, section);
 }
 
 function setStatus(message) {
@@ -4405,11 +4425,13 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
 function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
+  const activeFrontDeskSection = getActiveFrontDeskSection();
+  const hasPreview = Boolean(trimText(agent.publicAgentKey));
   const frontDeskSections = [
     { key: "overview", label: "Overview" },
     { key: "preview", label: "Preview" },
-    { key: "context", label: "Context" },
-    { key: "launch", label: "Launch" },
+    { key: "context", label: "Knowledge / Context" },
+    { key: "launch", label: "Install / Launch" },
   ];
   const readinessItems = [
     {
@@ -4418,11 +4440,13 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         ? "Name, welcome message, and tone are in place."
         : "The front desk still needs its name, welcome message, or tone tightened up.",
       tone: setup.personalityReady ? "Ready" : "Limited",
+      actionMarkup: `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit setup</button>`,
     },
     {
       title: "Website knowledge",
       copy: setup.knowledgeDescription,
       tone: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
+      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="context">Review knowledge</button>`,
     },
     {
       title: "Live install",
@@ -4431,96 +4455,200 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         ? "Ready"
         : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
           ? "Needs attention"
-          : installStatus.state === "installed_unseen"
+        : installStatus.state === "installed_unseen"
             ? "Limited"
             : "Pending",
+      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="launch">Review launch</button>`,
     },
   ];
   const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
-  const actionsMarkup = trimText(agent.publicAgentKey)
+  const overviewPrimaryAction = hasPreview
     ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
-    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>`;
+    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open Front Desk settings</button>`;
+  const businessContextSummary = businessReadiness.summary || "Business context readiness will appear here once the owner starts reviewing the profile.";
+  const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
+    ? `${businessReadiness.missingCount} area${businessReadiness.missingCount === 1 ? "" : "s"} still need owner review before the front desk has stronger grounding.`
+    : "Business context is in a healthy state for approval-first operator work.";
+  const launchHeadline = setup.isReady ? "Move from preview into a live launch." : "Finish the launch-critical pieces before you publish.";
+  const launchCopy = setup.isReady
+    ? "Launch keeps the handoff clear: confirm the experience, move into Install, and verify that the live site is actually sending traffic back."
+    : "Launch stays available as the handoff path, but the work here remains focused on what still blocks install and verification.";
+  const liveVerificationLabel = isInstallSeen(installStatus)
+    ? "Live traffic confirmed"
+    : isInstallDetected(installStatus)
+      ? "Snippet installed, traffic still pending"
+      : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+        ? "Verification needs attention"
+        : "Not live yet";
+  const pageHeaderActions = `
+    <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
+  `;
 
   return `
     <section class="workspace-page" data-shell-section="customize" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Front Desk",
-        copy: "Preview the customer-facing experience, confirm launch readiness, and keep deeper configuration in Settings instead of piling it into the main workflow.",
-        badges: readinessItems.map((item) => ({ label: item.title, tone: item.tone })),
-        actionsMarkup,
+        copy: "Run the customer-facing front desk from one focused workspace: check readiness, test the experience, review grounding, and move into launch without turning the page into a dashboard.",
+        actionsMarkup: pageHeaderActions,
       })}
       ${buildPageToolbar({
-        filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: "overview" }),
-        actionsMarkup: `
-          <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit behavior</button>
-          ${trimText(agent.publicAgentKey)
-            ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open preview</a>`
-            : ""}
-        `,
+        filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: activeFrontDeskSection }),
       })}
       <div class="workspace-page-body">
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="overview">
-          <div class="workspace-panel-header">
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="overview" ${activeFrontDeskSection === "overview" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
             <div>
-              <p class="studio-kicker">Workspace overview</p>
-              <h3 class="workspace-panel-title">What is ready, what still needs review, and what comes next.</h3>
-              <p class="workspace-panel-copy">This surface stays focused on readiness, preview, and launch posture. Deeper edits live in Settings.</p>
+              <p class="studio-kicker">Overview</p>
+              <h2 class="frontdesk-section-title">Keep the Front Desk centered on readiness and the next safe move.</h2>
+              <p class="frontdesk-section-copy">Overview stays intentionally narrow: it shows the current posture of the front desk, points you to the right subsection, and keeps deeper behavior changes inside Settings.</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              ${overviewPrimaryAction}
             </div>
           </div>
-          <div class="settings-summary-grid">
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-readiness-list">
             ${readinessItems.map((item) => `
-              <article class="settings-summary-card">
-                <p class="overview-label">${escapeHtml(item.title)}</p>
-                <h3 class="settings-summary-title">${escapeHtml(item.tone === "Ready" ? "Ready" : item.tone === "Limited" ? "Needs review" : item.tone === "Needs attention" ? "Needs attention" : "Not ready")}</h3>
-                <p class="settings-summary-copy">${escapeHtml(item.copy)}</p>
+              <article class="frontdesk-readiness-item">
+                <div class="frontdesk-readiness-head">
+                  <div>
+                    <p class="frontdesk-detail-kicker">${escapeHtml(item.title)}</p>
+                    <h3 class="frontdesk-detail-title">${escapeHtml(item.tone === "Ready" ? "Ready" : item.tone === "Limited" ? "Needs review" : item.tone === "Needs attention" ? "Needs attention" : "Not ready")}</h3>
+                  </div>
+                  <span class="${getBadgeClass(item.tone)}">${escapeHtml(item.tone)}</span>
+                </div>
+                <p class="frontdesk-readiness-copy">${escapeHtml(item.copy)}</p>
+                <div class="frontdesk-readiness-actions">
+                  ${item.actionMarkup}
+                </div>
               </article>
             `).join("")}
           </div>
+          <div class="frontdesk-support-note">
+            <p class="frontdesk-support-title">What got moved out of the way</p>
+            <p class="frontdesk-support-copy">Configuration depth stays in Settings. Front Desk now owns only the live workspace flow: readiness, preview, grounding, and launch handoff.</p>
+          </div>
         </section>
 
-        <section class="frontdesk-workspace-panel frontdesk-preview-shell" data-frontdesk-section="preview" hidden>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-preview-shell" data-frontdesk-section="preview" ${activeFrontDeskSection === "preview" ? "" : "hidden"}>
           ${buildPreviewSection(agent, setup)}
         </section>
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="context" hidden>
-          <div class="frontdesk-context-grid">
-            <section class="support-panel">
-              <p class="support-panel-kicker">Current behavior</p>
-              <h3 class="support-panel-title">${escapeHtml(behaviorSummary.title)}</h3>
-              <div class="support-list">
-                <div class="support-list-item"><strong>Launcher</strong><p>${escapeHtml(agent.buttonLabel || "Chat")}</p></div>
-                <div class="support-list-item"><strong>Primary route</strong><p>${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</p></div>
-                <div class="support-list-item"><strong>Website</strong><p>${escapeHtml(agent.websiteUrl || "No website configured")}</p></div>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
+            <div>
+              <p class="studio-kicker">Knowledge / Context</p>
+              <h2 class="frontdesk-section-title">Ground the front desk in what your business actually does.</h2>
+              <p class="frontdesk-section-copy">This section keeps website knowledge, behavior summary, and business context in one reading path so the front desk feels trustworthy before launch.</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              <button class="primary-button" type="button" data-shell-target="settings" data-settings-target="business">Review business context</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit Front Desk behavior</button>
+            </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-detail-stack">
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Website knowledge</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(formatKnowledgeState(setup.knowledgeState))}</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(setup.knowledgeDescription)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Website</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(agent.websiteUrl || "No website configured")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Imported pages</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported` : "No imported pages yet")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Launch impact</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgeReady ? "Knowledge is ready for launch." : setup.knowledgeLimited ? "Launch is possible, but answers still need review." : "Knowledge still needs a first solid import.")}</strong>
+                </div>
               </div>
             </section>
-            <section class="support-panel">
-              <p class="support-panel-kicker">Business context</p>
-              <h3 class="support-panel-title">Grounding status</h3>
-              <p class="support-panel-copy">${escapeHtml(businessReadiness.summary || "Business context readiness will appear here.")}</p>
-              <p class="analytics-subtle">${escapeHtml(businessReadiness.missingCount
-                ? `${businessReadiness.missingCount} areas still need owner review before Copilot has stronger grounding.`
-                : "Business context is in a healthy state for approval-first operator work.")}</p>
-              <div class="inline-actions">
-                <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="business">Business profile</button>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Front Desk behavior</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(behaviorSummary.title)}</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(behaviorSummary.copy)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Launcher</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(agent.buttonLabel || "Chat")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Primary route</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Advanced guidance</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.systemPrompt) ? "Added" : "Not added yet")}</strong>
+                </div>
+              </div>
+            </section>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Business context</p>
+              <h3 class="frontdesk-detail-title">Grounding status</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(businessContextSummary)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Owner review</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(businessContextStatus)}</strong>
+                </div>
               </div>
             </section>
           </div>
         </section>
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="launch" hidden>
-          <div class="frontdesk-context-grid">
-            <section class="support-panel">
-              <p class="support-panel-kicker">Install status</p>
-              <h3 class="support-panel-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
-              <p class="support-panel-copy">${escapeHtml(setup.knowledgeDescription)}</p>
-            </section>
-            <section class="support-panel">
-              <p class="support-panel-kicker">Launch handoff</p>
-              <h3 class="support-panel-title">${escapeHtml(setup.isReady ? "Move into install" : "Finish setup first")}</h3>
-              <p class="support-panel-copy">${escapeHtml(setup.isReady ? "The front desk is ready for the cleaner utility flow in Install." : "Complete behavior and grounding work before you publish.")}</p>
-              <div class="inline-actions">
-                <button class="primary-button" type="button" data-shell-target="install">Open install</button>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
+            <div>
+              <p class="studio-kicker">Install / Launch</p>
+              <h2 class="frontdesk-section-title">${escapeHtml(launchHeadline)}</h2>
+              <p class="frontdesk-section-copy">${escapeHtml(launchCopy)}</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              <button class="primary-button" type="button" data-shell-target="install">Open install</button>
+              ${hasPreview
+                ? `<button class="ghost-button" type="button" data-frontdesk-open="preview">Test preview first</button>`
+                : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
+            </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-step-list">
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 1</span>
+                <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
               </div>
-            </section>
+              <h3 class="frontdesk-step-title">Run a real preview conversation</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Preview to confirm how the front desk answers, routes the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live preview for testing.")}</p>
+            </article>
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 2</span>
+                <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Ready" : "Needs review")}</span>
+              </div>
+              <h3 class="frontdesk-step-title">Move into the install flow</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(setup.isReady ? "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong." : "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.")}</p>
+            </article>
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 3</span>
+                <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : isInstallDetected(installStatus) ? "Limited" : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed" ? "Needs attention" : "Pending")}">${escapeHtml(liveVerificationLabel)}</span>
+              </div>
+              <h3 class="frontdesk-step-title">${escapeHtml(installStatus.label || "Confirm the live site")}</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(isInstallSeen(installStatus)
+                ? "Vonza is already seeing live traffic from the site. Keep Install as the utility view for ongoing verification."
+                : isInstallDetected(installStatus)
+                  ? "The snippet is present, but live traffic still needs to come through so you can confirm the full launch loop."
+                  : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+                    ? "Verification needs attention before the launch can be treated as confidently live."
+                    : "The site still needs the snippet and first verification pass before launch is complete.")}</p>
+            </article>
+          </div>
+          <div class="frontdesk-support-note">
+            <p class="frontdesk-support-title">Why Install still exists separately</p>
+            <p class="frontdesk-support-copy">Front Desk owns the launch handoff, but the actual snippet, verify action, and domain-level details still stay in the Install utility flow.</p>
           </div>
         </section>
       </div>
@@ -8172,14 +8300,29 @@ function buildPreviewSection(agent, setup) {
     : "";
 
   return `
+    <div class="frontdesk-section-intro">
+      <div>
+        <p class="studio-kicker">Preview</p>
+        <h2 class="frontdesk-section-title">Test the customer-facing front desk before you launch it.</h2>
+        <p class="frontdesk-section-copy">Preview is the product step where you stress the live experience, not a summary card. Ask real questions, check the route, and make sure the handoff feels safe.</p>
+      </div>
+      <div class="frontdesk-section-actions">
+        <a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
+        <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
+        ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Retry import</button>` : ""}
+      </div>
+    </div>
+    <div class="frontdesk-section-divider"></div>
     <div class="preview-header">
-      <h2 class="section-heading">Try your website front desk</h2>
-      <p class="section-copy">See how Vonza answers questions, routes the next step, and captures follow-up before it feeds Today, Contacts, and Outcomes.</p>
       <div class="preview-status-row">
         ${statusPills}
         <span class="preview-status-pill">${escapeHtml(agent.websiteUrl || "No website URL")}</span>
       </div>
       ${warning}
+    </div>
+    <div class="frontdesk-preview-guide">
+      <p class="frontdesk-support-title">Prompt starters</p>
+      <p class="frontdesk-support-copy">Use a few realistic customer questions to see whether the front desk is grounding correctly and offering the right next step.</p>
       <div class="prompt-chip-row">
         <button class="prompt-chip" type="button" data-preview-prompt="What services do you offer?">What services do you offer?</button>
         <button class="prompt-chip" type="button" data-preview-prompt="Can I book with you?">Can I book with you?</button>
@@ -8187,10 +8330,10 @@ function buildPreviewSection(agent, setup) {
         <button class="prompt-chip" type="button" data-preview-prompt="How can I contact you?">How can I contact you?</button>
       </div>
     </div>
-    <div class="preview-control-row">
-      <a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
-      <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
-      ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Retry import</button>` : ""}
+    <div class="frontdesk-section-divider"></div>
+    <div class="frontdesk-preview-frame-shell">
+      <p class="frontdesk-preview-frame-title">Embedded preview</p>
+      <p class="frontdesk-support-copy">This is the in-workspace version of the front desk so you can test it without leaving the page.</p>
     </div>
     <iframe
       id="preview-frame"
@@ -9689,7 +9832,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copilotDismissButtons = document.querySelectorAll("[data-copilot-dismiss-proposal]");
   const shellMenuButtons = document.querySelectorAll("[data-shell-menu-toggle]");
   const shellBackdrop = document.querySelector("[data-shell-backdrop]");
-  const frontDeskSectionButtons = document.querySelectorAll("[data-frontdesk-target]");
+  const frontDeskSectionButtons = document.querySelectorAll(".local-section-button[data-frontdesk-target]");
+  const frontDeskSectionTriggers = document.querySelectorAll("[data-frontdesk-target], [data-frontdesk-open]");
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
@@ -10142,6 +10286,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   };
 
   const showFrontDeskSection = (target = "overview") => {
+    setActiveFrontDeskSection(target);
+
     frontDeskSectionButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.frontdeskTarget === target);
     });
@@ -11298,9 +11444,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
-  frontDeskSectionButtons.forEach((button) => {
+  frontDeskSectionTriggers.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection(button.dataset.frontdeskTarget || "overview");
+      showFrontDeskSection(button.dataset.frontdeskTarget || button.dataset.frontdeskOpen || "overview");
     });
   });
 
@@ -11324,7 +11470,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   showShellSection(initialSection, {
     settingsSection: getActiveSettingsSection(),
   });
-  showFrontDeskSection("overview");
+  showFrontDeskSection(getActiveFrontDeskSection());
 
   if (contactRows.length) {
     selectContact(contactRows[0].dataset.contactId || "");
