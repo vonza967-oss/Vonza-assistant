@@ -202,6 +202,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.inbox.threads), []);
   assert.deepEqual(Array.from(workspace.calendar.events), []);
   assert.deepEqual(Array.from(workspace.calendar.scheduleItems), []);
+  assert.deepEqual(Array.from(workspace.calendar.reviewItems), []);
   assert.deepEqual(Array.from(workspace.calendar.followUpItems), []);
   assert.deepEqual(Array.from(workspace.calendar.unlinkedItems), []);
   assert.deepEqual(Array.from(workspace.automations.tasks), []);
@@ -491,14 +492,33 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   const operatorWorkspace = harness.normalizeOperatorWorkspace({
     enabled: true,
     featureEnabled: true,
-    briefing: {
-      title: "Operator briefing",
-      text: "One quote follow-up still needs review.",
-    },
     nextAction: {
-      title: "Review pricing follow-up",
+      title: "Review ended appointment",
+    },
+    contacts: {
+      list: [
+        {
+          id: "contact-1",
+          displayName: "Taylor Reed",
+          primaryEmail: "taylor@example.com",
+        },
+      ],
     },
     calendar: {
+      reviewItems: [
+        {
+          id: "event-2",
+          title: "Quote review",
+          attendeeLabel: "Taylor Reed",
+          linkedContactId: "contact-1",
+          linkedContactName: "Taylor Reed",
+          linkedContactEmail: "taylor@example.com",
+          endAt: "2026-04-05T11:30:00.000Z",
+          reviewReason: "Missing follow-up after the appointment ended.",
+          reviewWhyItMatters: "Copilot wants a single explicit resolution before the appointment drops out of context.",
+          appointmentReviewState: {},
+        },
+      ],
       scheduleItems: [
         {
           id: "event-1",
@@ -531,6 +551,17 @@ test("today workspace render uses a dominant queue and support rail shell", () =
 
   assert.match(overviewPanel, /Needs Attention/);
   assert.match(overviewPanel, /today-workspace/);
+  assert.match(overviewPanel, /today-queue-row/);
+  assert.match(overviewPanel, /Search queue/);
+  assert.match(overviewPanel, /Quote review/);
+  assert.match(overviewPanel, /Ended appointment/);
+  assert.match(overviewPanel, /Appointment review/);
+  assert.match(overviewPanel, /Prepare follow-up/);
+  assert.match(overviewPanel, /Link contact/);
+  assert.match(overviewPanel, /Record outcome/);
+  assert.match(overviewPanel, /No action needed/);
+  assert.match(overviewPanel, /data-select-appointment-review/);
+  assert.match(overviewPanel, /data-today-filter="needs_review"/);
   assert.match(overviewPanel, /support-panel/);
   assert.match(overviewPanel, /Refresh workspace/);
 });

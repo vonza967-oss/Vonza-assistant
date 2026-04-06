@@ -381,6 +381,7 @@ async function executeCreateOperatorTask(supabase, options = {}) {
     priority: cleanText(payload.priority) || "normal",
     approvalRequired: true,
     contactId: cleanText(payload.contactId),
+    relatedEventId: cleanText(payload.relatedEventId || payload.eventId),
     relatedLeadId: cleanText(payload.leadId),
     relatedActionKey: cleanText(payload.relatedActionKey || payload.actionKey),
     taskState: {

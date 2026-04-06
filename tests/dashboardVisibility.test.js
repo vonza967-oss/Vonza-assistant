@@ -455,8 +455,8 @@ test("one failed sub-request keeps the dashboard visible and surfaces an explici
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Analytics and action queue data are unavailable right now/);
-  assert.match(harness.getRootHtml(), /Missing required message persistence schema/);
+  assert.match(harness.getStatus(), /Vonza loaded with partial data/i);
+  assert.match(harness.getStatus(), /Missing required message persistence schema/i);
 });
 
 test("operator workspace disabled still keeps the dashboard visible", async () => {
@@ -470,10 +470,10 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   assert.match(harness.getRootHtml(), /Today/);
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Outcomes/);
+  assert.match(harness.getRootHtml(), /The public launch core is active/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);
-  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="contacts"/);
   assert.equal(
     harness.fetchCalls.some((call) => call.pathname === "/agents/operator-workspace"),
     false
@@ -574,8 +574,8 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Nothing urgent is standing out/);
-  assert.match(harness.getRootHtml(), /No recent outcomes are confirmed yet/);
+  assert.match(harness.getRootHtml(), /Nothing urgent is blocking the operator loop right now/);
+  assert.match(harness.getRootHtml(), /As soon as Vonza can prove bookings, quote requests, or complaint resolutions, they will stay visible here/);
 });
 
 test("tab switching still leaves the selected section rendered as the active view", async () => {

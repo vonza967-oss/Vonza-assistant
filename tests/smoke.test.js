@@ -1142,15 +1142,15 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /The AI front desk for your website, plus the daily workspace to prove it is working/i);
-        assert.match(marketingHome.text, /service businesses with inbound leads/i);
-        assert.match(marketingHome.text, /optional Google beta/i);
+        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove outcomes/i);
+        assert.match(marketingHome.text, /service businesses an AI front desk/i);
+        assert.match(marketingHome.text, /secondary connected tools when enabled/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Public launch core/);
-        assert.match(marketingHome.text, /Today, Contacts, Outcomes/i);
+        assert.match(marketingHome.text, /Operator command center/);
+        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Outcomes/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
@@ -1230,6 +1230,14 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Single best next action/);
         assert.match(dashboardScript.text, /Run first sync/);
         assert.match(dashboardScript.text, /Needs Attention/);
+        assert.match(dashboardScript.text, /today-queue-row/);
+        assert.match(dashboardScript.text, /data-today-filter="needs_review"/);
+        assert.match(dashboardScript.text, /Search queue/);
+        assert.match(dashboardScript.text, /Appointment review/);
+        assert.match(dashboardScript.text, /Prepare follow-up/);
+        assert.match(dashboardScript.text, /Link contact/);
+        assert.match(dashboardScript.text, /Record outcome/);
+        assert.match(dashboardScript.text, /No action needed/);
         assert.match(dashboardScript.text, /Search contacts/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
@@ -1579,13 +1587,12 @@ test("action queue creates separate owner items for important individual convers
         assert.ok(Array.isArray(result.json.items));
         assert.equal(result.json.summary.total, 6);
         assert.equal(result.json.items.length, 6);
-        assert.ok(result.json.items.some((item) => item.type === "booking"));
-        assert.ok(result.json.items.some((item) => item.type === "pricing"));
-        assert.equal(result.json.items.filter((item) => item.type === "contact").length, 2);
-        assert.ok(result.json.items.some((item) => item.type === "support"));
-        assert.ok(result.json.items.some((item) => item.type === "weak_answer"));
+        assert.ok(result.json.items.some((item) => item.type === "booking_intent"));
+        assert.ok(result.json.items.some((item) => item.type === "pricing_interest"));
+        assert.equal(result.json.items.filter((item) => item.type === "lead_follow_up").length, 2);
+        assert.equal(result.json.items.filter((item) => item.type === "knowledge_gap").length, 2);
         assert.ok(result.json.items.every((item) => item.ownerWorkflow && typeof item.ownerWorkflow.label === "string"));
-        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("conversation:")));
+        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("operator:")));
 
         const contactItem = result.json.items.find((item) => item.contactInfo?.email === "hello@example.com");
         assert.equal(contactItem.contactCaptured, true);
@@ -1786,7 +1793,7 @@ test("action queue status changes persist cleanly through the lightweight owner 
       try {
         const initial = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
         assert.equal(initial.status, 200);
-        const contactActionKey = initial.json.items.find((item) => item.type === "contact")?.key;
+        const contactActionKey = initial.json.items.find((item) => item.type === "lead_follow_up")?.key;
         assert.ok(contactActionKey);
 
         const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {
@@ -1862,8 +1869,8 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
     },
   ];
   const baseline = buildActionQueue(messages, []);
-  const contactKey = baseline.items.find((item) => item.type === "contact")?.key;
-  const pricingKey = baseline.items.find((item) => item.type === "pricing")?.key;
+  const contactKey = baseline.items.find((item) => item.type === "lead_follow_up")?.key;
+  const pricingKey = baseline.items.find((item) => item.type === "pricing_interest")?.key;
   const result = buildActionQueue(messages, [
     {
       action_key: contactKey,
