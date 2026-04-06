@@ -1231,13 +1231,17 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Run first sync/);
         assert.match(dashboardScript.text, /Needs Attention/);
         assert.match(dashboardScript.text, /today-queue-row/);
+        assert.match(dashboardScript.text, /today-review-drawer-shell/);
+        assert.match(dashboardScript.text, /Review drawer/);
         assert.match(dashboardScript.text, /data-today-filter="needs_review"/);
         assert.match(dashboardScript.text, /Search queue/);
-        assert.match(dashboardScript.text, /Appointment review/);
+        assert.match(dashboardScript.text, /Ended appointment review/);
         assert.match(dashboardScript.text, /Prepare follow-up/);
         assert.match(dashboardScript.text, /Link contact/);
         assert.match(dashboardScript.text, /Record outcome/);
         assert.match(dashboardScript.text, /No action needed/);
+        assert.match(dashboardScript.text, /Mark done/);
+        assert.match(dashboardScript.text, /data-today-open-review/);
         assert.match(dashboardScript.text, /Search contacts/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);

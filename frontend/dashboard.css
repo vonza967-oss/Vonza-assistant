@@ -1334,8 +1334,8 @@ button:disabled {
 
 .today-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.8fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(360px, 0.92fr);
+  gap: 26px;
   align-items: start;
 }
 
@@ -1383,6 +1383,13 @@ button:disabled {
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.today-side-column {
+  gap: 18px;
+  position: sticky;
+  top: 96px;
+  align-self: start;
+}
+
 .today-queue-shell {
   display: grid;
   gap: 14px;
@@ -1408,6 +1415,7 @@ button:disabled {
   padding: 16px 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
   transition: background 180ms ease, border-color 180ms ease;
+  cursor: pointer;
 }
 
 .today-queue-row:hover,
@@ -1417,6 +1425,7 @@ button:disabled {
 
 .today-queue-row.active {
   border-bottom-color: rgba(23, 194, 164, 0.24);
+  box-shadow: inset 2px 0 0 rgba(23, 194, 164, 0.64);
 }
 
 .today-queue-row-main,
@@ -1445,6 +1454,107 @@ button:disabled {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.today-review-drawer-backdrop {
+  display: none;
+}
+
+.today-review-drawer-shell {
+  display: grid;
+}
+
+.today-review-drawer-frame {
+  display: grid;
+  gap: 18px;
+  padding: 20px 22px;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012)),
+    rgba(9, 13, 24, 0.92);
+  box-shadow: 0 26px 46px rgba(2, 6, 23, 0.24);
+}
+
+.today-review-drawer-header,
+.today-review-panel-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.today-review-panel-stack,
+.today-review-panel,
+.today-review-empty {
+  display: grid;
+  gap: 16px;
+}
+
+.today-review-panel-title {
+  margin: 0;
+  color: white;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.today-review-detail-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.today-review-detail-row {
+  display: grid;
+  gap: 6px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.today-review-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.today-review-detail-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.today-review-detail-value {
+  color: white;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.today-review-detail-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.today-review-drawer-divider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.today-review-drawer-actions,
+.today-review-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.today-review-close {
+  display: none;
+}
+
+.today-support-panel-quiet {
+  background: rgba(255, 255, 255, 0.02);
 }
 .today-next-chip-label,
 .support-panel-kicker,
@@ -3095,6 +3205,52 @@ button:disabled {
   .settings-mobile-nav {
     display: block;
   }
+
+  .settings-content-panel {
+    padding: 22px 20px;
+  }
+
+  .today-review-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 28;
+    transition: opacity 160ms ease;
+  }
+
+  .today-review-drawer-shell {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(440px, 100vw);
+    z-index: 32;
+    padding: 14px;
+    transform: translateX(108%);
+    transition: transform 160ms ease;
+  }
+
+  .today-review-drawer-frame {
+    height: 100%;
+    overflow-y: auto;
+    border-radius: 22px 0 0 22px;
+  }
+
+  .today-review-close {
+    display: inline-flex;
+  }
+
+  .workspace-page-overview.today-review-open .today-review-drawer-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .workspace-page-overview.today-review-open .today-review-drawer-shell {
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 900px) {
@@ -3158,7 +3314,25 @@ button:disabled {
   .contact-row {
     grid-template-columns: 1fr;
   }
+  .frontdesk-main-panel {
+    padding: 22px 20px;
+  }
 
+  .frontdesk-detail-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .today-side-column {
+    position: static;
+    top: auto;
+  }
+
+  .today-review-drawer-header,
+  .today-review-panel-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .appointment-review-panel-meta,
   .appointment-review-field-grid {
     grid-template-columns: 1fr;
