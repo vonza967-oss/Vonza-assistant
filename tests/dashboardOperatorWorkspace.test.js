@@ -481,6 +481,106 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Save business context/);
 });
 
+test("today workspace render uses a dominant queue and support rail shell", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const operatorWorkspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    briefing: {
+      title: "Operator briefing",
+      text: "One quote follow-up still needs review.",
+    },
+    nextAction: {
+      title: "Review pricing follow-up",
+    },
+    calendar: {
+      scheduleItems: [
+        {
+          id: "event-1",
+          title: "Morning estimate",
+          scheduleReason: "This appointment is coming up today and is linked to Taylor Reed.",
+        },
+      ],
+    },
+    today: {
+      recentSuccessfulOutcomes: [
+        {
+          outcomeType: "quote_requested",
+          sourceLabel: "Follow-up",
+          occurredAt: "2026-04-05T09:00:00.000Z",
+        },
+      ],
+    },
+  });
+
+  const overviewPanel = harness.buildOverviewPanel(
+    { installId: "install-1", publicAgentKey: "agent-key" },
+    [],
+    {
+      isReady: true,
+      knowledgeDescription: "Knowledge ready.",
+    },
+    harness.createEmptyActionQueue(),
+    operatorWorkspace
+  );
+
+  assert.match(overviewPanel, /Needs Attention/);
+  assert.match(overviewPanel, /today-workspace/);
+  assert.match(overviewPanel, /support-panel/);
+  assert.match(overviewPanel, /Refresh workspace/);
+});
+
+test("contacts render as a list-detail workspace instead of repeated cards", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const contactsPanel = harness.buildContactsPanel(
+    { manualOutcomeMode: false },
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      contacts: {
+        list: [
+          {
+            id: "contact-1",
+            name: "Taylor Reed",
+            email: "taylor@example.com",
+            lifecycleState: "active_lead",
+            nextAction: {
+              title: "Draft follow-up",
+              description: "Pricing question still needs a response.",
+            },
+            counts: {
+              leads: 1,
+              outcomes: 0,
+            },
+            timeline: [
+              {
+                at: "2026-04-05T09:00:00.000Z",
+                label: "Lead captured",
+                summary: "Visitor asked for pricing.",
+              },
+            ],
+          },
+        ],
+      },
+    })
+  );
+
+  assert.match(contactsPanel, /contacts-workspace/);
+  assert.match(contactsPanel, /data-contact-row/);
+  assert.match(contactsPanel, /data-contact-detail/);
+  assert.match(contactsPanel, /Search contacts/);
+});
+
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
     windowFlags: {

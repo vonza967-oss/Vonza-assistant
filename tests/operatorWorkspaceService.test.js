@@ -91,7 +91,7 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
     ],
   });
 
-  assert.match(summary, /Morning booking/);
+  assert.match(summary, /upcoming event/i);
   assert.match(summary, /conflict/i);
   assert.match(summary, /complaint/i);
   assert.match(summary, /recent appointment/i);

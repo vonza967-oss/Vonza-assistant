@@ -1229,6 +1229,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Connect Google to unlock Calendar/);
         assert.match(dashboardScript.text, /Single best next action/);
         assert.match(dashboardScript.text, /Run first sync/);
+        assert.match(dashboardScript.text, /Needs Attention/);
+        assert.match(dashboardScript.text, /Search contacts/);
+        assert.match(dashboardScript.text, /Business profile/);
+        assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /High-intent signals/);
