@@ -3143,6 +3143,294 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
   `;
 }
 
+function buildWorkspaceTargetAction({
+  label = "Open",
+  section = "overview",
+  targetId = "",
+  settingsSection = "",
+  variant = "ghost",
+  attrs = "",
+} = {}) {
+  return `
+    <button
+      class="${escapeHtml(variant === "primary" ? "primary-button" : "ghost-button")}"
+      type="button"
+      data-open-workspace-target
+      data-workspace-target-section="${escapeHtml(section)}"
+      data-workspace-target-id="${escapeHtml(targetId)}"
+      data-workspace-settings-section="${escapeHtml(settingsSection)}"
+      ${attrs}
+    >${escapeHtml(label)}</button>
+  `;
+}
+
+function createTodayQueueAction({
+  label = "Open",
+  section = "overview",
+  targetId = "",
+  variant = "ghost",
+} = {}) {
+  return {
+    label: trimText(label) || "Open",
+    section: trimText(section) || "overview",
+    targetId: trimText(targetId),
+    variant: variant === "primary" ? "primary" : "ghost",
+  };
+}
+
+function summarizeTodayQueueMix(items = []) {
+  const counts = items.reduce((accumulator, item) => {
+    const key = trimText(item.type);
+    if (!key) {
+      return accumulator;
+    }
+
+    accumulator[key] = (accumulator[key] || 0) + 1;
+    return accumulator;
+  }, {});
+
+  return [
+    counts.ended_appointment_needs_review ? `${counts.ended_appointment_needs_review} ended appointment${counts.ended_appointment_needs_review === 1 ? "" : "s"} to review` : "",
+    counts.overdue_follow_up ? `${counts.overdue_follow_up} overdue follow-up${counts.overdue_follow_up === 1 ? "" : "s"}` : "",
+    counts.unlinked_attendee ? `${counts.unlinked_attendee} unlinked attendee${counts.unlinked_attendee === 1 ? "" : "s"}` : "",
+    counts.high_intent_contact_no_next_step ? `${counts.high_intent_contact_no_next_step} high-intent contact${counts.high_intent_contact_no_next_step === 1 ? "" : "s"} with no next step` : "",
+    counts.copilot_proposal_awaiting_approval ? `${counts.copilot_proposal_awaiting_approval} Copilot proposal${counts.copilot_proposal_awaiting_approval === 1 ? "" : "s"} awaiting approval` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function buildTodayOperatorQueue(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const emptyWorkspace = createEmptyOperatorWorkspace();
+  const calendar = operatorWorkspace.calendar || emptyWorkspace.calendar;
+  const contacts = operatorWorkspace.contacts?.list || emptyWorkspace.contacts.list;
+  const copilot = operatorWorkspace.copilot || emptyWorkspace.copilot;
+  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems : [];
+  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems : [];
+  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems : [];
+  const proposals = Array.isArray(copilot.proposals)
+    ? copilot.proposals.filter((proposal) => !["dismissed", "hidden", "applied", "resolved"].includes(trimText(proposal.state)))
+    : [];
+
+  const overdueFollowUps = contacts.filter((contact) => {
+    const nextActionKey = trimText(contact.nextAction?.key);
+    const flags = Array.isArray(contact.flags) ? contact.flags : [];
+    return nextActionKey === "send_quote_follow_up" || flags.includes("follow up due");
+  });
+  const overdueIds = new Set(overdueFollowUps.map((contact) => trimText(contact.id)).filter(Boolean));
+  const highIntentContacts = contacts.filter((contact) => {
+    const nextActionKey = trimText(contact.nextAction?.key);
+    return (
+      !overdueIds.has(trimText(contact.id))
+      && ["active_lead", "qualified"].includes(trimText(contact.lifecycleState))
+      && ["draft_quote_follow_up", "schedule_call", "review_booking_request"].includes(nextActionKey)
+      && contact.hasMeaningfulOutcome !== true
+    );
+  });
+
+  const items = [
+    ...followUpItems.map((item, index) => ({
+      id: trimText(item.id) || `ended-appointment-${index}`,
+      type: "ended_appointment_needs_review",
+      priority: 10 + index,
+      kicker: "Ended appointment needs review",
+      title: trimText(item.title) || "Recent appointment",
+      happened: `${trimText(item.title) || "This appointment"} ended and still has no confirmed resolution in Today.`,
+      why: trimText(item.followUpReason) || "The appointment ended recently and still needs an explicit operator decision.",
+      primaryAction: createTodayQueueAction({
+        label: "Prepare follow-up",
+        section: item.openFollowUpId ? "automations" : (item.linkedContactId ? "contacts" : "calendar"),
+        targetId: item.openFollowUpId || item.linkedContactId || item.id,
+        variant: "primary",
+      }),
+      secondaryActions: [
+        createTodayQueueAction({
+          label: "Link contact",
+          section: item.linkedContactId ? "contacts" : "calendar",
+          targetId: item.linkedContactId || item.id,
+        }),
+        createTodayQueueAction({
+          label: "Record outcome",
+          section: item.linkedContactId ? "contacts" : "analytics",
+          targetId: item.linkedContactId || "",
+        }),
+        createTodayQueueAction({
+          label: "No action needed",
+          section: item.linkedContactId ? "contacts" : "calendar",
+          targetId: item.linkedContactId || item.id,
+        }),
+      ],
+      meta: [
+        trimText(item.linkedContactName) ? `Contact: ${trimText(item.linkedContactName)}` : "",
+        item.endAt ? `Ended ${formatSeenAt(item.endAt)}` : "",
+      ].filter(Boolean),
+    })),
+    ...overdueFollowUps.map((contact, index) => ({
+      id: trimText(contact.id) || `overdue-follow-up-${index}`,
+      type: "overdue_follow_up",
+      priority: 20 + index,
+      kicker: "Overdue follow-up",
+      title: trimText(contact.name) || trimText(contact.bestIdentifier) || "Contact follow-up",
+      happened: `${trimText(contact.name || contact.bestIdentifier) || "This contact"} already has follow-up work prepared or due.`,
+      why: trimText(contact.nextAction?.description) || "The contact still needs an owner response before the thread cools off.",
+      primaryAction: createTodayQueueAction({
+        label: "Review follow-up",
+        section: contact.nextAction?.followUpId ? "automations" : "contacts",
+        targetId: trimText(contact.nextAction?.followUpId || contact.id),
+        variant: "primary",
+      }),
+      secondaryActions: [
+        createTodayQueueAction({
+          label: "Open contact",
+          section: "contacts",
+          targetId: contact.id,
+        }),
+      ],
+    })),
+    ...unlinkedItems.map((item, index) => ({
+      id: trimText(item.id) || `unlinked-attendee-${index}`,
+      type: "unlinked_attendee",
+      priority: 30 + index,
+      kicker: "Unlinked attendee",
+      title: trimText(item.title) || "Appointment attendee",
+      happened: `${trimText(item.title) || "This appointment"} is in Today, but the attendee is still not grounded to a contact.`,
+      why: trimText(item.unlinkedReason) || "Linking is missing, so follow-up and outcome tracking can fragment.",
+      primaryAction: createTodayQueueAction({
+        label: "Link contact",
+        section: "calendar",
+        targetId: item.id,
+        variant: "primary",
+      }),
+      secondaryActions: [
+        createTodayQueueAction({
+          label: "Review appointment",
+          section: "calendar",
+          targetId: item.id,
+        }),
+      ],
+    })),
+    ...highIntentContacts.map((contact, index) => ({
+      id: trimText(contact.id) || `high-intent-${index}`,
+      type: "high_intent_contact_no_next_step",
+      priority: 40 + index,
+      kicker: "High-intent contact with no next step",
+      title: trimText(contact.name) || trimText(contact.bestIdentifier) || "High-intent contact",
+      happened: `${trimText(contact.name || contact.bestIdentifier) || "This contact"} is showing active intent but still lacks a resolved next step.`,
+      why: trimText(contact.nextAction?.description) || "The contact still looks qualified, but Today cannot point to a concrete follow-up, booking, or outcome yet.",
+      primaryAction: createTodayQueueAction({
+        label: trimText(contact.nextAction?.key) === "schedule_call" ? "Schedule next step" : "Draft next step",
+        section: "contacts",
+        targetId: contact.id,
+        variant: "primary",
+      }),
+      secondaryActions: [
+        createTodayQueueAction({
+          label: "Open contact",
+          section: "contacts",
+          targetId: contact.id,
+        }),
+      ],
+    })),
+    ...proposals.map((proposal, index) => ({
+      id: trimText(proposal.key) || `copilot-proposal-${index}`,
+      type: "copilot_proposal_awaiting_approval",
+      priority: 50 + index,
+      kicker: "Copilot proposal awaiting approval",
+      title: trimText(proposal.title) || "Copilot proposal",
+      happened: trimText(proposal.summary) || "Copilot prepared a deterministic operator suggestion from Today context.",
+      why: trimText(proposal.approvalNote || proposal.whatHappens) || "Approval-first proposals stay visible until an operator explicitly acts on them.",
+      primaryAction: {
+        label: trimText(proposal.applyLabel) || "Apply proposal",
+        proposalKey: trimText(proposal.key),
+        variant: "primary",
+      },
+      secondaryActions: proposal.target?.section ? [
+        createTodayQueueAction({
+          label: trimText(proposal.openLabel || proposal.target?.label || "Open context"),
+          section: trimText(proposal.target?.section),
+          targetId: trimText(proposal.target?.id),
+        }),
+      ] : [],
+    })),
+  ].sort((left, right) => left.priority - right.priority);
+
+  return {
+    items,
+    mainItems: items.slice(0, 7),
+    scheduleItems: scheduleItems.slice(0, 3),
+    proposals,
+    summary: summarizeTodayQueueMix(items),
+  };
+}
+
+function buildTodayQueueActionMarkup(action = {}) {
+  if (trimText(action.proposalKey)) {
+    return `
+      <button
+        class="${escapeHtml(action.variant === "primary" ? "primary-button" : "ghost-button")}"
+        type="button"
+        data-copilot-apply-proposal
+        data-proposal-key="${escapeHtml(action.proposalKey)}"
+      >${escapeHtml(trimText(action.label) || "Apply proposal")}</button>
+    `;
+  }
+
+  return buildWorkspaceTargetAction({
+    label: trimText(action.label) || "Open",
+    section: trimText(action.section) || "overview",
+    targetId: trimText(action.targetId),
+    variant: action.variant === "primary" ? "primary" : "ghost",
+  });
+}
+
+function buildTodayQueueItemCard(item = {}) {
+  return `
+    <article class="today-queue-item" data-today-queue-item data-queue-type="${escapeHtml(item.type || "")}">
+      <div class="today-queue-item-top">
+        <div>
+          <p class="today-queue-kicker">${escapeHtml(item.kicker || "Today queue")}</p>
+          <h3 class="today-queue-title">${escapeHtml(item.title || "Queue item")}</h3>
+        </div>
+        ${Array.isArray(item.meta) && item.meta.length ? `
+          <div class="today-queue-meta-cluster">
+            ${item.meta.slice(0, 2).map((meta) => `<span class="pill">${escapeHtml(meta)}</span>`).join("")}
+          </div>
+        ` : ""}
+      </div>
+      <div class="today-queue-copy-block">
+        <div>
+          <p class="today-queue-detail-label">What happened</p>
+          <p class="today-queue-copy">${escapeHtml(item.happened || "This still needs operator review.")}</p>
+        </div>
+        <div>
+          <p class="today-queue-detail-label">Why it matters</p>
+          <p class="today-queue-copy">${escapeHtml(item.why || "This still affects Today’s operator loop.")}</p>
+        </div>
+      </div>
+      <div class="today-queue-actions">
+        ${item.primaryAction ? buildTodayQueueActionMarkup(item.primaryAction) : ""}
+        ${(item.secondaryActions || []).slice(0, 3).map((action) => buildTodayQueueActionMarkup(action)).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function buildTodaySupportCard({
+  kicker = "Support lane",
+  title = "Today support",
+  copy = "",
+  actions = [],
+  quiet = "",
+} = {}) {
+  return `
+    <section class="today-support-card">
+      <p class="today-support-kicker">${escapeHtml(kicker)}</p>
+      <h3 class="today-support-title">${escapeHtml(title)}</h3>
+      <p class="today-support-copy">${escapeHtml(copy)}</p>
+      ${actions.length ? `<div class="today-support-actions">${actions.join("")}</div>` : ""}
+      ${quiet ? `<p class="today-support-quiet">${escapeHtml(quiet)}</p>` : ""}
+    </section>
+  `;
+}
+
 function formatCalendarInsightContext(item = {}) {
   const attendeeLabel = trimText(
     item.linkedContactName
@@ -3244,17 +3532,11 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-  const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
-  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 4) : [];
-  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 4) : [];
-  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 4) : [];
+  const todayQueue = buildTodayOperatorQueue(operatorWorkspace);
+  const scheduleItems = todayQueue.scheduleItems;
   const dailySummary = operatorWorkspace.calendar?.dailySummary
     || "Connect Google Workspace to see daily operator context here.";
-  const calendarModeLabel = primaryAccount?.status === "connected"
-    ? googleCapabilities.calendarRead && !googleCapabilities.calendarWrite
-      ? "Calendar read-only mode"
-      : "Approval-first calendar drafts"
-    : "Google Calendar optional";
+  const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
 
   return `
     <section class="today-support-stack">
@@ -3262,8 +3544,8 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
         <div class="workspace-panel-header">
           <div>
             <p class="studio-kicker">Operator home</p>
-            <h2 class="workspace-panel-title">Today support lane</h2>
-            <p class="workspace-panel-copy">Keep the next safe move, connection status, schedule context, and proof close to the main operator queue without turning Today into a wall of equal-weight cards.</p>
+            <h2 class="workspace-panel-title">Today</h2>
+            <p class="workspace-panel-copy">Today is the clear-this-now operator workspace. The main queue carries the decisions that need owner action first, while the support lane stays lighter and quieter.</p>
           </div>
           <div class="workspace-badge-row">
             <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${status.googleConnected
@@ -3272,54 +3554,95 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
             <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Workspace ready"}</span>
           </div>
         </div>
-        <div class="operator-home-grid">
-          <section class="operator-focus-card">
-            <p class="overview-label">Single best next action</p>
-            <h3 class="operator-focus-title">${escapeHtml(nextAction.title || "Review today")}</h3>
-            <p class="operator-focus-copy">${escapeHtml(nextAction.description || "Vonza will keep this focused on the most useful thing to do next.")}</p>
-            <div class="inline-actions">
-              ${buildOperatorNextActionButton(nextAction)}
-            </div>
-          </section>
-          <section class="operator-focus-card operator-briefing-card">
-            <p class="overview-label">${escapeHtml(briefing.title || "Operator briefing")}</p>
-            <p class="workspace-panel-copy">${escapeHtml(briefing.text || dailySummary)}</p>
-            ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Workspace note: ${health.globalError}`)}</p></div>` : ""}
-            ${health.inboxSyncError || health.calendarSyncError || health.contactsError ? `
-              <div class="operator-inline-alert">
-                ${health.inboxSyncError ? `<p>${escapeHtml(`Inbox sync issue: ${health.inboxSyncError}`)}</p>` : ""}
-                ${health.calendarSyncError ? `<p>${escapeHtml(`Calendar sync issue: ${health.calendarSyncError}`)}</p>` : ""}
-                ${health.contactsError ? `<p>${escapeHtml(`Contacts note: ${health.contactsError}`)}</p>` : ""}
+        <div class="today-operator-layout">
+          <section class="today-queue-spine">
+            <div class="today-queue-header">
+              <div>
+                <p class="overview-label">Clear this now</p>
+                <h3 class="operator-focus-title">${escapeHtml(todayQueue.mainItems[0]?.title || nextAction.title || "Review Today")}</h3>
+                <p class="operator-focus-copy">${escapeHtml(todayQueue.summary || nextAction.description || "Today will keep the main operator queue visible here.")}</p>
               </div>
-            ` : ""}
+              <div class="today-queue-header-actions">
+                ${todayQueue.mainItems[0]?.primaryAction ? buildTodayQueueActionMarkup(todayQueue.mainItems[0].primaryAction) : buildOperatorNextActionButton(nextAction)}
+              </div>
+            </div>
+            ${todayQueue.mainItems.length ? `
+              <div class="today-queue-list">
+                ${todayQueue.mainItems.map((item) => buildTodayQueueItemCard(item)).join("")}
+              </div>
+            ` : `
+              <div class="operator-empty-state">
+                <h3 class="operator-empty-title">The main queue is clear</h3>
+                <p class="operator-empty-copy">Nothing in the deterministic Today loop currently needs operator action. The support lane stays available for schedule context, Copilot, and proof.</p>
+                <div class="inline-actions">
+                  ${buildOperatorNextActionButton(nextAction)}
+                </div>
+              </div>
+            `}
           </section>
+          <aside class="today-support-lane">
+            ${buildTodaySupportCard({
+              kicker: briefing.title || "Operator briefing",
+              title: "Daily brief",
+              copy: briefing.text || dailySummary,
+              quiet: dailySummary && briefing.text !== dailySummary ? dailySummary : "",
+            })}
+            ${buildTodaySupportCard({
+              kicker: "Calendar support",
+              title: scheduleItems[0]?.title ? "What is still on deck" : "Schedule support",
+              copy: scheduleItems[0]?.scheduleReason || (status.googleConnected
+                ? "No more appointments are standing out on the remaining schedule."
+                : "Connect Google Calendar to make Today much more useful."),
+              actions: scheduleItems[0] ? [
+                buildWorkspaceTargetAction({
+                  label: scheduleItems[0].actionLabel || "Open appointment",
+                  section: scheduleItems[0].actionTargetSection || "calendar",
+                  targetId: scheduleItems[0].actionTargetId || scheduleItems[0].id,
+                }),
+              ] : [
+                status.googleConnected
+                  ? buildWorkspaceTargetAction({ label: "Open Calendar", section: "calendar" })
+                  : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
+              ],
+              quiet: scheduleItems.length > 1
+                ? `${scheduleItems.length - 1} more appointment${scheduleItems.length - 1 === 1 ? "" : "s"} stay in the support lane.`
+                : "",
+            })}
+            ${buildTodaySupportCard({
+              kicker: "Copilot support",
+              title: isTodayCopilotFlagEnabled() && copilot.featureEnabled === true
+                ? (copilot.sparseData ? (copilot.fallback?.title || copilot.headline || "Copilot needs more context") : (copilot.headline || "Copilot is supporting Today"))
+                : "Copilot is optional",
+              copy: isTodayCopilotFlagEnabled() && copilot.featureEnabled === true
+                ? (copilot.sparseData
+                  ? (copilot.fallback?.description || copilot.summary || "Copilot stays inside the operator loop and does not compete with the main queue.")
+                  : (copilot.summary || "Copilot stays inside the operator loop and does not compete with the main queue."))
+                : "Today still works as a deterministic operator queue even when Copilot is not active here.",
+              actions: copilot.sparseData
+                ? [buildWorkspaceTargetAction({ label: "Open business context setup", section: "settings", targetId: "business-context-setup" })]
+                : (copilot.proposals?.length
+                  ? [buildWorkspaceTargetAction({ label: "Open Automations", section: "automations" })]
+                  : []),
+              quiet: copilot.proposals?.length
+                ? `${copilot.proposals.length} proposal${copilot.proposals.length === 1 ? "" : "s"} are already reflected in the main queue or approval flow.`
+                : (copilot.sparseData && Array.isArray(copilot.fallback?.guidance) && copilot.fallback.guidance.length
+                  ? copilot.fallback.guidance.join(" ")
+                  : ""),
+            })}
+            ${(health.globalError || health.inboxSyncError || health.calendarSyncError || health.contactsError) ? `
+              <section class="today-support-card">
+                <p class="today-support-kicker">Workspace note</p>
+                <h3 class="today-support-title">Support lane alerts</h3>
+                <div class="operator-inline-alert">
+                  ${health.globalError ? `<p>${escapeHtml(`Workspace note: ${health.globalError}`)}</p>` : ""}
+                  ${health.inboxSyncError ? `<p>${escapeHtml(`Inbox sync issue: ${health.inboxSyncError}`)}</p>` : ""}
+                  ${health.calendarSyncError ? `<p>${escapeHtml(`Calendar sync issue: ${health.calendarSyncError}`)}</p>` : ""}
+                  ${health.contactsError ? `<p>${escapeHtml(`Contacts note: ${health.contactsError}`)}</p>` : ""}
+                </div>
+              </section>
+            ` : ""}
+          </aside>
         </div>
-        ${buildWorkspaceStatStrip([
-          {
-            label: "Google connection",
-            value: primaryAccount?.status === "connected" ? (primaryAccount.accountEmail || "Connected") : "Awaiting connection",
-            copy: primaryAccount?.status === "connected"
-              ? `Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
-              : "Connect Google Calendar to unlock Today’s schedule, follow-up review, and unlinked attendee visibility.",
-          },
-          {
-            label: "Calendar mode",
-            value: calendarModeLabel,
-            copy: googleCapabilities.calendarRead && !googleCapabilities.calendarWrite
-              ? "Nothing is auto-sent, auto-created, or auto-run in this pass."
-              : "Calendar changes stay draft-first and approval-first.",
-          },
-          {
-            label: "Approval-first work",
-            value: formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"),
-            copy: `${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`,
-          },
-          {
-            label: "Recent proven outcomes",
-            value: formatOperatorCount(today.assistedOutcomes, "outcome"),
-            copy: `${today.bookingsConfirmed || 0} bookings confirmed · ${today.quoteRequests || 0} quote requests · ${today.followUpReplies || 0} follow-up replies`,
-          },
-        ], { className: "today-support-stats" })}
       </section>
       ${!status.googleConnected ? `
         <section class="workspace-card-soft today-google-card">
@@ -3338,43 +3661,30 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
             : "Google OAuth still needs the deployment env vars before owners can connect from this workspace.")}</p>
         </section>
       ` : ""}
-      <div class="today-support-insights">
-        ${buildTodayInsightCard({
-          kicker: "Today",
-          title: "Today's Schedule",
-          description: "See what is still on deck today and why each appointment matters now.",
-          items: scheduleItems,
-          emptyTitle: status.googleConnected
-            ? "No more appointments are on today’s schedule"
-            : "Connect Google to see today’s schedule",
-          emptyCopy: status.googleConnected
-            ? "Vonza will keep today’s remaining schedule here, including in-progress appointments and linked contact context."
-            : "Connect Google Calendar to bring today’s appointments into Today.",
-          reasonKey: "scheduleReason",
-          defaultActionLabel: "Open context",
-        })}
-        ${buildTodayInsightCard({
-          kicker: "Follow-up",
-          title: "Appointments Needing Follow-up",
-          description: "Recent completed appointments with no clear next step or outcome stay visible until you review them.",
-          items: followUpItems,
-          emptyTitle: "No recent appointment follow-up is standing out",
-          emptyCopy: "When an appointment ends without a clear next step, Vonza will surface it here with approval-first suggestions.",
-          reasonKey: "followUpReason",
-          defaultActionLabel: "Review follow-up",
-        })}
-        ${buildTodayInsightCard({
-          kicker: "Linking",
-          title: "Appointments Not Linked to a Contact",
-          description: "Unlinked attendees are surfaced explicitly so follow-up and outcome tracking do not fragment.",
-          items: unlinkedItems,
-          emptyTitle: "No appointment currently needs attendee linking",
-          emptyCopy: "Vonza will show upcoming or recent appointments here when attendee data is still not safely linked to a contact.",
-          reasonKey: "unlinkedReason",
-          defaultActionLabel: "Review attendee",
-        })}
+      <div class="overview-grid operator-metric-grid">
+        <div class="overview-card">
+          <p class="overview-label">Queue size</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(todayQueue.items.length, "item"))}</p>
+          <p class="overview-card-copy">${escapeHtml(todayQueue.summary || "No deterministic Today items are competing for attention right now.")}</p>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Calendar today</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(today.upcomingBookings, "appointment"))}</p>
+          <p class="overview-card-copy">${escapeHtml(today.nextEventTitle
+            ? `Next up: ${today.nextEventTitle}. ${formatOperatorCount(today.openAvailabilityCount, "open slot")} still available.`
+            : `${formatOperatorCount(today.openAvailabilityCount, "open slot")} available for follow-up or booking work.`)}</p>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Approval-first work</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval + todayQueue.proposals.length, "item"))}</p>
+          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} · ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} · ${formatOperatorCount(todayQueue.proposals.length, "Copilot proposal")}`)}</p>
+        </div>
+        <div class="overview-card">
+          <p class="overview-label">Contacts needing closure</p>
+          <p class="overview-value">${escapeHtml(formatOperatorCount(today.highValueWithoutOutcome, "contact"))}</p>
+          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} still need proof and ${formatOperatorCount(today.leadsWithoutNextStep, "lead")} still need a next step.`)}</p>
+        </div>
       </div>
-      ${buildTodayCopilotSection(operatorWorkspace)}
       ${buildOperatorAlertMarkup(operatorWorkspace)}
       ${buildOperatorChecklistMarkup(operatorWorkspace)}
       <section class="workspace-card-soft today-proof-card">
@@ -9795,6 +10105,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const openInboxThreadButtons = document.querySelectorAll("[data-open-inbox-thread]");
   const openFollowUpButtons = document.querySelectorAll("[data-open-follow-up]");
   const openCalendarEventButtons = document.querySelectorAll("[data-open-calendar-event]");
+  const openWorkspaceTargetButtons = document.querySelectorAll("[data-open-workspace-target]");
   const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
   const contactFilterButtons = document.querySelectorAll("[data-contact-filter]");
   const contactCards = document.querySelectorAll("[data-contact-card]");
@@ -9911,6 +10222,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
+  const getWorkspaceTargetSelector = (section, targetId) => getCopilotTargetSelector(section, targetId);
+
   const showSectionAndHighlight = (targetSection, selector, options = {}) => {
     showShellSection(targetSection, options);
     const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
@@ -10014,7 +10327,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         const resolvedTarget = resolveShellTarget(result.result.section, result.result.id || "");
         showSectionAndHighlight(
           resolvedTarget.targetSection,
-          getCopilotTargetSelector(resolvedTarget.targetSection, result.result.id || ""),
+          getWorkspaceTargetSelector(resolvedTarget.targetSection, result.result.id || ""),
           { settingsSection: resolvedTarget.settingsSection }
         );
       }
@@ -10057,6 +10370,20 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       button.disabled = false;
     }
   };
+
+  openWorkspaceTargetButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const targetSection = trimText(button.dataset.workspaceTargetSection || "overview");
+      const targetId = trimText(button.dataset.workspaceTargetId || "");
+      const settingsSection = trimText(button.dataset.workspaceSettingsSection || "");
+      const resolvedTarget = resolveShellTarget(targetSection, targetId);
+      showSectionAndHighlight(
+        resolvedTarget.targetSection,
+        getWorkspaceTargetSelector(resolvedTarget.targetSection, targetId),
+        { settingsSection: settingsSection || resolvedTarget.settingsSection }
+      );
+    });
+  });
 
   const syncSelectedContactDetail = () => {
     if (!contactSelectButtons.length || !contactDetailPanels.length) {

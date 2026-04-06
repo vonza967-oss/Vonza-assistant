@@ -218,7 +218,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
 });
 
-test("dashboard renders calendar-first Today cards and read-only calendar mode", () => {
+test("dashboard renders a dominant Today queue spine with deterministic operator items", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -300,6 +300,56 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
         },
       ],
     },
+    contacts: {
+      list: [
+        {
+          id: "contact-2",
+          name: "Taylor Reed",
+          lifecycleState: "active_lead",
+          flags: ["follow up due"],
+          mostRecentActivityAt: "2026-04-05T12:30:00.000Z",
+          nextAction: {
+            key: "send_quote_follow_up",
+            title: "Review follow-up",
+            description: "A prepared follow-up is already waiting for approval.",
+            followUpId: "follow-up-1",
+          },
+        },
+        {
+          id: "contact-3",
+          name: "Morgan Lee",
+          lifecycleState: "qualified",
+          flags: [],
+          mostRecentActivityAt: "2026-04-05T13:30:00.000Z",
+          nextAction: {
+            key: "draft_quote_follow_up",
+            title: "Draft quote follow-up",
+            description: "Pricing intent is strong but no next step is saved yet.",
+          },
+        },
+      ],
+    },
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      headline: "1 proposal can support the queue.",
+      summary: "Copilot is supporting the operator loop, not replacing it.",
+      proposals: [
+        {
+          key: "follow-up-draft:contact-3",
+          title: "Draft follow-up for Morgan Lee",
+          summary: "Copilot prepared a pricing follow-up for review.",
+          approvalNote: "This only prepares the draft. Nothing is sent automatically.",
+          applyLabel: "Create draft",
+          state: "new",
+          target: {
+            section: "automations",
+            id: "follow-up-2",
+            label: "Open Automations",
+          },
+        },
+      ],
+    },
     today: {
       upcomingBookings: 1,
       appointmentsNeedingFollowUp: 1,
@@ -315,10 +365,17 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today(?:&#39;|')s Schedule/);
-  assert.match(overview, /Appointments Needing Follow-up/);
-  assert.match(overview, /Appointments Not Linked to a Contact/);
-  assert.match(overview, /Calendar read-only mode/);
+  assert.match(overview, /Clear this now/);
+  assert.match(overview, /Ended appointment needs review/);
+  assert.match(overview, /Overdue follow-up/);
+  assert.match(overview, /Unlinked attendee/);
+  assert.match(overview, /High-intent contact with no next step/);
+  assert.match(overview, /Copilot proposal awaiting approval/);
+  assert.match(overview, /Prepare follow-up/);
+  assert.match(overview, /Link contact/);
+  assert.match(overview, /Record outcome/);
+  assert.match(overview, /No action needed/);
+  assert.match(overview, /Copilot support/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
   assert.match(calendarPanel, /Read-only calendar mode/);
@@ -460,9 +517,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today Copilot/);
-  assert.match(overview, /Operational summary/);
-  assert.match(overview, /Approval-first proposals/);
+  assert.match(overview, /Copilot support/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
   const settings = harness.buildSettingsPanel(
