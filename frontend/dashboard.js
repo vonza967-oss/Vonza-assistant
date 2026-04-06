@@ -10,6 +10,7 @@ const DASHBOARD_FOCUS_KEY = "vonza_dashboard_focus";
 const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
+const DASHBOARD_SETTINGS_SECTION_KEY = "vonza_dashboard_settings_section";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const LAUNCH_STEPS = [
@@ -35,10 +36,11 @@ const LAUNCH_STEPS = [
   }
 ];
 const trackedEventKeys = new Set();
-const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations"];
-const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics"];
+const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
+const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const PRIMARY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics"];
 const SECONDARY_SHELL_SECTIONS = ["inbox", "calendar", "automations"];
+const SETTINGS_SECTIONS = ["business", "front_desk", "connected_tools", "workspace"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -54,6 +56,7 @@ const DASHBOARD_CAPABILITY_MAP = {
   automations: "automations",
   customize: "customize",
   analytics: "outcomes",
+  install: "widget_install",
 };
 const DEFAULT_LAUNCH_PROFILE = {
   mode: "public_cohort_v1",
@@ -332,7 +335,12 @@ function getShellSectionsForWorkspace(operatorWorkspace = createEmptyOperatorWor
 
   return candidateSections.filter((section) => {
     const capabilityKey = DASHBOARD_CAPABILITY_MAP[section];
-    return capabilityKey ? isCapabilityVisibleForWorkspace(capabilityKey, operatorWorkspace) : false;
+
+    if (!capabilityKey) {
+      return section === "settings";
+    }
+
+    return isCapabilityVisibleForWorkspace(capabilityKey, operatorWorkspace);
   });
 }
 
@@ -943,6 +951,10 @@ function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorksp
   return getShellSectionsForWorkspace(operatorWorkspace);
 }
 
+function getAvailableSettingsSections() {
+  return SETTINGS_SECTIONS.slice();
+}
+
 function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const storedSection = trimText(getBrowserStorage("localStorage")?.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
   const availableSections = getAvailableShellSections(operatorWorkspace);
@@ -960,6 +972,25 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
   }
 
   getBrowserStorage("localStorage")?.setItem(DASHBOARD_SECTION_KEY, section);
+}
+
+function getActiveSettingsSection() {
+  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SETTINGS_SECTION_KEY)).toLowerCase();
+  const availableSections = getAvailableSettingsSections();
+
+  if (availableSections.includes(storedSection)) {
+    return storedSection;
+  }
+
+  return "business";
+}
+
+function setActiveSettingsSection(section) {
+  if (!getAvailableSettingsSections().includes(section)) {
+    return;
+  }
+
+  window.localStorage.setItem(DASHBOARD_SETTINGS_SECTION_KEY, section);
 }
 
 function setStatus(message) {
@@ -2017,92 +2048,215 @@ function renderLaunchSuccess(agent, options = {}) {
   }
 }
 
-function buildWorkspaceTabs(activeSection, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const availableSections = getAvailableShellSections(operatorWorkspace);
-  const tabDefinitions = {
-    overview: {
-      label: "Today",
-      note: operatorWorkspace.enabled === false
-        ? (setup.isReady ? "Command center for front-desk health, install state, and the next move" : "Setup progress and what to finish next")
-        : (setup.isReady ? "Command center for what needs attention, today’s schedule, and what is waiting" : "Activation checklist plus operator rollout"),
-    },
-    contacts: {
-      label: "Contacts",
-      note: "People, lifecycle, timeline, and the next owner action across channels",
-    },
-    customize: {
-      label: "Front Desk",
-      note: "Identity, routing, knowledge, preview, and install for inbound demand capture",
-    },
-    analytics: {
-      label: "Outcomes",
-      note: "Proof, conversion paths, and where owner follow-through still needs to close the loop",
-    },
-    inbox: {
-      label: "Inbox",
-      note: "Connected Gmail threads, complaint drafts, and owner-approved replies",
-    },
-    calendar: {
-      label: "Calendar",
-      note: "Schedule context, recent appointments, and approval-first calendar review",
-    },
-    automations: {
-      label: "Automations",
-      note: "Approval-first tasks, campaigns, and follow-up work waiting on owner review",
-    },
-  };
-
-  const renderGroup = (title, copy, sectionKeys) => {
-    const tabs = sectionKeys
-      .filter((key) => availableSections.includes(key))
-      .map((key) => {
-        const definition = tabDefinitions[key];
-        const capabilityKey = DASHBOARD_CAPABILITY_MAP[key];
-        return {
-          key,
-          ...definition,
-          isBeta: capabilityKey ? isCapabilityBeta(capabilityKey) : false,
-        };
-      });
-
-    if (!tabs.length) {
-      return "";
-    }
-
-    return `
-      <div class="workspace-tab-group">
-        <div class="workspace-tab-group-header">
-          <p class="workspace-tab-group-title">${escapeHtml(title)}</p>
-          <p class="workspace-tab-group-copy">${escapeHtml(copy)}</p>
-        </div>
-        <div class="workspace-tab-grid">
-          ${tabs.map((tab) => `
-            <button class="workspace-tab ${activeSection === tab.key ? "active" : ""}" type="button" data-shell-target="${escapeHtml(tab.key)}">
-              <span class="nav-label-row">
-                <span class="nav-label">${escapeHtml(tab.label)}</span>
-                ${tab.isBeta ? '<span class="nav-tag">Beta</span>' : ""}
-              </span>
-              <span class="nav-note">${escapeHtml(tab.note)}</span>
-            </button>
-          `).join("")}
-        </div>
+function buildPageHeader({
+  eyebrow = "",
+  title = "",
+  copy = "",
+  badges = [],
+  actionsMarkup = "",
+} = {}) {
+  return `
+    <header class="page-header">
+      <div class="page-header-copy">
+        ${eyebrow ? `<p class="page-eyebrow">${escapeHtml(eyebrow)}</p>` : ""}
+        <h1 class="page-title">${escapeHtml(title)}</h1>
+        ${copy ? `<p class="page-copy">${escapeHtml(copy)}</p>` : ""}
+        ${badges.length ? `
+          <div class="page-badge-row">
+            ${badges.map((badge) => `
+              <span class="${getBadgeClass(badge.tone || "Pending")}">${escapeHtml(badge.label || "")}</span>
+            `).join("")}
+          </div>
+        ` : ""}
       </div>
-    `;
-  };
+      ${actionsMarkup ? `<div class="page-header-actions">${actionsMarkup}</div>` : ""}
+    </header>
+  `;
+}
+
+function buildShellNavButton(item, activeSection) {
+  const isActive = activeSection === item.key;
 
   return `
-    <nav class="workspace-nav" aria-label="Workspace sections">
-      ${renderGroup(
-        "Core workspace",
-        "The operating system for inbound demand and what the owner should do next.",
-        PRIMARY_SHELL_SECTIONS
-      )}
-      ${renderGroup(
-        "Connected tools",
-        "Optional Google-connected surfaces that stay secondary to the core workflow.",
-        SECONDARY_SHELL_SECTIONS
-      )}
-    </nav>
+    <button
+      class="shell-nav-button ${isActive ? "active" : ""}"
+      type="button"
+      data-shell-target="${escapeHtml(item.key)}"
+      aria-current="${isActive ? "page" : "false"}"
+    >
+      <span class="shell-nav-label-row">
+        <span class="shell-nav-label">${escapeHtml(item.label)}</span>
+        ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
+        ${item.badge ? `<span class="${getBadgeClass(item.badgeTone || "Pending")}">${escapeHtml(item.badge)}</span>` : ""}
+      </span>
+      ${item.note ? `<span class="shell-nav-note">${escapeHtml(item.note)}</span>` : ""}
+    </button>
+  `;
+}
+
+function buildSidebarGroup(title, items, activeSection) {
+  if (!items.length) {
+    return "";
+  }
+
+  return `
+    <section class="shell-sidebar-group">
+      <p class="shell-sidebar-label">${escapeHtml(title)}</p>
+      <div class="shell-sidebar-list">
+        ${items.map((item) => buildShellNavButton(item, activeSection)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildSidebarShell(
+  agent,
+  setup,
+  actionQueue = createEmptyActionQueue(),
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  activeSection = "overview"
+) {
+  const availableSections = getAvailableShellSections(operatorWorkspace);
+  const installStatus = getDefaultInstallStatus(agent);
+  const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
+  const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
+  const workspaceStatus = setup.isReady ? "Setup complete" : "Setup in progress";
+  const knowledgeStatus = setup.knowledgeReady
+    ? "Knowledge ready"
+    : setup.knowledgeLimited
+      ? "Knowledge limited"
+      : "Knowledge not imported";
+  const installTone = isInstallSeen(installStatus)
+    ? "Ready"
+    : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+      ? "Needs attention"
+      : installStatus.state === "installed_unseen"
+        ? "Limited"
+        : "Pending";
+
+  const coreItems = [
+    {
+      key: "overview",
+      label: "Today",
+      note: operatorWorkspace.enabled === false
+        ? (setup.isReady ? "Command center for front-desk health, install state, and the next move." : "Setup progress and what to finish next.")
+        : (setup.isReady ? "Command center for what needs attention, today’s schedule, and what is waiting." : "Activation checklist plus operator rollout."),
+      badge: todayAttention > 0 ? String(todayAttention) : "",
+      badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
+    },
+    {
+      key: "contacts",
+      label: "Contacts",
+      note: "People, lifecycle, timeline, and the next owner action across channels.",
+      badge: contactsAttention > 0 ? String(contactsAttention) : "",
+      badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
+    },
+    {
+      key: "customize",
+      label: "Front Desk",
+      note: "Identity, routing, knowledge, preview, and install for inbound demand capture.",
+    },
+    {
+      key: "analytics",
+      label: "Outcomes",
+      note: "Proof, conversion paths, and where owner follow-through still needs to close the loop.",
+    },
+  ].filter((item) => availableSections.includes(item.key));
+
+  const connectedItems = [
+    {
+      key: "inbox",
+      label: "Inbox",
+      note: "Connected Gmail threads, complaint drafts, and owner-approved replies.",
+      tag: "Beta",
+    },
+    {
+      key: "calendar",
+      label: "Calendar",
+      note: "Schedule context, recent appointments, and approval-first calendar review.",
+      tag: "Beta",
+    },
+    {
+      key: "automations",
+      label: "Automations",
+      note: "Approval-first tasks, campaigns, and follow-up work waiting on owner review.",
+      tag: "Beta",
+    },
+  ].filter((item) => availableSections.includes(item.key));
+
+  const utilityItems = [
+    {
+      key: "install",
+      label: "Install",
+      note: "Go live on the website and verify the embed.",
+      badge: isInstallSeen(installStatus) ? "" : "Needs review",
+      badgeTone: installTone,
+    },
+    {
+      key: "settings",
+      label: "Settings",
+      note: "Business profile, front desk, connected tools, and workspace.",
+    },
+  ].filter((item) => availableSections.includes(item.key));
+
+  return `
+    <aside class="sidebar-shell" aria-label="Dashboard sidebar">
+      <div class="sidebar-workspace-card">
+        <p class="sidebar-eyebrow">Vonza workspace</p>
+        <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Your workspace")}</h2>
+        <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add a real website to ground the front desk.")}</p>
+        <div class="sidebar-badge-stack">
+          <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(workspaceStatus)}</span>
+          <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending")}">${escapeHtml(knowledgeStatus)}</span>
+          <span class="${getBadgeClass(installTone)}">${escapeHtml(installStatus.label || "Not installed yet")}</span>
+        </div>
+      </div>
+      ${buildSidebarGroup("Core workflow", coreItems, activeSection)}
+      ${connectedItems.length ? buildSidebarGroup("Connected tools", connectedItems, activeSection) : ""}
+      ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
+    </aside>
+  `;
+}
+
+function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}) {
+  const navClass = compact ? "settings-nav settings-nav-compact" : "settings-nav";
+  const sections = [
+    {
+      key: "business",
+      label: "Business profile",
+      note: "Services, pricing, policies, and approval-first context.",
+    },
+    {
+      key: "front_desk",
+      label: "Front Desk",
+      note: "Identity, routing, website knowledge, and launch behavior.",
+    },
+    {
+      key: "connected_tools",
+      label: "Connected tools",
+      note: "Google connection state and extension surfaces.",
+    },
+    {
+      key: "workspace",
+      label: "Workspace",
+      note: "Access, launch mode, and honest workspace-level status.",
+    },
+  ];
+
+  return `
+    <div class="${navClass}">
+      ${sections.map((section) => `
+        <button
+          class="settings-nav-button ${activeSettingsSection === section.key ? "active" : ""}"
+          type="button"
+          data-settings-target="${escapeHtml(section.key)}"
+          aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
+        >
+          <span class="settings-nav-label">${escapeHtml(section.label)}</span>
+          <span class="settings-nav-note">${escapeHtml(section.note)}</span>
+        </button>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -2444,17 +2598,17 @@ function buildContactsPanel(operatorWorkspace = createEmptyOperatorWorkspace()) 
   });
 
   return `
-    <section class="workspace-panel" data-shell-section="contacts" hidden>
-      <div class="workspace-panel-header">
-        <div>
-          <h2 class="workspace-panel-title">Contacts</h2>
-          <p class="workspace-panel-copy">Contacts is part of the stable core. Each record rolls chat, lead capture, follow-up, and outcome activity into one owner timeline, then gets richer when connected inbox or calendar data is available.</p>
-        </div>
-        <div class="workspace-badge-row">
-          <span class="${getBadgeClass(contactsHealth.migrationRequired ? "Limited" : "Ready")}">${contactsHealth.migrationRequired ? "Workspace still syncing" : "Contacts live"}</span>
-          <span class="${getBadgeClass(contactsHealth.partialData ? "Limited" : "Ready")}">${contactsHealth.partialData ? "Timeline still growing" : "Cross-channel view"}</span>
-        </div>
-      </div>
+    <section class="workspace-page" data-shell-section="contacts" hidden>
+      ${buildPageHeader({
+        eyebrow: "Core workflow",
+        title: "Contacts",
+        copy: "Follow people, not just messages. Each record pulls chat, lead capture, follow-up, and outcome context into one operator view.",
+        badges: [
+          { label: contactsHealth.migrationRequired ? "Workspace still syncing" : "Contacts live", tone: contactsHealth.migrationRequired ? "Limited" : "Ready" },
+          { label: contactsHealth.partialData ? "Timeline still growing" : "Cross-channel view", tone: contactsHealth.partialData ? "Limited" : "Ready" },
+        ],
+      })}
+      <div class="workspace-page-body">
       ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Contacts are still loading some history: ${contactsHealth.loadError}`)}</p></div>` : ""}
       ${(filters.quick || []).length || (filters.sources || []).length ? `
         <div class="workspace-card-soft contact-filter-shell">
@@ -2600,6 +2754,7 @@ function buildContactsPanel(operatorWorkspace = createEmptyOperatorWorkspace()) 
           `).join("")}
         </div>
       `}
+      </div>
     </section>
   `;
 }
@@ -2772,7 +2927,7 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
           <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Front Desk context readiness will appear here.")}</p>
           ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} areas are still missing context.`)}</p>` : `<p class="analytics-subtle">Core Front Desk context is filled for Copilot.</p>`}
           <div class="inline-actions" style="margin-top:12px;">
-            <button class="ghost-button" type="button" data-copilot-open-target data-shell-target="customize" data-target-id="business-context-setup">Open Front Desk context</button>
+            <button class="ghost-button" type="button" data-copilot-open-target data-shell-target="settings" data-target-id="business-context-setup">Open business context setup</button>
           </div>
           ${prefill.available ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(prefill.sourceSummary || `${prefill.fieldCount || 0} fields have safe suggestions ready for owner review.`)}</p>` : ""}
         </section>
@@ -3183,25 +3338,28 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
 }
 
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
-  const operatorEnabled = operatorWorkspace?.enabled !== false;
+  const overview = buildOverviewState(agent, messages, setup, actionQueue);
 
   return `
-    <section class="workspace-panel workspace-panel-overview" data-shell-section="overview">
+    <section class="workspace-page workspace-page-overview" data-shell-section="overview">
+      ${buildPageHeader({
+        eyebrow: "Core workflow",
+        title: "Today",
+        copy: "See what changed, what needs attention now, and what the next safe operator action should be.",
+        badges: [
+          overview.queueSummary.attentionNeeded > 0
+            ? { label: `${overview.queueSummary.attentionNeeded} need attention`, tone: "Needs attention" }
+            : { label: "No urgent queue items", tone: "Ready" },
+          {
+            label: overview.installStatus.label || "Not installed yet",
+            tone: isInstallSeen(overview.installStatus) ? "Ready" : "Limited",
+          },
+        ],
+      })}
+      <div class="workspace-page-body">
       ${buildOperatorAlertMarkup(operatorWorkspace)}
       ${buildOperatorOverviewSection(agent, operatorWorkspace)}
-      ${operatorEnabled ? "" : buildOverviewSection(agent, messages, setup, actionQueue)}
-      <div class="workspace-utility-grid">
-        <section class="preview-card">
-          ${buildPreviewSection(agent, setup)}
-        </section>
-
-        <section class="install-card">
-          <div class="workspace-panel-header">
-            <h2 class="workspace-panel-title">Install</h2>
-            <p class="workspace-panel-copy">When you are ready to go live, use this embed script to add Vonza to the website.</p>
-          </div>
-          ${buildInstallSection(agent, { upcoming: !setup.isReady })}
-        </section>
+      ${buildOverviewSection(agent, messages, setup, actionQueue)}
       </div>
     </section>
   `;
@@ -3217,7 +3375,7 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
   ];
 
   return `
-    <form data-settings-form data-form-kind="business-context" class="workspace-card-soft" style="margin-top:20px;">
+    <form data-settings-form data-form-kind="business-context" class="workspace-card-soft settings-form-shell">
       <div class="workspace-panel-header" id="business-context-setup">
         <div>
           <p class="studio-kicker">Front Desk context</p>
@@ -3344,237 +3502,568 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
   `;
 }
 
-function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildFrontDeskSettingsForm(agent, setup) {
   const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
   const manualOutcomeVisible = isCapabilityExplicitlyVisible("manual_outcome_marks");
   const advancedGuidanceVisible = isCapabilityExplicitlyVisible("advanced_guidance");
 
   return `
-    <section class="workspace-panel" data-shell-section="customize" hidden>
-      <div class="workspace-panel-header">
-        <h2 class="workspace-panel-title">Front Desk</h2>
-        <p class="workspace-panel-copy">Configure the website front desk that captures inbound demand, routes the next step, and grounds Today, Contacts, and Outcomes before you add it to the live site.</p>
+    <form data-settings-form data-form-kind="customize" class="settings-form-shell">
+      <div class="settings-section-intro">
+        <p class="studio-kicker">Front Desk</p>
+        <h2 class="settings-section-title">Front desk behavior</h2>
+        <p class="settings-section-copy">Adjust how the customer-facing front desk sounds, routes, and learns from the website. This page keeps live behavior settings grouped together instead of burying them inside the workflow shell.</p>
       </div>
-      <form data-settings-form data-form-kind="customize">
-        <div class="studio-layout">
-          <div class="studio-groups">
-            <section class="studio-group">
-              <p class="studio-kicker">Front-desk basics</p>
-              <h3 class="studio-group-title">Set the identity your customers will meet.</h3>
-              <p class="studio-group-copy">Use these core settings to make the front desk feel like part of the business from the very first interaction.</p>
-              <div class="form-grid two-col">
-                <div class="field">
-                  <label for="assistant-name">Assistant name</label>
-                  <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
-                </div>
-                <div class="field">
-                  <label for="assistant-tone">Conversation tone</label>
-                  <select id="assistant-tone" name="tone">
-                    <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
-                    <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
-                    <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
-                    <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="assistant-button-label">Launcher text</label>
-                  <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
-                </div>
-                <div class="field">
-                  <label for="assistant-website">Website URL</label>
-                  <input id="assistant-website" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}">
-                  <p class="field-help">This should be the main website Vonza learns from and represents.</p>
-                </div>
-                <div class="field">
-                  <label for="assistant-allowed-domains">Allowed domains</label>
-                  <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${escapeHtml((agent.allowedDomains || []).join("\n"))}</textarea>
-                  <p class="field-help">One domain per line. Leave it as the website domain unless the widget should run on multiple live hosts.</p>
-                </div>
+      <div class="studio-layout">
+        <div class="studio-groups">
+          <section class="studio-group">
+            <p class="studio-kicker">Identity and welcome</p>
+            <h3 class="studio-group-title">Set the first impression customers meet.</h3>
+            <p class="studio-group-copy">Keep this customer-facing. The goal is a front desk that feels native to the business from the first interaction.</p>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="assistant-name">Assistant name</label>
+                <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
               </div>
+              <div class="field">
+                <label for="assistant-tone">Conversation tone</label>
+                <select id="assistant-tone" name="tone">
+                  <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
+                  <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
+                  <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
+                  <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="assistant-button-label">Launcher text</label>
+                <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
+              </div>
+              <div class="field">
+                <label for="assistant-website">Website URL</label>
+                <input id="assistant-website" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}">
+                <p class="field-help">This should be the main website Vonza learns from and represents.</p>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="assistant-welcome">Welcome message</label>
+                <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
+              </div>
+            </div>
+          </section>
+
+          <section class="studio-group">
+            <h3 class="studio-group-title">Routing and handoff</h3>
+            <p class="studio-group-copy">Tell Vonza where high-intent visitors should go when the right next step is to book, request a quote, contact the business, or buy now.</p>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="assistant-primary-cta-mode">Primary CTA mode</label>
+                <select id="assistant-primary-cta-mode" name="primary_cta_mode">
+                  <option value="contact" ${trimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
+                  <option value="booking" ${trimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
+                  <option value="quote" ${trimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
+                  <option value="checkout" ${trimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+                  <option value="capture" ${trimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
+                  <option value="chat" ${trimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
+                </select>
+                <p class="field-help">This is the default route Vonza uses when an intent-specific destination is missing.</p>
+              </div>
+              <div class="field">
+                <label for="assistant-fallback-cta-mode">Fallback CTA mode</label>
+                <select id="assistant-fallback-cta-mode" name="fallback_cta_mode">
+                  <option value="capture" ${trimText(agent.fallbackCtaMode || "capture") === "capture" ? "selected" : ""}>capture</option>
+                  <option value="contact" ${trimText(agent.fallbackCtaMode) === "contact" ? "selected" : ""}>contact</option>
+                  <option value="booking" ${trimText(agent.fallbackCtaMode) === "booking" ? "selected" : ""}>booking</option>
+                  <option value="quote" ${trimText(agent.fallbackCtaMode) === "quote" ? "selected" : ""}>quote</option>
+                  <option value="checkout" ${trimText(agent.fallbackCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+                  <option value="chat" ${trimText(agent.fallbackCtaMode) === "chat" ? "selected" : ""}>chat</option>
+                </select>
+                <p class="field-help">If a direct route is missing, Vonza follows this fallback instead of guessing.</p>
+              </div>
+              <div class="field">
+                <label for="assistant-booking-url">Booking URL</label>
+                <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
+              </div>
+              <div class="field">
+                <label for="assistant-quote-url">Quote URL</label>
+                <input id="assistant-quote-url" name="quote_url" type="text" value="${escapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
+              </div>
+              <div class="field">
+                <label for="assistant-checkout-url">Checkout URL</label>
+                <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
+              </div>
+              <div class="field">
+                <label for="assistant-contact-email">Contact email</label>
+                <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+              </div>
+              <div class="field">
+                <label for="assistant-contact-phone">Contact phone</label>
+                <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
+              </div>
+              <div class="field">
+                <label for="assistant-allowed-domains">Allowed domains</label>
+                <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${escapeHtml((agent.allowedDomains || []).join("\n"))}</textarea>
+                <p class="field-help">One domain per line. Keep it limited to the real sites where the widget should run.</p>
+              </div>
+              <div class="field">
+                <label for="assistant-booking-start-url">Booking start URL</label>
+                <input id="assistant-booking-start-url" name="booking_start_url" type="text" value="${escapeHtml(agent.bookingStartUrl || "")}" placeholder="https://example.com/book/start">
+              </div>
+              <div class="field">
+                <label for="assistant-quote-start-url">Quote start URL</label>
+                <input id="assistant-quote-start-url" name="quote_start_url" type="text" value="${escapeHtml(agent.quoteStartUrl || "")}" placeholder="https://example.com/quote/start">
+              </div>
+              <div class="field">
+                <label for="assistant-booking-success-url">Booking success URL</label>
+                <input id="assistant-booking-success-url" name="booking_success_url" type="text" value="${escapeHtml(agent.bookingSuccessUrl || "")}" placeholder="https://example.com/book/confirmed">
+              </div>
+              <div class="field">
+                <label for="assistant-quote-success-url">Quote success URL</label>
+                <input id="assistant-quote-success-url" name="quote_success_url" type="text" value="${escapeHtml(agent.quoteSuccessUrl || "")}" placeholder="https://example.com/quote/thanks">
+              </div>
+              <div class="field">
+                <label for="assistant-checkout-success-url">Checkout success URL</label>
+                <input id="assistant-checkout-success-url" name="checkout_success_url" type="text" value="${escapeHtml(agent.checkoutSuccessUrl || "")}" placeholder="https://example.com/order/complete">
+              </div>
+              <div class="field">
+                <label for="assistant-success-url-match-mode">Success URL match mode</label>
+                <select id="assistant-success-url-match-mode" name="success_url_match_mode">
+                  <option value="path_prefix" ${trimText(agent.successUrlMatchMode || "path_prefix") === "path_prefix" ? "selected" : ""}>path prefix</option>
+                  <option value="exact" ${trimText(agent.successUrlMatchMode) === "exact" ? "selected" : ""}>exact</option>
+                </select>
+              </div>
+              ${manualOutcomeVisible ? `
+                <div class="field">
+                  <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
+                  <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
+                    <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
+                    <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
+                  </select>
+                  <p class="field-help">Turn this on only when the real success page cannot be instrumented and the owner needs a manual fallback.</p>
+                </div>
+              ` : ""}
+            </div>
+            <div class="form-grid">
+              <div class="field">
+                <label for="assistant-business-hours-note">Availability note</label>
+                <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
+                <p class="field-help">Optional. This appears in the handoff card so the next step feels concrete and trustworthy.</p>
+              </div>
+              <div class="field">
+                <label for="assistant-success-snippet">Optional success ping snippet</label>
+                <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
+                <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="studio-group">
+            <h3 class="studio-group-title">Website knowledge and brand</h3>
+            <p class="studio-group-copy">Keep the front desk aligned with the brand your customers already know, and rerun import when the website changes.</p>
+            <div class="form-grid two-col">
+              <div class="field">
+                <label for="assistant-primary-color">Primary color</label>
+                <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
+              </div>
+              <div class="field">
+                <label for="assistant-secondary-color">Secondary color</label>
+                <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
+              </div>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
+            </div>
+            <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
+          </section>
+
+          ${advancedGuidanceVisible ? `
+            <section class="studio-group secondary">
+              <h3 class="studio-group-title">Advanced guidance</h3>
+              <p class="studio-group-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
               <div class="form-grid">
                 <div class="field">
-                  <label for="assistant-welcome">Welcome message</label>
-                  <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
+                  <label for="assistant-instructions">Advanced guidance</label>
+                  <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
                 </div>
               </div>
             </section>
+          ` : ""}
 
-            <section class="studio-group">
-              <h3 class="studio-group-title">Front-desk routing</h3>
-              <p class="studio-group-copy">Tell Vonza where to send high-intent visitors when the best next step is to book, request a quote, call, email, or buy now.</p>
-              <div class="form-grid two-col">
-                <div class="field">
-                  <label for="assistant-primary-cta-mode">Primary CTA mode</label>
-                  <select id="assistant-primary-cta-mode" name="primary_cta_mode">
-                    <option value="contact" ${trimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
-                    <option value="booking" ${trimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
-                    <option value="quote" ${trimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
-                    <option value="checkout" ${trimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
-                    <option value="capture" ${trimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
-                    <option value="chat" ${trimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
-                  </select>
-                  <p class="field-help">This is the default route Vonza reaches for when an intent-specific destination is missing.</p>
-                </div>
-                <div class="field">
-                  <label for="assistant-fallback-cta-mode">Fallback CTA mode</label>
-                  <select id="assistant-fallback-cta-mode" name="fallback_cta_mode">
-                    <option value="capture" ${trimText(agent.fallbackCtaMode || "capture") === "capture" ? "selected" : ""}>capture</option>
-                    <option value="contact" ${trimText(agent.fallbackCtaMode) === "contact" ? "selected" : ""}>contact</option>
-                    <option value="booking" ${trimText(agent.fallbackCtaMode) === "booking" ? "selected" : ""}>booking</option>
-                    <option value="quote" ${trimText(agent.fallbackCtaMode) === "quote" ? "selected" : ""}>quote</option>
-                    <option value="checkout" ${trimText(agent.fallbackCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
-                    <option value="chat" ${trimText(agent.fallbackCtaMode) === "chat" ? "selected" : ""}>chat</option>
-                  </select>
-                  <p class="field-help">If a booking, quote, checkout, or contact target is missing, Vonza follows this fallback instead of guessing.</p>
-                </div>
-                <div class="field">
-                  <label for="assistant-booking-url">Booking URL</label>
-                  <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
-                </div>
-                <div class="field">
-                  <label for="assistant-quote-url">Quote URL</label>
-                  <input id="assistant-quote-url" name="quote_url" type="text" value="${escapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
-                </div>
-                <div class="field">
-                  <label for="assistant-checkout-url">Checkout URL</label>
-                  <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
-                </div>
-                <div class="field">
-                  <label for="assistant-booking-start-url">Booking start URL</label>
-                  <input id="assistant-booking-start-url" name="booking_start_url" type="text" value="${escapeHtml(agent.bookingStartUrl || "")}" placeholder="https://example.com/book/start">
-                </div>
-                <div class="field">
-                  <label for="assistant-quote-start-url">Quote start URL</label>
-                  <input id="assistant-quote-start-url" name="quote_start_url" type="text" value="${escapeHtml(agent.quoteStartUrl || "")}" placeholder="https://example.com/quote/start">
-                </div>
-                <div class="field">
-                  <label for="assistant-booking-success-url">Booking success URL</label>
-                  <input id="assistant-booking-success-url" name="booking_success_url" type="text" value="${escapeHtml(agent.bookingSuccessUrl || "")}" placeholder="https://example.com/book/confirmed">
-                </div>
-                <div class="field">
-                  <label for="assistant-quote-success-url">Quote success URL</label>
-                  <input id="assistant-quote-success-url" name="quote_success_url" type="text" value="${escapeHtml(agent.quoteSuccessUrl || "")}" placeholder="https://example.com/quote/thanks">
-                </div>
-                <div class="field">
-                  <label for="assistant-checkout-success-url">Checkout success URL</label>
-                  <input id="assistant-checkout-success-url" name="checkout_success_url" type="text" value="${escapeHtml(agent.checkoutSuccessUrl || "")}" placeholder="https://example.com/order/complete">
-                </div>
-                <div class="field">
-                  <label for="assistant-success-url-match-mode">Success URL match mode</label>
-                  <select id="assistant-success-url-match-mode" name="success_url_match_mode">
-                    <option value="path_prefix" ${trimText(agent.successUrlMatchMode || "path_prefix") === "path_prefix" ? "selected" : ""}>path prefix</option>
-                    <option value="exact" ${trimText(agent.successUrlMatchMode) === "exact" ? "selected" : ""}>exact</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="assistant-contact-email">Contact email</label>
-                  <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
-                </div>
-                <div class="field">
-                  <label for="assistant-contact-phone">Contact phone</label>
-                  <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
-                </div>
-                ${manualOutcomeVisible ? `
-                  <div class="field">
-                    <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
-                    <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
-                      <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
-                      <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
-                    </select>
-                    <p class="field-help">Turn this on when the real success page cannot be instrumented and the owner needs a manual fallback in the action queue.</p>
-                  </div>
-                ` : ""}
-              </div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="assistant-business-hours-note">Availability note</label>
-                  <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
-                  <p class="field-help">Optional. This appears in the in-widget handoff card so the next step feels concrete and trustworthy.</p>
-                </div>
-                <div class="field">
-                  <label for="assistant-success-snippet">Optional success ping snippet</label>
-                  <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
-                  <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
-                </div>
-              </div>
-            </section>
+          <div class="studio-save-row">
+            <button class="primary-button" type="submit">Save front desk settings</button>
+            <span data-save-state class="save-state">No changes yet.</span>
+          </div>
+        </div>
 
-            <section class="studio-group">
-              <h3 class="studio-group-title">Brand colors</h3>
-              <p class="studio-group-copy">Keep the front desk aligned with the brand your customers already know.</p>
-              <div class="form-grid two-col">
-                <div class="field">
-                  <label for="assistant-primary-color">Primary color</label>
-                  <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
-                </div>
-                <div class="field">
-                  <label for="assistant-secondary-color">Secondary color</label>
-                  <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
-                </div>
-              </div>
-            </section>
-
-            <section class="studio-group">
-              <h3 class="studio-group-title">Website knowledge</h3>
-              <p class="studio-group-copy">Run an import after adding or changing your website so Vonza can answer with the right context.</p>
-              <div class="inline-actions">
-                <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
-              </div>
-              <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
-            </section>
-
-            ${advancedGuidanceVisible ? `
-              <section class="studio-group secondary">
-                <h3 class="studio-group-title">Advanced guidance</h3>
-                <p class="studio-group-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
-                <div class="form-grid">
-                  <div class="field">
-                    <label for="assistant-instructions">Advanced guidance</label>
-                    <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
-                  </div>
-                </div>
-              </section>
-            ` : ""}
-
-            <div class="studio-save-row">
-              <button class="primary-button" type="submit">Save changes</button>
-              <span data-save-state class="save-state">No changes yet.</span>
+        <aside class="studio-summary">
+          <p class="studio-summary-label">Live summary</p>
+          <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name)}</h3>
+          <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
+          <div class="studio-summary-badge-row">
+            <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
+            <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
+          </div>
+          <div class="studio-swatch-row">
+            <div id="studio-swatch-primary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.primaryColor || "#14b8a6")}">Primary</div>
+            <div id="studio-swatch-secondary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.secondaryColor || "#0f766e")}">Secondary</div>
+          </div>
+          <div class="overview-list">
+            <div class="overview-list-item">
+              <p class="overview-list-title">Current website</p>
+              <p class="overview-list-copy">${escapeHtml(agent.websiteUrl || "Add your website to import real business knowledge.")}</p>
+            </div>
+            <div class="overview-list-item">
+              <p class="overview-list-title">Install status</p>
+              <p class="overview-list-copy">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</p>
+            </div>
+            <div class="overview-list-item">
+              <p id="behavior-summary-title" class="overview-list-title">${escapeHtml(behaviorSummary.title)}</p>
+              <p id="behavior-summary-copy" class="overview-list-copy">${escapeHtml(behaviorSummary.copy)}</p>
             </div>
           </div>
+        </aside>
+      </div>
+    </form>
+  `;
+}
 
-          <aside class="studio-summary">
-            <p class="studio-summary-label">Live summary</p>
-            <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name)}</h3>
-            <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
-            <div class="studio-summary-badge-row">
-              <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
-              <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
-            </div>
-            <div class="studio-swatch-row">
-              <div id="studio-swatch-primary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.primaryColor || "#14b8a6")}">Primary</div>
-              <div id="studio-swatch-secondary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.secondaryColor || "#0f766e")}">Secondary</div>
-            </div>
-            <div class="overview-list">
-              <div class="overview-list-item">
-                <p class="overview-list-title">Current website</p>
-                <p class="overview-list-copy">${escapeHtml(agent.websiteUrl || "Add your website to import real business knowledge.")}</p>
-              </div>
-              <div class="overview-list-item">
-                <p class="overview-list-title">Install status</p>
-                <p class="overview-list-copy">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</p>
-              </div>
-              <div class="overview-list-item">
-                <p id="behavior-summary-title" class="overview-list-title">${escapeHtml(behaviorSummary.title)}</p>
-                <p id="behavior-summary-copy" class="overview-list-copy">${escapeHtml(behaviorSummary.copy)}</p>
-              </div>
-            </div>
-          </aside>
+function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const accounts = operatorWorkspace.connectedAccounts || [];
+  const primaryAccount = accounts[0] || null;
+  const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
+  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
+  const canWriteCalendar = googleCapabilities.calendarWrite === true;
+  const calendarMode = primaryAccount?.status === "connected"
+    ? canWriteCalendar
+      ? "Calendar can prepare approval-first drafts."
+      : "Calendar is connected in read-only mode."
+    : status.googleConfigReady
+      ? "Google beta is available but not connected yet."
+      : "This workspace is running without the optional Google-connected extensions.";
+
+  return `
+    <div class="settings-panel-stack">
+      <section class="workspace-card-soft">
+        <div class="settings-section-intro">
+          <p class="studio-kicker">Connected tools</p>
+          <h2 class="settings-section-title">Connected tools</h2>
+          <p class="settings-section-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
         </div>
-      </form>
-      ${buildBusinessContextSetupPanel(operatorWorkspace)}
+        <div class="settings-summary-grid">
+          <article class="settings-summary-card">
+            <p class="overview-label">Google workspace</p>
+            <h3 class="settings-summary-title">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available" : "Unavailable")}</h3>
+            <p class="settings-summary-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
+            <div class="inline-actions">
+              <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
+              <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Refresh sync</button>
+            </div>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Calendar mode</p>
+            <h3 class="settings-summary-title">${escapeHtml(canWriteCalendar ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected")}</h3>
+            <p class="settings-summary-copy">${escapeHtml(calendarMode)}</p>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Inbox and automations</p>
+            <h3 class="settings-summary-title">${escapeHtml(googleCapabilities.gmailRead ? "Email connected" : "Email not connected")}</h3>
+            <p class="settings-summary-copy">${escapeHtml(googleCapabilities.gmailRead
+              ? "Inbox and approval-first email work can appear in the connected workspace surfaces."
+              : "Inbox stays hidden until Gmail read access is available. Automations stay honest about the missing connection.")}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workspace-card-soft">
+        <h3 class="studio-group-title">What each extension adds</h3>
+        <p class="studio-group-copy">Connected tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
+        <div class="settings-summary-grid">
+          <article class="settings-summary-card">
+            <p class="overview-label">Inbox</p>
+            <h3 class="settings-summary-title">Approval-first replies</h3>
+            <p class="settings-summary-copy">Recent Gmail threads, reply drafts, and complaint recovery work show up here only when the mailbox connection is ready.</p>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Calendar</p>
+            <h3 class="settings-summary-title">Schedule context</h3>
+            <p class="settings-summary-copy">Vonza can surface today’s schedule, follow-up gaps, and event drafts without silently mutating the owner calendar.</p>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Automations</p>
+            <h3 class="settings-summary-title">Draft-first workflows</h3>
+            <p class="settings-summary-copy">Campaigns, follow-ups, and operator tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
+          </article>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const workspaceMode = getWorkspaceMode(operatorWorkspace);
+  const accessStatus = normalizeAccessStatus(agent.accessStatus);
+
+  return `
+    <div class="settings-panel-stack">
+      <section class="workspace-card-soft">
+        <div class="settings-section-intro">
+          <p class="studio-kicker">Workspace</p>
+          <h2 class="settings-section-title">Workspace status</h2>
+          <p class="settings-section-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
+        </div>
+        <div class="settings-summary-grid">
+          <article class="settings-summary-card">
+            <p class="overview-label">Access</p>
+            <h3 class="settings-summary-title">${escapeHtml(accessStatus)}</h3>
+            <p class="settings-summary-copy">Billing and access are currently managed through secure checkout and workspace activation, not through a separate in-app billing center in this pass.</p>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Workspace mode</p>
+            <h3 class="settings-summary-title">${escapeHtml(workspaceMode.title)}</h3>
+            <p class="settings-summary-copy">${escapeHtml(workspaceMode.copy)}</p>
+          </article>
+          <article class="settings-summary-card">
+            <p class="overview-label">Install visibility</p>
+            <h3 class="settings-summary-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
+            <p class="settings-summary-copy">${escapeHtml(setup.isReady
+              ? "The front desk is configured well enough to move into live install and verification."
+              : "Finish the front-desk basics before treating install as complete.")}</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workspace-card-soft">
+        <h3 class="studio-group-title">What is intentionally not self-serve here yet</h3>
+        <p class="studio-group-copy">This first shell pass is focused on navigation and information architecture. Billing management, deeper access controls, and broader workspace preferences are intentionally surfaced as status only until the product supports them cleanly.</p>
+        <div class="overview-list">
+          <div class="overview-list-item">
+            <p class="overview-list-title">Billing management</p>
+            <p class="overview-list-copy">Billing still lives in hosted checkout and access activation flow. There is no fake billing settings form here.</p>
+          </div>
+          <div class="overview-list-item">
+            <p class="overview-list-title">Workspace preferences</p>
+            <p class="overview-list-copy">This pass creates the shell for preferences, but avoids pretending there are extra backend preference systems when they are not implemented yet.</p>
+          </div>
+          <div class="overview-list-item">
+            <p class="overview-list-title">Access controls</p>
+            <p class="overview-list-copy">Owner access, auth, and activation remain preserved exactly as they already work in the product.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const activeSettingsSection = getActiveSettingsSection();
+
+  return `
+    <section class="workspace-page" data-shell-section="settings" hidden>
+      ${buildPageHeader({
+        eyebrow: "Utilities",
+        title: "Settings",
+        copy: "Organize business context, front-desk behavior, connected tools, and honest workspace status in one clear settings shell.",
+      })}
+      <div class="workspace-page-body settings-layout">
+        <aside class="settings-sidebar">
+          ${buildSettingsSectionNav(activeSettingsSection)}
+        </aside>
+        <div class="settings-content">
+          <div class="settings-mobile-nav">
+            ${buildSettingsSectionNav(activeSettingsSection, { compact: true })}
+          </div>
+          <section class="settings-content-panel" data-settings-section="business" ${activeSettingsSection === "business" ? "" : "hidden"}>
+            ${buildBusinessContextSetupPanel(operatorWorkspace)}
+          </section>
+          <section class="settings-content-panel" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
+            ${buildFrontDeskSettingsForm(agent, setup)}
+          </section>
+          <section class="settings-content-panel" data-settings-section="connected_tools" ${activeSettingsSection === "connected_tools" ? "" : "hidden"}>
+            ${buildConnectedToolsSettingsPanel(agent, operatorWorkspace)}
+          </section>
+          <section class="settings-content-panel" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
+            ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace)}
+          </section>
+        </div>
+      </div>
     </section>
   `;
+}
+
+function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
+  const readinessItems = [
+    {
+      title: "Front-desk basics",
+      copy: setup.personalityReady
+        ? "Name, welcome message, and tone are in place."
+        : "The front desk still needs its name, welcome message, or tone tightened up.",
+      tone: setup.personalityReady ? "Ready" : "Limited",
+    },
+    {
+      title: "Website knowledge",
+      copy: setup.knowledgeDescription,
+      tone: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
+    },
+    {
+      title: "Live install",
+      copy: installStatus.label || "Not installed yet",
+      tone: isInstallSeen(installStatus)
+        ? "Ready"
+        : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+          ? "Needs attention"
+          : installStatus.state === "installed_unseen"
+            ? "Limited"
+            : "Pending",
+    },
+  ];
+  const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
+  const actionsMarkup = [
+    trimText(agent.publicAgentKey)
+      ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+      : "",
+    `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>`,
+  ].filter(Boolean).join("");
+
+  return `
+    <section class="workspace-page" data-shell-section="customize" hidden>
+      ${buildPageHeader({
+        eyebrow: "Core workflow",
+        title: "Front Desk",
+        copy: "Preview the customer-facing experience, confirm launch readiness, and keep deeper configuration in Settings instead of piling it into the main workflow.",
+        badges: readinessItems.map((item) => ({ label: item.title, tone: item.tone })),
+        actionsMarkup,
+      })}
+      <div class="workspace-page-body frontdesk-page-layout">
+        <section class="workspace-card-soft frontdesk-status-card">
+          <div class="workspace-panel-header">
+            <div>
+              <p class="studio-kicker">Launch readiness</p>
+              <h3 class="workspace-panel-title">What is ready, what still needs review, and what comes next.</h3>
+              <p class="workspace-panel-copy">This page stays focused on orientation and launch confidence. Deeper edits live in Settings.</p>
+            </div>
+          </div>
+          <div class="settings-summary-grid">
+            ${readinessItems.map((item) => `
+              <article class="settings-summary-card">
+                <p class="overview-label">${escapeHtml(item.title)}</p>
+                <h3 class="settings-summary-title">${escapeHtml(item.tone === "Ready" ? "Ready" : item.tone === "Limited" ? "Needs review" : item.tone === "Needs attention" ? "Needs attention" : "Not ready")}</h3>
+                <p class="settings-summary-copy">${escapeHtml(item.copy)}</p>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+
+        <section class="workspace-card-soft frontdesk-preview-shell">
+          ${buildPreviewSection(agent, setup)}
+        </section>
+
+        <div class="frontdesk-side-stack">
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Current behavior</h3>
+            <p class="studio-group-copy">A compact read on how the front desk is currently representing the business.</p>
+            <div class="overview-list">
+              <div class="overview-list-item">
+                <p class="overview-list-title">Tone</p>
+                <p class="overview-list-copy">${escapeHtml(behaviorSummary.title)}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Launcher</p>
+                <p class="overview-list-copy">${escapeHtml(agent.buttonLabel || "Chat")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Primary route</p>
+                <p class="overview-list-copy">${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Business context</h3>
+            <p class="studio-group-copy">${escapeHtml(businessReadiness.summary || "Business context readiness will appear here.")}</p>
+            <p class="analytics-subtle">${escapeHtml(businessReadiness.missingCount
+              ? `${businessReadiness.missingCount} areas still need owner review before Copilot has stronger grounding.`
+              : "Business context is in a healthy state for approval-first operator work.")}</p>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="business">Business profile</button>
+              <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const installStatus = getDefaultInstallStatus(agent);
+  const actionsMarkup = [
+    `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>Copy install code</button>`,
+    `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>Verify installation</button>`,
+  ].join("");
+
+  return `
+    <section class="workspace-page" data-shell-section="install" hidden>
+      ${buildPageHeader({
+        eyebrow: "Utilities",
+        title: "Install",
+        copy: "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.",
+        badges: [
+          { label: setup.isReady ? "Front desk ready for launch" : "Front desk still needs setup", tone: setup.isReady ? "Ready" : "Limited" },
+          {
+            label: installStatus.label || "Not installed yet",
+            tone: isInstallSeen(installStatus)
+              ? "Ready"
+              : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+                ? "Needs attention"
+                : installStatus.state === "installed_unseen"
+                  ? "Limited"
+                  : "Pending",
+          },
+        ],
+        actionsMarkup,
+      })}
+      <div class="workspace-page-body install-page-layout">
+        <section class="workspace-card-soft install-page-main">
+          ${buildInstallSection(agent, { upcoming: !setup.isReady })}
+        </section>
+        <div class="frontdesk-side-stack">
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Before you go live</h3>
+            <div class="overview-list">
+              <div class="overview-list-item">
+                <p class="overview-list-title">Preview confidence</p>
+                <p class="overview-list-copy">${escapeHtml(trimText(agent.publicAgentKey) ? "Preview is available, so you can test the customer-facing flow before launch." : "Preview will appear as soon as the front desk has a public key.")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Website knowledge</p>
+                <p class="overview-list-copy">${escapeHtml(setup.knowledgeDescription)}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Allowed domains</p>
+                <p class="overview-list-copy">${escapeHtml((installStatus.allowedDomains || []).length ? installStatus.allowedDomains.join(", ") : "No domains saved yet.")}</p>
+              </div>
+            </div>
+          </section>
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">After install is detected</h3>
+            <p class="studio-group-copy">Today and Outcomes become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.</p>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-shell-target="overview">Open Today</button>
+              <button class="ghost-button" type="button" data-shell-target="analytics">Open Outcomes</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  return buildFrontDeskPanel(agent, setup, operatorWorkspace);
 }
 
 // Workspace sections
@@ -5435,7 +5924,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
                 <option value="complaint_resolved">complaint resolved</option>
                 <option value="manual_outcome_marked">manual catch-all / no outcome</option>
               </select>
-              <p class="field-help">${escapeHtml(agent.manualOutcomeMode === true ? "Use this only when automatic confirmation is unavailable." : "Enable manual outcome mode in Front Desk before using this fallback.")}</p>
+              <p class="field-help">${escapeHtml(agent.manualOutcomeMode === true ? "Use this only when automatic confirmation is unavailable." : "Enable manual outcome mode in Settings before using this fallback.")}</p>
             </div>
             <div class="field">
               <label for="manual-outcome-note-${escapeHtml(item.key || "")}">Context note</label>
@@ -5533,7 +6022,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
             </div>
             <div class="action-queue-secondary-action">
               ${item.messageId ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open related conversation</button>` : ""}
-              <button class="ghost-button" type="button" data-overview-target="customize">Open Front Desk</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
             </div>
             <div class="action-queue-details">
               <div class="action-queue-detail">
@@ -5854,7 +6343,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   if (!setup.isReady) {
     title = "Today is open. The next step is finishing the front desk setup.";
-    copy = "Use Front Desk to shape the customer-facing experience, confirm routing and website knowledge, and make sure it feels right before you install it.";
+    copy = "Use Front Desk and Settings to shape the experience, confirm routing and website knowledge, and make sure the customer-facing flow feels ready before you install it.";
     primaryAction = {
       label: "Continue setup",
       type: "section",
@@ -6395,11 +6884,17 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   }
 
   return `
-    <section class="workspace-panel" data-shell-section="analytics" hidden>
-      <div class="workspace-panel-header">
-        <h2 class="workspace-panel-title">Outcomes</h2>
-        <p class="workspace-panel-copy">See what customers are asking, where the front desk is active, what the operator needs to review, and which outcomes Vonza can prove conservatively.</p>
-      </div>
+    <section class="workspace-page" data-shell-section="analytics" hidden>
+      ${buildPageHeader({
+        eyebrow: "Core workflow",
+        title: "Outcomes",
+        copy: "Track what customers are asking, where the front desk is active, and which outcomes Vonza can prove conservatively.",
+        badges: [
+          { label: `${analyticsSummary.highIntentSignals || 0} high-intent signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
+          { label: `${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed outcomes`, tone: outcomeSummary.confirmedBusinessOutcomes > 0 ? "Ready" : "Limited" },
+        ],
+      })}
+      <div class="workspace-page-body">
       <div class="analytics-stack">
         ${analyticsSummary.syncState === "pending" ? `
           <div class="placeholder-card">Live widget activity was detected, and Vonza is syncing the stored conversation read model now. Refresh stays targeted, so these counters will update without a full page boot.</div>
@@ -6650,6 +7145,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           ${recentInteractions.length ? `<p class="analytics-subtle">This section shows recent stored messages, not full reconstructed chat threads.</p>` : ""}
         </section>
       </div>
+      </div>
     </section>
   `;
 }
@@ -6668,11 +7164,14 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
   const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
 
   return `
-    <section class="workspace-panel" data-shell-section="inbox" hidden>
-      <div class="workspace-panel-header">
-        <h2 class="workspace-panel-title">Inbox</h2>
-        <p class="workspace-panel-copy">Inbox is an optional connected tool. It brings recent Gmail threads into Vonza so the owner can review replies, spot missed leads, and handle complaints from one place.</p>
-      </div>
+    <section class="workspace-page" data-shell-section="inbox" hidden>
+      ${buildPageHeader({
+        eyebrow: "Connected tools",
+        title: "Inbox",
+        copy: "Bring recent Gmail threads into Vonza so the owner can review replies, spot missed leads, and handle complaints from one place.",
+        badges: [{ label: "Optional beta surface", tone: "Limited" }],
+      })}
+      <div class="workspace-page-body">
       <div class="workspace-section-stack">
         ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
@@ -6753,6 +7252,7 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
           })}
         </section>
       </div>
+      </div>
     </section>
   `;
 }
@@ -6773,13 +7273,16 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
   const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems : [];
 
   return `
-    <section class="workspace-panel" data-shell-section="calendar" hidden>
-      <div class="workspace-panel-header">
-        <h2 class="workspace-panel-title">Calendar</h2>
-        <p class="workspace-panel-copy">${escapeHtml(canWrite
-          ? "Calendar is an optional connected tool. It surfaces the day view, suggested slots, booking signals, and approval-first calendar changes without silently mutating the owner calendar."
-          : "Calendar is connected in a Google Calendar-first read-only mode. It surfaces today’s schedule, recent appointments that may need follow-up, and unlinked attendees without silently mutating the owner calendar.")}</p>
-      </div>
+    <section class="workspace-page" data-shell-section="calendar" hidden>
+      ${buildPageHeader({
+        eyebrow: "Connected tools",
+        title: "Calendar",
+        copy: canWrite
+          ? "Surface the day view, suggested slots, booking signals, and approval-first calendar changes without silently mutating the owner calendar."
+          : "Stay grounded in the owner calendar with read-only schedule context, follow-up gaps, and unlinked attendee review.",
+        badges: [{ label: canWrite ? "Approval-first drafts available" : "Read-only calendar mode", tone: canWrite ? "Ready" : "Limited" }],
+      })}
+      <div class="workspace-page-body">
       <div class="workspace-section-stack">
         ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
@@ -6934,6 +7437,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
           ` : ""}
         </section>
       </div>
+      </div>
     </section>
   `;
 }
@@ -6948,11 +7452,14 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
   const workspaceReady = operatorWorkspace.capabilities.featureEnabled && operatorWorkspace.capabilities.persistenceAvailable;
 
   return `
-    <section class="workspace-panel" data-shell-section="automations" hidden>
-      <div class="workspace-panel-header">
-        <h2 class="workspace-panel-title">Automations</h2>
-        <p class="workspace-panel-copy">Automations is an optional connected tool. It keeps campaigns, follow-up approvals, and operator tasks structured and approval-first instead of silently sending on its own.</p>
-      </div>
+    <section class="workspace-page" data-shell-section="automations" hidden>
+      ${buildPageHeader({
+        eyebrow: "Connected tools",
+        title: "Automations",
+        copy: "Keep campaigns, follow-up approvals, and operator tasks structured and approval-first instead of silently sending on their own.",
+        badges: [{ label: "Optional beta surface", tone: "Limited" }],
+      })}
+      <div class="workspace-page-body">
       <div class="workspace-section-stack">
         ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
@@ -7079,7 +7586,33 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
           ` : `<div class="placeholder-card">${escapeHtml(googleConnected ? "Prepared follow-ups will show up here alongside campaigns and complaint tasks." : "Connect Google if you want follow-up drafts and campaign work to appear in this connected workspace.")}</div>`}
         </section>
       </div>
+      </div>
     </section>
+  `;
+}
+
+function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const workspaceMode = getWorkspaceMode(operatorWorkspace);
+  const primaryAction = setup.isReady
+    ? `<button class="primary-button" data-action="copy-install" ${trimText(agent.publicAgentKey) ? "" : "disabled"}>Add to website</button>`
+    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`;
+  const secondaryAction = trimText(agent.publicAgentKey)
+    ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+    : "";
+
+  return `
+    <div class="workspace-context-bar">
+      <button class="shell-menu-button" type="button" data-shell-menu-toggle aria-label="Open navigation">Menu</button>
+      <div class="workspace-context-copy">
+        <p class="workspace-context-eyebrow">${escapeHtml(workspaceMode.eyebrow)}</p>
+        <p class="workspace-context-title">${escapeHtml(workspaceMode.title)}</p>
+        <p class="workspace-context-note">${escapeHtml(workspaceMode.copy)}</p>
+      </div>
+      <div class="workspace-context-actions">
+        ${secondaryAction}
+        ${primaryAction}
+      </div>
+    </div>
   `;
 }
 
@@ -7093,59 +7626,33 @@ function renderAssistantShell(
 ) {
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
-  const shellStatus = setup.isReady ? "Setup complete" : "Setup in progress";
-  const operatorEnabled = operatorWorkspace.enabled !== false;
-  const workspaceMode = getWorkspaceMode(operatorWorkspace);
-  const googleBetaVisible = isCapabilityVisibleForWorkspace("google_connect", operatorWorkspace);
-  const primaryAction = setup.isReady
-    ? `<button class="primary-button" data-action="copy-install" ${trimText(agent.publicAgentKey) ? "" : "disabled"}>Add to website</button>`
-    : `<button class="primary-button" type="button" data-shell-target="customize">Continue setup</button>`;
-  const secondaryAction = trimText(agent.publicAgentKey)
-    ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+  const setupHintMarkup = !setup.isReady
+    ? `
+      <div class="shell-inline-note">
+        Finish the front-desk basics in Settings, preview the live experience from Front Desk, and then move into Install when you are ready to go live.
+      </div>
+    `
     : "";
 
   rootEl.innerHTML = `
-    <div class="app-shell">
-      ${buildShellSidebar(agent, setup, operatorWorkspace, activeSection, workspaceMode)}
+    <div class="app-shell" data-app-shell>
+      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
+      ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
-        <section class="workspace-header">
-          <div class="workspace-header-top">
-            <div class="workspace-header-copy">
-              <span class="eyebrow">${escapeHtml(workspaceMode.eyebrow)}</span>
-              <h1 class="workspace-title">${escapeHtml(agent.assistantName || agent.name)}</h1>
-              <p class="workspace-subtitle">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
-            </div>
-            <div class="workspace-actions">
-              ${secondaryAction}
-              ${primaryAction}
-              ${!setup.knowledgeReady ? `<button class="ghost-button" data-action="import-knowledge">Retry website import</button>` : ""}
-            </div>
-          </div>
-          <div class="workspace-header-bottom">
-            <div class="workspace-badge-row">
-              <span class="${getBadgeClass(shellStatus)}">${shellStatus}</span>
-              ${googleBetaVisible ? `<span class="${getBadgeClass((operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Ready" : "Limited")}">${(operatorWorkspace.connectedAccounts || []).some((account) => account.status === "connected") ? "Connected tools live" : "Connected tools available"}</span>` : ""}
-              <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Not imported")}">${setup.knowledgeReady ? "Knowledge ready" : setup.knowledgeLimited ? "Knowledge limited" : "Knowledge not imported"}</span>
-              <span class="${getBadgeClass(isInstallSeen(getDefaultInstallStatus(agent)) ? "Ready" : getDefaultInstallStatus(agent).state === "installed_unseen" ? "Limited" : getDefaultInstallStatus(agent).state === "domain_mismatch" || getDefaultInstallStatus(agent).state === "verify_failed" ? "Needs attention" : "Not imported")}">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</span>
-            </div>
-            <p class="workspace-command-copy"><strong>${escapeHtml(workspaceMode.title)}</strong> ${escapeHtml(workspaceMode.copy)}</p>
-          </div>
-        </section>
-
-        ${operatorEnabled && !setup.isReady ? `
-          <div class="shell-status-banner">
-            Finish the front-desk basics in Front Desk, make the preview strong, add the widget to the live site, and then use Today, Contacts, Front Desk, and Outcomes to confirm the first real lead path.
-          </div>
-        ` : ""}
-
+        ${buildWorkspaceContextBar(agent, setup, operatorWorkspace)}
+        ${setupHintMarkup}
         ${buildWorkspaceDiagnosticsMarkup(diagnostics)}
-        ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-        ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(operatorWorkspace) : ""}
-        ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
-        ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
-        ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
-        ${buildCustomizePanel(agent, setup, operatorWorkspace)}
-        ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
+        <div class="workspace-pages">
+          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(operatorWorkspace) : ""}
+          ${buildCustomizePanel(agent, setup, operatorWorkspace)}
+          ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
+          ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
+          ${buildInstallPanel(agent, setup, operatorWorkspace)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace)}
+        </div>
       </div>
     </div>
   `;
@@ -8648,8 +9155,8 @@ function applyAppearancePreset(form, presetName) {
     bold: {
       buttonLabel: "Start here",
       welcomeMessage: "Welcome. Ask anything about our business and I’ll guide you quickly to the right service or next step.",
-      primaryColor: "#7c3aed",
-      secondaryColor: "#4c1d95",
+      primaryColor: "#0f766e",
+      secondaryColor: "#164e63",
     },
     minimal: {
       buttonLabel: "Chat",
@@ -8852,7 +9359,10 @@ function bindSharedDashboardEvents(
   operatorWorkspace = createEmptyOperatorWorkspace(),
   diagnostics = createEmptyWorkspaceDiagnostics()
 ) {
+  const appShell = document.querySelector("[data-app-shell]");
   const settingsForms = document.querySelectorAll("form[data-settings-form]");
+  const settingsSectionButtons = document.querySelectorAll("[data-settings-target]");
+  const settingsSections = document.querySelectorAll("[data-settings-section]");
   const appearancePresetButtons = document.querySelectorAll("[data-appearance-preset]");
   const configurationPresetButtons = document.querySelectorAll("[data-configuration-preset]");
   const toneCards = document.querySelectorAll("[data-tone-card]");
@@ -8903,13 +9413,12 @@ function bindSharedDashboardEvents(
   const copilotTargetButtons = document.querySelectorAll("[data-copilot-open-target]");
   const copilotApplyButtons = document.querySelectorAll("[data-copilot-apply-proposal]");
   const copilotDismissButtons = document.querySelectorAll("[data-copilot-dismiss-proposal]");
+  const shellMenuButtons = document.querySelectorAll("[data-shell-menu-toggle]");
+  const shellBackdrop = document.querySelector("[data-shell-backdrop]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
+  const availableSettingsSections = getAvailableSettingsSections();
 
   const updateShellSectionUi = (targetSection) => {
-    if (!availableSections.includes(targetSection)) {
-      return;
-    }
-
     setActiveShellSection(targetSection, operatorWorkspace);
     rootEl.dataset.activeSection = targetSection;
 
@@ -8926,6 +9435,30 @@ function bindSharedDashboardEvents(
       const isActive = section.dataset.shellSection === targetSection;
       section.hidden = !isActive;
       section.classList.toggle("section-enter", isActive);
+    });
+  };
+
+  const closeShellNavigation = () => {
+    appShell?.classList.remove("nav-open");
+  };
+
+  const openShellNavigation = () => {
+    appShell?.classList.add("nav-open");
+  };
+
+  const showSettingsSection = (targetSection = getActiveSettingsSection()) => {
+    const normalizedSection = availableSettingsSections.includes(targetSection)
+      ? targetSection
+      : "business";
+
+    setActiveSettingsSection(normalizedSection);
+
+    settingsSectionButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.settingsTarget === normalizedSection);
+    });
+
+    settingsSections.forEach((section) => {
+      section.hidden = section.dataset.settingsSection !== normalizedSection;
     });
   };
 
@@ -8952,6 +9485,26 @@ function bindSharedDashboardEvents(
       void activeSection.offsetWidth;
       activeSection.classList.add("section-enter");
     });
+
+    if (targetSection === "settings") {
+      showSettingsSection(options.settingsSection || getActiveSettingsSection());
+    }
+
+    closeShellNavigation();
+  };
+
+  const resolveShellTarget = (targetSection, targetId = "") => {
+    if ((targetSection === "customize" || targetSection === "settings") && targetId === "business-context-setup") {
+      return {
+        targetSection: "settings",
+        settingsSection: "business",
+      };
+    }
+
+    return {
+      targetSection,
+      settingsSection: "",
+    };
   };
 
   const getCopilotTargetSelector = (section, targetId) => {
@@ -8961,6 +9514,8 @@ function bindSharedDashboardEvents(
 
     switch (section) {
       case "customize":
+        return `#${targetId}`;
+      case "settings":
         return `#${targetId}`;
       case "contacts":
         return `[data-contact-card][data-contact-id="${targetId}"]`;
@@ -8975,8 +9530,8 @@ function bindSharedDashboardEvents(
     }
   };
 
-  const showSectionAndHighlight = (targetSection, selector) => {
-    showShellSection(targetSection);
+  const showSectionAndHighlight = (targetSection, selector, options = {}) => {
+    showShellSection(targetSection, options);
     const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
     sectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -9071,9 +9626,11 @@ function bindSharedDashboardEvents(
       await boot();
 
       if (result.result?.section) {
+        const resolvedTarget = resolveShellTarget(result.result.section, result.result.id || "");
         showSectionAndHighlight(
-          result.result.section,
-          getCopilotTargetSelector(result.result.section, result.result.id || "")
+          resolvedTarget.targetSection,
+          getCopilotTargetSelector(resolvedTarget.targetSection, result.result.id || ""),
+          { settingsSection: resolvedTarget.settingsSection }
         );
       }
     } catch (error) {
@@ -9479,10 +10036,41 @@ function bindSharedDashboardEvents(
     bindStudioState(form, agent);
   });
 
+  showSettingsSection(getActiveSettingsSection());
+
+  shellMenuButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (appShell?.classList.contains("nav-open")) {
+        closeShellNavigation();
+        return;
+      }
+
+      openShellNavigation();
+    });
+  });
+
+  shellBackdrop?.addEventListener("click", closeShellNavigation);
+
+  settingsSectionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      showShellSection("settings", { settingsSection: button.dataset.settingsTarget || "business" });
+      const settingsPanel = document.querySelector('[data-shell-section="settings"]');
+      settingsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
   copilotTargetButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const targetSection = button.dataset.shellTarget || "overview";
-      showSectionAndHighlight(targetSection, getCopilotTargetSelector(targetSection, button.dataset.targetId || ""));
+      const resolvedTarget = resolveShellTarget(
+        button.dataset.shellTarget || "overview",
+        button.dataset.targetId || ""
+      );
+
+      showSectionAndHighlight(
+        resolvedTarget.targetSection,
+        getCopilotTargetSelector(resolvedTarget.targetSection, button.dataset.targetId || ""),
+        { settingsSection: resolvedTarget.settingsSection }
+      );
     });
   });
 
@@ -10235,12 +10823,17 @@ function bindSharedDashboardEvents(
         return;
       }
 
-      showShellSection(targetSection, { animate: true });
+      showShellSection(targetSection, {
+        animate: true,
+        settingsSection: button.dataset.settingsTarget || "",
+      });
     });
   });
 
   const initialSection = getActiveShellSection(setup, operatorWorkspace);
-  showShellSection(initialSection);
+  showShellSection(initialSection, {
+    settingsSection: getActiveSettingsSection(),
+  });
 
   if (contactFilterButtons.length) {
     applyContactFilter("all");
@@ -10250,9 +10843,9 @@ function bindSharedDashboardEvents(
 
   if (focusTarget) {
     const focusMap = {
-      preview: ".preview-card",
-      install: ".install-card",
-      setup: '[data-shell-section="customize"]',
+      preview: ".frontdesk-preview-shell",
+      install: '[data-shell-section="install"]',
+      setup: '[data-shell-section="settings"]',
       "action-queue": "[data-action-queue-section]",
       contacts: '[data-shell-section="contacts"]',
       inbox: '[data-shell-section="inbox"]',
@@ -10264,7 +10857,11 @@ function bindSharedDashboardEvents(
 
     if (target) {
       if (focusTarget === "setup") {
+        showShellSection("settings", { settingsSection: "front_desk" });
+      } else if (focusTarget === "preview") {
         showShellSection("customize");
+      } else if (focusTarget === "install") {
+        showShellSection("install");
       }
 
       window.requestAnimationFrame(() => {
