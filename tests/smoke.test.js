@@ -1217,8 +1217,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Unlock Vonza to open your AI front desk workspace/);
         assert.match(dashboardScript.text, /Today/);
         assert.match(dashboardScript.text, /Contacts/);
-        assert.match(dashboardScript.text, /Customize/);
+        assert.match(dashboardScript.text, /Front Desk/);
         assert.match(dashboardScript.text, /Outcomes/);
+        assert.match(dashboardScript.text, /Install/);
+        assert.match(dashboardScript.text, /Settings/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
         assert.match(dashboardScript.text, /Operator home/);

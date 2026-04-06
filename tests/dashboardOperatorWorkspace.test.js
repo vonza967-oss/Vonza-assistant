@@ -208,7 +208,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.contacts.list), []);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "calendar", "automations", "customize", "analytics"]
+    ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
   );
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Connect Google to unlock Today/);
@@ -311,7 +311,7 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "calendar", "automations", "customize", "analytics"]
+    ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
@@ -465,9 +465,20 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
-  const customize = harness.buildCustomizePanel({}, {}, workspace);
-  assert.match(customize, /Business context setup/);
-  assert.match(customize, /Save business context/);
+  const settings = harness.buildSettingsPanel(
+    { name: "Vonza" },
+    {
+      knowledgeState: "missing",
+      knowledgeDescription: "Add a real website to import knowledge.",
+    },
+    workspace
+  );
+  assert.match(settings, /Business profile/);
+  assert.match(settings, /Front Desk/);
+  assert.match(settings, /Connected tools/);
+  assert.match(settings, /Workspace/);
+  assert.match(settings, /Business context setup/);
+  assert.match(settings, /Save business context/);
 });
 
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
@@ -575,7 +586,7 @@ test("launch mode hides Google beta tabs when Google config is unavailable", () 
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "operator_without_google_beta");
 });
@@ -594,7 +605,7 @@ test("front-desk-only mode keeps the stable non-operator shell available", () =>
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "customize", "analytics"]
+    ["overview", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "front_desk_only");
 });
@@ -668,7 +679,7 @@ test("dashboard keeps the legacy shell only when the operator flag is off", asyn
   assert.equal(workspace.enabled, false);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "customize", "analytics"]
+    ["overview", "customize", "analytics", "install", "settings"]
   );
 });
 
