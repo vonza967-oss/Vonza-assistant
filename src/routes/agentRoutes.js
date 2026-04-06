@@ -83,6 +83,7 @@ import {
   draftCalendarAction,
   draftInboxReply,
   getOperatorWorkspaceSnapshot,
+  resolveEndedAppointmentReview,
   sendDueCampaignSteps,
   sendInboxReply,
   updateOperatorTaskStatus,
@@ -208,6 +209,8 @@ export function createAgentRouter(deps = {}) {
     deps.createGoogleConnectionStart || createGoogleConnectionStart;
   const completeGoogleConnectionImpl =
     deps.completeGoogleConnection || completeGoogleConnection;
+  const resolveEndedAppointmentReviewImpl =
+    deps.resolveEndedAppointmentReview || resolveEndedAppointmentReview;
   const draftInboxReplyImpl =
     deps.draftInboxReply || draftInboxReply;
   const sendInboxReplyImpl =
@@ -1366,6 +1369,40 @@ export function createAgentRouter(deps = {}) {
       res.json({
         ok: true,
         contact,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/operator/appointments/review", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await resolveEndedAppointmentReviewImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        eventId: req.body.event_id || req.body.eventId,
+        resolution: req.body.resolution,
+        outcomeType: req.body.outcome_type || req.body.outcomeType,
+        note: req.body.note,
+      });
+
+      res.json({
+        ok: true,
+        ...result,
       });
     } catch (err) {
       console.error(err);
