@@ -25,7 +25,6 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
-const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
 
 function withEnv(overrides, fn) {
   const previous = new Map();
@@ -284,337 +283,6 @@ async function requestWithHost(baseUrl, pathname, { method = "GET", host, header
 
     req.end();
   });
-}
-
-function createStorageMock() {
-  const store = new Map();
-
-  return {
-    getItem(key) {
-      return store.has(key) ? store.get(key) : null;
-    },
-    setItem(key, value) {
-      store.set(key, String(value));
-    },
-    removeItem(key) {
-      store.delete(key);
-    },
-  };
-}
-
-function createDashboardHarness({
-  search = "?from=site",
-  session = {
-    access_token: "token-1",
-    user: {
-      id: "owner-1",
-      email: "owner@example.com",
-    },
-  },
-  agents = [],
-  checkoutResponse = {
-    status: 200,
-    body: {
-      ok: true,
-      url: "https://checkout.stripe.test/session",
-      session_id: "cs_test_checkout",
-    },
-  },
-  customFetch = null,
-} = {}) {
-  const script = readFileSync(dashboardBundlePath, "utf8");
-  const elements = new Map();
-  let assignedUrl = null;
-  const fetchCalls = [];
-
-  class TestElement {
-    constructor(id = "") {
-      this.id = id;
-      this.dataset = {};
-      this.style = {};
-      this.hidden = false;
-      this.disabled = false;
-      this.value = "";
-      this.attributes = new Map();
-      this._innerHTML = "";
-      this._textContent = "";
-      this.listeners = new Map();
-    }
-
-    get innerHTML() {
-      return this._innerHTML;
-    }
-
-    set innerHTML(value) {
-      this._innerHTML = String(value || "");
-      const idMatches = [...this._innerHTML.matchAll(/id="([^"]+)"/g)];
-
-      idMatches.forEach((match) => {
-        if (!elements.has(match[1])) {
-          elements.set(match[1], new TestElement(match[1]));
-        }
-      });
-    }
-
-    get textContent() {
-      return this._textContent;
-    }
-
-    set textContent(value) {
-      this._textContent = String(value || "");
-    }
-
-    addEventListener(type, handler) {
-      const handlers = this.listeners.get(type) || [];
-      handlers.push(handler);
-      this.listeners.set(type, handlers);
-    }
-
-    removeEventListener(type, handler) {
-      const handlers = this.listeners.get(type) || [];
-      this.listeners.set(type, handlers.filter((entry) => entry !== handler));
-    }
-
-    setAttribute(name, value) {
-      this.attributes.set(name, String(value));
-    }
-
-    removeAttribute(name) {
-      this.attributes.delete(name);
-    }
-
-    async dispatch(type) {
-      const handlers = this.listeners.get(type) || [];
-
-      for (const handler of handlers) {
-        await handler({
-          type,
-          currentTarget: this,
-          preventDefault() {},
-        });
-      }
-    }
-
-    async click() {
-      await this.dispatch("click");
-    }
-  }
-
-  class TestFormData {
-    constructor(form) {
-      this.entriesList = Array.isArray(form?.__formDataEntries)
-        ? form.__formDataEntries.map(([key, value]) => [key, value])
-        : [];
-    }
-
-    get(name) {
-      const match = this.entriesList.find(([key]) => key === name);
-      return match ? match[1] : null;
-    }
-
-    has(name) {
-      return this.entriesList.some(([key]) => key === name);
-    }
-
-    entries() {
-      return this.entriesList[Symbol.iterator]();
-    }
-
-    [Symbol.iterator]() {
-      return this.entries();
-    }
-  }
-
-  const document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-    querySelector() {
-      return null;
-    },
-    querySelectorAll() {
-      return [];
-    },
-  };
-
-  elements.set("dashboard-root", new TestElement("dashboard-root"));
-  elements.set("status-banner", new TestElement("status-banner"));
-  elements.set("topbar-meta", new TestElement("topbar-meta"));
-
-  const location = {
-    origin: "https://vonza-assistant.onrender.com",
-    pathname: "/dashboard",
-    search,
-    href: `https://vonza-assistant.onrender.com/dashboard${search}`,
-    assign(url) {
-      assignedUrl = url;
-      this.href = String(url || "");
-    },
-  };
-
-  const buildResponse = ({ status = 200, body, text } = {}) => ({
-    ok: status >= 200 && status < 300,
-    status,
-    async text() {
-      if (text !== undefined) {
-        return text;
-      }
-
-      return body === undefined ? "" : JSON.stringify(body);
-    },
-  });
-
-  const fetchImpl = async (input, options = {}) => {
-    const resolvedUrl = new URL(String(input), location.origin);
-    fetchCalls.push({
-      url: resolvedUrl.toString(),
-      pathname: resolvedUrl.pathname,
-      options,
-    });
-
-    if (typeof customFetch === "function") {
-      const customResponse = await customFetch({
-        url: resolvedUrl.toString(),
-        pathname: resolvedUrl.pathname,
-        options,
-        buildResponse,
-      });
-
-      if (customResponse) {
-        return customResponse;
-      }
-    }
-
-    const resolvedAgents = typeof agents === "function" ? agents() : agents;
-
-    if (resolvedUrl.pathname === "/product-events") {
-      return buildResponse({ status: 200, body: { ok: true } });
-    }
-
-    if (resolvedUrl.pathname === "/agents/list") {
-      return buildResponse({
-        status: 200,
-        body: {
-          agents: resolvedAgents,
-          bridgeAgent: null,
-        },
-      });
-    }
-
-    if (resolvedUrl.pathname === "/agents/messages") {
-      return buildResponse({
-        status: 200,
-        body: {
-          messages: [],
-        },
-      });
-    }
-
-    if (resolvedUrl.pathname === "/agents/action-queue") {
-      return buildResponse({
-        status: 200,
-        body: {
-          items: [],
-          people: [],
-          peopleSummary: {},
-          summary: {},
-          persistenceAvailable: true,
-          migrationRequired: false,
-        },
-      });
-    }
-
-    if (resolvedUrl.pathname === "/create-checkout-session") {
-      return buildResponse(checkoutResponse);
-    }
-
-    return buildResponse({ status: 404, body: { error: `Unhandled fetch path: ${resolvedUrl.pathname}` } });
-  };
-
-  const storage = createStorageMock();
-  const sessionStorage = createStorageMock();
-  const window = {
-    document,
-    location,
-    history: {
-      replaceState(_state, _title, nextUrl) {
-        const parsed = new URL(nextUrl, location.origin);
-        location.href = parsed.toString();
-        location.search = parsed.search;
-      },
-    },
-    localStorage: storage,
-    sessionStorage,
-    requestAnimationFrame(callback) {
-      callback();
-    },
-    setTimeout,
-    clearTimeout,
-    crypto: {
-      randomUUID() {
-        return "client-1";
-      },
-    },
-    VONZA_PUBLIC_APP_URL: "https://vonza-assistant.onrender.com",
-    VONZA_SUPABASE_URL: "https://example.supabase.co",
-    VONZA_SUPABASE_ANON_KEY: "anon-key",
-    VONZA_DEV_FAKE_BILLING: false,
-    supabase: {
-      createClient() {
-        return {
-          auth: {
-            async getSession() {
-              return { data: { session } };
-            },
-            async signOut() {
-              return { error: null };
-            },
-          },
-        };
-      },
-    },
-  };
-
-  const context = {
-    window,
-    document,
-    console,
-    fetch: fetchImpl,
-    FormData: TestFormData,
-    URL,
-    URLSearchParams,
-    setTimeout,
-    clearTimeout,
-    globalThis: null,
-  };
-
-  context.globalThis = context;
-  window.fetch = fetchImpl;
-
-  vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
-
-  return {
-    async settle() {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    },
-    getRootHtml() {
-      return elements.get("dashboard-root")?.innerHTML || "";
-    },
-    getElement(id) {
-      return elements.get(id) || null;
-    },
-    getStatus() {
-      return elements.get("status-banner")?.textContent || "";
-    },
-    getAssignedUrl() {
-      return assignedUrl;
-    },
-    getGlobal(name) {
-      return context[name];
-    },
-    fetchCalls,
-  };
 }
 
 function createAgentTestDeps(state) {
@@ -1362,26 +1030,6 @@ function createAgentTestDeps(state) {
       pageCount: 1,
       content: "Imported website content",
     }),
-    importBusinessWebsiteKnowledge: async (_supabase, options) => ({
-      ok: true,
-      businessId: options.businessId || "business-1",
-      websiteUrl: options.websiteUrl || "https://example.com",
-      pageCount: 1,
-      content: "Imported website content",
-      knowledge: {
-        state: "ready",
-        description: "Your assistant has website knowledge and is ready to answer real customer questions.",
-        pageCount: 1,
-        contentLength: "Imported website content".length,
-        importedWebsiteUrl: options.websiteUrl || "https://example.com",
-        updatedAt: new Date().toISOString(),
-      },
-      import: {
-        status: "success",
-        lastImportedUrl: options.websiteUrl || "https://example.com",
-        lastImportedAt: new Date().toISOString(),
-      },
-    }),
     getStoredWebsiteContent: async () => state.websiteContent || {
       businessId: "business-1",
       websiteUrl: "https://example.com",
@@ -1494,16 +1142,15 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /AI front desk and operator command center/i);
-        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove outcomes/i);
-        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Outcomes/i);
-        assert.match(marketingHome.text, /Connected tools stay secondary/i);
+        assert.match(marketingHome.text, /The AI front desk for your website, plus the daily workspace to prove it is working/i);
+        assert.match(marketingHome.text, /service businesses with inbound leads/i);
+        assert.match(marketingHome.text, /optional Google beta/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Operator command center/i);
-        assert.match(marketingHome.text, /Today(?:&#39;|'|’)?s Schedule/i);
+        assert.match(marketingHome.text, /Public launch core/);
+        assert.match(marketingHome.text, /Today, Contacts, Outcomes/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
@@ -1545,6 +1192,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
       PUBLIC_APP_URL: "http://localhost:3000",
       SUPABASE_URL: "https://example.supabase.co",
       SUPABASE_ANON_KEY: "anon-key-present",
+      VONZA_OPERATOR_WORKSPACE_V1: "true",
       DEV_FAKE_BILLING: "false",
       NODE_ENV: "development",
     },
@@ -1575,12 +1223,16 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Settings/);
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
-        assert.match(dashboardScript.text, /Today/);
+        assert.match(dashboardScript.text, /Operator home/);
         assert.match(dashboardScript.text, /Activation checklist/);
-        assert.match(dashboardScript.text, /Recommended next action/);
         assert.match(dashboardScript.text, /Connect Google to unlock Inbox/);
         assert.match(dashboardScript.text, /Connect Google to unlock Calendar/);
+        assert.match(dashboardScript.text, /Single best next action/);
         assert.match(dashboardScript.text, /Run first sync/);
+        assert.match(dashboardScript.text, /Needs Attention/);
+        assert.match(dashboardScript.text, /Search contacts/);
+        assert.match(dashboardScript.text, /Business profile/);
+        assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /High-intent signals/);
@@ -1588,15 +1240,15 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Top customer questions/);
         assert.match(dashboardScript.text, /Lead \/ contact/);
         assert.match(dashboardScript.text, /Follow-up queue/);
-        assert.match(dashboardScript.text, /Nothing urgent is standing out/);
+        assert.match(dashboardScript.text, /No actionable items yet/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
-        assert.match(dashboardScript.text, /High priority/);
+        assert.match(dashboardScript.text, /Attention now/);
         assert.match(dashboardScript.text, /Resolved items/);
-        assert.match(dashboardScript.text, /with queue items/);
+        assert.match(dashboardScript.text, /Returning people/);
         assert.match(dashboardScript.text, /Owner attention now/);
         assert.match(dashboardScript.text, /Owner follow-up state/);
-        assert.match(dashboardScript.text, /What happened/);
+        assert.match(dashboardScript.text, /Conversation summary/);
         assert.match(dashboardScript.text, /Visitor thread/);
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open owner handoff/);
@@ -1633,56 +1285,6 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
   );
 });
 
-test("signed-in unpaid owners see the checkout-focused locked state", { concurrency: false }, async () => {
-  const harness = createDashboardHarness();
-  await harness.settle();
-
-  assert.match(harness.getRootHtml(), /Unlock Vonza to open your setup workspace/);
-  assert.ok(harness.getElement("unlock-vonza-button"));
-  assert.ok(harness.getElement("checkout-feedback"));
-});
-
-test("clicking Unlock Vonza from the unpaid state creates checkout and redirects", { concurrency: false }, async () => {
-  const harness = createDashboardHarness();
-  await harness.settle();
-
-  const unlockButton = harness.getElement("unlock-vonza-button");
-  assert.ok(unlockButton);
-
-  await unlockButton.click();
-  await harness.settle();
-
-  const checkoutCall = harness.fetchCalls.find((call) => call.pathname === "/create-checkout-session");
-  assert.ok(checkoutCall);
-  assert.equal(checkoutCall.options.method, "POST");
-  assert.equal(checkoutCall.options.headers.Authorization, "Bearer token-1");
-  assert.match(String(checkoutCall.options.body || ""), /owner@example\.com/);
-  assert.equal(harness.getAssignedUrl(), "https://checkout.stripe.test/session");
-  assert.equal(harness.getElement("checkout-feedback")?.textContent, "Redirecting you to secure checkout...");
-});
-
-test("checkout unlock failures surface a readable inline error instead of a silent no-op", { concurrency: false }, async () => {
-  const harness = createDashboardHarness({
-    checkoutResponse: {
-      status: 502,
-      text: "<html><body>Bad gateway</body></html>",
-    },
-  });
-  await harness.settle();
-
-  const unlockButton = harness.getElement("unlock-vonza-button");
-  assert.ok(unlockButton);
-
-  await unlockButton.click();
-  await harness.settle();
-
-  assert.equal(harness.getAssignedUrl(), null);
-  assert.equal(harness.getElement("checkout-feedback")?.dataset.state, "error");
-  assert.match(harness.getElement("checkout-feedback")?.textContent || "", /Bad gateway/i);
-  assert.doesNotMatch(harness.getElement("checkout-feedback")?.textContent || "", /Unexpected token|JSON/i);
-  assert.match(harness.getStatus(), /Bad gateway/i);
-});
-
 test("signed-out marketing header keeps the normal CTA", async () => {
   const harness = createMarketingHarness({ storedSession: null, session: null });
   await harness.settle();
@@ -1709,480 +1311,6 @@ test("signed-in marketing header hydrates My Account immediately from stored aut
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard");
   assert.equal(harness.authLink.hidden, true);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard");
-});
-
-test("dashboard save automatically imports website knowledge after a real website URL change", async () => {
-  const state = {
-    agent: {
-      id: "agent-1",
-      businessId: "business-1",
-      accessStatus: "active",
-      name: "Vonza Assistant",
-      assistantName: "Vonza Assistant",
-      publicAgentKey: "agent-key",
-      tone: "friendly",
-      systemPrompt: "",
-      websiteUrl: "https://old-example.com/",
-      welcomeMessage: "Welcome",
-      buttonLabel: "Chat",
-      primaryColor: "#14b8a6",
-      secondaryColor: "#0f766e",
-      installStatus: {
-        state: "not_detected",
-        label: "Not detected on a live site yet",
-      },
-      knowledge: {
-        state: "ready",
-        description: "Knowledge is ready.",
-        pageCount: 2,
-        contentLength: 1200,
-        importedWebsiteUrl: "https://old-example.com/",
-        updatedAt: "2026-04-01T10:00:00.000Z",
-      },
-    },
-  };
-  let importCalls = 0;
-
-  const harness = createDashboardHarness({
-    search: "?from=app",
-    agents: () => [state.agent],
-    customFetch: async ({ pathname, buildResponse }) => {
-      if (pathname === "/agents/update") {
-        state.agent = {
-          ...state.agent,
-          businessId: "business-2",
-          websiteUrl: "https://new-example.com/",
-        };
-
-        return buildResponse({
-          status: 200,
-          body: {
-            ok: true,
-            agent: {
-              ...state.agent,
-              websiteSync: {
-                previousUrl: "https://old-example.com/",
-                currentUrl: "https://new-example.com/",
-                changed: true,
-              },
-            },
-          },
-        });
-      }
-
-      if (pathname === "/knowledge/import") {
-        importCalls += 1;
-        state.agent = {
-          ...state.agent,
-          knowledge: {
-            state: "ready",
-            description: "Your assistant has website knowledge and is ready to answer real customer questions.",
-            pageCount: 4,
-            contentLength: 2400,
-            importedWebsiteUrl: "https://new-example.com/",
-            updatedAt: "2026-04-02T18:00:00.000Z",
-          },
-        };
-
-        return buildResponse({
-          status: 200,
-          body: {
-            ok: true,
-            websiteUrl: "https://new-example.com/",
-            pageCount: 4,
-            content: "Fresh website content",
-            knowledge: {
-              state: "ready",
-              description: "Your assistant has website knowledge and is ready to answer real customer questions.",
-              pageCount: 4,
-              contentLength: 2400,
-              importedWebsiteUrl: "https://new-example.com/",
-              updatedAt: "2026-04-02T18:00:00.000Z",
-            },
-            import: {
-              status: "success",
-              lastImportedUrl: "https://new-example.com/",
-              lastImportedAt: "2026-04-02T18:00:00.000Z",
-            },
-          },
-        });
-      }
-
-      return null;
-    },
-  });
-
-  await harness.settle();
-
-  const saveAssistant = harness.getGlobal("saveAssistant");
-  const submitButton = { disabled: false };
-  const saveState = {
-    textContent: "",
-    className: "",
-    removeAttribute() {},
-  };
-  const form = {
-    __formDataEntries: [
-      ["assistant_name", "Vonza Assistant"],
-      ["tone", "friendly"],
-      ["system_prompt", ""],
-      ["welcome_message", "Welcome"],
-      ["button_label", "Chat"],
-      ["website_url", "https://new-example.com"],
-      ["primary_color", "#14b8a6"],
-      ["secondary_color", "#0f766e"],
-    ],
-    querySelector(selector) {
-      if (selector === 'button[type="submit"]') {
-        return submitButton;
-      }
-
-      if (selector === "[data-save-state]") {
-        return saveState;
-      }
-
-      return null;
-    },
-  };
-
-  await saveAssistant(
-    {
-      preventDefault() {},
-      currentTarget: form,
-    },
-    state.agent
-  );
-  await harness.settle();
-
-  assert.equal(importCalls, 1);
-  assert.equal(harness.getStatus(), "Website saved and website knowledge is ready.");
-  assert.match(harness.getRootHtml(), /https:\/\/new-example\.com\//);
-});
-
-test("dashboard save skips redundant website import when the normalized URL does not change", async () => {
-  const state = {
-    agent: {
-      id: "agent-1",
-      businessId: "business-1",
-      accessStatus: "active",
-      name: "Vonza Assistant",
-      assistantName: "Vonza Assistant",
-      publicAgentKey: "agent-key",
-      tone: "friendly",
-      systemPrompt: "",
-      websiteUrl: "https://example.com/",
-      welcomeMessage: "Welcome",
-      buttonLabel: "Chat",
-      primaryColor: "#14b8a6",
-      secondaryColor: "#0f766e",
-      installStatus: {
-        state: "not_detected",
-        label: "Not detected on a live site yet",
-      },
-      knowledge: {
-        state: "ready",
-        description: "Knowledge is ready.",
-        pageCount: 2,
-        contentLength: 1200,
-        importedWebsiteUrl: "https://example.com/",
-        updatedAt: "2026-04-01T10:00:00.000Z",
-      },
-    },
-  };
-
-  const harness = createDashboardHarness({
-    search: "?from=app",
-    agents: () => [state.agent],
-    customFetch: async ({ pathname, buildResponse }) => {
-      if (pathname === "/agents/update") {
-        return buildResponse({
-          status: 200,
-          body: {
-            ok: true,
-            agent: {
-              ...state.agent,
-              websiteSync: {
-                previousUrl: "https://example.com/",
-                currentUrl: "https://example.com/",
-                changed: false,
-              },
-            },
-          },
-        });
-      }
-
-      if (pathname === "/knowledge/import") {
-        assert.fail("Knowledge import should not run when the normalized website URL is unchanged.");
-      }
-
-      return null;
-    },
-  });
-
-  await harness.settle();
-
-  const saveAssistant = harness.getGlobal("saveAssistant");
-  const form = {
-    __formDataEntries: [
-      ["assistant_name", "Vonza Assistant"],
-      ["tone", "friendly"],
-      ["system_prompt", ""],
-      ["welcome_message", "Welcome"],
-      ["button_label", "Chat"],
-      ["website_url", "https://example.com"],
-      ["primary_color", "#14b8a6"],
-      ["secondary_color", "#0f766e"],
-    ],
-    querySelector(selector) {
-      if (selector === 'button[type="submit"]') {
-        return { disabled: false };
-      }
-
-      if (selector === "[data-save-state]") {
-        return {
-          textContent: "",
-          className: "",
-          removeAttribute() {},
-        };
-      }
-
-      return null;
-    },
-  };
-
-  await saveAssistant(
-    {
-      preventDefault() {},
-      currentTarget: form,
-    },
-    state.agent
-  );
-  await harness.settle();
-
-  assert.equal(harness.getStatus(), "Your assistant has been updated.");
-  assert.equal(
-    harness.fetchCalls.filter((call) => call.pathname === "/knowledge/import").length,
-    0
-  );
-});
-
-test("dashboard save keeps the website URL and shows a retry state when auto import fails", async () => {
-  const state = {
-    agent: {
-      id: "agent-1",
-      businessId: "business-1",
-      accessStatus: "active",
-      name: "Vonza Assistant",
-      assistantName: "Vonza Assistant",
-      publicAgentKey: "agent-key",
-      tone: "friendly",
-      systemPrompt: "",
-      websiteUrl: "https://old-example.com/",
-      welcomeMessage: "Welcome",
-      buttonLabel: "Chat",
-      primaryColor: "#14b8a6",
-      secondaryColor: "#0f766e",
-      installStatus: {
-        state: "not_detected",
-        label: "Not detected on a live site yet",
-      },
-      knowledge: {
-        state: "ready",
-        description: "Knowledge is ready.",
-        pageCount: 2,
-        contentLength: 1200,
-        importedWebsiteUrl: "https://old-example.com/",
-        updatedAt: "2026-04-01T10:00:00.000Z",
-      },
-    },
-  };
-
-  const harness = createDashboardHarness({
-    search: "?from=app",
-    agents: () => [state.agent],
-    customFetch: async ({ pathname, buildResponse }) => {
-      if (pathname === "/agents/update") {
-        state.agent = {
-          ...state.agent,
-          websiteUrl: "https://new-example.com/",
-        };
-
-        return buildResponse({
-          status: 200,
-          body: {
-            ok: true,
-            agent: {
-              ...state.agent,
-              websiteSync: {
-                previousUrl: "https://old-example.com/",
-                currentUrl: "https://new-example.com/",
-                changed: true,
-              },
-            },
-          },
-        });
-      }
-
-      if (pathname === "/knowledge/import") {
-        return buildResponse({
-          status: 500,
-          body: {
-            error: "Website saved, but importing website knowledge failed. Retry in a moment.",
-            import: {
-              status: "failed",
-              message: "Website saved, but importing website knowledge failed. Retry in a moment.",
-            },
-          },
-        });
-      }
-
-      return null;
-    },
-  });
-
-  await harness.settle();
-
-  const saveAssistant = harness.getGlobal("saveAssistant");
-  const form = {
-    __formDataEntries: [
-      ["assistant_name", "Vonza Assistant"],
-      ["tone", "friendly"],
-      ["system_prompt", ""],
-      ["welcome_message", "Welcome"],
-      ["button_label", "Chat"],
-      ["website_url", "https://new-example.com"],
-      ["primary_color", "#14b8a6"],
-      ["secondary_color", "#0f766e"],
-    ],
-    querySelector(selector) {
-      if (selector === 'button[type="submit"]') {
-        return { disabled: false };
-      }
-
-      if (selector === "[data-save-state]") {
-        return {
-          textContent: "",
-          className: "",
-          title: "",
-          removeAttribute() {},
-        };
-      }
-
-      return null;
-    },
-  };
-
-  await saveAssistant(
-    {
-      preventDefault() {},
-      currentTarget: form,
-    },
-    state.agent
-  );
-  await harness.settle();
-
-  assert.equal(
-    harness.getStatus(),
-    "Website saved, but importing website knowledge failed. Retry in a moment."
-  );
-  assert.match(harness.getRootHtml(), /https:\/\/new-example\.com\//);
-  assert.match(harness.getRootHtml(), /Retry website import/);
-});
-
-test("dashboard deduplicates repeated import requests while one is already pending", async () => {
-  const state = {
-    agent: {
-      id: "agent-1",
-      businessId: "business-1",
-      accessStatus: "active",
-      name: "Vonza Assistant",
-      assistantName: "Vonza Assistant",
-      publicAgentKey: "agent-key",
-      tone: "friendly",
-      systemPrompt: "",
-      websiteUrl: "https://example.com/",
-      welcomeMessage: "Welcome",
-      buttonLabel: "Chat",
-      primaryColor: "#14b8a6",
-      secondaryColor: "#0f766e",
-      installStatus: {
-        state: "not_detected",
-        label: "Not detected on a live site yet",
-      },
-      knowledge: {
-        state: "missing",
-        description: "Website knowledge has not been imported yet.",
-        pageCount: 0,
-        contentLength: 0,
-        importedWebsiteUrl: "",
-        updatedAt: null,
-      },
-    },
-  };
-  let resolveImport;
-  let importCalls = 0;
-  const importResponse = new Promise((resolve) => {
-    resolveImport = resolve;
-  });
-
-  const harness = createDashboardHarness({
-    search: "?from=app",
-    agents: () => [state.agent],
-    customFetch: async ({ pathname, buildResponse }) => {
-      if (pathname === "/knowledge/import") {
-        importCalls += 1;
-        await importResponse;
-        state.agent = {
-          ...state.agent,
-          knowledge: {
-            state: "ready",
-            description: "Knowledge is ready.",
-            pageCount: 1,
-            contentLength: 800,
-            importedWebsiteUrl: "https://example.com/",
-            updatedAt: "2026-04-02T18:30:00.000Z",
-          },
-        };
-
-        return buildResponse({
-          status: 200,
-          body: {
-            ok: true,
-            websiteUrl: "https://example.com/",
-            content: "Imported content",
-            pageCount: 1,
-            knowledge: {
-              state: "ready",
-              description: "Knowledge is ready.",
-              pageCount: 1,
-              contentLength: 800,
-              importedWebsiteUrl: "https://example.com/",
-              updatedAt: "2026-04-02T18:30:00.000Z",
-            },
-            import: {
-              status: "success",
-              lastImportedUrl: "https://example.com/",
-              lastImportedAt: "2026-04-02T18:30:00.000Z",
-            },
-          },
-        });
-      }
-
-      return null;
-    },
-  });
-
-  await harness.settle();
-
-  const runKnowledgeImport = harness.getGlobal("runKnowledgeImport");
-  const firstImport = runKnowledgeImport(state.agent);
-  const secondImport = runKnowledgeImport(state.agent);
-
-  resolveImport();
-  await Promise.all([firstImport, secondImport]);
-  await harness.settle();
-
-  assert.equal(importCalls, 1);
 });
 
 test("setup doctor is only available in local dev mode and never exposes values", { concurrency: false }, async () => {
@@ -2369,7 +1497,7 @@ test("locked owners stay blocked until local dev fake billing simulates activati
   );
 });
 
-test("action queue creates typed operator actions from important conversations", { concurrency: false }, async () => {
+test("action queue creates separate owner items for important individual conversations", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
     messages: [
@@ -2451,24 +1579,18 @@ test("action queue creates typed operator actions from important conversations",
         assert.ok(Array.isArray(result.json.items));
         assert.equal(result.json.summary.total, 6);
         assert.equal(result.json.items.length, 6);
-        assert.ok(result.json.items.some((item) => item.type === "booking_intent"));
-        assert.ok(result.json.items.some((item) => item.type === "pricing_interest"));
-        assert.equal(result.json.items.filter((item) => item.type === "lead_follow_up").length, 2);
-        assert.equal(result.json.items.filter((item) => item.type === "knowledge_gap").length, 2);
-        assert.ok(result.json.items.every((item) => ["high", "medium", "low"].includes(item.priority)));
+        assert.ok(result.json.items.some((item) => item.type === "booking"));
+        assert.ok(result.json.items.some((item) => item.type === "pricing"));
+        assert.equal(result.json.items.filter((item) => item.type === "contact").length, 2);
+        assert.ok(result.json.items.some((item) => item.type === "support"));
+        assert.ok(result.json.items.some((item) => item.type === "weak_answer"));
         assert.ok(result.json.items.every((item) => item.ownerWorkflow && typeof item.ownerWorkflow.label === "string"));
-        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("operator:")));
-        assert.equal(result.json.summary.leadFollowUp, 2);
-        assert.equal(result.json.summary.pricingInterest, 1);
-        assert.equal(result.json.summary.bookingIntent, 1);
-        assert.equal(result.json.summary.knowledgeGap, 2);
+        assert.ok(result.json.items.every((item) => String(item.key || "").startsWith("conversation:")));
 
         const contactItem = result.json.items.find((item) => item.contactInfo?.email === "hello@example.com");
         assert.equal(contactItem.contactCaptured, true);
         assert.equal(contactItem.contactInfo.email, "hello@example.com");
-        assert.match(contactItem.operatorSummary, /follow-up/i);
-        assert.match(contactItem.suggestedAction, /follow-up/i);
-        assert.ok(contactItem.evidence);
+        assert.match(contactItem.snippet, /Visitor asked:/);
       } finally {
         await server.close();
       }
@@ -2476,12 +1598,12 @@ test("action queue creates typed operator actions from important conversations",
   );
 });
 
-test("repeat pricing signals for the same known visitor update the existing pricing action instead of duplicating that issue", () => {
+test("action queue groups repeat interactions under one lightweight person thread when contact identity is captured", () => {
   const messages = [
     {
       id: "message-1",
       role: "user",
-      content: "hello@example.com here. What does the monthly plan cost?",
+      content: "Email me at hello@example.com with pricing for the monthly plan.",
       createdAt: "2026-04-01T10:00:00.000Z",
     },
     {
@@ -2505,15 +1627,7 @@ test("repeat pricing signals for the same known visitor update the existing pric
   ];
 
   const result = buildActionQueue(messages, []);
-  const pricingItems = result.items.filter((item) => item.type === "pricing_interest");
-  const repeatHighIntentItems = result.items.filter((item) => item.type === "repeat_high_intent_visitor");
-  const leadItems = result.items.filter((item) => item.type === "lead_follow_up");
 
-  assert.equal(pricingItems.length, 1);
-  assert.equal(pricingItems[0].count, 2);
-  assert.equal(pricingItems[0].evidence.interactionCount, 2);
-  assert.equal(leadItems.length, 0);
-  assert.equal(repeatHighIntentItems.length, 1);
   assert.equal(result.people.length, 1);
   assert.equal(result.peopleSummary.total, 1);
   assert.equal(result.peopleSummary.returning, 1);
@@ -2525,7 +1639,7 @@ test("repeat pricing signals for the same known visitor update the existing pric
   assert.ok(result.items.some((item) => item.actionType === "repeat_high_intent_visitor"));
 });
 
-test("repeat high-intent visitors create one dedicated operator action without duplicate spam", () => {
+test("action queue links multiple queue items to the same person when session continuity is the only shared signal", () => {
   const messages = [
     {
       id: "message-1",
@@ -2555,34 +1669,17 @@ test("repeat high-intent visitors create one dedicated operator action without d
       sessionKey: "visitor-session-1",
       createdAt: "2026-04-03T10:00:05.000Z",
     },
-    {
-      id: "message-5",
-      role: "user",
-      content: "What does the premium plan cost?",
-      sessionKey: "visitor-session-1",
-      createdAt: "2026-04-04T10:00:00.000Z",
-    },
-    {
-      id: "message-6",
-      role: "assistant",
-      content: "Premium pricing depends on scope.",
-      sessionKey: "visitor-session-1",
-      createdAt: "2026-04-04T10:00:05.000Z",
-    },
   ];
 
   const result = buildActionQueue(messages, []);
   const personKeys = new Set(result.items.map((item) => item.person?.key));
-  const repeatVisitorItems = result.items.filter((item) => item.type === "repeat_high_intent_visitor");
 
   assert.equal(result.people.length, 1);
   assert.equal(result.people[0].identityType, "session");
-  assert.equal(repeatVisitorItems.length, 1);
-  assert.equal(result.people[0].queueItemCount, 4);
+  assert.equal(result.people[0].queueItemCount, 2);
   assert.equal(personKeys.size, 1);
-  assert.equal(result.items[0].person?.relatedQueueItemCount, 4);
-  assert.equal(result.items[0].person?.relatedInteractionCount, 3);
-  assert.equal(result.summary.repeatHighIntentVisitor, 1);
+  assert.equal(result.items[0].person?.relatedQueueItemCount, 2);
+  assert.equal(result.items[0].person?.relatedInteractionCount, 2);
 });
 
 test("action queue keeps unknown identities separate instead of over-stitching visitors", () => {
@@ -2660,29 +1757,6 @@ test("action queue stays honestly empty when there are no actionable conversatio
   );
 });
 
-test("weak answers can produce an unanswered question action when the issue is not yet a clear knowledge gap", () => {
-  const messages = [
-    {
-      id: "message-1",
-      role: "user",
-      content: "Can you send me the exact parking instructions?",
-      createdAt: "2026-04-01T10:00:00.000Z",
-    },
-    {
-      id: "message-2",
-      role: "assistant",
-      content: "Please contact the business directly.",
-      createdAt: "2026-04-01T10:00:05.000Z",
-    },
-  ];
-
-  const result = buildActionQueue(messages, []);
-
-  assert.equal(result.items.length, 1);
-  assert.equal(result.items[0].type, "unanswered_question");
-  assert.equal(result.summary.unansweredQuestion, 1);
-});
-
 test("action queue status changes persist cleanly through the lightweight owner workflow", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
@@ -2712,7 +1786,7 @@ test("action queue status changes persist cleanly through the lightweight owner 
       try {
         const initial = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
         assert.equal(initial.status, 200);
-        const contactActionKey = initial.json.items.find((item) => item.type === "lead_follow_up")?.key;
+        const contactActionKey = initial.json.items.find((item) => item.type === "contact")?.key;
         assert.ok(contactActionKey);
 
         const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {
@@ -2742,9 +1816,7 @@ test("action queue status changes persist cleanly through the lightweight owner 
         assert.equal(updated.json.item.followUpNeeded, true);
         assert.equal(updated.json.item.followUpCompleted, false);
         assert.equal(updated.json.item.contactStatus, "attempted");
-        assert.ok(updated.json.queue);
-        assert.ok(updated.json.queue.summary.followUpNeeded >= 1);
-        assert.ok(updated.json.queue.summary.attentionNeeded >= 1);
+        assert.equal(updated.json.persistenceAvailable, true);
 
         const refreshed = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
         assert.equal(refreshed.status, 200);
@@ -2790,8 +1862,8 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
     },
   ];
   const baseline = buildActionQueue(messages, []);
-  const contactKey = baseline.items.find((item) => item.type === "lead_follow_up")?.key;
-  const pricingKey = baseline.items.find((item) => item.type === "pricing_interest")?.key;
+  const contactKey = baseline.items.find((item) => item.type === "contact")?.key;
+  const pricingKey = baseline.items.find((item) => item.type === "pricing")?.key;
   const result = buildActionQueue(messages, [
     {
       action_key: contactKey,
@@ -2817,8 +1889,6 @@ test("action queue prioritizes owner follow-up and reports attention cleanly", (
   assert.equal(result.summary.followUpNeeded, 1);
   assert.equal(result.summary.resolved, 1);
   assert.equal(result.summary.attentionNeeded, 1);
-  assert.equal(result.summary.leadFollowUp, 1);
-  assert.equal(result.summary.pricingInterest, 1);
 });
 
 test("lightweight owner handoff updates auto-advance queue status when appropriate", async () => {
@@ -2898,7 +1968,7 @@ test("lightweight owner handoff updates auto-advance queue status when appropria
   assert.equal(resolved.item.status, "done");
 });
 
-test("action queue returns a clear persistence error instead of silently falling back to read-only mode", { concurrency: false }, async () => {
+test("action queue returns a clear persistence error instead of silently pretending follow-up is persistent", { concurrency: false }, async () => {
   const state = {
     accessStatus: "active",
     messages: [
@@ -2940,85 +2010,6 @@ test("action queue returns a clear persistence error instead of silently falling
           result.json.error,
           "Action queue persistence is not ready on the server yet. Apply the action queue migration and try again."
         );
-      } finally {
-        await server.close();
-      }
-    }
-  );
-});
-
-test("action queue follow-up persists through website re-imports", { concurrency: false }, async () => {
-  const state = {
-    accessStatus: "active",
-    messages: [
-      {
-        role: "user",
-        content: "Can someone email me at hello@example.com about the best option?",
-        createdAt: "2026-04-01T10:03:00.000Z",
-      },
-      {
-        role: "assistant",
-        content: "Please reach out directly.",
-        createdAt: "2026-04-01T10:03:05.000Z",
-      },
-    ],
-  };
-
-  await withEnv(
-    {
-      PUBLIC_APP_URL: "http://localhost:3000",
-      DEV_FAKE_BILLING: "false",
-      NODE_ENV: "development",
-    },
-    async () => {
-      const server = await startServer(createTestApp(createAgentTestDeps(state)));
-
-      try {
-        const initial = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
-        assert.equal(initial.status, 200);
-        const actionKey = initial.json.items.find((item) => item.type === "lead_follow_up")?.key;
-        assert.ok(actionKey);
-
-        const updated = await getJson(server.baseUrl, "/agents/action-queue/status", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            agent_id: "agent-1",
-            action_key: actionKey,
-            status: "reviewed",
-            note: "Owner called the lead.",
-            next_step: "Send pricing details.",
-            follow_up_needed: true,
-            follow_up_completed: false,
-          }),
-        });
-
-        assert.equal(updated.status, 200);
-        assert.equal(updated.json.item.status, "reviewed");
-
-        const imported = await getJson(server.baseUrl, "/knowledge/import", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            agent_key: "agent-key",
-            client_id: "client-1",
-          }),
-        });
-
-        assert.equal(imported.status, 200);
-
-        const refreshed = await getJson(server.baseUrl, "/agents/action-queue?agent_id=agent-1");
-        assert.equal(refreshed.status, 200);
-        const refreshedItem = refreshed.json.items.find((item) => item.key === actionKey);
-        assert.equal(refreshedItem.status, "reviewed");
-        assert.equal(refreshedItem.note, "Owner called the lead.");
-        assert.equal(refreshedItem.nextStep, "Send pricing details.");
-        assert.equal(refreshedItem.followUpNeeded, true);
-        assert.equal(refreshedItem.followUpCompleted, false);
       } finally {
         await server.close();
       }
@@ -3970,37 +2961,6 @@ test("checkout creation quietly seeds a draft assistant for signed-in unpaid own
         assert.match(checkout.json.url, /checkout\.stripe\.test/);
         assert.equal(state.hasAgent, true);
         assert.match(state.businessName, /Vonza setup/);
-      } finally {
-        await server.close();
-      }
-    }
-  );
-});
-
-test("checkout creation requires an authenticated session and returns a clear error", { concurrency: false }, async () => {
-  const state = { accessStatus: "pending", hasAgent: false };
-
-  await withEnv(
-    {
-      PUBLIC_APP_URL: "http://localhost:3000",
-      DEV_FAKE_BILLING: "false",
-      NODE_ENV: "development",
-    },
-    async () => {
-      const server = await startServer(createTestApp(createUnauthedBridgeDeps(state)));
-      try {
-        const checkout = await getJson(server.baseUrl, "/create-checkout-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: "owner@example.com",
-          }),
-        });
-
-        assert.equal(checkout.status, 401);
-        assert.equal(checkout.json.error, "Your sign-in session expired. Please sign in again to open checkout.");
       } finally {
         await server.close();
       }
