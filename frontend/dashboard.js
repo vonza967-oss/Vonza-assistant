@@ -11,6 +11,8 @@ const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_SETTINGS_SECTION_KEY = "vonza_dashboard_settings_section";
+const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
+const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const LAUNCH_STEPS = [
@@ -956,6 +958,49 @@ function setActiveSettingsSection(section) {
   window.localStorage.setItem(DASHBOARD_SETTINGS_SECTION_KEY, section);
 }
 
+function getActiveFrontDeskSection() {
+  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_FRONTDESK_SECTION_KEY)).toLowerCase();
+
+  if (FRONT_DESK_SECTIONS.includes(storedSection)) {
+    return storedSection;
+  }
+
+  return "overview";
+}
+
+function setActiveFrontDeskSection(section) {
+  if (!FRONT_DESK_SECTIONS.includes(section)) {
+    return;
+  }
+
+  window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, section);
+}
+
+function getTodayQueueItemKey(item = {}) {
+  const queueType = trimText(item.queueType) || (isAppointmentReviewQueueItem(item) ? "appointment_review" : "action_queue");
+  const queueId = trimText(item.queueId || item.id || item.key);
+
+  return queueType && queueId ? `${queueType}:${queueId}` : "";
+}
+
+function getActiveTodayQueueSelection(items = []) {
+  const storedKey = trimText(window.localStorage.getItem(DASHBOARD_TODAY_QUEUE_SELECTION_KEY));
+
+  if (storedKey && items.some((item) => getTodayQueueItemKey(item) === storedKey)) {
+    return storedKey;
+  }
+
+  return items.length ? getTodayQueueItemKey(items[0]) : "";
+}
+
+function setActiveTodayQueueSelection(queueKey = "") {
+  if (!trimText(queueKey)) {
+    window.localStorage.removeItem(DASHBOARD_TODAY_QUEUE_SELECTION_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(DASHBOARD_TODAY_QUEUE_SELECTION_KEY, queueKey);
+}
 function setStatus(message) {
   statusBanner.textContent = message || "";
 }
@@ -3350,145 +3395,130 @@ function getTodayQueueFilterKeys(item = {}) {
 }
 
 function buildTodayQueuePrimaryAction(item = {}) {
-  if (isAppointmentReviewQueueItem(item)) {
-    return `
-      <button class="primary-button" type="button" data-select-appointment-review data-appointment-review-id="${escapeHtml(item.id || "")}">
-        Review item
-      </button>
-    `;
-  }
+  const queueKey = getTodayQueueItemKey(item);
 
-  if (item.followUp?.id) {
-    return `
-      <button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">
-        Review draft
-      </button>
-    `;
-  }
-
-  if (item.knowledgeFix?.id) {
-    return `
-      <button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">
-        Review fix
-      </button>
-    `;
-  }
-
-  if (item.messageId) {
-    return `
-      <button class="primary-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">
-        Review thread
-      </button>
-    `;
-  }
-
-  if (item.contactCaptured || trimText(item.contactInfo?.email || item.contactInfo?.phone)) {
-    return `<button class="primary-button" type="button" data-shell-target="contacts">Open contact</button>`;
-  }
-
-  return `<button class="primary-button" type="button" data-overview-focus="action-queue">Review queue</button>`;
+  return `
+    <button class="primary-button" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
+      Review item
+    </button>
+  `;
 }
 
-function buildTodayQueueRow(item = {}) {
+function getTodayQueueItemContactLabel(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
-    const filterKeys = getTodayQueueFilterKeys(item);
-    const contactLabel = trimText(item.linkedContactName || item.attendeeLabel || "Unknown attendee");
-    const linkState = trimText(item.linkedContactId) ? "Linked" : "Unlinked";
-    const reason = trimText(item.reviewReason || item.followUpReason || item.unlinkedReason)
-      || "This appointment ended recently and still needs an explicit operator resolution.";
-    const metaLine = [
-      item.endAt ? `Ended ${formatSeenAt(item.endAt)}` : "Ended recently",
-      contactLabel,
-    ].filter(Boolean).join(" · ");
-    const actionMenuMarkup = buildRowActionMenu(
-      "More",
-      [
-        `<button class="ghost-button" type="button" data-select-appointment-review data-appointment-review-id="${escapeHtml(item.id || "")}">Open review panel</button>`,
-        trimText(item.linkedContactId)
-          ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
-          : `<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>`,
-      ].filter(Boolean).join("")
-    );
+    return trimText(item.linkedContactName || item.attendeeLabel || "Unknown attendee");
+  }
 
-    return `
-      <article
-        class="today-queue-row today-queue-row-appointment"
-        data-today-queue-row
-        data-appointment-review-row
-        data-appointment-review-id="${escapeHtml(item.id || "")}"
-        data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
-        data-today-search-text="${escapeHtml([item.title, contactLabel, reason, linkState].filter(Boolean).join(" ").toLowerCase())}"
-      >
-        <div class="today-queue-row-main">
-          <div class="action-queue-badges">
-            <span class="pill">Ended appointment</span>
-            <span class="${getBadgeClass("Needs attention")}">Needs review</span>
-            <span class="${getBadgeClass(trimText(item.linkedContactId) ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
-          </div>
-          <h3 class="today-queue-row-title">${escapeHtml(item.title || "Ended appointment")}</h3>
-          <p class="today-queue-row-copy">${escapeHtml(reason)}</p>
-          <p class="today-queue-row-meta">${escapeHtml(metaLine)}</p>
-        </div>
-        <div class="today-queue-row-context">
-          <span class="contact-row-column-label">Reason for review</span>
-          <strong>${escapeHtml(contactLabel)}</strong>
-          <span class="contact-row-column-copy">${escapeHtml(reason)}</span>
-        </div>
-        <div class="today-queue-row-actions">
-          ${buildTodayQueuePrimaryAction(item)}
-          ${actionMenuMarkup}
-        </div>
-      </article>
-    `;
+  return formatActionQueueContact(item);
+}
+
+function getTodayQueueItemLinkState(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return trimText(item.linkedContactId) ? "Linked" : "Unlinked";
+  }
+
+  return getTodayQueueItemContactLabel(item) === "Contact not captured yet" ? "Unlinked" : "Linked";
+}
+
+function getTodayQueueItemContextLabel(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return item.endAt ? `Ended ${formatSeenAt(item.endAt)}` : "Ended recently";
+  }
+
+  return item.lastSeenAt ? `Flagged ${formatSeenAt(item.lastSeenAt)}` : "Recent signal";
+}
+
+function getTodayQueueItemWhyLabel(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return trimText(item.reviewReason || item.followUpReason || item.unlinkedReason)
+      || "This appointment ended recently and still needs an explicit operator resolution.";
+  }
+
+  return trimText(item.whyFlagged || item.snippet) || "Flagged from recent conversation activity.";
+}
+
+function getTodayQueueItemCopilotSummary(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return trimText(item.reviewWhyItMatters)
+      || "Copilot is surfacing this because explicit review keeps follow-up and proof grounded in one operator loop.";
   }
 
   const workflow = getActionQueueOwnerWorkflow(item);
+  return trimText(item.suggestedAction || item.followUp?.whyPrepared || item.knowledgeFix?.whyPrepared || workflow.copy)
+    || "Review the queue item, confirm the next safe action, and keep the operator loop explicit.";
+}
+
+function buildTodayQueueRow(item = {}, activeQueueKey = "") {
+  const queueKey = getTodayQueueItemKey(item);
+  const workflow = getActionQueueOwnerWorkflow(item);
   const filterKeys = getTodayQueueFilterKeys(item);
-  const contactLabel = formatActionQueueContact(item);
+  const contactLabel = getTodayQueueItemContactLabel(item);
+  const linkState = getTodayQueueItemLinkState(item);
+  const reason = getTodayQueueItemWhyLabel(item);
   const metaLine = [
-    item.lastSeenAt ? `Flagged ${formatSeenAt(item.lastSeenAt)}` : "Recent signal",
-    trimText(item.person?.label),
-    trimText(item.followUp?.status) ? `Follow-up ${getFollowUpStatusLabel(item.followUp.status).toLowerCase()}` : "",
+    getTodayQueueItemContextLabel(item),
+    contactLabel,
+    !isAppointmentReviewQueueItem(item) && trimText(item.followUp?.status)
+      ? `Follow-up ${getFollowUpStatusLabel(item.followUp.status).toLowerCase()}`
+      : "",
   ].filter(Boolean).join(" · ");
   const actionMenuMarkup = buildRowActionMenu(
     "More",
     [
-      item.messageId
+      `<button class="ghost-button" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">Open review drawer</button>`,
+      !isAppointmentReviewQueueItem(item) && item.messageId
         ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open conversation</button>`
         : "",
-      item.followUp?.id
+      !isAppointmentReviewQueueItem(item) && item.followUp?.id
         ? `<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Open follow-up</button>`
         : "",
-      item.knowledgeFix?.id
+      !isAppointmentReviewQueueItem(item) && item.knowledgeFix?.id
         ? `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open guidance fix</button>`
         : "",
-      `<button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>`,
+      isAppointmentReviewQueueItem(item)
+        ? trimText(item.linkedContactId)
+          ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
+          : `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
+        : `<button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>`,
     ].filter(Boolean).join("")
   );
+  const title = isAppointmentReviewQueueItem(item)
+    ? item.title || "Ended appointment"
+    : item.label || getActionQueueTypeLabel(item.type);
+  const contextLabel = isAppointmentReviewQueueItem(item) ? "Attendee / contact" : "Contact";
 
   return `
     <article
-      class="today-queue-row"
+      class="today-queue-row ${isAppointmentReviewQueueItem(item) ? "today-queue-row-appointment" : ""} ${queueKey === activeQueueKey ? "active" : ""}"
       data-today-queue-row
-      data-action-queue-item
-      data-action-key="${escapeHtml(item.key || "")}"
+      data-today-queue-key="${escapeHtml(queueKey)}"
+      data-today-queue-type="${escapeHtml(item.queueType || "")}"
+      ${isAppointmentReviewQueueItem(item) ? `data-appointment-review-id="${escapeHtml(item.id || "")}"` : `data-action-key="${escapeHtml(item.key || "")}"`}
       data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
-      data-today-search-text="${escapeHtml([item.label, item.whyFlagged, item.snippet, contactLabel].filter(Boolean).join(" ").toLowerCase())}"
+      data-today-search-text="${escapeHtml([title, contactLabel, reason, linkState].filter(Boolean).join(" ").toLowerCase())}"
     >
       <div class="today-queue-row-main">
         <div class="action-queue-badges">
-          <span class="pill">${escapeHtml(getOperatorActionTypeLabel(item))}</span>
-          <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
-          <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
+          ${isAppointmentReviewQueueItem(item)
+            ? `
+              <span class="pill">Ended appointment</span>
+              <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+              <span class="${getBadgeClass(linkState === "Linked" ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
+            `
+            : `
+              <span class="pill">${escapeHtml(getOperatorActionTypeLabel(item))}</span>
+              <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
+              <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
+            `}
         </div>
-        <h3 class="today-queue-row-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))}</h3>
-        <p class="today-queue-row-copy">${escapeHtml(item.whyFlagged || item.snippet || "Flagged from recent conversation activity.")}</p>
+        <h3 class="today-queue-row-title">${escapeHtml(title)}</h3>
+        <p class="today-queue-row-copy">${escapeHtml(reason)}</p>
         <p class="today-queue-row-meta">${escapeHtml(metaLine)}</p>
       </div>
       <div class="today-queue-row-context">
-        <span class="contact-row-column-label">Contact</span>
+        <span class="contact-row-column-label">${escapeHtml(contextLabel)}</span>
         <strong>${escapeHtml(contactLabel)}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(item.suggestedAction || workflow.copy)}</span>
+        <span class="contact-row-column-copy">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</span>
       </div>
       <div class="today-queue-row-actions">
         ${buildTodayQueuePrimaryAction(item)}
@@ -3498,89 +3528,194 @@ function buildTodayQueueRow(item = {}) {
   `;
 }
 
-function buildTodayAppointmentReviewPanel(reviewItems = [], contacts = []) {
-  if (!reviewItems.length) {
-    return "";
+function buildTodayReviewDrawerActions(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    const selectedContactId = trimText(item.appointmentReviewState?.contactId || item.linkedContactId);
+    const contactOptions = listAppointmentReviewContacts(item, Array.isArray(item.contacts) ? item.contacts : []);
+    const hasFollowUpTarget = Boolean(
+      trimText(item.linkedContactEmail)
+      || trimText(item.linkedContactPhone)
+      || trimText((Array.isArray(item.attendeeEmails) ? item.attendeeEmails[0] : ""))
+      || selectedContactId
+    );
+
+    return `
+      <div class="today-review-drawer-divider"></div>
+      <div class="appointment-review-field-grid">
+        <div class="field">
+          <label>Link contact</label>
+          <select name="contact_id" data-appointment-review-contact>
+            <option value="">${escapeHtml(contactOptions.length ? "Choose a contact" : "No contact available yet")}</option>
+            ${contactOptions.map((option) => `
+              <option value="${escapeHtml(option.id)}" ${option.id === selectedContactId ? "selected" : ""}>${escapeHtml(option.label)}</option>
+            `).join("")}
+          </select>
+        </div>
+        <div class="field">
+          <label>Record outcome</label>
+          <select name="outcome_type" data-appointment-review-outcome>
+            ${buildAppointmentReviewOutcomeOptions(trimText(item.appointmentReviewState?.outcomeType) || "quote_requested")}
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Operator note</label>
+        <textarea rows="3" data-appointment-review-note placeholder="Add a short note if future review context will matter.">${escapeHtml(item.appointmentReviewState?.note || "")}</textarea>
+      </div>
+      <div class="today-review-drawer-actions">
+        <button class="primary-button" type="button" data-appointment-review-action="prepare_follow_up" data-event-id="${escapeHtml(item.id || "")}" ${hasFollowUpTarget ? "" : "disabled"}>Prepare follow-up</button>
+        <button class="ghost-button" type="button" data-appointment-review-action="link_contact" data-event-id="${escapeHtml(item.id || "")}" ${contactOptions.length ? "" : "disabled"}>Link contact</button>
+        <button class="ghost-button" type="button" data-appointment-review-action="record_outcome" data-event-id="${escapeHtml(item.id || "")}">Record outcome</button>
+        <button class="ghost-button" type="button" data-appointment-review-action="no_action_needed" data-event-id="${escapeHtml(item.id || "")}">No action needed</button>
+      </div>
+    `;
+  }
+
+  const actionButtons = [
+    item.followUp?.id
+      ? `<button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Review draft</button>`
+      : "",
+    item.knowledgeFix?.id
+      ? `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Review fix</button>`
+      : "",
+    item.messageId
+      ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Review thread</button>`
+      : "",
+    getTodayQueueItemLinkState(item) === "Linked"
+      ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open contact</button>`
+      : "",
+  ].filter(Boolean).join("");
+
+  return `
+    <div class="today-review-drawer-divider"></div>
+    ${actionButtons ? `<div class="today-review-drawer-actions">${actionButtons}</div>` : ""}
+    <div class="today-review-status-actions">
+      <button class="ghost-button" type="button" data-today-queue-status-action data-next-status="reviewed" data-action-key="${escapeHtml(item.key || "")}">Mark reviewed</button>
+      <button class="primary-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key || "")}">Mark done</button>
+      <button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key || "")}">Dismiss</button>
+    </div>
+  `;
+}
+
+function buildTodayReviewPanel(item = {}, activeQueueKey = "", contacts = []) {
+  const queueKey = getTodayQueueItemKey(item);
+  const contactLabel = getTodayQueueItemContactLabel(item);
+  const linkState = getTodayQueueItemLinkState(item);
+  const workflow = getActionQueueOwnerWorkflow(item);
+  const title = isAppointmentReviewQueueItem(item)
+    ? item.title || "Ended appointment"
+    : item.label || getActionQueueTypeLabel(item.type);
+  const contextTitle = isAppointmentReviewQueueItem(item) ? "Ended appointment review" : "Queue item review";
+  const statusBadges = isAppointmentReviewQueueItem(item)
+    ? `
+      <span class="pill">Ended appointment</span>
+      <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+      <span class="${getBadgeClass(linkState === "Linked" ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
+    `
+    : `
+      <span class="pill">${escapeHtml(getOperatorActionTypeLabel(item))}</span>
+      <span class="${getActionQueueStatusBadgeClass(item.status)}">${escapeHtml(getActionQueueStatusLabel(item.status))}</span>
+      <span class="${getActionQueueOwnerWorkflowBadgeClass(item)}">${escapeHtml(workflow.label)}</span>
+    `;
+  const eventContext = isAppointmentReviewQueueItem(item)
+    ? [
+      getTodayQueueItemContextLabel(item),
+      trimText(item.attendeeLabel),
+      trimText(item.reviewType || ""),
+    ].filter(Boolean).join(" · ")
+    : [
+      getTodayQueueItemContextLabel(item),
+      trimText(item.person?.label),
+      trimText(item.followUp?.status) ? `Follow-up ${getFollowUpStatusLabel(item.followUp.status).toLowerCase()}` : "",
+    ].filter(Boolean).join(" · ");
+  const linkStateCopy = isAppointmentReviewQueueItem(item)
+    ? (linkState === "Linked" ? "This appointment already has a linked contact record." : "This appointment still needs a safe contact link.")
+    : (linkState === "Linked" ? "Vonza has enough contact context to keep this item grounded." : "This queue item is still missing strong contact linkage.");
+
+  return `
+    <article class="today-review-panel ${queueKey === activeQueueKey ? "active" : ""}" data-today-review-panel-item data-today-queue-key="${escapeHtml(queueKey)}" ${queueKey === activeQueueKey ? "" : "hidden"}>
+      <div class="today-review-panel-top">
+        <div>
+          <p class="support-panel-kicker">${escapeHtml(contextTitle)}</p>
+          <h3 class="today-review-panel-title">${escapeHtml(title)}</h3>
+        </div>
+        <button class="ghost-button today-review-close" type="button" data-today-review-close>Close</button>
+      </div>
+      <div class="action-queue-badges">
+        ${statusBadges}
+      </div>
+      <div class="today-review-detail-list">
+        <div class="today-review-detail-row">
+          <span class="today-review-detail-label">Attendee / contact</span>
+          <strong class="today-review-detail-value">${escapeHtml(contactLabel)}</strong>
+        </div>
+        <div class="today-review-detail-row">
+          <span class="today-review-detail-label">Event timing or context</span>
+          <strong class="today-review-detail-value">${escapeHtml(eventContext || "Context is still loading.")}</strong>
+        </div>
+        <div class="today-review-detail-row">
+          <span class="today-review-detail-label">Linked state</span>
+          <strong class="today-review-detail-value">${escapeHtml(linkState)}</strong>
+          <p class="today-review-detail-copy">${escapeHtml(linkStateCopy)}</p>
+        </div>
+        <div class="today-review-detail-row">
+          <span class="today-review-detail-label">Why this needs attention</span>
+          <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemWhyLabel(item))}</strong>
+        </div>
+        <div class="today-review-detail-row">
+          <span class="today-review-detail-label">Copilot summary / reasoning</span>
+          <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</strong>
+        </div>
+      </div>
+      ${isAppointmentReviewQueueItem(item)
+        ? buildTodayReviewDrawerActions({
+          ...item,
+          contacts,
+        })
+        : buildTodayReviewDrawerActions(item)}
+    </article>
+  `;
+}
+
+function buildTodayReviewDrawer(items = [], activeQueueKey = "", contacts = [], briefing = {}) {
+  if (!items.length) {
+    return `
+      <section class="today-review-drawer-shell">
+        <div class="today-review-drawer-frame">
+          <div class="today-review-empty">
+            <p class="support-panel-kicker">Review drawer</p>
+            <h3 class="today-review-panel-title">Queue is clear</h3>
+            <p class="support-panel-copy">${escapeHtml(briefing.text || "Select a queue item and the operator review drawer will stay here with the context and next safe action.")}</p>
+          </div>
+        </div>
+      </section>
+    `;
   }
 
   return `
-    <section class="support-panel appointment-review-support-panel" data-appointment-review-shell>
-      <p class="support-panel-kicker">Appointment review</p>
-      <h3 class="support-panel-title">Ended appointment loop</h3>
-      <p class="support-panel-copy">Use one explicit resolution per completed appointment so follow-up, linking, and outcomes do not split across the workspace.</p>
-      <div class="appointment-review-panels">
-        ${reviewItems.map((item, index) => {
-          const selectedContactId = trimText(item.appointmentReviewState?.contactId || item.linkedContactId);
-          const contactOptions = listAppointmentReviewContacts(item, contacts);
-          const hasFollowUpTarget = Boolean(
-            trimText(item.linkedContactEmail)
-            || trimText(item.linkedContactPhone)
-            || trimText((Array.isArray(item.attendeeEmails) ? item.attendeeEmails[0] : ""))
-            || selectedContactId
-          );
-
-          return `
-            <article class="appointment-review-panel ${index === 0 ? "active" : ""}" data-appointment-review-panel-item data-appointment-review-id="${escapeHtml(item.id || "")}" ${index === 0 ? "" : "hidden"}>
-              <div class="appointment-review-panel-meta">
-                <div>
-                  <span class="support-mini-label">Meeting</span>
-                  <strong>${escapeHtml(item.title || "Ended appointment")}</strong>
-                </div>
-                <div>
-                  <span class="support-mini-label">Ended</span>
-                  <strong>${escapeHtml(item.endAt ? formatSeenAt(item.endAt) : "Recently")}</strong>
-                </div>
-                <div>
-                  <span class="support-mini-label">Status</span>
-                  <strong>${escapeHtml(trimText(item.linkedContactId) ? "Linked" : "Unlinked")}</strong>
-                </div>
-              </div>
-              <div class="appointment-review-panel-copy">
-                <p><strong>Attendee / contact:</strong> ${escapeHtml(trimText(item.linkedContactName || item.attendeeLabel || "Unknown attendee"))}</p>
-                <p><strong>Reason for review:</strong> ${escapeHtml(trimText(item.reviewReason || item.followUpReason || item.unlinkedReason) || "This appointment still needs an explicit operator resolution.")}</p>
-                <p><strong>Copilot readout:</strong> ${escapeHtml(trimText(item.reviewWhyItMatters) || "Copilot is surfacing this because explicit review keeps follow-up and proof grounded in one operator loop.")}</p>
-              </div>
-              <div class="appointment-review-field-grid">
-                <div class="field">
-                  <label>Link contact</label>
-                  <select name="contact_id" data-appointment-review-contact>
-                    <option value="">${escapeHtml(contactOptions.length ? "Choose a contact" : "No contact available yet")}</option>
-                    ${contactOptions.map((option) => `
-                      <option value="${escapeHtml(option.id)}" ${option.id === selectedContactId ? "selected" : ""}>${escapeHtml(option.label)}</option>
-                    `).join("")}
-                  </select>
-                </div>
-                <div class="field">
-                  <label>Record outcome</label>
-                  <select name="outcome_type" data-appointment-review-outcome>
-                    ${buildAppointmentReviewOutcomeOptions(trimText(item.appointmentReviewState?.outcomeType) || "quote_requested")}
-                  </select>
-                </div>
-              </div>
-              <div class="field">
-                <label>Operator note</label>
-                <textarea rows="3" data-appointment-review-note placeholder="Add a short note if future review context will matter.">${escapeHtml(item.appointmentReviewState?.note || "")}</textarea>
-              </div>
-              <div class="appointment-review-actions">
-                <button class="primary-button" type="button" data-appointment-review-action="prepare_follow_up" data-event-id="${escapeHtml(item.id || "")}" ${hasFollowUpTarget ? "" : "disabled"}>Prepare follow-up</button>
-                <button class="ghost-button" type="button" data-appointment-review-action="link_contact" data-event-id="${escapeHtml(item.id || "")}" ${contactOptions.length ? "" : "disabled"}>Link contact</button>
-                <button class="ghost-button" type="button" data-appointment-review-action="record_outcome" data-event-id="${escapeHtml(item.id || "")}">Record outcome</button>
-                <button class="ghost-button" type="button" data-appointment-review-action="no_action_needed" data-event-id="${escapeHtml(item.id || "")}">No action needed</button>
-              </div>
-            </article>
-          `;
-        }).join("")}
+    <div class="today-review-drawer-backdrop" data-today-review-backdrop></div>
+    <section class="today-review-drawer-shell" data-today-review-drawer>
+      <div class="today-review-drawer-frame">
+        <div class="today-review-drawer-header">
+          <div>
+            <p class="support-panel-kicker">Review drawer</p>
+            <h3 class="today-review-panel-title">Stay in the queue while you resolve what needs attention.</h3>
+            <p class="support-panel-copy">Select any queue item to inspect the context, understand why Copilot surfaced it, and clear the next safe action without leaving Today.</p>
+          </div>
+        </div>
+        <div class="today-review-panel-stack">
+          ${items.map((item) => buildTodayReviewPanel(item, activeQueueKey, contacts)).join("")}
+        </div>
       </div>
     </section>
   `;
 }
 
-function buildTodayQueueList(actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace(), activeQueueKey = "") {
   const summary = {
     ...createEmptyActionQueue().summary,
     ...(actionQueue.summary || {}),
   };
-  const items = buildTodayQueueItems(actionQueue, operatorWorkspace);
 
   if (!items.length) {
     return buildOperatorEmptyState({
@@ -3600,7 +3735,7 @@ function buildTodayQueueList(actionQueue = createEmptyActionQueue(), operatorWor
           : ""}
       </div>
       <div class="today-queue-list">
-        ${items.map((item) => buildTodayQueueRow(item)).join("")}
+        ${items.map((item) => buildTodayQueueRow(item, activeQueueKey)).join("")}
       </div>
     </section>
   `;
@@ -3612,11 +3747,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const nextAction = operatorWorkspace.nextAction || createEmptyOperatorWorkspace().nextAction;
   const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
+  const todayQueueItems = buildTodayQueueItems(actionQueue, operatorWorkspace);
+  const activeTodayQueueKey = getActiveTodayQueueSelection(todayQueueItems);
   const scheduleItems = Array.isArray(operatorWorkspace.calendar?.scheduleItems)
     ? operatorWorkspace.calendar.scheduleItems.slice(0, 4)
-    : [];
-  const reviewItems = Array.isArray(operatorWorkspace.calendar?.reviewItems)
-    ? operatorWorkspace.calendar.reviewItems.slice(0, 6)
     : [];
   const recentOutcomes = Array.isArray(today.recentSuccessfulOutcomes)
     ? today.recentSuccessfulOutcomes.slice(0, 4)
@@ -3679,12 +3813,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <div>
                 <p class="overview-label">Needs Attention</p>
                 <h2 class="today-section-title">${escapeHtml(
-                  (overview.queueSummary.attentionNeeded + reviewItems.length) > 0
-                    ? `${overview.queueSummary.attentionNeeded + reviewItems.length} item${(overview.queueSummary.attentionNeeded + reviewItems.length) === 1 ? "" : "s"} need review`
+                  todayQueueItems.length > 0
+                    ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} need review`
                     : "Queue is clear"
                 )}</h2>
                 <p class="today-section-copy">${escapeHtml(
-                  (overview.queueSummary.attentionNeeded + reviewItems.length) > 0
+                  todayQueueItems.length > 0
                     ? "This is the dominant operator workspace. Review ended appointments, drafts, weak answers, and follow-up work from here before anything else."
                     : "Nothing urgent is blocking the operator loop right now. The queue stays here as the primary work surface."
                 )}</p>
@@ -3696,22 +3830,19 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               ` : ""}
             </div>
-            ${buildTodayQueueList(actionQueue, operatorWorkspace)}
+            ${buildTodayQueueList(todayQueueItems, actionQueue, operatorWorkspace, activeTodayQueueKey)}
           </section>
           <aside class="today-side-column">
-            ${reviewItems.length
-              ? buildTodayAppointmentReviewPanel(reviewItems, contactsList)
-              : `
-                <section class="support-panel">
-                  <p class="support-panel-kicker">Copilot briefing</p>
-                  <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
-                  <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
-                  ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(health.globalError)}</p></div>` : ""}
-                  <p class="today-support-meta">${escapeHtml(overview.queueSummary.attentionNeeded > 0
-                    ? `${overview.queueSummary.attentionNeeded} queue item${overview.queueSummary.attentionNeeded === 1 ? "" : "s"} still need review.`
-                    : "No urgent operator queue items are open right now.")}</p>
-                </section>
-              `}
+            ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing)}
+            <section class="support-panel today-support-panel-quiet">
+              <p class="support-panel-kicker">Copilot briefing</p>
+              <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
+              <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
+              ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(health.globalError)}</p></div>` : ""}
+              <p class="today-support-meta">${escapeHtml(todayQueueItems.length > 0
+                ? `${todayQueueItems.length} queue item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
+                : "No urgent operator queue items are open right now.")}</p>
+            </section>
             <section class="support-panel">
               <p class="support-panel-kicker">Schedule context</p>
               <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "Today on deck" : "Schedule is quiet")}</h3>
@@ -9591,6 +9722,7 @@ function bindSimpleDirtyState(form) {
 // Event wiring for the rendered shell
 function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const appShell = document.querySelector("[data-app-shell]");
+  const overviewSection = document.querySelector('[data-shell-section="overview"]');
   const settingsForms = document.querySelectorAll("form[data-settings-form]");
   const settingsSectionButtons = document.querySelectorAll("[data-settings-target]");
   const settingsSections = document.querySelectorAll("[data-settings-section]");
@@ -9602,10 +9734,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const todayFilterButtons = document.querySelectorAll("[data-today-filter]");
   const todaySearchInput = document.querySelector("[data-today-search]");
   const todayQueueRows = document.querySelectorAll("[data-today-queue-row]");
-  const appointmentReviewRows = document.querySelectorAll("[data-appointment-review-row]");
-  const appointmentReviewSelectButtons = document.querySelectorAll("[data-select-appointment-review]");
-  const appointmentReviewPanels = document.querySelectorAll("[data-appointment-review-panel-item]");
+  const todayReviewOpenButtons = document.querySelectorAll("[data-today-open-review]");
+  const todayReviewPanels = document.querySelectorAll("[data-today-review-panel-item]");
+  const todayReviewDrawer = document.querySelector("[data-today-review-drawer]");
+  const todayReviewBackdrop = document.querySelector("[data-today-review-backdrop]");
+  const todayReviewCloseButtons = document.querySelectorAll("[data-today-review-close]");
   const appointmentReviewActionButtons = document.querySelectorAll("[data-appointment-review-action]");
+  const todayQueueStatusActionButtons = document.querySelectorAll("[data-today-queue-status-action]");
   const importButtons = document.querySelectorAll('[data-action="import-knowledge"]');
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
@@ -9663,7 +9798,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const availableSettingsSections = getAvailableSettingsSections();
   let activeContactFilter = "all";
   let activeTodayFilter = "all";
-  let activeAppointmentReviewId = trimText(appointmentReviewPanels[0]?.dataset.appointmentReviewId);
+  let activeTodayQueueKey = getActiveTodayQueueSelection(buildTodayQueueItems(actionQueue, operatorWorkspace));
 
   const closeShellNavigation = () => {
     appShell?.classList.remove("nav-open");
@@ -9692,6 +9827,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const showShellSection = (targetSection, options = {}) => {
     if (!availableSections.includes(targetSection)) {
       return;
+    }
+
+    if (targetSection !== "overview") {
+      closeTodayReviewDrawer();
     }
 
     setActiveShellSection(targetSection, operatorWorkspace);
@@ -9997,22 +10136,57 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   };
 
-  const selectAppointmentReview = (reviewId = "") => {
-    activeAppointmentReviewId = reviewId || activeAppointmentReviewId;
+  const getVisibleTodayQueueRows = () => [...todayQueueRows].filter((row) => !row.hidden);
 
-    appointmentReviewRows.forEach((row) => {
-      row.classList.toggle("active", row.dataset.appointmentReviewId === activeAppointmentReviewId);
+  const getNextVisibleTodayQueueKey = (currentKey = "") => {
+    const visibleRows = getVisibleTodayQueueRows();
+
+    if (!visibleRows.length) {
+      return "";
+    }
+
+    const currentIndex = visibleRows.findIndex((row) => row.dataset.todayQueueKey === currentKey);
+
+    if (currentIndex === -1) {
+      return visibleRows[0]?.dataset.todayQueueKey || "";
+    }
+
+    return visibleRows[currentIndex + 1]?.dataset.todayQueueKey
+      || visibleRows[currentIndex - 1]?.dataset.todayQueueKey
+      || visibleRows[0]?.dataset.todayQueueKey
+      || "";
+  };
+
+  const setTodayReviewDrawerOpen = (open) => {
+    overviewSection?.classList.toggle("today-review-open", open);
+  };
+
+  const closeTodayReviewDrawer = () => {
+    setTodayReviewDrawerOpen(false);
+  };
+
+  const selectTodayQueueItem = (queueKey = "", { openDrawer = true } = {}) => {
+    const nextQueueKey = trimText(queueKey) || activeTodayQueueKey || todayQueueRows[0]?.dataset.todayQueueKey || "";
+    activeTodayQueueKey = nextQueueKey;
+    setActiveTodayQueueSelection(nextQueueKey);
+
+    todayQueueRows.forEach((row) => {
+      row.classList.toggle("active", row.dataset.todayQueueKey === nextQueueKey);
     });
 
-    appointmentReviewPanels.forEach((panel) => {
-      const isActive = panel.dataset.appointmentReviewId === activeAppointmentReviewId;
+    todayReviewPanels.forEach((panel) => {
+      const isActive = panel.dataset.todayQueueKey === nextQueueKey;
       panel.hidden = !isActive;
       panel.classList.toggle("active", isActive);
     });
+
+    if (todayReviewDrawer && nextQueueKey && openDrawer) {
+      setTodayReviewDrawerOpen(true);
+    }
   };
 
   const resolveAppointmentReview = async (button) => {
-    const panel = button.closest("[data-appointment-review-panel-item]");
+    const panel = button.closest("[data-today-review-panel-item]");
 
     if (!panel) {
       return;
@@ -10029,6 +10203,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       record_outcome: "Recording appointment outcome...",
       no_action_needed: "Clearing appointment review...",
     };
+    const queueKey = trimText(panel.dataset.todayQueueKey);
+    const nextQueueKey = resolution === "link_contact"
+      ? queueKey
+      : getNextVisibleTodayQueueKey(queueKey);
 
     button.disabled = true;
     setStatus(statusCopy[resolution] || "Updating appointment review...");
@@ -10062,9 +10240,50 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         setStatus("Appointment review updated.");
       }
 
+      setActiveTodayQueueSelection(nextQueueKey);
       await boot();
     } catch (error) {
       setStatus(error.message || "We couldn't update that appointment review.");
+      button.disabled = false;
+    }
+  };
+
+  const updateTodayQueueItemStatus = async (button) => {
+    const actionKey = trimText(button.dataset.actionKey);
+    const nextStatus = trimText(button.dataset.nextStatus);
+    const panel = button.closest("[data-today-review-panel-item]");
+    const queueKey = trimText(panel?.dataset.todayQueueKey);
+    const nextQueueKey = ["done", "dismissed"].includes(nextStatus)
+      ? getNextVisibleTodayQueueKey(queueKey)
+      : queueKey;
+
+    if (!actionKey || !nextStatus) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus(`Marking queue item ${getActionQueueStatusLabel(nextStatus).toLowerCase()}...`);
+
+    try {
+      await fetchJson("/agents/action-queue/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          action_key: actionKey,
+          status: nextStatus,
+        }),
+      });
+
+      setDashboardFocus("action-queue");
+      setStatus(`Action item marked ${getActionQueueStatusLabel(nextStatus).toLowerCase()}.`);
+      setActiveTodayQueueSelection(nextQueueKey);
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that queue item.");
       button.disabled = false;
     }
   };
@@ -10100,10 +10319,15 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       queueList.parentElement?.appendChild(empty);
     }
 
-    if (appointmentReviewRows.length && ![...appointmentReviewRows].some((row) => !row.hidden && row.classList.contains("active"))) {
-      const nextVisibleReview = [...appointmentReviewRows].find((row) => !row.hidden);
-      if (nextVisibleReview) {
-        selectAppointmentReview(nextVisibleReview.dataset.appointmentReviewId || "");
+    if (todayQueueRows.length) {
+      const activeVisibleRow = [...todayQueueRows].find((row) => !row.hidden && row.classList.contains("active"));
+      const nextVisibleRow = activeVisibleRow || [...todayQueueRows].find((row) => !row.hidden);
+
+      if (nextVisibleRow) {
+        selectTodayQueueItem(nextVisibleRow.dataset.todayQueueKey || "", { openDrawer: false });
+      } else {
+        setActiveTodayQueueSelection("");
+        closeTodayReviewDrawer();
       }
     }
   };
@@ -10553,27 +10777,38 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     applyTodayFilter(activeTodayFilter);
   });
 
-  appointmentReviewSelectButtons.forEach((button) => {
+  todayReviewOpenButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const reviewId = button.dataset.appointmentReviewId || "";
-      selectAppointmentReview(reviewId);
-      document.querySelector("[data-appointment-review-shell]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const queueKey = button.dataset.todayQueueKey || "";
+      selectTodayQueueItem(queueKey);
     });
   });
 
-  appointmentReviewRows.forEach((row) => {
+  todayQueueRows.forEach((row) => {
     row.addEventListener("click", (event) => {
       if (event.target.closest("button, details, summary")) {
         return;
       }
 
-      selectAppointmentReview(row.dataset.appointmentReviewId || "");
+      selectTodayQueueItem(row.dataset.todayQueueKey || "");
     });
   });
+
+  todayReviewCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeTodayReviewDrawer);
+  });
+
+  todayReviewBackdrop?.addEventListener("click", closeTodayReviewDrawer);
 
   appointmentReviewActionButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       await resolveAppointmentReview(button);
+    });
+  });
+
+  todayQueueStatusActionButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await updateTodayQueueItemStatus(button);
     });
   });
   actionQueueSections.forEach((section) => {
@@ -11303,8 +11538,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     applyTodayFilter(activeTodayFilter);
   }
 
-  if (activeAppointmentReviewId) {
-    selectAppointmentReview(activeAppointmentReviewId);
+  if (activeTodayQueueKey) {
+    selectTodayQueueItem(activeTodayQueueKey, { openDrawer: false });
   }
   const focusTarget = getDashboardFocus();
 
