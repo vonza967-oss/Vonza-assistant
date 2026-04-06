@@ -481,6 +481,118 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Save business context/);
 });
 
+test("contacts workspace renders a list-detail operator layout with search and lifecycle controls", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    contacts: {
+      list: [
+        {
+          id: "contact-1",
+          name: "Taylor Reed",
+          bestIdentifier: "Taylor Reed",
+          email: "taylor@example.com",
+          lifecycleState: "active_lead",
+          sources: ["chat", "follow up"],
+          flags: ["follow up due"],
+          mostRecentActivityAt: "2026-04-05T10:00:00.000Z",
+          nextAction: {
+            title: "Draft follow-up",
+            description: "Pricing was discussed but no outcome is recorded yet.",
+          },
+          counts: {
+            leads: 1,
+            inboxThreads: 0,
+            calendarEvents: 1,
+            followUps: 1,
+            outcomes: 0,
+          },
+          timeline: [
+            {
+              at: "2026-04-05T10:00:00.000Z",
+              label: "Live chat",
+              summary: "Asked about pricing and a quote.",
+            },
+          ],
+        },
+      ],
+      summary: {
+        totalContacts: 1,
+        contactsNeedingAttention: 1,
+        contactsWithOutcomes: 0,
+        highValueWithoutOutcome: 1,
+      },
+    },
+  });
+
+  const contacts = harness.buildContactsPanel({ manualOutcomeMode: false }, workspace);
+  assert.match(contacts, /Operator contact queue/);
+  assert.match(contacts, /Search/);
+  assert.match(contacts, /Recent cross-channel activity/);
+  assert.match(contacts, /Lifecycle override/);
+  assert.match(contacts, /data-contact-select/);
+});
+
+test("sidebar shell keeps workflow, connected tools, and utilities grouped for the operator workspace", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConnected: true,
+      googleConfigReady: true,
+    },
+    calendar: {
+      events: [
+        {
+          id: "event-1",
+          title: "Morning booking",
+        },
+      ],
+    },
+  });
+
+  const sidebar = harness.buildSidebarShell(
+    {
+      assistantName: "Vonza Front Desk",
+      websiteUrl: "https://example.com",
+      installStatus: {
+        state: "not_installed",
+        label: "Not installed yet",
+      },
+    },
+    {
+      isReady: false,
+      knowledgeReady: false,
+      knowledgeLimited: false,
+    },
+    {
+      summary: {
+        attentionNeeded: 2,
+      },
+    },
+    workspace,
+    "overview"
+  );
+
+  assert.match(sidebar, /Core workflow/);
+  assert.match(sidebar, /Connected tools/);
+  assert.match(sidebar, /Utilities/);
+  assert.match(sidebar, /Live status/);
+  assert.match(sidebar, /Settings/);
+});
+
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
     windowFlags: {
