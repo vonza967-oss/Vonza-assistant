@@ -126,12 +126,14 @@ test("slot suggestion avoids busy events and finds business-hour availability", 
 });
 
 test("calendar summary includes conflicts, complaints, and best next slot", () => {
+  const upcomingStart = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const upcomingEnd = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
   const summary = buildCalendarDailySummary({
     events: [
       {
         title: "Morning booking",
-        startAt: "2026-04-06T09:00:00.000Z",
-        endAt: "2026-04-06T10:00:00.000Z",
+        startAt: upcomingStart,
+        endAt: upcomingEnd,
       },
     ],
     tasks: [
