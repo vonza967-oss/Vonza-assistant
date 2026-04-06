@@ -706,6 +706,7 @@ function buildAppointmentFollowUpRecommendation(appointment = {}) {
       applyPayload: {
         taskType: "appointment_outcome_review",
         contactId,
+        relatedEventId: cleanText(appointment.id),
         actionKey: cleanText(appointment.relatedActionKey),
         title: contactId
           ? `Review next step for ${contactLabel}`
@@ -761,9 +762,11 @@ function buildUnlinkedAppointmentRecommendation(appointment = {}) {
         label: cleanText(appointment.actionLabel || "Open Calendar"),
       },
       applyPayload: {
-        taskType: "link_calendar_attendee",
+        taskType: "appointment_outcome_review",
+        relatedEventId: cleanText(appointment.id),
         title: `Review attendee linking for ${cleanText(appointment.title || "this appointment")}`,
-        description: cleanText(appointment.unlinkedReason) || "Review whether this attendee should be linked to a contact.",
+        description: cleanText(appointment.reviewReason || appointment.unlinkedReason)
+          || "Review whether this attendee should be linked to a contact and what should happen next.",
         targetSection: cleanText(appointment.actionTargetSection || "calendar"),
         targetId: cleanText(appointment.actionTargetId || appointment.id),
       },
@@ -888,6 +891,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
   const calendar = options.calendar && typeof options.calendar === "object" ? options.calendar : {};
   const calendarEvents = normalizeArray(calendar.events);
   const scheduleItems = normalizeArray(calendar.scheduleItems);
+  const appointmentReviewItems = normalizeArray(calendar.reviewItems);
   const appointmentFollowUpItems = normalizeArray(calendar.followUpItems);
   const unlinkedAppointments = normalizeArray(calendar.unlinkedItems);
   const queueItems = normalizeArray(actionQueue.items);
@@ -934,7 +938,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
   const topComplaintRiskContact = findComplaintRiskContact(contacts);
   const topLeadContact = findLeadContact(contacts);
   const topOutcomeReviewContact = findOutcomeReviewContact(contacts);
-  const topAppointmentFollowUp = appointmentFollowUpItems[0] || null;
+  const topAppointmentFollowUp = appointmentReviewItems[0] || appointmentFollowUpItems[0] || null;
   const topUnlinkedAppointment = unlinkedAppointments[0] || null;
 
   const recommendations = [];

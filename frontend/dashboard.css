@@ -718,6 +718,14 @@ button:disabled {
   gap: 10px;
 }
 
+.today-toolbar-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+}
+
 .toolbar-search {
   min-width: min(320px, 100%);
   flex: 1 1 260px;
@@ -1437,6 +1445,16 @@ button:disabled {
   align-items: center;
   padding: 16px 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.today-queue-row:hover,
+.today-queue-row.active {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.today-queue-row.active {
+  border-bottom-color: rgba(23, 194, 164, 0.24);
 }
 
 .today-queue-row-main,
@@ -1526,6 +1544,56 @@ button:disabled {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.appointment-review-support-panel {
+  gap: 14px;
+}
+
+.appointment-review-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.appointment-review-panel-meta,
+.appointment-review-field-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.appointment-review-panel-meta {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.appointment-review-field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.appointment-review-panel-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.appointment-review-panel-copy p {
+  margin: 0;
+  color: var(--soft);
+  line-height: 1.5;
+}
+
+.appointment-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.support-mini-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
 }
 
 .today-secondary-grid {
@@ -3232,6 +3300,11 @@ button:disabled {
 
   .today-queue-row,
   .contact-row {
+    grid-template-columns: 1fr;
+  }
+
+  .appointment-review-panel-meta,
+  .appointment-review-field-grid {
     grid-template-columns: 1fr;
   }
 

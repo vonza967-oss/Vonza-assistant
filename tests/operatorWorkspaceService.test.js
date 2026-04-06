@@ -83,6 +83,9 @@ test("calendar summary includes conflicts, complaints, and best next slot", () =
     slots: [
       { label: "Mon, Apr 6, 11:00 AM" },
     ],
+    reviewItems: [
+      { id: "event-0" },
+    ],
     followUpItems: [
       { id: "event-1" },
     ],
