@@ -1244,6 +1244,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Search contacts/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
+        assert.match(dashboardScript.text, /Knowledge \/ Context/);
+        assert.match(dashboardScript.text, /Install \/ Launch/);
+        assert.match(dashboardScript.text, /What got moved out of the way/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /High-intent/);
