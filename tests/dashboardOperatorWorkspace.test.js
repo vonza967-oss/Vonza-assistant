@@ -211,12 +211,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
     ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
   );
 
-  const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today is the operator command center/);
-  assert.match(overview, /Connect Google Calendar/);
-  assert.match(overview, /Needs Attention/);
-  assert.match(overview, /Today(?:&#39;|'|’)?s Schedule/);
-  assert.match(overview, /Ready \/ Waiting/);
+  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Connect Google to unlock Today/);
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google to unlock Calendar/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
@@ -320,12 +315,10 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Needs Attention/);
-  assert.match(overview, /Today(?:&#39;|'|’)?s Schedule/);
-  assert.match(overview, /Follow-up gap/);
-  assert.match(overview, /Contact linking gap/);
-  assert.match(overview, /Daily calendar readout/);
-  assert.match(overview, /Ready \/ Waiting/);
+  assert.match(overview, /Today(?:&#39;|')s Schedule/);
+  assert.match(overview, /Appointments Needing Follow-up/);
+  assert.match(overview, /Appointments Not Linked to a Contact/);
+  assert.match(overview, /Calendar read-only mode/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
   assert.match(calendarPanel, /Read-only calendar mode/);
@@ -353,7 +346,7 @@ test("today copilot stays hidden when the browser flag is off", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.doesNotMatch(overview, /Copilot readout/);
+  assert.doesNotMatch(overview, /Today Copilot/);
 });
 
 test("today copilot renders inside Today when the flag is on", () => {
@@ -467,9 +460,9 @@ test("today copilot renders inside Today when the flag is on", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Copilot readout/);
-  assert.match(overview, /Signals across Today/);
-  assert.match(overview, /Ready for owner review/);
+  assert.match(overview, /Today Copilot/);
+  assert.match(overview, /Operational summary/);
+  assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
   const settings = harness.buildSettingsPanel(
@@ -484,8 +477,120 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Front Desk/);
   assert.match(settings, /Connected tools/);
   assert.match(settings, /Workspace/);
-  assert.match(settings, /Front Desk context setup/);
-  assert.match(settings, /Save Front Desk context/);
+  assert.match(settings, /Business context setup/);
+  assert.match(settings, /Save business context/);
+});
+
+test("contacts workspace renders a list-detail operator layout with search and lifecycle controls", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    contacts: {
+      list: [
+        {
+          id: "contact-1",
+          name: "Taylor Reed",
+          bestIdentifier: "Taylor Reed",
+          email: "taylor@example.com",
+          lifecycleState: "active_lead",
+          sources: ["chat", "follow up"],
+          flags: ["follow up due"],
+          mostRecentActivityAt: "2026-04-05T10:00:00.000Z",
+          nextAction: {
+            title: "Draft follow-up",
+            description: "Pricing was discussed but no outcome is recorded yet.",
+          },
+          counts: {
+            leads: 1,
+            inboxThreads: 0,
+            calendarEvents: 1,
+            followUps: 1,
+            outcomes: 0,
+          },
+          timeline: [
+            {
+              at: "2026-04-05T10:00:00.000Z",
+              label: "Live chat",
+              summary: "Asked about pricing and a quote.",
+            },
+          ],
+        },
+      ],
+      summary: {
+        totalContacts: 1,
+        contactsNeedingAttention: 1,
+        contactsWithOutcomes: 0,
+        highValueWithoutOutcome: 1,
+      },
+    },
+  });
+
+  const contacts = harness.buildContactsPanel({ manualOutcomeMode: false }, workspace);
+  assert.match(contacts, /Operator contact queue/);
+  assert.match(contacts, /Search/);
+  assert.match(contacts, /Recent cross-channel activity/);
+  assert.match(contacts, /Lifecycle override/);
+  assert.match(contacts, /data-contact-select/);
+});
+
+test("sidebar shell keeps workflow, connected tools, and utilities grouped for the operator workspace", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConnected: true,
+      googleConfigReady: true,
+    },
+    calendar: {
+      events: [
+        {
+          id: "event-1",
+          title: "Morning booking",
+        },
+      ],
+    },
+  });
+
+  const sidebar = harness.buildSidebarShell(
+    {
+      assistantName: "Vonza Front Desk",
+      websiteUrl: "https://example.com",
+      installStatus: {
+        state: "not_installed",
+        label: "Not installed yet",
+      },
+    },
+    {
+      isReady: false,
+      knowledgeReady: false,
+      knowledgeLimited: false,
+    },
+    {
+      summary: {
+        attentionNeeded: 2,
+      },
+    },
+    workspace,
+    "overview"
+  );
+
+  assert.match(sidebar, /Core workflow/);
+  assert.match(sidebar, /Connected tools/);
+  assert.match(sidebar, /Utilities/);
+  assert.match(sidebar, /Live status/);
+  assert.match(sidebar, /Settings/);
 });
 
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
@@ -680,10 +785,9 @@ test("dashboard keeps the legacy shell only when the operator flag is off", asyn
     },
   });
 
-  const baselineFetchCalls = fetchCalls;
   const workspace = await harness.loadOperatorWorkspace("agent-1");
 
-  assert.equal(fetchCalls, baselineFetchCalls);
+  assert.equal(fetchCalls, 0);
   assert.equal(workspace.enabled, false);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),

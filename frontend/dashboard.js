@@ -11,6 +11,7 @@ const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_SETTINGS_SECTION_KEY = "vonza_dashboard_settings_section";
+const DASHBOARD_CONTACT_KEY = "vonza_dashboard_contact_id";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const LAUNCH_STEPS = [
@@ -38,8 +39,6 @@ const LAUNCH_STEPS = [
 const trackedEventKeys = new Set();
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
-const PRIMARY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics"];
-const SECONDARY_SHELL_SECTIONS = ["inbox", "calendar", "automations"];
 const SETTINGS_SECTIONS = ["business", "front_desk", "connected_tools", "workspace"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
@@ -63,7 +62,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Today, Contacts, Front Desk, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional connected surfaces when enabled.",
+      "The first public offer is the AI front desk plus Today, Contacts, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -351,8 +350,8 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     return {
       key: "front_desk_only",
       eyebrow: "Front-desk-only mode",
-      title: "The core operating system is active.",
-      copy: "This deployment is showing the stable core: the AI front desk, Today, Contacts, Front Desk, and Outcomes. Connected tools stay hidden here.",
+      title: "The public launch core is active.",
+      copy: "This deployment is showing the stable launch core: the AI front desk, setup, install, and outcomes. Google-connected workspace beta surfaces are hidden here.",
     };
   }
 
@@ -360,8 +359,8 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     return {
       key: "operator_without_google_beta",
       eyebrow: "Operator workspace mode",
-      title: "The core workspace is live. Connected tools are not enabled here yet.",
-      copy: "Today, Contacts, Front Desk, and Outcomes stay available. Inbox, Calendar, and Automations only appear on deployments where the optional connected workspace is enabled.",
+      title: "The stable core is live. Google beta is not enabled here yet.",
+      copy: "Today, Contacts, Front Desk, and Outcomes stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
     };
   }
 
@@ -370,7 +369,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       return {
         key: "operator_calendar_connected",
         eyebrow: "Operator workspace mode",
-        title: "Core workspace plus Google Calendar-first visibility.",
+        title: "Stable core plus Google Calendar-first beta.",
         copy: "Today and Calendar are connected with basic identity plus read-only Google Calendar access. Gmail and write scopes are intentionally left out in this pass.",
       };
     }
@@ -378,16 +377,16 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     return {
       key: "operator_google_connected",
       eyebrow: "Operator workspace mode",
-      title: "Core workspace plus connected tools.",
-      copy: "Your core operating surfaces are active, and the optional connected Inbox, Calendar, and Automations tools are available in the same workspace.",
+      title: "Stable core plus Google-connected beta.",
+      copy: "Your stable launch surfaces are active, and the optional Google-connected Inbox, Calendar, and Automations beta is available in the same workspace.",
     };
   }
 
   return {
     key: "operator_beta_available",
     eyebrow: "Operator workspace mode",
-    title: "Core workspace now, connected tools when you are ready.",
-    copy: "Today, Contacts, Front Desk, and Outcomes are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations in the same workspace.",
+    title: "Stable core now, optional Google beta when you connect.",
+    copy: "Today, Contacts, Front Desk, and Outcomes are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
   };
 }
 
@@ -410,14 +409,6 @@ function normalizeOperatorArray(value, normalizeItem = null) {
   return value
     .filter((item) => item && typeof item === "object")
     .map((item) => (typeof normalizeItem === "function" ? normalizeItem(item) : item));
-}
-
-function normalizeOperatorTextArray(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value.map((item) => trimText(item)).filter(Boolean);
 }
 
 function normalizeOperatorWorkspaceThreadMessage(message = {}) {
@@ -470,15 +461,9 @@ function renderTopbarMeta() {
     return;
   }
 
-  const buildLabel = [
-    window.VONZA_APP_VERSION ? `v${window.VONZA_APP_VERSION}` : "",
-    window.VONZA_BUILD_SHA ? String(window.VONZA_BUILD_SHA).slice(0, 7) : "",
-  ].filter(Boolean).join(" · ");
-
   if (authUser?.email) {
     topbarMeta.innerHTML = `
       <span class="topbar-email">${escapeHtml(authUser.email)}</span>
-      ${buildLabel ? `<span class="topbar-build">${escapeHtml(buildLabel)}</span>` : ""}
       <button class="topbar-button" type="button" id="sign-out-button">Sign out</button>
     `;
     document.getElementById("sign-out-button")?.addEventListener("click", async () => {
@@ -542,11 +527,11 @@ async function ensureAuthClient() {
 function getArrivalContext() {
   const params = new URLSearchParams(window.location.search);
   const from = trimText(params.get("from")).toLowerCase();
-  const firstArrival = !getBrowserStorage("localStorage")?.getItem(HANDOFF_STORAGE_KEY);
+  const firstArrival = !window.localStorage.getItem(HANDOFF_STORAGE_KEY);
   const arrivedFromSite = from === "site";
 
   if (from) {
-    getBrowserStorage("sessionStorage")?.setItem(DASHBOARD_SOURCE_KEY, from);
+    window.sessionStorage.setItem(DASHBOARD_SOURCE_KEY, from);
   }
 
   return {
@@ -783,23 +768,8 @@ function wait(ms) {
   });
 }
 
-function getBrowserStorage(type = "localStorage") {
-  const storage = window?.[type];
-
-  if (
-    !storage
-    || typeof storage.getItem !== "function"
-    || typeof storage.setItem !== "function"
-    || typeof storage.removeItem !== "function"
-  ) {
-    return null;
-  }
-
-  return storage;
-}
-
 function markHandoffSeen() {
-  getBrowserStorage("localStorage")?.setItem(HANDOFF_STORAGE_KEY, "1");
+  window.localStorage.setItem(HANDOFF_STORAGE_KEY, "1");
 
   const url = new URL(window.location.href);
   if (url.searchParams.has("from")) {
@@ -811,14 +781,13 @@ function markHandoffSeen() {
 function getEventSource() {
   const params = new URLSearchParams(window.location.search);
   const from = trimText(params.get("from")).toLowerCase();
-  const sessionStorage = getBrowserStorage("sessionStorage");
 
   if (from) {
-    sessionStorage?.setItem(DASHBOARD_SOURCE_KEY, from);
+    window.sessionStorage.setItem(DASHBOARD_SOURCE_KEY, from);
     return from;
   }
 
-  return trimText(sessionStorage?.getItem(DASHBOARD_SOURCE_KEY));
+  return trimText(window.sessionStorage.getItem(DASHBOARD_SOURCE_KEY));
 }
 
 function trackProductEvent(eventName, options = {}) {
@@ -857,12 +826,11 @@ function trackProductEvent(eventName, options = {}) {
 }
 
 function getClientId() {
-  const localStorage = getBrowserStorage("localStorage");
-  let clientId = localStorage?.getItem(CLIENT_ID_STORAGE_KEY);
+  let clientId = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY);
 
   if (!clientId) {
     clientId = window.crypto?.randomUUID?.() || `client_${Date.now()}`;
-    localStorage?.setItem(CLIENT_ID_STORAGE_KEY, clientId);
+    window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, clientId);
   }
 
   return clientId;
@@ -874,7 +842,7 @@ function getInstallStorageKey(agentId) {
 
 function getInstallProgress(agentId) {
   try {
-    const rawValue = getBrowserStorage("localStorage")?.getItem(getInstallStorageKey(agentId));
+    const rawValue = window.localStorage.getItem(getInstallStorageKey(agentId));
     return rawValue
       ? JSON.parse(rawValue)
       : { codeCopied: false, previewOpened: false, installed: false };
@@ -888,13 +856,13 @@ function saveInstallProgress(agentId, nextValue) {
     ...getInstallProgress(agentId),
     ...nextValue,
   };
-  getBrowserStorage("localStorage")?.setItem(getInstallStorageKey(agentId), JSON.stringify(mergedValue));
+  window.localStorage.setItem(getInstallStorageKey(agentId), JSON.stringify(mergedValue));
   return mergedValue;
 }
 
 function getLaunchState() {
   try {
-    const rawValue = getBrowserStorage("localStorage")?.getItem(LAUNCH_STORAGE_KEY);
+    const rawValue = window.localStorage.getItem(LAUNCH_STORAGE_KEY);
     return rawValue ? JSON.parse(rawValue) : null;
   } catch {
     return null;
@@ -902,33 +870,31 @@ function getLaunchState() {
 }
 
 function saveLaunchState(nextValue) {
-  getBrowserStorage("localStorage")?.setItem(LAUNCH_STORAGE_KEY, JSON.stringify({
+  window.localStorage.setItem(LAUNCH_STORAGE_KEY, JSON.stringify({
     ...nextValue,
     updatedAt: new Date().toISOString(),
   }));
 }
 
 function clearLaunchState() {
-  getBrowserStorage("localStorage")?.removeItem(LAUNCH_STORAGE_KEY);
+  window.localStorage.removeItem(LAUNCH_STORAGE_KEY);
 }
 
 function setDashboardFocus(target) {
-  const localStorage = getBrowserStorage("localStorage");
-
   if (!target) {
-    localStorage?.removeItem(DASHBOARD_FOCUS_KEY);
+    window.localStorage.removeItem(DASHBOARD_FOCUS_KEY);
     return;
   }
 
-  localStorage?.setItem(DASHBOARD_FOCUS_KEY, target);
+  window.localStorage.setItem(DASHBOARD_FOCUS_KEY, target);
 }
 
 function getDashboardFocus() {
-  return getBrowserStorage("localStorage")?.getItem(DASHBOARD_FOCUS_KEY) || "";
+  return window.localStorage.getItem(DASHBOARD_FOCUS_KEY);
 }
 
 function clearDashboardFocus() {
-  getBrowserStorage("localStorage")?.removeItem(DASHBOARD_FOCUS_KEY);
+  window.localStorage.removeItem(DASHBOARD_FOCUS_KEY);
 }
 
 function getClaimDismissKey() {
@@ -936,15 +902,15 @@ function getClaimDismissKey() {
 }
 
 function isClaimDismissed() {
-  return getBrowserStorage("localStorage")?.getItem(getClaimDismissKey()) === "1";
+  return window.localStorage.getItem(getClaimDismissKey()) === "1";
 }
 
 function dismissClaimBridge() {
-  getBrowserStorage("localStorage")?.setItem(getClaimDismissKey(), "1");
+  window.localStorage.setItem(getClaimDismissKey(), "1");
 }
 
 function clearClaimBridgeDismissal() {
-  getBrowserStorage("localStorage")?.removeItem(getClaimDismissKey());
+  window.localStorage.removeItem(getClaimDismissKey());
 }
 
 function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -956,7 +922,7 @@ function getAvailableSettingsSections() {
 }
 
 function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const storedSection = trimText(getBrowserStorage("localStorage")?.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
+  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
   const availableSections = getAvailableShellSections(operatorWorkspace);
 
   if (availableSections.includes(storedSection)) {
@@ -971,7 +937,7 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
     return;
   }
 
-  getBrowserStorage("localStorage")?.setItem(DASHBOARD_SECTION_KEY, section);
+  window.localStorage.setItem(DASHBOARD_SECTION_KEY, section);
 }
 
 function getActiveSettingsSection() {
@@ -991,6 +957,34 @@ function setActiveSettingsSection(section) {
   }
 
   window.localStorage.setItem(DASHBOARD_SETTINGS_SECTION_KEY, section);
+}
+
+function getActiveContactId(operatorWorkspace = workspaceState?.operatorWorkspace || createEmptyOperatorWorkspace()) {
+  const contacts = operatorWorkspace.contacts?.list || [];
+  const storedContactId = trimText(window.localStorage.getItem(DASHBOARD_CONTACT_KEY));
+
+  if (storedContactId && contacts.some((contact) => trimText(contact.id) === storedContactId)) {
+    return storedContactId;
+  }
+
+  return trimText(contacts[0]?.id);
+}
+
+function setActiveContactId(contactId, operatorWorkspace = workspaceState?.operatorWorkspace || createEmptyOperatorWorkspace()) {
+  const normalizedContactId = trimText(contactId);
+
+  if (!normalizedContactId) {
+    window.localStorage.removeItem(DASHBOARD_CONTACT_KEY);
+    return;
+  }
+
+  const contacts = operatorWorkspace.contacts?.list || [];
+
+  if (!contacts.some((contact) => trimText(contact.id) === normalizedContactId)) {
+    return;
+  }
+
+  window.localStorage.setItem(DASHBOARD_CONTACT_KEY, normalizedContactId);
 }
 
 function setStatus(message) {
@@ -1265,9 +1259,7 @@ function inferSetup(agent) {
   const currentWebsiteUrl = normalizeComparableWebsiteUrl(agent.websiteUrl);
   const importedWebsiteUrl = normalizeComparableWebsiteUrl(knowledge.importedWebsiteUrl);
   const knowledgeOutOfSync = Boolean(hasWebsite && currentWebsiteUrl && importedWebsiteUrl && currentWebsiteUrl !== importedWebsiteUrl);
-  const knowledgeState = hasWebsite
-    ? (knowledgeOutOfSync ? "limited" : (knowledge.state || "missing"))
-    : "missing";
+  const knowledgeState = hasWebsite ? (knowledgeOutOfSync ? "limited" : (knowledge.state || "missing")) : "missing";
   const previewReady = Boolean(trimText(agent.publicAgentKey));
   const installReady = previewReady;
   const knowledgeDescription = knowledgeOutOfSync
@@ -1315,7 +1307,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Purchase step",
       headline: "Unlock Vonza to open your setup workspace.",
-      copy: `Unlock Vonza to open your AI front desk workspace, then continue setup in one place. Right after payment, Vonza opens the core workspace: your AI front desk, Today, Contacts, Front Desk, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
+      copy: `Unlock Vonza to open your AI front desk workspace, then continue setup in one place. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
     };
   }
 
@@ -1325,7 +1317,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Workspace active",
       headline: "Your Vonza workspace is open.",
-      copy: "Your core workspace is active. The primary surfaces are Today, Contacts, Front Desk, and Outcomes, with Inbox, Calendar, and Automations staying optional connected tools.",
+      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Outcomes. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
     };
   }
 
@@ -1340,7 +1332,7 @@ function getAccessCopy(agent) {
   return {
     eyebrow: "Access pending",
     headline: "Your front desk setup is saved, and workspace access is not active yet.",
-    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the core workspace in Today, Contacts, Front Desk, and Outcomes.",
+    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the stable launch core in Today, Contacts, Front Desk, and Outcomes.",
   };
 }
 
@@ -1357,7 +1349,7 @@ function renderAccessLocked(agent) {
       <section class="handoff-card">
         <span class="handoff-step">${arrival.arrivedFromSite ? "Step 2 of 3" : "Welcome to your workspace"}</span>
         <h2 class="handoff-title">Unlock Vonza, then finish the front desk setup in one place.</h2>
-        <p class="handoff-copy">You do not need to finish everything before payment. Once checkout is complete, you land in the core workspace with Today, Contacts, Front Desk, and Outcomes guiding the next step.</p>
+        <p class="handoff-copy">You do not need to finish everything before payment. Once checkout is complete, you land in the stable launch workspace with Today, Front Desk, Contacts, and Outcomes guiding the next step.</p>
       </section>
     `
     : "";
@@ -1386,7 +1378,7 @@ function renderAccessLocked(agent) {
         </div>
         <div class="overview-card">
           <p class="overview-label">2. Setup workspace</p>
-          <p class="overview-card-copy">Tune the front desk, review Today, Contacts, Front Desk, and Outcomes, and connect Google later if you want the optional connected tools.</p>
+          <p class="overview-card-copy">Tune the front desk, review Today, Contacts, and Outcomes, and connect Google later if you want the optional beta.</p>
         </div>
         <div class="overview-card">
           <p class="overview-label">3. Add to website</p>
@@ -1406,12 +1398,12 @@ function renderAccessLocked(agent) {
         <div>
           <p class="overview-label">Vonza access</p>
           <h2 class="pricing-title">One front-desk workspace</h2>
-          <p class="pricing-copy">Unlock the core workspace in one place: AI front desk, Today, Contacts, Front Desk, Outcomes, website import, and install.</p>
+          <p class="pricing-copy">Unlock the stable launch core in one place: AI front desk, Today, Contacts, Front Desk, outcomes, website import, and install.</p>
           <div class="pricing-bullets">
             <div class="pill">AI front desk and routing</div>
-            <div class="pill">Today, Contacts, Front Desk, Outcomes</div>
+            <div class="pill">Today, Contacts, and Outcomes</div>
             <div class="pill">Website import and install</div>
-            <div class="pill">Optional connected tools</div>
+            <div class="pill">Optional Google beta</div>
           </div>
         </div>
         <div class="pricing-actions">
@@ -1539,28 +1531,6 @@ function renderErrorState(title, copy) {
   });
 }
 
-function renderLoadingState(message = "Loading your Vonza workspace now.") {
-  renderTopbarMeta();
-  rootEl.innerHTML = `
-    <section class="auth-card">
-      <span class="eyebrow">Loading</span>
-      <h1 class="headline">Loading your Vonza workspace</h1>
-      <p class="auth-copy">${escapeHtml(message)}</p>
-    </section>
-  `;
-}
-
-function handleFatalDashboardError(error, stage = "boot") {
-  clearLaunchState();
-  const message = error?.message || "We couldn't load your Vonza workspace right now.";
-  console.error(`[dashboard ${stage}]`, error);
-  setStatus(message);
-  renderErrorState(
-    "We couldn't load your Vonza workspace.",
-    message || "Please refresh and try again. If the issue continues, your account and payment state are still safe."
-  );
-}
-
 async function confirmPaymentReturn() {
   const paymentState = getPaymentState();
 
@@ -1626,6 +1596,28 @@ function buildWorkspaceDiagnosticsMarkup(diagnostics = createEmptyWorkspaceDiagn
       `).join("")}
     </div>
   `;
+}
+
+function renderLoadingState(message = "Loading your Vonza workspace now.") {
+  renderTopbarMeta();
+  rootEl.innerHTML = `
+    <section class="auth-card">
+      <span class="eyebrow">Loading</span>
+      <h1 class="headline">Loading your Vonza workspace</h1>
+      <p class="auth-copy">${escapeHtml(message)}</p>
+    </section>
+  `;
+}
+
+function handleFatalDashboardError(error, stage = "boot") {
+  clearLaunchState();
+  const message = error?.message || "We couldn't load your Vonza workspace right now.";
+  console.error(`[dashboard ${stage}]`, error);
+  setStatus(message);
+  renderErrorState(
+    "We couldn't load your Vonza workspace.",
+    message || "Please refresh and try again. If the issue continues, your account and payment state are still safe."
+  );
 }
 
 // Entry states and shell rendering
@@ -1872,8 +1864,8 @@ function renderOnboarding() {
     ? `
       <section class="handoff-card">
         <span class="handoff-step">${arrival.arrivedFromSite ? "Step 1 of 4" : "Welcome to Vonza"}</span>
-        <h2 class="handoff-title">${arrival.arrivedFromSite ? "You’re now in the workspace where the front desk becomes the operator system." : "This is where you create the website front desk that powers the core workspace."}</h2>
-        <p class="handoff-copy">${arrival.arrivedFromSite ? "You’ve moved from the Vonza site into the app. Next you’ll connect your website, shape routing and voice, try the live front desk, install it, and confirm the first lead path in Today, Contacts, Front Desk, and Outcomes." : "Connect your website, shape the front desk around your brand, and make the preview strong before you install it and start working from Today."}</p>
+        <h2 class="handoff-title">${arrival.arrivedFromSite ? "You’re now in the workspace where the front desk becomes a real paid product." : "This is where you create the website front desk that powers the public launch core."}</h2>
+        <p class="handoff-copy">${arrival.arrivedFromSite ? "You’ve moved from the Vonza site into the app. Next you’ll connect your website, shape routing and voice, try the live front desk, install it, and confirm the first lead path in Today, Contacts, and Outcomes." : "Connect your website, shape the front desk around your brand, and make the preview strong before you install it and start working from Today."}</p>
         <div class="handoff-actions">
           <button id="handoff-start-button" class="primary-button" type="button">Start creating</button>
           <span class="handoff-note">A few focused details are enough to get the front desk ready to try.</span>
@@ -1887,13 +1879,13 @@ function renderOnboarding() {
     <section class="hero-card">
       <span class="eyebrow">Create your website front desk</span>
       <h1 class="headline">Turn your website into an AI front desk for your business.</h1>
-      <p class="subtext">Vonza learns from your website, answers customer questions, routes high-intent visitors toward the right next step, and feeds the core operating surfaces around Today, Contacts, Front Desk, and Outcomes.</p>
+      <p class="subtext">Vonza learns from your website, answers customer questions, routes high-intent visitors toward the right next step, and feeds the stable public launch core around Today, Contacts, and Outcomes.</p>
     </section>
 
     <div class="state-grid">
       <section id="onboarding-create" class="section-card">
         <h2 class="section-heading">Create your front desk</h2>
-        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Today, Contacts, Front Desk, and Outcomes. Connected tools can come later.</p>
+        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Today, Contacts, and Outcomes. Google-connected workflow beta can come later.</p>
         <form id="create-assistant-form" class="form-grid spacer">
           <div class="field">
             <label for="create-website-url">Website URL</label>
@@ -2074,6 +2066,69 @@ function buildPageHeader({
   `;
 }
 
+function buildWorkspaceStatStrip(items = [], { className = "" } = {}) {
+  const visibleItems = items.filter((item) => item && trimText(item.label));
+
+  if (!visibleItems.length) {
+    return "";
+  }
+
+  return `
+    <section class="workspace-stat-strip ${className}">
+      ${visibleItems.map((item) => `
+        <article class="workspace-stat-card">
+          <p class="workspace-stat-label">${escapeHtml(item.label || "")}</p>
+          <p class="workspace-stat-value">${escapeHtml(item.value || "0")}</p>
+          ${item.copy ? `<p class="workspace-stat-copy">${escapeHtml(item.copy)}</p>` : ""}
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+function buildSectionToolbar({
+  label = "",
+  title = "",
+  copy = "",
+  actionsMarkup = "",
+  metaMarkup = "",
+} = {}) {
+  return `
+    <div class="section-toolbar">
+      <div class="section-toolbar-copy">
+        ${label ? `<p class="section-toolbar-label">${escapeHtml(label)}</p>` : ""}
+        ${title ? `<h2 class="section-toolbar-title">${escapeHtml(title)}</h2>` : ""}
+        ${copy ? `<p class="section-toolbar-copy-text">${escapeHtml(copy)}</p>` : ""}
+      </div>
+      ${metaMarkup || actionsMarkup ? `
+        <div class="section-toolbar-actions">
+          ${metaMarkup}
+          ${actionsMarkup}
+        </div>
+      ` : ""}
+    </div>
+  `;
+}
+
+function buildLocalWorkspaceNav(items = [], { compact = false } = {}) {
+  const visibleItems = items.filter((item) => item && trimText(item.label));
+
+  if (!visibleItems.length) {
+    return "";
+  }
+
+  return `
+    <nav class="workspace-local-nav ${compact ? "workspace-local-nav-compact" : ""}" aria-label="Section navigation">
+      ${visibleItems.map((item) => `
+        <a class="workspace-local-nav-link" href="${escapeHtml(item.href || "#")}" ${item.target ? `target="${escapeHtml(item.target)}" rel="noreferrer"` : ""}>
+          <span class="workspace-local-nav-label">${escapeHtml(item.label || "")}</span>
+          ${item.note ? `<span class="workspace-local-nav-note">${escapeHtml(item.note)}</span>` : ""}
+        </a>
+      `).join("")}
+    </nav>
+  `;
+}
+
 function buildShellNavButton(item, activeSection) {
   const isActive = activeSection === item.key;
 
@@ -2084,12 +2139,15 @@ function buildShellNavButton(item, activeSection) {
       data-shell-target="${escapeHtml(item.key)}"
       aria-current="${isActive ? "page" : "false"}"
     >
-      <span class="shell-nav-label-row">
-        <span class="shell-nav-label">${escapeHtml(item.label)}</span>
-        ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
-        ${item.badge ? `<span class="${getBadgeClass(item.badgeTone || "Pending")}">${escapeHtml(item.badge)}</span>` : ""}
+      <span class="shell-nav-icon" aria-hidden="true">${escapeHtml(item.glyph || item.label?.charAt(0) || "")}</span>
+      <span class="shell-nav-copy">
+        <span class="shell-nav-label-row">
+          <span class="shell-nav-label">${escapeHtml(item.label)}</span>
+          ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
+        </span>
+        ${item.note ? `<span class="shell-nav-note">${escapeHtml(item.note)}</span>` : ""}
       </span>
-      ${item.note ? `<span class="shell-nav-note">${escapeHtml(item.note)}</span>` : ""}
+      ${item.badge ? `<span class="${getBadgeClass(item.badgeTone || "Pending")} shell-nav-badge">${escapeHtml(item.badge)}</span>` : ""}
     </button>
   `;
 }
@@ -2118,6 +2176,9 @@ function buildSidebarShell(
 ) {
   const availableSections = getAvailableShellSections(operatorWorkspace);
   const installStatus = getDefaultInstallStatus(agent);
+  const connectedSections = availableSections.filter((section) =>
+    ["inbox", "calendar", "automations"].includes(section)
+  );
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
   const workspaceStatus = setup.isReady ? "Setup complete" : "Setup in progress";
@@ -2137,49 +2198,54 @@ function buildSidebarShell(
   const coreItems = [
     {
       key: "overview",
+      glyph: "T",
       label: "Today",
-      note: operatorWorkspace.enabled === false
-        ? (setup.isReady ? "Command center for front-desk health, install state, and the next move." : "Setup progress and what to finish next.")
-        : (setup.isReady ? "Command center for what needs attention, today’s schedule, and what is waiting." : "Activation checklist plus operator rollout."),
+      note: "Approvals, operator context, and the next safe move.",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
+      glyph: "C",
       label: "Contacts",
-      note: "People, lifecycle, timeline, and the next owner action across channels.",
+      note: "People, timelines, lifecycle, and follow-up context.",
       badge: contactsAttention > 0 ? String(contactsAttention) : "",
       badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "customize",
+      glyph: "F",
       label: "Front Desk",
-      note: "Identity, routing, knowledge, preview, and install for inbound demand capture.",
+      note: "Preview the customer experience and launch readiness.",
     },
     {
       key: "analytics",
+      glyph: "O",
       label: "Outcomes",
-      note: "Proof, conversion paths, and where owner follow-through still needs to close the loop.",
+      note: "Signals, proof, weak spots, and business results.",
     },
   ].filter((item) => availableSections.includes(item.key));
 
   const connectedItems = [
     {
       key: "inbox",
+      glyph: "I",
       label: "Inbox",
-      note: "Connected Gmail threads, complaint drafts, and owner-approved replies.",
+      note: "Connected Gmail threads and approval-first replies.",
       tag: "Beta",
     },
     {
       key: "calendar",
+      glyph: "K",
       label: "Calendar",
-      note: "Schedule context, recent appointments, and approval-first calendar review.",
+      note: "Schedule context, follow-up gaps, and event review.",
       tag: "Beta",
     },
     {
       key: "automations",
+      glyph: "A",
       label: "Automations",
-      note: "Approval-first tasks, campaigns, and follow-up work waiting on owner review.",
+      note: "Operator tasks, campaign drafts, and follow-ups.",
       tag: "Beta",
     },
   ].filter((item) => availableSections.includes(item.key));
@@ -2187,6 +2253,7 @@ function buildSidebarShell(
   const utilityItems = [
     {
       key: "install",
+      glyph: "L",
       label: "Install",
       note: "Go live on the website and verify the embed.",
       badge: isInstallSeen(installStatus) ? "" : "Needs review",
@@ -2194,6 +2261,7 @@ function buildSidebarShell(
     },
     {
       key: "settings",
+      glyph: "S",
       label: "Settings",
       note: "Business profile, front desk, connected tools, and workspace.",
     },
@@ -2202,18 +2270,29 @@ function buildSidebarShell(
   return `
     <aside class="sidebar-shell" aria-label="Dashboard sidebar">
       <div class="sidebar-workspace-card">
-        <p class="sidebar-eyebrow">Vonza workspace</p>
-        <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Your workspace")}</h2>
-        <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add a real website to ground the front desk.")}</p>
-        <div class="sidebar-badge-stack">
-          <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(workspaceStatus)}</span>
-          <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending")}">${escapeHtml(knowledgeStatus)}</span>
-          <span class="${getBadgeClass(installTone)}">${escapeHtml(installStatus.label || "Not installed yet")}</span>
+        <div class="sidebar-workspace-mark">V</div>
+        <div class="sidebar-workspace-copy">
+          <p class="sidebar-eyebrow">Vonza workspace</p>
+          <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Your workspace")}</h2>
+          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add a real website to ground the front desk.")}</p>
         </div>
       </div>
-      ${buildSidebarGroup("Core workflow", coreItems, activeSection)}
-      ${connectedItems.length ? buildSidebarGroup("Connected tools", connectedItems, activeSection) : ""}
-      ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
+      <div class="sidebar-status-row">
+        <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(workspaceStatus)}</span>
+        <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending")}">${escapeHtml(knowledgeStatus)}</span>
+      </div>
+      <div class="sidebar-shell-scroll">
+        ${buildSidebarGroup("Core workflow", coreItems, activeSection)}
+        ${connectedSections.length ? buildSidebarGroup("Connected tools", connectedItems, activeSection) : ""}
+      </div>
+      <div class="sidebar-utility-stack">
+        ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
+        <div class="sidebar-account-card">
+          <p class="sidebar-account-label">Live status</p>
+          <strong class="sidebar-account-value">${escapeHtml(installStatus.label || "Not installed yet")}</strong>
+          <p class="sidebar-account-copy">${escapeHtml(isInstallSeen(installStatus) ? "Vonza is visible on the site and feeding operator context back into the workspace." : "Finish setup and install when you are ready to take the front desk live.")}</p>
+        </div>
+      </div>
     </aside>
   `;
 }
@@ -2260,84 +2339,6 @@ function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}
   `;
 }
 
-function buildShellSidebar(
-  agent,
-  setup,
-  operatorWorkspace = createEmptyOperatorWorkspace(),
-  activeSection = "overview",
-  workspaceMode = getWorkspaceMode(operatorWorkspace)
-) {
-  const installStatus = getDefaultInstallStatus(agent);
-  const connectedAccounts = operatorWorkspace.connectedAccounts || [];
-  const connectedToolsLabel = connectedAccounts.some((account) => account.status === "connected")
-    ? "Connected tools live"
-    : isCapabilityVisibleForWorkspace("google_connect", operatorWorkspace)
-      ? "Connected tools available"
-      : "Core workspace only";
-  const statusCards = [
-    {
-      label: "Mode",
-      value: workspaceMode.title,
-      copy: workspaceMode.copy,
-    },
-    {
-      label: "Setup",
-      value: setup.isReady ? "Ready" : "In progress",
-      copy: setup.isReady
-        ? "Core surfaces are live and ready for daily use."
-        : "Finish Front Desk setup to unlock the cleanest operator loop.",
-    },
-    {
-      label: "Knowledge",
-      value: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Missing",
-      copy: setup.knowledgeReady
-        ? "Website grounding is loaded for routing and Today."
-        : "Refresh website knowledge for a stronger operator readout.",
-    },
-    {
-      label: "Install",
-      value: agent.installStatus?.label || "Not installed yet",
-      copy: isInstallSeen(installStatus)
-        ? "Vonza is seen on the live site."
-        : "Install coverage still needs owner attention.",
-    },
-    {
-      label: "Connected tools",
-      value: connectedToolsLabel,
-      copy: "Inbox, Calendar, and Automations stay secondary to the core operator loop.",
-    },
-  ];
-
-  return `
-    <aside class="sidebar-shell">
-      <div class="sidebar-brand-block">
-        <div class="sidebar-brand-row">
-          <span class="brand-mark sidebar-brand-mark">V</span>
-          <div>
-            <p class="sidebar-kicker">Vonza operator workspace</p>
-            <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Your workspace")}</h2>
-          </div>
-        </div>
-        <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "No website connected yet")}</p>
-      </div>
-
-      <div class="sidebar-status-stack">
-        ${statusCards.map((card) => `
-          <article class="sidebar-status-card ${card.value.toLowerCase().includes("ready") || card.value.toLowerCase().includes("live") ? "ready" : ""}">
-            <p class="sidebar-status-label">${escapeHtml(card.label)}</p>
-            <h3 class="sidebar-status-value">${escapeHtml(card.value)}</h3>
-            <p class="sidebar-status-copy">${escapeHtml(card.copy)}</p>
-          </article>
-        `).join("")}
-      </div>
-
-      <div class="sidebar-nav-shell" data-active-section="${escapeHtml(activeSection)}">
-        ${buildWorkspaceTabs(activeSection, setup, operatorWorkspace)}
-      </div>
-    </aside>
-  `;
-}
-
 function formatDateTimeLocalValue(value) {
   if (!value) {
     return "";
@@ -2377,7 +2378,7 @@ function buildOperatorNextActionButton(nextAction = {}) {
     return `<button class="primary-button" type="button" data-shell-target="overview">${escapeHtml(label)}</button>`;
   }
 
-  return `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(targetSection)}" ${disabled ? "disabled" : ""}>${escapeHtml(label)}</button>`;
+  return `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(targetSection)}">${escapeHtml(label)}</button>`;
 }
 
 function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -2588,170 +2589,362 @@ function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWork
   `;
 }
 
-function buildContactsPanel(operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildSelectedContactPrimaryAction(contact = {}) {
+  const nextAction = contact.nextAction || {};
+
+  if (nextAction.followUpId) {
+    return `<button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">Open follow-up draft</button>`;
+  }
+
+  if (contact.email || contact.phone) {
+    return `
+      <button
+        class="primary-button"
+        type="button"
+        data-draft-contact-followup
+        data-contact-name="${escapeHtml(contact.name || "")}"
+        data-contact-email="${escapeHtml(contact.email || "")}"
+        data-contact-phone="${escapeHtml(contact.phone || "")}"
+        data-contact-id="${escapeHtml(contact.id || "")}"
+        data-person-key="${escapeHtml(contact.personKey || "")}"
+        data-lead-id="${escapeHtml(contact.leadId || "")}"
+        data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
+      >Draft follow-up</button>
+    `;
+  }
+
+  if (contact.primaryThreadId) {
+    return `<button class="primary-button" type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">Open inbox thread</button>`;
+  }
+
+  if (contact.primaryEventId) {
+    return `<button class="primary-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">Review calendar action</button>`;
+  }
+
+  if (contact.latestMessageId) {
+    return `<button class="primary-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open conversation</button>`;
+  }
+
+  return `<button class="primary-button" type="button" data-shell-target="overview">Open Today</button>`;
+}
+
+function buildContactIdentityLine(contact = {}) {
+  return [
+    trimText(contact.bestIdentifier),
+    trimText(contact.email),
+    trimText(contact.phone),
+  ].filter(Boolean).join(" · ") || "No reliable email or phone stored yet";
+}
+
+function buildContactListRow(contact = {}, isSelected = false) {
+  const flags = buildContactFlags(contact).slice(0, 3);
+  const sources = buildContactSources(contact);
+  const latestOutcome = trimText(contact.latestOutcome?.label || contact.nextAction?.title || "");
+  const activityLabel = contact.mostRecentActivityAt ? formatSeenAt(contact.mostRecentActivityAt) : "No recent activity";
+
+  return `
+    <button
+      class="contact-row ${isSelected ? "active" : ""}"
+      type="button"
+      data-contact-select
+      data-contact-card
+      data-contact-id="${escapeHtml(contact.id || "")}"
+      data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
+      data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
+      data-contact-sources="${escapeHtml(sources.join("|"))}"
+      data-contact-last-activity="${escapeHtml(contact.mostRecentActivityAt || "")}"
+      data-contact-search-text="${escapeHtml([contact.name, contact.bestIdentifier, contact.email, contact.phone, latestOutcome].filter(Boolean).join(" "))}"
+      aria-pressed="${isSelected ? "true" : "false"}"
+    >
+      <span class="contact-row-main">
+        <span class="contact-row-top">
+          <span class="contact-row-title">${escapeHtml(contact.name || "Unknown contact")}</span>
+          <span class="contact-row-time">${escapeHtml(activityLabel)}</span>
+        </span>
+        <span class="contact-row-subtitle">${escapeHtml(buildContactIdentityLine(contact))}</span>
+        <span class="contact-row-meta">
+          <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
+          ${contact.suggestedLifecycleState && contact.suggestedLifecycleState !== contact.lifecycleState ? `<span class="pill">Suggested ${escapeHtml(formatContactLifecycleLabel(contact.suggestedLifecycleState))}</span>` : ""}
+          ${sources.slice(0, 2).map((source) => `<span class="pill">${escapeHtml(source)}</span>`).join("")}
+          ${flags.map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
+        </span>
+      </span>
+      <span class="contact-row-side">
+        <span class="contact-row-side-label">Next action</span>
+        <strong class="contact-row-side-value">${escapeHtml(contact.nextAction?.title || latestOutcome || "No action needed")}</strong>
+      </span>
+    </button>
+  `;
+}
+
+function buildContactDetailPanel(agent = {}, contact = {}, operatorWorkspace = createEmptyOperatorWorkspace(), isSelected = false) {
+  return `
+    <article class="workspace-card-soft contact-detail-panel" data-contact-detail data-contact-id="${escapeHtml(contact.id || "")}" ${isSelected ? "" : "hidden"}>
+      <div class="contact-detail-header">
+        <div class="contact-detail-header-copy">
+          <div class="action-queue-badges">
+            <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
+            ${contact.suggestedLifecycleState && contact.suggestedLifecycleState !== contact.lifecycleState ? `<span class="pill">Suggested ${escapeHtml(formatContactLifecycleLabel(contact.suggestedLifecycleState))}</span>` : ""}
+            ${contact.partialIdentity ? `<span class="pill">Partial identity</span>` : ""}
+            ${buildContactFlags(contact).slice(0, 4).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
+          </div>
+          <h2 class="contact-detail-title">${escapeHtml(contact.name || "Unknown contact")}</h2>
+          <p class="contact-detail-copy">${escapeHtml(buildContactIdentityLine(contact))}</p>
+        </div>
+        <div class="contact-detail-actions">
+            ${buildContactQuickActions(contact, operatorWorkspace)}
+        </div>
+      </div>
+
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Source spine",
+          value: buildContactSources(contact).join(" · ") || "Sparse record",
+          copy: contact.partialIdentity ? "Vonza is still joining identity across channels." : "Cross-channel activity lands back on this same person record.",
+        },
+        {
+          label: "Recommended next action",
+          value: contact.nextAction?.title || "No action needed",
+          copy: contact.nextAction?.description || "Vonza does not currently see a higher-priority move for this contact.",
+        },
+        {
+          label: "Latest outcome",
+          value: contact.latestOutcome?.label || "No proven outcome yet",
+          copy: [
+            trimText(contact.latestOutcome?.sourceLabel),
+            trimText(contact.latestOutcome?.contextLabel),
+            contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "",
+          ].filter(Boolean).join(" · ") || "This record still needs proof of progression, not just activity.",
+        },
+        {
+          label: "Activity counts",
+          value: [
+            `${contact.counts?.leads || 0} leads`,
+            `${contact.counts?.inboxThreads || 0} inbox`,
+            `${contact.counts?.calendarEvents || 0} calendar`,
+            `${contact.counts?.followUps || 0} follow-ups`,
+            `${contact.counts?.outcomes || 0} outcomes`,
+          ].join(" · "),
+          copy: contact.mostRecentActivityAt ? `Most recent activity ${formatSeenAt(contact.mostRecentActivityAt)}.` : "No recent activity stored yet.",
+        },
+      ], { className: "contact-detail-stat-strip" })}
+
+      <div class="contact-detail-layout">
+        <section class="contact-detail-main">
+          <div class="contact-detail-section">
+            <div class="section-toolbar">
+              <div class="section-toolbar-copy">
+                <p class="section-toolbar-label">Timeline</p>
+                <h3 class="section-toolbar-title">Recent cross-channel activity</h3>
+                <p class="section-toolbar-copy-text">Chat, lead capture, inbox, calendar, follow-up, and outcome context stay stitched to the same person.</p>
+              </div>
+            </div>
+            ${Array.isArray(contact.timeline) && contact.timeline.length ? `
+              <div class="timeline-list">
+                ${contact.timeline.map((entry) => `
+                  <div class="timeline-row">
+                    <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
+                    <span>${escapeHtml(`${entry.label || entry.source || "Activity"} · ${entry.summary || ""}`)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            ` : `<div class="placeholder-card">This contact exists, but the timeline is still sparse. Vonza will expand it as more cross-channel activity lands.</div>`}
+          </div>
+
+          ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
+            <div class="contact-detail-section">
+              <div class="section-toolbar">
+                <div class="section-toolbar-copy">
+                  <p class="section-toolbar-label">Outcome</p>
+                  <h3 class="section-toolbar-title">Manual outcome mark</h3>
+                  <p class="section-toolbar-copy-text">Use this fallback only when automatic proof is unavailable and the owner confirmed the result elsewhere.</p>
+                </div>
+              </div>
+              <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
+                <div class="form-grid two-col">
+                  <div class="field">
+                    <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">Outcome mark</label>
+                    <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+                      <option value="booking_confirmed">booked</option>
+                      <option value="quote_requested">quote requested</option>
+                      <option value="quote_accepted">quote accepted</option>
+                      <option value="follow_up_replied">follow-up successful</option>
+                      <option value="complaint_resolved">complaint resolved</option>
+                      <option value="manual_outcome_marked">no outcome / manual note</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">Context note</label>
+                    <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" placeholder="Owner confirmed this outside an automatic proof path." ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+                  </div>
+                </div>
+                <div class="action-queue-form-actions">
+                  <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record outcome</button>
+                  <span class="action-queue-meta-inline">Manual marks stay attached to this contact’s lead, thread, follow-up, and calendar context when available.</span>
+                </div>
+              </form>
+            </div>
+          ` : ""}
+        </section>
+
+        <aside class="contact-detail-side">
+          <div class="contact-detail-section">
+            <div class="section-toolbar">
+              <div class="section-toolbar-copy">
+                <p class="section-toolbar-label">Record quality</p>
+                <h3 class="section-toolbar-title">Operator context</h3>
+                <p class="section-toolbar-copy-text">Keep lifecycle and current follow-up state explicit so the next safe action is obvious.</p>
+              </div>
+            </div>
+            <div class="overview-list" style="margin-top:0;">
+              <div class="overview-list-item">
+                <p class="overview-list-title">Best identifier</p>
+                <p class="overview-list-copy">${escapeHtml(contact.bestIdentifier || "No strong identifier yet")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Most recent activity</p>
+                <p class="overview-list-copy">${escapeHtml(contact.mostRecentActivityAt ? formatSeenAt(contact.mostRecentActivityAt) : "No recent activity")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Latest reason for attention</p>
+                <p class="overview-list-copy">${escapeHtml(contact.nextAction?.description || contact.latestOutcome?.contextLabel || "No open issue or follow-up reason is stored.")}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="contact-detail-section">
+            <div class="section-toolbar">
+              <div class="section-toolbar-copy">
+                <p class="section-toolbar-label">Lifecycle</p>
+                <h3 class="section-toolbar-title">Lifecycle override</h3>
+                <p class="section-toolbar-copy-text">Use the contact lifecycle only when it improves operator clarity across Today, follow-up, and outcomes.</p>
+              </div>
+            </div>
+            <form class="workspace-card-soft contact-detail-form-shell" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
+              <div class="field">
+                <label for="contact-lifecycle-${escapeHtml(contact.id || "")}">Lifecycle state</label>
+                <select id="contact-lifecycle-${escapeHtml(contact.id || "")}" name="lifecycle_state">
+                  ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
+                    <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
+                  `).join("")}
+                </select>
+              </div>
+              <div class="action-queue-form-actions">
+                <button class="primary-button" type="submit" ${contact.id ? "" : "disabled"}>Save state</button>
+                <span class="action-queue-meta-inline">Approval-first work stays visible; this changes only the contact framing.</span>
+              </div>
+            </form>
+          </div>
+        </aside>
+      </div>
+    </article>
+  `;
+}
+
+function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const contacts = operatorWorkspace.contacts?.list || [];
+  const contactsSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
   const filters = operatorWorkspace.contacts?.filters || createEmptyOperatorWorkspace().contacts.filters;
+  const activeContactId = getActiveContactId(operatorWorkspace);
+  const selectedContact = contacts.find((contact) => trimText(contact.id) === activeContactId) || contacts[0] || null;
   const onlyChatSources = contacts.length && contacts.every((contact) => {
     const sources = buildContactSources(contact);
     return sources.length > 0 && sources.every((source) => source === "chat");
   });
+  const actionsMarkup = selectedContact
+    ? [
+        buildSelectedContactPrimaryAction(selectedContact),
+        `<button class="ghost-button" type="button" data-shell-target="analytics">Open Outcomes</button>`,
+      ].join("")
+    : `<button class="primary-button" type="button" data-shell-target="overview">Open Today</button>`;
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Contacts",
-        copy: "Follow people, not just messages. Each record pulls chat, lead capture, follow-up, and outcome context into one operator view.",
+        copy: "Follow people, not just messages. The list keeps operator attention visible on the left while the selected record becomes the working canvas on the right.",
         badges: [
           { label: contactsHealth.migrationRequired ? "Workspace still syncing" : "Contacts live", tone: contactsHealth.migrationRequired ? "Limited" : "Ready" },
           { label: contactsHealth.partialData ? "Timeline still growing" : "Cross-channel view", tone: contactsHealth.partialData ? "Limited" : "Ready" },
         ],
+        actionsMarkup,
       })}
       <div class="workspace-page-body">
       ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Contacts are still loading some history: ${contactsHealth.loadError}`)}</p></div>` : ""}
-      ${(filters.quick || []).length || (filters.sources || []).length ? `
-        <div class="workspace-card-soft contact-filter-shell">
-          <div class="contact-filter-group">
-            ${(filters.quick || []).map((filter, index) => `
-              <button class="contact-filter-button ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-                ${escapeHtml(`${filter.label} (${filter.count})`)}
-              </button>
-            `).join("")}
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Total contacts",
+          value: formatOperatorCount(contactsSummary.totalContacts, "contact"),
+          copy: "Every stitched person record stays visible here, even before the timeline is complete.",
+        },
+        {
+          label: "Need attention",
+          value: formatOperatorCount(contactsSummary.contactsNeedingAttention, "contact"),
+          copy: "People-centered work that still needs an operator decision.",
+        },
+        {
+          label: "With outcomes",
+          value: formatOperatorCount(contactsSummary.contactsWithOutcomes, "contact"),
+          copy: "Records with real proof of progression or business impact.",
+        },
+        {
+          label: "High-value without proof",
+          value: formatOperatorCount(contactsSummary.highValueWithoutOutcome, "contact"),
+          copy: "Qualified leads still missing a concrete result.",
+        },
+      ], { className: "contacts-summary-strip" })}
+      <section class="workspace-card-soft contact-toolbar-shell">
+        ${buildSectionToolbar({
+          label: "Views",
+          title: "Contact workspace",
+          copy: "Use quick filters to move between attention queues, lifecycle states, and source-driven segments without leaving the contact list.",
+          metaMarkup: `<label class="contact-search-field"><span class="contact-search-label">Search</span><input type="search" data-contact-search placeholder="Search name, email, phone, lifecycle, or outcome"></label>`,
+        })}
+        ${(filters.quick || []).length || (filters.sources || []).length ? `
+          <div class="contact-filter-shell">
+            <div class="contact-filter-group">
+              ${(filters.quick || []).map((filter, index) => `
+                <button class="contact-filter-button ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
+                  ${escapeHtml(`${filter.label} (${filter.count})`)}
+                </button>
+              `).join("")}
+            </div>
+            <div class="contact-filter-group contact-filter-group-secondary">
+              ${(filters.sources || []).map((filter) => `
+                <button class="contact-filter-button secondary" type="button" data-contact-filter="${escapeHtml(filter.key)}">
+                  ${escapeHtml(`${filter.label} (${filter.count})`)}
+                </button>
+              `).join("")}
+            </div>
           </div>
-          <div class="contact-filter-group contact-filter-group-secondary">
-            ${(filters.sources || []).map((filter) => `
-              <button class="contact-filter-button secondary" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-                ${escapeHtml(`${filter.label} (${filter.count})`)}
-              </button>
-            `).join("")}
-          </div>
-        </div>
-      ` : ""}
+        ` : ""}
+      </section>
       ${!contacts.length ? buildOperatorEmptyState({
         title: "No contacts yet",
         copy: operatorWorkspace.status?.googleConnected
           ? "Vonza will create contact records as soon as leads, inbox threads, bookings, or approval-first follow-ups start appearing."
-          : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect the optional connected tools.",
+          : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect the optional Google beta.",
       }) : `
         ${onlyChatSources ? `<div class="shell-status-banner">Only chat-led contact history is visible right now. That is still useful: as soon as Google-connected inbox or calendar activity appears, Vonza will stitch it into these same records.</div>` : ""}
-        <div class="contact-card-grid" data-contact-filter-results>
-          ${contacts.map((contact) => `
-            <article
-              class="workspace-card-soft contact-card"
-              data-contact-card
-              data-contact-id="${escapeHtml(contact.id || "")}"
-              data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
-              data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
-              data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"
-              data-contact-last-activity="${escapeHtml(contact.mostRecentActivityAt || "")}"
-            >
-              <div class="contact-card-head">
-                <div>
-                  <div class="action-queue-badges">
-                    <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
-                    ${contact.suggestedLifecycleState && contact.suggestedLifecycleState !== contact.lifecycleState ? `<span class="pill">Suggested ${escapeHtml(formatContactLifecycleLabel(contact.suggestedLifecycleState))}</span>` : ""}
-                    ${contact.partialIdentity ? `<span class="pill">Partial identity</span>` : ""}
-                    ${buildContactFlags(contact).slice(0, 4).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
-                  </div>
-                  <h3 class="studio-group-title">${escapeHtml(contact.name || "Unknown contact")}</h3>
-                  <p class="workspace-panel-copy">${escapeHtml([
-                    contact.bestIdentifier,
-                    contact.email || "",
-                    contact.phone || "",
-                  ].filter(Boolean).join(" · "))}</p>
-                </div>
-                <div class="contact-card-head-meta">
-                  <p class="overview-label">Most recent activity</p>
-                  <strong>${escapeHtml(contact.mostRecentActivityAt ? formatSeenAt(contact.mostRecentActivityAt) : "No recent activity")}</strong>
-                </div>
+        <div class="contact-workspace-layout">
+          <aside class="workspace-card-soft contact-list-shell">
+            <div class="contact-list-header">
+              <div>
+                <p class="section-toolbar-label">List</p>
+                <h2 class="section-toolbar-title">Operator contact queue</h2>
               </div>
-              <div class="contact-meta-grid">
-                <div class="contact-meta-block">
-                  <span class="action-queue-detail-label">Source spine</span>
-                  <strong class="action-queue-detail-value">${escapeHtml(buildContactSources(contact).join(" · ") || "Sparse contact record")}</strong>
-                </div>
-                <div class="contact-meta-block">
-                  <span class="action-queue-detail-label">Recommended next action</span>
-                  <strong class="action-queue-detail-value">${escapeHtml(contact.nextAction?.title || "No action needed")}</strong>
-                  <p class="action-queue-copy">${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a higher-priority operator move here.")}</p>
-                </div>
-                <div class="contact-meta-block">
-                  <span class="action-queue-detail-label">Activity counts</span>
-                  <strong class="action-queue-detail-value">${escapeHtml([
-                    `${contact.counts?.leads || 0} leads`,
-                    `${contact.counts?.inboxThreads || 0} inbox`,
-                    `${contact.counts?.calendarEvents || 0} calendar`,
-                    `${contact.counts?.followUps || 0} follow-ups`,
-                    `${contact.counts?.outcomes || 0} outcomes`,
-                  ].join(" · "))}</strong>
-                </div>
-                <div class="contact-meta-block">
-                  <span class="action-queue-detail-label">Latest outcome</span>
-                  <strong class="action-queue-detail-value">${escapeHtml(contact.latestOutcome?.label || "No proven outcome yet")}</strong>
-                  <p class="action-queue-copy">${escapeHtml([
-                    trimText(contact.latestOutcome?.sourceLabel),
-                    trimText(contact.latestOutcome?.contextLabel),
-                    contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "",
-                  ].filter(Boolean).join(" · ") || "This contact still needs proof of progression, not just process.")}</p>
-                </div>
-                <div class="contact-meta-block">
-                  <span class="action-queue-detail-label">Lifecycle override</span>
-                  <form class="inline-actions" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
-                    <select name="lifecycle_state">
-                      ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
-                        <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
-                      `).join("")}
-                    </select>
-                    <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>Save state</button>
-                  </form>
-                </div>
-              </div>
-              <div class="inline-actions">
-                ${buildContactQuickActions(contact, operatorWorkspace)}
-              </div>
-              ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
-                <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
-                  <div class="form-grid two-col">
-                    <div class="field">
-                      <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">Outcome mark</label>
-                      <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                        <option value="booking_confirmed">booked</option>
-                        <option value="quote_requested">quote requested</option>
-                        <option value="quote_accepted">quote accepted</option>
-                        <option value="follow_up_replied">follow-up successful</option>
-                        <option value="complaint_resolved">complaint resolved</option>
-                        <option value="manual_outcome_marked">no outcome / manual note</option>
-                      </select>
-                    </div>
-                    <div class="field">
-                      <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">Context note</label>
-                      <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" placeholder="Owner confirmed this outside an automatic proof path." ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                    </div>
-                  </div>
-                  <div class="action-queue-form-actions">
-                    <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record outcome</button>
-                    <span class="action-queue-meta-inline">Manual marks stay attached to this contact’s lead, thread, follow-up, and calendar context when available.</span>
-                  </div>
-                </form>
-              ` : ""}
-              <div class="contact-timeline">
-                <div class="person-subsection">
-                  <span class="action-queue-detail-label">Timeline</span>
-                  ${Array.isArray(contact.timeline) && contact.timeline.length ? `
-                    <div class="timeline-list">
-                      ${contact.timeline.map((entry) => `
-                        <div class="timeline-row">
-                          <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
-                          <span>${escapeHtml(`${entry.label || entry.source || "Activity"} · ${entry.summary || ""}`)}</span>
-                        </div>
-                      `).join("")}
-                    </div>
-                  ` : `<div class="placeholder-card">This contact exists, but the timeline is still sparse. Vonza will expand it as more cross-channel activity lands.</div>`}
-                </div>
-              </div>
-            </article>
-          `).join("")}
+              <p class="contact-list-count">${escapeHtml(`${contacts.length} visible`)}</p>
+            </div>
+            <div class="contact-list" data-contact-filter-results>
+              ${contacts.map((contact) => buildContactListRow(contact, trimText(contact.id) === trimText(selectedContact?.id))).join("")}
+            </div>
+            <div class="placeholder-card contact-filter-empty" hidden>No contacts match the current filters. Clear the filters or search to see records again.</div>
+          </aside>
+          <div class="contact-detail-shell">
+            ${contacts.map((contact) => buildContactDetailPanel(agent, contact, operatorWorkspace, trimText(contact.id) === trimText(selectedContact?.id))).join("")}
+          </div>
         </div>
       `}
       </div>
@@ -2767,12 +2960,12 @@ function buildCopilotSummaryCards(copilot = createEmptyOperatorWorkspace().copil
   }
 
   return `
-    <section class="workspace-card-soft today-operating-subsection" style="margin-top:16px;">
+    <section class="workspace-card-soft" style="margin-top:16px;">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Signals</p>
-          <h3 class="workspace-panel-title">Signals across Today</h3>
-          <p class="workspace-panel-copy">Copilot is reading the stable operating context behind Today: what changed, why it matters, and where owner review is still needed.</p>
+          <p class="studio-kicker">Summary</p>
+          <h3 class="workspace-panel-title">Operational summary</h3>
+          <p class="workspace-panel-copy">This is the stable-core readout for today: what matters, which leads need attention, and whether complaints, pricing gaps, or outcomes need review.</p>
         </div>
       </div>
       <div class="overview-grid operator-metric-grid">
@@ -2801,12 +2994,12 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
     }
 
     return `
-      <section class="workspace-card-soft today-operating-subsection" style="margin-top:16px;">
+      <section class="workspace-card-soft" style="margin-top:16px;">
         <div class="workspace-panel-header">
           <div>
-            <p class="studio-kicker">Owner review</p>
-            <h3 class="workspace-panel-title">Ready for owner review</h3>
-            <p class="workspace-panel-copy">There are no active Copilot recommendations waiting for owner review right now because the current ones were already handled or dismissed.</p>
+            <p class="studio-kicker">Proposals</p>
+            <h3 class="workspace-panel-title">Approval-first proposals</h3>
+            <p class="workspace-panel-copy">There are no active Copilot proposals right now because the current ones were already handled or dismissed.</p>
           </div>
         </div>
       </section>
@@ -2814,12 +3007,12 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
   }
 
   return `
-    <section class="workspace-card-soft today-operating-subsection" style="margin-top:16px;">
+    <section class="workspace-card-soft" style="margin-top:16px;">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Owner review</p>
-          <h3 class="workspace-panel-title">Ready for owner review</h3>
-          <p class="workspace-panel-copy">When Copilot can prepare a grounded next step, it shows the recommendation, the reason, and the exact workflow surface it will open. Nothing executes on its own.</p>
+          <p class="studio-kicker">Proposals</p>
+          <h3 class="workspace-panel-title">Approval-first proposals</h3>
+          <p class="workspace-panel-copy">Each proposal explains what Copilot recommends, why it matters, what will happen if you apply it, and where the real workflow object will land.</p>
         </div>
         <div class="workspace-badge-row">
           <span class="${getBadgeClass(summary.blockedCount ? "Needs attention" : "Ready")}">${escapeHtml(`${summary.activeCount || proposals.length} active`)}</span>
@@ -2904,28 +3097,28 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
   const prefill = businessProfile.prefill || createEmptyBusinessProfileState().prefill;
 
   return `
-    <section class="workspace-card-soft today-operating-layer" style="margin-top:20px;">
+    <section class="workspace-card-soft" style="margin-top:20px;">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Operating layer</p>
-          <h3 class="workspace-panel-title">Copilot readout</h3>
-          <p class="workspace-panel-copy">Today runs on this readout. Copilot summarizes calendar, contacts, outcomes, and approval-first work so the owner can see what changed, why it matters, and what should happen next.</p>
+          <p class="studio-kicker">Copilot</p>
+          <h3 class="workspace-panel-title">Today Copilot</h3>
+          <p class="workspace-panel-copy">Read-only summaries and approval-first drafts over Vonza's stable core. Copilot does not silently execute external actions.</p>
         </div>
         <div class="workspace-badge-row">
           <span class="${getBadgeClass(copilot.readOnly ? "Ready" : "Limited")}">${copilot.readOnly ? "Read only" : "Limited"}</span>
-          <span class="${getBadgeClass(copilot.draftOnly ? "Ready" : "Limited")}">${copilot.draftOnly ? "Approval first" : "Mixed mode"}</span>
+          <span class="${getBadgeClass(copilot.draftOnly ? "Ready" : "Limited")}">${copilot.draftOnly ? "Draft first" : "Mixed mode"}</span>
         </div>
       </div>
-      <div class="operator-home-grid today-operating-grid">
+      <div class="operator-home-grid">
         <section class="operator-focus-card">
-          <p class="overview-label">What Copilot sees now</p>
+          <p class="overview-label">Copilot headline</p>
           <h3 class="operator-focus-title">${escapeHtml(copilot.headline || "Copilot is ready.")}</h3>
           <p class="operator-focus-copy">${escapeHtml(copilot.summary || "Copilot is summarizing stable-core data only.")}</p>
         </section>
         <section class="operator-focus-card operator-briefing-card">
-          <p class="overview-label">Front Desk context</p>
-          <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Front Desk context readiness will appear here.")}</p>
-          ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} areas are still missing context.`)}</p>` : `<p class="analytics-subtle">Core Front Desk context is filled for Copilot.</p>`}
+          <p class="overview-label">Business context foundation</p>
+          <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Business context readiness will appear here.")}</p>
+          ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} areas are still missing context.`)}</p>` : `<p class="analytics-subtle">Core business context is filled for Copilot.</p>`}
           <div class="inline-actions" style="margin-top:12px;">
             <button class="ghost-button" type="button" data-copilot-open-target data-shell-target="settings" data-target-id="business-context-setup">Open business context setup</button>
           </div>
@@ -2939,7 +3132,7 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
       ` : ""}
       ${copilot.sparseData ? `
         <div class="placeholder-card" style="margin-top:16px;">
-          <strong>${escapeHtml(copilot.fallback?.title || "Copilot needs more operating context")}</strong>
+          <strong>${escapeHtml(copilot.fallback?.title || "Copilot needs more context")}</strong>
           <p style="margin-top:8px;">${escapeHtml(copilot.fallback?.description || "There is not enough stable-core data yet for strong recommendations.")}</p>
           ${guidance.length ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(guidance.join(" "))}</p>` : ""}
         </div>
@@ -2989,69 +3182,6 @@ function buildTodayInsightActionButton(item = {}, fallbackLabel = "Review contex
     >
       ${escapeHtml(actionLabel)}
     </button>
-  `;
-}
-
-function buildTodayDecisionCard({
-  title = "",
-  badgeLabel = "",
-  badgeTone = "Ready",
-  whatHappened = "",
-  whyItMatters = "",
-  nextAction = "",
-  actionMarkup = "",
-} = {}) {
-  return `
-    <article class="today-decision-card">
-      <div class="today-decision-header">
-        <h4 class="today-decision-title">${escapeHtml(title || "Today card")}</h4>
-        ${badgeLabel ? `<span class="${getBadgeClass(badgeTone)}">${escapeHtml(badgeLabel)}</span>` : ""}
-      </div>
-      <div class="today-decision-body">
-        <div class="today-decision-row">
-          <p class="today-decision-label">What happened</p>
-          <p class="today-decision-copy">${escapeHtml(whatHappened || "Vonza is waiting for more signal.")}</p>
-        </div>
-        <div class="today-decision-row">
-          <p class="today-decision-label">Why it matters</p>
-          <p class="today-decision-copy">${escapeHtml(whyItMatters || "This is here so Today stays grounded in real operating context.")}</p>
-        </div>
-        <div class="today-decision-row">
-          <p class="today-decision-label">Recommended next action</p>
-          <p class="today-decision-copy">${escapeHtml(nextAction || "Stay on Today and review the strongest new change first.")}</p>
-        </div>
-      </div>
-      ${actionMarkup ? `<div class="inline-actions today-decision-actions">${actionMarkup}</div>` : ""}
-    </article>
-  `;
-}
-
-function buildTodaySection({
-  title = "",
-  description = "",
-  cards = [],
-  emptyTitle = "",
-  emptyCopy = "",
-  emptyActionMarkup = "",
-  tone = "",
-} = {}) {
-  return `
-    <section class="workspace-card-soft today-section-card ${tone ? `today-section-card-${escapeHtml(tone)}` : ""}">
-      <div class="workspace-panel-header">
-        <div>
-          <p class="studio-kicker">Today</p>
-          <h3 class="workspace-panel-title">${escapeHtml(title || "Today section")}</h3>
-          <p class="workspace-panel-copy">${escapeHtml(description || "Vonza will keep this section focused on the next useful operating context.")}</p>
-        </div>
-      </div>
-      ${cards.length
-        ? `<div class="today-decision-grid">${cards.join("")}</div>`
-        : buildOperatorEmptyState({
-          title: emptyTitle || "Nothing is standing out yet",
-          copy: emptyCopy || "As more operating context arrives, Today will structure it here.",
-          actionMarkup: emptyActionMarkup,
-        })}
-    </section>
   `;
 }
 
@@ -3105,6 +3235,8 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
     return "";
   }
 
+  const accounts = operatorWorkspace.connectedAccounts || [];
+  const primaryAccount = accounts[0] || null;
   const summary = operatorWorkspace.summary || createEmptyOperatorWorkspace().summary;
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const nextAction = operatorWorkspace.nextAction || createEmptyOperatorWorkspace().nextAction;
@@ -3112,233 +3244,225 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-  const contactsSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
-  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 2) : [];
-  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 2) : [];
-  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 2) : [];
+  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 4) : [];
+  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 4) : [];
+  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 4) : [];
   const dailySummary = operatorWorkspace.calendar?.dailySummary
     || "Connect Google Workspace to see daily operator context here.";
-  const businessProfile = getBusinessProfileViewModel(operatorWorkspace);
-  const setupState = inferSetup(agent);
-  const installStatus = getDefaultInstallStatus(agent);
-  const latestOutcome = Array.isArray(today.recentSuccessfulOutcomes) ? today.recentSuccessfulOutcomes[0] : null;
-  const approvalWaitingCount = Number(summary.followUpsNeedingApproval || 0) + Number(today.campaignsAwaitingApproval || 0);
-  const canOpenAutomations = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
-
-  const foundationActionMarkup = !setupState.knowledgeReady
-    ? `<button class="ghost-button" type="button" data-action="import-knowledge">Refresh website knowledge</button>`
-    : (!isInstallSeen(installStatus) || businessProfile.readiness?.missingCount)
-      ? `<button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>`
-      : trimText(agent.publicAgentKey)
-        ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
-        : `<button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>`;
-
-  const needsAttentionCards = [];
-
-  if (today.appointmentsNeedingFollowUp > 0 || followUpItems.length) {
-    const topFollowUp = followUpItems[0] || {};
-    needsAttentionCards.push(buildTodayDecisionCard({
-      title: "Follow-up gap",
-      badgeLabel: formatOperatorCount(today.appointmentsNeedingFollowUp || followUpItems.length, "appointment"),
-      badgeTone: "Needs attention",
-      whatHappened: trimText(topFollowUp.followUpReason) || `${formatOperatorCount(today.appointmentsNeedingFollowUp || followUpItems.length, "appointment")} ended without a clear next step.`,
-      whyItMatters: "When an appointment ends without a next step, ready demand can go stale and the proof loop stays open.",
-      nextAction: "Review the appointment context and decide whether to draft the follow-up or confirm the outcome.",
-      actionMarkup: buildTodayInsightActionButton(topFollowUp, "Review follow-up") || '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
-    }));
-  }
-
-  if (today.unlinkedAppointments > 0 || unlinkedItems.length) {
-    const topUnlinked = unlinkedItems[0] || {};
-    needsAttentionCards.push(buildTodayDecisionCard({
-      title: "Contact linking gap",
-      badgeLabel: formatOperatorCount(today.unlinkedAppointments || unlinkedItems.length, "appointment"),
-      badgeTone: "Needs attention",
-      whatHappened: trimText(topUnlinked.unlinkedReason) || `${formatOperatorCount(today.unlinkedAppointments || unlinkedItems.length, "appointment")} still has attendee data without a safe contact link.`,
-      whyItMatters: "Unlinked attendees break follow-up and outcome tracking across Today, Contacts, and Outcomes.",
-      nextAction: "Review the attendee and link it to the right contact before follow-up or proof gets fragmented.",
-      actionMarkup: buildTodayInsightActionButton(topUnlinked, "Review attendee") || '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
-    }));
-  }
-
-  if (today.highValueWithoutOutcome > 0 || today.complaintRiskContacts > 0 || contactsSummary.contactsNeedingAttention > 0 || contactsSummary.leadsWithoutNextStep > 0) {
-    const contactsNeedingReview = Number(contactsSummary.contactsNeedingAttention || 0) + Number(contactsSummary.leadsWithoutNextStep || 0);
-    needsAttentionCards.push(buildTodayDecisionCard({
-      title: "Contact outcome gap",
-      badgeLabel: formatOperatorCount(Math.max(today.highValueWithoutOutcome || 0, contactsNeedingReview || 0, 1), "contact"),
-      badgeTone: "Needs attention",
-      whatHappened: [
-        today.highValueWithoutOutcome ? `${formatOperatorCount(today.highValueWithoutOutcome, "high-value contact")} still lack proof.` : "",
-        today.complaintRiskContacts ? `${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} still need review.` : "",
-        contactsSummary.leadsWithoutNextStep ? `${formatOperatorCount(contactsSummary.leadsWithoutNextStep, "lead")} still has no next step.` : "",
-        contactsSummary.contactsNeedingAttention ? `${formatOperatorCount(contactsSummary.contactsNeedingAttention, "contact")} still need owner attention.` : "",
-      ].filter(Boolean).join(" "),
-      whyItMatters: "These are the people most likely to slip between capture and proof if nobody closes the loop.",
-      nextAction: "Open Contacts and resolve the oldest person without a next step or confirmed outcome first.",
-      actionMarkup: '<button class="ghost-button" type="button" data-shell-target="contacts">Open Contacts</button>',
-    }));
-  }
-
-  const scheduleCards = [];
-
-  if (!status.googleConnected) {
-    scheduleCards.push(buildTodayDecisionCard({
-      title: "Calendar connection",
-      badgeLabel: status.googleConfigReady ? "Optional" : "Blocked",
-      badgeTone: status.googleConfigReady ? "Limited" : "Needs attention",
-      whatHappened: "Google Calendar is not connected to this workspace yet.",
-      whyItMatters: "Schedule context is what turns Today from a list into a real command center for the day.",
-      nextAction: status.googleConfigReady
-        ? "Connect Google Calendar so Today can pull the real schedule, recent appointments, and follow-up context."
-        : "Finish the Google configuration on this deployment before owners connect Calendar.",
-      actionMarkup: `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
-    }));
-  } else {
-    scheduleCards.push(buildTodayDecisionCard({
-      title: "Daily calendar readout",
-      badgeLabel: formatOperatorCount(today.upcomingBookings, "appointment"),
-      badgeTone: "Ready",
-      whatHappened: dailySummary,
-      whyItMatters: "Schedule context keeps Today grounded in the actual working day instead of static counts.",
-      nextAction: today.nextEventTitle
-        ? `Open the next appointment, ${today.nextEventTitle}, before it starts or when timing changes.`
-        : "Open Calendar to review the day and use any open time for follow-up or booking work.",
-      actionMarkup: '<button class="ghost-button" type="button" data-shell-target="calendar">Open Calendar</button>',
-    }));
-
-    scheduleItems.forEach((item) => {
-      scheduleCards.push(buildTodayDecisionCard({
-        title: item.title || item.linkedContactName || "Calendar appointment",
-        badgeLabel: item.linkedContactId ? "Linked" : "Needs review",
-        badgeTone: item.linkedContactId ? "Ready" : "Limited",
-        whatHappened: formatCalendarInsightContext(item) || "This appointment is visible in Today.",
-        whyItMatters: trimText(item.scheduleReason) || "This appointment affects the owner’s real schedule and follow-up context today.",
-        nextAction: item.linkedContactId
-          ? "Open the appointment context and review the linked contact before the day moves on."
-          : "Review the attendee context and confirm who this appointment belongs to.",
-        actionMarkup: buildTodayInsightActionButton(item, item.linkedContactId ? "Open context" : "Review attendee"),
-      }));
-    });
-  }
-
-  const readyWaitingCards = [
-    buildTodayDecisionCard({
-      title: "Approval-first work",
-      badgeLabel: formatOperatorCount(approvalWaitingCount, "item"),
-      badgeTone: approvalWaitingCount ? "Limited" : "Ready",
-      whatHappened: approvalWaitingCount
-        ? `${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are prepared and waiting for owner review.`
-        : "No follow-ups, campaigns, or owner tasks are waiting for review right now.",
-      whyItMatters: "Prepared work stays safe until the owner decides to send, schedule, or approve it.",
-      nextAction: approvalWaitingCount
-        ? "Open the waiting work and clear the oldest review item first."
-        : "Stay in Today until a new draft or task appears.",
-      actionMarkup: canOpenAutomations
-        ? '<button class="ghost-button" type="button" data-shell-target="automations">Open Automations</button>'
-        : '<button class="ghost-button" type="button" data-shell-target="contacts">Open Contacts</button>',
-    }),
-    buildTodayDecisionCard({
-      title: "Recent proof",
-      badgeLabel: formatOperatorCount(today.assistedOutcomes, "outcome"),
-      badgeTone: today.assistedOutcomes ? "Ready" : "Limited",
-      whatHappened: latestOutcome
-        ? `${formatOperatorCount(today.assistedOutcomes, "outcome")} were recently confirmed. Latest: ${getOutcomeTypeLabel(latestOutcome.outcomeType)}.`
-        : "No recent outcomes are confirmed yet.",
-      whyItMatters: "Outcomes keeps Vonza grounded in business results instead of activity alone.",
-      nextAction: latestOutcome
-        ? "Open Outcomes to review proof, attribution, and what closed the loop."
-        : "Keep routing and capturing real conversations so proof starts to build.",
-      actionMarkup: '<button class="ghost-button" type="button" data-shell-target="analytics">Open Outcomes</button>',
-    }),
-    buildTodayDecisionCard({
-      title: "Front Desk foundation",
-      badgeLabel: businessProfile.readiness?.missingCount || !setupState.knowledgeReady || !isInstallSeen(installStatus) ? "Needs review" : "Ready",
-      badgeTone: businessProfile.readiness?.missingCount || !setupState.knowledgeReady || !isInstallSeen(installStatus) ? "Limited" : "Ready",
-      whatHappened: [
-        `Install: ${getInstallSummaryLabel(installStatus)}`,
-        `Knowledge: ${setupState.knowledgeReady ? "ready" : setupState.knowledgeLimited ? "limited" : "missing"}`,
-        businessProfile.readiness?.missingCount
-          ? `Context: ${businessProfile.readiness.missingCount} gap${businessProfile.readiness.missingCount === 1 ? "" : "s"}`
-          : "Context: ready",
-      ].join(" · "),
-      whyItMatters: "These inputs determine how confidently the front desk can capture and route inbound demand and how grounded Today feels.",
-      nextAction: !setupState.knowledgeReady || businessProfile.readiness?.missingCount || !isInstallSeen(installStatus)
-        ? "Open Front Desk and tighten routing, knowledge, or install coverage."
-        : "Keep testing the live front desk so Today continues learning from real usage.",
-      actionMarkup: foundationActionMarkup,
-    }),
-  ];
+  const calendarModeLabel = primaryAccount?.status === "connected"
+    ? googleCapabilities.calendarRead && !googleCapabilities.calendarWrite
+      ? "Calendar read-only mode"
+      : "Approval-first calendar drafts"
+    : "Google Calendar optional";
 
   return `
-    <section class="workspace-card-soft operator-home-card">
-      <div class="workspace-panel-header">
-        <div>
-          <p class="studio-kicker">Operator home</p>
-          <h2 class="workspace-panel-title">Today</h2>
-          <p class="workspace-panel-copy">Today is the operator command center. It should tell the owner what happened, why it matters, and what to do next without bouncing across surfaces.</p>
-        </div>
-        <div class="workspace-badge-row">
-          <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${status.googleConnected
-            ? (googleCapabilities.calendarRead && !googleCapabilities.gmailRead ? "Google Calendar connected" : "Google connected")
-            : "Google Calendar optional"}</span>
-          <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Command center ready"}</span>
-        </div>
-      </div>
-      <div class="operator-home-grid">
-        <section class="operator-focus-card">
-          <p class="overview-label">Recommended next action</p>
-          <h3 class="operator-focus-title">${escapeHtml(nextAction.title || "Review today")}</h3>
-          <p class="operator-focus-copy">${escapeHtml(nextAction.description || "Vonza will keep this focused on the most useful thing to do next.")}</p>
-          <div class="inline-actions">
-            ${buildOperatorNextActionButton(nextAction)}
+    <section class="today-support-stack">
+      <section class="workspace-card-soft today-operator-card">
+        <div class="workspace-panel-header">
+          <div>
+            <p class="studio-kicker">Operator home</p>
+            <h2 class="workspace-panel-title">Today support lane</h2>
+            <p class="workspace-panel-copy">Keep the next safe move, connection status, schedule context, and proof close to the main operator queue without turning Today into a wall of equal-weight cards.</p>
           </div>
-        </section>
-        <section class="operator-focus-card operator-briefing-card">
-          <p class="overview-label">${escapeHtml(briefing.title || "Today briefing")}</p>
-          <p class="workspace-panel-copy">${escapeHtml(briefing.text || dailySummary)}</p>
-          ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Workspace note: ${health.globalError}`)}</p></div>` : ""}
-          ${health.inboxSyncError || health.calendarSyncError || health.contactsError ? `
-            <div class="operator-inline-alert">
-              ${health.inboxSyncError ? `<p>${escapeHtml(`Inbox sync issue: ${health.inboxSyncError}`)}</p>` : ""}
-              ${health.calendarSyncError ? `<p>${escapeHtml(`Calendar sync issue: ${health.calendarSyncError}`)}</p>` : ""}
-              ${health.contactsError ? `<p>${escapeHtml(`Contacts note: ${health.contactsError}`)}</p>` : ""}
+          <div class="workspace-badge-row">
+            <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${status.googleConnected
+              ? (googleCapabilities.calendarRead && !googleCapabilities.gmailRead ? "Google Calendar connected" : "Google connected")
+              : "Google Calendar optional"}</span>
+            <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Workspace ready"}</span>
+          </div>
+        </div>
+        <div class="operator-home-grid">
+          <section class="operator-focus-card">
+            <p class="overview-label">Single best next action</p>
+            <h3 class="operator-focus-title">${escapeHtml(nextAction.title || "Review today")}</h3>
+            <p class="operator-focus-copy">${escapeHtml(nextAction.description || "Vonza will keep this focused on the most useful thing to do next.")}</p>
+            <div class="inline-actions">
+              ${buildOperatorNextActionButton(nextAction)}
             </div>
-          ` : ""}
+          </section>
+          <section class="operator-focus-card operator-briefing-card">
+            <p class="overview-label">${escapeHtml(briefing.title || "Operator briefing")}</p>
+            <p class="workspace-panel-copy">${escapeHtml(briefing.text || dailySummary)}</p>
+            ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Workspace note: ${health.globalError}`)}</p></div>` : ""}
+            ${health.inboxSyncError || health.calendarSyncError || health.contactsError ? `
+              <div class="operator-inline-alert">
+                ${health.inboxSyncError ? `<p>${escapeHtml(`Inbox sync issue: ${health.inboxSyncError}`)}</p>` : ""}
+                ${health.calendarSyncError ? `<p>${escapeHtml(`Calendar sync issue: ${health.calendarSyncError}`)}</p>` : ""}
+                ${health.contactsError ? `<p>${escapeHtml(`Contacts note: ${health.contactsError}`)}</p>` : ""}
+              </div>
+            ` : ""}
+          </section>
+        </div>
+        ${buildWorkspaceStatStrip([
+          {
+            label: "Google connection",
+            value: primaryAccount?.status === "connected" ? (primaryAccount.accountEmail || "Connected") : "Awaiting connection",
+            copy: primaryAccount?.status === "connected"
+              ? `Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
+              : "Connect Google Calendar to unlock Today’s schedule, follow-up review, and unlinked attendee visibility.",
+          },
+          {
+            label: "Calendar mode",
+            value: calendarModeLabel,
+            copy: googleCapabilities.calendarRead && !googleCapabilities.calendarWrite
+              ? "Nothing is auto-sent, auto-created, or auto-run in this pass."
+              : "Calendar changes stay draft-first and approval-first.",
+          },
+          {
+            label: "Approval-first work",
+            value: formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"),
+            copy: `${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`,
+          },
+          {
+            label: "Recent proven outcomes",
+            value: formatOperatorCount(today.assistedOutcomes, "outcome"),
+            copy: `${today.bookingsConfirmed || 0} bookings confirmed · ${today.quoteRequests || 0} quote requests · ${today.followUpReplies || 0} follow-up replies`,
+          },
+        ], { className: "today-support-stats" })}
+      </section>
+      ${!status.googleConnected ? `
+        <section class="workspace-card-soft today-google-card">
+          <div class="workspace-panel-header">
+            <div>
+              <p class="studio-kicker">Google Calendar</p>
+              <h3 class="workspace-panel-title">Connect Google to unlock Today</h3>
+              <p class="workspace-panel-copy">Today becomes immediately more useful once it can read your primary Google Calendar. Vonza will summarize today’s schedule, recent appointments that may need follow-up, and attendees who are not linked to contacts yet.</p>
+            </div>
+          </div>
+          <div class="inline-actions">
+            <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
+          </div>
+          <p class="section-note">${escapeHtml(status.googleConfigReady
+            ? "This pass requests basic identity plus read-only Calendar access only. Nothing is auto-sent, auto-created, or auto-run."
+            : "Google OAuth still needs the deployment env vars before owners can connect from this workspace.")}</p>
         </section>
+      ` : ""}
+      <div class="today-support-insights">
+        ${buildTodayInsightCard({
+          kicker: "Today",
+          title: "Today's Schedule",
+          description: "See what is still on deck today and why each appointment matters now.",
+          items: scheduleItems,
+          emptyTitle: status.googleConnected
+            ? "No more appointments are on today’s schedule"
+            : "Connect Google to see today’s schedule",
+          emptyCopy: status.googleConnected
+            ? "Vonza will keep today’s remaining schedule here, including in-progress appointments and linked contact context."
+            : "Connect Google Calendar to bring today’s appointments into Today.",
+          reasonKey: "scheduleReason",
+          defaultActionLabel: "Open context",
+        })}
+        ${buildTodayInsightCard({
+          kicker: "Follow-up",
+          title: "Appointments Needing Follow-up",
+          description: "Recent completed appointments with no clear next step or outcome stay visible until you review them.",
+          items: followUpItems,
+          emptyTitle: "No recent appointment follow-up is standing out",
+          emptyCopy: "When an appointment ends without a clear next step, Vonza will surface it here with approval-first suggestions.",
+          reasonKey: "followUpReason",
+          defaultActionLabel: "Review follow-up",
+        })}
+        ${buildTodayInsightCard({
+          kicker: "Linking",
+          title: "Appointments Not Linked to a Contact",
+          description: "Unlinked attendees are surfaced explicitly so follow-up and outcome tracking do not fragment.",
+          items: unlinkedItems,
+          emptyTitle: "No appointment currently needs attendee linking",
+          emptyCopy: "Vonza will show upcoming or recent appointments here when attendee data is still not safely linked to a contact.",
+          reasonKey: "unlinkedReason",
+          defaultActionLabel: "Review attendee",
+        })}
       </div>
       ${buildTodayCopilotSection(operatorWorkspace)}
-      <div class="today-sections-grid">
-        ${buildTodaySection({
-          title: "Needs Attention",
-          description: "The highest-signal gaps across contacts, follow-up, and proof that still need owner action.",
-          tone: "attention",
-          cards: needsAttentionCards,
-          emptyTitle: "Nothing urgent is standing out",
-          emptyCopy: "Today is currently steady. Vonza will surface the first real issue here instead of filling the space with low-signal noise.",
-        })}
-        ${buildTodaySection({
-          title: "Today’s Schedule",
-          description: "Calendar context should read like the working day, not a list of disconnected events.",
-          tone: "schedule",
-          cards: scheduleCards,
-          emptyTitle: "Today’s schedule is still quiet",
-          emptyCopy: "As soon as appointments are visible, Today will explain why each one matters and what should happen next.",
-        })}
-        ${buildTodaySection({
-          title: "Ready / Waiting",
-          description: "Prepared work, proof, and front-desk readiness that are steady, waiting, or ready for review.",
-          tone: "ready",
-          cards: readyWaitingCards,
-        })}
-      </div>
+      ${buildOperatorAlertMarkup(operatorWorkspace)}
       ${buildOperatorChecklistMarkup(operatorWorkspace)}
+      <section class="workspace-card-soft today-proof-card">
+        <div class="workspace-panel-header">
+          <div>
+            <p class="studio-kicker">Proof</p>
+            <h3 class="workspace-panel-title">Recent successful outcomes</h3>
+            <p class="workspace-panel-copy">These are the clearest recent results Vonza could tie back to a real contact, thread, workflow, campaign, or booking path.</p>
+          </div>
+        </div>
+        ${Array.isArray(today.recentSuccessfulOutcomes) && today.recentSuccessfulOutcomes.length ? `
+          <div class="analytics-list">
+            ${today.recentSuccessfulOutcomes.map((outcome) => `
+              <div class="analytics-item">
+                <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
+                <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
+                <p class="analytics-subtle">${escapeHtml([
+                  trimText(outcome.sourceLabel),
+                  trimText(outcome.relatedIntentType),
+                  outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
+                ].filter(Boolean).join(" · "))}</p>
+              </div>
+            `).join("")}
+          </div>
+        ` : `<div class="placeholder-card">No recent outcomes are confirmed yet. Once Vonza can prove bookings, quote requests, complaint resolutions, campaign replies, or follow-up results, they will appear here with source context.</div>`}
+      </section>
+      ${buildContactsAttentionStrip(operatorWorkspace)}
     </section>
   `;
 }
 
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
+  const renderAction = (action, options = {}) => {
+    if (!action) {
+      return "";
+    }
+
+    const buttonClass = options.primary ? "primary-button" : "ghost-button";
+
+    if (action.type === "section") {
+      return `<button class="${buttonClass}" type="button" data-overview-target="${action.value}">${escapeHtml(action.label)}</button>`;
+    }
+
+    if (action.type === "focus") {
+      return `<button class="${buttonClass}" type="button" data-overview-focus="${action.value}">${escapeHtml(action.label)}</button>`;
+    }
+
+    if (action.type === "import") {
+      return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${escapeHtml(action.label)}</button>`;
+    }
+
+    if (action.type === "install") {
+      return `<button class="${buttonClass}" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(action.label)}</button>`;
+    }
+
+    if (action.type === "preview") {
+      return `<a class="${buttonClass}" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">${escapeHtml(action.label)}</a>`;
+    }
+
+    return "";
+  };
+  const pageActionsMarkup = [
+    renderAction(overview.primaryAction, { primary: true }),
+    ...overview.nextActions.map((action) => renderAction(action)),
+  ].filter(Boolean).join("");
+  const topQuestionMarkup = overview.signals.topQuestions.length
+    ? overview.signals.topQuestions.map((item) => `
+      <div class="overview-list-item">
+        <p class="overview-list-title">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""}</p>
+        <p class="overview-list-copy">${escapeHtml(`${getIntentLabel(item.intent)} signal from real visitor questions.`)}</p>
+      </div>
+    `).join("")
+    : `<div class="placeholder-card">No real customer question themes yet. Once the assistant is live and visitors start using it, Vonza will group the strongest recurring questions here.</div>`;
+  const weakAnswerMarkup = overview.signals.weakAnswerExamples.length
+    ? overview.signals.weakAnswerExamples.map((question) => `
+      <div class="overview-list-item">
+        <p class="overview-list-title">${escapeHtml(question)}</p>
+        <p class="overview-list-copy">This question ended in a weak or uncertain answer and is a good candidate for improvement.</p>
+      </div>
+    `).join("")
+    : `<div class="placeholder-card">No weak-answer signal yet. Once customers ask questions that Vonza struggles to answer, they will show up here instead of being hidden behind a fake success state.</div>`;
+  const focusTitle = overview.queueSummary.attentionNeeded > 0
+    ? `${overview.queueSummary.attentionNeeded} queue item${overview.queueSummary.attentionNeeded === 1 ? "" : "s"} need review`
+    : "No urgent queue items are open";
+  const focusCopy = overview.queueSummary.attentionNeeded > 0
+    ? "Stay anchored in the conversation-derived queue. This is the dominant working surface for approval-first follow-up, weak-answer review, and outcome handoff."
+    : "The queue is clear right now. Keep this surface ready for the next conversation-derived action instead of burying it under dashboard cards.";
 
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
@@ -3355,11 +3479,122 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             tone: isInstallSeen(overview.installStatus) ? "Ready" : "Limited",
           },
         ],
+        actionsMarkup: pageActionsMarkup,
       })}
       <div class="workspace-page-body">
-      ${buildOperatorAlertMarkup(operatorWorkspace)}
-      ${buildOperatorOverviewSection(agent, operatorWorkspace)}
-      ${buildOverviewSection(agent, messages, setup, actionQueue)}
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Install status",
+          value: getInstallSummaryLabel(overview.installStatus),
+          copy: isInstallSeen(overview.installStatus)
+            ? `Vonza is live on ${overview.installStatus.host || "the website"}.`
+            : "Finish install when you are ready for real customer traffic.",
+        },
+        {
+          label: "Attention now",
+          value: String(overview.queueSummary.attentionNeeded || 0),
+          copy: `${overview.queueSummary.total || 0} total queue item${overview.queueSummary.total === 1 ? "" : "s"} are currently stored.`,
+        },
+        {
+          label: "Visitor questions",
+          value: overview.analyticsSummary.syncState === "pending"
+            ? "Syncing"
+            : `${overview.analyticsSummary.visitorQuestions || 0} captured`,
+          copy: overview.analyticsSummary.highIntentSignals > 0
+            ? `${overview.analyticsSummary.highIntentSignals} high-intent signal${overview.analyticsSummary.highIntentSignals === 1 ? "" : "s"} already need operator context.`
+            : "Early usage will surface here as soon as the front desk sees real traffic.",
+        },
+        {
+          label: "Contacts captured",
+          value: String(overview.analyticsSummary.contactsCaptured || 0),
+          copy: `${overview.outcomeSummary.assistedConversions || 0} assisted outcome${overview.outcomeSummary.assistedConversions === 1 ? "" : "s"} are currently attributed.`,
+        },
+      ], { className: "today-summary-strip" })}
+      <div class="today-workspace-layout">
+        <div class="today-main-column">
+          <section class="workspace-card-soft today-queue-surface">
+            ${buildSectionToolbar({
+              label: "Priority queue",
+              title: focusTitle,
+              copy: focusCopy,
+              metaMarkup: `
+                <div class="action-queue-summary">
+                  ${buildActionQueueSummaryPills(overview.queueSummary).map((label) => `<span class="pill">${escapeHtml(label)}</span>`).join("")}
+                </div>
+              `,
+            })}
+            ${buildActionQueueMarkup(agent, actionQueue)}
+          </section>
+
+          <div class="today-secondary-grid">
+            <section class="workspace-card-soft">
+              ${buildSectionToolbar({
+                label: "Signals",
+                title: "What changed in conversations",
+                copy: "Use real visitor questions and weaker answers to decide whether the next move belongs in follow-up, front-desk tuning, or outcomes review.",
+              })}
+              <div class="today-mini-grid">
+                <div class="today-mini-panel">
+                  <h3 class="overview-card-title">Top customer question themes</h3>
+                  <div class="overview-list">
+                    ${topQuestionMarkup}
+                  </div>
+                </div>
+                <div class="today-mini-panel">
+                  <h3 class="overview-card-title">Answers needing attention</h3>
+                  <div class="overview-list">
+                    ${weakAnswerMarkup}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="workspace-card-soft">
+              ${buildSectionToolbar({
+                label: "Follow through",
+                title: "Outcome and install context",
+                copy: "Today should keep enough proof and progress visible that the operator understands whether work is moving toward real results.",
+              })}
+              <div class="today-mini-grid">
+                <div class="today-mini-panel">
+                  <h3 class="overview-card-title">Outcome proof</h3>
+                  <div class="overview-list">
+                    <div class="overview-list-item">
+                      <p class="overview-list-title">${escapeHtml(`${overview.outcomeSummary.confirmedBusinessOutcomes || 0} confirmed business outcomes`)}</p>
+                      <p class="overview-list-copy">${escapeHtml(`${overview.outcomeSummary.directOutcomeCount || 0} direct-route and ${overview.outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted outcomes are currently attributed.`)}</p>
+                    </div>
+                    ${overview.outcomeSummary.topPages.map((entry) => `
+                      <div class="overview-list-item">
+                        <p class="overview-list-title">${escapeHtml(entry.label)}</p>
+                        <p class="overview-list-copy">${escapeHtml(`${entry.count} attributed outcome${entry.count === 1 ? "" : "s"} from this page.`)}</p>
+                      </div>
+                    `).join("") || `<div class="placeholder-card">No outcome-linked pages yet. As soon as Vonza confirms real business results, the strongest pages will show here.</div>`}
+                  </div>
+                </div>
+                <div class="today-mini-panel">
+                  <h3 class="overview-card-title">Next best move</h3>
+                  <div class="overview-list">
+                    ${overview.cards.map((card) => `
+                      <div class="overview-list-item">
+                        <p class="overview-list-title">${escapeHtml(card.title)}</p>
+                        <p class="overview-list-copy">${escapeHtml(card.copy)}</p>
+                      </div>
+                    `).join("")}
+                    <div class="overview-list-item">
+                      <p class="overview-list-title">${escapeHtml(overview.analyticsSummary.recentActivity?.description || "No recent activity yet")}</p>
+                      <p class="overview-list-copy">${escapeHtml(overview.analyticsSummary.recentActivity?.copy || "Recent operator-facing activity will appear here once Vonza sees more real usage.")}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <aside class="today-side-column">
+          ${buildOperatorOverviewSection(agent, operatorWorkspace)}
+        </aside>
+      </div>
       </div>
     </section>
   `;
@@ -3378,9 +3613,9 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
     <form data-settings-form data-form-kind="business-context" class="workspace-card-soft settings-form-shell">
       <div class="workspace-panel-header" id="business-context-setup">
         <div>
-          <p class="studio-kicker">Front Desk context</p>
-          <h3 class="workspace-panel-title">Front Desk context setup</h3>
-          <p class="workspace-panel-copy">Give Today and the Copilot layer the real operator context they need: what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
+          <p class="studio-kicker">Business context</p>
+          <h3 class="workspace-panel-title">Business context setup</h3>
+          <p class="workspace-panel-copy">Give Today and Copilot the real operator context they need: what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
         </div>
         <div class="workspace-badge-row">
           <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
@@ -3391,7 +3626,7 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
         <section class="operator-focus-card">
           <p class="overview-label">Readiness</p>
           <h3 class="operator-focus-title">${escapeHtml(profile.readiness?.completedSections || 0)} / ${escapeHtml(profile.readiness?.totalSections || 0)}</h3>
-          <p class="operator-focus-copy">${escapeHtml(profile.readiness?.summary || "Front Desk context readiness will appear here.")}</p>
+          <p class="operator-focus-copy">${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</p>
         </section>
         <section class="operator-focus-card operator-briefing-card">
           <p class="overview-label">Prefill review</p>
@@ -3494,7 +3729,7 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
         </section>
 
         <div class="studio-save-row">
-          <button class="primary-button" type="submit">Save Front Desk context</button>
+          <button class="primary-button" type="submit">Save business context</button>
           <span data-save-state class="save-state">No changes yet.</span>
         </div>
       </div>
@@ -3922,10 +4157,11 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   ];
   const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
   const actionsMarkup = [
-    trimText(agent.publicAgentKey)
-      ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
-      : "",
     `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>`,
+    trimText(agent.publicAgentKey)
+      ? `<a class="ghost-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+      : "",
+    `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`,
   ].filter(Boolean).join("");
 
   return `
@@ -3933,19 +4169,49 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Front Desk",
-        copy: "Preview the customer-facing experience, confirm launch readiness, and keep deeper configuration in Settings instead of piling it into the main workflow.",
+        copy: "Use Front Desk as the launch workspace: preview the customer experience, read readiness clearly, and move deeper configuration into Settings instead of burying it inside workflow cards.",
         badges: readinessItems.map((item) => ({ label: item.title, tone: item.tone })),
         actionsMarkup,
       })}
       <div class="workspace-page-body frontdesk-page-layout">
-        <section class="workspace-card-soft frontdesk-status-card">
-          <div class="workspace-panel-header">
-            <div>
-              <p class="studio-kicker">Launch readiness</p>
-              <h3 class="workspace-panel-title">What is ready, what still needs review, and what comes next.</h3>
-              <p class="workspace-panel-copy">This page stays focused on orientation and launch confidence. Deeper edits live in Settings.</p>
-            </div>
-          </div>
+        ${buildWorkspaceStatStrip([
+          {
+            label: "Front-desk basics",
+            value: setup.personalityReady ? "Ready" : "Needs review",
+            copy: setup.personalityReady
+              ? "Name, welcome message, and tone are in place."
+              : "The front desk still needs its name, welcome message, or tone tightened up.",
+          },
+          {
+            label: "Website knowledge",
+            value: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
+            copy: setup.knowledgeDescription,
+          },
+          {
+            label: "Live install",
+            value: installStatus.label || "Not installed yet",
+            copy: isInstallSeen(installStatus)
+              ? "The customer-facing front desk has already been detected on the website."
+              : "Preview and review configuration here, then move into Install when you are ready.",
+          },
+          {
+            label: "Business context",
+            value: businessReadiness.missingCount ? "Needs review" : "Ready",
+            copy: businessReadiness.summary || "Business context readiness will appear here.",
+          },
+        ], { className: "frontdesk-summary-strip" })}
+        ${buildLocalWorkspaceNav([
+          { href: "#frontdesk-overview", label: "Overview", note: "Readiness and workflow frame" },
+          { href: "#frontdesk-preview", label: "Preview", note: "Customer-facing experience" },
+          { href: "#frontdesk-launch", label: "Launch", note: "Install handoff and live path" },
+          { href: "#frontdesk-context", label: "Context", note: "Business profile grounding" },
+        ])}
+        <section class="workspace-card-soft frontdesk-status-card" id="frontdesk-overview">
+          ${buildSectionToolbar({
+            label: "Launch readiness",
+            title: "What is ready, what still needs review, and where configuration belongs.",
+            copy: "Front Desk stays focused on launch confidence and preview. Identity, routing, knowledge, and approval-sensitive behavior live in Settings where they are easier to manage safely.",
+          })}
           <div class="settings-summary-grid">
             ${readinessItems.map((item) => `
               <article class="settings-summary-card">
@@ -3957,17 +4223,25 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           </div>
         </section>
 
-        <section class="workspace-card-soft frontdesk-preview-shell">
+        <section class="workspace-card-soft frontdesk-preview-shell" id="frontdesk-preview">
+          ${buildSectionToolbar({
+            label: "Preview",
+            title: "Customer-facing front desk",
+            copy: "Use the preview canvas to confirm tone, first-message clarity, and the primary handoff before you go live.",
+          })}
           ${buildPreviewSection(agent, setup)}
         </section>
 
         <div class="frontdesk-side-stack">
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Current behavior</h3>
-            <p class="studio-group-copy">A compact read on how the front desk is currently representing the business.</p>
+          <section class="workspace-card-soft" id="frontdesk-launch">
+            ${buildSectionToolbar({
+              label: "Launch path",
+              title: "From preview to live website",
+              copy: "The page stays honest about the next handoff. Once the preview is trustworthy, move into Install instead of editing launch details across multiple pages.",
+            })}
             <div class="overview-list">
               <div class="overview-list-item">
-                <p class="overview-list-title">Tone</p>
+                <p class="overview-list-title">Current behavior</p>
                 <p class="overview-list-copy">${escapeHtml(behaviorSummary.title)}</p>
               </div>
               <div class="overview-list-item">
@@ -3979,17 +4253,24 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 <p class="overview-list-copy">${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</p>
               </div>
             </div>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit launch settings</button>
+            </div>
           </section>
 
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Business context</h3>
-            <p class="studio-group-copy">${escapeHtml(businessReadiness.summary || "Business context readiness will appear here.")}</p>
+          <section class="workspace-card-soft" id="frontdesk-context">
+            ${buildSectionToolbar({
+              label: "Business context",
+              title: "Ground the front desk in real operator context",
+              copy: businessReadiness.summary || "Business context readiness will appear here.",
+            })}
             <p class="analytics-subtle">${escapeHtml(businessReadiness.missingCount
               ? `${businessReadiness.missingCount} areas still need owner review before Copilot has stronger grounding.`
               : "Business context is in a healthy state for approval-first operator work.")}</p>
             <div class="inline-actions">
               <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="business">Business profile</button>
-              <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Front Desk settings</button>
             </div>
           </section>
         </div>
@@ -4698,12 +4979,6 @@ function createEmptyActionQueue() {
       followUpCompleted: 0,
       resolved: 0,
       attentionNeeded: 0,
-      leadFollowUp: 0,
-      pricingInterest: 0,
-      bookingIntent: 0,
-      knowledgeGap: 0,
-      unansweredQuestion: 0,
-      repeatHighIntentVisitor: 0,
     },
     conversionSummary: {
       highIntentConversations: 0,
@@ -4787,11 +5062,11 @@ function createEmptyActionQueue() {
 
 function createEmptyOperatorWorkspace() {
   return {
-    enabled: true,
-    featureEnabled: true,
+    enabled: isOperatorWorkspaceFlagEnabled(),
+    featureEnabled: isOperatorWorkspaceFlagEnabled(),
     status: {
-      enabled: true,
-      featureEnabled: true,
+      enabled: isOperatorWorkspaceFlagEnabled(),
+      featureEnabled: isOperatorWorkspaceFlagEnabled(),
       googleConfigReady: true,
       googleConnectReady: true,
       googleConnected: false,
@@ -4801,7 +5076,7 @@ function createEmptyOperatorWorkspace() {
       syncRequested: false,
     },
     activation: {
-      operatorWorkspaceEnabled: true,
+      operatorWorkspaceEnabled: isOperatorWorkspaceFlagEnabled(),
       googleConnected: false,
       inboxContextSelected: false,
       calendarContextSelected: false,
@@ -4880,48 +5155,6 @@ function createEmptyOperatorWorkspace() {
       overdueHighValueContacts: 0,
       topTask: "",
     },
-    contextOptions: {
-      mailboxes: [
-        {
-          value: "INBOX",
-          label: "Primary inbox",
-          description: "Sync the main inbox first.",
-        },
-      ],
-      calendars: [
-        {
-          value: "primary",
-          label: "Primary calendar",
-          description: "Use the main Google calendar.",
-        },
-      ],
-    },
-    health: {
-      inboxSyncError: "",
-      calendarSyncError: "",
-      contactsError: "",
-      globalError: "",
-    },
-    connectedAccounts: [],
-    inbox: {
-      threads: [],
-      attentionCount: 0,
-    },
-    calendar: {
-      events: [],
-      suggestedSlots: [],
-      dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
-      missedBookingOpportunities: [],
-      scheduleItems: [],
-      followUpItems: [],
-      unlinkedItems: [],
-      syncMode: "disconnected",
-    },
-    automations: {
-      tasks: [],
-      campaigns: [],
-      followUps: [],
-    },
     copilot: {
       enabled: false,
       featureEnabled: false,
@@ -4972,6 +5205,49 @@ function createEmptyOperatorWorkspace() {
       },
     },
     businessProfile: createEmptyBusinessProfileState(),
+    contextOptions: {
+      mailboxes: [
+        {
+          value: "INBOX",
+          label: "Primary inbox",
+          description: "Sync the main inbox first.",
+        },
+      ],
+      calendars: [
+        {
+          value: "primary",
+          label: "Primary calendar",
+          description: "Use the main Google calendar.",
+        },
+      ],
+    },
+    alerts: [],
+    health: {
+      inboxSyncError: "",
+      calendarSyncError: "",
+      contactsError: "",
+      globalError: "",
+    },
+    connectedAccounts: [],
+    inbox: {
+      threads: [],
+      attentionCount: 0,
+    },
+    calendar: {
+      events: [],
+      suggestedSlots: [],
+      dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
+      missedBookingOpportunities: [],
+      scheduleItems: [],
+      followUpItems: [],
+      unlinkedItems: [],
+      syncMode: "disconnected",
+    },
+    automations: {
+      tasks: [],
+      campaigns: [],
+      followUps: [],
+    },
     outcomes: {
       summary: null,
       recentOutcomes: [],
@@ -5032,25 +5308,6 @@ function createEmptyOperatorWorkspace() {
   };
 }
 
-function buildOperatorAlertMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const alerts = Array.isArray(operatorWorkspace.alerts)
-    ? operatorWorkspace.alerts.map((alert) => trimText(alert)).filter(Boolean)
-    : [];
-
-  if (!alerts.length) {
-    return "";
-  }
-
-  return `
-    <section class="workspace-card-soft">
-      <h3 class="studio-group-title">Operator workspace status</h3>
-      <div class="workspace-diagnostics">
-        ${alerts.map((alert) => `<div class="workspace-warning-banner">${escapeHtml(alert)}</div>`).join("")}
-      </div>
-    </section>
-  `;
-}
-
 function isOperatorWorkspaceConnectable(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const capabilities = operatorWorkspace.capabilities || createEmptyOperatorWorkspace().capabilities;
   return capabilities.featureEnabled && capabilities.persistenceAvailable && capabilities.googleAvailable;
@@ -5068,7 +5325,7 @@ function getOperatorWorkspaceAvailabilityCopy(operatorWorkspace = createEmptyOpe
   }
 
   if (capabilities.migrationRequired) {
-    return "Connected Operator Workspace tables are not installed yet. Apply the operator workspace migration, then refresh the dashboard.";
+    return "Operator workspace tables are missing on this deployment. Run the production deploy workflow so Supabase applies the latest workspace migrations before enabling connected Inbox, Calendar, and Automations.";
   }
 
   if (!capabilities.googleAvailable) {
@@ -5076,6 +5333,29 @@ function getOperatorWorkspaceAvailabilityCopy(operatorWorkspace = createEmptyOpe
   }
 
   return "";
+}
+
+function buildOperatorAlertMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const alerts = Array.isArray(operatorWorkspace.alerts)
+    ? operatorWorkspace.alerts.map((alert) => trimText(alert)).filter(Boolean)
+    : [];
+  const availabilityCopy = trimText(getOperatorWorkspaceAvailabilityCopy(operatorWorkspace));
+  const combinedAlerts = availabilityCopy && !alerts.includes(availabilityCopy)
+    ? [availabilityCopy, ...alerts]
+    : alerts;
+
+  if (!combinedAlerts.length) {
+    return "";
+  }
+
+  return `
+    <section class="workspace-card-soft">
+      <h3 class="studio-group-title">Operator workspace status</h3>
+      <div class="workspace-diagnostics">
+        ${combinedAlerts.map((alert) => `<div class="workspace-warning-banner">${escapeHtml(alert)}</div>`).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function createEmptyAnalyticsSummary() {
@@ -5176,6 +5456,28 @@ function getActionQueueStatusBadgeClass(status) {
       return "badge warning";
     default:
       return "badge pending";
+  }
+}
+
+function getActionQueuePriorityLabel(value) {
+  switch (trimText(value).toLowerCase()) {
+    case "high":
+      return "High priority";
+    case "medium":
+      return "Medium priority";
+    default:
+      return "Low priority";
+  }
+}
+
+function getActionQueuePriorityBadgeClass(value) {
+  switch (trimText(value).toLowerCase()) {
+    case "high":
+      return "badge warning";
+    case "medium":
+      return "badge pending";
+    default:
+      return "badge success";
   }
 }
 
@@ -5370,25 +5672,15 @@ function formatActionQueueContact(item) {
 }
 
 function getActionQueueTypeLabel(type) {
-  switch (trimText(type).toLowerCase()) {
-    case "lead_follow_up":
-      return "Lead / contact";
-    case "pricing_interest":
-      return "Pricing / purchase";
-    case "booking_intent":
-      return "Booking";
-    case "repeat_high_intent":
-    case "repeat_high_intent_visitor":
-      return "Repeat visitor";
-    case "knowledge_gap":
-      return "Knowledge gap";
-    case "unanswered_question":
-      return "Unanswered question";
-    case "weak_answer":
-      return "Weak answers";
-    default:
-      return getIntentLabel(type);
+  if (type === "weak_answer") {
+    return "Weak answers";
   }
+
+  if (type === "repeat_high_intent") {
+    return "Repeat visitor";
+  }
+
+  return getIntentLabel(type);
 }
 
 function getOperatorActionTypeLabel(item = {}) {
@@ -5407,28 +5699,6 @@ function getOperatorActionTypeLabel(item = {}) {
       return "Unanswered question";
     default:
       return getActionQueueTypeLabel(item.type);
-  }
-}
-
-function getActionQueuePriorityLabel(value) {
-  switch (trimText(value).toLowerCase()) {
-    case "high":
-      return "High priority";
-    case "medium":
-      return "Medium priority";
-    default:
-      return "Low priority";
-  }
-}
-
-function getActionQueuePriorityBadgeClass(value) {
-  switch (trimText(value).toLowerCase()) {
-    case "high":
-      return "badge warning";
-    case "medium":
-      return "badge pending";
-    default:
-      return "pill";
   }
 }
 
@@ -5797,7 +6067,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
     : "These items are surfaced from real visitor conversations so the owner can work specific follow-up moments instead of broad signal buckets.";
   const emptyCopy = compact
     ? "No conversation-derived actions yet. As soon as visitors show stronger commercial intent or Vonza gives a weak answer, the next owner actions will appear here."
-    : "No actionable items yet. Once Vonza sees high-intent conversations or weak answers, the next owner actions will appear here instead of a fake busy state.";
+    : "Nothing urgent is standing out. Resolved items and dismissed items stay out of the way here.";
 
   const buildStatusOptions = (currentStatus) =>
     ACTION_QUEUE_STATUSES.map((status) => `
@@ -6640,7 +6910,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         </div>
       `;
     }).join("")
-    : `<div class="placeholder-card">No queue items need owner attention right now. Resolved items and dismissed items stay out of the way here.</div>`;
+    : `<div class="placeholder-card">Nothing urgent is standing out. Resolved items and dismissed items stay out of the way here.</div>`;
 
   const renderAction = (action, options = {}) => {
     const buttonClass = options.primary ? "primary-button" : "ghost-button";
@@ -6787,7 +7057,13 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
   `;
 }
 
-function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
+function buildAnalyticsPanel(
+  agent,
+  messages,
+  setup,
+  actionQueue = createEmptyActionQueue(),
+  operatorWorkspace = createEmptyOperatorWorkspace()
+) {
   const signals = analyzeConversationSignals(messages);
   const { intentCounts } = signals;
   const analyticsSummary = getAnalyticsSummary(actionQueue, agent, messages);
@@ -6883,6 +7159,10 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     });
   }
 
+  const contactsActionMarkup = isCapabilityVisibleForWorkspace("contacts", operatorWorkspace)
+    ? '<button class="ghost-button" type="button" data-shell-target="contacts">Open Contacts</button>'
+    : "";
+
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
@@ -6893,13 +7173,45 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           { label: `${analyticsSummary.highIntentSignals || 0} high-intent signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
           { label: `${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed outcomes`, tone: outcomeSummary.confirmedBusinessOutcomes > 0 ? "Ready" : "Limited" },
         ],
+        actionsMarkup: `
+          <button class="primary-button" type="button" data-overview-focus="action-queue">Review queue</button>
+          ${contactsActionMarkup}
+        `,
       })}
       <div class="workspace-page-body">
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Confirmed outcomes",
+          value: String(outcomeSummary.confirmedBusinessOutcomes || 0),
+          copy: `${outcomeSummary.directOutcomeCount || 0} direct-route and ${outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted.`,
+        },
+        {
+          label: "High-intent signals",
+          value: String(analyticsSummary.highIntentSignals || 0),
+          copy: `${analyticsSummary.visitorQuestions || 0} visitor questions are currently in the read model.`,
+        },
+        {
+          label: "Contact capture",
+          value: escapeHtml(formatAnalyticsMetric(analyticsSummary.contactsCaptured, analyticsSummary)),
+          copy: `${conversionSummary.capturePromptsShown || 0} capture prompt${conversionSummary.capturePromptsShown === 1 ? "" : "s"} shown so far.`,
+        },
+        {
+          label: "Install visibility",
+          value: installStatus.label,
+          copy: installStatus.lastSeenAt ? `Last seen ${formatSeenAt(installStatus.lastSeenAt)}.` : "Run verification to confirm the live loop end to end.",
+        },
+      ], { className: "outcomes-summary-strip" })}
+      ${buildLocalWorkspaceNav([
+        { href: "#outcomes-snapshot", label: "Snapshot", note: "Current visibility and intent" },
+        { href: "#outcomes-proof", label: "Proof", note: "Conversion and recent results" },
+        { href: "#outcomes-gaps", label: "Gaps", note: "Weak answers and opportunities" },
+        { href: "#outcomes-conversations", label: "Conversations", note: "Recent stored interactions" },
+      ])}
       <div class="analytics-stack">
         ${analyticsSummary.syncState === "pending" ? `
           <div class="placeholder-card">Live widget activity was detected, and Vonza is syncing the stored conversation read model now. Refresh stays targeted, so these counters will update without a full page boot.</div>
         ` : ""}
-        <div class="metric-grid">
+        <div class="metric-grid" id="outcomes-snapshot">
           <div class="metric-card">
             <div class="metric-label">Total messages</div>
             <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.totalMessages, analyticsSummary))}</div>
@@ -6975,7 +7287,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           </section>
         </div>
 
-        <section class="workspace-card-soft">
+        <section class="workspace-card-soft" id="outcomes-proof">
           <h3 class="studio-group-title">Conversion loop</h3>
           <p class="studio-group-copy">This is the front-desk loop: which high-intent chats were routed directly, which ones fell back to capture, and whether follow-up is already prepared.</p>
           <div class="action-queue-summary">
@@ -7007,7 +7319,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           </div>
         </section>
 
-        <section class="workspace-card-soft">
+        <section class="workspace-card-soft" id="outcomes-gaps">
           <h3 class="studio-group-title">Recent successful outcomes</h3>
           <p class="studio-group-copy">These are the most recent business results Vonza could attribute back to a real conversation, visitor, lead, or follow-up path.</p>
           ${recentOutcomes.length ? `
@@ -7028,7 +7340,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           ` : `<div class="placeholder-card">No attributed outcomes yet. Once Vonza confirms a booking, quote request, checkout, contact action, or manual fallback mark, it will appear here with context.</div>`}
         </section>
 
-        <section class="workspace-card-soft">
+        <section class="workspace-card-soft" id="outcomes-conversations">
           <h3 class="studio-group-title">What is creating business value</h3>
           <p class="studio-group-copy">This keeps the reporting operator-facing: which pages and intents are actually producing real results.</p>
           <div class="analytics-list">
@@ -7160,8 +7472,15 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
   const threads = (operatorWorkspace.inbox?.threads || []).slice(0, 10);
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const activation = operatorWorkspace.activation || createEmptyOperatorWorkspace().activation;
-  const connectable = isOperatorWorkspaceConnectable(operatorWorkspace);
-  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
+  const inboxActionsMarkup = primaryAccount?.status === "connected"
+    ? `
+      <button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run inbox sync</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `
+    : `
+      <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `;
 
   return `
     <section class="workspace-page" data-shell-section="inbox" hidden>
@@ -7170,28 +7489,43 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
         title: "Inbox",
         copy: "Bring recent Gmail threads into Vonza so the owner can review replies, spot missed leads, and handle complaints from one place.",
         badges: [{ label: "Optional beta surface", tone: "Limited" }],
+        actionsMarkup: inboxActionsMarkup,
       })}
       <div class="workspace-page-body">
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Connection",
+          value: primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available" : "Unavailable",
+          copy: primaryAccount?.accountEmail || "Connect Google to unlock synced Gmail threads and approval-first drafts.",
+        },
+        {
+          label: "Threads shown",
+          value: String(threads.length),
+          copy: primaryAccount?.status === "connected" ? "Recent attention-worthy threads stay visible here." : "Inbox stays hidden until the mailbox connection is ready.",
+        },
+        {
+          label: "Mailbox sync",
+          value: activation.inboxSynced ? "Ready" : "Pending",
+          copy: activation.inboxSynced ? "The first mailbox snapshot has already been pulled into Vonza." : "Run the first sync to make the Inbox workspace useful.",
+        },
+      ], { className: "connected-summary-strip" })}
       <div class="workspace-section-stack">
-        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
           <div class="workspace-panel-header">
             <h3 class="studio-group-title">Google connection</h3>
             <p class="workspace-panel-copy">${escapeHtml(primaryAccount?.status === "connected"
               ? `Connected as ${primaryAccount.accountEmail || primaryAccount.displayName || "Google account"}. Mailbox: ${primaryAccount.selectedMailbox || "INBOX"}.`
               : status.googleConfigReady
-                ? "Connect Google to unlock Inbox, sync recent threads, and keep permissions explicit and auditable."
-                : "This deployment is using the core workspace without Inbox connected yet.")}</p>
+                ? "Connect Google to unlock the Inbox beta, sync recent threads, and keep permissions explicit and auditable."
+                : "This deployment is using the public launch core without the optional Google Inbox beta.")}</p>
           </div>
           <div class="inline-actions">
-            <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${connectable ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google Workspace"}</button>
-            <button class="ghost-button" type="button" data-refresh-operator data-force-sync="${primaryAccount?.status === "connected" ? "true" : "false"}" ${primaryAccount?.status === "connected" ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Run inbox sync" : "Refresh workspace"}</button>
+            <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
+            <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Run inbox sync</button>
           </div>
           ${primaryAccount?.status === "connected"
             ? `<p class="section-note">Scopes granted: ${(primaryAccount.scopes || []).length}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.</p>`
-            : `<p class="section-note">${escapeHtml(connectable
-              ? "Vonza requests Gmail read, compose, and send plus Calendar read and event scopes so every reply and event change can stay approval-first."
-              : availabilityCopy || "Google connection is unavailable right now.")}</p>`}
+            : `<p class="section-note">Vonza requests Gmail read, compose, and send plus Calendar read and event scopes so every reply and event change can stay approval-first.</p>`}
         </section>
 
         <section class="workspace-card-soft">
@@ -7201,11 +7535,11 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
             title: "Connect Google to unlock Inbox",
             copy: status.googleConfigReady
               ? "Vonza will sync recent Gmail threads, classify them, and prepare approval-first drafts here."
-              : "This workspace is still useful without Inbox. Connect the optional tools later if you want email threads here.",
+              : "This workspace is still useful without Inbox. Turn on the optional Google beta later if you want email threads here.",
             actionMarkup: buildOperatorNextActionButton(operatorWorkspace.nextAction),
           }) : !activation.inboxSynced ? buildOperatorEmptyState({
             title: "Run your first inbox sync",
-            copy: "The Google account is connected, but Vonza has not pulled the first inbox snapshot yet. Run the first sync to make Inbox useful.",
+            copy: "The Google account is connected, but Vonza has not pulled the first inbox snapshot yet. Run the first sync to make the Inbox beta useful.",
             actionMarkup: `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run first sync</button>`,
           }) : threads.length ? `
             <div class="operator-thread-grid">
@@ -7265,12 +7599,19 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
   const pendingApprovals = events.filter((event) => event.approvalStatus === "pending_owner");
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const activation = operatorWorkspace.activation || createEmptyOperatorWorkspace().activation;
-  const connectable = isOperatorWorkspaceConnectable(operatorWorkspace);
-  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
   const canWrite = googleCapabilities.calendarWrite === true;
   const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems : [];
   const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems : [];
+  const calendarActionsMarkup = primaryAccount?.status === "connected"
+    ? `
+      <button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `
+    : `
+      <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `;
 
   return `
     <section class="workspace-page" data-shell-section="calendar" hidden>
@@ -7281,10 +7622,27 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
           ? "Surface the day view, suggested slots, booking signals, and approval-first calendar changes without silently mutating the owner calendar."
           : "Stay grounded in the owner calendar with read-only schedule context, follow-up gaps, and unlinked attendee review.",
         badges: [{ label: canWrite ? "Approval-first drafts available" : "Read-only calendar mode", tone: canWrite ? "Ready" : "Limited" }],
+        actionsMarkup: calendarActionsMarkup,
       })}
       <div class="workspace-page-body">
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Calendar mode",
+          value: canWrite ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected",
+          copy: primaryAccount?.accountEmail || "Connect Google Calendar to make Today and Calendar more useful.",
+        },
+        {
+          label: "Suggested slots",
+          value: String((calendar.suggestedSlots || []).length),
+          copy: "Open slots stay visible once the daily calendar context is synced.",
+        },
+        {
+          label: "Needs follow-up",
+          value: String(followUpItems.length),
+          copy: `${unlinkedItems.length} appointment${unlinkedItems.length === 1 ? "" : "s"} still need contact linking.`,
+        },
+      ], { className: "connected-summary-strip" })}
       <div class="workspace-section-stack">
-        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">Daily summary</h3>
           <p class="workspace-panel-copy">${escapeHtml(calendar.dailySummary || "Connect Google Calendar to see today’s schedule and open booking slots.")}</p>
@@ -7292,7 +7650,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
             ? `<div class="inline-actions"><button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button><button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark calendar reviewed</button></div><p class="section-note">${escapeHtml(canWrite
               ? `Connected as ${primaryAccount.accountEmail || "Google Workspace"}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
               : `Connected as ${primaryAccount.accountEmail || "Google Workspace"} in read-only mode. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`)}</p>`
-            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect ${connectable ? "" : "disabled"}>Connect Google</button></div>`}
+            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button></div>`}
         </section>
 
         <section class="workspace-card-soft">
@@ -7301,7 +7659,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
             title: "Connect Google to unlock Calendar",
             copy: status.googleConfigReady
               ? "Vonza will bring in today’s events, spot open gaps, and keep calendar changes approval-first."
-              : "This workspace is using the core workspace without Calendar connected yet.",
+              : "This workspace is using the public launch core without the optional Google Calendar beta.",
             actionMarkup: buildOperatorNextActionButton(operatorWorkspace.nextAction),
           }) : !activation.calendarSynced ? buildOperatorEmptyState({
             title: "Run your first calendar sync",
@@ -7351,7 +7709,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
                 <textarea name="description" placeholder="Prepared from booking intent, quote follow-up, or owner scheduling request."></textarea>
               </div>
               <div class="inline-actions">
-                <button class="primary-button" type="submit" ${operatorWorkspace.capabilities.featureEnabled && operatorWorkspace.capabilities.persistenceAvailable ? "" : "disabled"}>Create approval draft</button>
+                <button class="primary-button" type="submit">Create approval draft</button>
               </div>
             </form>
           </section>
@@ -7448,8 +7806,15 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
   const campaigns = automations.campaigns || [];
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleConnected = status.googleConnected === true;
-  const availabilityCopy = getOperatorWorkspaceAvailabilityCopy(operatorWorkspace);
-  const workspaceReady = operatorWorkspace.capabilities.featureEnabled && operatorWorkspace.capabilities.persistenceAvailable;
+  const automationActionsMarkup = googleConnected
+    ? `
+      <button class="primary-button" type="button" data-shell-target="contacts">Open Contacts</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `
+    : `
+      <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
+      <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="connected_tools">Connected tools</button>
+    `;
 
   return `
     <section class="workspace-page" data-shell-section="automations" hidden>
@@ -7458,10 +7823,27 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
         title: "Automations",
         copy: "Keep campaigns, follow-up approvals, and operator tasks structured and approval-first instead of silently sending on their own.",
         badges: [{ label: "Optional beta surface", tone: "Limited" }],
+        actionsMarkup: automationActionsMarkup,
       })}
       <div class="workspace-page-body">
+      ${buildWorkspaceStatStrip([
+        {
+          label: "Owner tasks",
+          value: String(allTasks.length),
+          copy: "Copilot-created tasks and complaint recovery work stay explicit here.",
+        },
+        {
+          label: "Campaigns",
+          value: String(campaigns.length),
+          copy: googleConnected ? "Campaigns remain draft-first and approval-first." : "Connect Google before campaign drafts can become useful.",
+        },
+        {
+          label: "Follow-ups",
+          value: String((automations.followUps || []).length),
+          copy: googleConnected ? "Prepared follow-up drafts stay attached to the same operator workflow." : "Follow-up drafts appear here only when the connected workspace is ready.",
+        },
+      ], { className: "connected-summary-strip" })}
       <div class="workspace-section-stack">
-        ${availabilityCopy ? `<div class="workspace-warning-banner">${escapeHtml(availabilityCopy)}</div>` : ""}
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">Owner task queue</h3>
           <p class="workspace-panel-copy">Copilot-created tasks, complaint follow-up, and other approval-first work land here as real owner queue objects.</p>
@@ -7509,7 +7891,7 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
               </div>
             </div>
             <div class="inline-actions">
-              <button class="primary-button" type="submit" ${workspaceReady && googleConnected ? "" : "disabled"}>Generate campaign draft</button>
+              <button class="primary-button" type="submit" ${googleConnected ? "" : "disabled"}>Generate campaign draft</button>
             </div>
             ${googleConnected ? "" : `<p class="section-note">Connect Google first so campaign drafts have the right mailbox and calendar context.</p>`}
           </form>
@@ -7547,7 +7929,7 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
             </div>
           ` : buildOperatorEmptyState({
             title: "No campaigns drafted yet",
-            copy: "Create the first campaign draft once Google is connected if you want approval-first outbound work inside the daily workflow.",
+            copy: "Create the first automation draft once Google is connected if you want the optional approval-first beta to become part of your daily workflow.",
           })}
         </section>
 
@@ -7583,7 +7965,7 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
                 </article>
               `).join("")}
             </div>
-          ` : `<div class="placeholder-card">${escapeHtml(googleConnected ? "Prepared follow-ups will show up here alongside campaigns and complaint tasks." : "Connect Google if you want follow-up drafts and campaign work to appear in this connected workspace.")}</div>`}
+          ` : `<div class="placeholder-card">${escapeHtml(googleConnected ? "Prepared follow-ups will show up here alongside campaigns and complaint tasks." : "Connect Google if you want follow-up drafts and campaign work to appear in this beta workspace.")}</div>`}
         </section>
       </div>
       </div>
@@ -7593,11 +7975,12 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
 
 function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
+  const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const primaryAction = setup.isReady
     ? `<button class="primary-button" data-action="copy-install" ${trimText(agent.publicAgentKey) ? "" : "disabled"}>Add to website</button>`
     : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`;
   const secondaryAction = trimText(agent.publicAgentKey)
-    ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+    ? `<a class="ghost-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
     : "";
 
   return `
@@ -7607,6 +7990,10 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
         <p class="workspace-context-eyebrow">${escapeHtml(workspaceMode.eyebrow)}</p>
         <p class="workspace-context-title">${escapeHtml(workspaceMode.title)}</p>
         <p class="workspace-context-note">${escapeHtml(workspaceMode.copy)}</p>
+        <div class="workspace-context-status">
+          <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Front desk ready" : "Setup in progress")}</span>
+          <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${escapeHtml(status.googleConnected ? "Connected tools available" : "Connected tools optional")}</span>
+        </div>
       </div>
       <div class="workspace-context-actions">
         ${secondaryAction}
@@ -7644,9 +8031,9 @@ function renderAssistantShell(
         ${buildWorkspaceDiagnosticsMarkup(diagnostics)}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace)}
-          ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
+          ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
@@ -7666,7 +8053,14 @@ function renderAssistantShell(
   });
 }
 
-function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics = createEmptyWorkspaceDiagnostics()) {
+function renderSetupState(
+  agent,
+  messages,
+  setup,
+  actionQueue,
+  operatorWorkspace,
+  diagnostics = createEmptyWorkspaceDiagnostics()
+) {
   workspaceState = {
     agent,
     messages,
@@ -7679,7 +8073,13 @@ function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace
   renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, diagnostics);
 }
 
-function renderReadyState(agent, messages, actionQueue, operatorWorkspace, diagnostics = createEmptyWorkspaceDiagnostics()) {
+function renderReadyState(
+  agent,
+  messages,
+  actionQueue,
+  operatorWorkspace,
+  diagnostics = createEmptyWorkspaceDiagnostics()
+) {
   const setup = inferSetup(agent);
   workspaceState = {
     agent,
@@ -7954,7 +8354,7 @@ async function readResponsePayload(response) {
           rawText,
         };
       } catch {
-        // Fall through so we can surface a readable text error instead.
+        // Fall through so the caller still gets a readable text error.
       }
     }
 
@@ -8118,6 +8518,8 @@ function normalizeOperatorWorkspace(data = null) {
   const contactsSummary = normalizeOperatorRecord(contacts.summary, emptyWorkspace.contacts.summary);
   const contactsHealth = normalizeOperatorRecord(contacts.health, emptyWorkspace.contacts.health);
   const copilotContext = normalizeOperatorRecord(copilot.context, emptyWorkspace.copilot.context);
+  const copilotFallback = normalizeOperatorRecord(copilot.fallback, emptyWorkspace.copilot.fallback);
+  const capabilities = normalizeOperatorRecord(source.capabilities, emptyWorkspace.capabilities);
   const copilotBusinessProfile = normalizeOperatorRecord(
     copilotContext.businessProfile,
     emptyWorkspace.copilot.context.businessProfile
@@ -8126,8 +8528,6 @@ function normalizeOperatorWorkspace(data = null) {
     copilotBusinessProfile.readiness,
     emptyWorkspace.copilot.context.businessProfile.readiness
   );
-  const copilotFallback = normalizeOperatorRecord(copilot.fallback, emptyWorkspace.copilot.fallback);
-  const capabilities = normalizeOperatorRecord(source.capabilities, emptyWorkspace.capabilities);
   const businessProfileReadiness = normalizeOperatorRecord(
     businessProfile.readiness,
     emptyWorkspace.businessProfile.readiness
@@ -8198,12 +8598,16 @@ function normalizeOperatorWorkspace(data = null) {
       campaigns: normalizeOperatorArray(automations.campaigns, normalizeOperatorRecord),
       followUps: normalizeOperatorArray(automations.followUps, normalizeOperatorRecord),
     },
+    outcomes: {
+      ...emptyWorkspace.outcomes,
+      ...outcomes,
+      recentOutcomes: normalizeOperatorArray(outcomes.recentOutcomes, normalizeOperatorRecord),
+    },
     copilot: {
       ...emptyWorkspace.copilot,
       ...copilot,
-      questions: normalizeOperatorTextArray(copilot.questions),
+      questions: normalizeOperatorArray(copilot.questions, (value) => trimText(value)),
       summaryCards: normalizeOperatorArray(copilot.summaryCards, normalizeOperatorRecord),
-      questions: normalizeOperatorTextArray(copilot.questions),
       answers: normalizeOperatorArray(copilot.answers, normalizeOperatorRecord),
       recommendations: normalizeOperatorArray(copilot.recommendations, normalizeOperatorRecord),
       drafts: normalizeOperatorArray(copilot.drafts, normalizeOperatorRecord),
@@ -8222,21 +8626,16 @@ function normalizeOperatorWorkspace(data = null) {
           readiness: {
             ...emptyWorkspace.copilot.context.businessProfile.readiness,
             ...copilotReadiness,
-            missingSections: normalizeOperatorTextArray(copilotReadiness.missingSections),
+            missingSections: normalizeOperatorArray(copilotReadiness.missingSections, (value) => trimText(value)),
           },
         },
-        warnings: normalizeOperatorTextArray(copilotContext.warnings),
+        warnings: normalizeOperatorArray(copilotContext.warnings, (value) => trimText(value)),
       },
       fallback: {
         ...emptyWorkspace.copilot.fallback,
         ...copilotFallback,
-        guidance: normalizeOperatorTextArray(copilotFallback.guidance),
+        guidance: normalizeOperatorArray(copilotFallback.guidance, (value) => trimText(value)),
       },
-    },
-    outcomes: {
-      ...emptyWorkspace.outcomes,
-      ...outcomes,
-      recentOutcomes: normalizeOperatorArray(outcomes.recentOutcomes, normalizeOperatorRecord),
     },
     businessProfile: {
       ...emptyWorkspace.businessProfile,
@@ -8288,6 +8687,17 @@ function normalizeOperatorWorkspace(data = null) {
         },
       },
     },
+    capabilities: {
+      ...emptyWorkspace.capabilities,
+      ...capabilities,
+      googleMissingEnv: Array.isArray(capabilities.googleMissingEnv)
+        ? capabilities.googleMissingEnv.filter(Boolean)
+        : [],
+      missingTables: Array.isArray(capabilities.missingTables)
+        ? capabilities.missingTables.filter(Boolean)
+        : [],
+    },
+    alerts: normalizeOperatorArray(source.alerts, (value) => trimText(value)),
     contacts: {
       ...emptyWorkspace.contacts,
       ...contacts,
@@ -8311,19 +8721,6 @@ function normalizeOperatorWorkspace(data = null) {
       ...emptyWorkspace.summary,
       ...normalizeOperatorRecord(source.summary, emptyWorkspace.summary),
     },
-    capabilities: {
-      ...emptyWorkspace.capabilities,
-      ...capabilities,
-      googleMissingEnv: Array.isArray(capabilities.googleMissingEnv)
-        ? capabilities.googleMissingEnv.filter(Boolean)
-        : [],
-      missingTables: Array.isArray(capabilities.missingTables)
-        ? capabilities.missingTables.filter(Boolean)
-        : [],
-    },
-    alerts: Array.isArray(source.alerts)
-      ? source.alerts.map((alert) => trimText(alert)).filter(Boolean)
-      : [],
   };
 }
 
@@ -8362,7 +8759,7 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
       ...createEmptyOperatorWorkspace(),
       health: {
         ...createEmptyOperatorWorkspace().health,
-        globalError: "We couldn't load the operator workspace.",
+        globalError: error.message || "We couldn't load the operator workspace.",
       },
       capabilities: {
         ...createEmptyOperatorWorkspace().capabilities,
@@ -8483,12 +8880,12 @@ function renderWorkspaceFromState() {
 
   renderSetupState(
     workspaceState.agent,
-    workspaceState.messages || [],
-    setup,
-    workspaceState.actionQueue || createEmptyActionQueue(),
-    workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
-    workspaceState.diagnostics || createEmptyWorkspaceDiagnostics()
-  );
+      workspaceState.messages || [],
+      setup,
+      workspaceState.actionQueue || createEmptyActionQueue(),
+      workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
+      workspaceState.diagnostics || createEmptyWorkspaceDiagnostics()
+    );
 }
 
 async function refreshAgentInstallState(agentId) {
@@ -8497,30 +8894,46 @@ async function refreshAgentInstallState(agentId) {
     return;
   }
 
-  const nextAgent = await loadAgentInstallSnapshot(agentId);
+  const [agentResult, workspaceResult] = await Promise.allSettled([
+    loadAgentInstallSnapshot(agentId),
+    loadWorkspaceSupplementalData(agentId),
+  ]);
+  const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
+  const workspaceData = workspaceResult.status === "fulfilled"
+    ? workspaceResult.value
+    : {
+      messages: [],
+      actionQueue: createEmptyActionQueue(),
+      operatorWorkspace: {
+        ...createEmptyOperatorWorkspace(),
+        health: {
+          ...createEmptyOperatorWorkspace().health,
+          globalError: "We couldn't refresh the operator workspace.",
+        },
+      },
+      diagnostics: createEmptyWorkspaceDiagnostics(),
+      hasPartialFailure: true,
+    };
 
   if (!nextAgent) {
     await boot();
     return;
   }
 
-  const {
-    messages,
-    actionQueue,
-    operatorWorkspace,
-    diagnostics,
-  } = await loadWorkspaceSupplementalData(agentId);
-
   workspaceState = {
     ...workspaceState,
     agent: nextAgent,
-    messages,
-    actionQueue,
-    operatorWorkspace,
-    diagnostics,
+    messages: workspaceData.messages,
+    actionQueue: workspaceData.actionQueue,
+    operatorWorkspace: workspaceData.operatorWorkspace,
+    diagnostics: workspaceData.diagnostics,
     setup: inferSetup(nextAgent),
   };
   renderWorkspaceFromState();
+
+  if (workspaceData.hasPartialFailure) {
+    setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
+  }
 }
 
 function scheduleWorkspaceRefresh() {
@@ -8731,7 +9144,7 @@ async function createAssistant(event) {
     });
     renderLaunchSequence(getLaunchState());
 
-    getBrowserStorage("localStorage")?.setItem("vonza_agent_key", createData.agent_key);
+    window.localStorage.setItem("vonza_agent_key", createData.agent_key);
 
     saveLaunchState({
       ...getLaunchState(),
@@ -8811,11 +9224,11 @@ async function saveAssistant(event, agent) {
 
     submitButton.disabled = true;
     if (saveState) {
-      saveState.textContent = "Saving Front Desk context...";
+      saveState.textContent = "Saving business context...";
       saveState.className = "save-state saving";
       saveState.removeAttribute("title");
     }
-    setStatus("Saving Front Desk context...");
+    setStatus("Saving business context...");
 
     try {
       await fetchJson("/agents/operator/business-profile", {
@@ -8830,18 +9243,18 @@ async function saveAssistant(event, agent) {
         }),
       });
 
-      setStatus("Front Desk context saved.");
+      setStatus("Business context saved.");
       if (saveState) {
-        saveState.textContent = "Front Desk context saved.";
+        saveState.textContent = "Business context saved.";
         saveState.className = "save-state saved";
         saveState.removeAttribute("title");
       }
       await boot();
     } catch (error) {
-      const message = error.message || "We couldn't save that Front Desk context just yet.";
+      const message = error.message || "We couldn't save that business context just yet.";
       setStatus(message);
       if (saveState) {
-        saveState.textContent = "Could not save Front Desk context.";
+        saveState.textContent = "Could not save business context.";
         saveState.className = "save-state unsaved";
         saveState.title = message;
       }
@@ -9351,14 +9764,7 @@ function bindSimpleDirtyState(form) {
 }
 
 // Event wiring for the rendered shell
-function bindSharedDashboardEvents(
-  agent,
-  messages,
-  setup,
-  actionQueue,
-  operatorWorkspace = createEmptyOperatorWorkspace(),
-  diagnostics = createEmptyWorkspaceDiagnostics()
-) {
+function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const appShell = document.querySelector("[data-app-shell]");
   const settingsForms = document.querySelectorAll("form[data-settings-form]");
   const settingsSectionButtons = document.querySelectorAll("[data-settings-target]");
@@ -9392,6 +9798,9 @@ function bindSharedDashboardEvents(
   const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
   const contactFilterButtons = document.querySelectorAll("[data-contact-filter]");
   const contactCards = document.querySelectorAll("[data-contact-card]");
+  const contactSelectButtons = document.querySelectorAll("[data-contact-select]");
+  const contactDetailPanels = document.querySelectorAll("[data-contact-detail]");
+  const contactSearchInput = document.querySelector("[data-contact-search]");
   const contactLifecycleForms = document.querySelectorAll("[data-contact-lifecycle-form]");
   const draftContactFollowUpButtons = document.querySelectorAll("[data-draft-contact-followup]");
   const draftContactCampaignButtons = document.querySelectorAll("[data-draft-contact-campaign]");
@@ -9409,7 +9818,7 @@ function bindSharedDashboardEvents(
   const sendCampaignButtons = document.querySelectorAll("[data-send-campaign-steps]");
   const operatorTaskButtons = document.querySelectorAll("[data-update-operator-task]");
   const operatorContextForms = document.querySelectorAll("[data-operator-context-form]");
-  const completeOperatorStepButtons = document.querySelectorAll("[data-complete-operator-step]");
+  const operatorChecklistButtons = document.querySelectorAll("[data-complete-operator-step]");
   const copilotTargetButtons = document.querySelectorAll("[data-copilot-open-target]");
   const copilotApplyButtons = document.querySelectorAll("[data-copilot-apply-proposal]");
   const copilotDismissButtons = document.querySelectorAll("[data-copilot-dismiss-proposal]");
@@ -9417,26 +9826,7 @@ function bindSharedDashboardEvents(
   const shellBackdrop = document.querySelector("[data-shell-backdrop]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
   const availableSettingsSections = getAvailableSettingsSections();
-
-  const updateShellSectionUi = (targetSection) => {
-    setActiveShellSection(targetSection, operatorWorkspace);
-    rootEl.dataset.activeSection = targetSection;
-
-    document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
-      navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
-      if (navButton.dataset.shellTarget === targetSection) {
-        navButton.setAttribute("aria-current", "page");
-      } else {
-        navButton.removeAttribute("aria-current");
-      }
-    });
-
-    document.querySelectorAll("[data-shell-section]").forEach((section) => {
-      const isActive = section.dataset.shellSection === targetSection;
-      section.hidden = !isActive;
-      section.classList.toggle("section-enter", isActive);
-    });
-  };
+  let activeContactFilterKey = "all";
 
   const closeShellNavigation = () => {
     appShell?.classList.remove("nav-open");
@@ -9467,23 +9857,14 @@ function bindSharedDashboardEvents(
       return;
     }
 
-    const renderChange = () => updateShellSectionUi(targetSection);
+    setActiveShellSection(targetSection, operatorWorkspace);
 
-    if (options.animate && typeof document.startViewTransition === "function") {
-      document.startViewTransition(renderChange);
-    } else {
-      renderChange();
-    }
+    document.querySelectorAll("[data-shell-target]").forEach((navButton) => {
+      navButton.classList.toggle("active", navButton.dataset.shellTarget === targetSection);
+    });
 
-    window.requestAnimationFrame(() => {
-      const activeSection = document.querySelector(`[data-shell-section="${targetSection}"]`);
-      if (!activeSection) {
-        return;
-      }
-
-      activeSection.classList.remove("section-enter");
-      void activeSection.offsetWidth;
-      activeSection.classList.add("section-enter");
+    document.querySelectorAll("[data-shell-section]").forEach((section) => {
+      section.hidden = section.dataset.shellSection !== targetSection;
     });
 
     if (targetSection === "settings") {
@@ -9518,7 +9899,7 @@ function bindSharedDashboardEvents(
       case "settings":
         return `#${targetId}`;
       case "contacts":
-        return `[data-contact-card][data-contact-id="${targetId}"]`;
+        return `[data-contact-select][data-contact-id="${targetId}"]`;
       case "calendar":
         return `[data-calendar-event-card][data-event-id="${targetId}"]`;
       case "automations":
@@ -9543,6 +9924,10 @@ function bindSharedDashboardEvents(
       const target = document.querySelector(selector);
       if (!target) {
         return;
+      }
+
+      if (targetSection === "contacts" && target.matches("[data-contact-select]")) {
+        target.click();
       }
 
       target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -9673,9 +10058,61 @@ function bindSharedDashboardEvents(
     }
   };
 
-  const applyContactFilter = (filterKey = "all") => {
+  const syncSelectedContactDetail = () => {
+    if (!contactSelectButtons.length || !contactDetailPanels.length) {
+      return;
+    }
+
+    const firstVisibleButton = Array.from(contactSelectButtons).find((button) => !button.hidden);
+    const activeButton = Array.from(contactSelectButtons).find((button) => button.classList.contains("active") && !button.hidden)
+      || firstVisibleButton
+      || null;
+
+    contactSelectButtons.forEach((button) => {
+      const isActive = button === activeButton;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    contactDetailPanels.forEach((panel) => {
+      panel.hidden = !activeButton || panel.dataset.contactId !== activeButton.dataset.contactId;
+    });
+
+    if (activeButton) {
+      setActiveContactId(activeButton.dataset.contactId, operatorWorkspace);
+    }
+  };
+
+  const selectContact = (contactId, { scrollIntoView = false } = {}) => {
+    const button = Array.from(contactSelectButtons).find((item) => item.dataset.contactId === trimText(contactId));
+
+    if (!button || button.hidden) {
+      return;
+    }
+
+    contactSelectButtons.forEach((item) => {
+      const isActive = item === button;
+      item.classList.toggle("active", isActive);
+      item.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+
+    contactDetailPanels.forEach((panel) => {
+      panel.hidden = panel.dataset.contactId !== button.dataset.contactId;
+    });
+
+    setActiveContactId(button.dataset.contactId, operatorWorkspace);
+
+    if (scrollIntoView) {
+      const detailPanel = Array.from(contactDetailPanels).find((panel) => panel.dataset.contactId === button.dataset.contactId);
+      detailPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const applyContactFilter = (filterKey = activeContactFilterKey) => {
     const staleThreshold = Date.now() - (1000 * 60 * 60 * 24 * 21);
+    const searchQuery = trimText(contactSearchInput?.value || "").toLowerCase();
     let visibleCount = 0;
+    activeContactFilterKey = filterKey;
 
     contactFilterButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.contactFilter === filterKey);
@@ -9686,6 +10123,7 @@ function bindSharedDashboardEvents(
       const flags = trimText(card.dataset.contactFlags).split("|").filter(Boolean);
       const sources = trimText(card.dataset.contactSources).split("|").filter(Boolean);
       const lastActivity = trimText(card.dataset.contactLastActivity);
+      const searchText = trimText(card.dataset.contactSearchText).toLowerCase();
       let visible = true;
 
       switch (filterKey) {
@@ -9729,25 +10167,23 @@ function bindSharedDashboardEvents(
           visible = true;
       }
 
+      if (visible && searchQuery) {
+        visible = searchText.includes(searchQuery);
+      }
+
       card.hidden = !visible;
       if (visible) {
         visibleCount += 1;
       }
     });
 
-    const resultsShell = document.querySelector("[data-contact-filter-results]");
     const existingEmpty = document.querySelector(".contact-filter-empty");
 
     if (existingEmpty) {
-      existingEmpty.remove();
+      existingEmpty.hidden = visibleCount !== 0;
     }
 
-    if (resultsShell && visibleCount === 0) {
-      const empty = document.createElement("div");
-      empty.className = "placeholder-card contact-filter-empty";
-      empty.textContent = "No contacts match this filter yet.";
-      resultsShell.parentElement?.appendChild(empty);
-    }
+    syncSelectedContactDetail();
   };
 
   const saveContactLifecycle = async (form) => {
@@ -9981,12 +10417,13 @@ function bindSharedDashboardEvents(
     }
   };
 
-  const refreshOperatorWorkspace = async (event = null) => {
-    const forceSync = event?.currentTarget?.dataset?.forceSync === "true";
-    setStatus(forceSync ? "Running first sync..." : "Refreshing connected workspace...");
+  const refreshOperatorWorkspace = async () => {
+    setStatus("Refreshing connected workspace...");
 
     try {
-      const operatorSnapshot = await loadOperatorWorkspace(agent.id, { forceSync });
+      const operatorSnapshot = await loadOperatorWorkspaceSafe(agent.id, {
+        forceSync: false,
+      });
       workspaceState = {
         ...(workspaceState || {}),
         agent,
@@ -9994,12 +10431,46 @@ function bindSharedDashboardEvents(
         actionQueue,
         operatorWorkspace: operatorSnapshot,
         setup,
-        diagnostics,
       };
       renderWorkspaceFromState();
-      setStatus(forceSync ? "Connected workspace synced." : "Connected workspace refreshed.");
+      setStatus("Connected workspace refreshed.");
     } catch (error) {
       setStatus(error.message || "We couldn't refresh the connected workspace.");
+    }
+  };
+
+  const saveOperatorActivationState = async (payload = {}, options = {}) => {
+    const nextStatusMessage = options.statusMessage || "Saving operator onboarding progress...";
+    setStatus(nextStatusMessage);
+
+    try {
+      await fetchJson("/agents/operator/activation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          ...payload,
+        }),
+      });
+
+      const operatorSnapshot = await loadOperatorWorkspaceSafe(agent.id, {
+        forceSync: options.forceSync === true,
+      });
+      workspaceState = {
+        ...(workspaceState || {}),
+        agent,
+        messages,
+        actionQueue,
+        operatorWorkspace: operatorSnapshot,
+        setup,
+      };
+      renderWorkspaceFromState();
+      setStatus(options.successMessage || "Operator onboarding progress saved.");
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that onboarding step.");
     }
   };
 
@@ -10324,6 +10795,18 @@ function bindSharedDashboardEvents(
     });
   });
 
+  contactSelectButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      selectContact(button.dataset.contactId, { scrollIntoView: true });
+    });
+  });
+
+  if (contactSearchInput) {
+    contactSearchInput.addEventListener("input", () => {
+      applyContactFilter(activeContactFilterKey);
+    });
+  }
+
   contactLifecycleForms.forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -10377,7 +10860,27 @@ function bindSharedDashboardEvents(
   });
 
   refreshOperatorButtons.forEach((button) => {
-    button.addEventListener("click", refreshOperatorWorkspace);
+    button.addEventListener("click", async () => {
+      const forceSync = button.dataset.forceSync === "true";
+
+      setStatus(forceSync ? "Running first sync..." : "Refreshing connected workspace...");
+
+      try {
+        const operatorSnapshot = await loadOperatorWorkspaceSafe(agent.id, { forceSync });
+        workspaceState = {
+          ...(workspaceState || {}),
+          agent,
+          messages,
+          actionQueue,
+          operatorWorkspace: operatorSnapshot,
+          setup,
+        };
+        renderWorkspaceFromState();
+        setStatus(forceSync ? "Connected workspace synced." : "Connected workspace refreshed.");
+      } catch (error) {
+        setStatus(error.message || "We couldn't refresh the connected workspace.");
+      }
+    });
   });
 
   operatorContextForms.forEach((form) => {
@@ -10385,69 +10888,37 @@ function bindSharedDashboardEvents(
       event.preventDefault();
       const formData = new FormData(form);
 
-      setStatus("Saving operator context...");
-
-      try {
-        const result = await fetchJson("/agents/operator/activation", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            client_id: getClientId(),
-            agent_id: agent.id,
-            selected_mailbox: trimText(formData.get("selected_mailbox")) || "INBOX",
-            calendar_context: "primary",
-          }),
-        });
-
-        workspaceState = {
-          ...(workspaceState || {}),
-          operatorWorkspace: {
-            ...(workspaceState?.operatorWorkspace || createEmptyOperatorWorkspace()),
-            activation: {
-              ...(workspaceState?.operatorWorkspace?.activation || createEmptyOperatorWorkspace().activation),
-              ...(result.activation || {}),
-            },
-          },
-        };
-        setStatus("Operator context saved.");
-        await refreshOperatorWorkspace();
-      } catch (error) {
-        setStatus(error.message || "We couldn't save the operator context.");
-      }
+      await saveOperatorActivationState({
+        selected_mailbox: trimText(formData.get("selected_mailbox")),
+        calendar_context: "primary",
+      }, {
+        statusMessage: "Saving operator context...",
+        successMessage: "Operator context saved.",
+      });
     });
   });
 
-  completeOperatorStepButtons.forEach((button) => {
+  operatorChecklistButtons.forEach((button) => {
     button.addEventListener("click", async () => {
-      const step = button.dataset.completeOperatorStep;
-      const payload = {
-        client_id: getClientId(),
-        agent_id: agent.id,
-      };
+      const step = trimText(button.dataset.completeOperatorStep);
 
       if (step === "inbox_review") {
-        payload.mark_inbox_reviewed = true;
+        await saveOperatorActivationState({
+          mark_inbox_reviewed: true,
+        }, {
+          statusMessage: "Saving inbox review progress...",
+          successMessage: "Inbox review marked complete.",
+        });
+        return;
       }
 
       if (step === "calendar_review") {
-        payload.mark_calendar_reviewed = true;
-      }
-
-      setStatus("Saving operator progress...");
-
-      try {
-        await fetchJson("/agents/operator/activation", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+        await saveOperatorActivationState({
+          mark_calendar_reviewed: true,
+        }, {
+          statusMessage: "Saving calendar review progress...",
+          successMessage: "Calendar review marked complete.",
         });
-        await refreshOperatorWorkspace();
-      } catch (error) {
-        setStatus(error.message || "We couldn't save that activation step.");
       }
     });
   });
@@ -10772,7 +11243,6 @@ function bindSharedDashboardEvents(
           messages,
           actionQueue,
           operatorWorkspace,
-          diagnostics,
           setup: inferSetup(result.agent || agent),
         };
         renderWorkspaceFromState();
@@ -10824,7 +11294,6 @@ function bindSharedDashboardEvents(
       }
 
       showShellSection(targetSection, {
-        animate: true,
         settingsSection: button.dataset.settingsTarget || "",
       });
     });
@@ -10835,8 +11304,8 @@ function bindSharedDashboardEvents(
     settingsSection: getActiveSettingsSection(),
   });
 
-  if (contactFilterButtons.length) {
-    applyContactFilter("all");
+  if (contactFilterButtons.length || contactSelectButtons.length) {
+    applyContactFilter(activeContactFilterKey);
   }
 
   const focusTarget = getDashboardFocus();
@@ -10999,6 +11468,7 @@ async function boot() {
     if (hasPartialFailure) {
       setStatus("Vonza loaded with partial data. One workspace request failed, but the dashboard stayed available.");
     }
+
     if (setup.isReady) {
       renderReadyState(agent, messages, actionQueue, operatorWorkspace, diagnostics);
       return;
