@@ -2055,6 +2055,140 @@ function buildLocalSectionNav(items = [], { attribute = "data-local-target", act
   `;
 }
 
+function getUiIconMarkup(icon = "") {
+  const icons = {
+    home: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M3.5 8.6 10 3.7l6.5 4.9v7.1a1.3 1.3 0 0 1-1.3 1.3H4.8a1.3 1.3 0 0 1-1.3-1.3Z" fill="currentColor" opacity=".18"></path>
+        <path d="M6.2 10.1h2.3v4.2H6.2Zm5.3 0h2.3v4.2h-2.3ZM3.5 8.5 10 3.7l6.5 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    users: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="6.2" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M5 15.1c.8-2.4 2.5-3.7 5-3.7s4.2 1.3 5 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    frontdesk: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4.2" y="4.5" width="11.6" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M7.2 8.2h5.6M7.2 11.1h5.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    outcomes: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.5 14.8V9.4m5 5.4V5.8m5 9V7.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+        <path d="m3.8 15.1 3.7-3.7 2.5 1.8 4.3-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    inbox: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.1 5.5h11.8a1.1 1.1 0 0 1 1.1 1.1v6.8a1.1 1.1 0 0 1-1.1 1.1H4.1A1.1 1.1 0 0 1 3 13.4V6.6a1.1 1.1 0 0 1 1.1-1.1Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+        <path d="m4.2 7 5.1 4 1.4.1 5.1-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    calendar: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="3.5" y="4.4" width="13" height="12.1" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M6.4 3.4v2.2m7.2-2.2v2.2M3.5 8.2h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    automations: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M10 3.2v2.1m0 9.4v2.1M3.2 10h2.1m9.4 0h2.1M5.2 5.2l1.5 1.5m6.6 6.6 1.5 1.5m0-9.6-1.5 1.5m-6.6 6.6-1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    install: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 3.8v7.1m0 0 2.5-2.5M10 10.9 7.5 8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M4.4 13.1v1.6a1.9 1.9 0 0 0 1.9 1.9h7.4a1.9 1.9 0 0 0 1.9-1.9v-1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    settings: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M10 3.5v1.8m0 9.4v1.8M3.5 10h1.8m9.4 0h1.8M5.5 5.5l1.3 1.3m6.4 6.4 1.3 1.3m0-9-1.3 1.3m-6.4 6.4-1.3 1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    bell: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M6.1 8.2a3.9 3.9 0 1 1 7.8 0v2.1c0 .9.3 1.7.9 2.3l.4.4H4.8l.4-.4c.6-.6.9-1.4.9-2.3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <path d="M8.4 14.1a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    user: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M4.8 15.6c.9-2.7 2.7-4.1 5.2-4.1s4.3 1.4 5.2 4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    search: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="8.7" cy="8.7" r="4.7" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="m12.2 12.2 3.8 3.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    sync: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.7 8.1A5.8 5.8 0 0 1 14 5.2M15.3 11.9A5.8 5.8 0 0 1 6 14.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="m13.6 3.9.7 1.9 1.8-.7M6.4 16.1l-.7-1.9-1.8.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    plus: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+      </svg>
+    `,
+    mail: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4" y="5.2" width="12" height="9.6" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="m4.4 6 5.2 4 1 .1 5-4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    check: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="m5.5 10.2 2.7 2.7 6.3-6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    review: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4.2" y="4.2" width="11.6" height="11.6" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M7.2 8h5.6M7.2 10.3h5.6M7.2 12.6h3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    phone: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M6.2 4.4c.4-.4.9-.4 1.3 0l1.2 1.2c.4.4.4.9.1 1.3l-.9 1.1c1 1.8 2.4 3.2 4.2 4.2l1.1-.9c.4-.3 1-.3 1.3.1l1.2 1.2c.4.4.4 1 0 1.3l-1 1c-.7.7-1.7 1-2.7.7C7.8 15.5 4.5 12.2 3.5 8.1c-.2-1 .1-2 .7-2.7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    ticket: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M5 6.2h10a1 1 0 0 1 1 1v1.3a1.8 1.8 0 0 0 0 3V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1.2a1.8 1.8 0 0 0 0-3V7.2a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <path d="M10 6.4v7.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.6 1.6" stroke-linecap="round"></path>
+      </svg>
+    `,
+  };
+
+  return icons[icon] || icons.review;
+}
+
+function getShellNavIconMarkup(sectionKey = "") {
+  const iconMap = {
+    overview: "home",
+    contacts: "users",
+    customize: "frontdesk",
+    analytics: "outcomes",
+    inbox: "inbox",
+    calendar: "calendar",
+    automations: "automations",
+    install: "install",
+    settings: "settings",
+  };
+
+  return getUiIconMarkup(iconMap[sectionKey] || "review");
+}
+
 function buildShellNavButton(item, activeSection) {
   const isActive = activeSection === item.key;
 
@@ -2065,6 +2199,7 @@ function buildShellNavButton(item, activeSection) {
       data-shell-target="${escapeHtml(item.key)}"
       aria-current="${isActive ? "page" : "false"}"
     >
+      <span class="shell-nav-icon" aria-hidden="true">${getShellNavIconMarkup(item.key)}</span>
       <span class="shell-nav-label-row">
         <span class="shell-nav-label">${escapeHtml(item.label)}</span>
         ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
@@ -3327,12 +3462,78 @@ function getTodayQueueFilterKeys(item = {}) {
   return keys;
 }
 
+function getTodayQueueRowPresentation(item = {}) {
+  const title = isAppointmentReviewQueueItem(item)
+    ? item.title || "Ended appointment"
+    : item.label || getActionQueueTypeLabel(item.type);
+  const normalizedType = trimText(item.type).toLowerCase();
+  const normalizedContent = `${title} ${getTodayQueueItemWhyLabel(item)}`.toLowerCase();
+
+  if (isAppointmentReviewQueueItem(item)) {
+    return {
+      tone: "slate",
+      icon: "users",
+      primaryLabel: "Confirm",
+      secondaryLabel: "",
+    };
+  }
+
+  if (normalizedContent.includes("proposal") || normalizedContent.includes("approval")) {
+    return {
+      tone: "warning",
+      icon: "review",
+      primaryLabel: "Approve",
+      secondaryLabel: "Review",
+    };
+  }
+
+  if (normalizedType === "support") {
+    return {
+      tone: "danger",
+      icon: "ticket",
+      primaryLabel: "View Ticket",
+      secondaryLabel: "",
+    };
+  }
+
+  if (normalizedType === "booking" || normalizedContent.includes("call") || normalizedContent.includes("no response")) {
+    return {
+      tone: "info",
+      icon: "phone",
+      primaryLabel: "Call Now",
+      secondaryLabel: "",
+    };
+  }
+
+  if (item.followUp || ["contact", "pricing", "repeat_high_intent"].includes(normalizedType) || normalizedContent.includes("follow up")) {
+    return {
+      tone: "brand",
+      icon: "mail",
+      primaryLabel: "Send Email",
+      secondaryLabel: "",
+    };
+  }
+
+  return {
+    tone: "slate",
+    icon: "review",
+    primaryLabel: "Review",
+    secondaryLabel: "",
+  };
+}
+
 function buildTodayQueuePrimaryAction(item = {}) {
   const queueKey = getTodayQueueItemKey(item);
+  const presentation = getTodayQueueRowPresentation(item);
 
   return `
-    <button class="primary-button" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
-      Review item
+    ${presentation.secondaryLabel ? `
+      <button class="ghost-button today-row-secondary-action" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
+        ${escapeHtml(presentation.secondaryLabel)}
+      </button>
+    ` : ""}
+    <button class="primary-button today-row-primary-action" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
+      ${escapeHtml(presentation.primaryLabel)}
     </button>
   `;
 }
@@ -3388,6 +3589,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
   const contactLabel = getTodayQueueItemContactLabel(item);
   const linkState = getTodayQueueItemLinkState(item);
   const reason = getTodayQueueItemWhyLabel(item);
+  const presentation = getTodayQueueRowPresentation(item);
   const metaLine = [
     getTodayQueueItemContextLabel(item),
     contactLabel,
@@ -3422,7 +3624,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
 
   return `
     <article
-      class="today-queue-row ${isAppointmentReviewQueueItem(item) ? "today-queue-row-appointment" : ""} ${queueKey === activeQueueKey ? "active" : ""}"
+      class="today-queue-row today-queue-row-tone-${escapeHtml(presentation.tone)} ${isAppointmentReviewQueueItem(item) ? "today-queue-row-appointment" : ""} ${queueKey === activeQueueKey ? "active" : ""}"
       data-today-queue-row
       data-today-queue-key="${escapeHtml(queueKey)}"
       data-today-queue-type="${escapeHtml(item.queueType || "")}"
@@ -3430,6 +3632,9 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
       data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
       data-today-search-text="${escapeHtml([title, contactLabel, reason, linkState].filter(Boolean).join(" ").toLowerCase())}"
     >
+      <div class="today-queue-row-indicator" aria-hidden="true">
+        ${getUiIconMarkup(presentation.icon)}
+      </div>
       <div class="today-queue-row-main">
         <div class="action-queue-badges">
           ${isAppointmentReviewQueueItem(item)
@@ -3447,11 +3652,6 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
         <h3 class="today-queue-row-title">${escapeHtml(title)}</h3>
         <p class="today-queue-row-copy">${escapeHtml(reason)}</p>
         <p class="today-queue-row-meta">${escapeHtml(metaLine)}</p>
-      </div>
-      <div class="today-queue-row-context">
-        <span class="contact-row-column-label">${escapeHtml(contextLabel)}</span>
-        <strong>${escapeHtml(contactLabel)}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</span>
       </div>
       <div class="today-queue-row-actions">
         ${buildTodayQueuePrimaryAction(item)}
@@ -3689,49 +3889,65 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     ? today.recentSuccessfulOutcomes.slice(0, 4)
     : [];
   const topQuestions = overview.signals.topQuestions.slice(0, 4);
-  const actionsMarkup = [
-    buildOverviewActionMarkup(agent, overview.primaryAction, { primary: true }),
-    ...overview.nextActions.map((action) => buildOverviewActionMarkup(agent, action)),
-  ].filter(Boolean).join("");
+  const iconActionsMarkup = `
+    <div class="today-page-icons">
+      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
+        isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? "inbox" : "overview"
+      )}" aria-label="Open Inbox">
+        ${getUiIconMarkup("bell")}
+      </button>
+      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
+        isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? "calendar" : "overview"
+      )}" aria-label="Open Calendar">
+        ${getUiIconMarkup("bell")}
+      </button>
+      <button class="today-icon-button today-icon-button-user" type="button" aria-label="${escapeHtml(
+        authUser?.email ? `Signed in as ${authUser.email}` : "Open profile"
+      )}" title="${escapeHtml(authUser?.email || "Open profile")}">
+        ${getUiIconMarkup("user")}
+      </button>
+    </div>
+  `;
+  const toolbarActions = `
+    <label class="toolbar-search today-toolbar-search">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("search")}</span>
+      <input type="search" placeholder="Search..." data-today-search aria-label="Search queue">
+    </label>
+    <button class="ghost-button today-toolbar-button" type="button" data-refresh-operator data-force-sync="true" title="Refresh workspace">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("sync")}</span>
+      <span>Sync Now</span>
+      <span class="sr-only">Refresh workspace</span>
+    </button>
+    <button class="primary-button today-toolbar-button" type="button" data-shell-target="${escapeHtml(
+      isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? "automations" : "contacts"
+    )}">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("plus")}</span>
+      <span>New Task</span>
+    </button>
+  `;
 
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
-        eyebrow: "Core workflow",
         title: "Today",
-        copy: "See what changed, what needs attention now, and what the next safe operator action should be.",
-        badges: [
-          overview.queueSummary.attentionNeeded > 0
-            ? { label: `${overview.queueSummary.attentionNeeded} need attention`, tone: "Needs attention" }
-            : { label: "No urgent queue items", tone: "Ready" },
-          {
-            label: overview.installStatus.label || "Not installed yet",
-            tone: isInstallSeen(overview.installStatus) ? "Ready" : "Limited",
-          },
-        ],
-        actionsMarkup,
+        actionsMarkup: iconActionsMarkup,
       })}
       ${buildPageToolbar({
         filtersMarkup: `
           <div class="today-toolbar-filters">
-            <label class="toolbar-search">
-              <input type="search" placeholder="Search queue" data-today-search>
-            </label>
+            <div class="today-toolbar-title-row">
+              <h2 class="today-toolbar-title">Active Tasks</h2>
+              <span class="today-toolbar-title-caret" aria-hidden="true">v</span>
+            </div>
             <div class="toolbar-filter-group">
               <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
               <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs review</button>
               <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
-              <button class="toolbar-chip" type="button" data-today-filter="knowledge">Knowledge</button>
-              <button class="toolbar-chip" type="button" data-today-filter="complaints">Complaints</button>
+              <button class="toolbar-chip" type="button" data-today-filter="complaints">Overdue</button>
             </div>
           </div>
         `,
-        actionsMarkup: `
-          <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh workspace</button>
-          ${operatorWorkspace.status?.googleConnected
-            ? `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
-            : `<button class="ghost-button" type="button" data-google-connect ${operatorWorkspace.status?.googleConfigReady ? "" : "disabled"}>Connect Google</button>`}
-        `,
+        actionsMarkup: toolbarActions,
       })}
       ${buildSummaryStrip([
         { label: "Need attention", value: overview.queueSummary.attentionNeeded || 0, copy: "Queue items waiting for a decision." },
@@ -3767,7 +3983,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           </section>
           <aside class="today-side-column">
             ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing)}
-            <section class="support-panel today-support-panel-quiet">
+            <section class="support-panel today-support-panel-quiet today-reference-note">
               <p class="support-panel-kicker">Copilot briefing</p>
               <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
               <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
@@ -3776,7 +3992,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 ? `${todayQueueItems.length} queue item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
                 : "No urgent operator queue items are open right now.")}</p>
             </section>
-            <section class="support-panel">
+            <section class="support-panel today-support-panel-muted">
               <p class="support-panel-kicker">Schedule context</p>
               <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "Today on deck" : "Schedule is quiet")}</h3>
               ${scheduleItems.length ? `
@@ -3790,7 +4006,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               ` : `<p class="support-panel-copy">${escapeHtml(operatorWorkspace.calendar?.dailySummary || "Connect Google Calendar to bring schedule context into Today.")}</p>`}
             </section>
-            <section class="support-panel">
+            <section class="support-panel today-support-panel-muted">
               <p class="support-panel-kicker">Proof</p>
               <h3 class="support-panel-title">Recent outcomes</h3>
               ${recentOutcomes.length ? `
