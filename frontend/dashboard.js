@@ -64,7 +64,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Today, Contacts, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
+      "The first public offer is the AI front desk plus Today, Contacts, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -80,7 +80,7 @@ const DEFAULT_LAUNCH_PROFILE = {
     widget_install: { state: FEATURE_STATE_STABLE, label: "Widget install" },
     today: { state: FEATURE_STATE_STABLE, label: "Today" },
     contacts: { state: FEATURE_STATE_STABLE, label: "Contacts" },
-    outcomes: { state: FEATURE_STATE_STABLE, label: "Outcomes" },
+    outcomes: { state: FEATURE_STATE_STABLE, label: "Analytics" },
     customize: { state: FEATURE_STATE_STABLE, label: "Front Desk" },
     lead_capture: { state: FEATURE_STATE_STABLE, label: "Lead capture" },
     google_connect: { state: FEATURE_STATE_BETA, label: "Google connect" },
@@ -360,7 +360,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Operator workspace mode",
       title: "The stable core is live. Google beta is not enabled here yet.",
-      copy: "Today, Contacts, Front Desk, and Outcomes stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
+      copy: "Today, Contacts, Front Desk, and Analytics stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
     };
   }
 
@@ -386,7 +386,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Operator workspace mode",
     title: "Stable core now, optional Google beta when you connect.",
-    copy: "Today, Contacts, Front Desk, and Outcomes are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
+    copy: "Today, Contacts, Front Desk, and Analytics are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
   };
 }
 
@@ -1302,7 +1302,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Purchase step",
       headline: "Unlock Vonza to open your AI front desk workspace.",
-      copy: `Start with secure checkout. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
+      copy: `Start with secure checkout. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Analytics, website import, and install. ${launchProfile.product.purchaseSummary}`,
     };
   }
 
@@ -1312,7 +1312,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Workspace active",
       headline: "Your Vonza workspace is open.",
-      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Outcomes. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
+      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Analytics. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
     };
   }
 
@@ -1327,7 +1327,7 @@ function getAccessCopy(agent) {
   return {
     eyebrow: "Access pending",
     headline: "Your front desk setup is saved, and workspace access is not active yet.",
-    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the stable launch core in Today, Contacts, Front Desk, and Outcomes.",
+    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the stable launch core in Today, Contacts, Front Desk, and Analytics.",
   };
 }
 
@@ -1344,7 +1344,7 @@ function renderAccessLocked(agent) {
       <section class="handoff-card">
         <span class="handoff-step">${arrival.arrivedFromSite ? "Step 2 of 3" : "Welcome to your workspace"}</span>
         <h2 class="handoff-title">Unlock Vonza, then finish the front desk setup in one place.</h2>
-        <p class="handoff-copy">You do not need to finish everything before payment. Once checkout is complete, you land in the stable launch workspace with Today, Front Desk, Contacts, and Outcomes guiding the next step.</p>
+        <p class="handoff-copy">You do not need to finish everything before payment. Once checkout is complete, you land in the stable launch workspace with Today, Front Desk, Contacts, and Analytics guiding the next step.</p>
       </section>
     `
     : "";
@@ -1373,7 +1373,7 @@ function renderAccessLocked(agent) {
         </div>
         <div class="overview-card">
           <p class="overview-label">2. Setup workspace</p>
-          <p class="overview-card-copy">Tune the front desk, review Today, Contacts, and Outcomes, and connect Google later if you want the optional beta.</p>
+          <p class="overview-card-copy">Tune the front desk, review Today, Contacts, and Analytics, and connect Google later if you want the optional beta.</p>
         </div>
         <div class="overview-card">
           <p class="overview-label">3. Add to website</p>
@@ -1393,10 +1393,10 @@ function renderAccessLocked(agent) {
         <div>
           <p class="overview-label">Vonza access</p>
           <h2 class="pricing-title">One front-desk workspace</h2>
-          <p class="pricing-copy">Unlock the stable launch core in one place: AI front desk, Today, Contacts, Front Desk, outcomes, website import, and install.</p>
+          <p class="pricing-copy">Unlock the stable launch core in one place: AI front desk, Today, Contacts, Front Desk, Analytics, website import, and install.</p>
           <div class="pricing-bullets">
             <div class="pill">AI front desk and routing</div>
-            <div class="pill">Today, Contacts, and Outcomes</div>
+            <div class="pill">Today, Contacts, and Analytics</div>
             <div class="pill">Website import and install</div>
             <div class="pill">Optional Google beta</div>
           </div>
@@ -1810,7 +1810,7 @@ function renderOnboarding() {
       <section class="handoff-card">
         <span class="handoff-step">${arrival.arrivedFromSite ? "Step 1 of 4" : "Welcome to Vonza"}</span>
         <h2 class="handoff-title">${arrival.arrivedFromSite ? "You’re now in the workspace where the front desk becomes a real paid product." : "This is where you create the website front desk that powers the public launch core."}</h2>
-        <p class="handoff-copy">${arrival.arrivedFromSite ? "You’ve moved from the Vonza site into the app. Next you’ll connect your website, shape routing and voice, try the live front desk, install it, and confirm the first lead path in Today, Contacts, and Outcomes." : "Connect your website, shape the front desk around your brand, and make the preview strong before you install it and start working from Today."}</p>
+        <p class="handoff-copy">${arrival.arrivedFromSite ? "You’ve moved from the Vonza site into the app. Next you’ll connect your website, shape routing and voice, try the live front desk, install it, and confirm the first lead path in Today, Contacts, and Analytics." : "Connect your website, shape the front desk around your brand, and make the preview strong before you install it and start working from Today."}</p>
         <div class="handoff-actions">
           <button id="handoff-start-button" class="primary-button" type="button">Start creating</button>
           <span class="handoff-note">A few focused details are enough to get the front desk ready to try.</span>
@@ -1824,13 +1824,13 @@ function renderOnboarding() {
     <section class="hero-card">
       <span class="eyebrow">Create your website front desk</span>
       <h1 class="headline">Turn your website into an AI front desk for your business.</h1>
-      <p class="subtext">Vonza learns from your website, answers customer questions, routes high-intent visitors toward the right next step, and feeds the stable public launch core around Today, Contacts, and Outcomes.</p>
+      <p class="subtext">Vonza learns from your website, answers customer questions, routes high-intent visitors toward the right next step, and feeds the stable public launch core around Today, Contacts, and Analytics.</p>
     </section>
 
     <div class="state-grid">
       <section id="onboarding-create" class="section-card">
         <h2 class="section-heading">Create your front desk</h2>
-        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Today, Contacts, and Outcomes. Google-connected workflow beta can come later.</p>
+        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Today, Contacts, and Analytics. Google-connected workflow beta can come later.</p>
         <form id="create-assistant-form" class="form-grid spacer">
           <div class="field">
             <label for="create-website-url">Website URL</label>
@@ -1870,7 +1870,7 @@ function renderOnboarding() {
           <div class="pill">Answers real customer questions</div>
           <div class="pill">Routes quotes, bookings, and callbacks</div>
           <div class="pill">Installs with one embed code</div>
-          <div class="pill">Shows proof in Today, Contacts, Outcomes</div>
+          <div class="pill">Shows proof in Today, Contacts, Analytics</div>
         </div>
       </section>
     </div>
@@ -2071,6 +2071,140 @@ function buildLocalSectionNav(items = [], { attribute = "data-local-target", act
   `;
 }
 
+function getUiIconMarkup(icon = "") {
+  const icons = {
+    home: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M3.5 8.6 10 3.7l6.5 4.9v7.1a1.3 1.3 0 0 1-1.3 1.3H4.8a1.3 1.3 0 0 1-1.3-1.3Z" fill="currentColor" opacity=".18"></path>
+        <path d="M6.2 10.1h2.3v4.2H6.2Zm5.3 0h2.3v4.2h-2.3ZM3.5 8.5 10 3.7l6.5 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    users: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="6.2" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M5 15.1c.8-2.4 2.5-3.7 5-3.7s4.2 1.3 5 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    frontdesk: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4.2" y="4.5" width="11.6" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M7.2 8.2h5.6M7.2 11.1h5.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    outcomes: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.5 14.8V9.4m5 5.4V5.8m5 9V7.9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+        <path d="m3.8 15.1 3.7-3.7 2.5 1.8 4.3-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    inbox: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.1 5.5h11.8a1.1 1.1 0 0 1 1.1 1.1v6.8a1.1 1.1 0 0 1-1.1 1.1H4.1A1.1 1.1 0 0 1 3 13.4V6.6a1.1 1.1 0 0 1 1.1-1.1Z" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+        <path d="m4.2 7 5.1 4 1.4.1 5.1-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    calendar: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="3.5" y="4.4" width="13" height="12.1" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M6.4 3.4v2.2m7.2-2.2v2.2M3.5 8.2h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    automations: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M10 3.2v2.1m0 9.4v2.1M3.2 10h2.1m9.4 0h2.1M5.2 5.2l1.5 1.5m6.6 6.6 1.5 1.5m0-9.6-1.5 1.5m-6.6 6.6-1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    install: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 3.8v7.1m0 0 2.5-2.5M10 10.9 7.5 8.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+        <path d="M4.4 13.1v1.6a1.9 1.9 0 0 0 1.9 1.9h7.4a1.9 1.9 0 0 0 1.9-1.9v-1.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    settings: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="2.3" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M10 3.5v1.8m0 9.4v1.8M3.5 10h1.8m9.4 0h1.8M5.5 5.5l1.3 1.3m6.4 6.4 1.3 1.3m0-9-1.3 1.3m-6.4 6.4-1.3 1.3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    bell: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M6.1 8.2a3.9 3.9 0 1 1 7.8 0v2.1c0 .9.3 1.7.9 2.3l.4.4H4.8l.4-.4c.6-.6.9-1.4.9-2.3Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <path d="M8.4 14.1a1.8 1.8 0 0 0 3.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    user: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M4.8 15.6c.9-2.7 2.7-4.1 5.2-4.1s4.3 1.4 5.2 4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    search: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="8.7" cy="8.7" r="4.7" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="m12.2 12.2 3.8 3.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    sync: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.7 8.1A5.8 5.8 0 0 1 14 5.2M15.3 11.9A5.8 5.8 0 0 1 6 14.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="m13.6 3.9.7 1.9 1.8-.7M6.4 16.1l-.7-1.9-1.8.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    plus: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 4.5v11M4.5 10h11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>
+      </svg>
+    `,
+    mail: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4" y="5.2" width="12" height="9.6" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="m4.4 6 5.2 4 1 .1 5-4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    check: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="m5.5 10.2 2.7 2.7 6.3-6.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    review: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="4.2" y="4.2" width="11.6" height="11.6" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M7.2 8h5.6M7.2 10.3h5.6M7.2 12.6h3.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    phone: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M6.2 4.4c.4-.4.9-.4 1.3 0l1.2 1.2c.4.4.4.9.1 1.3l-.9 1.1c1 1.8 2.4 3.2 4.2 4.2l1.1-.9c.4-.3 1-.3 1.3.1l1.2 1.2c.4.4.4 1 0 1.3l-1 1c-.7.7-1.7 1-2.7.7C7.8 15.5 4.5 12.2 3.5 8.1c-.2-1 .1-2 .7-2.7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    ticket: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M5 6.2h10a1 1 0 0 1 1 1v1.3a1.8 1.8 0 0 0 0 3V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1.2a1.8 1.8 0 0 0 0-3V7.2a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+        <path d="M10 6.4v7.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="1.6 1.6" stroke-linecap="round"></path>
+      </svg>
+    `,
+  };
+
+  return icons[icon] || icons.review;
+}
+
+function getShellNavIconMarkup(sectionKey = "") {
+  const iconMap = {
+    overview: "home",
+    contacts: "users",
+    customize: "frontdesk",
+    analytics: "outcomes",
+    inbox: "inbox",
+    calendar: "calendar",
+    automations: "automations",
+    install: "install",
+    settings: "settings",
+  };
+
+  return getUiIconMarkup(iconMap[sectionKey] || "review");
+}
+
 function buildShellNavButton(item, activeSection) {
   const isActive = activeSection === item.key;
 
@@ -2081,6 +2215,7 @@ function buildShellNavButton(item, activeSection) {
       data-shell-target="${escapeHtml(item.key)}"
       aria-current="${isActive ? "page" : "false"}"
     >
+      <span class="shell-nav-icon" aria-hidden="true">${getShellNavIconMarkup(item.key)}</span>
       <span class="shell-nav-label-row">
         <span class="shell-nav-label">${escapeHtml(item.label)}</span>
         ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
@@ -2152,7 +2287,7 @@ function buildSidebarShell(
     },
     {
       key: "analytics",
-      label: "Outcomes",
+      label: "Analytics",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -3407,12 +3542,78 @@ function getTodayQueueFilterKeys(item = {}) {
   return keys;
 }
 
+function getTodayQueueRowPresentation(item = {}) {
+  const title = isAppointmentReviewQueueItem(item)
+    ? item.title || "Ended appointment"
+    : item.label || getActionQueueTypeLabel(item.type);
+  const normalizedType = trimText(item.type).toLowerCase();
+  const normalizedContent = `${title} ${getTodayQueueItemWhyLabel(item)}`.toLowerCase();
+
+  if (isAppointmentReviewQueueItem(item)) {
+    return {
+      tone: "slate",
+      icon: "users",
+      primaryLabel: "Confirm",
+      secondaryLabel: "",
+    };
+  }
+
+  if (normalizedContent.includes("proposal") || normalizedContent.includes("approval")) {
+    return {
+      tone: "warning",
+      icon: "review",
+      primaryLabel: "Approve",
+      secondaryLabel: "Review",
+    };
+  }
+
+  if (normalizedType === "support") {
+    return {
+      tone: "danger",
+      icon: "ticket",
+      primaryLabel: "View Ticket",
+      secondaryLabel: "",
+    };
+  }
+
+  if (normalizedType === "booking" || normalizedContent.includes("call") || normalizedContent.includes("no response")) {
+    return {
+      tone: "info",
+      icon: "phone",
+      primaryLabel: "Call Now",
+      secondaryLabel: "",
+    };
+  }
+
+  if (item.followUp || ["contact", "pricing", "repeat_high_intent"].includes(normalizedType) || normalizedContent.includes("follow up")) {
+    return {
+      tone: "brand",
+      icon: "mail",
+      primaryLabel: "Send Email",
+      secondaryLabel: "",
+    };
+  }
+
+  return {
+    tone: "slate",
+    icon: "review",
+    primaryLabel: "Review",
+    secondaryLabel: "",
+  };
+}
+
 function buildTodayQueuePrimaryAction(item = {}) {
   const queueKey = getTodayQueueItemKey(item);
+  const presentation = getTodayQueueRowPresentation(item);
 
   return `
-    <button class="primary-button" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
-      Review item
+    ${presentation.secondaryLabel ? `
+      <button class="ghost-button today-row-secondary-action" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
+        ${escapeHtml(presentation.secondaryLabel)}
+      </button>
+    ` : ""}
+    <button class="primary-button today-row-primary-action" type="button" data-today-open-review data-today-queue-key="${escapeHtml(queueKey)}">
+      ${escapeHtml(presentation.primaryLabel)}
     </button>
   `;
 }
@@ -3468,6 +3669,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
   const contactLabel = getTodayQueueItemContactLabel(item);
   const linkState = getTodayQueueItemLinkState(item);
   const reason = getTodayQueueItemWhyLabel(item);
+  const presentation = getTodayQueueRowPresentation(item);
   const metaLine = [
     getTodayQueueItemContextLabel(item),
     contactLabel,
@@ -3492,7 +3694,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
         ? trimText(item.linkedContactId)
           ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
           : `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
-        : `<button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>`,
+        : `<button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>`,
     ].filter(Boolean).join("")
   );
   const title = isAppointmentReviewQueueItem(item)
@@ -3502,7 +3704,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
 
   return `
     <article
-      class="today-queue-row ${isAppointmentReviewQueueItem(item) ? "today-queue-row-appointment" : ""} ${queueKey === activeQueueKey ? "active" : ""}"
+      class="today-queue-row today-queue-row-tone-${escapeHtml(presentation.tone)} ${isAppointmentReviewQueueItem(item) ? "today-queue-row-appointment" : ""} ${queueKey === activeQueueKey ? "active" : ""}"
       data-today-queue-row
       data-today-queue-key="${escapeHtml(queueKey)}"
       data-today-queue-type="${escapeHtml(item.queueType || "")}"
@@ -3510,6 +3712,9 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
       data-today-filter-keys="${escapeHtml(filterKeys.join("|"))}"
       data-today-search-text="${escapeHtml([title, contactLabel, reason, linkState].filter(Boolean).join(" ").toLowerCase())}"
     >
+      <div class="today-queue-row-indicator" aria-hidden="true">
+        ${getUiIconMarkup(presentation.icon)}
+      </div>
       <div class="today-queue-row-main">
         <div class="action-queue-badges">
           ${isAppointmentReviewQueueItem(item)
@@ -3527,11 +3732,6 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
         <h3 class="today-queue-row-title">${escapeHtml(title)}</h3>
         <p class="today-queue-row-copy">${escapeHtml(reason)}</p>
         <p class="today-queue-row-meta">${escapeHtml(metaLine)}</p>
-      </div>
-      <div class="today-queue-row-context">
-        <span class="contact-row-column-label">${escapeHtml(contextLabel)}</span>
-        <strong>${escapeHtml(contactLabel)}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</span>
       </div>
       <div class="today-queue-row-actions">
         ${buildTodayQueuePrimaryAction(item)}
@@ -3769,45 +3969,61 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     ? today.recentSuccessfulOutcomes.slice(0, 4)
     : [];
   const topQuestions = overview.signals.topQuestions.slice(0, 4);
-  const actionsMarkup = buildOverviewActionMarkup(agent, overview.primaryAction, { primary: true })
-    || `<button class="primary-button" type="button" data-overview-focus="action-queue">Review queue</button>`;
-  const toolbarActions = [
-    `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh workspace</button>`,
-    ...overview.nextActions.slice(0, 2).map((action) => buildOverviewActionMarkup(agent, action)),
-    operatorWorkspace.status?.googleConnected
-      ? `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
-      : `<button class="ghost-button" type="button" data-google-connect ${operatorWorkspace.status?.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
-  ].filter(Boolean).join("");
+  const iconActionsMarkup = `
+    <div class="today-page-icons">
+      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
+        isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? "inbox" : "overview"
+      )}" aria-label="Open Inbox">
+        ${getUiIconMarkup("bell")}
+      </button>
+      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
+        isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? "calendar" : "overview"
+      )}" aria-label="Open Calendar">
+        ${getUiIconMarkup("bell")}
+      </button>
+      <button class="today-icon-button today-icon-button-user" type="button" aria-label="${escapeHtml(
+        authUser?.email ? `Signed in as ${authUser.email}` : "Open profile"
+      )}" title="${escapeHtml(authUser?.email || "Open profile")}">
+        ${getUiIconMarkup("user")}
+      </button>
+    </div>
+  `;
+  const toolbarActions = `
+    <label class="toolbar-search today-toolbar-search">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("search")}</span>
+      <input type="search" placeholder="Search..." data-today-search aria-label="Search queue">
+    </label>
+    <button class="ghost-button today-toolbar-button" type="button" data-refresh-operator data-force-sync="true" title="Refresh workspace">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("sync")}</span>
+      <span>Sync Now</span>
+      <span class="sr-only">Refresh workspace</span>
+    </button>
+    <button class="primary-button today-toolbar-button" type="button" data-shell-target="${escapeHtml(
+      isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? "automations" : "contacts"
+    )}">
+      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("plus")}</span>
+      <span>New Task</span>
+    </button>
+  `;
 
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
-        eyebrow: "Core workflow",
         title: "Today",
-        copy: "See what changed, what needs attention now, and what the next safe operator action should be.",
-        badges: [
-          overview.queueSummary.attentionNeeded > 0
-            ? { label: `${overview.queueSummary.attentionNeeded} need attention`, tone: "Needs attention" }
-            : { label: "No urgent queue items", tone: "Ready" },
-          {
-            label: overview.installStatus.label || "Not installed yet",
-            tone: isInstallSeen(overview.installStatus) ? "Ready" : "Limited",
-          },
-        ],
-        actionsMarkup,
+        actionsMarkup: iconActionsMarkup,
       })}
       ${buildPageToolbar({
         filtersMarkup: `
           <div class="today-toolbar-filters">
-            <label class="toolbar-search">
-              <input type="search" placeholder="Search queue" data-today-search>
-            </label>
+            <div class="today-toolbar-title-row">
+              <h2 class="today-toolbar-title">Active Tasks</h2>
+              <span class="today-toolbar-title-caret" aria-hidden="true">v</span>
+            </div>
             <div class="toolbar-filter-group">
               <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
               <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs review</button>
               <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
-              <button class="toolbar-chip" type="button" data-today-filter="knowledge">Knowledge</button>
-              <button class="toolbar-chip" type="button" data-today-filter="complaints">Complaints</button>
+              <button class="toolbar-chip" type="button" data-today-filter="complaints">Overdue</button>
             </div>
           </div>
         `,
@@ -3847,7 +4063,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           </section>
           <aside class="today-side-column">
             ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing)}
-            <section class="support-panel today-support-panel-quiet">
+            <section class="support-panel today-support-panel-quiet today-reference-note">
               <p class="support-panel-kicker">Copilot briefing</p>
               <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
               <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
@@ -3855,7 +4071,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 ? `${todayQueueItems.length} queue item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
                 : "No urgent operator queue items are open right now.")}</p>
             </section>
-            <section class="support-panel">
+            <section class="support-panel today-support-panel-muted">
               <p class="support-panel-kicker">Schedule context</p>
               <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "Today on deck" : "Schedule is quiet")}</h3>
               ${scheduleItems.length ? `
@@ -3869,7 +4085,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               ` : `<p class="support-panel-copy">${escapeHtml(operatorWorkspace.calendar?.dailySummary || "Connect Google Calendar to bring schedule context into Today.")}</p>`}
             </section>
-            <section class="support-panel">
+            <section class="support-panel today-support-panel-muted">
               <p class="support-panel-kicker">Proof</p>
               <h3 class="support-panel-title">Recent outcomes</h3>
               ${recentOutcomes.length ? `
@@ -3888,6 +4104,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             </section>
           </aside>
         </div>
+        ${buildTodayCopilotSection(operatorWorkspace)}
         <div class="today-secondary-grid">
           <section class="flat-section">
             <div class="flat-section-header">
@@ -3905,7 +4122,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 <p class="overview-label">Signals</p>
                 <h3 class="flat-section-title">Top question themes</h3>
               </div>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>
+              <button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>
             </div>
             ${topQuestions.length ? `
               <div class="support-list">
@@ -4419,7 +4636,7 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
         <div class="settings-form-section-header">
           <div>
             <h3 class="settings-form-section-title">Connected surfaces</h3>
-            <p class="settings-form-section-copy">These tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
+            <p class="settings-form-section-copy">These tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Analytics.</p>
           </div>
         </div>
         <div class="settings-key-value-list">
@@ -4867,10 +5084,10 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
           </section>
           <section class="workspace-card-soft">
             <h3 class="studio-group-title">After install is detected</h3>
-            <p class="studio-group-copy">Today and Outcomes become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.</p>
+            <p class="studio-group-copy">Today and Analytics become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.</p>
             <div class="inline-actions">
               <button class="ghost-button" type="button" data-shell-target="overview">Open Today</button>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open Outcomes</button>
+              <button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>
             </div>
           </section>
         </div>
@@ -6518,7 +6735,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
   const visibleItems = compact ? items.slice(0, 3) : items;
   const sectionTitle = compact ? "Follow-up feed" : "Follow-up queue";
   const sectionCopy = compact
-    ? "Outcomes turns into action here. These are the individual conversations that deserve owner follow-up or a better answer path."
+    ? "Analytics turns into action here. These are the individual conversations that deserve owner follow-up or a better answer path."
     : "These items are surfaced from real visitor conversations so the owner can work specific follow-up moments instead of broad signal buckets.";
   const emptyCopy = compact
     ? "No conversation-derived actions yet. As soon as visitors show stronger commercial intent or Vonza gives a weak answer, the next owner actions will appear here."
@@ -7365,9 +7582,9 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         : overview.queueSummary.total > 0
           ? "The follow-up queue already holds important conversation follow-up. Keep moving items through review so the front desk becomes more operational, not just informative."
       : overview.analyticsSummary.weakAnswerCount > 0
-        ? "Several live questions ended in weak or uncertain answers. Use Outcomes to review those conversations, then refine website knowledge or front-desk setup."
+        ? "Several live questions ended in weak or uncertain answers. Use Analytics to review those conversations, then refine website knowledge or front-desk setup."
         : highIntentSignals > 0
-          ? "High-intent questions are already coming in. Review Outcomes to see whether visitors want pricing, booking, contact, or support help most."
+          ? "High-intent questions are already coming in. Review Analytics to see whether visitors want pricing, booking, contact, or support help most."
           : "Keep an eye on the first real visitor questions so you can tighten the welcome, website copy, or install placement if needed.";
   const weakAnswerMarkup = overview.signals.weakAnswerExamples.length
     ? overview.signals.weakAnswerExamples.map((question) => `
@@ -7628,7 +7845,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
-        title: "Outcomes",
+        title: "Analytics",
         copy: "Work from a clearer results canvas: proven outcomes first, conversion signals second, and quieter supporting insight off to the side.",
         badges: [
           { label: `${analyticsSummary.highIntentSignals || 0} high-intent signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },

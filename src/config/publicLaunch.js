@@ -39,7 +39,7 @@ const PUBLIC_COHORT_V1_MATRIX = Object.freeze({
   },
   outcomes: {
     state: FEATURE_STATES.STABLE,
-    label: "Outcomes",
+    label: "Analytics",
   },
   customize: {
     state: FEATURE_STATES.STABLE,
@@ -112,7 +112,7 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
       name: "Vonza Front Desk",
       headline: "AI front desk for service businesses with a daily owner workspace.",
       purchaseSummary:
-        "The first public offer is the AI front desk plus Today, Contacts, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
+        "The first public offer is the AI front desk plus Today, Contacts, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",
