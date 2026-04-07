@@ -1150,7 +1150,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
         assert.match(marketingHome.text, /Operator command center/);
-        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Outcomes/i);
+        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Analytics/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
@@ -1230,7 +1230,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Today/);
         assert.match(dashboardScript.text, /Contacts/);
         assert.match(dashboardScript.text, /Front Desk/);
-        assert.match(dashboardScript.text, /Outcomes/);
+        assert.match(dashboardScript.text, /Analytics/);
         assert.match(dashboardScript.text, /Install/);
         assert.match(dashboardScript.text, /Settings/);
         assert.match(dashboardScript.text, /Continue setup/);

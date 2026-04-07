@@ -502,6 +502,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_TODAY_COPILOT_V1_ENABLED: true,
     },
   });
 
@@ -552,6 +553,69 @@ test("today workspace render uses a dominant queue and support rail shell", () =
         },
       ],
     },
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      readOnly: true,
+      draftOnly: true,
+      sparseData: false,
+      headline: "Close the pricing follow-up gap first.",
+      summary: "Copilot is summarizing stable-core data only.",
+      summaryCards: [
+        {
+          id: "what_matters",
+          label: "What matters today",
+          text: "One pricing follow-up still needs owner review.",
+        },
+      ],
+      proposals: [
+        {
+          key: "follow-up-draft:contact-1",
+          type: "create_follow_up_draft",
+          title: "Draft follow-up for Taylor Reed",
+          summary: "A visitor asked about pricing and still has no recorded outcome.",
+          whatHappens: "Create or refresh a real approval-first follow-up draft using the deterministic follow-up workflow service.",
+          approvalNote: "This only prepares the draft. Nothing is sent automatically.",
+          applyLabel: "Create draft",
+          openLabel: "Open Automations",
+          dismissLabel: "Dismiss",
+          target: {
+            section: "automations",
+            id: "follow-up-1",
+            label: "Open Automations",
+          },
+          state: "new",
+        },
+      ],
+      proposalSummary: {
+        activeCount: 1,
+        blockedCount: 0,
+        hiddenCount: 0,
+      },
+      context: {
+        businessProfile: {
+          readiness: {
+            summary: "All core business context areas are filled for Copilot.",
+            missingCount: 0,
+          },
+        },
+        warnings: [],
+      },
+      fallback: {
+        guidance: [],
+      },
+    },
+    businessProfile: {
+      readiness: {
+        summary: "All core business context areas are filled for Copilot.",
+        missingCount: 0,
+      },
+      prefill: {
+        available: true,
+        fieldCount: 6,
+        sourceSummary: "Suggestions are based on imported website knowledge plus current assistant contact settings.",
+      },
+    },
   });
 
   const overviewPanel = harness.buildOverviewPanel(
@@ -593,6 +657,10 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Link contact/);
   assert.match(overviewPanel, /Record outcome/);
   assert.match(overviewPanel, /No action needed/);
+  assert.match(overviewPanel, /Today Copilot/);
+  assert.match(overviewPanel, /Operational summary/);
+  assert.match(overviewPanel, /Approval-first proposals/);
+  assert.match(overviewPanel, /Create draft/);
   assert.match(overviewPanel, /Mark reviewed/);
   assert.match(overviewPanel, /Mark done/);
   assert.match(overviewPanel, /Dismiss/);

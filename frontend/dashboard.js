@@ -61,7 +61,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Today, Contacts, Outcomes, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
+      "The first public offer is the AI front desk plus Today, Contacts, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -77,7 +77,7 @@ const DEFAULT_LAUNCH_PROFILE = {
     widget_install: { state: FEATURE_STATE_STABLE, label: "Widget install" },
     today: { state: FEATURE_STATE_STABLE, label: "Today" },
     contacts: { state: FEATURE_STATE_STABLE, label: "Contacts" },
-    outcomes: { state: FEATURE_STATE_STABLE, label: "Outcomes" },
+    outcomes: { state: FEATURE_STATE_STABLE, label: "Analytics" },
     customize: { state: FEATURE_STATE_STABLE, label: "Front Desk" },
     lead_capture: { state: FEATURE_STATE_STABLE, label: "Lead capture" },
     google_connect: { state: FEATURE_STATE_BETA, label: "Google connect" },
@@ -357,7 +357,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Operator workspace mode",
       title: "The stable core is live. Google beta is not enabled here yet.",
-      copy: "Today, Contacts, Front Desk, and Outcomes stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
+      copy: "Today, Contacts, Front Desk, and Analytics stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
     };
   }
 
@@ -383,7 +383,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Operator workspace mode",
     title: "Stable core now, optional Google beta when you connect.",
-    copy: "Today, Contacts, Front Desk, and Outcomes are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
+    copy: "Today, Contacts, Front Desk, and Analytics are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
   };
 }
 
@@ -1275,7 +1275,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Purchase step",
       headline: "Unlock Vonza to open your AI front desk workspace.",
-      copy: `Start with secure checkout. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Outcomes, website import, and install. ${launchProfile.product.purchaseSummary}`,
+      copy: `Start with secure checkout. Right after payment, Vonza opens the stable launch core: your AI front desk, Today, Contacts, Analytics, website import, and install. ${launchProfile.product.purchaseSummary}`,
     };
   }
 
@@ -1285,7 +1285,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Workspace active",
       headline: "Your Vonza workspace is open.",
-      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Outcomes. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
+      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Analytics. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
     };
   }
 
@@ -1300,7 +1300,7 @@ function getAccessCopy(agent) {
   return {
     eyebrow: "Access pending",
     headline: "Your front desk setup is saved, and workspace access is not active yet.",
-    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the stable launch core in Today, Contacts, Front Desk, and Outcomes.",
+    copy: "Your setup is tied to your account, but workspace access still needs to be activated before you can use the stable launch core in Today, Contacts, Front Desk, and Analytics.",
   };
 }
 
@@ -1854,7 +1854,7 @@ function renderOnboarding() {
           <div class="pill">Answers real customer questions</div>
           <div class="pill">Routes quotes, bookings, and callbacks</div>
           <div class="pill">Installs with one embed code</div>
-          <div class="pill">Shows proof in Today, Contacts, Outcomes</div>
+          <div class="pill">Shows proof in Today, Contacts, Analytics</div>
         </div>
       </section>
     </div>
@@ -2275,7 +2275,7 @@ function buildSidebarShell(
     },
     {
       key: "analytics",
-      label: "Outcomes",
+      label: "Analytics",
       note: "Signals, proof, weak spots, and business results.",
     },
   ].filter((item) => availableSections.includes(item.key));
@@ -3646,7 +3646,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
         ? trimText(item.linkedContactId)
           ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
           : `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
-        : `<button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>`,
+        : `<button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>`,
     ].filter(Boolean).join("")
   );
   const title = isAppointmentReviewQueueItem(item)
@@ -4074,7 +4074,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 <p class="overview-label">Signals</p>
                 <h3 class="flat-section-title">Top question themes</h3>
               </div>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open outcomes</button>
+              <button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>
             </div>
             ${topQuestions.length ? `
               <div class="support-list">
@@ -4088,6 +4088,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             ` : `<div class="placeholder-card">Recurring customer themes will appear here as soon as live usage builds up.</div>`}
           </section>
         </div>
+        ${buildTodayCopilotSection(operatorWorkspace)}
       </div>
     </section>
   `;
@@ -4505,7 +4506,7 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
 
       <section class="workspace-card-soft">
         <h3 class="studio-group-title">What each extension adds</h3>
-        <p class="studio-group-copy">Connected tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
+        <p class="studio-group-copy">Connected tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Analytics.</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Inbox</p>
@@ -4798,7 +4799,7 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
             <p class="studio-group-copy">Today and Outcomes become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.</p>
             <div class="inline-actions">
               <button class="ghost-button" type="button" data-shell-target="overview">Open Today</button>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open Outcomes</button>
+              <button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>
             </div>
           </section>
         </div>
@@ -7569,7 +7570,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
-        title: "Outcomes",
+        title: "Analytics",
         copy: "Track what customers are asking, where the front desk is active, and which outcomes Vonza can prove conservatively.",
         badges: [
           { label: `${analyticsSummary.highIntentSignals || 0} high-intent signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
@@ -9176,7 +9177,7 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
       health: {
         ...createEmptyOperatorWorkspace().health,
         globalError:
-          "Inbox, Calendar, and Automations are temporarily unavailable. Today, Contacts, Front Desk, and Outcomes are still available.",
+          "Inbox, Calendar, and Automations are temporarily unavailable. Today, Contacts, Front Desk, and Analytics are still available.",
       },
     });
   }
