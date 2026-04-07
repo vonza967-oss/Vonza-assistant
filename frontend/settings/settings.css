@@ -310,3 +310,109 @@
     justify-content: flex-start;
   }
 }
+
+/* Blue/white operator workspace overrides */
+
+.settings-shell-layout {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 28px;
+}
+
+.settings-shell-sidebar {
+  top: 18px;
+  padding-right: 20px;
+  border-right: 1px solid #dbe5f1;
+}
+
+.settings-shell-nav-group {
+  gap: 8px;
+}
+
+.settings-shell-nav-heading {
+  color: #6a7b95;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-shell-nav {
+  gap: 2px;
+}
+
+.settings-shell-nav-button {
+  padding: 10px 12px;
+  border-left: 0;
+  border-radius: 6px;
+  color: #4f627f;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-shell-nav-button:hover {
+  color: #22324a;
+  background: #eef4ff;
+}
+
+.settings-shell-nav-button.active {
+  color: #1f4fbf;
+  background: #eaf1ff;
+}
+
+.settings-shell-mobile-bar,
+.settings-shell-page-header,
+.settings-shell-section,
+.settings-shell-sticky-save {
+  border-color: #dbe5f1;
+}
+
+.settings-shell-mobile-label,
+.settings-shell-status-label,
+.settings-shell-key-value-label {
+  color: #6a7b95;
+}
+
+.settings-shell-page-title,
+.settings-shell-section-title,
+.settings-shell-choice-title,
+.settings-shell-status-value,
+.settings-shell-key-value-title {
+  color: #22324a;
+}
+
+.settings-shell-page-copy,
+.settings-shell-mobile-copy,
+.settings-shell-section-copy,
+.settings-shell-status-copy,
+.settings-shell-key-value-copy {
+  color: #5f6f89;
+}
+
+.settings-shell-choice-row,
+.settings-shell-status-row,
+.settings-shell-key-value-row {
+  border-top-color: #e6edf7;
+}
+
+.settings-shell-choice-row select {
+  border-color: #cfd8e6;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #22324a;
+}
+
+.settings-shell-chip-option {
+  border: 1px solid #d6dfed;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #42536d;
+}
+
+.settings-shell-chip-option input {
+  accent-color: #2f67e3;
+}
+
+.settings-shell-sticky-save {
+  bottom: 0;
+  padding-top: 16px;
+  background: linear-gradient(180deg, rgba(247, 249, 253, 0), #f7f9fd 42%);
+}
