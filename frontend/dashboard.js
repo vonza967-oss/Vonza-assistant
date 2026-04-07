@@ -2221,7 +2221,7 @@ function buildSidebarShell(
 }
 
 function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}) {
-  const navClass = compact ? "settings-nav settings-nav-compact" : "settings-nav";
+  const navClass = compact ? "settings-nav settings-nav-mobile" : "settings-nav";
   const sections = [
     {
       key: "business",
@@ -2246,8 +2246,8 @@ function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}
   ];
 
   return `
-    <div class="settings-nav-shell">
-      <p class="settings-nav-heading">Categories</p>
+    <div class="settings-nav-shell${compact ? " is-mobile" : ""}">
+      <p class="settings-nav-heading">Settings</p>
       <div class="${navClass}">
       ${sections.map((section) => `
         <button
@@ -2255,9 +2255,9 @@ function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}
           type="button"
           data-settings-target="${escapeHtml(section.key)}"
           aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
+          title="${escapeHtml(section.note)}"
         >
-          <span class="settings-nav-label">${escapeHtml(section.label)}</span>
-          <span class="settings-nav-note">${escapeHtml(section.note)}</span>
+          ${escapeHtml(section.label)}
         </button>
       `).join("")}
       </div>
@@ -3935,27 +3935,45 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
 
   return `
     <form data-settings-form data-form-kind="business-context" class="settings-form-shell settings-system-form">
-      <div class="settings-section-intro" id="business-context-setup">
-        <div>
+      <header class="settings-page-header" id="business-context-setup">
+        <div class="settings-page-title-group">
           <p class="studio-kicker">Business profile</p>
-          <h2 class="settings-section-title">Business profile</h2>
-          <p class="settings-section-copy">Business context setup for Today and Copilot: define what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
+          <h2 class="settings-page-title">Business profile</h2>
+          <p class="settings-page-copy">Business context setup for Today and Copilot: define what Vonza should trust before it prepares approval-first drafts, recommendations, or next steps.</p>
         </div>
-        <div class="settings-inline-meta">
+        <div class="settings-page-meta">
           <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
           <span class="${getBadgeClass(profile.prefill?.available ? "Ready" : "Limited")}">${profile.prefill?.available ? "Safe suggestions loaded" : "No prefill available"}</span>
         </div>
-      </div>
-      <div class="settings-inline-note">
-        <strong>${escapeHtml(`${profile.readiness?.completedSections || 0} / ${profile.readiness?.totalSections || 0} sections ready`)}</strong>
-        <span>${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</span>
-      </div>
-      <div class="settings-inline-note">
-        <strong>Prefill review</strong>
-        <span>${escapeHtml(profile.prefill?.available
-          ? `${profile.prefill?.fieldCount || 0} suggested fields are loaded for review. ${profile.prefill?.sourceSummary || ""}`.trim()
-          : profile.prefill?.sourceSummary || "Website import suggestions are not available yet. Run website import to unlock more grounded suggestions.")}</span>
-      </div>
+      </header>
+
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Setup status</h3>
+            <p class="settings-form-section-copy">Review what is ready and what still needs owner input before this context should be treated as complete.</p>
+          </div>
+        </div>
+        <div class="settings-status-list">
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Readiness</p>
+              <h4 class="settings-status-value">${escapeHtml(`${profile.readiness?.completedSections || 0} / ${profile.readiness?.totalSections || 0} sections ready`)}</h4>
+              <p class="settings-status-copy">${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</p>
+            </div>
+          </div>
+          <div class="settings-status-row">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Prefill review</p>
+              <h4 class="settings-status-value">${escapeHtml(profile.prefill?.available ? `${profile.prefill?.fieldCount || 0} suggested fields loaded` : "No prefill available")}</h4>
+              <p class="settings-status-copy">${escapeHtml(profile.prefill?.available
+                ? `${profile.prefill?.sourceSummary || "Suggestions are ready for review before saving."}`.trim()
+                : profile.prefill?.sourceSummary || "Website import suggestions are not available yet. Run website import to unlock more grounded suggestions.")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="settings-form-section">
         <div class="settings-form-section-header">
           <div>
@@ -3963,44 +3981,38 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
             <p class="settings-form-section-copy">Keep this concise and operator-facing. This is not website copy; it is the working context Copilot should trust when it prepares approval-first proposals.</p>
           </div>
         </div>
-          <div class="form-grid">
-            <div class="field">
-              <label for="business-summary">Business summary</label>
-              <textarea id="business-summary" name="business_summary">${escapeHtml(profile.fields.businessSummary || "")}</textarea>
-              <p class="field-help">One short paragraph. Explain what the business does, who it serves, and what matters operationally.</p>
-            </div>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="business-summary">Business summary</label>
+            <textarea id="business-summary" name="business_summary">${escapeHtml(profile.fields.businessSummary || "")}</textarea>
+            <p class="field-help">One short paragraph. Explain what the business does, who it serves, and what matters operationally.</p>
           </div>
-          <div class="form-grid two-col">
-            <div class="field">
-              <label for="business-services">Services</label>
-              <textarea id="business-services" name="services">${escapeHtml(profile.fields.services || "")}</textarea>
-              <p class="field-help">One service per line. Format: &#96;Service name | optional note&#96;.</p>
-            </div>
-            <div class="field">
-              <label for="business-pricing">Pricing</label>
-              <textarea id="business-pricing" name="pricing">${escapeHtml(profile.fields.pricing || "")}</textarea>
-              <p class="field-help">One pricing rule per line. Format: &#96;Label | amount or range | optional detail&#96;.</p>
-            </div>
+          <div class="field">
+            <label for="business-services">Services</label>
+            <textarea id="business-services" name="services">${escapeHtml(profile.fields.services || "")}</textarea>
+            <p class="field-help">One service per line. Format: &#96;Service name | optional note&#96;.</p>
           </div>
-          <div class="form-grid two-col">
-            <div class="field">
-              <label for="business-policies">Policies</label>
-              <textarea id="business-policies" name="policies">${escapeHtml(profile.fields.policies || "")}</textarea>
-              <p class="field-help">One policy per line. Format: &#96;Policy label | detail&#96;.</p>
-            </div>
-            <div class="field">
-              <label for="business-service-areas">Service areas / locations</label>
-              <textarea id="business-service-areas" name="service_areas">${escapeHtml(profile.fields.serviceAreas || "")}</textarea>
-              <p class="field-help">One area per line. Format: &#96;Area | optional note&#96;.</p>
-            </div>
+          <div class="field">
+            <label for="business-pricing">Pricing</label>
+            <textarea id="business-pricing" name="pricing">${escapeHtml(profile.fields.pricing || "")}</textarea>
+            <p class="field-help">One pricing rule per line. Format: &#96;Label | amount or range | optional detail&#96;.</p>
           </div>
-          <div class="form-grid">
-            <div class="field">
-              <label for="business-operating-hours">Operating hours</label>
-              <textarea id="business-operating-hours" name="operating_hours">${escapeHtml(profile.fields.operatingHours || "")}</textarea>
-              <p class="field-help">One schedule line at a time. Format: &#96;Day or range | hours&#96;.</p>
-            </div>
+          <div class="field">
+            <label for="business-policies">Policies</label>
+            <textarea id="business-policies" name="policies">${escapeHtml(profile.fields.policies || "")}</textarea>
+            <p class="field-help">One policy per line. Format: &#96;Policy label | detail&#96;.</p>
           </div>
+          <div class="field">
+            <label for="business-service-areas">Service areas / locations</label>
+            <textarea id="business-service-areas" name="service_areas">${escapeHtml(profile.fields.serviceAreas || "")}</textarea>
+            <p class="field-help">One area per line. Format: &#96;Area | optional note&#96;.</p>
+          </div>
+          <div class="field">
+            <label for="business-operating-hours">Operating hours</label>
+            <textarea id="business-operating-hours" name="operating_hours">${escapeHtml(profile.fields.operatingHours || "")}</textarea>
+            <p class="field-help">One schedule line at a time. Format: &#96;Day or range | hours&#96;.</p>
+          </div>
+        </div>
       </section>
 
       <section class="settings-form-section">
@@ -4010,56 +4022,59 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
             <p class="settings-form-section-copy">Copilot should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
           </div>
         </div>
-          <div class="form-grid two-col">
-            <div class="field">
-              <label>Approved contact channels</label>
-              <div class="contact-filter-group" style="margin-top:8px;">
-                ${[
-                  { value: "website_chat", label: "Website chat" },
-                  { value: "email", label: "Email" },
-                  { value: "phone", label: "Phone" },
-                  { value: "sms", label: "SMS / text" },
-                ].map((channel) => `
-                  <label class="pill" style="display:inline-flex;gap:8px;align-items:center;">
-                    <input
-                      type="checkbox"
-                      name="approved_contact_channels"
-                      value="${escapeHtml(channel.value)}"
-                      ${channelSet.has(channel.value) ? "checked" : ""}
-                    >
-                    <span>${escapeHtml(channel.label)}</span>
-                  </label>
-                `).join("")}
-              </div>
-              <p class="field-help">These do not send anything automatically. They define which owner-approved channels Copilot may prepare drafts for.</p>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label>Approved contact channels</label>
+            <div class="settings-chip-row">
+              ${[
+                { value: "website_chat", label: "Website chat" },
+                { value: "email", label: "Email" },
+                { value: "phone", label: "Phone" },
+                { value: "sms", label: "SMS / text" },
+              ].map((channel) => `
+                <label class="settings-chip-option">
+                  <input
+                    type="checkbox"
+                    name="approved_contact_channels"
+                    value="${escapeHtml(channel.value)}"
+                    ${channelSet.has(channel.value) ? "checked" : ""}
+                  >
+                  <span>${escapeHtml(channel.label)}</span>
+                </label>
+              `).join("")}
             </div>
-            <div class="field">
-              <label>Approval preferences</label>
-              <div class="overview-list">
-                ${[
-                  { name: "approval_follow_up_drafts", label: "Follow-up drafts", value: profile.approvalPreferences.followUpDrafts },
-                  { name: "approval_contact_next_steps", label: "Contact next-step recommendations", value: profile.approvalPreferences.contactNextSteps },
-                  { name: "approval_task_recommendations", label: "Task recommendations", value: profile.approvalPreferences.taskRecommendations },
-                  { name: "approval_outcome_recommendations", label: "Outcome review suggestions", value: profile.approvalPreferences.outcomeRecommendations },
-                  { name: "approval_profile_changes", label: "Profile changes", value: profile.approvalPreferences.profileChanges },
-                ].map((entry) => `
-                  <div class="overview-list-item">
-                    <p class="overview-list-title">${escapeHtml(entry.label)}</p>
-                    <select name="${escapeHtml(entry.name)}">
-                      ${approvalOptions.map((option) => `
-                        <option value="${escapeHtml(option.value)}" ${entry.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
-                      `).join("")}
-                    </select>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
+            <p class="field-help">These do not send anything automatically. They define which owner-approved channels Copilot may prepare drafts for.</p>
           </div>
+          <div class="field">
+            <label>Approval preferences</label>
+            <div class="settings-choice-list">
+              ${[
+                { name: "approval_follow_up_drafts", label: "Follow-up drafts", value: profile.approvalPreferences.followUpDrafts },
+                { name: "approval_contact_next_steps", label: "Contact next-step recommendations", value: profile.approvalPreferences.contactNextSteps },
+                { name: "approval_task_recommendations", label: "Task recommendations", value: profile.approvalPreferences.taskRecommendations },
+                { name: "approval_outcome_recommendations", label: "Outcome review suggestions", value: profile.approvalPreferences.outcomeRecommendations },
+                { name: "approval_profile_changes", label: "Profile changes", value: profile.approvalPreferences.profileChanges },
+              ].map((entry) => `
+                <div class="settings-choice-row">
+                  <div class="settings-choice-main">
+                    <p class="settings-choice-title">${escapeHtml(entry.label)}</p>
+                  </div>
+                  <select name="${escapeHtml(entry.name)}">
+                    ${approvalOptions.map((option) => `
+                      <option value="${escapeHtml(option.value)}" ${entry.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+                    `).join("")}
+                  </select>
+                </div>
+              `).join("")}
+            </div>
+            <p class="field-help">Use explicit approval modes so Copilot stays review-first even when it has enough context to act.</p>
+          </div>
+        </div>
       </section>
 
-      <div class="settings-save-row">
-        <button class="primary-button" type="submit">Save business context</button>
+      <div class="settings-sticky-save">
         <span data-save-state class="save-state">No changes yet.</span>
+        <button class="primary-button" type="submit">Save business context</button>
       </div>
     </form>
   `;
@@ -4073,162 +4088,171 @@ function buildFrontDeskSettingsForm(agent, setup) {
 
   return `
     <form data-settings-form data-form-kind="customize" class="settings-form-shell settings-system-form">
-      <div class="settings-section-intro">
-        <p class="studio-kicker">Front Desk</p>
-        <h2 class="settings-section-title">Front desk behavior</h2>
-        <p class="settings-section-copy">Adjust how the customer-facing front desk sounds, routes, and learns from the website. This page keeps live behavior settings grouped together instead of burying them inside the workflow shell.</p>
-        <div class="settings-inline-meta">
+      <header class="settings-page-header">
+        <div class="settings-page-title-group">
+          <p class="studio-kicker">Front Desk</p>
+          <h2 class="settings-page-title">Front Desk</h2>
+          <p class="settings-page-copy">Adjust how the customer-facing front desk speaks, routes, and represents the business without turning settings into a dashboard.</p>
+        </div>
+        <div class="settings-page-meta">
           <span class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
           <span class="${getBadgeClass(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeState === "ready" ? "Knowledge ready" : setup.knowledgeState === "limited" ? "Knowledge limited" : "Knowledge missing")}</span>
         </div>
-      </div>
+      </header>
+
       <section class="settings-form-section">
         <div class="settings-form-section-header">
           <div>
-            <p class="studio-kicker">Identity and welcome</p>
-            <h3 class="settings-form-section-title">Set the first impression customers meet.</h3>
+            <h3 class="settings-form-section-title">Identity and welcome</h3>
             <p class="settings-form-section-copy">Keep this customer-facing. The goal is a front desk that feels native to the business from the first interaction.</p>
           </div>
         </div>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-name">Assistant name</label>
-                <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
-              </div>
-              <div class="field">
-                <label for="assistant-tone">Conversation tone</label>
-                <select id="assistant-tone" name="tone">
-                  <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
-                  <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
-                  <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
-                  <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="assistant-button-label">Launcher text</label>
-                <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
-              </div>
-              <div class="field">
-                <label for="assistant-website">Website URL</label>
-                <input id="assistant-website" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}">
-                <p class="field-help">This should be the main website Vonza learns from and represents.</p>
-              </div>
-            </div>
-            <div class="form-grid">
-              <div class="field">
-                <label for="assistant-welcome">Welcome message</label>
-                <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
-              </div>
-            </div>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="assistant-name">Assistant name</label>
+            <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
+          </div>
+          <div class="field">
+            <label for="assistant-tone">Conversation tone</label>
+            <select id="assistant-tone" name="tone">
+              <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
+              <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
+              <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
+              <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="assistant-button-label">Launcher text</label>
+            <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
+          </div>
+          <div class="field">
+            <label for="assistant-website">Website URL</label>
+            <input id="assistant-website" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}">
+            <p class="field-help">This should be the main website Vonza learns from and represents.</p>
+          </div>
+          <div class="field">
+            <label for="assistant-welcome">Welcome message</label>
+            <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
+          </div>
+        </div>
       </section>
 
       <section class="settings-form-section">
         <div class="settings-form-section-header">
           <div>
-            <h3 class="settings-form-section-title">Routing and handoff</h3>
-            <p class="settings-form-section-copy">Tell Vonza where high-intent visitors should go when the right next step is to book, request a quote, contact the business, or buy now.</p>
+            <h3 class="settings-form-section-title">Routing defaults</h3>
+            <p class="settings-form-section-copy">Tell Vonza where customers should go when the safest next step is to contact, book, request a quote, or continue to checkout.</p>
           </div>
         </div>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-primary-cta-mode">Primary CTA mode</label>
-                <select id="assistant-primary-cta-mode" name="primary_cta_mode">
-                  <option value="contact" ${trimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
-                  <option value="booking" ${trimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
-                  <option value="quote" ${trimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
-                  <option value="checkout" ${trimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
-                  <option value="capture" ${trimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
-                  <option value="chat" ${trimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
-                </select>
-                <p class="field-help">This is the default route Vonza uses when an intent-specific destination is missing.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-fallback-cta-mode">Fallback CTA mode</label>
-                <select id="assistant-fallback-cta-mode" name="fallback_cta_mode">
-                  <option value="capture" ${trimText(agent.fallbackCtaMode || "capture") === "capture" ? "selected" : ""}>capture</option>
-                  <option value="contact" ${trimText(agent.fallbackCtaMode) === "contact" ? "selected" : ""}>contact</option>
-                  <option value="booking" ${trimText(agent.fallbackCtaMode) === "booking" ? "selected" : ""}>booking</option>
-                  <option value="quote" ${trimText(agent.fallbackCtaMode) === "quote" ? "selected" : ""}>quote</option>
-                  <option value="checkout" ${trimText(agent.fallbackCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
-                  <option value="chat" ${trimText(agent.fallbackCtaMode) === "chat" ? "selected" : ""}>chat</option>
-                </select>
-                <p class="field-help">If a direct route is missing, Vonza follows this fallback instead of guessing.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-booking-url">Booking URL</label>
-                <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
-              </div>
-              <div class="field">
-                <label for="assistant-quote-url">Quote URL</label>
-                <input id="assistant-quote-url" name="quote_url" type="text" value="${escapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
-              </div>
-              <div class="field">
-                <label for="assistant-checkout-url">Checkout URL</label>
-                <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
-              </div>
-              <div class="field">
-                <label for="assistant-contact-email">Contact email</label>
-                <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
-              </div>
-              <div class="field">
-                <label for="assistant-contact-phone">Contact phone</label>
-                <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
-              </div>
-              <div class="field">
-                <label for="assistant-allowed-domains">Allowed domains</label>
-                <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${escapeHtml((agent.allowedDomains || []).join("\n"))}</textarea>
-                <p class="field-help">One domain per line. Keep it limited to the real sites where the widget should run.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-booking-start-url">Booking start URL</label>
-                <input id="assistant-booking-start-url" name="booking_start_url" type="text" value="${escapeHtml(agent.bookingStartUrl || "")}" placeholder="https://example.com/book/start">
-              </div>
-              <div class="field">
-                <label for="assistant-quote-start-url">Quote start URL</label>
-                <input id="assistant-quote-start-url" name="quote_start_url" type="text" value="${escapeHtml(agent.quoteStartUrl || "")}" placeholder="https://example.com/quote/start">
-              </div>
-              <div class="field">
-                <label for="assistant-booking-success-url">Booking success URL</label>
-                <input id="assistant-booking-success-url" name="booking_success_url" type="text" value="${escapeHtml(agent.bookingSuccessUrl || "")}" placeholder="https://example.com/book/confirmed">
-              </div>
-              <div class="field">
-                <label for="assistant-quote-success-url">Quote success URL</label>
-                <input id="assistant-quote-success-url" name="quote_success_url" type="text" value="${escapeHtml(agent.quoteSuccessUrl || "")}" placeholder="https://example.com/quote/thanks">
-              </div>
-              <div class="field">
-                <label for="assistant-checkout-success-url">Checkout success URL</label>
-                <input id="assistant-checkout-success-url" name="checkout_success_url" type="text" value="${escapeHtml(agent.checkoutSuccessUrl || "")}" placeholder="https://example.com/order/complete">
-              </div>
-              <div class="field">
-                <label for="assistant-success-url-match-mode">Success URL match mode</label>
-                <select id="assistant-success-url-match-mode" name="success_url_match_mode">
-                  <option value="path_prefix" ${trimText(agent.successUrlMatchMode || "path_prefix") === "path_prefix" ? "selected" : ""}>path prefix</option>
-                  <option value="exact" ${trimText(agent.successUrlMatchMode) === "exact" ? "selected" : ""}>exact</option>
-                </select>
-              </div>
-              ${manualOutcomeVisible ? `
-                <div class="field">
-                  <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
-                  <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
-                    <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
-                    <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
-                  </select>
-                  <p class="field-help">Turn this on only when the real success page cannot be instrumented and the owner needs a manual fallback.</p>
-                </div>
-              ` : ""}
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="assistant-primary-cta-mode">Primary CTA mode</label>
+            <select id="assistant-primary-cta-mode" name="primary_cta_mode">
+              <option value="contact" ${trimText(agent.primaryCtaMode || "contact") === "contact" ? "selected" : ""}>contact</option>
+              <option value="booking" ${trimText(agent.primaryCtaMode) === "booking" ? "selected" : ""}>booking</option>
+              <option value="quote" ${trimText(agent.primaryCtaMode) === "quote" ? "selected" : ""}>quote</option>
+              <option value="checkout" ${trimText(agent.primaryCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+              <option value="capture" ${trimText(agent.primaryCtaMode) === "capture" ? "selected" : ""}>capture</option>
+              <option value="chat" ${trimText(agent.primaryCtaMode) === "chat" ? "selected" : ""}>chat</option>
+            </select>
+            <p class="field-help">This is the default route Vonza uses when an intent-specific destination is missing.</p>
+          </div>
+          <div class="field">
+            <label for="assistant-fallback-cta-mode">Fallback CTA mode</label>
+            <select id="assistant-fallback-cta-mode" name="fallback_cta_mode">
+              <option value="capture" ${trimText(agent.fallbackCtaMode || "capture") === "capture" ? "selected" : ""}>capture</option>
+              <option value="contact" ${trimText(agent.fallbackCtaMode) === "contact" ? "selected" : ""}>contact</option>
+              <option value="booking" ${trimText(agent.fallbackCtaMode) === "booking" ? "selected" : ""}>booking</option>
+              <option value="quote" ${trimText(agent.fallbackCtaMode) === "quote" ? "selected" : ""}>quote</option>
+              <option value="checkout" ${trimText(agent.fallbackCtaMode) === "checkout" ? "selected" : ""}>checkout</option>
+              <option value="chat" ${trimText(agent.fallbackCtaMode) === "chat" ? "selected" : ""}>chat</option>
+            </select>
+            <p class="field-help">If a direct route is missing, Vonza follows this fallback instead of guessing.</p>
+          </div>
+          <div class="field">
+            <label for="assistant-contact-email">Contact email</label>
+            <input id="assistant-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+          </div>
+          <div class="field">
+            <label for="assistant-contact-phone">Contact phone</label>
+            <input id="assistant-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
+          </div>
+          <div class="field">
+            <label for="assistant-allowed-domains">Allowed domains</label>
+            <textarea id="assistant-allowed-domains" name="allowed_domains" placeholder="example.com&#10;www.example.com">${escapeHtml((agent.allowedDomains || []).join("\n"))}</textarea>
+            <p class="field-help">One domain per line. Keep it limited to the real sites where the widget should run.</p>
+          </div>
+          <div class="field">
+            <label for="assistant-business-hours-note">Availability note</label>
+            <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
+            <p class="field-help">Optional. This appears in the handoff card so the next step feels concrete and trustworthy.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="settings-form-section">
+        <div class="settings-form-section-header">
+          <div>
+            <h3 class="settings-form-section-title">Outcome routing and tracking</h3>
+            <p class="settings-form-section-copy">Map the URLs that matter so Vonza can guide visitors cleanly and attribute what happened after they leave chat.</p>
+          </div>
+        </div>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="assistant-booking-url">Booking URL</label>
+            <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
+          </div>
+          <div class="field">
+            <label for="assistant-quote-url">Quote URL</label>
+            <input id="assistant-quote-url" name="quote_url" type="text" value="${escapeHtml(agent.quoteUrl || "")}" placeholder="https://example.com/quote">
+          </div>
+          <div class="field">
+            <label for="assistant-checkout-url">Checkout URL</label>
+            <input id="assistant-checkout-url" name="checkout_url" type="text" value="${escapeHtml(agent.checkoutUrl || "")}" placeholder="https://example.com/checkout">
+          </div>
+          <div class="field">
+            <label for="assistant-booking-start-url">Booking start URL</label>
+            <input id="assistant-booking-start-url" name="booking_start_url" type="text" value="${escapeHtml(agent.bookingStartUrl || "")}" placeholder="https://example.com/book/start">
+          </div>
+          <div class="field">
+            <label for="assistant-quote-start-url">Quote start URL</label>
+            <input id="assistant-quote-start-url" name="quote_start_url" type="text" value="${escapeHtml(agent.quoteStartUrl || "")}" placeholder="https://example.com/quote/start">
+          </div>
+          <div class="field">
+            <label for="assistant-booking-success-url">Booking success URL</label>
+            <input id="assistant-booking-success-url" name="booking_success_url" type="text" value="${escapeHtml(agent.bookingSuccessUrl || "")}" placeholder="https://example.com/book/confirmed">
+          </div>
+          <div class="field">
+            <label for="assistant-quote-success-url">Quote success URL</label>
+            <input id="assistant-quote-success-url" name="quote_success_url" type="text" value="${escapeHtml(agent.quoteSuccessUrl || "")}" placeholder="https://example.com/quote/thanks">
+          </div>
+          <div class="field">
+            <label for="assistant-checkout-success-url">Checkout success URL</label>
+            <input id="assistant-checkout-success-url" name="checkout_success_url" type="text" value="${escapeHtml(agent.checkoutSuccessUrl || "")}" placeholder="https://example.com/order/complete">
+          </div>
+          <div class="field">
+            <label for="assistant-success-url-match-mode">Success URL match mode</label>
+            <select id="assistant-success-url-match-mode" name="success_url_match_mode">
+              <option value="path_prefix" ${trimText(agent.successUrlMatchMode || "path_prefix") === "path_prefix" ? "selected" : ""}>path prefix</option>
+              <option value="exact" ${trimText(agent.successUrlMatchMode) === "exact" ? "selected" : ""}>exact</option>
+            </select>
+          </div>
+          ${manualOutcomeVisible ? `
+            <div class="field">
+              <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
+              <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
+                <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
+                <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
+              </select>
+              <p class="field-help">Turn this on only when the real success page cannot be instrumented and the owner needs a manual fallback.</p>
             </div>
-            <div class="form-grid">
-              <div class="field">
-                <label for="assistant-business-hours-note">Availability note</label>
-                <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
-                <p class="field-help">Optional. This appears in the handoff card so the next step feels concrete and trustworthy.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-success-snippet">Optional success ping snippet</label>
-                <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
-                <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
-              </div>
-            </div>
+          ` : ""}
+          <div class="field">
+            <label for="assistant-success-snippet">Optional success ping snippet</label>
+            <textarea id="assistant-success-snippet" readonly>fetch("${getPublicAppUrl()}/install/outcomes/ping", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ install_id: "${escapeHtml(agent.installId || "")}", cta_event_id: new URLSearchParams(window.location.search).get("vz_cta_event_id"), page_url: window.location.href }) });</textarea>
+            <p class="field-help">Use this on a thank-you page only if Vonza cannot load there. The tracked redirect adds &#96;vz_cta_event_id&#96; automatically.</p>
+          </div>
+        </div>
       </section>
 
       <section class="settings-form-section">
@@ -4238,47 +4262,52 @@ function buildFrontDeskSettingsForm(agent, setup) {
             <p class="settings-form-section-copy">Keep the front desk aligned with the brand your customers already know, and rerun import when the website changes.</p>
           </div>
         </div>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-primary-color">Primary color</label>
-                <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
-              </div>
-              <div class="field">
-                <label for="assistant-secondary-color">Secondary color</label>
-                <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
-              </div>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="assistant-primary-color">Primary color</label>
+            <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
+          </div>
+          <div class="field">
+            <label for="assistant-secondary-color">Secondary color</label>
+            <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
+          </div>
+        </div>
+        <div class="settings-status-list">
+          <div class="settings-status-row settings-status-row-actions">
+            <div class="settings-status-main">
+              <p class="settings-status-label">Website knowledge</p>
+              <h4 class="settings-status-value">${escapeHtml(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing")}</h4>
+              <p class="settings-status-copy">${escapeHtml(setup.knowledgeDescription)}</p>
             </div>
-            <div class="inline-actions">
+            <div class="settings-status-actions">
               <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
             </div>
-            <div class="settings-inline-note">
-              <strong>Website knowledge</strong>
-              <span>${escapeHtml(setup.knowledgeDescription)}</span>
-            </div>
+          </div>
+        </div>
       </section>
 
-          ${advancedGuidanceVisible ? `
-            <section class="settings-form-section">
-              <div class="settings-form-section-header">
-                <div>
-                  <h3 class="settings-form-section-title">Advanced guidance</h3>
-                  <p class="settings-form-section-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
-                </div>
-              </div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="assistant-instructions">Advanced guidance</label>
-                  <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
-                </div>
-              </div>
-            </section>
-          ` : ""}
+      ${advancedGuidanceVisible ? `
+        <section class="settings-form-section">
+          <div class="settings-form-section-header">
+            <div>
+              <h3 class="settings-form-section-title">Advanced guidance</h3>
+              <p class="settings-form-section-copy">Optional guidance for emphasis, tone, and edge cases. Keep it focused on how the front desk should represent the business.</p>
+            </div>
+          </div>
+          <div class="settings-field-stack">
+            <div class="field">
+              <label for="assistant-instructions">Advanced guidance</label>
+              <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
+            </div>
+          </div>
+        </section>
+      ` : ""}
 
       <section class="settings-form-section">
         <div class="settings-form-section-header">
           <div>
-            <h3 class="settings-form-section-title">Live summary</h3>
-            <p class="settings-form-section-copy">Review the current customer-facing readout before you save. This stays in the same settings flow instead of living in a separate dashboard card.</p>
+            <h3 class="settings-form-section-title">Current live readout</h3>
+            <p class="settings-form-section-copy">Review the customer-facing summary in the same flat settings flow before you save.</p>
           </div>
         </div>
         <div class="settings-live-summary">
@@ -4292,26 +4321,33 @@ function buildFrontDeskSettingsForm(agent, setup) {
             <div id="studio-swatch-primary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.primaryColor || "#14b8a6")}">Primary</div>
             <div id="studio-swatch-secondary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.secondaryColor || "#0f766e")}">Secondary</div>
           </div>
-          <div class="overview-list">
-            <div class="overview-list-item">
-              <p class="overview-list-title">Current website</p>
-              <p class="overview-list-copy">${escapeHtml(agent.websiteUrl || "Add your website to import real business knowledge.")}</p>
+          <div class="settings-key-value-list">
+            <div class="settings-key-value-row">
+              <div class="settings-key-value-main">
+                <p class="settings-key-value-label">Current website</p>
+                <h4 class="settings-key-value-title">${escapeHtml(agent.websiteUrl || "Add your website to import real business knowledge.")}</h4>
+              </div>
             </div>
-            <div class="overview-list-item">
-              <p class="overview-list-title">Install status</p>
-              <p class="overview-list-copy">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</p>
+            <div class="settings-key-value-row">
+              <div class="settings-key-value-main">
+                <p class="settings-key-value-label">Install status</p>
+                <h4 class="settings-key-value-title">${escapeHtml(agent.installStatus?.label || "Not installed yet")}</h4>
+              </div>
             </div>
-            <div class="overview-list-item">
-              <p id="behavior-summary-title" class="overview-list-title">${escapeHtml(behaviorSummary.title)}</p>
-              <p id="behavior-summary-copy" class="overview-list-copy">${escapeHtml(behaviorSummary.copy)}</p>
+            <div class="settings-key-value-row">
+              <div class="settings-key-value-main">
+                <p class="settings-key-value-label">Behavior summary</p>
+                <h4 id="behavior-summary-title" class="settings-key-value-title">${escapeHtml(behaviorSummary.title)}</h4>
+                <p id="behavior-summary-copy" class="settings-key-value-copy">${escapeHtml(behaviorSummary.copy)}</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <div class="settings-save-row">
-        <button class="primary-button" type="submit">Save front desk settings</button>
+      <div class="settings-sticky-save">
         <span data-save-state class="save-state">No changes yet.</span>
+        <button class="primary-button" type="submit">Save Front Desk</button>
       </div>
     </form>
   `;
@@ -4333,11 +4369,13 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
 
   return `
     <div class="settings-form-shell">
-      <div class="settings-section-intro">
-        <p class="studio-kicker">Connected tools</p>
-        <h2 class="settings-section-title">Connected tools</h2>
-        <p class="settings-section-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
-      </div>
+      <header class="settings-page-header">
+        <div class="settings-page-title-group">
+          <p class="studio-kicker">Connected tools</p>
+          <h2 class="settings-page-title">Connected tools</h2>
+          <p class="settings-page-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
+        </div>
+      </header>
 
       <section class="settings-form-section">
         <div class="settings-form-section-header">
@@ -4422,11 +4460,13 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
 
   return `
     <div class="settings-form-shell">
-      <div class="settings-section-intro">
-        <p class="studio-kicker">Workspace</p>
-        <h2 class="settings-section-title">Workspace</h2>
-        <p class="settings-section-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
-      </div>
+      <header class="settings-page-header">
+        <div class="settings-page-title-group">
+          <p class="studio-kicker">Workspace</p>
+          <h2 class="settings-page-title">Workspace</h2>
+          <p class="settings-page-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
+        </div>
+      </header>
 
       <section class="settings-form-section">
         <div class="settings-form-section-header">
@@ -4506,29 +4546,30 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
       ${buildPageHeader({
         eyebrow: "Utilities",
         title: "Settings",
-        copy: "Organize business context, front-desk behavior, connected tools, and honest workspace status in one clear settings shell.",
-        actionsMarkup: `<button class="primary-button" type="button" data-shell-target="customize">Open Front Desk</button>`,
+        copy: "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
       })}
       <div class="workspace-page-body settings-layout">
         <aside class="settings-sidebar">
           ${buildSettingsSectionNav(activeSettingsSection)}
         </aside>
-        <div class="settings-content">
+        <div class="settings-main">
           <div class="settings-mobile-nav">
             ${buildSettingsSectionNav(activeSettingsSection, { compact: true })}
           </div>
-          <section class="settings-content-panel" data-settings-section="business" ${activeSettingsSection === "business" ? "" : "hidden"}>
-            ${buildBusinessContextSetupPanel(operatorWorkspace)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
-            ${buildFrontDeskSettingsForm(agent, setup)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="connected_tools" ${activeSettingsSection === "connected_tools" ? "" : "hidden"}>
-            ${buildConnectedToolsSettingsPanel(agent, operatorWorkspace)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
-            ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace)}
-          </section>
+          <div class="settings-main-panel">
+            <section class="settings-page" data-settings-section="business" ${activeSettingsSection === "business" ? "" : "hidden"}>
+              ${buildBusinessContextSetupPanel(operatorWorkspace)}
+            </section>
+            <section class="settings-page" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
+              ${buildFrontDeskSettingsForm(agent, setup)}
+            </section>
+            <section class="settings-page" data-settings-section="connected_tools" ${activeSettingsSection === "connected_tools" ? "" : "hidden"}>
+              ${buildConnectedToolsSettingsPanel(agent, operatorWorkspace)}
+            </section>
+            <section class="settings-page" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
+              ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace)}
+            </section>
+          </div>
         </div>
       </div>
     </section>
