@@ -25,6 +25,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
+const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
 
 function withEnv(overrides, fn) {
@@ -322,6 +323,7 @@ function createDashboardHarness({
   },
   customFetch = null,
 } = {}) {
+  const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   let assignedUrl = null;
@@ -591,6 +593,7 @@ function createDashboardHarness({
   context.globalThis = context;
   window.fetch = fetchImpl;
 
+  vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -1511,6 +1514,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /dashboard-root/);
         assert.match(dashboard.text, /\/public-config\.js/);
         assert.match(dashboard.text, /\/supabase-auth\.js/);
+        assert.match(dashboard.text, /\/settings\/settings\.css/);
+        assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
 
         const widget = await getText(server.baseUrl, "/widget");
@@ -1523,6 +1528,9 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         assert.equal(dashboardScript.status, 200);
+
+        const settingsShellScript = await getText(server.baseUrl, "/settings/SettingsShell.js");
+        assert.equal(settingsShellScript.status, 200);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);
@@ -1553,7 +1561,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
 
       try {
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
+        const settingsShellScript = await getText(server.baseUrl, "/settings/SettingsShell.js");
         assert.equal(dashboardScript.status, 200);
+        assert.equal(settingsShellScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
         assert.match(dashboardScript.text, /Sign in to continue into Vonza/);
         assert.match(dashboardScript.text, /Create account/);
@@ -1602,6 +1612,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Open owner handoff/);
         assert.match(dashboardScript.text, /Save owner handoff/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
+        assert.match(settingsShellScript.text, /data-settings-nav="desktop"/);
+        assert.match(settingsShellScript.text, /data-settings-nav="mobile"/);
+        assert.doesNotMatch(settingsShellScript.text, /local-section-nav/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");
         assert.equal(widgetPreview.status, 200);
