@@ -1,0 +1,312 @@
+/* SETTINGS SHELL */
+
+.settings-shell-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+.settings-shell-sidebar {
+  align-self: start;
+  position: sticky;
+  top: 24px;
+  padding-right: 28px;
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.settings-shell-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-shell-nav-heading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.settings-shell-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-shell-nav-button {
+  width: 100%;
+  text-align: left;
+  padding: 11px 0 11px 16px;
+  border: 0;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease;
+}
+
+.settings-shell-nav-button:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settings-shell-nav-button.active {
+  color: white;
+  border-left-color: rgba(45, 212, 191, 0.9);
+  background: rgba(20, 184, 166, 0.08);
+}
+
+.settings-shell-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.settings-shell-main-panel,
+.settings-shell-panel {
+  min-width: 0;
+}
+
+.settings-shell-mobile-bar {
+  display: none;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.settings-shell-mobile-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.settings-shell-mobile-select {
+  width: 100%;
+}
+
+.settings-shell-mobile-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.settings-shell-form {
+  display: block;
+  min-width: 0;
+}
+
+.settings-shell-page-header {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.settings-shell-page-title {
+  margin: 0;
+  color: white;
+  font-size: 1.95rem;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.settings-shell-page-copy {
+  margin: 0;
+  color: var(--soft);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.settings-shell-page-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.settings-shell-section {
+  display: grid;
+  gap: 20px;
+  padding: 28px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.settings-shell-section:first-of-type {
+  border-top: 0;
+}
+
+.settings-shell-section-title {
+  margin: 0;
+  color: white;
+  font-size: 1.08rem;
+  letter-spacing: -0.01em;
+}
+
+.settings-shell-section-copy {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.settings-shell-field-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-shell-choice-list,
+.settings-shell-status-list,
+.settings-shell-key-value-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-shell-choice-row,
+.settings-shell-status-row,
+.settings-shell-key-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 18px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.settings-shell-choice-row:first-child,
+.settings-shell-status-row:first-child,
+.settings-shell-key-value-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.settings-shell-choice-row:last-child,
+.settings-shell-status-row:last-child,
+.settings-shell-key-value-row:last-child {
+  padding-bottom: 0;
+}
+
+.settings-shell-choice-main,
+.settings-shell-status-main,
+.settings-shell-key-value-main {
+  min-width: 0;
+}
+
+.settings-shell-status-label,
+.settings-shell-key-value-label {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.settings-shell-choice-title,
+.settings-shell-status-value,
+.settings-shell-key-value-title {
+  margin: 0;
+  color: white;
+  font-size: 1rem;
+}
+
+.settings-shell-choice-row select {
+  width: min(260px, 100%);
+  flex: 0 0 auto;
+}
+
+.settings-shell-status-copy,
+.settings-shell-key-value-copy {
+  margin: 6px 0 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.settings-shell-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.settings-shell-chip-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: transparent;
+  color: var(--soft);
+  font-size: 13px;
+}
+
+.settings-shell-chip-option input {
+  accent-color: #14b8a6;
+}
+
+.settings-shell-status-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.settings-shell-status-row--actions {
+  align-items: center;
+}
+
+.settings-shell-live-summary {
+  display: grid;
+  gap: 16px;
+}
+
+.settings-shell-sticky-save {
+  position: sticky;
+  bottom: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 32px;
+  padding: 18px 0 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, rgba(9, 13, 24, 0), rgba(9, 13, 24, 0.96) 42%);
+}
+
+@media (max-width: 1100px) {
+  .settings-shell-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .settings-shell-sidebar {
+    display: none;
+  }
+
+  .settings-shell-mobile-bar {
+    display: grid;
+  }
+}
+
+@media (max-width: 900px) {
+  .settings-shell-choice-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-shell-status-actions,
+  .settings-shell-sticky-save {
+    justify-content: flex-start;
+  }
+}

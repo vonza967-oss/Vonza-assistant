@@ -52,7 +52,9 @@ function createFakeElement(id) {
 }
 
 function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
+  const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
+    .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
   const storage = new Map();
   const elements = new Map();
@@ -101,6 +103,17 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
         storage.delete(key);
       },
     },
+    sessionStorage: {
+      getItem(key) {
+        return storage.has(`session:${key}`) ? storage.get(`session:${key}`) : null;
+      },
+      setItem(key, value) {
+        storage.set(`session:${key}`, String(value));
+      },
+      removeItem(key) {
+        storage.delete(`session:${key}`);
+      },
+    },
     crypto: {
       randomUUID() {
         return "client-test-id";
@@ -139,6 +152,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   };
   context.globalThis = context;
 
+  vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }
@@ -480,6 +494,8 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Workspace/);
   assert.match(settings, /Business context setup/);
   assert.match(settings, /Save business context/);
+  assert.match(settings, /data-settings-nav="desktop"/);
+  assert.doesNotMatch(settings, /local-section-nav/);
 });
 
 test("today workspace render uses a dominant queue and support rail shell", () => {

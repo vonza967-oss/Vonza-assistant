@@ -10,7 +10,6 @@ const DASHBOARD_FOCUS_KEY = "vonza_dashboard_focus";
 const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
-const DASHBOARD_SETTINGS_SECTION_KEY = "vonza_dashboard_settings_section";
 const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
@@ -40,7 +39,6 @@ const LAUNCH_STEPS = [
 const trackedEventKeys = new Set();
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
-const SETTINGS_SECTIONS = ["business", "front_desk", "connected_tools", "workspace"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -916,10 +914,6 @@ function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorksp
   return getShellSectionsForWorkspace(operatorWorkspace);
 }
 
-function getAvailableSettingsSections() {
-  return SETTINGS_SECTIONS.slice();
-}
-
 function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
   const availableSections = getAvailableShellSections(operatorWorkspace);
@@ -937,25 +931,6 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
   }
 
   window.localStorage.setItem(DASHBOARD_SECTION_KEY, section);
-}
-
-function getActiveSettingsSection() {
-  const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SETTINGS_SECTION_KEY)).toLowerCase();
-  const availableSections = getAvailableSettingsSections();
-
-  if (availableSections.includes(storedSection)) {
-    return storedSection;
-  }
-
-  return "business";
-}
-
-function setActiveSettingsSection(section) {
-  if (!getAvailableSettingsSections().includes(section)) {
-    return;
-  }
-
-  window.localStorage.setItem(DASHBOARD_SETTINGS_SECTION_KEY, section);
 }
 
 function getActiveFrontDeskSection() {
@@ -2227,48 +2202,6 @@ function buildSidebarShell(
         ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
       </div>
     </aside>
-  `;
-}
-
-function buildSettingsSectionNav(activeSettingsSection, { compact = false } = {}) {
-  const navClass = compact ? "settings-nav settings-nav-compact" : "settings-nav";
-  const sections = [
-    {
-      key: "business",
-      label: "Business profile",
-      note: "Services, pricing, policies, and approval-first context.",
-    },
-    {
-      key: "front_desk",
-      label: "Front Desk",
-      note: "Identity, routing, website knowledge, and launch behavior.",
-    },
-    {
-      key: "connected_tools",
-      label: "Connected tools",
-      note: "Google connection state and extension surfaces.",
-    },
-    {
-      key: "workspace",
-      label: "Workspace",
-      note: "Access, launch mode, and honest workspace-level status.",
-    },
-  ];
-
-  return `
-    <div class="${navClass}">
-      ${sections.map((section) => `
-        <button
-          class="settings-nav-button ${activeSettingsSection === section.key ? "active" : ""}"
-          type="button"
-          data-settings-target="${escapeHtml(section.key)}"
-          aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
-        >
-          <span class="settings-nav-label">${escapeHtml(section.label)}</span>
-          <span class="settings-nav-note">${escapeHtml(section.note)}</span>
-        </button>
-      `).join("")}
-    </div>
   `;
 }
 
@@ -4404,47 +4337,38 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
 }
 
 function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const activeSettingsSection = getActiveSettingsSection();
+  const settingsShell = window.VonzaSettingsShell;
 
-  return `
-    <section class="workspace-page" data-shell-section="settings" hidden>
-      ${buildPageHeader({
-        eyebrow: "Utilities",
-        title: "Settings",
-        copy: "Organize business context, front-desk behavior, connected tools, and honest workspace status in one clear settings shell.",
-      })}
-      ${buildPageToolbar({
-        filtersMarkup: buildLocalSectionNav([
-          { key: "business", label: "Business profile" },
-          { key: "front_desk", label: "Front Desk" },
-          { key: "connected_tools", label: "Connected tools" },
-          { key: "workspace", label: "Workspace" },
-        ], { attribute: "data-settings-target", activeKey: activeSettingsSection }),
-      })}
-      <div class="workspace-page-body settings-layout">
-        <aside class="settings-sidebar">
-          ${buildSettingsSectionNav(activeSettingsSection)}
-        </aside>
-        <div class="settings-content">
-          <div class="settings-mobile-nav">
-            ${buildSettingsSectionNav(activeSettingsSection, { compact: true })}
-          </div>
-          <section class="settings-content-panel" data-settings-section="business" ${activeSettingsSection === "business" ? "" : "hidden"}>
-            ${buildBusinessContextSetupPanel(operatorWorkspace)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
-            ${buildFrontDeskSettingsForm(agent, setup)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="connected_tools" ${activeSettingsSection === "connected_tools" ? "" : "hidden"}>
-            ${buildConnectedToolsSettingsPanel(agent, operatorWorkspace)}
-          </section>
-          <section class="settings-content-panel" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
-            ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace)}
-          </section>
-        </div>
-      </div>
-    </section>
-  `;
+  if (!settingsShell || typeof settingsShell.buildSettingsPanel !== "function") {
+    return `
+      <section class="workspace-page" data-shell-section="settings" hidden>
+        ${buildPageHeader({
+          eyebrow: "Utilities",
+          title: "Settings",
+          copy: "The Settings shell could not be loaded right now.",
+        })}
+      </section>
+    `;
+  }
+
+  return settingsShell.buildSettingsPanel({
+    agent,
+    setup,
+    operatorWorkspace,
+    escapeHtml,
+    trimText,
+    getBadgeClass,
+    buildPageHeader,
+    createEmptyOperatorWorkspace,
+    getBusinessProfileViewModel,
+    buildBehaviorSummary,
+    isCapabilityExplicitlyVisible,
+    getPublicAppUrl,
+    getGoogleWorkspaceCapabilities,
+    getWorkspaceMode,
+    normalizeAccessStatus,
+    getDefaultInstallStatus,
+  });
 }
 
 function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -9723,9 +9647,6 @@ function bindSimpleDirtyState(form) {
 function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const appShell = document.querySelector("[data-app-shell]");
   const overviewSection = document.querySelector('[data-shell-section="overview"]');
-  const settingsForms = document.querySelectorAll("form[data-settings-form]");
-  const settingsSectionButtons = document.querySelectorAll("[data-settings-target]");
-  const settingsSections = document.querySelectorAll("[data-settings-section]");
   const appearancePresetButtons = document.querySelectorAll("[data-appearance-preset]");
   const configurationPresetButtons = document.querySelectorAll("[data-configuration-preset]");
   const toneCards = document.querySelectorAll("[data-tone-card]");
@@ -9795,10 +9716,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
-  const availableSettingsSections = getAvailableSettingsSections();
   let activeContactFilter = "all";
   let activeTodayFilter = "all";
   let activeTodayQueueKey = getActiveTodayQueueSelection(buildTodayQueueItems(actionQueue, operatorWorkspace));
+  let settingsShellController = null;
 
   const closeShellNavigation = () => {
     appShell?.classList.remove("nav-open");
@@ -9806,22 +9727,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   const openShellNavigation = () => {
     appShell?.classList.add("nav-open");
-  };
-
-  const showSettingsSection = (targetSection = getActiveSettingsSection()) => {
-    const normalizedSection = availableSettingsSections.includes(targetSection)
-      ? targetSection
-      : "business";
-
-    setActiveSettingsSection(normalizedSection);
-
-    settingsSectionButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.settingsTarget === normalizedSection);
-    });
-
-    settingsSections.forEach((section) => {
-      section.hidden = section.dataset.settingsSection !== normalizedSection;
-    });
   };
 
   const showShellSection = (targetSection, options = {}) => {
@@ -9844,7 +9749,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
 
     if (targetSection === "settings") {
-      showSettingsSection(options.settingsSection || getActiveSettingsSection());
+      settingsShellController?.showSettingsSection(options.settingsSection);
     }
 
     closeShellNavigation();
@@ -10651,18 +10556,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
-  settingsForms.forEach((form) => {
-    form.addEventListener("submit", (event) => saveAssistant(event, agent));
-
-    if (form.dataset.formKind === "business-context") {
-      bindSimpleDirtyState(form);
-      return;
-    }
-
-    bindStudioState(form, agent);
-  });
-
-  showSettingsSection(getActiveSettingsSection());
+  settingsShellController = window.VonzaSettingsShell?.bindSettingsShellEvents({
+    root: document,
+    onSubmitForm: (event) => saveAssistant(event, agent),
+    bindStudioState: (form) => bindStudioState(form, agent),
+    bindSimpleDirtyState,
+  }) || null;
 
   shellMenuButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -10676,14 +10575,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   });
 
   shellBackdrop?.addEventListener("click", closeShellNavigation);
-
-  settingsSectionButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      showShellSection("settings", { settingsSection: button.dataset.settingsTarget || "business" });
-      const settingsPanel = document.querySelector('[data-shell-section="settings"]');
-      settingsPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  });
 
   copilotTargetButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -11522,7 +11413,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   const initialSection = getActiveShellSection(setup, operatorWorkspace);
   showShellSection(initialSection, {
-    settingsSection: getActiveSettingsSection(),
+    settingsSection: settingsShellController?.getActiveSettingsSection?.(),
   });
   showFrontDeskSection("overview");
 

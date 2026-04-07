@@ -1158,6 +1158,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /dashboard-root/);
         assert.match(dashboard.text, /\/public-config\.js/);
         assert.match(dashboard.text, /\/supabase-auth\.js/);
+        assert.match(dashboard.text, /\/settings\/settings\.css/);
+        assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
 
         const widget = await getText(server.baseUrl, "/widget");
@@ -1170,6 +1172,16 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         assert.equal(dashboardScript.status, 200);
+
+        const settingsShellScript = await getText(server.baseUrl, "/settings/SettingsShell.js");
+        assert.equal(settingsShellScript.status, 200);
+        assert.match(settingsShellScript.text, /VonzaSettingsShell\s*=\s*\{/);
+        assert.match(settingsShellScript.text, /data-settings-nav="desktop"/);
+        assert.match(settingsShellScript.text, /data-settings-nav="mobile"/);
+        assert.doesNotMatch(settingsShellScript.text, /local-section-nav/);
+
+        const settingsShellCss = await getText(server.baseUrl, "/settings/settings.css");
+        assert.equal(settingsShellCss.status, 200);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);
