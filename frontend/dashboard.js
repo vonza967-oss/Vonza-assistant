@@ -8502,6 +8502,183 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     });
   }
 
+  const percentLabel = (value, total) => {
+    if (!Number(total)) {
+      return "0%";
+    }
+
+    return `${Math.round((Number(value || 0) / Number(total)) * 100)}%`;
+  };
+  const miniBarRows = (items = [], formatter = (value) => String(value)) => {
+    const safeItems = items.filter((item) => item && item.label);
+    const maxValue = safeItems.reduce((highest, item) => Math.max(highest, Number(item.value || 0)), 0);
+
+    if (!safeItems.length) {
+      return `<div class="analytics-board-empty">Live signal will appear here as customers start using the front desk.</div>`;
+    }
+
+    return `
+      <div class="analytics-mini-bar-list">
+        ${safeItems.map((item) => {
+          const width = maxValue > 0 ? Math.max((Number(item.value || 0) / maxValue) * 100, Number(item.value || 0) > 0 ? 8 : 0) : 0;
+          return `
+            <div class="analytics-mini-bar-row">
+              <div class="analytics-mini-bar-copy">
+                <span>${escapeHtml(item.label)}</span>
+                <strong>${escapeHtml(formatter(item.value || 0, item))}</strong>
+              </div>
+              <div class="analytics-mini-bar-track">
+                <span class="analytics-mini-bar-fill" style="width:${width}%;"></span>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+  };
+  const topIntentRows = [
+    { label: "Contact", value: signals.intentCounts.contact || 0 },
+    { label: "Booking", value: signals.intentCounts.booking || 0 },
+    { label: "Pricing", value: signals.intentCounts.pricing || 0 },
+    { label: "Support", value: signals.intentCounts.support || 0 },
+  ].sort((left, right) => Number(right.value || 0) - Number(left.value || 0));
+  const topQuestionRows = (signals.topQuestions || []).slice(0, 6).map((item) => ({
+    label: item.label || "Customer question",
+    value: item.count || 1,
+  }));
+  const boardStatusTone = isInstallSeen(installStatus)
+    ? { value: "Live", meta: installStatus.lastSeenAt ? `Seen ${formatSeenAt(installStatus.lastSeenAt)}` : "Verified on site" }
+    : installStatus.state === "installed_unseen"
+      ? { value: "Pending traffic", meta: "Snippet found, waiting for first live visit" }
+      : { value: "Needs launch", meta: installStatus.lastVerifiedAt ? `Last checked ${formatSeenAt(installStatus.lastVerifiedAt)}` : "Awaiting install verification" };
+  const captureRate = percentLabel(analyticsSummary.contactsCaptured, Math.max(analyticsSummary.visitorQuestions, 1));
+  const directRouteRate = percentLabel(
+    conversionSummary.directRouteCount,
+    Math.max(conversionSummary.directRouteCount + conversionSummary.captureFallbackCount, 1),
+  );
+  const answerCoverageRate = percentLabel(
+    Math.max((analyticsSummary.visitorQuestions || 0) - (signals.weakAnswerCount || 0), 0),
+    Math.max(analyticsSummary.visitorQuestions || 0, 1),
+  );
+  const boardSignalRows = topQuestionRows.length
+    ? topQuestionRows.map((item) => ({
+      label: item.label,
+      detail: "Recurring customer demand worth checking in the question and answer flow.",
+      value: item.value ? `${item.value}` : "Review",
+    }))
+    : opportunityItems.slice(0, 6).map((item) => ({
+      label: item.title,
+      detail: item.subtle || "Customer demand and workflow pressure stay visible here for faster review.",
+      value: "Review",
+    }));
+  const analyticsBoardMarkup = `
+    <section class="analytics-launch-board">
+      <div class="analytics-launch-board-header">
+        <div>
+          <p class="analytics-launch-board-kicker">Launch board</p>
+          <h3 class="analytics-launch-board-title">Front desk performance board</h3>
+          <p class="analytics-launch-board-copy">A denser readout of live demand, lead capture, response quality, and the signals that need operator review next.</p>
+        </div>
+        <button class="ghost-button analytics-board-refresh" type="button" data-refresh-operator data-force-sync="true">Refresh signals</button>
+      </div>
+      <div class="analytics-launch-grid">
+        <article class="analytics-board-panel analytics-board-panel-status">
+          <p class="analytics-board-label">Front desk status</p>
+          <p class="analytics-board-value">${escapeHtml(boardStatusTone.value)}</p>
+          <p class="analytics-board-copy">${escapeHtml(installStatus.label)}</p>
+          <div class="analytics-board-meta-row">
+            <span>${escapeHtml(boardStatusTone.meta)}</span>
+            <span>${escapeHtml(activity.copy)}</span>
+          </div>
+        </article>
+
+        <article class="analytics-board-panel analytics-board-panel-trend">
+          <p class="analytics-board-label">Demand mix</p>
+          <div class="analytics-board-statline">
+            <strong>${escapeHtml(String(analyticsSummary.highIntentSignals || 0))}</strong>
+            <span>high-intent moments captured</span>
+          </div>
+          ${miniBarRows(topIntentRows, (value) => `${value}`)}
+        </article>
+
+        <article class="analytics-board-panel analytics-board-panel-dual">
+          <p class="analytics-board-label">Conversion pressure</p>
+          <div class="analytics-board-dual-grid">
+            <div class="analytics-board-dual-cell">
+              <p class="analytics-board-dual-value">${escapeHtml(captureRate)}</p>
+              <p class="analytics-board-dual-copy">lead capture rate</p>
+            </div>
+            <div class="analytics-board-dual-cell">
+              <p class="analytics-board-dual-value">${escapeHtml(directRouteRate)}</p>
+              <p class="analytics-board-dual-copy">direct route rate</p>
+            </div>
+          </div>
+          <p class="analytics-board-footnote">${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks · ${analyticsSummary.contactsCaptured || 0} contact captures · ${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed wins`)}</p>
+        </article>
+
+        <article class="analytics-board-panel analytics-board-panel-quality">
+          <p class="analytics-board-label">Answer quality</p>
+          <div class="analytics-board-statline">
+            <strong>${escapeHtml(answerCoverageRate)}</strong>
+            <span>of questions answered without weak-signal fallback</span>
+          </div>
+          ${miniBarRows([
+            { label: "Visitor questions", value: analyticsSummary.visitorQuestions || 0 },
+            { label: "Weak answers", value: signals.weakAnswerCount || 0 },
+            { label: "Contacts captured", value: analyticsSummary.contactsCaptured || 0 },
+          ])}
+        </article>
+
+        <article class="analytics-board-panel analytics-board-panel-kpis">
+          <p class="analytics-board-label">Core ratios</p>
+          <div class="analytics-board-chip-metrics">
+            <div>
+              <strong>${escapeHtml(String(analyticsSummary.totalMessages || 0))}</strong>
+              <span>stored messages</span>
+            </div>
+            <div>
+              <strong>${escapeHtml(String(setup.knowledgePageCount || 0))}</strong>
+              <span>imported pages</span>
+            </div>
+            <div>
+              <strong>${escapeHtml(String(recentLeadCaptures.length || 0))}</strong>
+              <span>recent lead captures</span>
+            </div>
+            <div>
+              <strong>${escapeHtml(String(recentOutcomes.length || 0))}</strong>
+              <span>recent outcomes</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="analytics-board-panel analytics-board-panel-list">
+          <div class="analytics-board-panel-header">
+            <div>
+              <p class="analytics-board-label">Signals to review</p>
+              <p class="analytics-board-copy">Top repeated questions and operational pressure points in one queue.</p>
+            </div>
+            <button class="ghost-button" type="button" data-overview-focus="action-queue">Review queue</button>
+          </div>
+          <div class="analytics-board-ranked-list">
+            ${boardSignalRows.map((item) => `
+              <div class="analytics-board-ranked-row">
+                <div>
+                  <strong>${escapeHtml(item.label || "Signal")}</strong>
+                  <p>${escapeHtml(item.detail || "Customer demand and workflow pressure stay visible here for faster review.")}</p>
+                </div>
+                <span>${escapeHtml(item.value || "Review")}</span>
+              </div>
+            `).join("")}
+          </div>
+        </article>
+      </div>
+      <div class="analytics-launch-board-footer">
+        <span>Front desk launch board</span>
+        <span>${escapeHtml(analyticsSummary.operatorSignal.subtle || "Signals update as live usage grows.")}</span>
+      </div>
+    </section>
+  `;
+
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
@@ -8534,6 +8711,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
         ${analyticsSummary.syncState === "pending" ? `
           <div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now. These counters should update shortly without a full page reload.</div>
         ` : ""}
+        ${analyticsBoardMarkup}
         <div class="results-workspace">
           <section class="results-main-column">
             <section class="flat-section">
