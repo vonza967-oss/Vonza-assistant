@@ -1,8 +1,11 @@
 import {
+  appearsHungarian,
+  buildEffectiveUserText,
   cleanText,
   detectResponseLanguage,
   sanitizeChatHistory,
 } from "../../utils/text.js";
+import { generateAssistantReply } from "../chat/assistantReplyService.js";
 
 const SECTION_GUIDES = {
   overview: {
@@ -95,6 +98,24 @@ const SUBSECTION_GUIDES = {
     context: "Context shows whether website content has been imported well enough for Vonza to answer accurately.",
     launch: "Launch focuses on getting the customer-facing front desk ready to publish safely.",
   },
+  contacts: {
+    overview: "Contacts overview summarizes relationship health, risk, and where attention is needed.",
+    people: "People is the detailed contact list and contact record view.",
+    follow_up: "Follow-up surfaces contacts that need the next move, recovery, or manual attention.",
+    activity: "Activity shows movement, source coverage, and who has gone quiet.",
+  },
+  analytics: {
+    overview: "Analytics overview gives the high-level read on questions, outcomes, and improvement pressure.",
+    questions: "Questions groups real customer question themes so you can see what people are trying to understand.",
+    outcomes: "Outcomes shows the results Vonza can prove conservatively from recorded activity.",
+    improvements: "Improvements highlights weak answers, weak routing, and places where setup or guidance should get stronger.",
+  },
+  settings: {
+    business: "Business context defines what Vonza should trust about the business before it prepares approval-first guidance.",
+    front_desk: "Front Desk settings control how the customer-facing assistant sounds, routes, and presents itself.",
+    connected_tools: "Connected tools is where optional Google-powered inbox and calendar access is configured.",
+    workspace: "Workspace settings summarize mode, readiness, and core operational status.",
+  },
 };
 
 function getSectionGuide(sectionKey = "") {
@@ -134,6 +155,7 @@ function summarizeSetup(agent = {}) {
 function buildCurrentContext({ currentSection, currentSubsection }) {
   const sectionGuide = getSectionGuide(currentSection);
   const subsectionGuide = getSubsectionGuide(currentSection, currentSubsection);
+
   return {
     sectionKey: cleanText(currentSection).toLowerCase() || "overview",
     sectionLabel: sectionGuide.label,
@@ -144,10 +166,30 @@ function buildCurrentContext({ currentSection, currentSubsection }) {
   };
 }
 
+function summarizeConnectedToolState(operatorWorkspace = {}) {
+  const connectedAccounts = Array.isArray(operatorWorkspace?.connectedAccounts)
+    ? operatorWorkspace.connectedAccounts
+    : [];
+  const activeAccount = connectedAccounts.find((account) => cleanText(account?.status) === "connected") || null;
+  const capabilities = operatorWorkspace?.status?.googleCapabilities || {};
+  const enabledCapabilities = Object.entries(capabilities)
+    .filter(([, enabled]) => enabled === true)
+    .map(([key]) => key.replace(/([A-Z])/g, " $1").toLowerCase())
+    .map((key) => key.replace(/\s+/g, " ").trim());
+
+  return {
+    googleConnected: operatorWorkspace?.status?.googleConnected === true,
+    accountEmail: cleanText(activeAccount?.accountEmail || ""),
+    capabilities: enabledCapabilities,
+    inboxAttentionCount: Number(operatorWorkspace?.inbox?.attentionCount || 0),
+    pendingCalendarApprovals: Number(operatorWorkspace?.summary?.pendingCalendarApprovals || 0),
+  };
+}
+
 function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
   const setup = summarizeSetup(agent);
+  const tools = summarizeConnectedToolState(operatorWorkspace);
   const steps = [];
-  const googleConnected = operatorWorkspace?.status?.googleConnected === true;
   const missingBusinessContext = Number(operatorWorkspace?.businessProfile?.readiness?.missingCount || 0);
 
   if (!setup.personalityReady) {
@@ -172,8 +214,8 @@ function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
     steps.push("Open Install, place the Vonza snippet on the site, and verify that the live install is detected.");
   }
 
-  if (!googleConnected) {
-    steps.push("Connect Google in Connected tools when you want Inbox, Calendar, and richer Today context inside the workspace.");
+  if (!tools.googleConnected) {
+    steps.push("Connect Google in Settings > Connected tools when you want Inbox, Calendar, and richer Today context inside the workspace.");
   }
 
   if (missingBusinessContext > 0) {
@@ -183,7 +225,26 @@ function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
   return steps.slice(0, 4);
 }
 
-function buildContextBlock({
+function buildProductKnowledgeBlock() {
+  return [
+    "Vonza AI architecture:",
+    "- Vonza AI runs in multiple modes that share the same reply pipeline but use different instructions and factual context.",
+    "- Website mode is customer-facing. It answers the business's visitors using the client's website and business context.",
+    "- Support mode is in-app and owner-facing. It answers questions about using Vonza itself with Vonza product knowledge and live dashboard state.",
+    "- Keep the difference between customer-facing website help and in-app product support explicit when relevant.",
+    "",
+    "Vonza product model:",
+    "- Vonza is an approval-first AI front desk and operator command center.",
+    "- The stable core inside the app is Today, Contacts, Front Desk, Analytics, Install, and Settings.",
+    "- Inbox, Calendar, and Automations are connected workspace extensions when Google tools are enabled.",
+    "- Suggested actions, drafts, approvals, and live changes should stay clearly distinct in explanations.",
+    "",
+    "Core surfaces:",
+    ...Object.values(SECTION_GUIDES).map((guide) => `- ${guide.label}: ${guide.summary}`),
+  ].join("\n");
+}
+
+function buildWorkspaceContextBlock({
   agent = {},
   operatorWorkspace = {},
   currentSection,
@@ -191,30 +252,46 @@ function buildContextBlock({
 }) {
   const currentContext = buildCurrentContext({ currentSection, currentSubsection });
   const setup = summarizeSetup(agent);
+  const tools = summarizeConnectedToolState(operatorWorkspace);
   const recommendedNextSteps = buildRecommendedNextSteps(agent, operatorWorkspace);
+  const activationChecklist = Array.isArray(operatorWorkspace?.activation?.checklist)
+    ? operatorWorkspace.activation.checklist
+    : [];
+  const incompleteActivationItems = activationChecklist.filter((item) => item?.complete !== true);
+  const businessReadiness = operatorWorkspace?.businessProfile?.readiness || {};
+  const contactSummary = operatorWorkspace?.contacts?.summary || {};
+  const nextActionTitle = cleanText(operatorWorkspace?.nextAction?.title || "");
+  const nextActionDescription = cleanText(operatorWorkspace?.nextAction?.description || "");
+  const briefingText = cleanText(operatorWorkspace?.briefing?.text || "");
   const installHost = cleanText(agent?.installStatus?.host || "");
-  const businessContextSummary = cleanText(operatorWorkspace?.businessProfile?.readiness?.summary || "");
+  const installLastVerifiedAt = cleanText(agent?.installStatus?.lastVerifiedAt || "");
 
   return [
-    "Vonza product reference:",
-    "- Vonza is an approval-first AI front desk and operator workspace.",
-    "- Keep answers focused on using Vonza itself, not on unrelated general knowledge.",
-    "- The stable core inside the app is Today, Contacts, Front Desk, Analytics, and Install.",
-    "- Inbox, Calendar, and Automations are optional connected-workspace extensions when Google tools are enabled.",
-    "",
     `Current page: ${currentContext.sectionLabel}${currentContext.subsectionKey ? ` > ${currentContext.subsectionKey}` : ""}.`,
     `Current page purpose: ${currentContext.sectionSummary}`,
     currentContext.subsectionSummary ? `Open subsection: ${currentContext.subsectionSummary}` : "",
     "",
-    "Current setup state:",
+    "Current workspace state:",
     `- Front Desk basics ready: ${setup.personalityReady ? "yes" : "no"}`,
     `- Website connected: ${setup.hasWebsite ? "yes" : "no"}`,
     `- Website knowledge state: ${setup.knowledgeState}`,
     `- Preview ready: ${setup.previewReady ? "yes" : "no"}`,
+    `- Install state: ${setup.installState}`,
     `- Install detected: ${setup.installDetected ? "yes" : "no"}`,
     installHost ? `- Install host: ${installHost}` : "",
-    `- Google connected: ${operatorWorkspace?.status?.googleConnected === true ? "yes" : "no"}`,
-    businessContextSummary ? `- Business context readiness: ${businessContextSummary}` : "",
+    installLastVerifiedAt ? `- Last install verification: ${installLastVerifiedAt}` : "",
+    `- Google connected: ${tools.googleConnected ? "yes" : "no"}`,
+    tools.accountEmail ? `- Connected Google account: ${tools.accountEmail}` : "",
+    tools.capabilities.length ? `- Enabled Google capabilities: ${tools.capabilities.join(", ")}` : "",
+    Number.isFinite(tools.inboxAttentionCount) ? `- Inbox items needing attention: ${tools.inboxAttentionCount}` : "",
+    Number.isFinite(tools.pendingCalendarApprovals) ? `- Pending calendar approvals: ${tools.pendingCalendarApprovals}` : "",
+    Number.isFinite(contactSummary.totalContacts) ? `- Total tracked contacts: ${contactSummary.totalContacts}` : "",
+    Number.isFinite(contactSummary.contactsNeedingAttention) ? `- Contacts needing attention: ${contactSummary.contactsNeedingAttention}` : "",
+    cleanText(businessReadiness.summary) ? `- Business context readiness: ${cleanText(businessReadiness.summary)}` : "",
+    incompleteActivationItems.length ? `- Incomplete setup checklist items: ${incompleteActivationItems.length}` : "",
+    nextActionTitle ? `- Current next action: ${nextActionTitle}` : "",
+    nextActionDescription ? `- Next action detail: ${nextActionDescription}` : "",
+    briefingText ? `- Today briefing: ${briefingText}` : "",
     "",
     recommendedNextSteps.length
       ? `Recommended next steps right now:\n${recommendedNextSteps.map((step) => `- ${step}`).join("\n")}`
@@ -237,6 +314,14 @@ function matchQuestionIntent(question = "", currentSection = "") {
 
   if (/what should i do next|next step|where should i start/i.test(normalized)) {
     return "next_step";
+  }
+
+  if (/why .*not ready|why isn.?t .*ready|why is .*not ready|why can.?t .*go live|what.?s blocking/i.test(normalized)) {
+    return "readiness";
+  }
+
+  if (/setup|onboarding|how setup works|how do i set this up/i.test(normalized)) {
+    return "setup";
   }
 
   if (/install/i.test(normalized)) {
@@ -263,11 +348,212 @@ function matchQuestionIntent(question = "", currentSection = "") {
     return "customize";
   }
 
+  if (/settings/i.test(normalized)) {
+    return "settings";
+  }
+
   if (/today/i.test(normalized) || cleanText(currentSection).toLowerCase() === "overview") {
     return "overview";
   }
 
   return "general";
+}
+
+function buildProductSupportConversationGuidance({
+  question,
+  history = [],
+  agent = {},
+  operatorWorkspace = {},
+  currentSection,
+  currentSubsection,
+}) {
+  const currentContext = buildCurrentContext({ currentSection, currentSubsection });
+  const setup = summarizeSetup(agent);
+  const recommendedNextSteps = buildRecommendedNextSteps(agent, operatorWorkspace);
+  const intent = matchQuestionIntent(question, currentSection);
+  const combinedUserText = buildEffectiveUserText(question, history).toLowerCase();
+  const guidance = [
+    "Answer as the in-app support mode of Vonza AI, not as the website assistant and not as a generic FAQ bot.",
+    "Use the live workspace context heavily, especially the current page, readiness gaps, install state, knowledge state, and connected-tool state.",
+    "When recommending a next step, anchor it in the actual setup gaps from context instead of generic onboarding advice.",
+  ];
+
+  if (intent === "page_help") {
+    guidance.push(
+      "Orient the user fast: explain what the current page is for, what decisions happen here, and the most useful next action on this page."
+    );
+  }
+
+  if (intent === "next_step") {
+    guidance.push(
+      "Prioritize the single best next move first. If there are multiple gaps, rank them in practical order and explain why the first one matters most."
+    );
+  }
+
+  if (intent === "readiness") {
+    guidance.push(
+      "Explain exactly what is blocking readiness using the current setup state, then name the shortest path to unblock it."
+    );
+  }
+
+  if (intent === "setup") {
+    guidance.push(
+      "Explain setup as a flow, not a checklist dump. Move from basics to grounding to preview to install, and mention the current page when it helps."
+    );
+  }
+
+  if (intent === "install") {
+    guidance.push(
+      "Focus on the install path: snippet placement, verification, and how live install affects Today and Analytics."
+    );
+  }
+
+  if (intent === "knowledge") {
+    guidance.push(
+      "Tie answer quality to website grounding. Explain whether knowledge is missing, limited, or ready, and what would improve results fastest."
+    );
+  }
+
+  if (intent === "connected_tools") {
+    guidance.push(
+      "Be clear that Google-connected tools are optional extensions. Explain what Inbox and Calendar add, and whether the current workspace is already connected."
+    );
+  }
+
+  if (intent === "contacts") {
+    guidance.push(
+      "Explain Contacts in operator terms: lifecycle, risk, follow-up, and the next relationship move."
+    );
+  }
+
+  if (intent === "analytics") {
+    guidance.push(
+      "Explain Analytics in terms of question demand, proven outcomes, and improvement pressure rather than generic reporting."
+    );
+  }
+
+  if (intent === "customize") {
+    guidance.push(
+      "Make it explicit that Front Desk shapes the customer-facing assistant while this support conversation is about using Vonza inside the app."
+    );
+  }
+
+  if (intent === "settings") {
+    guidance.push(
+      "Explain Settings as the deeper configuration surface, and redirect day-to-day operating work back to Today, Contacts, Front Desk, Analytics, or Install when appropriate."
+    );
+  }
+
+  if (currentContext.subsectionKey) {
+    guidance.push(
+      `The user is currently inside ${currentContext.sectionLabel} > ${currentContext.subsectionKey}. Use that to keep the answer specific.`
+    );
+  }
+
+  if (!setup.installDetected && /live|publish|launch|ready|install/i.test(combinedUserText)) {
+    guidance.push(
+      "The install is not currently detected, so do not imply the assistant is already live."
+    );
+  }
+
+  if ((setup.knowledgeMissing || setup.knowledgeLimited) && /answer|results|quality|improve|knowledge/i.test(combinedUserText)) {
+    guidance.push(
+      "The website knowledge is not fully ready, so explain that this directly affects customer-facing answer quality."
+    );
+  }
+
+  if (recommendedNextSteps.length) {
+    guidance.push(`Current strongest next steps: ${recommendedNextSteps.join(" ")}`);
+  }
+
+  if (history.length > 0 && cleanText(question).split(/\s+/).length <= 10) {
+    guidance.push(
+      "This may be a follow-up. Continue from the earlier support exchange instead of restarting from scratch."
+    );
+  }
+
+  return guidance.join("\n");
+}
+
+function buildProductSupportSystemPrompt(language, agent = {}, currentContext = {}) {
+  const assistantName = cleanText(agent.assistantName || agent.name || "Ask Vonza");
+
+  return `You are ${assistantName}, the in-app support mode of Vonza AI inside the Vonza dashboard.
+
+Shared assistant architecture:
+- You use the same Vonza AI reply pipeline as the website assistant
+- But this mode has a different purpose and a different factual context
+- Website mode answers the business's customers using client website and business knowledge
+- Support mode answers the Vonza client's product questions using Vonza product knowledge and current dashboard state
+
+Your job:
+- answer only questions about using Vonza itself
+- explain pages, setup, install, readiness, next steps, and how to improve results
+- use the provided workspace state heavily
+- feel like calm, premium product support inside the app
+
+Core behavior:
+- Always reply in ${language}
+- Use the latest user message together with recent conversation context
+- Give the direct answer first, then the most useful next step when needed
+- Keep answers concise, usually 2-6 sentences
+- Use short bullets only when steps are clearer that way
+- Mention the current page when it genuinely improves orientation
+- Be explicit about what is blocked, what is ready, and what should happen next
+- If asked about a surface like Contacts, Analytics, Front Desk, Install, or Settings, explain both what it is for and when to use it
+- If the question is unrelated to using Vonza, say you only help with using Vonza and redirect to a relevant area inside the product
+- Keep the tone calm, practical, and product-support-focused
+
+Style:
+- natural, human, and specific
+- not canned, not robotic, not FAQ-ish
+- no fluff or generic internet-assistant phrasing
+- no made-up features, buttons, integrations, or workflows
+- do not answer as the business website assistant
+- do not rely on the client's website content as factual grounding in this mode
+
+Hard rules:
+- Never blur support mode with customer-facing website mode
+- Never invent workspace state that is not present in context
+- Keep suggested actions approval-first when relevant
+- Preserve the distinction between suggestions, drafts, approvals, and live changes
+- If the current workspace is missing setup pieces, say that plainly
+- If a page is optional because it depends on connected tools, say that clearly
+- Use ${currentContext.sectionLabel || "the current page"} for orientation when it helps, but do not over-repeat it`;
+}
+
+function getProductSupportReplyRepairIssues(reply, language) {
+  const issues = [];
+
+  if (!reply) {
+    issues.push("reply is empty");
+  }
+
+  if (language === "Hungarian" && reply && !appearsHungarian(reply)) {
+    issues.push("reply must be in Hungarian");
+  }
+
+  if (reply && reply.length > 1200) {
+    issues.push("reply should be more concise");
+  }
+
+  return issues;
+}
+
+function buildProductSupportRepairPrompt(language) {
+  return `Rewrite the reply so it sounds like a calm product specialist inside Vonza.
+- Always reply in ${language}
+- Keep the meaning, but make it more natural, specific, and product-support-focused
+- Answer the user's latest question directly
+- Use the recent support conversation for continuity
+- Keep it concise, usually 2-6 sentences
+- Use bullets only if the answer is a short step list
+- Do not sound like a generic FAQ, template, or broad internet assistant
+- Do not sound like the customer-facing website assistant
+- Keep the focus on how to use Vonza, what is blocked, what is ready, and what to do next
+- Remove any invented features, vague filler, or repetitive phrasing
+
+Return only the improved reply.`;
 }
 
 function buildFallbackAnswer({
@@ -281,15 +567,33 @@ function buildFallbackAnswer({
   const currentContext = buildCurrentContext({ currentSection, currentSubsection });
   const setup = summarizeSetup(agent);
   const nextSteps = buildRecommendedNextSteps(agent, operatorWorkspace);
-  const googleConnected = operatorWorkspace?.status?.googleConnected === true;
+  const tools = summarizeConnectedToolState(operatorWorkspace);
 
   switch (intent) {
     case "page_help":
       return `${currentContext.sectionLabel} helps you ${currentContext.sectionSummary.charAt(0).toLowerCase()}${currentContext.sectionSummary.slice(1)}${currentContext.subsectionSummary ? ` Right now you are in a subsection where ${currentContext.subsectionSummary.charAt(0).toLowerCase()}${currentContext.subsectionSummary.slice(1)}` : ""} ${currentContext.sectionNextSteps[0] || ""}`.trim();
     case "next_step":
       return nextSteps.length
-        ? `The best next move is to focus on setup gaps in order: ${nextSteps.join(" ")}`
+        ? `The best next move is to focus on the biggest setup gap first: ${nextSteps.join(" ")}`
         : `${currentContext.sectionLabel} looks usable right now. Stay with ${currentContext.sectionLabel} and work through the most visible needs-attention item first.`;
+    case "readiness":
+      if (!setup.personalityReady) {
+        return "Vonza is not fully ready yet because the Front Desk basics are still incomplete. Finish the assistant name, welcome message, and tone first, then preview the experience before publishing.";
+      }
+
+      if (setup.knowledgeMissing || setup.knowledgeLimited) {
+        return setup.knowledgeMissing
+          ? "Vonza is not fully ready yet because website knowledge is still missing. Run the website import from Front Desk so customer-facing answers can be grounded in real site content."
+          : "Vonza is not fully ready yet because the website knowledge is still limited. Re-run the import, make sure the main public pages are included, and test the preview again after the refresh.";
+      }
+
+      if (!setup.installDetected) {
+        return "Vonza is not fully live yet because the website install is not detected. Open Install, place the snippet on the site, then verify it so the live front desk can be confirmed.";
+      }
+
+      return "The core setup looks fairly ready. If something still feels blocked, check Today for the next action and Install for live verification details.";
+    case "setup":
+      return "The usual setup flow is basics first, then website grounding, then preview, then install. Start by giving Front Desk a clear identity, add the website, run the knowledge import, test the preview, and only then move into Install to publish.";
     case "install":
       return setup.installDetected
         ? "Vonza already looks installed, so the main job now is verification: open Install, confirm the snippet is still live, and make sure the detected host matches the right website."
@@ -301,8 +605,8 @@ function buildFallbackAnswer({
           ? "Vonza needs website knowledge before answers can be properly grounded. Add the website if needed, run the import from Front Desk, and then test the preview with realistic customer questions."
           : "To improve results, review real question patterns in Analytics, sharpen Front Desk wording where answers feel weak, and keep the website import fresh whenever core site content changes.";
     case "connected_tools":
-      return googleConnected
-        ? "Google is already connected, so Inbox and Calendar can extend the core Vonza workspace. Use Connected tools or Today if you want to confirm which account is active and whether sync has completed."
+      return tools.googleConnected
+        ? "Google is already connected, so Inbox and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Today if you want to confirm which account is active and whether sync has completed."
         : "Connect Google from Settings > Connected tools when you want Vonza to use email and calendar context. The core workspace still works without it, but Inbox, Calendar, and richer Today context depend on that connection.";
     case "contacts":
       return `${SECTION_GUIDES.contacts.summary} Start in Contacts overview for health and risk, then move into People or Follow-up when you need detail or action.`;
@@ -310,6 +614,8 @@ function buildFallbackAnswer({
       return `${SECTION_GUIDES.analytics.summary} Use Questions to see demand, Outcomes to see proof, and Improvements when you want to tighten weak answers or weak routing.`;
     case "customize":
       return `${SECTION_GUIDES.customize.summary} The usual order is basics first, then preview, then knowledge quality, then install.`;
+    case "settings":
+      return `${SECTION_GUIDES.settings.summary} Use Settings for deeper configuration, but keep day-to-day operating work in Today, Contacts, Front Desk, Analytics, and Install.`;
     case "overview":
       return `${SECTION_GUIDES.overview.summary} If you are not sure where to begin, use Today to follow the clearest next action and then jump into the related surface.`;
     default:
@@ -337,7 +643,8 @@ export async function answerVonzaProductHelp({
   const normalizedHistory = sanitizeChatHistory(history);
   const language = detectResponseLanguage(normalizedQuestion);
   const currentContext = buildCurrentContext({ currentSection, currentSubsection });
-  const contextBlock = buildContextBlock({
+  const fallbackAnswer = buildFallbackAnswer({
+    question: normalizedQuestion,
     agent,
     operatorWorkspace,
     currentSection,
@@ -346,76 +653,58 @@ export async function answerVonzaProductHelp({
 
   if (!openai?.chat?.completions?.create) {
     return {
-      answer: buildFallbackAnswer({
-        question: normalizedQuestion,
-        agent,
-        operatorWorkspace,
-        currentSection,
-        currentSubsection,
-      }),
+      answer: fallbackAnswer,
       usedFallback: true,
       context: currentContext,
     };
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.25,
-      messages: [
+    const answer = await generateAssistantReply({
+      openai,
+      userMessage: normalizedQuestion,
+      history: normalizedHistory,
+      systemPrompt: buildProductSupportSystemPrompt(language, agent, currentContext),
+      referenceBlocks: [
         {
-          role: "system",
-          content: `You are Ask Vonza, the in-app product support assistant inside the Vonza dashboard.
-
-Your job:
-- answer only questions about using Vonza itself
-- explain features, pages, setup, and next steps inside the app
-- use the provided current-page and setup context heavily
-- keep the experience feeling like premium product support, not a generic chatbot
-
-Hard rules:
-- Do not answer as a broad internet assistant
-- Do not invent features, integrations, buttons, or workflows that are not supported by the provided context
-- If the question is unrelated to using Vonza, say you only help with using Vonza and redirect to a relevant app area
-- Prefer direct answers and practical next steps over abstract advice
-- Keep answers concise, usually 2-6 sentences
-- Use bullets only when short steps make the answer easier to follow
-- Reply in ${language}
-- Mention the current page when it genuinely helps the user orient themselves`,
+          label: "Vonza product support reference",
+          content: buildProductKnowledgeBlock(),
         },
         {
-          role: "system",
-          content: contextBlock,
-        },
-        ...normalizedHistory,
-        {
-          role: "user",
-          content: normalizedQuestion,
+          label: "Current workspace reference",
+          content: buildWorkspaceContextBlock({
+            agent,
+            operatorWorkspace,
+            currentSection,
+            currentSubsection,
+          }),
         },
       ],
-    });
-
-    return {
-      answer: cleanText(completion.choices?.[0]?.message?.content || "")
-        || buildFallbackAnswer({
-          question: normalizedQuestion,
-          agent,
-          operatorWorkspace,
-          currentSection,
-          currentSubsection,
-        }),
-      usedFallback: false,
-      context: currentContext,
-    };
-  } catch (error) {
-    return {
-      answer: buildFallbackAnswer({
+      conversationGuidance: buildProductSupportConversationGuidance({
         question: normalizedQuestion,
+        history: normalizedHistory,
         agent,
         operatorWorkspace,
         currentSection,
         currentSubsection,
       }),
+      model: "gpt-4o-mini",
+      temperature: 0.35,
+      repair: {
+        getIssues: (reply) => getProductSupportReplyRepairIssues(reply, language),
+        buildRewritePrompt: () => buildProductSupportRepairPrompt(language),
+        temperature: 0.35,
+      },
+    });
+
+    return {
+      answer: cleanText(answer) || fallbackAnswer,
+      usedFallback: false,
+      context: currentContext,
+    };
+  } catch (error) {
+    return {
+      answer: fallbackAnswer,
       usedFallback: true,
       context: currentContext,
       fallbackReason: cleanText(error.message || "model_unavailable"),

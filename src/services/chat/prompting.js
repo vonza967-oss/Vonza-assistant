@@ -286,21 +286,8 @@ export function getReplyRepairIssues(reply, language) {
   return issues;
 }
 
-export async function repairAssistantReply(
-  openai,
-  reply,
-  userMessage,
-  history,
-  language,
-  issues
-) {
-  const rewrite = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.5,
-    messages: [
-      {
-        role: "system",
-        content: `Rewrite the reply so it sounds like a smart personal advisor.
+export function buildBusinessReplyRepairPrompt(language) {
+  return `Rewrite the reply so it sounds like a smart personal advisor.
 - Always reply in ${language}
 - Keep the meaning, but make it sound natural, specific, and business-ready
 - Answer the user's latest message directly
@@ -315,7 +302,24 @@ export async function repairAssistantReply(
 - If the reply can gently move the user toward a useful action, do it without sounding salesy or pushy
 - Remove raw image URLs, asset paths, or media links unless the user explicitly asked for images or source assets
 
-Return only the improved reply.`,
+Return only the improved reply.`;
+}
+
+export async function repairAssistantReply(
+  openai,
+  reply,
+  userMessage,
+  history,
+  language,
+  issues
+) {
+  const rewrite = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.5,
+    messages: [
+      {
+        role: "system",
+        content: buildBusinessReplyRepairPrompt(language),
       },
       {
         role: "user",

@@ -6,11 +6,12 @@ import {
 } from "../scraping/websiteContentService.js";
 import {
   buildBusinessContextForChat,
+  buildBusinessReplyRepairPrompt,
   buildChatSystemPrompt,
   buildConversationGuidance,
   getReplyRepairIssues,
-  repairAssistantReply,
 } from "./prompting.js";
+import { generateAssistantReply } from "./assistantReplyService.js";
 import {
   assertMessagesSchemaReady,
   storeAgentMessages,
@@ -29,8 +30,6 @@ import {
   buildEffectiveUserText,
   cleanText,
   detectResponseLanguage,
-  formatConversationHistory,
-  normalizeAssistantReply,
   sanitizeChatHistory,
 } from "../../utils/text.js";
 
@@ -147,7 +146,6 @@ export async function handleChatRequest({
     visitor_name: body.visitor_name || body.visitorName,
   });
   const effectiveUserText = buildEffectiveUserText(message || "", history);
-  const conversationHistory = formatConversationHistory(history);
   const normalizedMessage = cleanText(message || "");
   const language = detectResponseLanguage(normalizedMessage);
   const conversationGuidance = buildConversationGuidance(message, history);
@@ -228,58 +226,34 @@ export async function handleChatRequest({
   console.log("CHAT BUSINESS CONTEXT:", businessContext);
 
   const systemPrompt = buildChatSystemPrompt(language, agent);
-
-  const completion = await openai.chat.completions.create({
+  const finalReply = await generateAssistantReply({
+    openai,
+    userMessage: message,
+    history,
+    systemPrompt,
+    referenceBlocks: [
+      {
+        label: "Business reference",
+        content: businessContext,
+      },
+    ],
+    conversationGuidance,
     model: "gpt-4o-mini",
     temperature: 0.85,
-    presence_penalty: 0.3,
-    frequency_penalty: 0.35,
-    messages: [
-      { role: "system", content: systemPrompt },
-      {
-        role: "system",
-        content: `Business reference:\n\n${businessContext}`,
+    presencePenalty: 0.3,
+    frequencyPenalty: 0.35,
+    postProcess: stripRawAssetUrls,
+    repair: {
+      getIssues: (reply) => {
+        const issues = getReplyRepairIssues(reply, language);
+        console.log("INITIAL MODEL REPLY:", reply);
+        console.log("REPLY REPAIR ISSUES:", issues);
+        return issues;
       },
-      ...(conversationGuidance
-        ? [
-            {
-              role: "system",
-              content: `Conversation guidance:\n\n${conversationGuidance}`,
-            },
-          ]
-        : []),
-      ...history,
-      { role: "user", content: message },
-    ],
+      buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
+      temperature: 0.5,
+    },
   });
-
-  let finalReply = stripRawAssetUrls(
-    normalizeAssistantReply(
-      completion.choices[0].message.content || ""
-    )
-  );
-  const repairIssues = getReplyRepairIssues(finalReply, language);
-
-  console.log("INITIAL MODEL REPLY:", finalReply);
-  console.log("REPLY REPAIR ISSUES:", repairIssues);
-
-  if (repairIssues.length > 0) {
-    finalReply = await repairAssistantReply(
-      openai,
-      finalReply,
-      message,
-      conversationHistory,
-      language,
-      repairIssues
-    );
-    finalReply = stripRawAssetUrls(finalReply);
-  }
-
-  if (!finalReply) {
-    const error = new Error("The assistant could not generate a reply.");
-    error.statusCode = 502;
-    throw error;
-  }
 
   console.log("FINAL REPLY:", finalReply);
 
