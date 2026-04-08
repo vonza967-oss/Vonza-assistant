@@ -39,6 +39,7 @@ const LAUNCH_STEPS = [
 const trackedEventKeys = new Set();
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
+const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -335,7 +336,9 @@ function normalizeShellCopy(value = "") {
     .replace(/\bOpen Outcomes\b/g, "Open Analytics")
     .replace(/\bToday, Contacts, and Outcomes\b/g, "Today, Contacts, and Analytics")
     .replace(/\bToday, Customize, and Outcomes\b/g, "Today, Customize, and Analytics")
-    .replace(/\bContacts and Outcomes\b/g, "Contacts and Analytics");
+    .replace(/\bContacts and Outcomes\b/g, "Contacts and Analytics")
+    .replace(/\bapproval-first\b/gi, "review-before-send")
+    .replace(/\bread-only\b/gi, "view-only");
 }
 
 function resolveVisibleShellTarget(
@@ -432,18 +435,18 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
   if (operatorWorkspace?.enabled === false) {
     return {
       key: "front_desk_only",
-      eyebrow: "Front-desk-only mode",
-      title: "The public launch core is active.",
-      copy: "This deployment is showing the stable launch core: the AI front desk, setup, install, and outcomes. Google-connected workspace beta surfaces are hidden here.",
+      eyebrow: "Workspace",
+      title: "Your core workspace is ready.",
+      copy: "Today, Contacts, Front Desk, Analytics, and Install are available here. Optional Google tools are simply out of the way on this deployment.",
     };
   }
 
   if (!isGoogleWorkspaceConfigured(operatorWorkspace)) {
     return {
       key: "operator_without_google_beta",
-      eyebrow: "Operator workspace mode",
-      title: "The stable core is live. Google beta is not enabled here yet.",
-      copy: "Today, Contacts, Front Desk, and Analytics stay available. Inbox, Calendar, and Automations only appear on deployments where the optional Google workspace beta is enabled.",
+      eyebrow: "Workspace",
+      title: "Your main workspace is live.",
+      copy: "Today, Contacts, Front Desk, and Analytics are ready to use. Inbox, Calendar, and Automations will appear later when optional Google tools are available.",
     };
   }
 
@@ -451,25 +454,25 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     if (googleCapabilities.calendarRead && !googleCapabilities.gmailRead && !googleCapabilities.calendarWrite) {
       return {
         key: "operator_calendar_connected",
-        eyebrow: "Operator workspace mode",
-        title: "Stable core plus Google Calendar-first beta.",
-        copy: "Today and Calendar are connected with basic identity plus read-only Google Calendar access. Gmail and write scopes are intentionally left out in this pass.",
+        eyebrow: "Workspace",
+        title: "Your workspace now includes calendar visibility.",
+        copy: "Today can see your Google Calendar and bring schedule context into the workspace. Email tools and calendar changes stay off for now.",
       };
     }
 
     return {
       key: "operator_google_connected",
-      eyebrow: "Operator workspace mode",
-      title: "Stable core plus Google-connected beta.",
-      copy: "Your stable launch surfaces are active, and the optional Google-connected Inbox, Calendar, and Automations beta is available in the same workspace.",
+      eyebrow: "Workspace",
+      title: "Your workspace is fully connected.",
+      copy: "Today, Contacts, Front Desk, and Analytics stay at the center, with Inbox, Calendar, and Automations available alongside them.",
     };
   }
 
   return {
     key: "operator_beta_available",
-    eyebrow: "Operator workspace mode",
-    title: "Stable core now, optional Google beta when you connect.",
-    copy: "Today, Contacts, Front Desk, and Analytics are part of the public launch core. Connect Google when you want Inbox, Calendar, and Automations beta in the same workspace.",
+    eyebrow: "Workspace",
+    title: "Your main workspace is ready, with optional Google tools available.",
+    copy: "Today, Contacts, Front Desk, and Analytics are ready now. Connect Google when you want Inbox, Calendar, and Automations in the same workspace.",
   };
 }
 
@@ -1287,30 +1290,30 @@ function classifyImportResult(result) {
   if (!content) {
     return {
       knowledgeState: "missing",
-      label: "Not ready",
-      description: "Website knowledge is not available yet. Import it again once your site is live.",
+      label: "Getting started",
+      description: "Website details have not been pulled in yet. Import your site when you want stronger, more tailored answers.",
     };
   }
 
   if (content.includes(LIMITED_CONTENT_MARKER)) {
     return {
       knowledgeState: "limited",
-      label: "Limited",
-      description: "Some website content was imported, but the front desk still needs a better knowledge pass.",
+      label: "Growing",
+      description: "Vonza has some website detail already, and another import should make answers sharper and more complete.",
     };
   }
 
   return {
     knowledgeState: "ready",
     label: "Ready",
-    description: "Your website front desk has enough knowledge to answer real customer questions.",
+    description: "Your website content is in place, so the Front Desk can answer real customer questions with solid context.",
   };
 }
 
 function inferSetup(agent) {
   const knowledge = agent.knowledge || {
     state: "missing",
-    description: "Website knowledge has not been imported yet.",
+    description: "Website details have not been imported yet.",
     contentLength: 0,
     pageCount: 0,
   };
@@ -1329,8 +1332,8 @@ function inferSetup(agent) {
     knowledgeLimited: knowledgeState === "limited",
     knowledgeMissing: knowledgeState === "missing",
     knowledgeDescription: hasWebsite
-      ? (knowledge.description || "Website knowledge has not been imported yet.")
-      : "Add a real website to import knowledge.",
+      ? (knowledge.description || "Website details have not been imported yet.")
+      : "Add your website so Vonza can learn the details customers ask about.",
     knowledgePageCount: Number(knowledge.pageCount || 0),
     knowledgeContentLength: Number(knowledge.contentLength || 0),
     previewReady,
@@ -2325,12 +2328,12 @@ function buildSidebarShell(
   );
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
-  const workspaceStatus = setup.isReady ? "Setup complete" : "Setup in progress";
+  const workspaceStatus = setup.isReady ? "Ready to use" : "Getting started";
   const knowledgeStatus = setup.knowledgeReady
-    ? "Knowledge ready"
+    ? "Website learned"
     : setup.knowledgeLimited
-      ? "Knowledge limited"
-      : "Knowledge not imported";
+      ? "Website learning"
+      : "Add website details";
   const installTone = isInstallSeen(installStatus)
     ? "Ready"
     : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
@@ -2343,14 +2346,14 @@ function buildSidebarShell(
     {
       key: "overview",
       label: "Today",
-      note: "Approvals, operator context, and the next safe move.",
+      note: "Your clearest next steps, recent wins, and what needs attention.",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
       label: "Contacts",
-      note: "People, timelines, lifecycle, and follow-up context.",
+      note: "People, follow-ups, and the latest customer progress.",
       badge: contactsAttention > 0 ? String(contactsAttention) : "",
       badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
     },
@@ -2370,20 +2373,20 @@ function buildSidebarShell(
     {
       key: "inbox",
       label: "Inbox",
-      note: "Connected Gmail threads and approval-first replies.",
-      tag: "Beta",
+      note: "Connected Gmail threads and review-before-send replies.",
+      tag: "Optional",
     },
     {
       key: "calendar",
       label: "Calendar",
-      note: "Schedule context, follow-up gaps, and event review.",
-      tag: "Beta",
+      note: "Schedule visibility, follow-up gaps, and event review.",
+      tag: "Optional",
     },
     {
       key: "automations",
       label: "Automations",
-      note: "Operator tasks, campaign drafts, and follow-ups.",
-      tag: "Beta",
+      note: "Saved tasks, campaign drafts, and follow-ups.",
+      tag: "Optional",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -2392,7 +2395,7 @@ function buildSidebarShell(
       key: "install",
       label: "Install",
       note: "Go live on the website and verify the embed.",
-      badge: isInstallSeen(installStatus) ? "" : "Needs review",
+      badge: isInstallSeen(installStatus) ? "" : "Go live",
       badgeTone: installTone,
     },
     {
@@ -2409,16 +2412,25 @@ function buildSidebarShell(
         <div class="sidebar-identity-copy">
           <p class="sidebar-eyebrow">Vonza</p>
           <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Workspace")}</h2>
-          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Website not set yet")}</p>
+          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add your website to personalize the Front Desk")}</p>
         </div>
       </div>
-      ${buildSidebarGroup("Core workflow", coreItems, activeSection)}
+      ${buildSidebarGroup("Primary", coreItems, activeSection)}
       ${connectedSections.length ? buildSidebarGroup("Connected tools", connectedItems, activeSection) : ""}
       <div class="sidebar-footer">
-        <div class="sidebar-status-stack">
-          <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(workspaceStatus)}</span>
-          <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending")}">${escapeHtml(knowledgeStatus)}</span>
-          <span class="${getBadgeClass(installTone)}">${escapeHtml(installStatus.label || "Not installed yet")}</span>
+        <div class="sidebar-status-dock">
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Workspace</span>
+            <strong>${escapeHtml(workspaceStatus)}</strong>
+          </div>
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Knowledge</span>
+            <strong>${escapeHtml(knowledgeStatus)}</strong>
+          </div>
+          <div class="sidebar-status-item">
+            <span class="sidebar-status-label">Install</span>
+            <strong>${escapeHtml(installStatus.label || "Not installed yet")}</strong>
+          </div>
         </div>
         ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
       </div>
@@ -2510,11 +2522,11 @@ function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWor
     <section class="workspace-card-soft operator-checklist-card">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Activation checklist</p>
-          <h3 class="studio-group-title">Guide the first operator session into real daily use.</h3>
-          <p class="workspace-panel-copy">${escapeHtml(`${activation.completedCount || 0} of ${activation.totalCount || checklist.length} steps completed. Progress persists for this owner.`)}</p>
+          <p class="studio-kicker">Getting started</p>
+          <h3 class="studio-group-title">A quick checklist to make Today more useful.</h3>
+          <p class="workspace-panel-copy">${escapeHtml(`${activation.completedCount || 0} of ${activation.totalCount || checklist.length} steps completed. Your progress is saved here.`)}</p>
         </div>
-        <span class="${getBadgeClass(activation.isComplete ? "Ready" : "Limited")}">${activation.isComplete ? "Activation complete" : "In progress"}</span>
+        <span class="${getBadgeClass(activation.isComplete ? "Ready" : "Limited")}">${activation.isComplete ? "All set" : "In progress"}</span>
       </div>
       <div class="operator-checklist-list">
         ${checklist.map((step) => `
@@ -2535,13 +2547,13 @@ function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWor
               <label for="operator-calendar-context">Calendar context</label>
               <input id="operator-calendar-context" type="text" value="Primary calendar" disabled>
               <p class="field-help">${escapeHtml(googleCapabilities.calendarRead
-                ? "Vonza uses the primary Google calendar as the source of truth for Today, recent appointments, and approval-first suggestions."
-                : "Connect Google Calendar first, then Vonza will use the primary calendar as the source of truth for Today.")}</p>
+                ? "Vonza uses your primary Google Calendar to bring schedule context, recent appointments, and follow-up suggestions into Today."
+                : "Connect Google Calendar and Vonza will use your primary calendar to power Today.")}</p>
             </div>
           </div>
           <div class="inline-actions">
             <button class="ghost-button" type="submit">Save calendar context</button>
-            <button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark calendar review complete</button>
+            <button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark calendar checked</button>
           </div>
         </form>
       ` : ""}
@@ -2553,7 +2565,7 @@ function buildOperatorEmptyState({ title, copy, actionMarkup = "" } = {}) {
   return `
     <div class="operator-empty-state">
       <p class="operator-empty-title">${escapeHtml(title || "Nothing here yet")}</p>
-      <p class="operator-empty-copy">${escapeHtml(copy || "Vonza will fill this area as soon as there is useful operator context.")}</p>
+      <p class="operator-empty-copy">${escapeHtml(copy || "Vonza will fill this area as soon as there is something useful to show.")}</p>
       ${actionMarkup ? `<div class="inline-actions">${actionMarkup}</div>` : ""}
     </div>
   `;
@@ -2687,34 +2699,34 @@ function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWork
   return `
     <div class="overview-grid operator-metric-grid operator-people-grid">
       <div class="overview-card">
-        <p class="overview-label">Contacts needing attention</p>
+        <p class="overview-label">Needs a follow-up</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsNeedingAttention, "contact"))}</p>
-        <p class="overview-card-copy">People-centered work that still needs an operator decision.</p>
+        <p class="overview-card-copy">People who would benefit from a reply, a handoff, or a next step.</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Complaint-risk contacts</p>
+        <p class="overview-label">At-risk relationships</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.complaintRiskContacts, "contact"))}</p>
-        <p class="overview-card-copy">Contacts where complaint or support context should stay front-and-center.</p>
+        <p class="overview-card-copy">Customers or leads where support context should stay front and center.</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Leads with no next step</p>
+        <p class="overview-label">No clear next step</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.leadsWithoutNextStep, "lead"))}</p>
-        <p class="overview-card-copy">High-intent people who still need a follow-up, booking, or campaign decision.</p>
+        <p class="overview-card-copy">Interested people who still need a follow-up, booking, or quote path.</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Customers awaiting follow-up</p>
+        <p class="overview-label">Customers to check in with</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.customersAwaitingFollowUp, "customer"))}</p>
-        <p class="overview-card-copy">Customer records that would benefit from the next owner touchpoint.</p>
+        <p class="overview-card-copy">Customers who could benefit from another touchpoint before momentum fades.</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Contacts with outcomes</p>
+        <p class="overview-label">Contacts with wins</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsWithOutcomes, "contact"))}</p>
-        <p class="overview-card-copy">People records where Vonza can already point to a real cross-channel result.</p>
+        <p class="overview-card-copy">People records where Vonza can already point to a real result.</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">High-value without proof</p>
+        <p class="overview-label">High-value still open</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.highValueWithoutOutcome, "contact"))}</p>
-        <p class="overview-card-copy">Qualified or active leads that still need an actual outcome, not just activity.</p>
+        <p class="overview-card-copy">Qualified or active leads that still need a real outcome, not just activity.</p>
       </div>
     </div>
   `;
@@ -2762,11 +2774,11 @@ function buildContactRow(contact = {}) {
       <div class="contact-row-column">
         <span class="contact-row-column-label">Next action</span>
         <strong>${escapeHtml(contact.nextAction?.title || "No action needed")}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(contact.nextAction?.description || "Vonza does not see a higher-priority move here.")}</span>
+        <span class="contact-row-column-copy">${escapeHtml(contact.nextAction?.description || "There is nothing more urgent to do here right now.")}</span>
       </div>
       <div class="contact-row-column">
-        <span class="contact-row-column-label">Latest outcome</span>
-        <strong>${escapeHtml(contact.latestOutcome?.label || "No proven outcome yet")}</strong>
+        <span class="contact-row-column-label">Latest result</span>
+        <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
         <span class="contact-row-column-copy">${escapeHtml(contact.mostRecentActivityAt ? formatSeenAt(contact.mostRecentActivityAt) : "No recent activity")}</span>
       </div>
     </button>
@@ -2816,16 +2828,16 @@ function buildContactDetailPanel(
             <div class="detail-kv-item">
               <span class="detail-kv-label">Recommended next action</span>
               <strong>${escapeHtml(contact.nextAction?.title || "No action needed")}</strong>
-              <p>${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a higher-priority operator move here.")}</p>
+              <p>${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a more important next move here.")}</p>
             </div>
             <div class="detail-kv-item">
-              <span class="detail-kv-label">Latest outcome</span>
-              <strong>${escapeHtml(contact.latestOutcome?.label || "No proven outcome yet")}</strong>
+              <span class="detail-kv-label">Latest result</span>
+              <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
               <p>${escapeHtml([
                 trimText(contact.latestOutcome?.sourceLabel),
                 trimText(contact.latestOutcome?.contextLabel),
                 contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "",
-              ].filter(Boolean).join(" · ") || "This contact still needs proof of progression, not just activity.")}</p>
+              ].filter(Boolean).join(" · ") || "This contact still needs a clear result, not just activity.")}</p>
             </div>
             <div class="detail-kv-item">
               <span class="detail-kv-label">Activity counts</span>
@@ -2834,7 +2846,7 @@ function buildContactDetailPanel(
           </div>
         </section>
         <section class="detail-panel-section">
-          <h3 class="detail-panel-title">Operator controls</h3>
+          <h3 class="detail-panel-title">Contact updates</h3>
           <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
             <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Lifecycle state</label>
             <div class="detail-inline-form-row">
@@ -2884,7 +2896,7 @@ function buildContactDetailPanel(
               </div>
             `).join("")}
           </div>
-        ` : `<div class="placeholder-card">This contact exists, but the timeline is still sparse. Vonza will expand it as more cross-channel activity lands.</div>`}
+        ` : `<div class="placeholder-card">This contact is here, and the timeline will fill in as more conversations, bookings, and follow-ups come through.</div>`}
       </section>
     </article>
   `;
@@ -2940,10 +2952,10 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Contacts",
-        copy: "Work from a clean people workspace instead of repeated profile cards. Search, filter, pick a contact, then act from one dedicated detail canvas.",
+        copy: "Keep every customer and lead in one place so you can follow up faster, spot risk sooner, and see the full relationship at a glance.",
         badges: [
-          { label: contactsHealth.migrationRequired ? "Workspace still syncing" : "Contacts live", tone: contactsHealth.migrationRequired ? "Limited" : "Ready" },
-          { label: contactsHealth.partialData ? "Timeline still growing" : "Cross-channel view", tone: contactsHealth.partialData ? "Limited" : "Ready" },
+          { label: contactsHealth.migrationRequired ? "More history loading" : "Contacts ready", tone: contactsHealth.migrationRequired ? "Limited" : "Ready" },
+          { label: contactsHealth.partialData ? "More detail coming in" : "Full customer view", tone: contactsHealth.partialData ? "Limited" : "Ready" },
         ],
         actionsMarkup,
       })}
@@ -2965,24 +2977,24 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         `,
       })}
       <div class="workspace-page-body">
-        ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Contacts are still loading some history: ${contactsHealth.loadError}`)}</p></div>` : ""}
+        ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Some contact history is still loading: ${contactsHealth.loadError}`)}</p></div>` : ""}
         ${!contacts.length ? buildOperatorEmptyState({
-          title: "No contacts yet",
+          title: "Your contacts will show up here",
           copy: operatorWorkspace.status?.googleConnected
-            ? "Vonza will create contact records as soon as leads, inbox threads, bookings, or approval-first follow-ups start appearing."
-            : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect the optional Google beta.",
+            ? "As soon as leads, bookings, inbox threads, or follow-ups appear, Vonza will build a clean contact record for each person."
+            : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect optional Google tools.",
         }) : `
-          ${onlyChatSources ? `<div class="shell-status-banner">Only chat-led contact history is visible right now. That is still useful: as soon as Google-connected inbox or calendar activity appears, Vonza will stitch it into these same records.</div>` : ""}
+          ${onlyChatSources ? `<div class="shell-status-banner">Right now you’re seeing chat-led history only. As soon as email or calendar activity is available, Vonza will add it to these same contact records.</div>` : ""}
           ${buildSummaryStrip([
-            { label: "Need attention", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.contactsNeedingAttention, "contact") },
-            { label: "Complaint risk", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.complaintRiskContacts, "contact") },
-            { label: "No next step", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.leadsWithoutNextStep, "lead") },
-            { label: "With outcomes", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.contactsWithOutcomes, "contact") },
+            { label: "Need a follow-up", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.contactsNeedingAttention, "contact") },
+            { label: "At risk", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.complaintRiskContacts, "contact") },
+            { label: "Missing next step", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.leadsWithoutNextStep, "lead") },
+            { label: "Recent wins", value: formatOperatorCount(operatorWorkspace.contacts?.summary?.contactsWithOutcomes, "contact") },
           ])}
           <div class="contacts-workspace" data-contacts-workspace>
             <section class="contacts-list-shell">
               <div class="contacts-list-header">
-                <p class="overview-label">Queue</p>
+                <p class="overview-label">People</p>
                 <strong>${escapeHtml(formatOperatorCount(contacts.length, "contact"))}</strong>
               </div>
               <div class="contacts-list" data-contact-filter-results>
@@ -2991,7 +3003,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
             </section>
             <section class="contacts-detail-shell">
               ${contacts.map((contact, index) => buildContactDetailPanel(agent, contact, operatorWorkspace, index === 0)).join("")}
-              ${selectedContact ? "" : `<div class="placeholder-card">Select a contact to review timeline, lifecycle, and next actions.</div>`}
+              ${selectedContact ? "" : `<div class="placeholder-card">Choose a contact to review history, relationship stage, and next steps.</div>`}
             </section>
           </div>
         `}
@@ -3172,27 +3184,27 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
         <div>
           <p class="studio-kicker">Copilot</p>
           <h3 class="workspace-panel-title">Today Copilot</h3>
-          <p class="workspace-panel-copy">Read-only summaries and approval-first drafts over Vonza's stable core. Copilot does not silently execute external actions.</p>
+          <p class="workspace-panel-copy">View-only summaries and draft suggestions built from your live workspace. Copilot does not silently act on your behalf.</p>
         </div>
         <div class="workspace-badge-row">
-          <span class="${getBadgeClass(copilot.readOnly ? "Ready" : "Limited")}">${copilot.readOnly ? "Read only" : "Limited"}</span>
-          <span class="${getBadgeClass(copilot.draftOnly ? "Ready" : "Limited")}">${copilot.draftOnly ? "Draft first" : "Mixed mode"}</span>
+          <span class="${getBadgeClass(copilot.readOnly ? "Ready" : "Limited")}">${copilot.readOnly ? "View only" : "Limited"}</span>
+          <span class="${getBadgeClass(copilot.draftOnly ? "Ready" : "Limited")}">${copilot.draftOnly ? "Review first" : "Mixed mode"}</span>
         </div>
       </div>
       <div class="operator-home-grid">
         <section class="operator-focus-card">
-          <p class="overview-label">Copilot headline</p>
+          <p class="overview-label">Today headline</p>
           <h3 class="operator-focus-title">${escapeHtml(copilot.headline || "Copilot is ready.")}</h3>
-          <p class="operator-focus-copy">${escapeHtml(copilot.summary || "Copilot is summarizing stable-core data only.")}</p>
+          <p class="operator-focus-copy">${escapeHtml(copilot.summary || "Copilot is summarizing your current workspace only.")}</p>
         </section>
         <section class="operator-focus-card operator-briefing-card">
-          <p class="overview-label">Business context foundation</p>
-          <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Business context readiness will appear here.")}</p>
-          ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} areas are still missing context.`)}</p>` : `<p class="analytics-subtle">Core business context is filled for Copilot.</p>`}
+          <p class="overview-label">Business context</p>
+          <p class="workspace-panel-copy">${escapeHtml(readiness.summary || "Business context progress will appear here.")}</p>
+          ${readiness.missingCount ? `<p class="analytics-subtle">${escapeHtml(`${readiness.missingCount} area${readiness.missingCount === 1 ? "" : "s"} could use more business detail.`)}</p>` : `<p class="analytics-subtle">Core business context is ready for Copilot.</p>`}
           <div class="inline-actions" style="margin-top:12px;">
-            <button class="ghost-button" type="button" data-copilot-open-target data-shell-target="settings" data-target-id="business-context-setup">Open business context setup</button>
+            <button class="ghost-button" type="button" data-copilot-open-target data-shell-target="settings" data-target-id="business-context-setup">Open business context</button>
           </div>
-          ${prefill.available ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(prefill.sourceSummary || `${prefill.fieldCount || 0} fields have safe suggestions ready for owner review.`)}</p>` : ""}
+          ${prefill.available ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(prefill.sourceSummary || `${prefill.fieldCount || 0} fields have safe suggestions ready for review.`)}</p>` : ""}
         </section>
       </div>
       ${warnings.length ? `
@@ -3202,8 +3214,8 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
       ` : ""}
       ${copilot.sparseData ? `
         <div class="placeholder-card" style="margin-top:16px;">
-          <strong>${escapeHtml(copilot.fallback?.title || "Copilot needs more context")}</strong>
-          <p style="margin-top:8px;">${escapeHtml(copilot.fallback?.description || "There is not enough stable-core data yet for strong recommendations.")}</p>
+          <strong>${escapeHtml(copilot.fallback?.title || "Copilot needs a little more context")}</strong>
+          <p style="margin-top:8px;">${escapeHtml(copilot.fallback?.description || "There is not enough live workspace data yet for strong recommendations.")}</p>
           ${guidance.length ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(guidance.join(" "))}</p>` : ""}
         </div>
       ` : ""}
@@ -3298,7 +3310,7 @@ function buildTodayInsightCard({
                   <p class="analytics-item-title">${escapeHtml(normalizeShellCopy(item.title || item.linkedContactName || "Calendar appointment"))}</p>
                   <p class="analytics-subtle">${escapeHtml(formatCalendarInsightContext(item))}</p>
                 </div>
-                <span class="${getBadgeClass(item.linkedContactId ? "Ready" : "Limited")}">${escapeHtml(item.linkedContactId ? "Linked" : "Needs review")}</span>
+                <span class="${getBadgeClass(item.linkedContactId ? "Ready" : "Limited")}">${escapeHtml(item.linkedContactId ? "Linked" : "Needs a look")}</span>
               </div>
               <p class="analytics-item-copy">${escapeHtml(normalizeShellCopy(trimText(item[reasonKey]) || "Vonza highlighted this calendar item for review."))}</p>
               <div class="inline-actions" style="margin-top:12px;">
@@ -3762,21 +3774,21 @@ function getTodayQueueItemContextLabel(item = {}) {
 function getTodayQueueItemWhyLabel(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
     return normalizeShellCopy(trimText(item.reviewReason || item.followUpReason || item.unlinkedReason))
-      || "This appointment ended recently and still needs an explicit operator resolution.";
+      || "This appointment ended recently and still needs a clear next step.";
   }
 
-  return normalizeShellCopy(trimText(item.whyFlagged || item.snippet)) || "Flagged from recent conversation activity.";
+  return normalizeShellCopy(trimText(item.whyFlagged || item.snippet)) || "This stood out in recent customer activity.";
 }
 
 function getTodayQueueItemCopilotSummary(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
     return normalizeShellCopy(trimText(item.reviewWhyItMatters))
-      || "Copilot is surfacing this because explicit review keeps follow-up and proof grounded in one operator loop.";
+      || "This is worth reviewing so follow-up and results stay tied to the right person and conversation.";
   }
 
   const workflow = getActionQueueOwnerWorkflow(item);
   return normalizeShellCopy(trimText(item.suggestedAction || item.followUp?.whyPrepared || item.knowledgeFix?.whyPrepared || workflow.copy))
-    || "Review the queue item, confirm the next safe action, and keep the operator loop explicit.";
+    || "Review the item and choose the most useful next step.";
 }
 
 function buildTodayQueueRow(
@@ -3868,7 +3880,7 @@ function buildTodayQueueRow(
           ${isAppointmentReviewQueueItem(item)
             ? `
               <span class="pill">Ended appointment</span>
-              <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+              <span class="${getBadgeClass("Needs attention")}">Needs a look</span>
               <span class="${getBadgeClass(linkState === "Linked" ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
             `
             : `
@@ -3998,11 +4010,11 @@ function buildTodayReviewPanel(
   const title = isAppointmentReviewQueueItem(item)
     ? item.title || "Ended appointment"
     : item.label || getActionQueueTypeLabel(item.type);
-  const contextTitle = isAppointmentReviewQueueItem(item) ? "Ended appointment review" : "Queue item review";
+  const contextTitle = isAppointmentReviewQueueItem(item) ? "Appointment follow-up" : "Today item";
   const statusBadges = isAppointmentReviewQueueItem(item)
     ? `
       <span class="pill">Ended appointment</span>
-      <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+      <span class="${getBadgeClass("Needs attention")}">Needs a look</span>
       <span class="${getBadgeClass(linkState === "Linked" ? "Ready" : "Limited")}">${escapeHtml(linkState)}</span>
     `
     : `
@@ -4022,8 +4034,8 @@ function buildTodayReviewPanel(
       trimText(item.followUp?.status) ? `Follow-up ${getFollowUpStatusLabel(item.followUp.status).toLowerCase()}` : "",
     ].filter(Boolean).join(" · ");
   const linkStateCopy = isAppointmentReviewQueueItem(item)
-    ? (linkState === "Linked" ? "This appointment already has a linked contact record." : "This appointment still needs a safe contact link.")
-    : (linkState === "Linked" ? "Vonza has enough contact context to keep this item grounded." : "This queue item is still missing strong contact linkage.");
+    ? (linkState === "Linked" ? "This appointment is already connected to the right contact." : "This appointment still needs to be matched to the right contact.")
+    : (linkState === "Linked" ? "There is enough contact detail here to keep the next step grounded." : "This item would be easier to act on with stronger contact detail.");
 
   return `
     <article class="today-review-panel ${queueKey === activeQueueKey ? "active" : ""}" data-today-review-panel-item data-today-queue-key="${escapeHtml(queueKey)}" ${queueKey === activeQueueKey ? "" : "hidden"}>
@@ -4047,16 +4059,16 @@ function buildTodayReviewPanel(
           <strong class="today-review-detail-value">${escapeHtml(eventContext || "Context is still loading.")}</strong>
         </div>
         <div class="today-review-detail-row">
-          <span class="today-review-detail-label">Linked state</span>
+          <span class="today-review-detail-label">Contact match</span>
           <strong class="today-review-detail-value">${escapeHtml(linkState)}</strong>
           <p class="today-review-detail-copy">${escapeHtml(linkStateCopy)}</p>
         </div>
         <div class="today-review-detail-row">
-          <span class="today-review-detail-label">Why this needs attention</span>
+          <span class="today-review-detail-label">Why it matters</span>
           <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemWhyLabel(item))}</strong>
         </div>
         <div class="today-review-detail-row">
-          <span class="today-review-detail-label">Copilot summary / reasoning</span>
+          <span class="today-review-detail-label">Suggested next move</span>
           <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</strong>
         </div>
       </div>
@@ -4083,8 +4095,8 @@ function buildTodayReviewDrawer(
         <div class="today-review-drawer-frame">
           <div class="today-review-empty">
             <p class="support-panel-kicker">Review drawer</p>
-            <h3 class="today-review-panel-title">Queue is clear</h3>
-            <p class="support-panel-copy">${escapeHtml(briefing.text || "Select a queue item and the operator review drawer will stay here with the context and next safe action.")}</p>
+            <h3 class="today-review-panel-title">You’re all caught up</h3>
+            <p class="support-panel-copy">${escapeHtml(briefing.text || "Select a Today item and its context, notes, and next step will stay here while you work.")}</p>
           </div>
         </div>
       </section>
@@ -4098,8 +4110,8 @@ function buildTodayReviewDrawer(
         <div class="today-review-drawer-header">
           <div>
             <p class="support-panel-kicker">Review drawer</p>
-            <h3 class="today-review-panel-title">Stay in the queue while you resolve what needs attention.</h3>
-            <p class="support-panel-copy">Select any queue item to inspect the context, understand why Copilot surfaced it, and clear the next safe action without leaving Today.</p>
+            <h3 class="today-review-panel-title">Stay in Today while you work through what matters.</h3>
+            <p class="support-panel-copy">Select any item to inspect the context, see why it was surfaced, and clear the next step without leaving the page.</p>
           </div>
         </div>
         <div class="today-review-panel-stack">
@@ -4118,8 +4130,8 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
 
   if (!items.length) {
     return buildOperatorEmptyState({
-      title: "Queue is clear",
-      copy: "Nothing urgent is blocking the operator loop right now. This queue stays ready for the next draft, weak answer, follow-up, or appointment review that needs attention.",
+      title: "You’re caught up for now",
+      copy: "Nothing urgent is waiting right now. New follow-ups, missed opportunities, and review items will show up here when they matter.",
     });
   }
 
@@ -4177,18 +4189,18 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const toolbarActions = `
     <label class="toolbar-search today-toolbar-search">
       <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("search")}</span>
-      <input type="search" placeholder="Search..." data-today-search aria-label="Search queue">
+      <input type="search" placeholder="Search Today" data-today-search aria-label="Search queue">
     </label>
     <button class="ghost-button today-toolbar-button" type="button" data-refresh-operator data-force-sync="true" title="Refresh workspace">
       <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("sync")}</span>
-      <span>Sync Now</span>
+      <span>Refresh</span>
       <span class="sr-only">Refresh workspace</span>
     </button>
     <button class="primary-button today-toolbar-button" type="button" data-shell-target="${escapeHtml(
       isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? "automations" : "contacts"
     )}">
       <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("plus")}</span>
-      <span>New Task</span>
+      <span>Start next step</span>
     </button>
   `;
 
@@ -4202,45 +4214,45 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         filtersMarkup: `
           <div class="today-toolbar-filters">
             <div class="today-toolbar-title-row">
-              <h2 class="today-toolbar-title">Active Tasks</h2>
+              <h2 class="today-toolbar-title">What needs attention</h2>
               <span class="today-toolbar-title-caret" aria-hidden="true">v</span>
             </div>
             <div class="toolbar-filter-group">
               <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
-              <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs review</button>
+              <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs a look</button>
               <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
-              <button class="toolbar-chip" type="button" data-today-filter="complaints">Overdue</button>
+              <button class="toolbar-chip" type="button" data-today-filter="complaints">At risk</button>
             </div>
           </div>
         `,
         actionsMarkup: toolbarActions,
       })}
       ${buildSummaryStrip([
-        { label: "Need attention", value: overview.queueSummary.attentionNeeded || 0, copy: "Queue items waiting for a decision." },
-        { label: "Visitor questions", value: overview.analyticsSummary.visitorQuestions || 0, copy: "Stored customer questions in the current read model." },
-        { label: "High-intent", value: overview.analyticsSummary.highIntentSignals || 0, copy: "Commercial or urgent support intent." },
-        { label: "Confirmed outcomes", value: overview.outcomeSummary.confirmedBusinessOutcomes || 0, copy: "Proof tied back to a real path." },
+        { label: "Leads needing attention", value: today.contactsNeedingAttention || overview.queueSummary.attentionNeeded || 0, copy: "People who likely need a reply, a handoff, or a decision." },
+        { label: "Recent wins", value: today.assistedOutcomes || overview.outcomeSummary.confirmedBusinessOutcomes || 0, copy: "Bookings, quotes, and other results Vonza can tie back to real activity." },
+        { label: "Missed opportunities", value: today.highValueWithoutOutcome || today.leadsWithoutNextStep || 0, copy: "Interested leads that still need a stronger next step." },
+        { label: "Visitor questions", value: overview.analyticsSummary.visitorQuestions || 0, copy: "Helpful signal from real customer conversations." },
       ])}
       <div class="workspace-page-body">
         <div class="today-workspace">
           <section class="today-main-column">
             <div class="today-main-header">
               <div>
-                <p class="overview-label">Needs Attention</p>
+                <p class="overview-label">Today</p>
                 <h2 class="today-section-title">${escapeHtml(
                   todayQueueItems.length > 0
-                    ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} need review`
-                    : "Queue is clear"
+                    ? `${todayQueueItems.length} conversation${todayQueueItems.length === 1 ? "" : "s"} and follow-ups need a look`
+                    : "You’re caught up for now"
                 )}</h2>
                 <p class="today-section-copy">${escapeHtml(
                   todayQueueItems.length > 0
-                    ? "This is the dominant operator workspace. Review ended appointments, drafts, weak answers, and follow-up work from here before anything else."
-                    : "Nothing urgent is blocking the operator loop right now. The queue stays here as the primary work surface."
+                    ? "Start here to review recent leads, follow-ups, missed chances, and anything that still needs a clear next step."
+                    : "Nothing important is waiting on you right now. New follow-ups and review items will show up here as soon as they matter."
                 )}</p>
               </div>
               ${nextAction?.title ? `
                 <div class="today-next-chip">
-                  <span class="today-next-chip-label">Next safe move</span>
+                  <span class="today-next-chip-label">Best next step</span>
                   <strong>${escapeHtml(normalizeShellCopy(nextAction.title))}</strong>
                 </div>
               ` : ""}
@@ -4250,17 +4262,17 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           <aside class="today-side-column">
             ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing, operatorWorkspace)}
             <section class="support-panel today-support-panel-quiet today-reference-note">
-              <p class="support-panel-kicker">Copilot briefing</p>
-              <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
+              <p class="support-panel-kicker">Today’s note</p>
+              <h3 class="support-panel-title">${escapeHtml(briefing.title || "Today’s summary")}</h3>
               <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
               ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(health.globalError)}</p></div>` : ""}
               <p class="today-support-meta">${escapeHtml(todayQueueItems.length > 0
-                ? `${todayQueueItems.length} queue item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
-                : "No urgent operator queue items are open right now.")}</p>
+                ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
+                : "No urgent review items are open right now.")}</p>
             </section>
             <section class="support-panel today-support-panel-muted">
-              <p class="support-panel-kicker">Schedule context</p>
-              <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "Today on deck" : "Schedule is quiet")}</h3>
+              <p class="support-panel-kicker">Coming up</p>
+              <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "On your calendar today" : "Your calendar looks quiet")}</h3>
               ${scheduleItems.length ? `
                 <div class="support-list">
                   ${scheduleItems.map((item) => `
@@ -4273,8 +4285,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               ` : `<p class="support-panel-copy">${escapeHtml(operatorWorkspace.calendar?.dailySummary || "Connect Google Calendar to bring schedule context into Today.")}</p>`}
             </section>
             <section class="support-panel today-support-panel-muted">
-              <p class="support-panel-kicker">Proof</p>
-              <h3 class="support-panel-title">Recent outcomes</h3>
+              <p class="support-panel-kicker">Recent wins</p>
+              <h3 class="support-panel-title">Results Vonza can prove</h3>
               ${recentOutcomes.length ? `
                 <div class="support-list">
                   ${recentOutcomes.map((outcome) => `
@@ -4287,7 +4299,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                     </div>
                   `).join("")}
                 </div>
-              ` : `<p class="support-panel-copy">As soon as Vonza can prove bookings, quote requests, or complaint resolutions, they will stay visible here.</p>`}
+              ` : `<p class="support-panel-copy">Bookings, quote requests, and other confirmed results will appear here as soon as Vonza can tie them back to a real customer path.</p>`}
             </section>
           </aside>
         </div>
@@ -4295,8 +4307,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           <section class="flat-section">
             <div class="flat-section-header">
               <div>
-                <p class="overview-label">Contacts</p>
-                <h3 class="flat-section-title">People needing attention</h3>
+                <p class="overview-label">Leads</p>
+                <h3 class="flat-section-title">People who need a follow-up</h3>
               </div>
               <button class="ghost-button" type="button" data-shell-target="contacts">Open contacts</button>
             </div>
@@ -4305,8 +4317,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           <section class="flat-section">
             <div class="flat-section-header">
               <div>
-                <p class="overview-label">Signals</p>
-                <h3 class="flat-section-title">Top question themes</h3>
+                <p class="overview-label">Customer voice</p>
+                <h3 class="flat-section-title">What people are asking about</h3>
               </div>
               <button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>
             </div>
@@ -4319,7 +4331,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                   </div>
                 `).join("")}
               </div>
-            ` : `<div class="placeholder-card">Recurring customer themes will appear here as soon as live usage builds up.</div>`}
+            ` : `<div class="placeholder-card">Recurring customer questions will show up here as soon as live usage builds up.</div>`}
           </section>
         </div>
         ${buildTodayCopilotSection(operatorWorkspace)}
@@ -4857,24 +4869,28 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
 function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
+  const activeFrontDeskSection = getActiveFrontDeskSection();
+  const hasPreview = Boolean(trimText(agent.publicAgentKey));
   const frontDeskSections = [
     { key: "overview", label: "Overview" },
     { key: "preview", label: "Preview" },
-    { key: "context", label: "Context" },
-    { key: "launch", label: "Launch" },
+    { key: "context", label: "Website / Context" },
+    { key: "launch", label: "Install / Launch" },
   ];
   const readinessItems = [
     {
       title: "Front-desk basics",
       copy: setup.personalityReady
         ? "Name, welcome message, and tone are in place."
-        : "The front desk still needs its name, welcome message, or tone tightened up.",
+        : "Add the business name, welcome message, or tone so the Front Desk feels polished from the first hello.",
       tone: setup.personalityReady ? "Ready" : "Limited",
+      actionMarkup: `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit setup</button>`,
     },
     {
       title: "Website knowledge",
       copy: setup.knowledgeDescription,
       tone: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
+      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="context">Review knowledge</button>`,
     },
     {
       title: "Live install",
@@ -4883,94 +4899,200 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         ? "Ready"
         : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
           ? "Needs attention"
-          : installStatus.state === "installed_unseen"
+        : installStatus.state === "installed_unseen"
             ? "Limited"
             : "Pending",
+      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="launch">Review launch</button>`,
     },
   ];
   const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
-  const actionsMarkup = [
-    trimText(agent.publicAgentKey)
-      ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
-      : "",
-    `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>`,
-  ].filter(Boolean).join("");
+  const overviewPrimaryAction = hasPreview
+    ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open Front Desk settings</button>`;
+  const businessContextSummary = businessReadiness.summary || "Business context readiness will appear here once the owner starts reviewing the profile.";
+  const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
+    ? `${businessReadiness.missingCount} area${businessReadiness.missingCount === 1 ? "" : "s"} could use a quick review before the Front Desk feels fully grounded.`
+    : "Business context is in a strong place for customer-facing conversations.";
+  const launchHeadline = setup.isReady ? "You’re close to going live." : "A few essentials still need attention before you publish.";
+  const launchCopy = setup.isReady
+    ? "Confirm the experience, move into Install, and make sure the live site is sending real traffic back into Vonza."
+    : "This space keeps the launch path clear by showing what still needs attention before Install and verification.";
+  const liveVerificationLabel = isInstallSeen(installStatus)
+    ? "Live traffic confirmed"
+    : isInstallDetected(installStatus)
+      ? "Installed, waiting for first live visit"
+      : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+        ? "Verification needs attention"
+        : "Not live yet";
+  const pageHeaderActions = `
+    <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
+  `;
 
   return `
     <section class="workspace-page" data-shell-section="customize" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Front Desk",
-        copy: "Preview the customer-facing experience, confirm launch readiness, and keep deeper configuration in Settings instead of piling it into the main workflow.",
-        badges: readinessItems.map((item) => ({ label: item.title, tone: item.tone })),
-        actionsMarkup,
+        copy: "Shape the customer-facing experience in one place: review readiness, test the conversation, improve website grounding, and move confidently toward launch.",
+        actionsMarkup: pageHeaderActions,
       })}
       ${buildPageToolbar({
-        filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: "overview" }),
-        actionsMarkup: `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit behavior</button>`,
+        filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: activeFrontDeskSection }),
       })}
       <div class="workspace-page-body">
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="overview">
-          <div class="workspace-panel-header">
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="overview" ${activeFrontDeskSection === "overview" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
             <div>
-              <p class="studio-kicker">Workspace overview</p>
-              <h3 class="workspace-panel-title">What is ready, what still needs review, and what comes next.</h3>
-              <p class="workspace-panel-copy">This surface stays focused on readiness, preview, and launch posture. Deeper edits live in Settings.</p>
+              <p class="studio-kicker">Overview</p>
+              <h2 class="frontdesk-section-title">Keep the Front Desk focused on value, clarity, and launch readiness.</h2>
+              <p class="frontdesk-section-copy">This overview keeps the essentials in view: what already looks strong, what is worth improving, and where to go next.</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              ${overviewPrimaryAction}
             </div>
           </div>
-          <div class="settings-summary-grid">
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-readiness-list">
             ${readinessItems.map((item) => `
-              <article class="settings-summary-card">
-                <p class="overview-label">${escapeHtml(item.title)}</p>
-                <h3 class="settings-summary-title">${escapeHtml(item.tone === "Ready" ? "Ready" : item.tone === "Limited" ? "Needs review" : item.tone === "Needs attention" ? "Needs attention" : "Not ready")}</h3>
-                <p class="settings-summary-copy">${escapeHtml(item.copy)}</p>
+              <article class="frontdesk-readiness-item">
+                <div class="frontdesk-readiness-head">
+                  <div>
+                    <p class="frontdesk-detail-kicker">${escapeHtml(item.title)}</p>
+                    <h3 class="frontdesk-detail-title">${escapeHtml(item.tone === "Ready" ? "Looking good" : item.tone === "Limited" ? "Worth a quick pass" : item.tone === "Needs attention" ? "Needs attention" : "Getting started")}</h3>
+                  </div>
+                  <span class="${getBadgeClass(item.tone)}">${escapeHtml(item.tone)}</span>
+                </div>
+                <p class="frontdesk-readiness-copy">${escapeHtml(item.copy)}</p>
+                <div class="frontdesk-readiness-actions">
+                  ${item.actionMarkup}
+                </div>
               </article>
             `).join("")}
           </div>
+          <div class="frontdesk-support-note">
+            <p class="frontdesk-support-title">What stays out of the way</p>
+            <p class="frontdesk-support-copy">Deeper configuration lives in Settings. Front Desk stays focused on readiness, preview, website grounding, and the path to launch.</p>
+          </div>
         </section>
 
-        <section class="frontdesk-workspace-panel frontdesk-preview-shell" data-frontdesk-section="preview" hidden>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-preview-shell" data-frontdesk-section="preview" ${activeFrontDeskSection === "preview" ? "" : "hidden"}>
           ${buildPreviewSection(agent, setup)}
         </section>
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="context" hidden>
-          <div class="frontdesk-context-grid">
-            <section class="support-panel">
-              <p class="support-panel-kicker">Current behavior</p>
-              <h3 class="support-panel-title">${escapeHtml(behaviorSummary.title)}</h3>
-              <div class="support-list">
-                <div class="support-list-item"><strong>Launcher</strong><p>${escapeHtml(agent.buttonLabel || "Chat")}</p></div>
-                <div class="support-list-item"><strong>Primary route</strong><p>${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</p></div>
-                <div class="support-list-item"><strong>Website</strong><p>${escapeHtml(agent.websiteUrl || "No website configured")}</p></div>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
+            <div>
+              <p class="studio-kicker">Website / Context</p>
+              <h2 class="frontdesk-section-title">Ground the Front Desk in what your business actually does.</h2>
+              <p class="frontdesk-section-copy">Keep website detail, business context, and behavior summary together so the Front Desk sounds trustworthy before it goes live.</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              <button class="primary-button" type="button" data-shell-target="settings" data-settings-target="business">Review business context</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit Front Desk behavior</button>
+            </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-detail-stack">
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Website detail</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(formatKnowledgeState(setup.knowledgeState))}</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(setup.knowledgeDescription)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Website</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(agent.websiteUrl || "No website configured")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Pages learned</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported` : "No pages imported yet")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Customer impact</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgeReady ? "The Front Desk is ready to answer with solid business context." : setup.knowledgeLimited ? "The Front Desk can already help, and another import should make answers stronger." : "Import your site to give the Front Desk more specific business detail.")}</strong>
+                </div>
               </div>
             </section>
-            <section class="support-panel">
-              <p class="support-panel-kicker">Business context</p>
-              <h3 class="support-panel-title">Grounding status</h3>
-              <p class="support-panel-copy">${escapeHtml(businessReadiness.summary || "Business context readiness will appear here.")}</p>
-              <p class="analytics-subtle">${escapeHtml(businessReadiness.missingCount
-                ? `${businessReadiness.missingCount} areas still need owner review before Copilot has stronger grounding.`
-                : "Business context is in a healthy state for approval-first operator work.")}</p>
-              <div class="inline-actions">
-                <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="business">Business profile</button>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Front Desk behavior</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(behaviorSummary.title)}</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(behaviorSummary.copy)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Launcher</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(agent.buttonLabel || "Chat")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Primary route</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Advanced guidance</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.systemPrompt) ? "Added" : "Not added yet")}</strong>
+                </div>
+              </div>
+            </section>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Business context</p>
+              <h3 class="frontdesk-detail-title">Business grounding</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(businessContextSummary)}</p>
+              <div class="frontdesk-detail-list">
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Review progress</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(businessContextStatus)}</strong>
+                </div>
               </div>
             </section>
           </div>
         </section>
-        <section class="frontdesk-workspace-panel" data-frontdesk-section="launch" hidden>
-          <div class="frontdesk-context-grid">
-            <section class="support-panel">
-              <p class="support-panel-kicker">Install status</p>
-              <h3 class="support-panel-title">${escapeHtml(installStatus.label || "Not installed yet")}</h3>
-              <p class="support-panel-copy">${escapeHtml(setup.knowledgeDescription)}</p>
-            </section>
-            <section class="support-panel">
-              <p class="support-panel-kicker">Launch handoff</p>
-              <h3 class="support-panel-title">${escapeHtml(setup.isReady ? "Move into install" : "Finish setup first")}</h3>
-              <p class="support-panel-copy">${escapeHtml(setup.isReady ? "The front desk is ready for the cleaner utility flow in Install." : "Complete behavior and grounding work before you publish.")}</p>
-              <div class="inline-actions">
-                <button class="primary-button" type="button" data-shell-target="install">Open install</button>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
+          <div class="frontdesk-section-intro">
+            <div>
+              <p class="studio-kicker">Install / Launch</p>
+              <h2 class="frontdesk-section-title">${escapeHtml(launchHeadline)}</h2>
+              <p class="frontdesk-section-copy">${escapeHtml(launchCopy)}</p>
+            </div>
+            <div class="frontdesk-section-actions">
+              <button class="primary-button" type="button" data-shell-target="install">Open install</button>
+              ${hasPreview
+                ? `<button class="ghost-button" type="button" data-frontdesk-open="preview">Test preview first</button>`
+                : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
+            </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-step-list">
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 1</span>
+                <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
               </div>
-            </section>
+              <h3 class="frontdesk-step-title">Run a real preview conversation</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live preview for testing.")}</p>
+            </article>
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 2</span>
+                <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Ready" : "Worth a quick pass")}</span>
+              </div>
+              <h3 class="frontdesk-step-title">Move into the install flow</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(setup.isReady ? "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong." : "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.")}</p>
+            </article>
+            <article class="frontdesk-step">
+              <div class="frontdesk-step-head">
+                <span class="frontdesk-step-label">Step 3</span>
+                <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : isInstallDetected(installStatus) ? "Limited" : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed" ? "Needs attention" : "Pending")}">${escapeHtml(liveVerificationLabel)}</span>
+              </div>
+              <h3 class="frontdesk-step-title">${escapeHtml(installStatus.label || "Confirm the live site")}</h3>
+              <p class="frontdesk-step-copy">${escapeHtml(isInstallSeen(installStatus)
+                ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
+                : isInstallDetected(installStatus)
+                  ? "The snippet is in place, and the next step is simply confirming the first live visit."
+                  : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+                    ? "Verification needs attention before the launch can be treated as confidently live."
+                    : "The site still needs the snippet and first verification pass before launch is complete.")}</p>
+            </article>
+          </div>
+          <div class="frontdesk-support-note">
+            <p class="frontdesk-support-title">Why Install still lives separately</p>
+            <p class="frontdesk-support-copy">Front Desk owns the launch handoff, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.</p>
           </div>
         </section>
       </div>
@@ -6161,8 +6283,8 @@ function getActionQueueOwnerWorkflow(item = {}) {
   if (item.ownerWorkflow && typeof item.ownerWorkflow === "object") {
     return {
       key: trimText(item.ownerWorkflow.key) || "needs_review",
-      label: trimText(item.ownerWorkflow.label) || "Needs owner review",
-      copy: trimText(item.ownerWorkflow.copy) || "This flagged conversation still needs an owner decision on what happened next.",
+      label: trimText(item.ownerWorkflow.label) || "Needs a look",
+      copy: trimText(item.ownerWorkflow.copy) || "This conversation still needs a clear next step.",
       attention: item.ownerWorkflow.attention !== false,
       resolved: item.ownerWorkflow.resolved === true,
       rank: Number.isFinite(Number(item.ownerWorkflow.rank)) ? Number(item.ownerWorkflow.rank) : 99,
@@ -6179,7 +6301,7 @@ function getActionQueueOwnerWorkflow(item = {}) {
     return {
       key: "dismissed",
       label: "Dismissed",
-      copy: "This item was intentionally dismissed from the owner follow-up workflow.",
+      copy: "This item was intentionally cleared from the queue.",
       attention: false,
       resolved: false,
       rank: 5,
@@ -6189,10 +6311,10 @@ function getActionQueueOwnerWorkflow(item = {}) {
   if (resolved) {
     return {
       key: "resolved",
-      label: "Resolved",
+      label: "Handled",
       copy: trimText(item.outcome)
-        ? "A resolution is recorded and this queue item no longer needs active follow-up."
-        : "This queue item is marked complete and no longer needs active follow-up.",
+        ? "A result is already recorded, so this item no longer needs active follow-up."
+        : "This item is marked complete and no longer needs active follow-up.",
       attention: false,
       resolved: true,
       rank: 4,
@@ -6205,7 +6327,7 @@ function getActionQueueOwnerWorkflow(item = {}) {
       label: handoffStarted ? "Follow-up in progress" : "Needs follow-up",
       copy: trimText(item.nextStep)
         ? `Next step: ${trimText(item.nextStep)}`
-        : "The owner still needs to follow up on this conversation signal.",
+        : "Someone still needs to follow up on this conversation.",
       attention: true,
       resolved: false,
       rank: handoffStarted ? 1 : 0,
@@ -6215,10 +6337,10 @@ function getActionQueueOwnerWorkflow(item = {}) {
   if (status === "reviewed" || handoffStarted) {
     return {
       key: "reviewed_pending",
-      label: "Reviewed",
+      label: "In progress",
       copy: trimText(item.outcome)
-        ? "Owner context is recorded, but the item is not marked resolved yet."
-        : "The owner has started reviewing this item, but the final outcome is not recorded yet.",
+        ? "Context is recorded, but the final result is not marked yet."
+        : "This item has been reviewed, but the final result is still open.",
       attention: true,
       resolved: false,
       rank: 2,
@@ -6227,8 +6349,8 @@ function getActionQueueOwnerWorkflow(item = {}) {
 
   return {
     key: "needs_review",
-    label: "Needs owner review",
-    copy: "This flagged conversation still needs an owner decision on what happened next.",
+    label: "Needs a look",
+    copy: "This conversation still needs a clear next step.",
     attention: true,
     resolved: false,
     rank: 3,
@@ -6286,12 +6408,12 @@ function formatActionQueueContact(item) {
     return phone;
   }
 
-  return "Contact not captured yet";
+  return "Contact details still coming in";
 }
 
 function getActionQueueTypeLabel(type) {
   if (type === "weak_answer") {
-    return "Weak answers";
+    return "Answers to improve";
   }
 
   if (type === "repeat_high_intent") {
@@ -6408,11 +6530,11 @@ function formatKnowledgeState(value) {
   }
 
   if (normalized === "limited") {
-    return "Limited";
+    return "Growing";
   }
 
   if (normalized === "missing") {
-    return "Missing";
+    return "Getting started";
   }
 
   return "Unknown";
@@ -6441,9 +6563,9 @@ function buildActionQueueSummaryPills(summary = {}) {
 
   return [
     `${counts.total} total`,
-    `${counts.attentionNeeded} need attention`,
-    `${counts.followUpNeeded} follow-up needed`,
-    `${counts.resolved} resolved`,
+    `${counts.attentionNeeded} need a look`,
+    `${counts.followUpNeeded} follow-up`,
+    `${counts.resolved} handled`,
   ];
 }
 
@@ -7732,30 +7854,30 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 
   if (setup.knowledgeLimited || setup.knowledgeMissing) {
     opportunityItems.push({
-      title: "Strengthen website knowledge",
+      title: "Give the Front Desk more website detail",
       copy: setup.knowledgeLimited
-        ? "Your front desk has some website knowledge, but another import could help it answer with more confidence."
-        : "Your front desk still needs website knowledge before it can answer customer questions in a grounded way.",
-      subtle: "Run website import again after your site is updated or fully live.",
+        ? "The Front Desk already knows some of your site, and another import should make answers more complete."
+        : "Import your website so customer answers feel grounded in the business instead of generic.",
+      subtle: "Refresh the website import after your site changes or goes fully live.",
     });
   }
 
   if (!isInstallSeen(installStatus)) {
     opportunityItems.push({
-      title: "No live install detected yet",
+      title: "The Front Desk is not live on your site yet",
       copy: installStatus.state === "installed_unseen"
-        ? "The snippet is on the site, but a live widget ping has not been seen yet."
+        ? "The snippet is on the site, but Vonza has not seen the first live visit yet."
         : installStatus.state === "domain_mismatch"
-          ? "A different install id or blocked domain was detected on the site."
-          : "Vonza has not yet detected the front desk on a live site.",
-      subtle: "Run verification, then load a real published page that includes the widget snippet.",
+          ? "Vonza found a different install id or a blocked domain on the site."
+          : "Vonza has not yet detected the Front Desk on a live page.",
+      subtle: "Run verification, then open a real published page that includes the widget snippet.",
     });
   }
 
   if (isInstallDetected(installStatus) && Number(widgetMetrics.conversationsSinceInstall || 0) === 0) {
     opportunityItems.unshift({
-      title: "0 conversations since install",
-      copy: "The install is present, but no conversation has started since Vonza first detected it.",
+      title: "Your live site has not started conversations yet",
+      copy: "The install is present, but no one has started a conversation since Vonza first detected it.",
       subtle: "Open the live site in a private window and send a test question to confirm the full path.",
     });
   }
@@ -7778,9 +7900,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 
   if (signals.weakAnswerCount > 0) {
     opportunityItems.unshift({
-      title: "Weak answers need review",
+      title: "A few answers could be stronger",
       copy: `${signals.weakAnswerCount} customer question${signals.weakAnswerCount === 1 ? "" : "s"} ended in a weak or uncertain answer.`,
-      subtle: "Review the weak-answer list below, then improve website knowledge or adjust the front-desk setup.",
+      subtle: "Review the list below, then improve website detail or adjust Front Desk setup.",
     });
   }
 
@@ -7794,9 +7916,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 
   if (!opportunityItems.length) {
     opportunityItems.push({
-      title: "Your front desk is in a healthy early state",
-      copy: "There are no strong warning signals in the current data yet, which is a good baseline as more real usage comes in.",
-      subtle: "More insights will appear as customers ask more questions.",
+      title: "Your Front Desk has a healthy starting point",
+      copy: "There are no strong problem signals in the current data yet, which is a solid baseline as more real usage comes in.",
+      subtle: "More insight will appear as customers ask more questions.",
     });
   }
 
@@ -7805,10 +7927,10 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
       ${buildPageHeader({
         eyebrow: "Core workflow",
         title: "Analytics",
-        copy: "Track what customers are asking, where the front desk is active, and which outcomes Vonza can prove conservatively.",
+        copy: "See what Vonza is helping you win, where customers are leaning in, and where a little polish could improve results.",
         badges: [
-          { label: `${analyticsSummary.highIntentSignals || 0} high-intent signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
-          { label: `${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed outcomes`, tone: outcomeSummary.confirmedBusinessOutcomes > 0 ? "Ready" : "Limited" },
+          { label: `${analyticsSummary.highIntentSignals || 0} buying signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
+          { label: `${outcomeSummary.confirmedBusinessOutcomes || 0} recorded wins`, tone: outcomeSummary.confirmedBusinessOutcomes > 0 ? "Ready" : "Limited" },
         ],
         actionsMarkup: `<button class="primary-button" type="button" data-overview-focus="action-queue">Review queue</button>`,
       })}
@@ -7821,36 +7943,189 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
         `,
         actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh signals</button>`,
       })}
+      ${buildSummaryStrip([
+        { label: "Conversations", value: formatAnalyticsMetric(analyticsSummary.totalMessages, analyticsSummary), copy: "Stored assistant and visitor messages." },
+        { label: "Customer questions", value: formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary), copy: "Questions captured from real usage." },
+        { label: "Buying moments", value: formatAnalyticsMetric(analyticsSummary.highIntentSignals, analyticsSummary), copy: "Pricing, booking, contact, or urgent support intent." },
+        { label: "Recorded wins", value: formatAnalyticsMetric(outcomeSummary.confirmedBusinessOutcomes, analyticsSummary), copy: "Results Vonza can prove conservatively." },
+      ])}
       <div class="workspace-page-body">
       <div class="analytics-stack">
         ${analyticsSummary.syncState === "pending" ? `
-          <div class="placeholder-card">Live widget activity was detected, and Vonza is syncing the stored conversation read model now. Refresh stays targeted, so these counters will update without a full page boot.</div>
+          <div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now. These counters should update shortly without a full page reload.</div>
         ` : ""}
-        <div class="metric-grid">
-          <div class="metric-card">
-            <div class="metric-label">Total messages</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.totalMessages, analyticsSummary))}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Visitor questions</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary))}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">High-intent signals</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.highIntentSignals, analyticsSummary))}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Direct CTAs shown</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.directCtasShown, analyticsSummary))}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">CTA click-through</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsRate(analyticsSummary.ctaClickThroughRate, analyticsSummary))}</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-label">Contacts captured</div>
-            <div class="metric-value">${escapeHtml(formatAnalyticsMetric(analyticsSummary.contactsCaptured, analyticsSummary))}</div>
-          </div>
+        <div class="results-workspace">
+          <section class="results-main-column">
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Proven results</p>
+                  <h3 class="flat-section-title">Recent successful outcomes</h3>
+                </div>
+                <button class="ghost-button" type="button" data-overview-focus="action-queue">Review queue</button>
+              </div>
+              ${recentOutcomes.length ? `
+                <div class="results-list">
+                  ${recentOutcomes.map((outcome) => `
+                    <div class="results-list-item">
+                      <div>
+                        <strong>${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</strong>
+                        <p>${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
+                      </div>
+                      <span>${escapeHtml([
+                        trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " "),
+                        trimText(outcome.relatedIntentType),
+                        outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
+                      ].filter(Boolean).join(" · ") || "Attributed result")}</span>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : buildOperatorEmptyState({
+                title: "Your wins will show up here",
+                copy: "Bookings, quote requests, complaint resolutions, and other recorded results will stay visible here as soon as Vonza can tie them back to a real path.",
+              })}
+            </section>
+
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Results loop</p>
+                  <h3 class="flat-section-title">Conversion loop</h3>
+                </div>
+              </div>
+              <div class="results-list">
+                <div class="results-list-item">
+                  <div>
+                    <strong>Direct handoffs</strong>
+                    <p>${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks · ${conversionSummary.bookingDirectHandoffs || 0} booking · ${conversionSummary.quoteDirectHandoffs || 0} quote · ${conversionSummary.contactDirectHandoffs || 0} contact`)}</p>
+                  </div>
+                  <span>${escapeHtml(`${conversionSummary.checkoutDirectHandoffs || 0} checkout`)}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Saved follow-ups</strong>
+                    <p>${escapeHtml(`${conversionSummary.followUpFallbackCount || 0} fallback prompts`)}</p>
+                  </div>
+                  <span>${escapeHtml(`${conversionSummary.capturePromptsShown || 0} capture prompts shown`)}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Direct vs follow-up</strong>
+                    <p>${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
+                  </div>
+                  <span>${escapeHtml(`${outcomeSummary.directOutcomeCount || 0} direct outcomes · ${outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up assisted`)}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Recorded wins</strong>
+                    <p>${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} proved results`)}</p>
+                  </div>
+                  <span>${escapeHtml(`${outcomeSummary.bookingConfirmed || outcomeSummary.bookingCompleted || 0} booking · ${outcomeSummary.quoteRequested || 0} quote · ${outcomeSummary.checkoutCompleted || 0} checkout`)}</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Opportunities</p>
+                  <h3 class="flat-section-title">Worth improving next</h3>
+                </div>
+              </div>
+              <div class="results-list">
+                ${opportunityItems.slice(0, 4).map((item) => `
+                  <div class="results-list-item">
+                    <div>
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <p>${escapeHtml(item.copy)}</p>
+                    </div>
+                    <span>${escapeHtml(item.subtle)}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </section>
+          </section>
+
+          <aside class="results-side-column">
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Snapshot</p>
+                  <h3 class="flat-section-title">Current readout</h3>
+                </div>
+              </div>
+              <div class="results-list">
+                <div class="results-list-item">
+                  <div>
+                    <strong>Front-desk visibility</strong>
+                    <p>${escapeHtml(installStatus.label)}</p>
+                  </div>
+                  <span>${escapeHtml(
+                    installStatus.lastSeenAt
+                      ? `Last seen ${formatSeenAt(installStatus.lastSeenAt)}`
+                      : installStatus.lastVerifiedAt
+                        ? `Last verified ${formatSeenAt(installStatus.lastVerifiedAt)}`
+                        : "Awaiting verification"
+                  )}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Recent activity</strong>
+                    <p>${escapeHtml(activity.description)}</p>
+                  </div>
+                  <span>${escapeHtml(activity.copy)}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Website detail</strong>
+                    <p>${escapeHtml(setup.knowledgeDescription)}</p>
+                  </div>
+                  <span>${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "No imported pages yet")}</span>
+                </div>
+                <div class="results-list-item">
+                  <div>
+                    <strong>Focus signal</strong>
+                    <p>${escapeHtml(analyticsSummary.operatorSignal.copy)}</p>
+                  </div>
+                  <span>${escapeHtml(analyticsSummary.operatorSignal.subtle)}</span>
+                </div>
+              </div>
+            </section>
+
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Intent mix</p>
+                  <h3 class="flat-section-title">Customer intent</h3>
+                </div>
+              </div>
+              <div class="intent-grid">
+                ${["contact", "booking", "pricing", "support"].map((intent) => `
+                  <div class="intent-card">
+                    <p class="intent-label">${escapeHtml(getIntentLabel(intent))}</p>
+                    <p class="intent-value">${signals.intentCounts[intent] || 0}</p>
+                    <p class="intent-copy">${escapeHtml(getIntentDescription(intent))}</p>
+                  </div>
+                `).join("")}
+              </div>
+            </section>
+
+            <section class="flat-section">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Question themes</p>
+                  <h3 class="flat-section-title">Top customer questions</h3>
+                </div>
+              </div>
+              ${signals.topQuestions.length ? `
+                <div class="question-list">
+                  ${signals.topQuestions.map((item) => `
+                    <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
+                  `).join("")}
+                </div>
+              ` : `<div class="placeholder-card">Recurring question themes will appear here as soon as real usage builds up.</div>`}
+            </section>
+          </aside>
         </div>
 
         <div class="analytics-grid">
@@ -7885,6 +8160,23 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 <p class="analytics-subtle">${escapeHtml(analyticsSummary.operatorSignal.subtle)}</p>
               </div>
             </div>
+            ${recentLeadCaptures.length ? `
+              <div class="results-list">
+                ${recentLeadCaptures.map((lead) => `
+                  <div class="results-list-item">
+                    <div>
+                      <strong>${escapeHtml(formatActionQueueContact({ contactInfo: lead.contact || {} }) || "Contact captured")}</strong>
+                      <p>${escapeHtml(trimText(lead.reason) || "Captured from live chat intent.")}</p>
+                    </div>
+                    <span>${escapeHtml([
+                      trimText(lead.state).replaceAll("_", " "),
+                      lead.isReturningVisitor ? "returning visitor" : "new visitor",
+                      trimText(lead.followUp?.status) ? `follow-up ${trimText(lead.followUp.status)}` : "",
+                    ].filter(Boolean).join(" · "))}</span>
+                  </div>
+                `).join("")}
+              </div>
+              ` : `<div class="placeholder-card">No live contacts captured yet. As soon as a high-intent chat turns into a real handoff, it will show up here.</div>`}
           </section>
 
           <section class="workspace-card-soft">
@@ -8717,12 +9009,14 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
 
 function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
-  const primaryAction = setup.isReady
-    ? `<button class="primary-button" data-action="copy-install" ${trimText(agent.publicAgentKey) ? "" : "disabled"}>Add to website</button>`
-    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`;
-  const secondaryAction = trimText(agent.publicAgentKey)
-    ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
-    : "";
+  const secondaryActions = [
+    trimText(agent.publicAgentKey)
+      ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+      : "",
+    setup.isReady
+      ? `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`
+      : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`,
+  ].filter(Boolean).join("");
 
   return `
     <div class="workspace-context-bar">
@@ -8733,8 +9027,11 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
         <p class="workspace-context-note">${escapeHtml(workspaceMode.copy)}</p>
       </div>
       <div class="workspace-context-actions">
-        ${secondaryAction}
-        ${primaryAction}
+        <div class="workspace-context-status">
+          <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Ready to use" : "Getting started")}</span>
+          <span class="${getBadgeClass(setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeReady ? "Website learned" : setup.knowledgeLimited ? "Website learning" : "Website details needed")}</span>
+        </div>
+        ${secondaryActions}
       </div>
     </div>
   `;
@@ -8752,7 +9049,7 @@ function renderAssistantShell(
   const setupHintMarkup = !setup.isReady
     ? `
       <div class="shell-inline-note">
-        Finish the front-desk basics in Settings, preview the live experience from Front Desk, and then move into Install when you are ready to go live.
+        Finish the Front Desk basics in Settings, test the live experience in Front Desk, and then move into Install when you are ready to publish.
       </div>
     `
     : "";
@@ -8811,28 +9108,43 @@ function buildPreviewSection(agent, setup) {
   const statusPills = [
     `<span class="preview-status-pill">Website connected</span>`,
     setup.knowledgeState === "ready"
-      ? `<span class="preview-status-pill">Knowledge imported</span>`
+      ? `<span class="preview-status-pill">Website detail loaded</span>`
       : setup.knowledgeState === "limited"
-        ? `<span class="preview-status-pill">Knowledge limited</span>`
-        : `<span class="preview-status-pill">Knowledge not imported</span>`,
+        ? `<span class="preview-status-pill">More website detail would help</span>`
+        : `<span class="preview-status-pill">Website detail not loaded yet</span>`,
     setup.knowledgePageCount
       ? `<span class="preview-status-pill">${escapeHtml(`${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported`)}</span>`
       : "",
   ].join("");
 
   const warning = setup.knowledgeState !== "ready"
-    ? `<p class="preview-warning">Your front desk can already be tested here, but the website knowledge is still ${setup.knowledgeState === "limited" ? "limited" : "incomplete"}. Run another import if you want a stronger launch-ready result.</p>`
+    ? `<p class="preview-warning">You can already test the Front Desk here. A fresh website import should make answers feel more complete before you go live.</p>`
     : "";
 
   return `
+    <div class="frontdesk-section-intro">
+      <div>
+        <p class="studio-kicker">Preview</p>
+        <h2 class="frontdesk-section-title">Test the customer experience before you launch it.</h2>
+        <p class="frontdesk-section-copy">Ask realistic questions, check the next step, and make sure the handoff feels helpful and on-brand.</p>
+      </div>
+      <div class="frontdesk-section-actions">
+        <a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
+        <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
+        ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Refresh website details</button>` : ""}
+      </div>
+    </div>
+    <div class="frontdesk-section-divider"></div>
     <div class="preview-header">
-      <h2 class="section-heading">Try your website front desk</h2>
-      <p class="section-copy">See how Vonza answers questions, routes the next step, and captures follow-up before it feeds Today, Contacts, and Outcomes.</p>
       <div class="preview-status-row">
         ${statusPills}
         <span class="preview-status-pill">${escapeHtml(agent.websiteUrl || "No website URL")}</span>
       </div>
       ${warning}
+    </div>
+    <div class="frontdesk-preview-guide">
+      <p class="frontdesk-support-title">Prompt starters</p>
+      <p class="frontdesk-support-copy">Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.</p>
       <div class="prompt-chip-row">
         <button class="prompt-chip" type="button" data-preview-prompt="What services do you offer?">What services do you offer?</button>
         <button class="prompt-chip" type="button" data-preview-prompt="Can I book with you?">Can I book with you?</button>
@@ -8840,10 +9152,10 @@ function buildPreviewSection(agent, setup) {
         <button class="prompt-chip" type="button" data-preview-prompt="How can I contact you?">How can I contact you?</button>
       </div>
     </div>
-    <div class="preview-control-row">
-      <a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
-      <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
-      ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Retry import</button>` : ""}
+    <div class="frontdesk-section-divider"></div>
+    <div class="frontdesk-preview-frame-shell">
+      <p class="frontdesk-preview-frame-title">Embedded preview</p>
+      <p class="frontdesk-support-copy">This is the in-workspace version of the Front Desk, so you can test it without leaving the page.</p>
     </div>
     <iframe
       id="preview-frame"

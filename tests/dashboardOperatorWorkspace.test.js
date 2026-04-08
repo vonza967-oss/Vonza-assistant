@@ -645,14 +645,14 @@ test("today workspace render uses a dominant queue and support rail shell", () =
     operatorWorkspace
   );
 
-  assert.match(overviewPanel, /Needs Attention/);
+  assert.match(overviewPanel, /What needs attention/);
   assert.match(overviewPanel, /today-workspace/);
   assert.match(overviewPanel, /today-queue-row/);
   assert.match(overviewPanel, /today-review-drawer-shell/);
   assert.match(overviewPanel, /Review drawer/);
-  assert.match(overviewPanel, /Search queue/);
+  assert.match(overviewPanel, /Search Today/);
   assert.match(overviewPanel, /Quote review/);
-  assert.match(overviewPanel, /Ended appointment review/);
+  assert.match(overviewPanel, /Appointment follow-up/);
   assert.match(overviewPanel, /Prepare follow-up/);
   assert.match(overviewPanel, /Link contact/);
   assert.match(overviewPanel, /Record outcome/);
@@ -945,6 +945,142 @@ test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
   assert.match(proposals, /Open Analytics/);
   assert.doesNotMatch(proposals, /Open Outcomes/);
 });
+test("front desk workspace uses focused sub-navigation and one dominant panel", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.setActiveFrontDeskSection("launch");
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    businessProfile: {
+      readiness: {
+        summary: "Service areas and approvals are filled in, but pricing still needs owner review.",
+        missingCount: 1,
+      },
+    },
+  });
+
+  const panel = harness.buildFrontDeskPanel(
+    {
+      publicAgentKey: "agent-key",
+      buttonLabel: "Ask us",
+      primaryCtaMode: "booking",
+      websiteUrl: "https://acme.example",
+      tone: "professional",
+      systemPrompt: "Keep replies concise and route bookings quickly.",
+      installId: "install-123",
+    },
+    {
+      personalityReady: true,
+      knowledgeReady: false,
+      knowledgeLimited: true,
+      knowledgeState: "limited",
+      knowledgeDescription: "Website knowledge is usable, but still needs another review pass before launch.",
+      knowledgePageCount: 5,
+      isReady: false,
+    },
+    workspace
+  );
+
+  assert.match(panel, /Website \/ Context/);
+  assert.match(panel, /Install \/ Launch/);
+  assert.match(panel, /Open settings/);
+  assert.match(panel, /Try front desk/);
+  assert.match(panel, /Review business context/);
+  assert.match(panel, /Open install/);
+  assert.match(panel, /What stays out of the way/);
+  assert.match(panel, /Deeper configuration lives in Settings/);
+  assert.match(panel, /data-frontdesk-section="launch"/);
+  assert.match(panel, /frontdesk-main-panel/);
+  assert.doesNotMatch(panel, /settings-summary-grid/);
+  assert.doesNotMatch(panel, /frontdesk-context-grid/);
+});
+
+test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const sidebar = harness.buildSidebarShell(
+    { assistantName: "Vonza", websiteUrl: "https://example.com" },
+    {
+      isReady: true,
+      knowledgeReady: true,
+      knowledgeLimited: false,
+    },
+    harness.createEmptyActionQueue(),
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      status: {
+        googleConnected: true,
+        googleConfigReady: true,
+      },
+      connectedAccounts: [
+        {
+          id: "account-1",
+          status: "connected",
+          accountEmail: "owner@example.com",
+          capabilities: {
+            identity: true,
+            gmailRead: true,
+            calendarRead: true,
+          },
+        },
+      ],
+    }),
+    "overview"
+  );
+
+  assert.match(sidebar, /Primary/);
+  assert.match(sidebar, /Connected tools/);
+  assert.match(sidebar, /Utilities/);
+  assert.match(sidebar, /Workspace/);
+  assert.match(sidebar, /Knowledge/);
+  assert.match(sidebar, /Install/);
+});
+
+test("outcomes page now renders as a results workspace instead of stacked equal-weight cards", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    { installStatus: { label: "Seen recently", state: "seen_recently" } },
+    [
+      { id: "m1", role: "user", content: "Can I book an appointment?" },
+      { id: "m2", role: "assistant", content: "Yes, I can help with that." },
+    ],
+    {
+      knowledgeDescription: "Knowledge ready.",
+      knowledgeReady: true,
+      knowledgeLimited: false,
+      knowledgePageCount: 4,
+    },
+    {
+      ...harness.createEmptyActionQueue(),
+      recentOutcomes: [
+        {
+          outcomeType: "booking_confirmed",
+          sourceLabel: "Booking CTA",
+          occurredAt: "2026-04-05T09:00:00.000Z",
+        },
+      ],
+    }
+  );
+
+  assert.match(analyticsPanel, /results-workspace/);
+  assert.match(analyticsPanel, /Recent successful outcomes|Your wins will show up here/);
+  assert.match(analyticsPanel, /Conversion loop/);
+  assert.match(analyticsPanel, /Worth improving next/);
+});
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -998,7 +1134,7 @@ test("sparse-data copilot rendering stays honest and points back to business con
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Copilot needs a little more real operating context/);
-  assert.match(overview, /Open business context setup/);
+  assert.match(overview, /Open business context/);
 });
 
 test("launch profile keeps the stable core visible and labels Google workspace surfaces as beta", () => {

@@ -469,8 +469,9 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Today/);
   assert.match(harness.getRootHtml(), /Front Desk/);
-  assert.match(harness.getRootHtml(), /Outcomes/);
-  assert.match(harness.getRootHtml(), /The public launch core is active/i);
+  assert.match(harness.getRootHtml(), /Analytics/);
+  assert.match(harness.getRootHtml(), /Your core workspace is ready/i);
+  assert.match(harness.getRootHtml(), /optional Google tools are simply out of the way/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);
@@ -574,8 +575,8 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Nothing urgent is blocking the operator loop right now/);
-  assert.match(harness.getRootHtml(), /As soon as Vonza can prove bookings, quote requests, or complaint resolutions, they will stay visible here/);
+  assert.match(harness.getRootHtml(), /You’re caught up for now/);
+  assert.match(harness.getRootHtml(), /Bookings, quote requests, complaint resolutions, and other recorded results will stay visible here/i);
 });
 
 test("tab switching still leaves the selected section rendered as the active view", async () => {
@@ -593,5 +594,5 @@ test("tab switching still leaves the selected section rendered as the active vie
     harness.getRootHtml(),
     /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
-  assert.match(harness.getRootHtml(), /Track what customers are asking/);
+  assert.match(harness.getRootHtml(), /See what Vonza is helping you win/);
 });
