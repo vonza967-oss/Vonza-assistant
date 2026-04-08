@@ -9,8 +9,8 @@ function buildRoutingOptions(overrides = {}) {
       bookingUrl: "https://example.com/book",
       quoteUrl: "https://example.com/quote",
       checkoutUrl: "https://example.com/checkout",
-      contactEmail: "team@example.com",
-      contactPhone: "+1 555 555 5555",
+      contactEmail: "team@acme.com",
+      contactPhone: "+1 206 555 0199",
       primaryCtaMode: "contact",
       fallbackCtaMode: "capture",
       businessHoursNote: "Open Mon-Fri, 9am-5pm.",
@@ -118,4 +118,27 @@ test("repeated CTA prompts are suppressed once the same decision was shown in-se
   assert.equal(suppressed.mode, "capture_only");
   assert.equal(suppressed.suppressReason, "cta_already_shown");
   assert.equal(suppressed.shouldShowCapture, true);
+});
+
+test("placeholder contact config never becomes a live contact CTA", () => {
+  const result = evaluateLiveConversionRouting(buildRoutingOptions({
+    widgetConfig: {
+      bookingUrl: "",
+      quoteUrl: "",
+      checkoutUrl: "",
+      contactEmail: "mail@example.com",
+      contactPhone: "123-456-7890",
+      primaryCtaMode: "contact",
+      fallbackCtaMode: "capture",
+    },
+    userMessage: "Can someone contact me today?",
+    leadCapture: {
+      shouldPrompt: true,
+      trigger: "direct_follow_up",
+    },
+  }));
+
+  assert.equal(result.mode, "capture_only");
+  assert.ok(!result.primaryCta);
+  assert.equal(result.shouldShowCapture, true);
 });

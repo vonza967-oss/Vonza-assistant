@@ -52,6 +52,28 @@ test("business context stays grounded in text and keeps media URLs out of prompt
   assert.doesNotMatch(buildRelevantContextBlock(record, "show me your kitchen work"), /hero\.jpg/i);
 });
 
+test("business context ignores placeholder site contacts and keeps verified configured contacts", () => {
+  const record = {
+    content: [
+      "Title: Acme Services",
+      "Body:",
+      "Email us at mail@example.com.",
+      "Call 123-456-7890 for help.",
+    ].join("\n"),
+  };
+
+  const context = buildBusinessContextForChat(record, "How can I contact you?", {
+    widgetConfig: {
+      contactEmail: "team@acmeservices.com",
+      contactPhone: "+1 206 555 0199",
+    },
+  });
+
+  assert.doesNotMatch(context, /mail@example\.com/i);
+  assert.doesNotMatch(context, /123-456-7890/);
+  assert.match(context, /Configured live contact details: Email: team@acmeservices\.com \| Phone: \+1 206 555 0199\./);
+});
+
 test("explicit visual requests can still retrieve structured media assets", () => {
   const record = {
     content: [

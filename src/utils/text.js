@@ -2,6 +2,30 @@ export function cleanText(value) {
   return value ? value.replace(/\s+/g, " ").trim() : "";
 }
 
+const EMAIL_PATTERN = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+const PHONE_PATTERN = /(?:\+?\d[\d\s().-]{7,}\d)/g;
+const PLACEHOLDER_EMAIL_DOMAINS = new Set([
+  "example.com",
+  "example.org",
+  "example.net",
+  "example.edu",
+  "test.com",
+  "test.local",
+  "localhost",
+  "invalid",
+]);
+const PLACEHOLDER_PHONE_DIGITS = new Set([
+  "0000000",
+  "00000000",
+  "0000000000",
+  "0123456789",
+  "1111111111",
+  "1234567",
+  "12345678",
+  "1234567890",
+  "5555555555",
+]);
+
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -172,4 +196,45 @@ export function appearsHungarian(text) {
 
 export function normalizeAssistantReply(text) {
   return text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function extractEmails(value = "") {
+  const matches = String(value || "").match(EMAIL_PATTERN) || [];
+  return [...new Set(matches.map((match) => cleanText(match).toLowerCase()).filter(Boolean))];
+}
+
+export function extractPhoneCandidates(value = "") {
+  const matches = String(value || "").match(PHONE_PATTERN) || [];
+  return [...new Set(matches.map((match) => cleanText(match)).filter(Boolean))];
+}
+
+export function isPlaceholderEmail(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!normalized || !normalized.includes("@")) {
+    return false;
+  }
+
+  const [, domain = ""] = normalized.split("@");
+
+  return PLACEHOLDER_EMAIL_DOMAINS.has(domain);
+}
+
+export function isPlaceholderPhone(value = "") {
+  const digits = cleanText(value).replace(/\D/g, "");
+
+  if (!digits || digits.length < 7) {
+    return false;
+  }
+
+  if (PLACEHOLDER_PHONE_DIGITS.has(digits)) {
+    return true;
+  }
+
+  return /^(\d)\1+$/.test(digits);
+}
+
+export function containsPlaceholderContactDetails(value = "") {
+  return extractEmails(value).some((email) => isPlaceholderEmail(email))
+    || extractPhoneCandidates(value).some((phone) => isPlaceholderPhone(phone));
 }

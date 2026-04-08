@@ -1,5 +1,10 @@
 import { resolveAgentContext } from "../agents/agentService.js";
 import {
+  getWidgetInstallContextByInstallId,
+  isOriginAllowed,
+  logWidgetInitFailure,
+} from "../install/installPresenceService.js";
+import {
   getStoredWebsiteContent,
   hasVisualIntent,
   selectRelevantImageUrls,
@@ -30,6 +35,8 @@ import {
   buildEffectiveUserText,
   cleanText,
   detectResponseLanguage,
+  extractEmails,
+  isPlaceholderEmail,
   sanitizeChatHistory,
 } from "../../utils/text.js";
 
@@ -86,6 +93,83 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
       ? `From the website, this is the clearest detail I have about ${name}: ${metaDescription}`
       : `I don't have enough detail from the website to answer that confidently about ${name}.`;
   return `${summary} I can still help with the next step. Are you trying to understand their services, pricing, or how to contact ${siteLabel}?`;
+}
+
+async function resolveWidgetConversationContext(supabase, options = {}) {
+  const installId = cleanText(options.installId);
+  const requestedOrigin = cleanText(options.origin);
+  const pageUrl = cleanText(options.pageUrl);
+
+  if (installId) {
+    const installContext = await getWidgetInstallContextByInstallId(supabase, installId);
+
+    if (!installContext?.agent || !installContext.business) {
+      const error = new Error("Install not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (requestedOrigin && !isOriginAllowed(requestedOrigin, installContext.allowedDomains)) {
+      logWidgetInitFailure({
+        reason: "domain_blocked",
+        installId,
+        origin: requestedOrigin,
+        pageUrl,
+        allowedDomains: installContext.allowedDomains,
+        message: "Origin is not on the install allowlist.",
+      });
+      const error = new Error("This website origin is not allowed for the current install.");
+      error.statusCode = 403;
+      error.code = "domain_blocked";
+      throw error;
+    }
+
+    return resolveAgentContext(supabase, {
+      agentId: installContext.agent.id,
+      businessId: installContext.business.id,
+      websiteUrl: installContext.business.website_url,
+      businessName: installContext.business.name,
+    });
+  }
+
+  return resolveAgentContext(supabase, {
+    agentId: options.agentId,
+    agentKey: options.agentKey,
+    businessId: options.businessId,
+    websiteUrl: options.websiteUrl,
+    businessName: options.businessName,
+  });
+}
+
+function listTrustedReplyEmails({
+  websiteContent = {},
+  widgetConfig = {},
+  userMessage = "",
+  history = [],
+  visitorIdentity = null,
+} = {}) {
+  const configuredEmail = cleanText(widgetConfig.contactEmail || widgetConfig.contact_email).toLowerCase();
+  return new Set(
+    [
+      ...extractEmails(websiteContent.content || ""),
+      ...extractEmails(userMessage),
+      ...history.flatMap((entry) => extractEmails(entry?.content || "")),
+      cleanText(visitorIdentity?.email).toLowerCase(),
+      configuredEmail,
+    ].filter((email) => email && !isPlaceholderEmail(email))
+  );
+}
+
+function replyContainsUnsafePlaceholderEmail(reply = "", trustedEmails = new Set()) {
+  return extractEmails(reply).some((email) => isPlaceholderEmail(email) && !trustedEmails.has(email));
+}
+
+function buildMissingVerifiedContactReply(language) {
+  if (language === "Hungarian") {
+    return "Nem látok megerősített elérhetőséget a weboldalból vagy a jelenlegi élő beállításból, ezért nem akarok kitalálni egy email címet vagy telefonszámot. Ha szeretnéd, segítek megfogalmazni, mit érdemes kérdezni, amint megvan a helyes kapcsolat. Miben szeretnél írni vagy telefonálni nekik?";
+  }
+
+  return "I don’t see a verified contact email or phone number from the website or the live setup, so I don’t want to guess. If you want, I can still help you figure out what to ask once the right contact route is confirmed. What are you trying to reach them about?";
 }
 
 async function buildChatResponse({
@@ -160,19 +244,22 @@ export async function handleChatRequest({
     throw error;
   }
 
-  if (!agentKey && !businessId) {
+  if (!installId && !agentId && !agentKey && !businessId) {
     const error = new Error(
-      "agent_key or business_id is required."
+      "install_id, agent_id, agent_key, or business_id is required."
     );
     error.statusCode = 400;
     throw error;
   }
 
-  const { agent, business, widgetConfig } = await resolveAgentContext(supabase, {
+  const { agent, business, widgetConfig } = await resolveWidgetConversationContext(supabase, {
+    installId,
     agentId,
     agentKey,
     businessId,
     websiteUrl,
+    origin,
+    pageUrl,
     businessName: body.name,
   });
 
@@ -220,13 +307,23 @@ export async function handleChatRequest({
 
   const businessContext = buildBusinessContextForChat(
     websiteContent,
-    effectiveUserText
+    effectiveUserText,
+    {
+      widgetConfig,
+    }
   );
 
   console.log("CHAT BUSINESS CONTEXT:", businessContext);
 
   const systemPrompt = buildChatSystemPrompt(language, agent);
-  const finalReply = await generateAssistantReply({
+  const trustedReplyEmails = listTrustedReplyEmails({
+    websiteContent,
+    widgetConfig,
+    userMessage: message,
+    history,
+    visitorIdentity,
+  });
+  let finalReply = await generateAssistantReply({
     openai,
     userMessage: message,
     history,
@@ -254,6 +351,15 @@ export async function handleChatRequest({
       temperature: 0.5,
     },
   });
+
+  if (replyContainsUnsafePlaceholderEmail(finalReply, trustedReplyEmails)) {
+    console.warn("[chat] Replacing placeholder contact reply with grounded fallback.", {
+      agentId: agent.id,
+      installId,
+      pageUrl,
+    });
+    finalReply = buildMissingVerifiedContactReply(language);
+  }
 
   console.log("FINAL REPLY:", finalReply);
 
@@ -327,8 +433,8 @@ export async function handleLeadCaptureRequest({
     visitor_name: body.visitor_name || body.visitorName,
   });
 
-  if (!agentKey && !businessId && !agentId) {
-    const error = new Error("agent_id, agent_key, or business_id is required.");
+  if (!installId && !agentKey && !businessId && !agentId) {
+    const error = new Error("install_id, agent_id, agent_key, or business_id is required.");
     error.statusCode = 400;
     throw error;
   }
@@ -339,11 +445,14 @@ export async function handleLeadCaptureRequest({
     throw error;
   }
 
-  const { agent, business, widgetConfig } = await resolveAgentContext(supabase, {
+  const { agent, business, widgetConfig } = await resolveWidgetConversationContext(supabase, {
+    installId,
     agentId,
     agentKey,
     businessId,
     websiteUrl,
+    origin,
+    pageUrl,
     businessName: body.name,
   });
 

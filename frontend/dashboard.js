@@ -4300,8 +4300,18 @@ function buildTodayQueueItems(actionQueue = createEmptyActionQueue(), operatorWo
       queueId: trimText(item.key),
     }))
     : [];
+  const seen = new Set();
 
-  return reviewItems.concat(actionItems);
+  return reviewItems.concat(actionItems).filter((item) => {
+    const queueKey = getTodayQueueItemKey(item);
+
+    if (!queueKey || seen.has(queueKey)) {
+      return false;
+    }
+
+    seen.add(queueKey);
+    return true;
+  });
 }
 
 function getTodayQueueFilterKeys(item = {}) {
@@ -4678,7 +4688,9 @@ function buildTodayReviewPanel(
   activeQueueKey = "",
   contacts = [],
   operatorWorkspace = createEmptyOperatorWorkspace(),
+  options = {},
 ) {
+  const inline = options.inline === true;
   const queueKey = getTodayQueueItemKey(item);
   const contactLabel = getTodayQueueItemContactLabel(item);
   const linkState = getTodayQueueItemLinkState(item);
@@ -4714,13 +4726,13 @@ function buildTodayReviewPanel(
     : (linkState === "Linked" ? "There is enough contact detail here to keep the next step grounded." : "This item would be easier to act on with stronger contact detail.");
 
   return `
-    <article class="today-review-panel ${queueKey === activeQueueKey ? "active" : ""}" data-today-review-panel-item data-today-queue-key="${escapeHtml(queueKey)}" ${queueKey === activeQueueKey ? "" : "hidden"}>
+    <article class="today-review-panel ${inline || queueKey === activeQueueKey ? "active" : ""}" data-today-review-panel-item data-today-inline-card="${inline ? "true" : "false"}" data-today-queue-key="${escapeHtml(queueKey)}" ${inline || queueKey === activeQueueKey ? "" : "hidden"}>
       <div class="today-review-panel-top">
         <div>
           <p class="support-panel-kicker">${escapeHtml(contextTitle)}</p>
           <h3 class="today-review-panel-title">${escapeHtml(title)}</h3>
         </div>
-        <button class="ghost-button today-review-close" type="button" data-today-review-close>Close</button>
+        ${inline ? "" : `<button class="ghost-button today-review-close" type="button" data-today-review-close>Close</button>`}
       </div>
       <div class="action-queue-badges">
         ${statusBadges}
@@ -4756,6 +4768,40 @@ function buildTodayReviewPanel(
         }, operatorWorkspace)
         : buildTodayReviewDrawerActions(item, operatorWorkspace)}
     </article>
+  `;
+}
+
+function buildTodayAttentionList(
+  items = [],
+  contacts = [],
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
+  if (!items.length) {
+    return buildOperatorEmptyState({
+      title: "You’re caught up for now",
+      copy: "Nothing urgent is waiting right now. New follow-ups, missed opportunities, and review items will show up here when they matter.",
+    });
+  }
+
+  return `
+    <section class="today-command-section">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Attention now</p>
+          <h3 class="workspace-panel-title">Clear next steps, without the old queue drawer</h3>
+          <p class="workspace-panel-copy">Each item stays grounded in the real source record and only appears once.</p>
+        </div>
+      </div>
+      <div class="today-review-panel-stack">
+        ${items.map((item) => buildTodayReviewPanel(
+          item,
+          getTodayQueueItemKey(item),
+          contacts,
+          operatorWorkspace,
+          { inline: true }
+        )).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -4836,7 +4882,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const todayQueueItems = buildTodayQueueItems(actionQueue, operatorWorkspace);
-  const activeTodayQueueKey = getActiveTodayQueueSelection(todayQueueItems);
   const scheduleItems = Array.isArray(operatorWorkspace.calendar?.scheduleItems)
     ? operatorWorkspace.calendar.scheduleItems.slice(0, 4)
     : [];
@@ -4864,10 +4909,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     </div>
   `;
   const toolbarActions = `
-    <label class="toolbar-search today-toolbar-search">
-      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("search")}</span>
-      <input type="search" placeholder="Search Today" data-today-search aria-label="Search queue">
-    </label>
     <button class="ghost-button today-toolbar-button" type="button" data-refresh-operator data-force-sync="true" title="Refresh workspace">
       <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("sync")}</span>
       <span>Refresh</span>
@@ -4888,20 +4929,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         actionsMarkup: iconActionsMarkup,
       })}
       ${buildPageToolbar({
-        filtersMarkup: `
-          <div class="today-toolbar-filters">
-            <div class="today-toolbar-title-row">
-              <h2 class="today-toolbar-title">What needs attention</h2>
-              <span class="today-toolbar-title-caret" aria-hidden="true">v</span>
-            </div>
-            <div class="toolbar-filter-group">
-              <button class="toolbar-chip active" type="button" data-today-filter="all">All</button>
-              <button class="toolbar-chip" type="button" data-today-filter="needs_review">Needs a look</button>
-              <button class="toolbar-chip" type="button" data-today-filter="follow_up">Follow-up</button>
-              <button class="toolbar-chip" type="button" data-today-filter="complaints">At risk</button>
-            </div>
-          </div>
-        `,
         actionsMarkup: toolbarActions,
       })}
       ${buildSummaryStrip([
@@ -4918,12 +4945,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 <p class="overview-label">Today</p>
                 <h2 class="today-section-title">${escapeHtml(
                   todayQueueItems.length > 0
-                    ? `${todayQueueItems.length} conversation${todayQueueItems.length === 1 ? "" : "s"} and follow-ups need a look`
+                    ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} need a look`
                     : "You’re caught up for now"
                 )}</h2>
                 <p class="today-section-copy">${escapeHtml(
                   todayQueueItems.length > 0
-                    ? "Start here to review recent leads, follow-ups, missed chances, and anything that still needs a clear next step."
+                    ? "Start here with a simplified Today view: one grounded card per live item, with the next safe action already visible."
                     : "Nothing important is waiting on you right now. New follow-ups and review items will show up here as soon as they matter."
                 )}</p>
               </div>
@@ -4934,10 +4961,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               ` : ""}
             </div>
-            ${buildTodayQueueList(todayQueueItems, actionQueue, operatorWorkspace, activeTodayQueueKey)}
+            ${buildTodayAttentionList(todayQueueItems, contactsList, operatorWorkspace)}
           </section>
           <aside class="today-side-column">
-            ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing, operatorWorkspace)}
             <section class="support-panel today-support-panel-quiet today-reference-note">
               <p class="support-panel-kicker">Today’s note</p>
               <h3 class="support-panel-title">${escapeHtml(briefing.title || "Today’s summary")}</h3>
@@ -11586,7 +11612,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const todaySearchInput = document.querySelector("[data-today-search]");
   const todayQueueRows = document.querySelectorAll("[data-today-queue-row]");
   const todayReviewOpenButtons = document.querySelectorAll("[data-today-open-review]");
-  const todayReviewPanels = document.querySelectorAll("[data-today-review-panel-item]");
+  const todayReviewPanels = [...document.querySelectorAll("[data-today-review-panel-item]")]
+    .filter((panel) => panel.dataset.todayInlineCard !== "true");
   const todayReviewDrawer = document.querySelector("[data-today-review-drawer]");
   const todayReviewBackdrop = document.querySelector("[data-today-review-backdrop]");
   const todayReviewCloseButtons = document.querySelectorAll("[data-today-review-close]");

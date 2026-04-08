@@ -650,12 +650,10 @@ test("today workspace render uses a dominant queue and support rail shell", () =
     operatorWorkspace
   );
 
-  assert.match(overviewPanel, /What needs attention/);
   assert.match(overviewPanel, /today-workspace/);
-  assert.match(overviewPanel, /today-queue-row/);
-  assert.match(overviewPanel, /today-review-drawer-shell/);
-  assert.match(overviewPanel, /Review drawer/);
-  assert.match(overviewPanel, /Search Today/);
+  assert.match(overviewPanel, /Attention now/);
+  assert.match(overviewPanel, /today-review-panel/);
+  assert.match(overviewPanel, /Clear next steps, without the old queue drawer/);
   assert.match(overviewPanel, /Quote review/);
   assert.match(overviewPanel, /Appointment follow-up/);
   assert.match(overviewPanel, /Prepare follow-up/);
@@ -669,10 +667,71 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Mark reviewed/);
   assert.match(overviewPanel, /Mark done/);
   assert.match(overviewPanel, /Dismiss/);
-  assert.match(overviewPanel, /data-today-open-review/);
-  assert.match(overviewPanel, /data-today-filter="needs_review"/);
+  assert.doesNotMatch(overviewPanel, /today-review-drawer-shell/);
+  assert.doesNotMatch(overviewPanel, /Search Today/);
+  assert.doesNotMatch(overviewPanel, /data-today-open-review/);
+  assert.doesNotMatch(overviewPanel, /data-today-filter="needs_review"/);
   assert.match(overviewPanel, /support-panel/);
   assert.match(overviewPanel, /Refresh workspace/);
+});
+
+test("today overview dedupes repeated queue and review items by stable keys", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const overviewPanel = harness.buildOverviewPanel(
+    { installId: "install-1", publicAgentKey: "agent-key" },
+    [],
+    {
+      isReady: true,
+      knowledgeDescription: "Knowledge ready.",
+    },
+    {
+      ...harness.createEmptyActionQueue(),
+      items: [
+        {
+          key: "queue-1",
+          type: "pricing",
+          status: "new",
+          label: "Call with mail@example.com",
+          whyFlagged: "A quote request still needs owner review.",
+        },
+        {
+          key: "queue-1",
+          type: "pricing",
+          status: "new",
+          label: "Call with mail@example.com",
+          whyFlagged: "A quote request still needs owner review.",
+        },
+      ],
+    },
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      calendar: {
+        reviewItems: [
+          {
+            id: "event-2",
+            title: "Quote review",
+            attendeeLabel: "Taylor Reed",
+            reviewReason: "Missing follow-up after the appointment ended.",
+          },
+          {
+            id: "event-2",
+            title: "Quote review",
+            attendeeLabel: "Taylor Reed",
+            reviewReason: "Missing follow-up after the appointment ended.",
+          },
+        ],
+      },
+    })
+  );
+
+  assert.equal(overviewPanel.match(/Call with mail@example\.com/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/Quote review/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {

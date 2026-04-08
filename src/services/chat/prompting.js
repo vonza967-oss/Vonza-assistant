@@ -2,12 +2,21 @@ import {
   appearsHungarian,
   buildEffectiveUserText,
   cleanText,
+  containsPlaceholderContactDetails,
   containsQuestion,
   detectMessageTopics,
+  extractEmails,
+  extractPhoneCandidates,
   isGreetingMessage,
+  isPlaceholderEmail,
+  isPlaceholderPhone,
   normalizeAssistantReply,
 } from "../../utils/text.js";
 import { buildRelevantContextBlock } from "../scraping/websiteContentService.js";
+
+function escapeRegex(value = "") {
+  return String(value).replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
+}
 
 export function extractServiceHints(text) {
   const serviceDefinitions = [
@@ -27,37 +36,76 @@ export function extractServiceHints(text) {
 }
 
 export function extractContactDetails(text) {
-  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = text.match(/(?:\+?\d[\d\s()-]{7,}\d)/);
   const details = [];
+  const safeEmails = extractEmails(text).filter((email) => !isPlaceholderEmail(email));
+  const safePhones = extractPhoneCandidates(text).filter((phone) => !isPlaceholderPhone(phone));
 
-  if (emailMatch?.[0]) {
-    details.push(`Email: ${emailMatch[0]}`);
+  if (safeEmails.length) {
+    details.push(`Email: ${safeEmails[0]}`);
   }
 
-  if (phoneMatch?.[0]) {
-    details.push(`Phone: ${cleanText(phoneMatch[0])}`);
+  if (safePhones.length) {
+    details.push(`Phone: ${cleanText(safePhones[0])}`);
   }
 
   return details.join(" | ");
 }
 
-export function buildBusinessContextForChat(contentRecord, userMessage) {
-  const relevantContext = buildRelevantContextBlock(contentRecord, userMessage);
+function extractConfiguredContactDetails(widgetConfig = {}) {
+  const details = [];
+  const contactEmail = cleanText(widgetConfig.contactEmail || widgetConfig.contact_email).toLowerCase();
+  const contactPhone = cleanText(widgetConfig.contactPhone || widgetConfig.contact_phone);
+
+  if (contactEmail && !isPlaceholderEmail(contactEmail)) {
+    details.push(`Email: ${contactEmail}`);
+  }
+
+  if (contactPhone && !isPlaceholderPhone(contactPhone)) {
+    details.push(`Phone: ${contactPhone}`);
+  }
+
+  return details.join(" | ");
+}
+
+function stripPlaceholderContactDetails(text = "") {
+  let sanitized = String(text || "");
+
+  extractEmails(sanitized)
+    .filter((email) => isPlaceholderEmail(email))
+    .forEach((email) => {
+      sanitized = sanitized.replace(new RegExp(escapeRegex(email), "gi"), "[placeholder email removed]");
+    });
+
+  extractPhoneCandidates(sanitized)
+    .filter((phone) => isPlaceholderPhone(phone))
+    .forEach((phone) => {
+      sanitized = sanitized.replace(new RegExp(escapeRegex(phone), "g"), "[placeholder phone removed]");
+    });
+
+  return sanitized.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+export function buildBusinessContextForChat(contentRecord, userMessage, options = {}) {
+  const relevantContext = stripPlaceholderContactDetails(
+    buildRelevantContextBlock(contentRecord, userMessage)
+  );
   const serviceHints = extractServiceHints(contentRecord.content);
   const contactDetails = extractContactDetails(contentRecord.content);
+  const configuredContactDetails = extractConfiguredContactDetails(options.widgetConfig);
 
   return [
     "Use the business information below as the primary factual source for the answer.",
     "If a detail is not present here, say you do not have it from the website instead of guessing.",
     "Prefer concrete facts, stated services, and contact details over generic summaries.",
+    "Never mention placeholder, demo, or example contact details. If verified contact information is missing, say so plainly instead of inventing it.",
     "Do not copy the website's marketing tone.",
     serviceHints.length
       ? `Services or offers mentioned on the site: ${serviceHints.join(", ")}.`
       : "",
     contactDetails ? `Contact details on the site: ${contactDetails}.` : "",
+    configuredContactDetails ? `Configured live contact details: ${configuredContactDetails}.` : "",
     "Most relevant website excerpts:",
-    relevantContext || contentRecord.content.slice(0, 9000),
+    relevantContext || stripPlaceholderContactDetails(contentRecord.content.slice(0, 9000)),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -137,6 +185,7 @@ Hard rules:
 - Do not skip obvious facts that are clearly present in the content
 - If pricing is not shown, say that clearly and suggest contacting the business
 - If contact details exist, use them directly
+- Never invent or output placeholder contact details such as example.com emails or demo phone numbers
 - If services are clearly listed, name them directly
 - Do not use pushy language like "you should", "you must", or "act now"
 - Prefer phrases like "If you want", "I can help you", or "The next step could be"
@@ -283,6 +332,10 @@ export function getReplyRepairIssues(reply, language) {
     issues.push("reply must end with one clear next-step question");
   }
 
+  if (reply && containsPlaceholderContactDetails(reply)) {
+    issues.push("reply must not contain placeholder or demo contact details");
+  }
+
   return issues;
 }
 
@@ -300,6 +353,7 @@ export function buildBusinessReplyRepairPrompt(language) {
 - If the website content is missing the requested detail, say that plainly instead of softening it with vague phrasing
 - Keep any next-step suggestion short, natural, and helpful
 - If the reply can gently move the user toward a useful action, do it without sounding salesy or pushy
+- Remove any placeholder or demo contact details such as example.com emails or fake phone numbers
 - Remove raw image URLs, asset paths, or media links unless the user explicitly asked for images or source assets
 
 Return only the improved reply.`;

@@ -1247,12 +1247,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Approval-first proposals/);
         assert.match(dashboardScript.text, /Improve the business and Vonza/);
         assert.match(dashboardScript.text, /Show supporting detail/);
-        assert.match(dashboardScript.text, /What needs attention/);
+        assert.match(dashboardScript.text, /Attention now/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /today-review-drawer-shell/);
-        assert.match(dashboardScript.text, /Review drawer/);
-        assert.match(dashboardScript.text, /data-today-filter="needs_review"/);
-        assert.match(dashboardScript.text, /Search Today/);
+        assert.match(dashboardScript.text, /Clear next steps, without the old queue drawer/);
         assert.match(dashboardScript.text, /Appointment follow-up/);
         assert.match(dashboardScript.text, /Prepare follow-up/);
         assert.match(dashboardScript.text, /Link contact/);

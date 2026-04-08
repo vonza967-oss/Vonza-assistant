@@ -1,4 +1,8 @@
-import { cleanText } from "../../utils/text.js";
+import {
+  cleanText,
+  isPlaceholderEmail,
+  isPlaceholderPhone,
+} from "../../utils/text.js";
 
 const SUPPORTED_CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
 const SUPPORTED_INTENTS = ["booking", "quote", "checkout", "contact", "general"];
@@ -24,13 +28,21 @@ function normalizeOptionalUrl(value) {
 
 function normalizeOptionalEmail(value) {
   const normalized = cleanText(value).toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return "";
+  }
+
+  return isPlaceholderEmail(normalized) ? "" : normalized;
 }
 
 function normalizeOptionalPhone(value) {
   const normalized = cleanText(value);
   const digits = normalized.replace(/\D/g, "");
-  return digits.length >= 7 ? normalized : "";
+  if (digits.length < 7) {
+    return "";
+  }
+
+  return isPlaceholderPhone(normalized) ? "" : normalized;
 }
 
 function normalizeCtaMode(value, fallbackValue) {
