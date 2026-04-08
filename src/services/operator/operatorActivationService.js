@@ -725,9 +725,12 @@ export function buildOperatorTodaySummary({
   contacts = [],
   contactsSummary = {},
   calendarInsights = {},
+  messages = [],
+  now = new Date().toISOString(),
 } = {}) {
   const taskCounts = getOpenTaskCounts(tasks);
   const nowTimestamp = Date.now();
+  const isCurrentDay = (value) => String(value || "").slice(0, 10) === String(now || "").slice(0, 10);
   const nextEvent = (events || [])
     .filter((event) =>
       event.isInProgress
@@ -741,9 +744,43 @@ export function buildOperatorTodaySummary({
       .slice()
       .sort((left, right) => parseTimestamp(left.startAt || left.start_at) - parseTimestamp(right.startAt || right.start_at))[0]
     || null;
+  const todayMessages = (messages || []).filter((message) => isCurrentDay(message.createdAt || message.created_at));
+  const todayOutcomes = (recentOutcomes || []).filter((outcome) => isCurrentDay(outcome.occurredAt || outcome.createdAt || outcome.created_at));
+  const contactsDealtToday = new Set();
+
+  (events || []).forEach((event) => {
+    if (!isCurrentDay(event.startAt || event.start_at || event.createdAt || event.created_at)) {
+      return;
+    }
+
+    const contactKey = cleanText(event.contactId || event.linkedContactId || event.personKey || event.linkedContactEmail);
+    if (contactKey) {
+      contactsDealtToday.add(contactKey);
+    }
+  });
+
+  todayOutcomes.forEach((outcome) => {
+    const contactKey = cleanText(outcome.contactId || outcome.personKey);
+    if (contactKey) {
+      contactsDealtToday.add(contactKey);
+    }
+  });
+
+  const needsAttentionCount = Number(summary.inboxNeedingAttention || 0)
+    + taskCounts.complaintsNeedingReview
+    + taskCounts.supportNeedingReview
+    + taskCounts.leadsNeedingAction
+    + taskCounts.campaignsAwaitingApproval
+    + Number(summary.followUpsNeedingApproval || 0)
+    + (Array.isArray(calendarInsights.reviewItems) ? calendarInsights.reviewItems.length : 0)
+    + (Array.isArray(calendarInsights.unlinkedItems) ? calendarInsights.unlinkedItems.length : 0);
 
   return {
     googleConnectionLabel: "",
+    messagesToday: todayMessages.length,
+    contactsDealtToday: contactsDealtToday.size,
+    outcomesToday: todayOutcomes.length,
+    needsAttentionCount,
     inboxNeedingAttention: Number(summary.inboxNeedingAttention || 0),
     complaintsNeedingReview: taskCounts.complaintsNeedingReview,
     supportNeedingReview: taskCounts.supportNeedingReview,

@@ -3573,6 +3573,275 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
   `;
 }
 
+function getTodayRecommendationCategory(recommendation = {}) {
+  const type = trimText(recommendation.type).toLowerCase();
+
+  if (["business_context", "unlinked_appointment"].includes(type)) {
+    return "Setup";
+  }
+
+  if (type === "knowledge_fix") {
+    return "Assistant";
+  }
+
+  if (["pricing_gap", "contact_next_step", "appointment_follow_up", "outcome_review"].includes(type)) {
+    return "Conversion";
+  }
+
+  return "Business";
+}
+
+function buildTodaySummaryStats(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
+  const stats = [
+    {
+      label: "Messages today",
+      value: String(today.messagesToday || 0),
+      copy: "Current-day front desk volume only.",
+    },
+    {
+      label: "Contacts handled",
+      value: String(today.contactsDealtToday || 0),
+      copy: "People Vonza touched today across live work.",
+    },
+    {
+      label: "Outcomes today",
+      value: String(today.outcomesToday || 0),
+      copy: "Recorded results from today only.",
+    },
+    {
+      label: "Needs attention",
+      value: String(today.needsAttentionCount || 0),
+      copy: "Items that still need a decision or review.",
+    },
+  ];
+
+  return `
+    <section class="today-command-section">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Current day</p>
+          <h3 class="workspace-panel-title">Today at a glance</h3>
+          <p class="workspace-panel-copy">Only live current-day signals stay visible here.</p>
+        </div>
+      </div>
+      <div class="today-command-stat-grid">
+        ${stats.map((stat) => `
+          <article class="today-command-stat">
+            <p class="overview-label">${escapeHtml(stat.label)}</p>
+            <p class="today-command-stat-value">${escapeHtml(stat.value)}</p>
+            <p class="today-command-stat-copy">${escapeHtml(stat.copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
+  const proposals = Array.isArray(copilot.proposals) ? copilot.proposals : [];
+  const summary = copilot.proposalSummary || createEmptyOperatorWorkspace().copilot.proposalSummary;
+
+  if (!proposals.length) {
+    return `
+      <section class="today-command-section">
+        <div class="workspace-panel-header">
+          <div>
+            <p class="studio-kicker">Proposals</p>
+            <h3 class="workspace-panel-title">Approval-first proposals</h3>
+            <p class="workspace-panel-copy">Compact owner-ready proposals stay front and center here.</p>
+          </div>
+        </div>
+        <div class="today-command-empty">
+          <p>No active proposals are waiting right now.</p>
+          ${(summary.hiddenCount || 0) > 0 ? `<p class="analytics-subtle">${escapeHtml(`${summary.hiddenCount} handled proposal${summary.hiddenCount === 1 ? "" : "s"} are hidden from the default view.`)}</p>` : ""}
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="today-command-section">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Proposals</p>
+          <h3 class="workspace-panel-title">Approval-first proposals</h3>
+          <p class="workspace-panel-copy">Short summaries first. Extra detail only if you open it.</p>
+        </div>
+        <div class="workspace-badge-row">
+          <span class="${getBadgeClass(summary.blockedCount ? "Needs attention" : "Ready")}">${escapeHtml(`${summary.activeCount || proposals.length} active`)}</span>
+          ${summary.blockedCount ? `<span class="${getBadgeClass("Needs attention")}">${escapeHtml(`${summary.blockedCount} blocked`)}</span>` : ""}
+        </div>
+      </div>
+      <div class="today-command-card-list">
+        ${proposals.map((proposal) => {
+          const resolvedTarget = resolveVisibleShellTarget(
+            proposal.target?.section || "overview",
+            proposal.target?.id || "",
+            operatorWorkspace,
+            {
+              label: proposal.openLabel || proposal.target?.label || "Open",
+              actionKey: proposal.applyPayload?.sourceActionKey || proposal.applyPayload?.actionKey,
+              contactId: proposal.applyPayload?.contactId,
+              analyticsFallbackLabel: "Open Outcomes",
+              contactFallbackLabel: "Open contact",
+            }
+          );
+
+          return `
+            <article class="today-command-card today-command-card-proposal">
+              <div class="today-command-card-head">
+                <div>
+                  <h4 class="today-command-card-title">${escapeHtml(normalizeShellCopy(proposal.title || "Copilot proposal"))}</h4>
+                  <p class="today-command-card-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Copilot prepared an approval-first proposal from live workspace data."))}</p>
+                </div>
+                <span class="${getBadgeClass(
+                  proposal.state === "blocked"
+                    ? "Needs attention"
+                    : proposal.state === "stale"
+                      ? "Limited"
+                      : "Ready"
+                )}">${escapeHtml((proposal.state || "new").replaceAll("_", " "))}</span>
+              </div>
+              <div class="today-command-actions">
+                <button
+                  class="primary-button"
+                  type="button"
+                  data-copilot-apply-proposal
+                  data-proposal-key="${escapeHtml(proposal.key || "")}"
+                  data-fallback-target-section="${escapeHtml(resolvedTarget?.section || "")}"
+                  data-fallback-target-id="${escapeHtml(resolvedTarget?.id || "")}"
+                >
+                  ${escapeHtml(proposal.applyLabel || "Apply")}
+                </button>
+                ${resolvedTarget ? `
+                  <button
+                    class="ghost-button"
+                    type="button"
+                    data-copilot-open-target
+                    data-shell-target="${escapeHtml(resolvedTarget.section || "overview")}"
+                    data-target-id="${escapeHtml(resolvedTarget.id || "")}"
+                  >
+                    ${escapeHtml(resolvedTarget.label || "Open")}
+                  </button>
+                ` : ""}
+                <button
+                  class="ghost-button"
+                  type="button"
+                  data-copilot-dismiss-proposal
+                  data-proposal-key="${escapeHtml(proposal.key || "")}"
+                >
+                  ${escapeHtml(proposal.dismissLabel || "Dismiss")}
+                </button>
+              </div>
+              ${buildDisclosureBlock({
+                label: "View details",
+                summary: [
+                  proposal.priority ? `Priority ${proposal.priority}` : "",
+                  proposal.confidence ? `Confidence ${proposal.confidence}` : "",
+                ].filter(Boolean).join(" · "),
+                className: "disclosure-block-inline",
+                contentMarkup: `
+                  ${buildDisclosureDetailRows([
+                    { label: "Why it matters", value: proposal.why ? normalizeShellCopy(proposal.why) : "No extra rationale stored." },
+                    { label: "If applied", value: proposal.whatHappens ? normalizeShellCopy(proposal.whatHappens) : "This will route into the live workflow object after review." },
+                    { label: "Target", value: resolvedTarget?.label || resolvedTarget?.section || "Existing workflow" },
+                    { label: "Approval note", value: proposal.approvalNote ? normalizeShellCopy(proposal.approvalNote) : "The owner still reviews this before anything changes." },
+                  ])}
+                  ${proposal.stateReason ? `
+                    <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
+                      <p>${escapeHtml(normalizeShellCopy(proposal.stateReason))}</p>
+                    </div>
+                  ` : ""}
+                `,
+              })}
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
+  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations.slice(0, 6) : [];
+
+  return `
+    <section class="today-command-section">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Recommendations</p>
+          <h3 class="workspace-panel-title">Improve the business and Vonza</h3>
+          <p class="workspace-panel-copy">Business performance, assistant quality, setup, and conversion follow-up suggestions live here.</p>
+        </div>
+      </div>
+      ${recommendations.length ? `
+        <div class="today-command-card-list">
+          ${recommendations.map((recommendation) => {
+            const resolvedTarget = resolveVisibleShellTarget(
+              recommendation.targetSection || recommendation.proposal?.target?.section || "overview",
+              recommendation.targetId || recommendation.proposal?.target?.id || "",
+              operatorWorkspace,
+              {
+                label: recommendation.surfaceLabel || recommendation.proposal?.openLabel || "Open",
+                actionKey: recommendation.source?.actionKey,
+                contactId: recommendation.source?.contactId,
+                analyticsFallbackLabel: "Open Outcomes",
+                contactFallbackLabel: "Open contact",
+              }
+            );
+
+            return `
+              <article class="today-command-card">
+                <div class="today-command-card-head">
+                  <div>
+                    <div class="today-command-pill-row">
+                      <span class="pill">${escapeHtml(getTodayRecommendationCategory(recommendation))}</span>
+                      ${recommendation.priority ? `<span class="${getBadgeClass(recommendation.priority === "high" ? "Needs attention" : "Ready")}">${escapeHtml(recommendation.priority)}</span>` : ""}
+                    </div>
+                    <h4 class="today-command-card-title">${escapeHtml(normalizeShellCopy(recommendation.title || "Recommendation"))}</h4>
+                    <p class="today-command-card-copy">${escapeHtml(normalizeShellCopy(recommendation.summary || "Vonza surfaced a recommendation from current workspace signals."))}</p>
+                  </div>
+                </div>
+                <div class="today-command-actions">
+                  ${resolvedTarget ? `
+                    <button
+                      class="ghost-button"
+                      type="button"
+                      data-copilot-open-target
+                      data-shell-target="${escapeHtml(resolvedTarget.section || "overview")}"
+                      data-target-id="${escapeHtml(resolvedTarget.id || "")}"
+                    >
+                      ${escapeHtml(resolvedTarget.label || "Open")}
+                    </button>
+                  ` : ""}
+                </div>
+                ${buildDisclosureBlock({
+                  label: "Why this recommendation",
+                  summary: recommendation.confidence ? `Confidence ${recommendation.confidence}` : "",
+                  className: "disclosure-block-inline",
+                  contentMarkup: buildDisclosureDetailRows([
+                    { label: "Category", value: getTodayRecommendationCategory(recommendation) },
+                    { label: "Why it matters", value: recommendation.rationale || "This recommendation came from current-day and live-workspace context." },
+                    { label: "Best place to act", value: resolvedTarget?.label || resolvedTarget?.section || recommendation.surfaceLabel || "Current workspace" },
+                  ]),
+                })}
+              </article>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="today-command-empty">
+          <p>No recommendations are standing out right now.</p>
+          <p class="analytics-subtle">When Vonza sees a clear business, setup, assistant-quality, or follow-up opportunity, it will appear here.</p>
+        </div>
+      `}
+    </section>
+  `;
+}
+
 function formatCalendarInsightContext(item = {}) {
   const attendeeLabel = trimText(
     item.linkedContactName
@@ -3685,26 +3954,139 @@ function buildTodayInsightCard({
   `;
 }
 
+function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const summary = operatorWorkspace.summary || createEmptyOperatorWorkspace().summary;
+  const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
+  const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
+  const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
+  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 4) : [];
+  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 4) : [];
+  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 4) : [];
+
+  const contentMarkup = `
+    ${buildTodayCopilotSection(operatorWorkspace)}
+    ${!status.googleConnected ? `
+      <section class="workspace-card-soft today-support-card">
+        <div class="workspace-panel-header">
+          <div>
+            <p class="studio-kicker">Google Calendar</p>
+            <h3 class="workspace-panel-title">Connect Google to unlock schedule context</h3>
+            <p class="workspace-panel-copy">Calendar-heavy detail now lives behind supporting detail so Today stays clean by default.</p>
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
+        </div>
+      </section>
+    ` : ""}
+    <div class="overview-grid operator-metric-grid">
+      ${buildTodayInsightCard({
+        kicker: "Today",
+        title: "Today's Schedule",
+        description: "Remaining schedule context and appointment detail.",
+        items: scheduleItems,
+        emptyTitle: status.googleConnected
+          ? "No more appointments are on today’s schedule"
+          : "Connect Google to see today’s schedule",
+        emptyCopy: status.googleConnected
+          ? "Vonza will keep today’s remaining schedule here."
+          : "Connect Google Calendar to bring today’s appointments into Today.",
+        reasonKey: "scheduleReason",
+        defaultActionLabel: "Open context",
+        operatorWorkspace,
+      })}
+      ${buildTodayInsightCard({
+        kicker: "Follow-up",
+        title: "Appointments Needing Follow-up",
+        description: "Recent appointments that still need a clear next step.",
+        items: followUpItems,
+        emptyTitle: "No recent appointment follow-up is standing out",
+        emptyCopy: "When an appointment ends without a clear next step, Vonza will surface it here.",
+        reasonKey: "followUpReason",
+        defaultActionLabel: "Review follow-up",
+        operatorWorkspace,
+      })}
+      ${buildTodayInsightCard({
+        kicker: "Linking",
+        title: "Appointments Not Linked to a Contact",
+        description: "Calendar linking detail moved out of the default Today view.",
+        items: unlinkedItems,
+        emptyTitle: "No appointment currently needs attendee linking",
+        emptyCopy: "Vonza will show unlinked attendees here when that context matters.",
+        reasonKey: "unlinkedReason",
+        defaultActionLabel: "Review attendee",
+        operatorWorkspace,
+      })}
+    </div>
+    ${buildCopilotSummaryCards(operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot)}
+    <div class="overview-grid operator-metric-grid">
+      <div class="overview-card">
+        <p class="overview-label">Approval-first work</p>
+        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"))}</p>
+        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`)}</p>
+      </div>
+      <div class="overview-card">
+        <p class="overview-label">Outcome gaps</p>
+        <p class="overview-value">${escapeHtml(formatOperatorCount(today.highValueWithoutOutcome, "contact"))}</p>
+        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} still need a real result and ${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} remain in play.`)}</p>
+      </div>
+      <div class="overview-card">
+        <p class="overview-label">Campaign replies</p>
+        <p class="overview-value">${escapeHtml(formatOperatorCount(today.campaignReplies, "reply"))}</p>
+        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.campaignConversions, "conversion")} have been tied back to campaign work so far.`)}</p>
+      </div>
+      <div class="overview-card">
+        <p class="overview-label">Lifecycle progression</p>
+        <p class="overview-value">${escapeHtml(formatOperatorCount(today.contactsWithProgression, "contact"))}</p>
+        <p class="overview-card-copy">${escapeHtml(`${today.lifecycleCounts.customer || 0} customers · ${today.lifecycleCounts.qualified || 0} qualified · ${today.lifecycleCounts.activeLead || 0} active leads`)}</p>
+      </div>
+    </div>
+    <section class="workspace-card-soft today-support-card">
+      <div class="workspace-panel-header">
+        <div>
+          <p class="studio-kicker">Proof</p>
+          <h3 class="workspace-panel-title">Recent successful outcomes</h3>
+          <p class="workspace-panel-copy">Outcome history stays available here without dominating Today.</p>
+        </div>
+      </div>
+      ${Array.isArray(today.recentSuccessfulOutcomes) && today.recentSuccessfulOutcomes.length ? `
+        <div class="analytics-list">
+          ${today.recentSuccessfulOutcomes.map((outcome) => `
+            <div class="analytics-item">
+              <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
+              <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
+              <p class="analytics-subtle">${escapeHtml([
+                trimText(outcome.sourceLabel),
+                trimText(outcome.relatedIntentType),
+                outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
+              ].filter(Boolean).join(" · "))}</p>
+            </div>
+          `).join("")}
+        </div>
+      ` : `<div class="placeholder-card">As soon as Vonza can prove bookings, quote requests, complaint resolutions, campaign replies, or follow-up results, they will appear here with source context.</div>`}
+    </section>
+    ${buildContactsAttentionStrip(operatorWorkspace)}
+  `;
+
+  return `
+    <section class="today-command-section">
+      ${buildDisclosureBlock({
+        label: "Show supporting detail",
+        summary: "Calendar, contacts, proof, and operational context",
+        className: "today-support-disclosure",
+        contentMarkup,
+      })}
+    </section>
+  `;
+}
+
 function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   if (operatorWorkspace.enabled === false) {
     return "";
   }
 
-  const accounts = operatorWorkspace.connectedAccounts || [];
-  const primaryAccount = accounts[0] || null;
-  const summary = operatorWorkspace.summary || createEmptyOperatorWorkspace().summary;
-  const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
-  const nextAction = operatorWorkspace.nextAction || createEmptyOperatorWorkspace().nextAction;
-  const briefing = operatorWorkspace.briefing || createEmptyOperatorWorkspace().briefing;
-  const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-  const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
-  const scheduleItems = Array.isArray(calendar.scheduleItems) ? calendar.scheduleItems.slice(0, 4) : [];
-  const followUpItems = Array.isArray(calendar.followUpItems) ? calendar.followUpItems.slice(0, 4) : [];
-  const unlinkedItems = Array.isArray(calendar.unlinkedItems) ? calendar.unlinkedItems.slice(0, 4) : [];
-  const dailySummary = operatorWorkspace.calendar?.dailySummary
-    || "Connect Google Workspace to see daily operator context here.";
 
   return `
     <section class="workspace-card-soft operator-home-card">
@@ -3712,7 +4094,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
         <div>
           <p class="studio-kicker">Operator home</p>
           <h2 class="workspace-panel-title">Today</h2>
-          <p class="workspace-panel-copy">Today is part of the stable public launch core. It keeps the next owner action, calendar-first schedule context, contacts, proof, and approval-first suggestions in one place.</p>
+          <p class="workspace-panel-copy">Today is now the fast command page: current-day signals, compact proposals, and the clearest recommendations only.</p>
         </div>
         <div class="workspace-badge-row">
           <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${status.googleConnected
@@ -3721,183 +4103,10 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Workspace ready"}</span>
         </div>
       </div>
-      <div class="operator-home-grid">
-        <section class="operator-focus-card">
-          <p class="overview-label">Single best next action</p>
-          <h3 class="operator-focus-title">${escapeHtml(normalizeShellCopy(nextAction.title || "Review today"))}</h3>
-          <p class="operator-focus-copy">${escapeHtml(normalizeShellCopy(nextAction.description || "Vonza will keep this focused on the most useful thing to do next."))}</p>
-          <div class="inline-actions">
-            ${buildOperatorNextActionButton(nextAction, operatorWorkspace)}
-          </div>
-        </section>
-        <section class="operator-focus-card operator-briefing-card">
-          <p class="overview-label">${escapeHtml(briefing.title || "Operator briefing")}</p>
-          <p class="workspace-panel-copy">${escapeHtml(briefing.text || dailySummary)}</p>
-          ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Workspace note: ${health.globalError}`)}</p></div>` : ""}
-          ${health.inboxSyncError || health.calendarSyncError || health.contactsError ? `
-            <div class="operator-inline-alert">
-              ${health.inboxSyncError ? `<p>${escapeHtml(`Inbox sync issue: ${health.inboxSyncError}`)}</p>` : ""}
-              ${health.calendarSyncError ? `<p>${escapeHtml(`Calendar sync issue: ${health.calendarSyncError}`)}</p>` : ""}
-              ${health.contactsError ? `<p>${escapeHtml(`Contacts note: ${health.contactsError}`)}</p>` : ""}
-            </div>
-          ` : ""}
-        </section>
-      </div>
-      ${buildTodayCopilotSection(operatorWorkspace)}
-      ${buildOperatorChecklistMarkup(operatorWorkspace)}
-      ${!status.googleConnected ? `
-        <section class="workspace-card-soft" style="margin-top:20px;">
-          <div class="workspace-panel-header">
-            <div>
-              <p class="studio-kicker">Google Calendar</p>
-              <h3 class="workspace-panel-title">Connect Google to unlock Today</h3>
-              <p class="workspace-panel-copy">Today becomes immediately more useful once it can read your primary Google Calendar. Vonza will summarize today’s schedule, recent appointments that may need follow-up, and attendees who are not linked to contacts yet.</p>
-            </div>
-          </div>
-          <div class="inline-actions">
-            <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
-          </div>
-          <p class="section-note">${escapeHtml(status.googleConfigReady
-            ? "This pass requests basic identity plus read-only Calendar access only. Nothing is auto-sent, auto-created, or auto-run."
-            : "Google OAuth still needs the deployment env vars before owners can connect from this workspace.")}</p>
-        </section>
-      ` : ""}
-      <div class="overview-grid operator-metric-grid" style="margin-top:20px;">
-        ${buildTodayInsightCard({
-          kicker: "Today",
-          title: "Today's Schedule",
-          description: "See what is still on deck today and why each appointment matters now.",
-          items: scheduleItems,
-          emptyTitle: status.googleConnected
-            ? "No more appointments are on today’s schedule"
-            : "Connect Google to see today’s schedule",
-          emptyCopy: status.googleConnected
-            ? "Vonza will keep today’s remaining schedule here, including in-progress appointments and linked contact context."
-            : "Connect Google Calendar to bring today’s appointments into Today.",
-          reasonKey: "scheduleReason",
-          defaultActionLabel: "Open context",
-          operatorWorkspace,
-        })}
-        ${buildTodayInsightCard({
-          kicker: "Follow-up",
-          title: "Appointments Needing Follow-up",
-          description: "Recent completed appointments with no clear next step or outcome stay visible until you review them.",
-          items: followUpItems,
-          emptyTitle: "No recent appointment follow-up is standing out",
-          emptyCopy: "When an appointment ends without a clear next step, Vonza will surface it here with approval-first suggestions.",
-          reasonKey: "followUpReason",
-          defaultActionLabel: "Review follow-up",
-          operatorWorkspace,
-        })}
-        ${buildTodayInsightCard({
-          kicker: "Linking",
-          title: "Appointments Not Linked to a Contact",
-          description: "Unlinked attendees are surfaced explicitly so follow-up and outcome tracking do not fragment.",
-          items: unlinkedItems,
-          emptyTitle: "No appointment currently needs attendee linking",
-          emptyCopy: "Vonza will show upcoming or recent appointments here when attendee data is still not safely linked to a contact.",
-          reasonKey: "unlinkedReason",
-          defaultActionLabel: "Review attendee",
-          operatorWorkspace,
-        })}
-      </div>
-      <div class="overview-grid operator-metric-grid">
-        <div class="overview-card">
-          <p class="overview-label">Google connection</p>
-          <p class="overview-value">${escapeHtml(primaryAccount?.status === "connected" ? (primaryAccount.accountEmail || "Connected") : "Awaiting connection")}</p>
-          <p class="overview-card-copy">${escapeHtml(primaryAccount?.status === "connected"
-            ? googleCapabilities.calendarRead && !googleCapabilities.gmailRead && !googleCapabilities.calendarWrite
-              ? `Calendar read-only mode. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}. Gmail and write scopes are intentionally off in this pass.`
-              : `Connected scopes stay approval-first. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
-            : status.googleConfigReady
-              ? "Connect Google Calendar to unlock Today’s schedule, follow-up review, and unlinked attendee visibility."
-              : "This deployment is running the front-desk launch core without the Google Calendar beta wiring yet.")}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Calendar today</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.upcomingBookings, "appointment"))}</p>
-          <p class="overview-card-copy">${escapeHtml(today.nextEventTitle
-            ? `Next up: ${today.nextEventTitle}. ${formatOperatorCount(today.openAvailabilityCount, "open slot")} still available.`
-            : `${formatOperatorCount(today.openAvailabilityCount, "open slot")} available for follow-up or booking work.`)}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Appointments needing follow-up</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.appointmentsNeedingFollowUp, "appointment"))}</p>
-          <p class="overview-card-copy">${escapeHtml(followUpItems[0]?.followUpReason || "Recent completed appointments with no clear next step stay visible here.")}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Appointments not linked</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.unlinkedAppointments, "appointment"))}</p>
-          <p class="overview-card-copy">${escapeHtml(unlinkedItems[0]?.unlinkedReason || "Upcoming and recent appointments without a safe contact link stay explicit instead of being hidden.")}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Approval-first work</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"))}</p>
-          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`)}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Recent proven outcomes</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.assistedOutcomes, "outcome"))}</p>
-          <p class="overview-card-copy">${escapeHtml(`${today.bookingsConfirmed || 0} bookings confirmed · ${today.quoteRequests || 0} quote requests · ${today.followUpReplies || 0} follow-up replies`)}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Top operator priority</p>
-          <p class="overview-value">${escapeHtml(today.topTask || "No urgent queue item")}</p>
-          <p class="overview-card-copy">${escapeHtml(dailySummary)}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Outcome gaps</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.highValueWithoutOutcome, "contact"))}</p>
-          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} still need a real result and ${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} remain in play.`)}</p>
-        </div>
-      </div>
-      <div class="overview-grid operator-metric-grid operator-people-grid">
-        <div class="overview-card">
-          <p class="overview-label">Direct vs follow-up</p>
-          <p class="overview-value">${escapeHtml(`${today.directVsFollowUpSplit.direct || 0} / ${today.directVsFollowUpSplit.followUp || 0}`)}</p>
-          <p class="overview-card-copy">Direct-route outcomes on the left, follow-up-assisted outcomes on the right.</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Campaign replies</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.campaignReplies, "reply"))}</p>
-          <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.campaignConversions, "conversion")} have been tied back to campaign work so far.`)}</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Complaint resolutions</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.complaintResolutions, "resolution"))}</p>
-          <p class="overview-card-copy">Resolved complaint and recovery work now counts as proof, not just inbox activity.</p>
-        </div>
-        <div class="overview-card">
-          <p class="overview-label">Lifecycle progression</p>
-          <p class="overview-value">${escapeHtml(formatOperatorCount(today.contactsWithProgression, "contact"))}</p>
-          <p class="overview-card-copy">${escapeHtml(`${today.lifecycleCounts.customer || 0} customers · ${today.lifecycleCounts.qualified || 0} qualified · ${today.lifecycleCounts.activeLead || 0} active leads`)}</p>
-        </div>
-      </div>
-      <section class="workspace-card-soft" style="margin-top:20px;">
-        <div class="workspace-panel-header">
-          <div>
-            <p class="studio-kicker">Proof</p>
-            <h3 class="workspace-panel-title">Recent successful outcomes</h3>
-            <p class="workspace-panel-copy">These are the clearest recent results Vonza could tie back to a real contact, thread, workflow, campaign, or booking path.</p>
-          </div>
-        </div>
-        ${Array.isArray(today.recentSuccessfulOutcomes) && today.recentSuccessfulOutcomes.length ? `
-          <div class="analytics-list">
-            ${today.recentSuccessfulOutcomes.map((outcome) => `
-              <div class="analytics-item">
-                <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
-                <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
-                <p class="analytics-subtle">${escapeHtml([
-                  trimText(outcome.sourceLabel),
-                  trimText(outcome.relatedIntentType),
-                  outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
-                ].filter(Boolean).join(" · "))}</p>
-              </div>
-            `).join("")}
-          </div>
-        ` : `<div class="placeholder-card">As soon as Vonza can prove bookings, quote requests, complaint resolutions, campaign replies, or follow-up results, they will appear here with source context.</div>`}
-      </section>
-      ${buildContactsAttentionStrip(operatorWorkspace)}
+      ${buildTodaySummaryStats(operatorWorkspace)}
+      ${buildTodayProposalSection(operatorWorkspace)}
+      ${buildTodayRecommendationsSection(operatorWorkspace)}
+      ${buildTodaySupportingDetailSection(operatorWorkspace)}
     </section>
   `;
 }
@@ -6287,6 +6496,10 @@ function createEmptyOperatorWorkspace() {
       disabled: false,
     },
     today: {
+      messagesToday: 0,
+      contactsDealtToday: 0,
+      outcomesToday: 0,
+      needsAttentionCount: 0,
       inboxNeedingAttention: 0,
       complaintsNeedingReview: 0,
       supportNeedingReview: 0,

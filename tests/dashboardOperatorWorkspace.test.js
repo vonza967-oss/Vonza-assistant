@@ -228,14 +228,15 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
     ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
   );
 
-  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Connect Google to unlock Today/);
+  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Today at a glance/);
+  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google to unlock Calendar/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
 });
 
-test("dashboard renders calendar-first Today cards and read-only calendar mode", () => {
+test("dashboard renders a simplified Today command page and read-only calendar mode", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -332,10 +333,11 @@ test("dashboard renders calendar-first Today cards and read-only calendar mode",
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today(?:&#39;|')s Schedule/);
-  assert.match(overview, /Appointments Needing Follow-up/);
-  assert.match(overview, /Appointments Not Linked to a Contact/);
-  assert.match(overview, /Calendar read-only mode/);
+  assert.match(overview, /Today at a glance/);
+  assert.match(overview, /Messages today/);
+  assert.match(overview, /Approval-first proposals/);
+  assert.match(overview, /Improve the business and Vonza/);
+  assert.match(overview, /Show supporting detail/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
   assert.match(calendarPanel, /Read-only calendar mode/);
@@ -477,9 +479,10 @@ test("today copilot renders inside Today when the flag is on", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today Copilot/);
-  assert.match(overview, /Operational summary/);
+  assert.match(overview, /Today at a glance/);
   assert.match(overview, /Approval-first proposals/);
+  assert.match(overview, /Improve the business and Vonza/);
+  assert.match(overview, /Show supporting detail/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
   const settings = harness.buildSettingsPanel(
@@ -963,7 +966,7 @@ test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
 
   assert.equal(harness.normalizeShellCopy("Open Outcomes"), "Open Analytics");
   assert.match(overview, /Open Analytics/);
-  assert.match(overview, /Today, Customize, and Analytics stay available/);
+  assert.match(overview, /Improve the business and Vonza/);
   assert.doesNotMatch(overview, /Open Outcomes/);
   assert.match(proposals, /Open Analytics/);
   assert.doesNotMatch(proposals, /Open Outcomes/);

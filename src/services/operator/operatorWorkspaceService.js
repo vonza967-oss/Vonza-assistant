@@ -4429,6 +4429,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     contacts: contactsWorkspace.list || [],
     contactsSummary: contactsWorkspace.summary,
     calendarInsights,
+    messages: getSettledValue(messagesResult, []),
   });
   const messages = getSettledValue(messagesResult, []);
   const actionQueueStatuses = getSettledValue(actionQueueStatusesResult, {

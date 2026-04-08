@@ -4434,6 +4434,106 @@ body {
   gap: 18px;
 }
 
+.today-command-section {
+  display: grid;
+  gap: 14px;
+}
+
+.today-command-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.today-command-stat {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.03);
+  box-shadow: var(--surface-highlight);
+}
+
+.today-command-stat-value {
+  margin: 8px 0 0;
+  color: white;
+  font-size: clamp(1.7rem, 2vw, 2.25rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.today-command-stat-copy {
+  margin: 8px 0 0;
+  color: var(--muted-strong);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.today-command-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.today-command-card,
+.today-command-empty,
+.today-support-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.028);
+  box-shadow: var(--surface-highlight);
+}
+
+.today-command-card-proposal {
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.028);
+}
+
+.today-command-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.today-command-card-title {
+  margin: 0;
+  color: white;
+  font-size: 1.02rem;
+}
+
+.today-command-card-copy {
+  margin: 6px 0 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 72ch;
+}
+
+.today-command-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.today-command-pill-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.today-support-disclosure .disclosure-panel {
+  display: grid;
+  gap: 16px;
+}
+
 .operator-home-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -4688,6 +4788,7 @@ body {
   .state-grid,
   .overview-grid,
   .operator-home-grid,
+  .today-command-stat-grid,
   .overview-progress-row,
   .studio-layout,
   .form-grid.two-col,
