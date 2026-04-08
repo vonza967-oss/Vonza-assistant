@@ -220,11 +220,6 @@ function getFingerprint() {
   return trimText(EMBED_FINGERPRINT);
 }
 
-function detectContactCaptured(message) {
-  const value = trimText(message);
-  return /@/.test(value) || /\+?\d[\d\s().-]{6,}/.test(value);
-}
-
 function getIdentityChoicePanel() {
   return document.getElementById("identity-choice-panel");
 }
@@ -340,11 +335,6 @@ function continueIntoChat(identity, options = {}) {
   document.getElementById("input")?.focus();
   return normalized;
 }
-
-function getLeadCaptureSlot() {
-  return document.getElementById("lead-capture-slot");
-}
-
 function getDirectRoutingSlot() {
   return document.getElementById("direct-routing-slot");
 }
@@ -376,26 +366,6 @@ function rememberDismissedRoute(decisionKey) {
 
   const nextKeys = [...new Set([...getDismissedRouteKeys(), normalized])];
   window.localStorage.setItem(getDismissedRouteStorageKey(), JSON.stringify(nextKeys.slice(-12)));
-}
-
-function formatLeadContact(contact = {}) {
-  const name = trimText(contact.name);
-  const email = trimText(contact.email);
-  const phone = trimText(contact.phone);
-
-  if (name && email && phone) {
-    return `${name} · ${email} · ${phone}`;
-  }
-
-  if (name && email) {
-    return `${name} · ${email}`;
-  }
-
-  if (name && phone) {
-    return `${name} · ${phone}`;
-  }
-
-  return name || email || phone || "";
 }
 
 function buildRoutingMetadata(routing, cta) {
@@ -437,14 +407,6 @@ function buildTrackedRedirectUrl(routing, cta) {
   if (metadata.followUpId) url.searchParams.set("follow_up_id", metadata.followUpId);
 
   return url.toString();
-}
-
-function shouldHoldLeadCaptureForRoute() {
-  return Boolean(
-    liveDirectRouting
-    && ["direct_cta", "direct_then_capture"].includes(trimText(liveDirectRouting.mode))
-    && !isRouteDismissed(liveDirectRouting.decisionKey)
-  );
 }
 
 function openRoutingTarget(cta = {}, redirectUrl = "") {
@@ -490,13 +452,6 @@ function bindDirectRoutingInteractions(slot, routing) {
     continueButton.addEventListener("click", () => {
       rememberDismissedRoute(routing.decisionKey);
       renderDirectRouting(null);
-
-      if (trimText(routing?.continueButton?.action) === "reveal_capture" && liveLeadCapture) {
-        renderLeadCapture(liveLeadCapture);
-        setComposerStatus(trimText(liveLeadCapture.prompt?.body) || "No problem. We can keep going here, and you can share details if that helps.");
-        return;
-      }
-
       setComposerStatus("No problem. We can keep going here in chat.");
     });
   }
@@ -568,222 +523,8 @@ function renderDirectRouting(routing) {
   });
 }
 
-async function postLeadCaptureAction(payload = {}) {
-  const response = await fetch("/chat/capture", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      agent_id: resolvedAgentId,
-      agent_key: resolvedAgentKey,
-      business_id: resolvedBusinessId,
-      website_url: WEBSITE_URL,
-      install_id: INSTALL_ID,
-      visitor_session_key: getVisitorSessionKey(),
-      page_url: getPageUrl(),
-      origin: getPageOrigin(),
-      ...buildVisitorIdentityPayload(),
-      ...payload,
-    }),
-  });
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Lead capture failed");
-  }
-
-  return data;
-}
-
-function bindLeadCaptureInteractions(slot, leadCapture) {
-  const form = slot.querySelector("[data-lead-capture-form]");
-  const declineButton = slot.querySelector("[data-lead-capture-decline]");
-
-  if (form) {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const formData = new FormData(form);
-      const submitButton = form.querySelector('button[type="submit"]');
-
-      if (submitButton) {
-        submitButton.disabled = true;
-      }
-
-      setComposerStatus("Saving contact details...");
-
-      try {
-        const result = await postLeadCaptureAction({
-          action: "submit",
-          name: trimText(formData.get("name")),
-          email: trimText(formData.get("email")),
-          phone: trimText(formData.get("phone")),
-          preferred_channel: trimText(formData.get("preferred_channel")),
-          reference_message: trimText(conversationHistory[conversationHistory.length - 2]?.content || ""),
-        });
-        liveLeadCapture = result.leadCapture || null;
-        renderLeadCapture(liveLeadCapture);
-        if (liveLeadCapture?.state === "captured") {
-          void trackWidgetEvent("contact_captured", {
-            preferredChannel: liveLeadCapture.preferredChannel || "",
-            contactHash: trimText(liveLeadCapture.contact?.email || liveLeadCapture.contact?.phone || liveLeadCapture.id || ""),
-          }, {
-            dedupeKey: `${INSTALL_ID}::contact_captured::${getVisitorSessionKey()}::${trimText(liveLeadCapture.id || "")}`,
-          });
-        }
-        setComposerStatus(liveLeadCapture?.message || "Contact details saved.");
-      } catch (error) {
-        setComposerStatus(error.message || "We couldn't save those contact details.");
-      } finally {
-        if (submitButton) {
-          submitButton.disabled = false;
-        }
-      }
-    });
-  }
-
-  if (declineButton) {
-    declineButton.addEventListener("click", async () => {
-      declineButton.disabled = true;
-      setComposerStatus("Noted. We'll keep the conversation here.");
-
-      try {
-        const result = await postLeadCaptureAction({
-          action: "decline",
-          reference_message: trimText(conversationHistory[conversationHistory.length - 2]?.content || ""),
-        });
-        liveLeadCapture = result.leadCapture || null;
-        renderLeadCapture(liveLeadCapture);
-      } catch (error) {
-        setComposerStatus(error.message || "We couldn't save that preference.");
-      } finally {
-        declineButton.disabled = false;
-      }
-    });
-  }
-
-  if (leadCapture?.state === "prompt_ready") {
-    void postLeadCaptureAction({
-      action: "prompt_shown",
-      reference_message: trimText(conversationHistory[conversationHistory.length - 2]?.content || ""),
-    }).then((result) => {
-      liveLeadCapture = result.leadCapture || liveLeadCapture;
-      renderLeadCapture(liveLeadCapture);
-    }).catch(() => {});
-  }
-}
-
 function renderLeadCapture(leadCapture) {
-  const slot = getLeadCaptureSlot();
-
-  if (!slot) {
-    return;
-  }
-
   liveLeadCapture = leadCapture && typeof leadCapture === "object" ? leadCapture : null;
-
-  if (!liveLeadCapture || ["none", "blocked"].includes(trimText(liveLeadCapture.state).toLowerCase())) {
-    slot.hidden = true;
-    slot.innerHTML = "";
-    return;
-  }
-
-  const state = trimText(liveLeadCapture.state).toLowerCase();
-  const contactSummary = formatLeadContact(liveLeadCapture.contact || {});
-  const promptBody = trimText(liveLeadCapture.prompt?.body || "");
-  const returningCopy = liveLeadCapture.isReturningVisitor ? "Returning visitor" : "New visitor";
-
-  if (shouldHoldLeadCaptureForRoute() && ["prompt_ready", "partial_contact"].includes(state)) {
-    slot.hidden = true;
-    slot.innerHTML = "";
-    return;
-  }
-
-  if (state === "captured") {
-    slot.hidden = false;
-    slot.innerHTML = `
-      <article class="lead-capture-card success">
-        <p class="lead-capture-eyebrow">Lead captured</p>
-        <h3 class="lead-capture-title">Contact saved for follow-up</h3>
-        <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.message) || "The team now has a usable contact route for this conversation.")}</p>
-        ${contactSummary ? `<p class="lead-capture-contact">${escapeHtml(contactSummary)}</p>` : ""}
-        <p class="lead-capture-meta">${escapeHtml([
-          returningCopy,
-          trimText(liveLeadCapture.reason),
-          trimText(liveLeadCapture.followUp?.status) ? `Follow-up: ${trimText(liveLeadCapture.followUp.status)}` : "",
-        ].filter(Boolean).join(" · "))}</p>
-      </article>
-    `;
-    return;
-  }
-
-  if (state === "declined") {
-    slot.hidden = false;
-    slot.innerHTML = `
-      <article class="lead-capture-card subtle">
-        <p class="lead-capture-eyebrow">Chat continues</p>
-        <h3 class="lead-capture-title">No follow-up details requested</h3>
-        <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.message) || "No problem. We can keep going here in chat.")}</p>
-      </article>
-    `;
-    return;
-  }
-
-  if (!promptBody) {
-    slot.hidden = true;
-    slot.innerHTML = "";
-    return;
-  }
-
-  slot.hidden = false;
-  slot.innerHTML = `
-    <article class="lead-capture-card">
-      <p class="lead-capture-eyebrow">Front desk handoff</p>
-      <h3 class="lead-capture-title">${state === "partial_contact" ? "Add the best contact detail" : "Continue outside chat if helpful"}</h3>
-      <p class="lead-capture-copy">${escapeHtml(promptBody)}</p>
-      <p class="lead-capture-meta">${escapeHtml([
-        returningCopy,
-        trimText(liveLeadCapture.reason),
-      ].filter(Boolean).join(" · "))}</p>
-      <form class="lead-capture-form" data-lead-capture-form>
-        <div class="lead-capture-grid">
-          <div class="lead-capture-field">
-            <label for="lead-capture-name">Name</label>
-            <input id="lead-capture-name" name="name" type="text" value="${escapeHtml(trimText(liveLeadCapture.contact?.name || visitorIdentity.name || ""))}" placeholder="Your name">
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-preferred-channel">Preferred channel</label>
-            <select id="lead-capture-preferred-channel" name="preferred_channel">
-              <option value="" ${trimText(liveLeadCapture.preferredChannel) ? "" : "selected"}>Best option</option>
-              <option value="email" ${trimText(liveLeadCapture.preferredChannel) === "email" ? "selected" : ""}>Email</option>
-              <option value="phone" ${trimText(liveLeadCapture.preferredChannel) === "phone" ? "selected" : ""}>Phone</option>
-            </select>
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-email">Email</label>
-            <input id="lead-capture-email" name="email" type="email" value="${escapeHtml(trimText(liveLeadCapture.contact?.email || visitorIdentity.email || ""))}" placeholder="name@example.com">
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-phone">Phone</label>
-            <input id="lead-capture-phone" name="phone" type="tel" value="${escapeHtml(trimText(liveLeadCapture.contact?.phone || ""))}" placeholder="+1 555 555 5555">
-          </div>
-        </div>
-        <div class="lead-capture-actions">
-          <button type="submit">${state === "partial_contact" ? "Save contact" : "Send details"}</button>
-          <button class="ghost-button" type="button" data-lead-capture-decline>No thanks</button>
-        </div>
-      </form>
-    </article>
-  `;
-
-  bindLeadCaptureInteractions(slot, liveLeadCapture);
-  if (liveLeadCapture?.shouldPrompt && (!liveDirectRouting || trimText(liveDirectRouting.mode) === "capture_only")) {
-    void trackWidgetEvent("capture_fallback_offered", {
-      relatedIntentType: trimText(liveDirectRouting?.intentType || liveLeadCapture.trigger || ""),
-      relatedConversationId: trimText(liveDirectRouting?.relatedConversationId || getVisitorSessionKey()),
-      routingMode: trimText(liveDirectRouting?.mode || "capture_only"),
-    }, {
-      dedupeKey: `${INSTALL_ID}::capture_fallback_offered::${getVisitorSessionKey()}::${trimText(liveLeadCapture.trigger || "capture")}`,
-    });
-  }
 }
 
 async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
@@ -1109,10 +850,7 @@ async function sendMessage() {
     setComposerStatus(
       trimText(data.directRouting?.primaryCta?.label)
         ? `${trimText(data.directRouting.primaryCta.label)} is ready if the visitor wants the fastest next step.`
-      : trimText(data.leadCapture?.message)
-      || (data.leadCapture?.shouldPrompt
-        ? "If the visitor wants to keep moving, Vonza can capture a clean handoff without interrupting the chat."
-        : "Ask a follow-up to keep exploring what your visitors would experience.")
+      : "Ask a follow-up to keep exploring what your visitors would experience."
     );
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
