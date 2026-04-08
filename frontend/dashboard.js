@@ -324,6 +324,92 @@ function isCapabilityVisibleForWorkspace(capabilityKey, operatorWorkspace = crea
   return true;
 }
 
+function normalizeShellCopy(value = "") {
+  const text = trimText(value);
+
+  if (!text) {
+    return "";
+  }
+
+  return text
+    .replace(/\bOpen Outcomes\b/g, "Open Analytics")
+    .replace(/\bToday, Contacts, and Outcomes\b/g, "Today, Contacts, and Analytics")
+    .replace(/\bToday, Customize, and Outcomes\b/g, "Today, Customize, and Analytics")
+    .replace(/\bContacts and Outcomes\b/g, "Contacts and Analytics");
+}
+
+function resolveVisibleShellTarget(
+  targetSection = "",
+  targetId = "",
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  options = {},
+) {
+  const normalizedSection = trimText(targetSection).toLowerCase();
+  const normalizedId = trimText(targetId);
+  const actionKey = trimText(options.actionKey);
+  const contactId = trimText(options.contactId);
+  const preferredLabel = normalizeShellCopy(options.label);
+  const availableSections = getShellSectionsForWorkspace(operatorWorkspace);
+
+  if (!normalizedSection) {
+    return null;
+  }
+
+  if (normalizedSection === "automations" && !availableSections.includes("automations")) {
+    if (actionKey && availableSections.includes("analytics")) {
+      return {
+        section: "analytics",
+        id: actionKey,
+        label: normalizeShellCopy(options.analyticsFallbackLabel || "Open Analytics"),
+      };
+    }
+
+    if (contactId && availableSections.includes("contacts")) {
+      return {
+        section: "contacts",
+        id: contactId,
+        label: normalizeShellCopy(options.contactFallbackLabel || "Open contact"),
+      };
+    }
+
+    return null;
+  }
+
+  if (!["settings", "customize"].includes(normalizedSection) && !availableSections.includes(normalizedSection)) {
+    if (contactId && availableSections.includes("contacts")) {
+      return {
+        section: "contacts",
+        id: contactId,
+        label: normalizeShellCopy(options.contactFallbackLabel || "Open contact"),
+      };
+    }
+
+    return null;
+  }
+
+  if (normalizedSection === "analytics") {
+    return {
+      section: "analytics",
+      id: normalizedId || actionKey,
+      label: preferredLabel || "Open Analytics",
+    };
+  }
+
+  if (normalizedSection === "contacts") {
+    return {
+      section: "contacts",
+      id: normalizedId || contactId,
+      label: preferredLabel || (normalizedId || contactId ? "Open contact" : "Open Contacts"),
+    };
+  }
+
+  return {
+    section: normalizedSection,
+    id: normalizedId,
+    label: preferredLabel || normalizeShellCopy(options.defaultLabel || "Open"),
+  };
+}
+
 function getShellSectionsForWorkspace(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const candidateSections = operatorWorkspace?.enabled === false
     ? LEGACY_SHELL_SECTIONS
@@ -2361,10 +2447,9 @@ function formatOperatorCount(value, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function buildOperatorNextActionButton(nextAction = {}) {
+function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const actionType = trimText(nextAction.actionType || "stay_put");
-  const label = trimText(nextAction.buttonLabel || nextAction.title || "Open Today");
-  const targetSection = trimText(nextAction.targetSection || "overview");
+  const label = normalizeShellCopy(nextAction.buttonLabel || nextAction.title || "Open Today");
   const disabled = nextAction.disabled === true;
 
   if (actionType === "connect_google") {
@@ -2379,7 +2464,32 @@ function buildOperatorNextActionButton(nextAction = {}) {
     return `<button class="primary-button" type="button" data-shell-target="overview">${escapeHtml(label)}</button>`;
   }
 
-  return `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(targetSection)}">${escapeHtml(label)}</button>`;
+  const resolvedTarget = resolveVisibleShellTarget(
+    nextAction.targetSection || "overview",
+    nextAction.targetId || "",
+    operatorWorkspace,
+    {
+      label,
+      actionKey: nextAction.actionKey,
+      contactId: nextAction.contactId || nextAction.relatedContactId,
+      analyticsFallbackLabel: "Open Analytics",
+      contactFallbackLabel: "Open contact",
+      defaultLabel: label,
+    }
+  );
+
+  if (!resolvedTarget) {
+    return "";
+  }
+
+  return `
+    <button
+      class="ghost-button"
+      type="button"
+      data-shell-target="${escapeHtml(resolvedTarget.section)}"
+      data-target-id="${escapeHtml(resolvedTarget.id || "")}"
+    >${escapeHtml(resolvedTarget.label || label)}</button>
+  `;
 }
 
 function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -2493,6 +2603,7 @@ function buildContactQuickActions(contact = {}, operatorWorkspace = createEmptyO
   const actions = [];
   const nextAction = contact.nextAction || {};
   const suggestedSlot = (operatorWorkspace.calendar?.suggestedSlots || [])[0] || null;
+  const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
 
   if (contact.latestMessageId) {
     actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open related conversation</button>`);
@@ -2503,8 +2614,12 @@ function buildContactQuickActions(contact = {}, operatorWorkspace = createEmptyO
   }
 
   if (nextAction.followUpId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">Open follow-up draft</button>`);
-  } else if (contact.email || contact.phone) {
+    if (automationsVisible) {
+      actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">Open follow-up draft</button>`);
+    } else if (contact.id) {
+      actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id)}">Open contact</button>`);
+    }
+  } else if ((contact.email || contact.phone) && automationsVisible) {
     actions.push(`
       <button
         class="ghost-button"
@@ -2542,7 +2657,7 @@ function buildContactQuickActions(contact = {}, operatorWorkspace = createEmptyO
     actions.push(`<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`);
   }
 
-  if (contact.email) {
+  if (contact.email && automationsVisible) {
     actions.push(`
       <button
         class="ghost-button"
@@ -2816,7 +2931,9 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
     const sources = buildContactSources(contact);
     return sources.length > 0 && sources.every((source) => source === "chat");
   });
-  const actionsMarkup = `<button class="primary-button" type="button" data-shell-target="automations">Draft follow-up</button>`;
+  const actionsMarkup = isCapabilityVisibleForWorkspace("automations", operatorWorkspace)
+    ? `<button class="primary-button" type="button" data-shell-target="automations">Draft follow-up</button>`
+    : "";
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
@@ -2915,7 +3032,10 @@ function buildCopilotSummaryCards(copilot = createEmptyOperatorWorkspace().copil
   `;
 }
 
-function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copilot) {
+function buildCopilotProposalList(
+  copilot = createEmptyOperatorWorkspace().copilot,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
   const proposals = Array.isArray(copilot.proposals) ? copilot.proposals : [];
   const summary = copilot.proposalSummary || createEmptyOperatorWorkspace().copilot.proposalSummary;
 
@@ -2951,12 +3071,26 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
         </div>
       </div>
       <div class="analytics-list">
-        ${proposals.map((proposal) => `
+        ${proposals.map((proposal) => {
+          const resolvedTarget = resolveVisibleShellTarget(
+            proposal.target?.section || "overview",
+            proposal.target?.id || "",
+            operatorWorkspace,
+            {
+              label: proposal.openLabel || proposal.target?.label || "Open",
+              actionKey: proposal.applyPayload?.sourceActionKey || proposal.applyPayload?.actionKey,
+              contactId: proposal.applyPayload?.contactId,
+              analyticsFallbackLabel: "Open Analytics",
+              contactFallbackLabel: "Open contact",
+            }
+          );
+
+          return `
           <div class="analytics-item">
             <div class="workspace-panel-header" style="gap:12px; align-items:flex-start;">
               <div>
-                <p class="analytics-item-title">${escapeHtml(proposal.title || "Copilot proposal")}</p>
-                <p class="analytics-item-copy">${escapeHtml(proposal.summary || "Copilot prepared an approval-first proposal from stable-core data.")}</p>
+                <p class="analytics-item-title">${escapeHtml(normalizeShellCopy(proposal.title || "Copilot proposal"))}</p>
+                <p class="analytics-item-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Copilot prepared an approval-first proposal from stable-core data."))}</p>
               </div>
               <span class="${getBadgeClass(
                 proposal.state === "blocked"
@@ -2971,13 +3105,13 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
               proposal.priority ? `Priority: ${proposal.priority}` : "",
               proposal.confidence ? `Confidence: ${proposal.confidence}` : "",
             ].filter(Boolean).join(" · "))}</p>
-            ${proposal.why ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(`Why: ${proposal.why}`)}</p>` : ""}
-            ${proposal.whatHappens ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`If applied: ${proposal.whatHappens}`)}</p>` : ""}
-            ${proposal.target?.label || proposal.target?.section ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Target: ${proposal.target.label || proposal.target.section || "Existing workflow"}`)}</p>` : ""}
-            ${proposal.approvalNote ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Approval-first: ${proposal.approvalNote}`)}</p>` : ""}
+            ${proposal.why ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(normalizeShellCopy(`Why: ${proposal.why}`))}</p>` : ""}
+            ${proposal.whatHappens ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(normalizeShellCopy(`If applied: ${proposal.whatHappens}`))}</p>` : ""}
+            ${resolvedTarget ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Target: ${resolvedTarget.label || resolvedTarget.section || "Existing workflow"}`)}</p>` : ""}
+            ${proposal.approvalNote ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(normalizeShellCopy(`Approval-first: ${proposal.approvalNote}`))}</p>` : ""}
             ${proposal.stateReason ? `
               <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
-                <p>${escapeHtml(proposal.stateReason)}</p>
+                <p>${escapeHtml(normalizeShellCopy(proposal.stateReason))}</p>
               </div>
             ` : ""}
             <div class="inline-actions" style="margin-top:12px;">
@@ -2986,18 +3120,22 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
                 type="button"
                 data-copilot-apply-proposal
                 data-proposal-key="${escapeHtml(proposal.key || "")}"
+                data-fallback-target-section="${escapeHtml(resolvedTarget?.section || "")}"
+                data-fallback-target-id="${escapeHtml(resolvedTarget?.id || "")}"
               >
                 ${escapeHtml(proposal.applyLabel || "Apply")}
               </button>
-              <button
-                class="ghost-button"
-                type="button"
-                data-copilot-open-target
-                data-shell-target="${escapeHtml(proposal.target?.section || "overview")}"
-                data-target-id="${escapeHtml(proposal.target?.id || "")}"
-              >
-                ${escapeHtml(proposal.openLabel || proposal.target?.label || "Open")}
-              </button>
+              ${resolvedTarget ? `
+                <button
+                  class="ghost-button"
+                  type="button"
+                  data-copilot-open-target
+                  data-shell-target="${escapeHtml(resolvedTarget.section || "overview")}"
+                  data-target-id="${escapeHtml(resolvedTarget.id || "")}"
+                >
+                  ${escapeHtml(resolvedTarget.label || "Open")}
+                </button>
+              ` : ""}
               <button
                 class="ghost-button"
                 type="button"
@@ -3008,7 +3146,8 @@ function buildCopilotProposalList(copilot = createEmptyOperatorWorkspace().copil
               </button>
             </div>
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     </section>
   `;
@@ -3069,7 +3208,7 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
         </div>
       ` : ""}
       ${buildCopilotSummaryCards(copilot)}
-      ${buildCopilotProposalList(copilot)}
+      ${buildCopilotProposalList(copilot, operatorWorkspace)}
     </section>
   `;
 }
@@ -3094,12 +3233,26 @@ function formatCalendarInsightContext(item = {}) {
   ].filter(Boolean).join(" · ");
 }
 
-function buildTodayInsightActionButton(item = {}, fallbackLabel = "Review context") {
-  const targetSection = trimText(item.actionTargetSection || item.targetSection);
-  const targetId = trimText(item.actionTargetId || item.targetId);
-  const actionLabel = trimText(item.actionLabel || item.surfaceLabel || fallbackLabel);
+function buildTodayInsightActionButton(
+  item = {},
+  fallbackLabel = "Review context",
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
+  const resolvedTarget = resolveVisibleShellTarget(
+    item.actionTargetSection || item.targetSection,
+    item.actionTargetId || item.targetId,
+    operatorWorkspace,
+    {
+      label: item.actionLabel || item.surfaceLabel || fallbackLabel,
+      actionKey: item.sourceActionKey || item.actionKey || item.source?.actionKey,
+      contactId: item.contactId || item.linkedContactId || item.source?.contactId,
+      analyticsFallbackLabel: fallbackLabel,
+      contactFallbackLabel: "Open contact",
+      defaultLabel: fallbackLabel,
+    }
+  );
 
-  if (!targetSection) {
+  if (!resolvedTarget) {
     return "";
   }
 
@@ -3108,10 +3261,10 @@ function buildTodayInsightActionButton(item = {}, fallbackLabel = "Review contex
       class="ghost-button"
       type="button"
       data-copilot-open-target
-      data-shell-target="${escapeHtml(targetSection)}"
-      data-target-id="${escapeHtml(targetId)}"
+      data-shell-target="${escapeHtml(resolvedTarget.section)}"
+      data-target-id="${escapeHtml(resolvedTarget.id || "")}"
     >
-      ${escapeHtml(actionLabel)}
+      ${escapeHtml(resolvedTarget.label || fallbackLabel)}
     </button>
   `;
 }
@@ -3125,6 +3278,7 @@ function buildTodayInsightCard({
   emptyCopy = "",
   reasonKey = "",
   defaultActionLabel = "Review context",
+  operatorWorkspace = createEmptyOperatorWorkspace(),
 } = {}) {
   return `
     <section class="workspace-card-soft">
@@ -3141,14 +3295,14 @@ function buildTodayInsightCard({
             <div class="analytics-item">
               <div class="operator-thread-head">
                 <div>
-                  <p class="analytics-item-title">${escapeHtml(item.title || item.linkedContactName || "Calendar appointment")}</p>
+                  <p class="analytics-item-title">${escapeHtml(normalizeShellCopy(item.title || item.linkedContactName || "Calendar appointment"))}</p>
                   <p class="analytics-subtle">${escapeHtml(formatCalendarInsightContext(item))}</p>
                 </div>
                 <span class="${getBadgeClass(item.linkedContactId ? "Ready" : "Limited")}">${escapeHtml(item.linkedContactId ? "Linked" : "Needs review")}</span>
               </div>
-              <p class="analytics-item-copy">${escapeHtml(trimText(item[reasonKey]) || "Vonza highlighted this calendar item for review.")}</p>
+              <p class="analytics-item-copy">${escapeHtml(normalizeShellCopy(trimText(item[reasonKey]) || "Vonza highlighted this calendar item for review."))}</p>
               <div class="inline-actions" style="margin-top:12px;">
-                ${buildTodayInsightActionButton(item, defaultActionLabel)}
+                ${buildTodayInsightActionButton(item, defaultActionLabel, operatorWorkspace)}
               </div>
             </div>
           `).join("")}
@@ -3200,10 +3354,10 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
       <div class="operator-home-grid">
         <section class="operator-focus-card">
           <p class="overview-label">Single best next action</p>
-          <h3 class="operator-focus-title">${escapeHtml(nextAction.title || "Review today")}</h3>
-          <p class="operator-focus-copy">${escapeHtml(nextAction.description || "Vonza will keep this focused on the most useful thing to do next.")}</p>
+          <h3 class="operator-focus-title">${escapeHtml(normalizeShellCopy(nextAction.title || "Review today"))}</h3>
+          <p class="operator-focus-copy">${escapeHtml(normalizeShellCopy(nextAction.description || "Vonza will keep this focused on the most useful thing to do next."))}</p>
           <div class="inline-actions">
-            ${buildOperatorNextActionButton(nextAction)}
+            ${buildOperatorNextActionButton(nextAction, operatorWorkspace)}
           </div>
         </section>
         <section class="operator-focus-card operator-briefing-card">
@@ -3252,6 +3406,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
             : "Connect Google Calendar to bring today’s appointments into Today.",
           reasonKey: "scheduleReason",
           defaultActionLabel: "Open context",
+          operatorWorkspace,
         })}
         ${buildTodayInsightCard({
           kicker: "Follow-up",
@@ -3262,6 +3417,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           emptyCopy: "When an appointment ends without a clear next step, Vonza will surface it here with approval-first suggestions.",
           reasonKey: "followUpReason",
           defaultActionLabel: "Review follow-up",
+          operatorWorkspace,
         })}
         ${buildTodayInsightCard({
           kicker: "Linking",
@@ -3272,6 +3428,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           emptyCopy: "Vonza will show upcoming or recent appointments here when attendee data is still not safely linked to a contact.",
           reasonKey: "unlinkedReason",
           defaultActionLabel: "Review attendee",
+          operatorWorkspace,
         })}
       </div>
       <div class="overview-grid operator-metric-grid">
@@ -3578,6 +3735,14 @@ function getTodayQueueItemContactLabel(item = {}) {
   return formatActionQueueContact(item);
 }
 
+function getTodayQueueItemContactId(item = {}) {
+  if (isAppointmentReviewQueueItem(item)) {
+    return trimText(item.appointmentReviewState?.contactId || item.linkedContactId);
+  }
+
+  return trimText(item.contactId || item.followUp?.contactId || item.knowledgeFix?.contactId);
+}
+
 function getTodayQueueItemLinkState(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
     return trimText(item.linkedContactId) ? "Linked" : "Unlinked";
@@ -3596,32 +3761,61 @@ function getTodayQueueItemContextLabel(item = {}) {
 
 function getTodayQueueItemWhyLabel(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
-    return trimText(item.reviewReason || item.followUpReason || item.unlinkedReason)
+    return normalizeShellCopy(trimText(item.reviewReason || item.followUpReason || item.unlinkedReason))
       || "This appointment ended recently and still needs an explicit operator resolution.";
   }
 
-  return trimText(item.whyFlagged || item.snippet) || "Flagged from recent conversation activity.";
+  return normalizeShellCopy(trimText(item.whyFlagged || item.snippet)) || "Flagged from recent conversation activity.";
 }
 
 function getTodayQueueItemCopilotSummary(item = {}) {
   if (isAppointmentReviewQueueItem(item)) {
-    return trimText(item.reviewWhyItMatters)
+    return normalizeShellCopy(trimText(item.reviewWhyItMatters))
       || "Copilot is surfacing this because explicit review keeps follow-up and proof grounded in one operator loop.";
   }
 
   const workflow = getActionQueueOwnerWorkflow(item);
-  return trimText(item.suggestedAction || item.followUp?.whyPrepared || item.knowledgeFix?.whyPrepared || workflow.copy)
+  return normalizeShellCopy(trimText(item.suggestedAction || item.followUp?.whyPrepared || item.knowledgeFix?.whyPrepared || workflow.copy))
     || "Review the queue item, confirm the next safe action, and keep the operator loop explicit.";
 }
 
-function buildTodayQueueRow(item = {}, activeQueueKey = "") {
+function buildTodayQueueRow(
+  item = {},
+  activeQueueKey = "",
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
   const queueKey = getTodayQueueItemKey(item);
   const workflow = getActionQueueOwnerWorkflow(item);
   const filterKeys = getTodayQueueFilterKeys(item);
   const contactLabel = getTodayQueueItemContactLabel(item);
+  const contactId = getTodayQueueItemContactId(item);
   const linkState = getTodayQueueItemLinkState(item);
   const reason = getTodayQueueItemWhyLabel(item);
   const presentation = getTodayQueueRowPresentation(item);
+  const followUpTarget = !isAppointmentReviewQueueItem(item) && item.followUp?.id
+    ? resolveVisibleShellTarget("automations", item.followUp.id, operatorWorkspace, {
+      actionKey: item.key,
+      contactId,
+      analyticsFallbackLabel: "Review draft",
+      contactFallbackLabel: "Open contact",
+    })
+    : null;
+  const knowledgeFixTarget = !isAppointmentReviewQueueItem(item) && item.knowledgeFix?.id
+    ? resolveVisibleShellTarget("analytics", item.key, operatorWorkspace, {
+      label: "Open guidance fix",
+      actionKey: item.key,
+      contactId,
+      analyticsFallbackLabel: "Open guidance fix",
+      contactFallbackLabel: "Open contact",
+    })
+    : null;
+  const linkedContactTarget = isAppointmentReviewQueueItem(item) && contactId
+    ? resolveVisibleShellTarget("contacts", contactId, operatorWorkspace, {
+      label: "Open linked contact",
+      contactId,
+      contactFallbackLabel: "Open linked contact",
+    })
+    : null;
   const metaLine = [
     getTodayQueueItemContextLabel(item),
     contactLabel,
@@ -3636,15 +3830,17 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
       !isAppointmentReviewQueueItem(item) && item.messageId
         ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open conversation</button>`
         : "",
-      !isAppointmentReviewQueueItem(item) && item.followUp?.id
-        ? `<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Open follow-up</button>`
+      followUpTarget
+        ? followUpTarget.section === "automations"
+          ? `<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Open follow-up</button>`
+          : `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(followUpTarget.section)}" data-target-id="${escapeHtml(followUpTarget.id || "")}">${escapeHtml(followUpTarget.label || "Review draft")}</button>`
         : "",
-      !isAppointmentReviewQueueItem(item) && item.knowledgeFix?.id
-        ? `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open guidance fix</button>`
+      knowledgeFixTarget
+        ? `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(knowledgeFixTarget.section)}" data-target-id="${escapeHtml(knowledgeFixTarget.id || "")}">${escapeHtml(knowledgeFixTarget.label || "Open guidance fix")}</button>`
         : "",
       isAppointmentReviewQueueItem(item)
-        ? trimText(item.linkedContactId)
-          ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open linked contact</button>`
+        ? linkedContactTarget
+          ? `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(linkedContactTarget.section)}" data-target-id="${escapeHtml(linkedContactTarget.id || "")}">${escapeHtml(linkedContactTarget.label || "Open linked contact")}</button>`
           : `<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`
         : `<button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>`,
     ].filter(Boolean).join("")
@@ -3693,7 +3889,7 @@ function buildTodayQueueRow(item = {}, activeQueueKey = "") {
   `;
 }
 
-function buildTodayReviewDrawerActions(item = {}) {
+function buildTodayReviewDrawerActions(item = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   if (isAppointmentReviewQueueItem(item)) {
     const selectedContactId = trimText(item.appointmentReviewState?.contactId || item.linkedContactId);
     const contactOptions = listAppointmentReviewContacts(item, Array.isArray(item.contacts) ? item.contacts : []);
@@ -3736,18 +3932,45 @@ function buildTodayReviewDrawerActions(item = {}) {
     `;
   }
 
+  const contactId = getTodayQueueItemContactId(item);
+  const followUpTarget = item.followUp?.id
+    ? resolveVisibleShellTarget("automations", item.followUp.id, operatorWorkspace, {
+      actionKey: item.key,
+      contactId,
+      analyticsFallbackLabel: "Review draft",
+      contactFallbackLabel: "Open contact",
+    })
+    : null;
+  const knowledgeFixTarget = item.knowledgeFix?.id
+    ? resolveVisibleShellTarget("analytics", item.key, operatorWorkspace, {
+      label: "Review fix",
+      actionKey: item.key,
+      contactId,
+      analyticsFallbackLabel: "Review fix",
+      contactFallbackLabel: "Open contact",
+    })
+    : null;
+  const contactTarget = getTodayQueueItemLinkState(item) === "Linked"
+    ? resolveVisibleShellTarget("contacts", contactId, operatorWorkspace, {
+      label: "Open contact",
+      contactId,
+      contactFallbackLabel: "Open contact",
+    })
+    : null;
   const actionButtons = [
-    item.followUp?.id
-      ? `<button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Review draft</button>`
+    followUpTarget
+      ? followUpTarget.section === "automations"
+        ? `<button class="primary-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(item.followUp.id)}">Review draft</button>`
+        : `<button class="primary-button" type="button" data-shell-target="${escapeHtml(followUpTarget.section)}" data-target-id="${escapeHtml(followUpTarget.id || "")}">${escapeHtml(followUpTarget.label || "Review draft")}</button>`
       : "",
-    item.knowledgeFix?.id
-      ? `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Review fix</button>`
+    knowledgeFixTarget
+      ? `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(knowledgeFixTarget.section)}" data-target-id="${escapeHtml(knowledgeFixTarget.id || "")}">${escapeHtml(knowledgeFixTarget.label || "Review fix")}</button>`
       : "",
     item.messageId
       ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Review thread</button>`
       : "",
-    getTodayQueueItemLinkState(item) === "Linked"
-      ? `<button class="ghost-button" type="button" data-shell-target="contacts">Open contact</button>`
+    contactTarget
+      ? `<button class="ghost-button" type="button" data-shell-target="${escapeHtml(contactTarget.section)}" data-target-id="${escapeHtml(contactTarget.id || "")}">${escapeHtml(contactTarget.label || "Open contact")}</button>`
       : "",
   ].filter(Boolean).join("");
 
@@ -3762,7 +3985,12 @@ function buildTodayReviewDrawerActions(item = {}) {
   `;
 }
 
-function buildTodayReviewPanel(item = {}, activeQueueKey = "", contacts = []) {
+function buildTodayReviewPanel(
+  item = {},
+  activeQueueKey = "",
+  contacts = [],
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
   const queueKey = getTodayQueueItemKey(item);
   const contactLabel = getTodayQueueItemContactLabel(item);
   const linkState = getTodayQueueItemLinkState(item);
@@ -3836,13 +4064,19 @@ function buildTodayReviewPanel(item = {}, activeQueueKey = "", contacts = []) {
         ? buildTodayReviewDrawerActions({
           ...item,
           contacts,
-        })
-        : buildTodayReviewDrawerActions(item)}
+        }, operatorWorkspace)
+        : buildTodayReviewDrawerActions(item, operatorWorkspace)}
     </article>
   `;
 }
 
-function buildTodayReviewDrawer(items = [], activeQueueKey = "", contacts = [], briefing = {}) {
+function buildTodayReviewDrawer(
+  items = [],
+  activeQueueKey = "",
+  contacts = [],
+  briefing = {},
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+) {
   if (!items.length) {
     return `
       <section class="today-review-drawer-shell">
@@ -3869,7 +4103,7 @@ function buildTodayReviewDrawer(items = [], activeQueueKey = "", contacts = [], 
           </div>
         </div>
         <div class="today-review-panel-stack">
-          ${items.map((item) => buildTodayReviewPanel(item, activeQueueKey, contacts)).join("")}
+          ${items.map((item) => buildTodayReviewPanel(item, activeQueueKey, contacts, operatorWorkspace)).join("")}
         </div>
       </div>
     </section>
@@ -3900,7 +4134,7 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
           : ""}
       </div>
       <div class="today-queue-list">
-        ${items.map((item) => buildTodayQueueRow(item, activeQueueKey)).join("")}
+        ${items.map((item) => buildTodayQueueRow(item, activeQueueKey, operatorWorkspace)).join("")}
       </div>
     </section>
   `;
@@ -4007,14 +4241,14 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               ${nextAction?.title ? `
                 <div class="today-next-chip">
                   <span class="today-next-chip-label">Next safe move</span>
-                  <strong>${escapeHtml(nextAction.title)}</strong>
+                  <strong>${escapeHtml(normalizeShellCopy(nextAction.title))}</strong>
                 </div>
               ` : ""}
             </div>
             ${buildTodayQueueList(todayQueueItems, actionQueue, operatorWorkspace, activeTodayQueueKey)}
           </section>
           <aside class="today-side-column">
-            ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing)}
+            ${buildTodayReviewDrawer(todayQueueItems, activeTodayQueueKey, contactsList, briefing, operatorWorkspace)}
             <section class="support-panel today-support-panel-quiet today-reference-note">
               <p class="support-panel-kicker">Copilot briefing</p>
               <h3 class="support-panel-title">${escapeHtml(briefing.title || "Operator briefing")}</h3>
@@ -10226,6 +10460,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
     sectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 
+    if (targetSection === "contacts" && trimText(options.targetId)) {
+      selectContact(options.targetId);
+    }
+
     if (!selector) {
       return;
     }
@@ -10240,6 +10478,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         selectWorkspaceRecord(target.dataset.recordKind || "", target.dataset.recordId || "");
       } else if (target.matches("[data-record-detail]")) {
         selectWorkspaceRecord(target.dataset.recordKind || "", target.dataset.recordId || "");
+      }
+
+      if (targetSection === "contacts" && target.dataset.contactId) {
+        selectContact(target.dataset.contactId);
       }
 
       target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -10324,10 +10566,21 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       if (result.result?.section) {
         const resolvedTarget = resolveShellTarget(result.result.section, result.result.id || "");
+        const fallbackTargetSection = trimText(button.dataset.fallbackTargetSection);
+        const fallbackTargetId = trimText(button.dataset.fallbackTargetId);
+        const visibleSection = getAvailableShellSections(operatorWorkspace).includes(resolvedTarget.targetSection)
+          ? resolvedTarget.targetSection
+          : fallbackTargetSection;
+        const visibleTargetId = visibleSection === resolvedTarget.targetSection
+          ? (result.result.id || "")
+          : fallbackTargetId;
         showSectionAndHighlight(
-          resolvedTarget.targetSection,
-          getCopilotTargetSelector(resolvedTarget.targetSection, result.result.id || ""),
-          { settingsSection: resolvedTarget.settingsSection }
+          visibleSection || resolvedTarget.targetSection,
+          getCopilotTargetSelector(visibleSection || resolvedTarget.targetSection, visibleTargetId),
+          {
+            settingsSection: resolvedTarget.settingsSection,
+            targetId: visibleTargetId,
+          }
         );
       }
     } catch (error) {
@@ -11046,7 +11299,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       showSectionAndHighlight(
         resolvedTarget.targetSection,
         getCopilotTargetSelector(resolvedTarget.targetSection, button.dataset.targetId || ""),
-        { settingsSection: resolvedTarget.settingsSection }
+        {
+          settingsSection: resolvedTarget.settingsSection,
+          targetId: button.dataset.targetId || "",
+        }
       );
     });
   });
@@ -11843,15 +12099,24 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   sectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const targetSection = button.dataset.shellTarget;
+      const resolvedTarget = resolveShellTarget(
+        button.dataset.shellTarget,
+        button.dataset.targetId || "",
+      );
+      const targetSection = resolvedTarget.targetSection;
 
       if (!availableSections.includes(targetSection)) {
         return;
       }
 
-      showShellSection(targetSection, {
-        settingsSection: button.dataset.settingsTarget || "",
-      });
+      showSectionAndHighlight(
+        targetSection,
+        getCopilotTargetSelector(targetSection, button.dataset.targetId || ""),
+        {
+          settingsSection: button.dataset.settingsTarget || resolvedTarget.settingsSection || "",
+          targetId: button.dataset.targetId || "",
+        }
+      );
     });
   });
 

@@ -670,6 +670,157 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Refresh workspace/);
 });
 
+test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConfigReady: false,
+      googleConnected: false,
+    },
+    contacts: {
+      list: [
+        {
+          id: "contact-1",
+          name: "Taylor Reed",
+          email: "taylor@example.com",
+          lifecycleState: "active_lead",
+          nextAction: {
+            followUpId: "follow-up-1",
+          },
+        },
+      ],
+      filters: {
+        quick: [],
+        sources: [],
+      },
+    },
+  });
+
+  const todayActions = harness.buildTodayReviewDrawerActions({
+    key: "action-1",
+    queueType: "action_queue",
+    contactId: "contact-1",
+    contactInfo: {
+      name: "Taylor Reed",
+      email: "taylor@example.com",
+    },
+    followUp: {
+      id: "follow-up-1",
+    },
+  }, workspace);
+  const contactActions = harness.buildContactQuickActions({
+    id: "contact-1",
+    name: "Taylor Reed",
+    email: "taylor@example.com",
+    lifecycleState: "active_lead",
+    nextAction: {
+      followUpId: "follow-up-1",
+    },
+  }, workspace);
+  const contactsPanel = harness.buildContactsPanel({}, workspace);
+
+  assert.doesNotMatch(todayActions, /data-open-follow-up/);
+  assert.match(todayActions, /data-shell-target="analytics"/);
+  assert.match(todayActions, /data-target-id="action-1"/);
+  assert.doesNotMatch(contactActions, /data-open-follow-up/);
+  assert.match(contactActions, /data-shell-target="contacts"/);
+  assert.match(contactActions, /data-target-id="contact-1"/);
+  assert.doesNotMatch(contactsPanel, />Draft follow-up</);
+});
+
+test("today contact CTAs carry the intended contact id", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConfigReady: false,
+      googleConnected: false,
+    },
+  });
+
+  const appointmentRow = harness.buildTodayQueueRow({
+    id: "event-2",
+    queueType: "appointment_review",
+    linkedContactId: "contact-2",
+    linkedContactName: "Morgan Hale",
+    attendeeLabel: "Morgan Hale",
+  }, "", workspace);
+  const queueActions = harness.buildTodayReviewDrawerActions({
+    key: "action-2",
+    queueType: "action_queue",
+    contactId: "contact-9",
+    contactInfo: {
+      name: "Jordan Rivers",
+      email: "jordan@example.com",
+    },
+  }, workspace);
+
+  assert.match(appointmentRow, /Open linked contact/);
+  assert.match(appointmentRow, /data-target-id="contact-2"/);
+  assert.match(queueActions, /Open contact/);
+  assert.match(queueActions, /data-target-id="contact-9"/);
+});
+
+test("today knowledge-fix CTAs route to the actionable analytics workflow", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+  });
+
+  const rowMarkup = harness.buildTodayQueueRow({
+    key: "action-knowledge",
+    queueType: "action_queue",
+    type: "weak_answer",
+    label: "Weak answer needs guidance",
+    contactId: "contact-3",
+    contactInfo: {
+      name: "Casey Quinn",
+    },
+    knowledgeFix: {
+      id: "fix-1",
+    },
+  }, "", workspace);
+  const drawerMarkup = harness.buildTodayReviewDrawerActions({
+    key: "action-knowledge",
+    queueType: "action_queue",
+    type: "weak_answer",
+    contactId: "contact-3",
+    contactInfo: {
+      name: "Casey Quinn",
+    },
+    knowledgeFix: {
+      id: "fix-1",
+    },
+  }, workspace);
+
+  assert.match(rowMarkup, /Open guidance fix/);
+  assert.match(rowMarkup, /data-shell-target="analytics"/);
+  assert.match(rowMarkup, /data-target-id="action-knowledge"/);
+  assert.doesNotMatch(rowMarkup, /data-settings-target="front_desk"/);
+  assert.match(drawerMarkup, /Review fix/);
+  assert.match(drawerMarkup, /data-shell-target="analytics"/);
+  assert.match(drawerMarkup, /data-target-id="action-knowledge"/);
+});
+
 test("contacts render as a list-detail workspace instead of repeated cards", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -716,6 +867,84 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, /Search contacts/);
 });
 
+test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_TODAY_COPILOT_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    nextAction: {
+      title: "Open Outcomes",
+      description: "Today, Customize, and Outcomes stay available while the website front desk continues to work.",
+      targetSection: "analytics",
+      targetId: "action-1",
+    },
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      readOnly: true,
+      draftOnly: true,
+      sparseData: false,
+      summaryCards: [],
+      proposals: [
+        {
+          key: "analytics-proposal",
+          title: "Review the queue",
+          summary: "A queue item still needs attention.",
+          openLabel: "Open Outcomes",
+          applyLabel: "Apply",
+          dismissLabel: "Dismiss",
+          target: {
+            section: "analytics",
+            id: "action-1",
+            label: "Open Outcomes",
+          },
+        },
+      ],
+      proposalSummary: {
+        activeCount: 1,
+        blockedCount: 0,
+        hiddenCount: 0,
+      },
+      context: {
+        businessProfile: {
+          readiness: {
+            summary: "Ready",
+            missingCount: 0,
+          },
+        },
+        warnings: [],
+      },
+      fallback: {
+        guidance: [],
+      },
+    },
+    businessProfile: {
+      readiness: {
+        summary: "Ready",
+        missingCount: 0,
+      },
+      prefill: {
+        available: false,
+      },
+    },
+  });
+
+  const overview = harness.buildOperatorOverviewSection({}, workspace);
+  const proposals = harness.buildCopilotProposalList(workspace.copilot, workspace);
+
+  assert.equal(harness.normalizeShellCopy("Open Outcomes"), "Open Analytics");
+  assert.match(overview, /Open Analytics/);
+  assert.match(overview, /Today, Customize, and Analytics stay available/);
+  assert.doesNotMatch(overview, /Open Outcomes/);
+  assert.match(proposals, /Open Analytics/);
+  assert.doesNotMatch(proposals, /Open Outcomes/);
+});
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
     windowFlags: {
