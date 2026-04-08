@@ -57,19 +57,32 @@ let resolvedAgentKey = AGENT_KEY;
 let resolvedBusinessId = BUSINESS_ID;
 let liveLeadCapture = null;
 let liveDirectRouting = null;
+let visitorIdentity = {
+  mode: "",
+  email: "",
+  name: "",
+};
 const sentTelemetryKeys = new Set();
 const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
+const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
 
-function getVisitorSessionStorageKey() {
-  const assistantScope =
+function getWidgetStorageScope() {
+  return (
     trimText(INSTALL_ID)
     || trimText(resolvedAgentId)
     || trimText(resolvedAgentKey)
     || trimText(resolvedBusinessId)
     || trimText(WEBSITE_URL)
-    || "default";
+    || "default"
+  );
+}
 
-  return `vonza_visitor_session_${assistantScope}`;
+function getVisitorSessionStorageKey() {
+  return `vonza_visitor_session_${getWidgetStorageScope()}`;
+}
+
+function getVisitorIdentityStorageKey() {
+  return `${VISITOR_IDENTITY_STORAGE_PREFIX}${getWidgetStorageScope()}`;
 }
 
 function getVisitorSessionKey() {
@@ -86,6 +99,88 @@ function getVisitorSessionKey() {
 
 function trimText(value) {
   return String(value || "").trim();
+}
+
+function normalizeEmail(value) {
+  const cleaned = trimText(value).toLowerCase();
+  const match = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : "";
+}
+
+function normalizeVisitorIdentityMode(value) {
+  const normalized = trimText(value).toLowerCase();
+  return ["guest", "identified"].includes(normalized) ? normalized : "";
+}
+
+function normalizeVisitorIdentityState(input = {}) {
+  const modeCandidate = normalizeVisitorIdentityMode(
+    input.mode || input.visitorMode || input.visitor_mode
+  );
+  const email = normalizeEmail(input.email || input.visitorEmail || input.visitor_email);
+  const name = trimText(input.name || input.visitorName || input.visitor_name);
+  const mode = modeCandidate || (email ? "identified" : "");
+
+  if (mode === "guest") {
+    return {
+      mode: "guest",
+      email: "",
+      name: "",
+    };
+  }
+
+  if (mode === "identified" && email) {
+    return {
+      mode: "identified",
+      email,
+      name,
+    };
+  }
+
+  return {
+    mode: "",
+    email: "",
+    name: "",
+  };
+}
+
+function hasChosenVisitorIdentity() {
+  return Boolean(normalizeVisitorIdentityMode(visitorIdentity.mode));
+}
+
+function buildVisitorIdentityPayload(identity = visitorIdentity) {
+  const normalized = normalizeVisitorIdentityState(identity);
+
+  return {
+    visitor_identity: normalized,
+    visitor_identity_mode: normalized.mode || "",
+    visitor_email: normalized.email || "",
+    visitor_name: normalized.name || "",
+  };
+}
+
+function saveVisitorIdentity(identity) {
+  const normalized = normalizeVisitorIdentityState(identity);
+
+  try {
+    if (!normalized.mode) {
+      window.localStorage.removeItem(getVisitorIdentityStorageKey());
+      return normalized;
+    }
+
+    window.localStorage.setItem(getVisitorIdentityStorageKey(), JSON.stringify(normalized));
+  } catch {}
+
+  return normalized;
+}
+
+function loadStoredVisitorIdentity() {
+  try {
+    const value = window.localStorage.getItem(getVisitorIdentityStorageKey());
+    const parsed = value ? JSON.parse(value) : null;
+    return normalizeVisitorIdentityState(parsed || {});
+  } catch {
+    return normalizeVisitorIdentityState();
+  }
 }
 
 function addToHistory(role, content) {
@@ -128,6 +223,122 @@ function getFingerprint() {
 function detectContactCaptured(message) {
   const value = trimText(message);
   return /@/.test(value) || /\+?\d[\d\s().-]{6,}/.test(value);
+}
+
+function getIdentityChoicePanel() {
+  return document.getElementById("identity-choice-panel");
+}
+
+function getIdentityEmailForm() {
+  return document.getElementById("identity-email-form");
+}
+
+function getWelcomeContent() {
+  return document.getElementById("welcome-content");
+}
+
+function getIntroMessage() {
+  return document.getElementById("intro-message");
+}
+
+function getIdentitySummaryText(identity = visitorIdentity) {
+  const normalized = normalizeVisitorIdentityState(identity);
+
+  if (normalized.mode === "identified") {
+    return normalized.name
+      ? `${normalized.name} · ${normalized.email}`
+      : normalized.email;
+  }
+
+  if (normalized.mode === "guest") {
+    return "Continuing without email";
+  }
+
+  return "";
+}
+
+function updateComposerAvailability() {
+  const input = document.getElementById("input");
+  const button = document.getElementById("send-button");
+  const inputArea = document.querySelector(".input-area");
+  const identityReady = hasChosenVisitorIdentity();
+
+  if (!input || !button || !inputArea) {
+    return;
+  }
+
+  input.disabled = !identityReady;
+  button.disabled = !identityReady;
+  input.placeholder = identityReady
+    ? "Type here"
+    : "Choose how to continue to start chatting";
+  inputArea.classList.toggle("is-locked", !identityReady);
+}
+
+function renderVisitorIdentityGate() {
+  const identityPanel = getIdentityChoicePanel();
+  const welcomeContent = getWelcomeContent();
+  const introMessage = getIntroMessage();
+  const summary = document.getElementById("identity-summary");
+  const normalized = normalizeVisitorIdentityState(visitorIdentity);
+  const identityReady = Boolean(normalized.mode);
+
+  if (identityPanel) {
+    identityPanel.hidden = identityReady;
+  }
+
+  if (welcomeContent) {
+    welcomeContent.hidden = !identityReady;
+  }
+
+  if (introMessage) {
+    introMessage.hidden = !identityReady;
+  }
+
+  if (summary) {
+    summary.hidden = !identityReady;
+    summary.innerHTML = identityReady
+      ? `<strong>${escapeHtml(normalized.mode === "identified" ? "Email" : "Guest")}</strong> ${escapeHtml(getIdentitySummaryText(normalized))}`
+      : "";
+  }
+
+  updateComposerAvailability();
+}
+
+function setVisitorIdentityState(identity, options = {}) {
+  const normalized = normalizeVisitorIdentityState(identity);
+  visitorIdentity = options.persist === false
+    ? normalized
+    : saveVisitorIdentity(normalized);
+
+  renderVisitorIdentityGate();
+  return visitorIdentity;
+}
+
+function continueIntoChat(identity, options = {}) {
+  const normalized = setVisitorIdentityState(identity, options);
+
+  if (!normalized.mode) {
+    return normalized;
+  }
+
+  if (normalized.mode === "identified") {
+    setComposerStatus(`Using ${normalized.email} so the business can follow up cleanly if needed.`);
+  } else {
+    setComposerStatus("Continuing as a guest. You can ask anything about the business.");
+  }
+
+  if (options.track !== false) {
+    void trackWidgetEvent("identity_mode_selected", {
+      mode: normalized.mode,
+      hasName: Boolean(normalized.name),
+    }, {
+      dedupeKey: `${INSTALL_ID}::identity_mode_selected::${getVisitorSessionKey()}::${normalized.mode}`,
+    });
+  }
+
+  document.getElementById("input")?.focus();
+  return normalized;
 }
 
 function getLeadCaptureSlot() {
@@ -370,6 +581,7 @@ async function postLeadCaptureAction(payload = {}) {
       visitor_session_key: getVisitorSessionKey(),
       page_url: getPageUrl(),
       origin: getPageOrigin(),
+      ...buildVisitorIdentityPayload(),
       ...payload,
     }),
   });
@@ -535,7 +747,7 @@ function renderLeadCapture(leadCapture) {
         <div class="lead-capture-grid">
           <div class="lead-capture-field">
             <label for="lead-capture-name">Name</label>
-            <input id="lead-capture-name" name="name" type="text" value="${escapeHtml(trimText(liveLeadCapture.contact?.name || ""))}" placeholder="Your name">
+            <input id="lead-capture-name" name="name" type="text" value="${escapeHtml(trimText(liveLeadCapture.contact?.name || visitorIdentity.name || ""))}" placeholder="Your name">
           </div>
           <div class="lead-capture-field">
             <label for="lead-capture-preferred-channel">Preferred channel</label>
@@ -547,7 +759,7 @@ function renderLeadCapture(leadCapture) {
           </div>
           <div class="lead-capture-field">
             <label for="lead-capture-email">Email</label>
-            <input id="lead-capture-email" name="email" type="email" value="${escapeHtml(trimText(liveLeadCapture.contact?.email || ""))}" placeholder="name@example.com">
+            <input id="lead-capture-email" name="email" type="email" value="${escapeHtml(trimText(liveLeadCapture.contact?.email || visitorIdentity.email || ""))}" placeholder="name@example.com">
           </div>
           <div class="lead-capture-field">
             <label for="lead-capture-phone">Phone</label>
@@ -695,10 +907,18 @@ function applyWidgetConfig(config = {}) {
   document.getElementById("brand-mark-v").textContent = getAssistantMark();
   document.getElementById("send-button").textContent = widgetConfig.buttonLabel;
   document.getElementById("powered-by").textContent = `Powered by ${widgetConfig.assistantName}`;
-  setComposerStatus("Ask about services, pricing, contact details, or anything your visitors would want to know.");
+  if (hasChosenVisitorIdentity()) {
+    continueIntoChat(visitorIdentity, {
+      persist: false,
+      track: false,
+    });
+  } else {
+    setComposerStatus("Choose how to continue, then ask about services, pricing, contact details, or the next step.");
+  }
   document
     .querySelector('meta[name="apple-mobile-web-app-title"]')
     ?.setAttribute("content", widgetConfig.assistantName);
+  renderVisitorIdentityGate();
 }
 
 async function loadWidgetBootstrap() {
@@ -733,7 +953,14 @@ async function loadWidgetBootstrap() {
     resolvedAgentId = trimText(data.agent?.id || resolvedAgentId);
     resolvedAgentKey = trimText(data.agent?.publicAgentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.business?.id || resolvedBusinessId);
-    setComposerStatus("Your assistant is ready to answer questions using the current website knowledge.");
+    if (hasChosenVisitorIdentity()) {
+      continueIntoChat(visitorIdentity, {
+        persist: false,
+        track: false,
+      });
+    } else {
+      setComposerStatus("Choose how to continue, then start chatting with the current website knowledge.");
+    }
     await detectConversionOutcomesOnLoad();
   } catch (error) {
     console.error("Vonza assistant bootstrap failed:", error);
@@ -775,6 +1002,12 @@ async function sendMessage() {
 
   const message = input.value.trim();
   const historySnapshot = conversationHistory.slice(-6);
+
+  if (!hasChosenVisitorIdentity()) {
+    setComposerStatus("Choose how to continue before sending the first message.");
+    document.getElementById("identity-guest-button")?.focus();
+    return;
+  }
 
   if (!message) return;
 
@@ -821,12 +1054,13 @@ async function sendMessage() {
         business_id: resolvedBusinessId,
         install_id: INSTALL_ID,
         website_url: WEBSITE_URL,
-        page_url: getPageUrl(),
-        origin: getPageOrigin(),
-        visitor_session_key: sessionKey,
-        history: historySnapshot,
-      }),
-    });
+      page_url: getPageUrl(),
+      origin: getPageOrigin(),
+      visitor_session_key: sessionKey,
+      history: historySnapshot,
+      ...buildVisitorIdentityPayload(),
+    }),
+  });
 
     const data = await res.json();
 
@@ -847,6 +1081,8 @@ async function sendMessage() {
     resolvedAgentId = trimText(data.agentId || resolvedAgentId);
     resolvedAgentKey = trimText(data.agentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
+    visitorIdentity = normalizeVisitorIdentityState(data.visitorIdentity || visitorIdentity);
+    renderVisitorIdentityGate();
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
     liveLeadCapture = data.leadCapture || null;
@@ -901,6 +1137,43 @@ function sendStarterPrompt(prompt) {
   sendMessage();
 }
 
+document.getElementById("identity-guest-button")?.addEventListener("click", () => {
+  continueIntoChat({
+    mode: "guest",
+  });
+});
+
+document.getElementById("identity-email-button")?.addEventListener("click", () => {
+  document.getElementById("identity-email-form")?.removeAttribute("hidden");
+  document.getElementById("identity-name")?.focus();
+  setComposerStatus("Add an email so the business can keep this conversation connected.");
+});
+
+document.getElementById("identity-email-cancel")?.addEventListener("click", () => {
+  document.getElementById("identity-email-form")?.setAttribute("hidden", "");
+  setComposerStatus("Choose how to continue, then start chatting.");
+});
+
+document.getElementById("identity-email-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const identity = normalizeVisitorIdentityState({
+    mode: "identified",
+    name: formData.get("name"),
+    email: formData.get("email"),
+  });
+
+  if (!identity.email) {
+    setComposerStatus("Enter a valid email address to continue with email.");
+    document.getElementById("identity-email")?.focus();
+    return;
+  }
+
+  continueIntoChat(identity);
+  form.setAttribute("hidden", "");
+});
+
 document.getElementById("input").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -918,8 +1191,19 @@ if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
 }
 
+visitorIdentity = loadStoredVisitorIdentity();
+renderVisitorIdentityGate();
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 loadWidgetBootstrap();
+
+window.__VONZA_WIDGET_TEST_HOOKS__ = {
+  buildVisitorIdentityPayload,
+  continueIntoChat: (identity) => continueIntoChat(identity, {
+    track: false,
+  }),
+  getVisitorIdentity: () => ({ ...visitorIdentity }),
+  normalizeVisitorIdentityState,
+};
 
 if ("serviceWorker" in navigator && !EMBEDDED_MODE) {
   window.addEventListener("load", async () => {

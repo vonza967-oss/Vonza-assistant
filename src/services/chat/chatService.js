@@ -16,6 +16,10 @@ import {
   storeAgentMessages,
 } from "./messageService.js";
 import {
+  buildPublicVisitorIdentity,
+  normalizeVisitorIdentity,
+} from "./visitorIdentityService.js";
+import {
   applyLeadCaptureAction,
   processLiveChatLeadCapture,
 } from "../leads/liveLeadCaptureService.js";
@@ -95,6 +99,7 @@ async function buildChatResponse({
   sessionKey,
   leadCapture = null,
   directRouting = null,
+  visitorIdentity = null,
 }) {
   await storeAgentMessages(supabase, agent.id, [
     { role: "user", content: userMessage },
@@ -114,6 +119,7 @@ async function buildChatResponse({
     },
     leadCapture,
     directRouting,
+    visitorIdentity: buildPublicVisitorIdentity(visitorIdentity),
   };
 }
 
@@ -134,6 +140,12 @@ export async function handleChatRequest({
   const pageUrl = cleanText(body.page_url || body.pageUrl || "");
   const origin = cleanText(body.origin || "");
   const history = sanitizeChatHistory(body.history);
+  const visitorIdentity = normalizeVisitorIdentity({
+    ...(body.visitor_identity || {}),
+    visitor_mode: body.visitor_identity_mode || body.visitorMode || body.visitor_mode,
+    visitor_email: body.visitor_email || body.visitorEmail,
+    visitor_name: body.visitor_name || body.visitorName,
+  });
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const conversationHistory = formatConversationHistory(history);
   const normalizedMessage = cleanText(message || "");
@@ -183,6 +195,7 @@ export async function handleChatRequest({
       userMessage: message,
       reply: fallbackReply,
       sessionKey,
+      visitorIdentity,
     });
   }
 
@@ -203,6 +216,7 @@ export async function handleChatRequest({
         message
       ),
       sessionKey,
+      visitorIdentity,
     });
   }
 
@@ -279,6 +293,7 @@ export async function handleChatRequest({
     origin,
     userMessage: message,
     language,
+    visitorIdentity,
   });
   const recentWidgetEvents = await listRecentWidgetEvents(supabase, {
     agentId: agent.id,
@@ -312,6 +327,7 @@ export async function handleChatRequest({
     sessionKey,
     leadCapture,
     directRouting,
+    visitorIdentity,
   });
 }
 
@@ -330,6 +346,12 @@ export async function handleLeadCaptureRequest({
   const action = cleanText(body.action).toLowerCase();
   const referenceMessage = cleanText(body.reference_message || body.referenceMessage || "");
   const language = detectResponseLanguage(referenceMessage);
+  const visitorIdentity = normalizeVisitorIdentity({
+    ...(body.visitor_identity || {}),
+    visitor_mode: body.visitor_identity_mode || body.visitorMode || body.visitor_mode,
+    visitor_email: body.visitor_email || body.visitorEmail,
+    visitor_name: body.visitor_name || body.visitorName,
+  });
 
   if (!agentKey && !businessId && !agentId) {
     const error = new Error("agent_id, agent_key, or business_id is required.");
@@ -366,6 +388,7 @@ export async function handleLeadCaptureRequest({
     email: body.email,
     phone: body.phone,
     preferredChannel: body.preferred_channel || body.preferredChannel,
+    visitorIdentity,
   });
 
   return {
@@ -374,5 +397,6 @@ export async function handleLeadCaptureRequest({
     agentKey: agent.publicAgentKey,
     businessId: business.id,
     leadCapture,
+    visitorIdentity: buildPublicVisitorIdentity(visitorIdentity),
   };
 }

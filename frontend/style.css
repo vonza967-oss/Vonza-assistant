@@ -248,6 +248,80 @@ h1 {
   line-height: 1.7;
 }
 
+.identity-choice-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.identity-choice-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.identity-choice-button {
+  min-height: 52px;
+}
+
+.identity-email-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.identity-email-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.identity-email-field {
+  display: grid;
+  gap: 6px;
+}
+
+.identity-email-field label {
+  color: var(--text-soft);
+  font-size: 0.8rem;
+}
+
+.identity-email-field input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font: inherit;
+  padding: 12px 14px;
+}
+
+.identity-email-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.identity-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.identity-summary strong {
+  color: var(--text-main);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .starter-prompts {
   display: flex;
   flex-wrap: wrap;
@@ -550,6 +624,10 @@ input::placeholder {
   color: #7f8ca8;
 }
 
+.input-area.is-locked {
+  opacity: 0.82;
+}
+
 button {
   border: none;
   border-radius: 16px;
@@ -674,6 +752,11 @@ button:disabled {
 
   .starter-prompts {
     gap: 8px;
+  }
+
+  .identity-choice-actions,
+  .identity-email-grid {
+    grid-template-columns: 1fr;
   }
 
   .bubble {

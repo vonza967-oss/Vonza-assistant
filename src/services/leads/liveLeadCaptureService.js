@@ -1,5 +1,6 @@
 import { buildActionQueue } from "../analytics/actionQueueService.js";
 import { listAgentMessages } from "../chat/messageService.js";
+import { normalizeVisitorIdentity } from "../chat/visitorIdentityService.js";
 import { syncFollowUpWorkflows } from "../followup/followUpService.js";
 import { LEAD_CAPTURE_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
@@ -460,6 +461,28 @@ function buildDeclinedMessage(language) {
     : "No problem. We can keep going here in chat.";
 }
 
+function buildIdentifiedVisitorReason(language, businessName) {
+  const label = cleanText(businessName) || "the team";
+
+  return isHungarian(language)
+    ? `A látogató emaillel folytatta, így ${label} később pontosabban tud kapcsolódni ehhez a beszélgetéshez.`
+    : `The visitor chose to continue with email, so ${label} can stitch follow-up and support around this conversation more reliably.`;
+}
+
+function buildIdentifiedVisitorMessage(language, email) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (isHungarian(language)) {
+    return normalizedEmail
+      ? `Köszönöm. Ezt a beszélgetést a(z) ${normalizedEmail} email-címhez kötöm, hogy a csapat később könnyebben tudjon kapcsolódni.`
+      : "Köszönöm. Ezt a beszélgetést az emailes azonosítással együtt mentem el.";
+  }
+
+  return normalizedEmail
+    ? `Thanks. I'll keep this conversation connected to ${normalizedEmail} so the team can follow up cleanly if needed.`
+    : "Thanks. I'll keep this conversation connected to the visitor email for cleaner follow-up if needed.";
+}
+
 function getSessionLeadContext(actionQueue = {}, sessionKey = "", message = "") {
   const items = Array.isArray(actionQueue.items) ? actionQueue.items : [];
   const sessionItems = items.filter((item) => cleanText(item.sessionKey) === cleanText(sessionKey));
@@ -782,6 +805,7 @@ function buildDecisionFromContext(options = {}) {
   const language = options.language;
   const businessName = options.businessName;
   const contact = options.contact || {};
+  const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
   const hasContact = hasUsableContact(contact);
   const hasPartial = Boolean(cleanText(contact.name) || cleanText(contact.email) || cleanText(contact.phone));
 
@@ -802,6 +826,17 @@ function buildDecisionFromContext(options = {}) {
       reason: cleanText(existing.captureReason),
       shouldPrompt: false,
       prompt: null,
+    };
+  }
+
+  if (visitorIdentity.mode === "identified" && hasContact) {
+    return {
+      nextState: "captured",
+      trigger: cleanText(existing.captureTrigger || "visitor_identity"),
+      reason: cleanText(existing.captureReason || buildIdentifiedVisitorReason(language, businessName)),
+      shouldPrompt: false,
+      prompt: null,
+      message: buildIdentifiedVisitorMessage(language, contact.email || visitorIdentity.email),
     };
   }
 
@@ -922,11 +957,22 @@ async function buildLiveLeadContext(supabase, options = {}) {
     agentId: options.agent.id,
     ownerUserId: options.agent.ownerUserId,
   });
+  const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
   const extractedContact = extractContactInfo(options.userMessage);
+  const mergedContact = {
+    name: extractedContact.name || visitorIdentity.name || "",
+    email: extractedContact.email || visitorIdentity.email || "",
+    phone: extractedContact.phone || "",
+    phoneNormalized: extractedContact.phoneNormalized || "",
+    preferredChannel: normalizePreferredChannel(
+      extractedContact.preferredChannel
+      || (visitorIdentity.mode === "identified" ? "email" : "")
+    ),
+  };
   const existing = pickExistingLead(listed.records, {
-    email: extractedContact.email,
-    phone: extractedContact.phone,
-    phoneNormalized: extractedContact.phoneNormalized,
+    email: mergedContact.email,
+    phone: mergedContact.phone,
+    phoneNormalized: mergedContact.phoneNormalized,
     personKey: sessionContext.personKey,
     sessionKey: options.sessionKey,
   });
@@ -935,7 +981,8 @@ async function buildLiveLeadContext(supabase, options = {}) {
     messages,
     actionQueue,
     sessionContext,
-    extractedContact,
+    extractedContact: mergedContact,
+    visitorIdentity,
     existing,
     leadPersistenceAvailable: listed.persistenceAvailable,
     leadRecords: listed.records,
@@ -953,6 +1000,7 @@ export async function processLiveChatLeadCapture(supabase, options = {}) {
     agent,
     sessionKey,
     userMessage: options.userMessage,
+    visitorIdentity: options.visitorIdentity,
   });
   const decision = buildDecisionFromContext({
     existing: context.existing,
@@ -960,6 +1008,7 @@ export async function processLiveChatLeadCapture(supabase, options = {}) {
     language,
     businessName: widgetConfig.assistantName || agent.name || business.name,
     contact: context.extractedContact,
+    visitorIdentity: context.visitorIdentity,
     ownerScopeMissing,
   });
 
@@ -996,6 +1045,7 @@ export async function processLiveChatLeadCapture(supabase, options = {}) {
       capturePrompt: decision.prompt?.body || leadRecord?.capturePrompt || "",
       captureMetadata: {
         isReturningVisitor: context.sessionContext.isReturningVisitor === true,
+        visitorIdentityMode: context.visitorIdentity.mode || "",
       },
       blockedAt: decision.nextState === "blocked" ? new Date().toISOString() : leadRecord?.blockedAt || null,
       capturedAt: decision.nextState === "captured"
@@ -1067,6 +1117,7 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     agent,
     sessionKey,
     userMessage: options.userMessage || "",
+    visitorIdentity: options.visitorIdentity,
   });
   const formContact = {
     name: cleanText(options.name),
@@ -1080,7 +1131,10 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     email: formContact.email || context.extractedContact.email || "",
     phone: formContact.phone || context.extractedContact.phone || "",
     phoneNormalized: formContact.phoneNormalized || context.extractedContact.phoneNormalized || "",
-    preferredChannel: formContact.preferredChannel || getPreferredChannel(formContact),
+    preferredChannel: formContact.preferredChannel || getPreferredChannel({
+      email: formContact.email || context.extractedContact.email,
+      phone: formContact.phone || context.extractedContact.phone,
+    }),
   };
   const existing = context.existing ? normalizeLeadRecord(context.existing) : null;
   let nextState = existing?.captureState || "none";
@@ -1117,6 +1171,7 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     language,
     businessName: widgetConfig.assistantName || agent.name || business.name,
     contact: mergedContact,
+    visitorIdentity: context.visitorIdentity,
   });
   const payload = mergeLeadPayload(existing, {
     agentId: cleanText(agent.id),
@@ -1153,6 +1208,7 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     capturePrompt: cleanText(decision.prompt?.body || existing?.capturePrompt),
     captureMetadata: {
       isReturningVisitor: context.sessionContext.isReturningVisitor === true,
+      visitorIdentityMode: context.visitorIdentity.mode || "",
     },
     lastSeenAt: new Date().toISOString(),
   });

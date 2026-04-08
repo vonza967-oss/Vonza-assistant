@@ -344,6 +344,36 @@ test("low-intent chat does not trigger live contact capture", async () => {
   assert.equal(result.shouldPrompt, false);
 });
 
+test("identified visitor email is captured even before high-intent lead prompts", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "What services do you offer?" },
+      { role: "assistant", content: "We handle design, install, and maintenance." },
+    ], "session-identified"),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-identified",
+    userMessage: "What services do you offer?",
+    language: "English",
+    visitorIdentity: {
+      mode: "identified",
+      email: "visitor@example.com",
+      name: "Jordan Lane",
+    },
+  });
+
+  assert.equal(result.state, "captured");
+  assert.match(result.message, /visitor@example\.com/i);
+  assert.equal(supabase.state.agent_contact_leads.length, 1);
+  assert.equal(supabase.state.agent_contact_leads[0].contact_email, "visitor@example.com");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_name, "Jordan Lane");
+  assert.equal(supabase.state.agent_contact_leads[0].capture_trigger, "visitor_identity");
+});
+
 test("declined capture is respected and not re-prompted immediately", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([

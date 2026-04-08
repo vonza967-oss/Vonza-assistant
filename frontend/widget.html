@@ -44,17 +44,46 @@
 
       <section id="chat" class="chat-feed">
         <section class="welcome-panel" id="welcome-panel">
-          <div class="welcome-badge">Website front desk</div>
-          <h2 class="welcome-title">Answer questions, route the next step, and keep the owner in the loop.</h2>
-          <p class="welcome-copy">Vonza answers from your website, routes high-intent visitors toward booking, quote, contact, or checkout, captures clean follow-up details when needed, and feeds the operator workspace so the next owner action is visible.</p>
-          <div class="starter-prompts" id="starter-prompts">
-            <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">What services do you offer?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">How much does it cost?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="How can I contact you?">How can I contact you?</button>
-            <button class="starter-chip" type="button" data-starter-prompt="Tell me about your business">Tell me about your business</button>
-          </div>
+          <section id="identity-choice-panel" class="identity-choice-panel">
+            <div class="welcome-badge">Website front desk</div>
+            <h2 class="welcome-title">How would you like to continue?</h2>
+            <p class="welcome-copy">Using your email helps the business follow up and personalize support. You can still keep it quick and continue as a guest.</p>
+            <div class="identity-choice-actions">
+              <button id="identity-guest-button" class="ghost-button identity-choice-button" type="button">Continue as guest</button>
+              <button id="identity-email-button" class="identity-choice-button" type="button">Continue with email</button>
+            </div>
+            <form id="identity-email-form" class="identity-email-form" hidden>
+              <div class="identity-email-grid">
+                <div class="identity-email-field">
+                  <label for="identity-name">Name</label>
+                  <input id="identity-name" name="name" type="text" placeholder="Your name (optional)" autocomplete="name">
+                </div>
+                <div class="identity-email-field">
+                  <label for="identity-email">Email</label>
+                  <input id="identity-email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required>
+                </div>
+              </div>
+              <div class="identity-email-actions">
+                <button type="submit">Continue to chat</button>
+                <button id="identity-email-cancel" class="ghost-button" type="button">Back</button>
+              </div>
+            </form>
+          </section>
+
+          <section id="welcome-content" hidden>
+            <div class="welcome-badge">Website front desk</div>
+            <div id="identity-summary" class="identity-summary" hidden></div>
+            <h2 class="welcome-title">Answer questions, route the next step, and keep the owner in the loop.</h2>
+            <p class="welcome-copy">Vonza answers from your website, routes high-intent visitors toward booking, quote, contact, or checkout, captures clean follow-up details when needed, and feeds the operator workspace so the next owner action is visible.</p>
+            <div class="starter-prompts" id="starter-prompts">
+              <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">What services do you offer?</button>
+              <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">How much does it cost?</button>
+              <button class="starter-chip" type="button" data-starter-prompt="How can I contact you?">How can I contact you?</button>
+              <button class="starter-chip" type="button" data-starter-prompt="Tell me about your business">Tell me about your business</button>
+            </div>
+          </section>
         </section>
-        <div class="message bot intro">
+        <div class="message bot intro" id="intro-message" hidden>
           <div class="avatar" id="intro-avatar">V</div>
           <div class="bubble">
             <p class="message-label">Assistant</p>
