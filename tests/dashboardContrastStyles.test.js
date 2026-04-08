@@ -36,7 +36,28 @@ test("dashboard light-shell overview keeps metadata and borders readable", () =>
   const css = readDashboardCss();
 
   assert.match(css, /\.today-queue-row-meta,\s*\.today-support-meta\s*\{\s*color:\s*#66768f;/);
-  assert.match(css, /\.workspace-page-overview \.support-panel-kicker,\s*\.workspace-page-overview \.today-review-detail-label,\s*\.workspace-page-overview \.today-next-chip-label\s*\{\s*color:\s*#60708b;/);
+  assert.match(css, /\.workspace-page-overview \.support-panel-kicker,\s*\.workspace-page-overview \.today-review-detail-label,\s*\.workspace-page-overview \.today-next-chip-label\s*\{\s*color:\s*#5f7190;/);
   assert.match(css, /\.workspace-page-overview \.today-queue-list\s*\{\s*gap:\s*0;\s*border:\s*1px solid #d7deea;/);
   assert.match(css, /\.workspace-page-overview \.today-side-column\s*\{[^}]*border-left:\s*1px solid #d7deea;/);
+});
+
+test("dashboard contact detail and row states stay crisp instead of washed out", () => {
+  const css = readDashboardCss();
+
+  assert.match(css, /\.contact-row\.active\s*\{[^}]*background:\s*rgba\(20,\s*184,\s*166,\s*0\.08\);[^}]*box-shadow:\s*inset 3px 0 0 rgba\(20,\s*184,\s*166,\s*0\.72\)/i);
+  assert.match(css, /\.contact-detail-panel\s*\{[^}]*border:\s*1px solid var\(--surface-border\);[^}]*background:\s*linear-gradient/i);
+  assert.match(css, /\.detail-panel-section\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.042\)/i);
+});
+
+test("dashboard chips and light-shell support panels use explicit readable surfaces", () => {
+  const css = readDashboardCss();
+  const contactFilterButton = getCssBlock(css, ".contact-filter-button");
+  const contactFilterButtonActive = getCssBlock(css, ".contact-filter-button.active");
+  const lightSupportPanel = getCssBlock(css, ".workspace-page-overview .support-panel");
+
+  assert.match(contactFilterButton, /border:\s*1px solid var\(--surface-border\)/i);
+  assert.match(contactFilterButton, /color:\s*var\(--muted-strong\)/i);
+  assert.match(contactFilterButtonActive, /color:\s*white/i);
+  assert.match(lightSupportPanel, /border:\s*1px solid #dbe4ef/i);
+  assert.match(lightSupportPanel, /background:\s*#ffffff/i);
 });
