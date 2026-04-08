@@ -244,6 +244,17 @@ export function createAgentRouter(deps = {}) {
   const findTodayCopilotProposalImpl =
     deps.findTodayCopilotProposal || findTodayCopilotProposal;
   const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
+  const readBodyField = (body, snakeCaseKey, camelCaseKey) => {
+    if (Object.prototype.hasOwnProperty.call(body, snakeCaseKey)) {
+      return body[snakeCaseKey];
+    }
+
+    if (camelCaseKey && Object.prototype.hasOwnProperty.call(body, camelCaseKey)) {
+      return body[camelCaseKey];
+    }
+
+    return undefined;
+  };
 
   function getCheckoutDraftBusinessName(user) {
     const ownerUserId = String(user?.id || "").trim();
@@ -775,31 +786,43 @@ export function createAgentRouter(deps = {}) {
       });
       const result = await updateAgentSettingsImpl(supabase, {
         agentId: req.body.agent_id || req.body.agentId,
-        name: req.body.name,
-        assistantName: req.body.assistant_name || req.body.assistantName,
-        tone: req.body.tone,
-        systemPrompt: req.body.system_prompt || req.body.systemPrompt,
-        welcomeMessage: req.body.welcome_message || req.body.welcomeMessage,
-        buttonLabel: req.body.button_label || req.body.buttonLabel,
-        websiteUrl: req.body.website_url || req.body.websiteUrl,
-        primaryColor: req.body.primary_color || req.body.primaryColor,
-        secondaryColor: req.body.secondary_color || req.body.secondaryColor,
-        allowedDomains: req.body.allowed_domains || req.body.allowedDomains,
-        bookingUrl: req.body.booking_url || req.body.bookingUrl,
-        quoteUrl: req.body.quote_url || req.body.quoteUrl,
-        checkoutUrl: req.body.checkout_url || req.body.checkoutUrl,
-        bookingStartUrl: req.body.booking_start_url || req.body.bookingStartUrl,
-        quoteStartUrl: req.body.quote_start_url || req.body.quoteStartUrl,
-        bookingSuccessUrl: req.body.booking_success_url || req.body.bookingSuccessUrl,
-        quoteSuccessUrl: req.body.quote_success_url || req.body.quoteSuccessUrl,
-        checkoutSuccessUrl: req.body.checkout_success_url || req.body.checkoutSuccessUrl,
-        successUrlMatchMode: req.body.success_url_match_mode || req.body.successUrlMatchMode,
+        name: readBodyField(req.body, "name"),
+        assistantName: readBodyField(req.body, "assistant_name", "assistantName"),
+        tone: readBodyField(req.body, "tone"),
+        systemPrompt: readBodyField(req.body, "system_prompt", "systemPrompt"),
+        welcomeMessage: readBodyField(req.body, "welcome_message", "welcomeMessage"),
+        buttonLabel: readBodyField(req.body, "button_label", "buttonLabel"),
+        websiteUrl: readBodyField(req.body, "website_url", "websiteUrl"),
+        primaryColor: readBodyField(req.body, "primary_color", "primaryColor"),
+        secondaryColor: readBodyField(req.body, "secondary_color", "secondaryColor"),
+        allowedDomains: readBodyField(req.body, "allowed_domains", "allowedDomains"),
+        bookingUrl: readBodyField(req.body, "booking_url", "bookingUrl"),
+        quoteUrl: readBodyField(req.body, "quote_url", "quoteUrl"),
+        checkoutUrl: readBodyField(req.body, "checkout_url", "checkoutUrl"),
+        bookingStartUrl: readBodyField(req.body, "booking_start_url", "bookingStartUrl"),
+        quoteStartUrl: readBodyField(req.body, "quote_start_url", "quoteStartUrl"),
+        bookingSuccessUrl: readBodyField(req.body, "booking_success_url", "bookingSuccessUrl"),
+        quoteSuccessUrl: readBodyField(req.body, "quote_success_url", "quoteSuccessUrl"),
+        checkoutSuccessUrl: readBodyField(
+          req.body,
+          "checkout_success_url",
+          "checkoutSuccessUrl"
+        ),
+        successUrlMatchMode: readBodyField(
+          req.body,
+          "success_url_match_mode",
+          "successUrlMatchMode"
+        ),
         manualOutcomeMode: req.body.manual_outcome_mode ?? req.body.manualOutcomeMode,
-        contactEmail: req.body.contact_email || req.body.contactEmail,
-        contactPhone: req.body.contact_phone || req.body.contactPhone,
-        primaryCtaMode: req.body.primary_cta_mode || req.body.primaryCtaMode,
-        fallbackCtaMode: req.body.fallback_cta_mode || req.body.fallbackCtaMode,
-        businessHoursNote: req.body.business_hours_note || req.body.businessHoursNote,
+        contactEmail: readBodyField(req.body, "contact_email", "contactEmail"),
+        contactPhone: readBodyField(req.body, "contact_phone", "contactPhone"),
+        primaryCtaMode: readBodyField(req.body, "primary_cta_mode", "primaryCtaMode"),
+        fallbackCtaMode: readBodyField(req.body, "fallback_cta_mode", "fallbackCtaMode"),
+        businessHoursNote: readBodyField(
+          req.body,
+          "business_hours_note",
+          "businessHoursNote"
+        ),
       });
 
       res.json({ ok: true, agent: result });

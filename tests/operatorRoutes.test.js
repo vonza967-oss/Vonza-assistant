@@ -277,6 +277,47 @@ test("business profile routes stay owner-scoped and return hydrated context", as
   }
 });
 
+test("agents update route preserves explicit blanks and omits untouched fields", async () => {
+  let capturedPayload = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    updateAgentSettings: async (_supabase, payload) => {
+      capturedPayload = payload;
+      return {
+        id: payload.agentId,
+        assistantName: "Vonza",
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/update", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        welcome_message: "",
+        button_label: "",
+        website_url: "",
+        primary_color: "",
+        secondary_color: "",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(capturedPayload.welcomeMessage, "");
+    assert.equal(capturedPayload.buttonLabel, "");
+    assert.equal(capturedPayload.websiteUrl, "");
+    assert.equal(capturedPayload.primaryColor, "");
+    assert.equal(capturedPayload.secondaryColor, "");
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(capturedPayload, "tone"),
+      true
+    );
+    assert.equal(capturedPayload.tone, undefined);
+  } finally {
+    await server.close();
+  }
+});
+
 test("copilot proposal apply route executes the selected proposal without autonomous sends", async () => {
   const server = await startServer(createApp(buildRouteDeps({
     getOperatorWorkspaceSnapshot: async () => ({

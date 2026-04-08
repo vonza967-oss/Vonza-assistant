@@ -10,6 +10,7 @@ import {
   isOriginAllowed,
   listInstallStatusByAgentIds,
   logWidgetInitFailure,
+  normalizeAllowedDomains,
 } from "../install/installPresenceService.js";
 import {
   DEFAULT_AGENT_NAME,
@@ -254,7 +255,7 @@ async function updateBusinessWebsiteUrl(supabase, businessId, websiteUrl) {
   const { error } = await supabase
     .from("businesses")
     .update({
-      website_url: websiteUrl,
+      website_url: cleanText(websiteUrl) || null,
     })
     .eq("id", businessId);
 
@@ -363,6 +364,51 @@ function mapWidgetConfigRow(row) {
   };
 }
 
+function mapPersistedWidgetConfigRow(row) {
+  const outcomeSettings = normalizeOutcomeSettings(row || {});
+
+  return {
+    assistantName: cleanText(row?.assistant_name),
+    welcomeMessage: cleanText(row?.welcome_message),
+    buttonLabel: cleanText(row?.button_label),
+    primaryColor: cleanText(row?.primary_color),
+    secondaryColor: cleanText(row?.secondary_color),
+    launcherText: cleanText(row?.launcher_text),
+    themeMode: cleanText(row?.theme_mode),
+    bookingUrl: normalizeOptionalUrl(row?.booking_url) || "",
+    quoteUrl: normalizeOptionalUrl(row?.quote_url) || "",
+    checkoutUrl: normalizeOptionalUrl(row?.checkout_url) || "",
+    bookingStartUrl: outcomeSettings.bookingStartUrl,
+    quoteStartUrl: outcomeSettings.quoteStartUrl,
+    bookingSuccessUrl: outcomeSettings.bookingSuccessUrl,
+    quoteSuccessUrl: outcomeSettings.quoteSuccessUrl,
+    checkoutSuccessUrl: outcomeSettings.checkoutSuccessUrl,
+    successUrlMatchMode: normalizeSuccessUrlMatchMode(
+      row?.success_url_match_mode,
+      DEFAULT_WIDGET_CONFIG.successUrlMatchMode
+    ),
+    manualOutcomeMode: normalizeManualOutcomeMode(
+      row?.manual_outcome_mode,
+      DEFAULT_WIDGET_CONFIG.manualOutcomeMode
+    ),
+    contactEmail: normalizeOptionalEmail(row?.contact_email) || "",
+    contactPhone: normalizeOptionalPhone(row?.contact_phone) || "",
+    primaryCtaMode: normalizeCtaMode(
+      row?.primary_cta_mode,
+      DEFAULT_WIDGET_CONFIG.primaryCtaMode
+    ),
+    fallbackCtaMode: normalizeCtaMode(
+      row?.fallback_cta_mode,
+      DEFAULT_WIDGET_CONFIG.fallbackCtaMode
+    ),
+    businessHoursNote: cleanText(row?.business_hours_note) || "",
+    installId: cleanText(row?.install_id),
+    allowedDomainsRaw: normalizeAllowedDomains(row?.allowed_domains, {
+      allowEmpty: true,
+    }),
+  };
+}
+
 function buildKnowledgeSummary(row) {
   const content = cleanText(row?.content || "");
   const contentLength = content.length;
@@ -414,7 +460,7 @@ function buildDefaultInstallStatus(widgetConfig = null, websiteUrl = "") {
   };
 }
 
-export async function getWidgetConfigForAgent(supabase, agentId) {
+async function getWidgetConfigRowForAgent(supabase, agentId) {
   let { data, error } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
     .select(WIDGET_CONFIG_SELECT)
@@ -431,35 +477,44 @@ export async function getWidgetConfigForAgent(supabase, agentId) {
 
   if (error) {
     if (isMissingRelationError(error, WIDGET_CONFIGS_TABLE)) {
-      return mapWidgetConfigRow(null);
+      return null;
     }
     console.error(error);
     throw error;
   }
 
-  return mapWidgetConfigRow(data || null);
+  return data || null;
+}
+
+export async function getWidgetConfigForAgent(supabase, agentId) {
+  const row = await getWidgetConfigRowForAgent(supabase, agentId);
+  return mapWidgetConfigRow(row || null);
 }
 
 export async function ensureWidgetConfigForAgent(supabase, agentId) {
-  const existingConfig = await getWidgetConfigForAgent(supabase, agentId);
+  const existingRow = await getWidgetConfigRowForAgent(supabase, agentId);
+
+  if (existingRow) {
+    return mapWidgetConfigRow(existingRow);
+  }
 
   let { data, error } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
-    .upsert(buildWidgetConfigUpsertPayload(agentId, existingConfig), { onConflict: "agent_id" })
+    .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG), { onConflict: "agent_id" })
     .select(WIDGET_CONFIG_SELECT)
     .single();
 
   if (error && isMissingWidgetRoutingColumnError(error)) {
     ({ data, error } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
-      .upsert(buildWidgetConfigUpsertPayload(agentId, existingConfig, { includeRoutingFields: false }), { onConflict: "agent_id" })
+      .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, { includeRoutingFields: false }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
   }
 
   if (error) {
     if (isMissingRelationError(error, WIDGET_CONFIGS_TABLE)) {
-      return existingConfig;
+      return mapWidgetConfigRow(null);
     }
 
     console.error(error);
@@ -1196,7 +1251,9 @@ export async function getAgentWorkspaceSnapshot(supabase, agentId) {
 
 export async function updateAgentSettings(
   supabase,
-  {
+  options = {}
+) {
+  const {
     agentId,
     name,
     assistantName,
@@ -1223,10 +1280,10 @@ export async function updateAgentSettings(
     primaryCtaMode,
     fallbackCtaMode,
     businessHoursNote,
-  }
-) {
+  } = options;
+  const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
   const normalizedAgentId = cleanText(agentId);
-  const providedWebsiteUrl = cleanText(websiteUrl);
+  const providedWebsiteUrl = hasField("websiteUrl") ? cleanText(websiteUrl) : "";
   const normalizedWebsiteUrl = providedWebsiteUrl
     ? normalizeWebsiteUrl(providedWebsiteUrl, {
         requireHttps: true,
@@ -1240,67 +1297,75 @@ export async function updateAgentSettings(
     throw error;
   }
 
-  if (providedWebsiteUrl && !normalizedWebsiteUrl) {
+  if (hasField("websiteUrl") && providedWebsiteUrl && !normalizedWebsiteUrl) {
     throw buildInvalidWebsiteUrlError();
   }
 
-  const providedBookingUrl = cleanText(bookingUrl);
+  const providedBookingUrl = hasField("bookingUrl") ? cleanText(bookingUrl) : "";
   const normalizedBookingUrl = normalizeOptionalUrl(providedBookingUrl);
-  if (providedBookingUrl && !normalizedBookingUrl) {
+  if (hasField("bookingUrl") && providedBookingUrl && !normalizedBookingUrl) {
     throw buildInvalidDirectUrlError("the booking route");
   }
 
-  const providedQuoteUrl = cleanText(quoteUrl);
+  const providedQuoteUrl = hasField("quoteUrl") ? cleanText(quoteUrl) : "";
   const normalizedQuoteUrl = normalizeOptionalUrl(providedQuoteUrl);
-  if (providedQuoteUrl && !normalizedQuoteUrl) {
+  if (hasField("quoteUrl") && providedQuoteUrl && !normalizedQuoteUrl) {
     throw buildInvalidDirectUrlError("the quote route");
   }
 
-  const providedCheckoutUrl = cleanText(checkoutUrl);
+  const providedCheckoutUrl = hasField("checkoutUrl") ? cleanText(checkoutUrl) : "";
   const normalizedCheckoutUrl = normalizeOptionalUrl(providedCheckoutUrl);
-  if (providedCheckoutUrl && !normalizedCheckoutUrl) {
+  if (hasField("checkoutUrl") && providedCheckoutUrl && !normalizedCheckoutUrl) {
     throw buildInvalidDirectUrlError("the checkout route");
   }
 
-  const providedBookingStartUrl = cleanText(bookingStartUrl);
+  const providedBookingStartUrl = hasField("bookingStartUrl")
+    ? cleanText(bookingStartUrl)
+    : "";
   const normalizedBookingStartUrl = normalizeOptionalUrl(providedBookingStartUrl);
-  if (providedBookingStartUrl && !normalizedBookingStartUrl) {
+  if (hasField("bookingStartUrl") && providedBookingStartUrl && !normalizedBookingStartUrl) {
     throw buildInvalidDirectUrlError("the booking start URL");
   }
 
-  const providedQuoteStartUrl = cleanText(quoteStartUrl);
+  const providedQuoteStartUrl = hasField("quoteStartUrl") ? cleanText(quoteStartUrl) : "";
   const normalizedQuoteStartUrl = normalizeOptionalUrl(providedQuoteStartUrl);
-  if (providedQuoteStartUrl && !normalizedQuoteStartUrl) {
+  if (hasField("quoteStartUrl") && providedQuoteStartUrl && !normalizedQuoteStartUrl) {
     throw buildInvalidDirectUrlError("the quote start URL");
   }
 
-  const providedBookingSuccessUrl = cleanText(bookingSuccessUrl);
+  const providedBookingSuccessUrl = hasField("bookingSuccessUrl")
+    ? cleanText(bookingSuccessUrl)
+    : "";
   const normalizedBookingSuccessUrl = normalizeOptionalUrl(providedBookingSuccessUrl);
-  if (providedBookingSuccessUrl && !normalizedBookingSuccessUrl) {
+  if (hasField("bookingSuccessUrl") && providedBookingSuccessUrl && !normalizedBookingSuccessUrl) {
     throw buildInvalidDirectUrlError("the booking success URL");
   }
 
-  const providedQuoteSuccessUrl = cleanText(quoteSuccessUrl);
+  const providedQuoteSuccessUrl = hasField("quoteSuccessUrl")
+    ? cleanText(quoteSuccessUrl)
+    : "";
   const normalizedQuoteSuccessUrl = normalizeOptionalUrl(providedQuoteSuccessUrl);
-  if (providedQuoteSuccessUrl && !normalizedQuoteSuccessUrl) {
+  if (hasField("quoteSuccessUrl") && providedQuoteSuccessUrl && !normalizedQuoteSuccessUrl) {
     throw buildInvalidDirectUrlError("the quote success URL");
   }
 
-  const providedCheckoutSuccessUrl = cleanText(checkoutSuccessUrl);
+  const providedCheckoutSuccessUrl = hasField("checkoutSuccessUrl")
+    ? cleanText(checkoutSuccessUrl)
+    : "";
   const normalizedCheckoutSuccessUrl = normalizeOptionalUrl(providedCheckoutSuccessUrl);
-  if (providedCheckoutSuccessUrl && !normalizedCheckoutSuccessUrl) {
+  if (hasField("checkoutSuccessUrl") && providedCheckoutSuccessUrl && !normalizedCheckoutSuccessUrl) {
     throw buildInvalidDirectUrlError("the checkout success URL");
   }
 
-  const providedContactEmail = cleanText(contactEmail);
+  const providedContactEmail = hasField("contactEmail") ? cleanText(contactEmail) : "";
   const normalizedContactEmail = normalizeOptionalEmail(providedContactEmail);
-  if (providedContactEmail && !normalizedContactEmail) {
+  if (hasField("contactEmail") && providedContactEmail && !normalizedContactEmail) {
     throw buildInvalidEmailError();
   }
 
-  const providedContactPhone = cleanText(contactPhone);
+  const providedContactPhone = hasField("contactPhone") ? cleanText(contactPhone) : "";
   const normalizedContactPhone = normalizeOptionalPhone(providedContactPhone);
-  if (providedContactPhone && !normalizedContactPhone) {
+  if (hasField("contactPhone") && providedContactPhone && !normalizedContactPhone) {
     throw buildInvalidPhoneError();
   }
 
@@ -1313,13 +1378,107 @@ export async function updateAgentSettings(
   }
 
   const nextAssistantName = cleanText(assistantName) || cleanText(name) || agent.name || DEFAULT_AGENT_NAME;
-  const nextTone = cleanText(tone) || agent.tone || DEFAULT_TONE;
-  const nextSystemPrompt = cleanText(systemPrompt) || "";
+  const nextTone = hasField("tone")
+    ? cleanText(tone) || agent.tone || DEFAULT_TONE
+    : agent.tone || DEFAULT_TONE;
+  const nextSystemPrompt = hasField("systemPrompt")
+    ? cleanText(systemPrompt)
+    : agent.systemPrompt || "";
   const currentWidgetConfig = await ensureWidgetConfigForAgent(supabase, normalizedAgentId);
-  const normalizedManualOutcomeMode = normalizeManualOutcomeMode(
-    manualOutcomeMode,
-    currentWidgetConfig?.manualOutcomeMode || DEFAULT_WIDGET_CONFIG.manualOutcomeMode
-  );
+  const currentWidgetConfigRow = await getWidgetConfigRowForAgent(supabase, normalizedAgentId);
+  const persistedWidgetConfig = currentWidgetConfigRow
+    ? mapPersistedWidgetConfigRow(currentWidgetConfigRow)
+    : {
+        assistantName: cleanText(currentWidgetConfig.assistantName),
+        welcomeMessage: cleanText(currentWidgetConfig.welcomeMessage),
+        buttonLabel: cleanText(currentWidgetConfig.buttonLabel),
+        primaryColor: cleanText(currentWidgetConfig.primaryColor),
+        secondaryColor: cleanText(currentWidgetConfig.secondaryColor),
+        launcherText: cleanText(currentWidgetConfig.launcherText),
+        themeMode: cleanText(currentWidgetConfig.themeMode),
+        bookingUrl: currentWidgetConfig.bookingUrl || "",
+        quoteUrl: currentWidgetConfig.quoteUrl || "",
+        checkoutUrl: currentWidgetConfig.checkoutUrl || "",
+        bookingStartUrl: currentWidgetConfig.bookingStartUrl || "",
+        quoteStartUrl: currentWidgetConfig.quoteStartUrl || "",
+        bookingSuccessUrl: currentWidgetConfig.bookingSuccessUrl || "",
+        quoteSuccessUrl: currentWidgetConfig.quoteSuccessUrl || "",
+        checkoutSuccessUrl: currentWidgetConfig.checkoutSuccessUrl || "",
+        successUrlMatchMode: currentWidgetConfig.successUrlMatchMode,
+        manualOutcomeMode: currentWidgetConfig.manualOutcomeMode,
+        contactEmail: currentWidgetConfig.contactEmail || "",
+        contactPhone: currentWidgetConfig.contactPhone || "",
+        primaryCtaMode: currentWidgetConfig.primaryCtaMode,
+        fallbackCtaMode: currentWidgetConfig.fallbackCtaMode,
+        businessHoursNote: currentWidgetConfig.businessHoursNote || "",
+        installId: currentWidgetConfig.installId || "",
+        allowedDomainsRaw: normalizeAllowedDomains(currentWidgetConfig.allowedDomains, {
+          allowEmpty: true,
+        }),
+      };
+  const nextWelcomeMessage = hasField("welcomeMessage")
+    ? cleanText(welcomeMessage)
+    : persistedWidgetConfig.welcomeMessage;
+  const nextButtonLabel = hasField("buttonLabel")
+    ? cleanText(buttonLabel)
+    : persistedWidgetConfig.buttonLabel;
+  const nextPrimaryColor = hasField("primaryColor")
+    ? cleanText(primaryColor)
+    : persistedWidgetConfig.primaryColor;
+  const nextSecondaryColor = hasField("secondaryColor")
+    ? cleanText(secondaryColor)
+    : persistedWidgetConfig.secondaryColor;
+  const nextBookingUrl = hasField("bookingUrl")
+    ? normalizedBookingUrl || ""
+    : persistedWidgetConfig.bookingUrl;
+  const nextQuoteUrl = hasField("quoteUrl")
+    ? normalizedQuoteUrl || ""
+    : persistedWidgetConfig.quoteUrl;
+  const nextCheckoutUrl = hasField("checkoutUrl")
+    ? normalizedCheckoutUrl || ""
+    : persistedWidgetConfig.checkoutUrl;
+  const nextBookingStartUrl = hasField("bookingStartUrl")
+    ? normalizedBookingStartUrl || ""
+    : persistedWidgetConfig.bookingStartUrl;
+  const nextQuoteStartUrl = hasField("quoteStartUrl")
+    ? normalizedQuoteStartUrl || ""
+    : persistedWidgetConfig.quoteStartUrl;
+  const nextBookingSuccessUrl = hasField("bookingSuccessUrl")
+    ? normalizedBookingSuccessUrl || ""
+    : persistedWidgetConfig.bookingSuccessUrl;
+  const nextQuoteSuccessUrl = hasField("quoteSuccessUrl")
+    ? normalizedQuoteSuccessUrl || ""
+    : persistedWidgetConfig.quoteSuccessUrl;
+  const nextCheckoutSuccessUrl = hasField("checkoutSuccessUrl")
+    ? normalizedCheckoutSuccessUrl || ""
+    : persistedWidgetConfig.checkoutSuccessUrl;
+  const nextSuccessUrlMatchMode = hasField("successUrlMatchMode")
+    ? normalizeSuccessUrlMatchMode(
+        successUrlMatchMode,
+        persistedWidgetConfig.successUrlMatchMode
+      )
+    : persistedWidgetConfig.successUrlMatchMode;
+  const nextManualOutcomeMode = hasField("manualOutcomeMode")
+    ? normalizeManualOutcomeMode(
+        manualOutcomeMode,
+        persistedWidgetConfig.manualOutcomeMode
+      )
+    : persistedWidgetConfig.manualOutcomeMode;
+  const nextContactEmail = hasField("contactEmail")
+    ? normalizedContactEmail || ""
+    : persistedWidgetConfig.contactEmail;
+  const nextContactPhone = hasField("contactPhone")
+    ? normalizedContactPhone || ""
+    : persistedWidgetConfig.contactPhone;
+  const nextPrimaryCtaMode = hasField("primaryCtaMode")
+    ? normalizeCtaMode(primaryCtaMode, persistedWidgetConfig.primaryCtaMode)
+    : persistedWidgetConfig.primaryCtaMode;
+  const nextFallbackCtaMode = hasField("fallbackCtaMode")
+    ? normalizeCtaMode(fallbackCtaMode, persistedWidgetConfig.fallbackCtaMode)
+    : persistedWidgetConfig.fallbackCtaMode;
+  const nextBusinessHoursNote = hasField("businessHoursNote")
+    ? cleanText(businessHoursNote)
+    : persistedWidgetConfig.businessHoursNote;
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
     : null;
@@ -1349,79 +1508,89 @@ export async function updateAgentSettings(
   let resolvedWebsiteUrl = currentWebsiteUrl;
   let resolvedBusinessId = agent.businessId;
 
-  if (normalizedWebsiteUrl) {
-    try {
-      if (normalizedWebsiteUrl !== currentWebsiteUrl) {
-        const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
+  if (hasField("websiteUrl")) {
+    if (normalizedWebsiteUrl) {
+      try {
+        if (normalizedWebsiteUrl !== currentWebsiteUrl) {
+          const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
 
-        if (existingBusiness && existingBusiness.id !== agent.businessId) {
-          if (existingBusiness.website_url !== normalizedWebsiteUrl) {
-            await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+          if (existingBusiness && existingBusiness.id !== agent.businessId) {
+            if (existingBusiness.website_url !== normalizedWebsiteUrl) {
+              await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+            }
+            await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+            resolvedBusinessId = existingBusiness.id;
+          } else {
+            await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
           }
-          await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
-          resolvedBusinessId = existingBusiness.id;
-        } else {
+        } else if (currentBusiness?.website_url !== normalizedWebsiteUrl) {
           await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
         }
-      } else if (currentBusiness?.website_url !== normalizedWebsiteUrl) {
-        await updateBusinessWebsiteUrl(supabase, agent.businessId, normalizedWebsiteUrl);
-      }
-    } catch (businessError) {
-      if (businessError?.code === "23505") {
-        const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
+      } catch (businessError) {
+        if (businessError?.code === "23505") {
+          const existingBusiness = await findBusinessByWebsiteUrl(supabase, normalizedWebsiteUrl);
 
-        if (existingBusiness?.id) {
-          if (existingBusiness.website_url !== normalizedWebsiteUrl) {
-            await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+          if (existingBusiness?.id) {
+            if (existingBusiness.website_url !== normalizedWebsiteUrl) {
+              await updateBusinessWebsiteUrl(supabase, existingBusiness.id, normalizedWebsiteUrl);
+            }
+            await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
+            resolvedBusinessId = existingBusiness.id;
+          } else {
+            throw buildAgentSettingsError(
+              "That website is already connected elsewhere in Vonza. Try again in a moment.",
+              409,
+              businessError.code
+            );
           }
-          await reassignAgentBusiness(supabase, normalizedAgentId, existingBusiness.id);
-          resolvedBusinessId = existingBusiness.id;
         } else {
-          throw buildAgentSettingsError(
-            "That website is already connected elsewhere in Vonza. Try again in a moment.",
-            409,
-            businessError.code
-          );
+          throw businessError;
         }
-      } else {
-        throw businessError;
       }
-    }
 
-    resolvedWebsiteUrl = normalizedWebsiteUrl;
+      resolvedWebsiteUrl = normalizedWebsiteUrl;
+    } else {
+      if (currentBusiness?.website_url) {
+        await updateBusinessWebsiteUrl(supabase, agent.businessId, "");
+      }
+      resolvedWebsiteUrl = "";
+    }
   }
 
-  const resolvedAllowedDomains = deriveAllowedDomains(allowedDomains, resolvedWebsiteUrl);
+  const nextAllowedDomainsRaw = hasField("allowedDomains")
+    ? normalizeAllowedDomains(allowedDomains, { allowEmpty: true })
+    : persistedWidgetConfig.allowedDomainsRaw;
+  const resolvedAllowedDomains = deriveAllowedDomains(
+    nextAllowedDomainsRaw,
+    resolvedWebsiteUrl
+  );
 
   let { error: widgetError } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
     .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
       assistantName: nextAssistantName,
-      welcomeMessage: cleanText(welcomeMessage) || currentWidgetConfig.welcomeMessage,
-      buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
-      primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
-      secondaryColor: cleanText(secondaryColor) || currentWidgetConfig.secondaryColor,
+      welcomeMessage: nextWelcomeMessage,
+      buttonLabel: nextButtonLabel,
+      primaryColor: nextPrimaryColor,
+      secondaryColor: nextSecondaryColor,
       launcherText: currentWidgetConfig.launcherText,
       themeMode: currentWidgetConfig.themeMode,
-      bookingUrl: normalizedBookingUrl || "",
-      quoteUrl: normalizedQuoteUrl || "",
-      checkoutUrl: normalizedCheckoutUrl || "",
-      bookingStartUrl: normalizedBookingStartUrl || "",
-      quoteStartUrl: normalizedQuoteStartUrl || "",
-      bookingSuccessUrl: normalizedBookingSuccessUrl || "",
-      quoteSuccessUrl: normalizedQuoteSuccessUrl || "",
-      checkoutSuccessUrl: normalizedCheckoutSuccessUrl || "",
-      successUrlMatchMode: normalizeSuccessUrlMatchMode(
-        successUrlMatchMode,
-        currentWidgetConfig.successUrlMatchMode
-      ),
-      manualOutcomeMode: normalizedManualOutcomeMode,
-      contactEmail: normalizedContactEmail || "",
-      contactPhone: normalizedContactPhone || "",
-      primaryCtaMode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),
-      fallbackCtaMode: normalizeCtaMode(fallbackCtaMode, currentWidgetConfig.fallbackCtaMode),
-      businessHoursNote: cleanText(businessHoursNote) || "",
-      allowedDomains: resolvedAllowedDomains,
+      bookingUrl: nextBookingUrl,
+      quoteUrl: nextQuoteUrl,
+      checkoutUrl: nextCheckoutUrl,
+      bookingStartUrl: nextBookingStartUrl,
+      quoteStartUrl: nextQuoteStartUrl,
+      bookingSuccessUrl: nextBookingSuccessUrl,
+      quoteSuccessUrl: nextQuoteSuccessUrl,
+      checkoutSuccessUrl: nextCheckoutSuccessUrl,
+      successUrlMatchMode: nextSuccessUrlMatchMode,
+      manualOutcomeMode: nextManualOutcomeMode,
+      contactEmail: nextContactEmail,
+      contactPhone: nextContactPhone,
+      primaryCtaMode: nextPrimaryCtaMode,
+      fallbackCtaMode: nextFallbackCtaMode,
+      businessHoursNote: nextBusinessHoursNote,
+      allowedDomains: nextAllowedDomainsRaw,
     }), { onConflict: "agent_id" });
 
   if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
@@ -1429,13 +1598,13 @@ export async function updateAgentSettings(
       .from(WIDGET_CONFIGS_TABLE)
       .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
         assistantName: nextAssistantName,
-        welcomeMessage: cleanText(welcomeMessage) || currentWidgetConfig.welcomeMessage,
-        buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
-        primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
-        secondaryColor: cleanText(secondaryColor) || currentWidgetConfig.secondaryColor,
+        welcomeMessage: nextWelcomeMessage,
+        buttonLabel: nextButtonLabel,
+        primaryColor: nextPrimaryColor,
+        secondaryColor: nextSecondaryColor,
         launcherText: currentWidgetConfig.launcherText,
         themeMode: currentWidgetConfig.themeMode,
-        allowedDomains: resolvedAllowedDomains,
+        allowedDomains: nextAllowedDomainsRaw,
       }, { includeRoutingFields: false }), { onConflict: "agent_id" }));
   }
 
@@ -1462,31 +1631,28 @@ export async function updateAgentSettings(
     websiteSync: {
       previousUrl: currentWebsiteUrl,
       currentUrl: resolvedWebsiteUrl,
-      changed: Boolean(normalizedWebsiteUrl && normalizedWebsiteUrl !== currentWebsiteUrl),
+      changed: hasField("websiteUrl") && resolvedWebsiteUrl !== currentWebsiteUrl,
     },
-    welcomeMessage: cleanText(welcomeMessage) || currentWidgetConfig.welcomeMessage,
-    buttonLabel: cleanText(buttonLabel) || currentWidgetConfig.buttonLabel,
-    primaryColor: cleanText(primaryColor) || currentWidgetConfig.primaryColor,
-    secondaryColor: cleanText(secondaryColor) || currentWidgetConfig.secondaryColor,
-    bookingUrl: normalizedBookingUrl || "",
-    quoteUrl: normalizedQuoteUrl || "",
-    checkoutUrl: normalizedCheckoutUrl || "",
-    bookingStartUrl: normalizedBookingStartUrl || "",
-    quoteStartUrl: normalizedQuoteStartUrl || "",
-    bookingSuccessUrl: normalizedBookingSuccessUrl || "",
-    quoteSuccessUrl: normalizedQuoteSuccessUrl || "",
-    checkoutSuccessUrl: normalizedCheckoutSuccessUrl || "",
-    successUrlMatchMode: normalizeSuccessUrlMatchMode(
-      successUrlMatchMode,
-      currentWidgetConfig.successUrlMatchMode
-    ),
-    manualOutcomeMode: normalizedManualOutcomeMode,
-    contactEmail: normalizedContactEmail || "",
-    contactPhone: normalizedContactPhone || "",
-    primaryCtaMode: normalizeCtaMode(primaryCtaMode, currentWidgetConfig.primaryCtaMode),
-    fallbackCtaMode: normalizeCtaMode(fallbackCtaMode, currentWidgetConfig.fallbackCtaMode),
-    businessHoursNote: cleanText(businessHoursNote) || "",
-    installId: currentWidgetConfig.installId,
+    welcomeMessage: nextWelcomeMessage,
+    buttonLabel: nextButtonLabel,
+    primaryColor: nextPrimaryColor,
+    secondaryColor: nextSecondaryColor,
+    bookingUrl: nextBookingUrl,
+    quoteUrl: nextQuoteUrl,
+    checkoutUrl: nextCheckoutUrl,
+    bookingStartUrl: nextBookingStartUrl,
+    quoteStartUrl: nextQuoteStartUrl,
+    bookingSuccessUrl: nextBookingSuccessUrl,
+    quoteSuccessUrl: nextQuoteSuccessUrl,
+    checkoutSuccessUrl: nextCheckoutSuccessUrl,
+    successUrlMatchMode: nextSuccessUrlMatchMode,
+    manualOutcomeMode: nextManualOutcomeMode,
+    contactEmail: nextContactEmail,
+    contactPhone: nextContactPhone,
+    primaryCtaMode: nextPrimaryCtaMode,
+    fallbackCtaMode: nextFallbackCtaMode,
+    businessHoursNote: nextBusinessHoursNote,
+    installId: persistedWidgetConfig.installId || currentWidgetConfig.installId,
     allowedDomains: resolvedAllowedDomains,
   };
 }

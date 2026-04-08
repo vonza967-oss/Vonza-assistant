@@ -9812,42 +9812,42 @@ async function saveAssistant(event, agent) {
 
   const nextWebsiteUrl = trimText(formData.get("website_url"));
   const websiteChanged = Boolean(nextWebsiteUrl && nextWebsiteUrl !== trimText(agent.websiteUrl));
-
-  const getNextValue = (fieldName, fallbackValue = "") => {
-    if (formData.has(fieldName)) {
-      return formData.get(fieldName);
-    }
-
-    return fallbackValue;
-  };
   const payload = {
     client_id: getClientId(),
     agent_id: agent.id,
-    assistant_name: getNextValue("assistant_name", agent.assistantName || agent.name || ""),
-    tone: getNextValue("tone", agent.tone || ""),
-    system_prompt: getNextValue("system_prompt", agent.systemPrompt || ""),
-    welcome_message: getNextValue("welcome_message", agent.welcomeMessage || ""),
-    button_label: getNextValue("button_label", agent.buttonLabel || ""),
-    website_url: getNextValue("website_url", agent.websiteUrl || ""),
-    primary_color: getNextValue("primary_color", agent.primaryColor || ""),
-    secondary_color: getNextValue("secondary_color", agent.secondaryColor || ""),
-    allowed_domains: getNextValue("allowed_domains", (agent.allowedDomains || []).join("\n")),
-    booking_url: getNextValue("booking_url", agent.bookingUrl || ""),
-    quote_url: getNextValue("quote_url", agent.quoteUrl || ""),
-    checkout_url: getNextValue("checkout_url", agent.checkoutUrl || ""),
-    booking_start_url: getNextValue("booking_start_url", agent.bookingStartUrl || ""),
-    quote_start_url: getNextValue("quote_start_url", agent.quoteStartUrl || ""),
-    booking_success_url: getNextValue("booking_success_url", agent.bookingSuccessUrl || ""),
-    quote_success_url: getNextValue("quote_success_url", agent.quoteSuccessUrl || ""),
-    checkout_success_url: getNextValue("checkout_success_url", agent.checkoutSuccessUrl || ""),
-    success_url_match_mode: getNextValue("success_url_match_mode", agent.successUrlMatchMode || "path_prefix"),
-    manual_outcome_mode: getNextValue("manual_outcome_mode", agent.manualOutcomeMode === true ? "true" : "false"),
-    contact_email: getNextValue("contact_email", agent.contactEmail || ""),
-    contact_phone: getNextValue("contact_phone", agent.contactPhone || ""),
-    primary_cta_mode: getNextValue("primary_cta_mode", agent.primaryCtaMode || "contact"),
-    fallback_cta_mode: getNextValue("fallback_cta_mode", agent.fallbackCtaMode || "capture"),
-    business_hours_note: getNextValue("business_hours_note", agent.businessHoursNote || ""),
   };
+  const updateFieldNames = [
+    "assistant_name",
+    "tone",
+    "system_prompt",
+    "welcome_message",
+    "button_label",
+    "website_url",
+    "primary_color",
+    "secondary_color",
+    "allowed_domains",
+    "booking_url",
+    "quote_url",
+    "checkout_url",
+    "booking_start_url",
+    "quote_start_url",
+    "booking_success_url",
+    "quote_success_url",
+    "checkout_success_url",
+    "success_url_match_mode",
+    "manual_outcome_mode",
+    "contact_email",
+    "contact_phone",
+    "primary_cta_mode",
+    "fallback_cta_mode",
+    "business_hours_note",
+  ];
+
+  updateFieldNames.forEach((fieldName) => {
+    if (formData.has(fieldName)) {
+      payload[fieldName] = formData.get(fieldName);
+    }
+  });
 
   submitButton.disabled = true;
   if (saveState) {

@@ -258,6 +258,209 @@ test("updateAgentSettings persists a website-only change without disturbing othe
   assert.equal(state.businesses[0].website_url, "https://new-example.com/");
 });
 
+test("updateAgentSettings persists clearing the welcome message", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "help",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    welcomeMessage: "",
+  });
+
+  assert.equal(result.welcomeMessage, "");
+  assert.equal(state.widget_configs[0].welcome_message, "");
+  assert.equal(state.widget_configs[0].button_label, "Chat now");
+});
+
+test("updateAgentSettings persists clearing the launcher text", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "help",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    buttonLabel: "",
+  });
+
+  assert.equal(result.buttonLabel, "");
+  assert.equal(state.widget_configs[0].button_label, "");
+  assert.equal(state.widget_configs[0].welcome_message, "Hello there");
+});
+
+test("updateAgentSettings persists clearing brand colors", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "help",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    primaryColor: "",
+    secondaryColor: "",
+  });
+
+  assert.equal(result.primaryColor, "");
+  assert.equal(result.secondaryColor, "");
+  assert.equal(state.widget_configs[0].primary_color, "");
+  assert.equal(state.widget_configs[0].secondary_color, "");
+});
+
+test("updateAgentSettings persists clearing the website", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "help",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+        allowed_domains: [],
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    websiteUrl: "",
+  });
+
+  assert.equal(result.websiteUrl, "");
+  assert.equal(state.businesses[0].website_url, null);
+  assert.deepEqual(state.widget_configs[0].allowed_domains, []);
+});
+
 test("updateAgentSettings keeps a stable install id while refreshing allowed domains", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [
@@ -308,6 +511,65 @@ test("updateAgentSettings keeps a stable install id while refreshing allowed dom
   assert.equal(result.installId, "11111111-1111-1111-1111-111111111111");
   assert.deepEqual(result.allowedDomains, ["example.com", "shop.example.com"]);
   assert.deepEqual(state.widget_configs[0].allowed_domains, ["example.com", "shop.example.com"]);
+});
+
+test("updateAgentSettings preserves omitted fields during partial updates", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "help",
+        system_prompt: "old guidance",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: null,
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "",
+        button_label: "",
+        primary_color: "",
+        secondary_color: "",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+        allowed_domains: [],
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    tone: "professional",
+  });
+
+  assert.equal(result.tone, "professional");
+  assert.equal(result.welcomeMessage, "");
+  assert.equal(result.buttonLabel, "");
+  assert.equal(result.primaryColor, "");
+  assert.equal(result.secondaryColor, "");
+  assert.equal(result.websiteUrl, "");
+  assert.equal(state.widget_configs[0].welcome_message, "");
+  assert.equal(state.widget_configs[0].button_label, "");
+  assert.equal(state.widget_configs[0].primary_color, "");
+  assert.equal(state.widget_configs[0].secondary_color, "");
+  assert.equal(state.businesses[0].website_url, null);
 });
 
 test("updateAgentSettings keeps unchanged values persisted and rejects invalid website URLs", async () => {
