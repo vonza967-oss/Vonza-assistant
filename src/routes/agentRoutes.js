@@ -1,5 +1,6 @@
 import express from "express";
 
+import { getOpenAIClient } from "../clients/openaiClient.js";
 import { getSupabaseClient } from "../clients/supabaseClient.js";
 import { getAuthenticatedUser } from "../services/auth/authService.js";
 import {
@@ -100,6 +101,7 @@ import {
   dismissTodayCopilotProposal,
   findTodayCopilotProposal,
 } from "../services/operator/copilotProposalService.js";
+import { answerVonzaProductHelp } from "../services/support/productHelpService.js";
 import { cleanText } from "../utils/text.js";
 
 function expandGroupedFollowUpItems(queue = {}) {
@@ -159,6 +161,7 @@ function expandGroupedFollowUpItems(queue = {}) {
 export function createAgentRouter(deps = {}) {
   const router = express.Router();
   const getSupabase = deps.getSupabaseClient || getSupabaseClient;
+  const getOpenAI = deps.getOpenAIClient || getOpenAIClient;
   const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
   const listAgentsImpl = deps.listAgents || listAgents;
   const createAgentForBusinessNameImpl = deps.createAgentForBusinessName || createAgentForBusinessName;
@@ -243,6 +246,8 @@ export function createAgentRouter(deps = {}) {
     deps.dismissTodayCopilotProposal || dismissTodayCopilotProposal;
   const findTodayCopilotProposalImpl =
     deps.findTodayCopilotProposal || findTodayCopilotProposal;
+  const answerVonzaProductHelpImpl =
+    deps.answerVonzaProductHelp || answerVonzaProductHelp;
   const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
   const readBodyField = (body, snakeCaseKey, camelCaseKey) => {
     if (Object.prototype.hasOwnProperty.call(body, snakeCaseKey)) {
@@ -685,6 +690,57 @@ export function createAgentRouter(deps = {}) {
         agent,
         ownerUserId: user.id,
         forceSync: req.query.force_sync === "true",
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/product-help", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      let operatorWorkspace = {};
+      let openai = null;
+
+      try {
+        operatorWorkspace = await getOperatorWorkspaceSnapshotImpl(supabase, {
+          agent,
+          ownerUserId: user.id,
+          forceSync: false,
+        });
+      } catch (error) {
+        console.warn("[product help] Could not load operator workspace context:", error.message);
+      }
+
+      try {
+        openai = getOpenAI();
+      } catch (error) {
+        console.warn("[product help] OpenAI unavailable, using fallback guidance:", error.message);
+      }
+
+      const result = await answerVonzaProductHelpImpl({
+        openai,
+        question: req.body.question,
+        history: req.body.history,
+        agent,
+        operatorWorkspace,
+        currentSection: req.body.current_section || req.body.currentSection,
+        currentSubsection: req.body.current_subsection || req.body.currentSubsection,
       });
 
       res.json(result);

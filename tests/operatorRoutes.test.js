@@ -243,6 +243,45 @@ test("operator workspace route exposes inbox, calendar, and automations surfaces
   }
 });
 
+test("product help route returns Vonza-scoped guidance with current page context", async () => {
+  let capturedPayload = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    getOpenAIClient: () => null,
+    answerVonzaProductHelp: async (payload) => {
+      capturedPayload = payload;
+      return {
+        answer: "Today is your main Vonza workspace for the next best action and setup guidance.",
+        usedFallback: true,
+        context: {
+          sectionLabel: "Today",
+        },
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/product-help", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        question: "What does this page do?",
+        history: [
+          { role: "user", content: "How do I use Vonza?" },
+        ],
+        current_section: "overview",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.match(response.json.answer, /Today is your main Vonza workspace/i);
+    assert.equal(capturedPayload.currentSection, "overview");
+    assert.equal(capturedPayload.agent.id, "agent-1");
+    assert.equal(capturedPayload.operatorWorkspace.nextAction.key, "review_inbox");
+  } finally {
+    await server.close();
+  }
+});
+
 test("business profile routes stay owner-scoped and return hydrated context", async () => {
   const server = await startServer(createApp(buildRouteDeps()));
 

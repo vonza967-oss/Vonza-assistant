@@ -131,6 +131,8 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
         removeEventListener() {},
       };
     },
+    addEventListener() {},
+    removeEventListener() {},
     setTimeout,
     clearTimeout,
   };
@@ -1326,4 +1328,45 @@ test("dashboard coalesces partial workspace failures without blanking the shell"
   assert.equal(Array.isArray(state.actionQueue.items), true);
   assert.equal(state.operatorWorkspace.health.globalError, "");
   assert.equal(state.hasPartialFailure, true);
+});
+
+test("dashboard help assistant renders Ask Vonza with contextual starter prompts", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const agent = {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza",
+    welcomeMessage: "Welcome to Vonza.",
+    tone: "friendly",
+    publicAgentKey: "public-key",
+    websiteUrl: "https://example.com",
+    knowledge: {
+      state: "limited",
+    },
+    installStatus: {
+      state: "not_installed",
+    },
+  };
+
+  harness.renderSetupState(
+    agent,
+    [],
+    harness.inferSetup(agent),
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  const rootMarkup = harness.document.getElementById("dashboard-root").innerHTML;
+
+  assert.match(rootMarkup, /Ask Vonza/);
+  assert.match(rootMarkup, /Product help inside the app/);
+  assert.match(rootMarkup, /What does this page do\?/);
+  assert.match(rootMarkup, /What should I do next\?/);
+  assert.match(rootMarkup, /How do I install Vonza\?/);
+  assert.match(rootMarkup, /Why is my knowledge limited\?/);
 });

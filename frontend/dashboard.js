@@ -40,6 +40,25 @@ const trackedEventKeys = new Set();
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
+const DASHBOARD_HELP_SECTION_LABELS = {
+  overview: "Today",
+  contacts: "Contacts",
+  customize: "Front Desk",
+  analytics: "Analytics",
+  install: "Install",
+  settings: "Settings",
+  inbox: "Inbox",
+  calendar: "Calendar",
+  automations: "Automations",
+};
+const DASHBOARD_HELP_SUBSECTION_LABELS = {
+  customize: {
+    overview: "Overview",
+    preview: "Preview",
+    context: "Knowledge",
+    launch: "Launch",
+  },
+};
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -104,6 +123,7 @@ let authViewMode = AUTH_VIEW_MODES.SIGN_UP;
 let authFeedback = null;
 let authStateListenerBound = false;
 let workspaceState = null;
+let dashboardHelpState = null;
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
@@ -1040,6 +1060,85 @@ function setActiveFrontDeskSection(section) {
   window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, section);
 }
 
+function createDashboardHelpState() {
+  return {
+    open: false,
+    loading: false,
+    draft: "",
+    messages: [],
+  };
+}
+
+function getDashboardHelpSectionLabel(section = "") {
+  return DASHBOARD_HELP_SECTION_LABELS[trimText(section).toLowerCase()] || "Today";
+}
+
+function getDashboardHelpSubsectionLabel(section = "", subsection = "") {
+  const sectionLabels = DASHBOARD_HELP_SUBSECTION_LABELS[trimText(section).toLowerCase()] || {};
+  return sectionLabels[trimText(subsection).toLowerCase()] || "";
+}
+
+function getDashboardHelpContext(state = workspaceState) {
+  const setup = state?.setup || inferSetup(state?.agent || {});
+  const operatorWorkspace = state?.operatorWorkspace || createEmptyOperatorWorkspace();
+  const currentSection = getActiveShellSection(setup, operatorWorkspace);
+  const currentSubsection = currentSection === "customize" ? getActiveFrontDeskSection() : "";
+
+  return {
+    currentSection,
+    currentSectionLabel: getDashboardHelpSectionLabel(currentSection),
+    currentSubsection,
+    currentSubsectionLabel: getDashboardHelpSubsectionLabel(currentSection, currentSubsection),
+  };
+}
+
+function ensureDashboardHelpState(context = getDashboardHelpContext()) {
+  if (!dashboardHelpState) {
+    dashboardHelpState = createDashboardHelpState();
+  }
+
+  if (!Array.isArray(dashboardHelpState.messages)) {
+    dashboardHelpState.messages = [];
+  }
+
+  if (!dashboardHelpState.messages.length) {
+    dashboardHelpState.messages.push({
+      role: "assistant",
+      content: `I can help you use Vonza. Ask about ${context.currentSectionLabel}${context.currentSubsectionLabel ? `, especially ${context.currentSubsectionLabel.toLowerCase()}` : ""}, setup, install, results, or what to do next.`,
+    });
+  }
+
+  return dashboardHelpState;
+}
+
+function buildDashboardHelpStarterPrompts(
+  context = getDashboardHelpContext(),
+  state = workspaceState,
+) {
+  const setup = state?.setup || inferSetup(state?.agent || {});
+  const operatorWorkspace = state?.operatorWorkspace || createEmptyOperatorWorkspace();
+  const prompts = [
+    "What does this page do?",
+    "What should I do next?",
+  ];
+
+  if (context.currentSection === "install" || !setup.installReady || !isInstallDetected(state?.agent?.installStatus)) {
+    prompts.push("How do I install Vonza?");
+  } else if (operatorWorkspace?.status?.googleConnected !== true) {
+    prompts.push("How do I connect email?");
+  } else {
+    prompts.push("How do I improve setup?");
+  }
+
+  if (setup.knowledgeLimited) {
+    prompts.push("Why is my knowledge limited?");
+  } else {
+    prompts.push("How do I improve results?");
+  }
+
+  return prompts.slice(0, 4);
+}
+
 function getTodayQueueItemKey(item = {}) {
   const queueType = trimText(item.queueType) || (isAppointmentReviewQueueItem(item) ? "appointment_review" : "action_queue");
   const queueId = trimText(item.queueId || item.id || item.key);
@@ -1108,6 +1207,10 @@ function escapeHtml(value) {
 
 function trimText(value) {
   return String(value || "").trim();
+}
+
+function formatRichTextHtml(value) {
+  return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
 function createEmptyBusinessProfileState() {
@@ -9323,6 +9426,64 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
   `;
 }
 
+function buildDashboardHelpMessageMarkup(message = {}) {
+  return `
+    <article class="dashboard-help-message ${message.role === "user" ? "user" : "assistant"}">
+      <span class="dashboard-help-message-role">${escapeHtml(message.role === "user" ? "You" : "Ask Vonza")}</span>
+      <p class="dashboard-help-message-copy">${formatRichTextHtml(message.content || "")}</p>
+    </article>
+  `;
+}
+
+function buildDashboardHelpAssistantMarkup() {
+  const context = getDashboardHelpContext();
+  const helpState = ensureDashboardHelpState(context);
+  const prompts = buildDashboardHelpStarterPrompts(context);
+  const locationLabel = context.currentSubsectionLabel
+    ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
+    : context.currentSectionLabel;
+
+  return `
+    <div class="dashboard-help ${helpState.open ? "is-open" : ""}" data-dashboard-help>
+      <button class="dashboard-help-backdrop" type="button" data-help-close aria-label="Close Ask Vonza"></button>
+      <aside class="dashboard-help-drawer" aria-label="Ask Vonza product help">
+        <div class="dashboard-help-header">
+          <div class="dashboard-help-header-copy">
+            <p class="support-panel-kicker">Ask Vonza</p>
+            <h2 class="dashboard-help-title">Product help inside the app</h2>
+            <p class="dashboard-help-subtitle" data-help-location>Currently on ${escapeHtml(locationLabel)}</p>
+          </div>
+          <button class="ghost-button dashboard-help-close" type="button" data-help-close>Close</button>
+        </div>
+        <div class="support-panel dashboard-help-context">
+          <p class="support-panel-kicker">What this is for</p>
+          <h3 class="support-panel-title">Focused on how to use Vonza</h3>
+          <p class="support-panel-copy">Ask about the current page, setup quality, install, connected tools, Contacts, Analytics, Front Desk, or what to do next.</p>
+        </div>
+        <div class="dashboard-help-prompts" data-help-prompts>
+          ${prompts.map((prompt) => `<button class="dashboard-help-prompt" type="button" data-help-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join("")}
+        </div>
+        <div class="dashboard-help-thread" data-help-thread>
+          ${helpState.messages.map((message) => buildDashboardHelpMessageMarkup(message)).join("")}
+          ${helpState.loading ? `<div class="dashboard-help-loading">Ask Vonza is drafting guidance for this workspace...</div>` : ""}
+        </div>
+        <form class="dashboard-help-form" data-help-form>
+          <label class="sr-only" for="dashboard-help-question">Ask about using Vonza</label>
+          <textarea id="dashboard-help-question" name="question" placeholder="Ask about this page, setup, install, Contacts, Analytics, or what to do next.">${escapeHtml(helpState.draft || "")}</textarea>
+          <div class="dashboard-help-actions">
+            <p class="dashboard-help-hint">Vonza help stays product-specific and uses the page you are on for context.</p>
+            <button class="primary-button" type="submit" ${helpState.loading ? "disabled" : ""}>Send</button>
+          </div>
+        </form>
+      </aside>
+      <button class="dashboard-help-fab" type="button" data-help-toggle>
+        <span class="dashboard-help-fab-eyebrow">Help</span>
+        <strong>Ask Vonza</strong>
+      </button>
+    </div>
+  `;
+}
+
 function renderAssistantShell(
   agent,
   messages,
@@ -9359,6 +9520,7 @@ function renderAssistantShell(
           ${buildSettingsPanel(agent, setup, operatorWorkspace)}
         </div>
       </div>
+      ${buildDashboardHelpAssistantMarkup()}
     </div>
   `;
 
@@ -10974,6 +11136,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskSectionButtons = document.querySelectorAll("[data-frontdesk-target]");
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
+  const dashboardHelp = document.querySelector("[data-dashboard-help]");
+  const helpToggleButton = document.querySelector("[data-help-toggle]");
+  const helpCloseButtons = document.querySelectorAll("[data-help-close]");
+  const helpThread = document.querySelector("[data-help-thread]");
+  const helpPrompts = document.querySelector("[data-help-prompts]");
+  const helpLocation = document.querySelector("[data-help-location]");
+  const helpForm = document.querySelector("[data-help-form]");
+  const helpInput = helpForm?.querySelector('[name="question"]') || null;
   const availableSections = getAvailableShellSections(operatorWorkspace);
   let activeContactFilter = "all";
   let activeTodayFilter = "all";
@@ -10986,6 +11156,146 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   const openShellNavigation = () => {
     appShell?.classList.add("nav-open");
+  };
+
+  const getHelpState = () => ensureDashboardHelpState(getDashboardHelpContext({
+    agent,
+    messages,
+    setup,
+    actionQueue,
+    operatorWorkspace,
+  }));
+
+  const syncDashboardHelpUi = () => {
+    if (!dashboardHelp) {
+      return;
+    }
+
+    const context = getDashboardHelpContext({
+      agent,
+      messages,
+      setup,
+      actionQueue,
+      operatorWorkspace,
+    });
+    const helpState = ensureDashboardHelpState(context);
+    const locationLabel = context.currentSubsectionLabel
+      ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
+      : context.currentSectionLabel;
+
+    dashboardHelp.classList.toggle("is-open", helpState.open);
+
+    if (helpLocation) {
+      helpLocation.textContent = `Currently on ${locationLabel}`;
+    }
+
+    if (helpPrompts) {
+      helpPrompts.innerHTML = buildDashboardHelpStarterPrompts(context, {
+        agent,
+        messages,
+        setup,
+        actionQueue,
+        operatorWorkspace,
+      }).map((prompt) => (
+        `<button class="dashboard-help-prompt" type="button" data-help-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`
+      )).join("");
+    }
+
+    if (helpThread) {
+      helpThread.innerHTML = `
+        ${helpState.messages.map((message) => buildDashboardHelpMessageMarkup(message)).join("")}
+        ${helpState.loading ? `<div class="dashboard-help-loading">Ask Vonza is drafting guidance for this workspace...</div>` : ""}
+      `;
+      helpThread.scrollTop = helpThread.scrollHeight;
+    }
+
+    if (helpInput) {
+      helpInput.value = helpState.draft || "";
+      helpInput.disabled = helpState.loading;
+    }
+
+    const submitButton = helpForm?.querySelector('button[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = helpState.loading;
+    }
+  };
+
+  const openDashboardHelp = () => {
+    const helpState = getHelpState();
+    helpState.open = true;
+    syncDashboardHelpUi();
+    helpInput?.focus();
+  };
+
+  const closeDashboardHelp = () => {
+    const helpState = getHelpState();
+    helpState.open = false;
+    syncDashboardHelpUi();
+  };
+
+  const submitDashboardHelpQuestion = async (question) => {
+    const normalizedQuestion = trimText(question);
+
+    if (!normalizedQuestion) {
+      setStatus("Ask Vonza a question about using the app.");
+      return;
+    }
+
+    const context = getDashboardHelpContext({
+      agent,
+      messages,
+      setup,
+      actionQueue,
+      operatorWorkspace,
+    });
+    const helpState = getHelpState();
+    const history = helpState.messages.slice(-6).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+
+    helpState.open = true;
+    helpState.loading = true;
+    helpState.draft = "";
+    helpState.messages.push({
+      role: "user",
+      content: normalizedQuestion,
+    });
+    syncDashboardHelpUi();
+    setStatus("Ask Vonza is preparing help...");
+
+    try {
+      const result = await fetchJson("/agents/product-help", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          question: normalizedQuestion,
+          history,
+          current_section: context.currentSection,
+          current_subsection: context.currentSubsection,
+        }),
+      });
+
+      helpState.messages.push({
+        role: "assistant",
+        content: trimText(result.answer) || "I couldn't answer that clearly just yet.",
+      });
+      setStatus("Ask Vonza is ready.");
+    } catch (error) {
+      helpState.messages.push({
+        role: "assistant",
+        content: error.message || "I couldn't load a Vonza help answer just yet. Please try again in a moment.",
+      });
+      setStatus(error.message || "Ask Vonza could not answer right now.");
+    } finally {
+      helpState.loading = false;
+      syncDashboardHelpUi();
+      helpInput?.focus();
+    }
   };
 
   const showShellSection = (targetSection, options = {}) => {
@@ -11012,6 +11322,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
 
     closeShellNavigation();
+    syncDashboardHelpUi();
   };
 
   const resolveShellTarget = (targetSection, targetId = "") => {
@@ -11555,6 +11866,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     frontDeskSections.forEach((section) => {
       section.hidden = section.dataset.frontdeskSection !== target;
     });
+
+    syncDashboardHelpUi();
   };
 
   const saveContactLifecycle = async (form) => {
@@ -11886,6 +12199,47 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   });
 
   shellBackdrop?.addEventListener("click", closeShellNavigation);
+
+  helpToggleButton?.addEventListener("click", () => {
+    const helpState = getHelpState();
+
+    if (helpState.open) {
+      closeDashboardHelp();
+      return;
+    }
+
+    openDashboardHelp();
+  });
+
+  helpCloseButtons.forEach((button) => {
+    button.addEventListener("click", closeDashboardHelp);
+  });
+
+  helpPrompts?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-help-prompt]");
+
+    if (!button) {
+      return;
+    }
+
+    await submitDashboardHelpQuestion(button.dataset.helpPrompt || "");
+  });
+
+  helpInput?.addEventListener("input", () => {
+    const helpState = getHelpState();
+    helpState.draft = helpInput.value || "";
+  });
+
+  helpForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await submitDashboardHelpQuestion(helpInput?.value || "");
+  });
+
+  dashboardHelp?.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && getHelpState().open) {
+      closeDashboardHelp();
+    }
+  });
 
   copilotTargetButtons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -12744,7 +13098,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   showShellSection(initialSection, {
     settingsSection: settingsShellController?.getActiveSettingsSection?.(),
   });
-  showFrontDeskSection("overview");
+  showFrontDeskSection(getActiveFrontDeskSection());
 
   if (contactRows.length) {
     selectContact(contactRows[0].dataset.contactId || "");
@@ -12768,6 +13122,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       selectWorkspaceRecord(kind, firstVisibleRow.dataset.recordId || "");
     }
   });
+
+  syncDashboardHelpUi();
 
   const focusTarget = getDashboardFocus();
 
