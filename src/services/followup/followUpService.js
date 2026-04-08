@@ -552,6 +552,12 @@ function buildSyncedWorkflowPayload(existing, candidate) {
     ...(normalizedExisting?.linkedActionKeys || []),
     ...candidate.linkedActionKeys,
   ]);
+  const shouldClearCapturedContact = Boolean(
+    normalizedExisting
+    && !candidate.hasUsableContact
+    && normalizedExisting.status !== "sent"
+    && normalizedExisting.status !== "dismissed"
+  );
   const nextStatus = normalizedExisting
     ? (
       normalizedExisting.status === "sent" || normalizedExisting.status === "dismissed"
@@ -569,10 +575,14 @@ function buildSyncedWorkflowPayload(existing, candidate) {
     action_type: normalizedExisting?.actionType || candidate.actionType,
     person_key: normalizedExisting?.personKey || candidate.personKey || null,
     status: nextStatus,
-    channel: candidate.channel || normalizedExisting?.channel || null,
+    channel: shouldClearCapturedContact ? null : (candidate.channel || normalizedExisting?.channel || null),
     contact_name: candidate.contact.name || normalizedExisting?.contactName || null,
-    contact_email: candidate.contact.email || normalizedExisting?.contactEmail || null,
-    contact_phone: candidate.contact.phone || normalizedExisting?.contactPhone || null,
+    contact_email: shouldClearCapturedContact
+      ? null
+      : (candidate.contact.email || normalizedExisting?.contactEmail || null),
+    contact_phone: shouldClearCapturedContact
+      ? null
+      : (candidate.contact.phone || normalizedExisting?.contactPhone || null),
     evidence: candidate.evidence || normalizedExisting?.evidence || null,
     why_prepared: candidate.whyPrepared || normalizedExisting?.whyPrepared || null,
     topic: candidate.topic || normalizedExisting?.topic || null,

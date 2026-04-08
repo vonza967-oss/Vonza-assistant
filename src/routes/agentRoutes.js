@@ -965,6 +965,19 @@ export function createAgentRouter(deps = {}) {
       const preliminaryQueue = buildActionQueueImpl(messages, persistedRecords, {
         persistenceAvailable,
       });
+      const leadCapturesResult = await Promise.allSettled([
+        listLeadCapturesImpl(supabase, {
+          agentId,
+          ownerUserId: user?.id || null,
+        }),
+      ]);
+      const leadCaptures = leadCapturesResult[0]?.status === "fulfilled"
+        ? leadCapturesResult[0].value
+        : { records: [], persistenceAvailable: false };
+      const hydratedPreliminaryQueue = hydrateActionQueueWithLeadCaptures(preliminaryQueue, {
+        records: leadCaptures.records || [],
+        persistenceAvailable: leadCaptures.persistenceAvailable !== false,
+      });
       const websiteContent = agentProfile?.businessId
         ? await getStoredWebsiteContentImpl(supabase, agentProfile.businessId)
         : null;
@@ -972,7 +985,7 @@ export function createAgentRouter(deps = {}) {
         syncFollowUpWorkflowsImpl(supabase, {
           agentId,
           ownerUserId: user?.id || null,
-          queueItems: preliminaryQueue.items || [],
+          queueItems: hydratedPreliminaryQueue.items || [],
           agentProfile: {
             agentId,
             ownerUserId: user?.id || null,
@@ -1012,19 +1025,12 @@ export function createAgentRouter(deps = {}) {
         followUpWorkflowAvailable: followUpSync?.persistenceAvailable !== false,
         knowledgeFixWorkflowAvailable: knowledgeFixSync?.persistenceAvailable !== false,
       });
-      const [leadCapturesResult, conversionOutcomesResult] = await Promise.allSettled([
-        listLeadCapturesImpl(supabase, {
-          agentId,
-          ownerUserId: user?.id || null,
-        }),
+      const [conversionOutcomesResult] = await Promise.allSettled([
         listConversionOutcomesForAgentImpl(supabase, {
           agentId,
           ownerUserId: user?.id || null,
         }),
       ]);
-      const leadCaptures = leadCapturesResult.status === "fulfilled"
-        ? leadCapturesResult.value
-        : { records: [], persistenceAvailable: false };
       const conversionOutcomes = conversionOutcomesResult.status === "fulfilled"
         ? conversionOutcomesResult.value
         : { records: [], summary: null, recentOutcomes: [], persistenceAvailable: false };

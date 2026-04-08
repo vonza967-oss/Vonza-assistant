@@ -200,6 +200,39 @@ test("calendar event can link to an existing contact by extracted attendee phone
   assert.equal(result.list[0].phone, "(555) 111-2222");
 });
 
+test("stored contact fallbacks do not masquerade as a new anonymous visitor identity", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-1",
+        displayName: "Stored contact",
+        primaryEmail: "mail@example.com",
+        primaryPhone: "+36 30 092 5097",
+        primaryPhoneNormalized: "36300925097",
+        activitySources: ["follow_up"],
+        lastActivityAt: "2026-04-02T09:00:00.000Z",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-1",
+        visitorSessionKey: "session-anon",
+        captureState: "prompt_ready",
+        captureReason: "Pricing intent",
+        lastSeenAt: "2026-04-03T09:00:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  const anonymousLead = result.list.find((contact) => contact.leadId === "lead-1");
+
+  assert.ok(anonymousLead);
+  assert.equal(anonymousLead.email, "");
+  assert.equal(anonymousLead.phone, "");
+  assert.equal(anonymousLead.name, "Anonymous visitor");
+});
+
 test("unresolved partial identities stay separate instead of merging on name alone", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [

@@ -1670,6 +1670,33 @@ test("action queue groups repeat interactions under one lightweight person threa
   assert.ok(result.items.some((item) => item.actionType === "repeat_high_intent_visitor"));
 });
 
+test("action queue does not treat assistant routing contact details as visitor identity", () => {
+  const messages = [
+    {
+      id: "message-1",
+      role: "user",
+      content: "What's your email and phone number?",
+      sessionKey: "session-business-contact",
+      createdAt: "2026-04-01T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "You can email mail@example.com or call +36 30 092 5097.",
+      sessionKey: "session-business-contact",
+      createdAt: "2026-04-01T10:00:05.000Z",
+    },
+  ];
+
+  const result = buildActionQueue(messages, []);
+  const contactItem = result.items.find((item) => item.actionType === "lead_follow_up");
+
+  assert.ok(contactItem);
+  assert.equal(contactItem.contactCaptured, false);
+  assert.equal(contactItem.contactInfo, null);
+  assert.equal(result.people[0].identityType, "session");
+});
+
 test("action queue links multiple queue items to the same person when session continuity is the only shared signal", () => {
   const messages = [
     {

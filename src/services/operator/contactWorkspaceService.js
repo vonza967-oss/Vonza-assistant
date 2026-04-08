@@ -642,11 +642,27 @@ function buildTimelineEntries(group = {}) {
 }
 
 function pickDisplayName(group = {}) {
+  const hasCurrentSignal = Boolean(
+    normalizeEmail(group.emails[0])
+    || normalizePhone(group.phones[0])
+    || normalizePhoneDigits(group.phoneDigits[0])
+    || cleanText(group.personKeys[0])
+    || group.sessionKeys.length
+    || group.leads.length
+    || group.followUps.length
+    || group.threads.length
+    || group.events.length
+    || group.tasks.length
+    || group.recipients.length
+    || group.campaigns.length
+    || group.outcomes.length
+  );
+
   return cleanText(group.displayNames[0])
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
-    || cleanText(group.persistedContact?.displayName)
-    || "Unknown contact";
+    || (hasCurrentSignal ? cleanText(group.persistedContact?.displayName) : "")
+    || (group.sessionKeys.length || group.leads.length ? "Anonymous visitor" : "Unknown contact");
 }
 
 function pickBestIdentifier(group = {}) {
@@ -859,15 +875,22 @@ function buildContactSummary(group = {}, options = {}) {
     id: cleanText(group.id),
     name: pickDisplayName(group),
     bestIdentifier: pickBestIdentifier(group),
-    email: normalizeEmail(group.emails[0] || persistedContact.primaryEmail),
-    phone: normalizePhone(group.phones[0] || persistedContact.primaryPhone),
+    email: normalizeEmail(group.emails[0]),
+    phone: normalizePhone(group.phones[0])
+      || (
+        group.phoneDigits.includes(normalizePhoneDigits(persistedContact.primaryPhone))
+          ? normalizePhone(persistedContact.primaryPhone)
+          : ""
+      ),
     lifecycleState,
     lifecycleStateSource,
     suggestedLifecycleState,
     mostRecentActivityAt: lastActivityAt,
     sources: [...sourceSet].map(formatSourceLabel),
     flags: flags.map(formatSourceLabel),
-    partialIdentity: !normalizeEmail(group.emails[0]) && !normalizePhone(group.phones[0]),
+    partialIdentity: !normalizeEmail(group.emails[0])
+      && !normalizePhone(group.phones[0])
+      && !normalizePhoneDigits(group.phoneDigits[0]),
     latestMessageId: cleanText(group.latestMessageId),
     primaryThreadId: cleanText(group.threads[0]?.id),
     primaryEventId: cleanText(group.events[0]?.id),
@@ -1014,10 +1037,6 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       persistedContact: storedContact,
       businessId: storedContact.businessId,
       displayName: storedContact.displayName,
-      email: storedContact.primaryEmail,
-      phone: storedContact.primaryPhone,
-      phoneDigits: storedContact.primaryPhoneNormalized,
-      personKey: storedContact.primaryPersonKey,
       sourceKinds: storedContact.activitySources,
       flags: storedContact.highPriorityFlags,
       lastActivityAt: storedContact.lastActivityAt,
@@ -1032,13 +1051,13 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     registerIdentity(identityMaps, group, "person_key", storedContact.primaryPersonKey);
 
     storedIdentities.forEach((identity) => {
-      addIdentityValues(group, {
-        email: identity.identityType === "email" ? identity.identityValue : "",
-        phone: identity.identityType === "phone" ? identity.identityValue : "",
-        personKey: identity.identityType === "person_key" ? identity.identityValue : "",
-        sessionKeys: identity.identityType === "session_key" ? [identity.identityValue] : [],
-      });
       registerIdentity(identityMaps, group, identity.identityType, identity.identityValue);
+
+      if (identity.identityType === "session_key") {
+        addIdentityValues(group, {
+          sessionKeys: [identity.identityValue],
+        });
+      }
     });
   };
 

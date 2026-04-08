@@ -1,4 +1,5 @@
 import { ACTION_QUEUE_STATUS_TABLE } from "../../config/constants.js";
+import { extractVisitorContactInfo } from "../leads/visitorIdentityService.js";
 import { cleanText } from "../../utils/text.js";
 
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
@@ -811,32 +812,6 @@ function getConversationSuggestedAction(type, options = {}) {
   return base;
 }
 
-function extractContactInfo(text = "") {
-  const normalized = String(text || "");
-  const emailMatch = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = normalized.match(/(?:\+?\d[\d().\-\s]{6,}\d)/);
-  const namePatterns = [
-    /\b(?:my name is|i am|i'm|this is)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){1,2})\b/iu,
-    /\b(?:a nevem|az en nevem|nevem)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){1,2})\b/iu,
-  ];
-  let name = "";
-
-  for (const pattern of namePatterns) {
-    const match = normalized.match(pattern);
-
-    if (cleanText(match?.[1])) {
-      name = cleanText(match[1]);
-      break;
-    }
-  }
-
-  return {
-    email: emailMatch ? cleanText(emailMatch[0]) : "",
-    phone: phoneMatch ? cleanText(phoneMatch[0]) : "",
-    name,
-  };
-}
-
 function mergeContactInfo(existing = {}, next = {}) {
   return {
     email: existing.email || next.email || "",
@@ -1096,7 +1071,12 @@ function buildConversationInteractions(messages = []) {
     const weakAnswer = hasWeakAssistantReply(reply);
     const unresolved = !cleanText(reply);
     const type = actionableIntent ? intent : "weak_answer";
-    const contactInfo = mergeContactInfo(extractContactInfo(question), extractContactInfo(reply));
+    const contactInfo = mergeContactInfo(
+      extractVisitorContactInfo(question, {
+        allowBareContact: true,
+      }),
+      {}
+    );
     const actionKey = buildConversationActionKey(message, index);
     const lastSeenAt = assistantMessage?.createdAt || assistantMessage?.created_at || message.createdAt || message.created_at || null;
     const sessionKey = cleanText(

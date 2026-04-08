@@ -374,6 +374,34 @@ test("identified visitor email is captured even before high-intent lead prompts"
   assert.equal(supabase.state.agent_contact_leads[0].capture_trigger, "visitor_identity");
 });
 
+test("lead capture keeps business contact questions anonymous", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "Can I email mail@example.com about pricing?" },
+      { role: "assistant", content: "I can help with pricing details here in chat." },
+    ], "session-business-contact"),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: {
+      ...buildWidgetConfig(),
+      contactEmail: "mail@example.com",
+      contactPhone: "+36 30 092 5097",
+    },
+    sessionKey: "session-business-contact",
+    userMessage: "Can I email mail@example.com about pricing?",
+    language: "English",
+  });
+
+  assert.equal(result.state, "prompt_ready");
+  assert.equal(result.contact.email, "");
+  assert.equal(result.contact.phone, "");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_email, null);
+  assert.equal(supabase.state.agent_contact_leads[0].contact_phone, null);
+});
+
 test("declined capture is respected and not re-prompted immediately", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([

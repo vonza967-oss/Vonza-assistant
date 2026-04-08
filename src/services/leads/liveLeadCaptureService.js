@@ -4,6 +4,7 @@ import { normalizeVisitorIdentity } from "../chat/visitorIdentityService.js";
 import { syncFollowUpWorkflows } from "../followup/followUpService.js";
 import { LEAD_CAPTURE_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
+import { extractVisitorContactInfo } from "./visitorIdentityService.js";
 
 export const LEAD_CAPTURE_STATES = [
   "none",
@@ -144,32 +145,6 @@ function getPreferredChannel(contact = {}) {
 
 function uniqueText(values = []) {
   return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
-}
-
-function extractContactInfo(text = "") {
-  const normalized = String(text || "");
-  const emailMatch = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  const phoneMatch = normalized.match(/(?:\+?\d[\d().\-\s]{6,}\d)/);
-  const namePatterns = [
-    /\b(?:my name is|i am|i'm|this is)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){0,2})\b/iu,
-    /\b(?:a nevem|az en nevem|nevem)\s+([\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){0,2})\b/iu,
-  ];
-  let name = "";
-
-  for (const pattern of namePatterns) {
-    const match = normalized.match(pattern);
-    if (cleanText(match?.[1])) {
-      name = cleanText(match[1]);
-      break;
-    }
-  }
-
-  return {
-    name,
-    email: emailMatch ? normalizeEmail(emailMatch[0]) : "",
-    phone: phoneMatch ? normalizePhone(phoneMatch[0]) : "",
-    phoneNormalized: phoneMatch ? normalizePhoneDigits(phoneMatch[0]) : "",
-  };
 }
 
 function isHungarian(language = "") {
@@ -958,7 +933,9 @@ async function buildLiveLeadContext(supabase, options = {}) {
     ownerUserId: options.agent.ownerUserId,
   });
   const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
-  const extractedContact = extractContactInfo(options.userMessage);
+  const extractedContact = extractVisitorContactInfo(options.userMessage, {
+    allowBareContact: true,
+  });
   const mergedContact = {
     name: extractedContact.name || visitorIdentity.name || "",
     email: extractedContact.email || visitorIdentity.email || "",
