@@ -1723,6 +1723,197 @@ button:disabled {
   line-height: 1.55;
 }
 
+.dashboard-help {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.dashboard-help-backdrop {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(2, 6, 23, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.dashboard-help-drawer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: min(430px, calc(100vw - 28px));
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+    rgba(7, 12, 22, 0.96);
+  box-shadow: 0 30px 60px rgba(2, 6, 23, 0.34);
+  transform: translateX(calc(100% + 28px));
+  transition: transform 220ms ease;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.dashboard-help.is-open .dashboard-help-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dashboard-help.is-open .dashboard-help-drawer {
+  transform: translateX(0);
+}
+
+.dashboard-help-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.dashboard-help-header-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-help-title {
+  margin: 0;
+  color: white;
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-help-subtitle,
+.dashboard-help-hint,
+.dashboard-help-loading {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.5;
+}
+
+.dashboard-help-close {
+  box-shadow: none;
+}
+
+.dashboard-help-context {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.022)),
+    rgba(255, 255, 255, 0.02);
+}
+
+.dashboard-help-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dashboard-help-prompt {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--soft);
+  box-shadow: none;
+}
+
+.dashboard-help-thread {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.dashboard-help-message {
+  display: grid;
+  gap: 6px;
+  max-width: 92%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.dashboard-help-message.assistant {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dashboard-help-message.user {
+  margin-left: auto;
+  border-color: rgba(20, 184, 166, 0.26);
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(15, 118, 110, 0.18));
+}
+
+.dashboard-help-message-role {
+  color: var(--muted-strong);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dashboard-help-message-copy {
+  margin: 0;
+  color: white;
+  line-height: 1.6;
+}
+
+.dashboard-help-form {
+  display: grid;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.dashboard-help-form textarea {
+  min-height: 88px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dashboard-help-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.dashboard-help-hint {
+  max-width: 240px;
+  font-size: 13px;
+}
+
+.dashboard-help-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: grid;
+  gap: 2px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(20, 184, 166, 0.26);
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(15, 118, 110, 0.12)),
+    rgba(7, 12, 22, 0.92);
+  box-shadow: 0 20px 36px rgba(2, 6, 23, 0.34);
+  pointer-events: auto;
+}
+
+.dashboard-help-fab-eyebrow {
+  color: #9ce8db;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
 .support-list,
 .detail-kv-list {
   display: grid;
@@ -3907,6 +4098,78 @@ body {
   border-color: var(--light-pending-border);
 }
 
+.workspace-pages .settings-sidebar {
+  border-right-color: #dbe4ef;
+}
+
+.workspace-pages .settings-nav-shell.is-mobile {
+  border-bottom-color: #dbe4ef;
+}
+
+.workspace-pages .settings-nav-heading,
+.workspace-pages .frontdesk-detail-kicker,
+.workspace-pages .frontdesk-detail-row-label,
+.workspace-pages .frontdesk-step-label {
+  color: var(--light-surface-muted-strong);
+}
+
+.workspace-pages .settings-nav-button {
+  color: #5b6f8d;
+}
+
+.workspace-pages .settings-nav-button:hover {
+  color: var(--light-surface-title);
+  background: #f4f7fb;
+}
+
+.workspace-pages .settings-nav-button.active {
+  color: #1f3f76;
+  border-left-color: #2f6df6;
+  background: #eef4ff;
+}
+
+.workspace-pages .settings-page-title,
+.workspace-pages .frontdesk-section-title,
+.workspace-pages .frontdesk-detail-title,
+.workspace-pages .frontdesk-support-title,
+.workspace-pages .frontdesk-preview-frame-title,
+.workspace-pages .frontdesk-step-title,
+.workspace-pages .frontdesk-detail-row-value {
+  color: var(--light-surface-title);
+}
+
+.workspace-pages .settings-page-copy,
+.workspace-pages .frontdesk-section-copy,
+.workspace-pages .frontdesk-readiness-copy,
+.workspace-pages .frontdesk-detail-copy,
+.workspace-pages .frontdesk-step-copy,
+.workspace-pages .frontdesk-support-copy {
+  color: var(--light-surface-text);
+}
+
+.workspace-pages .settings-page-header,
+.workspace-pages .frontdesk-section-divider,
+.workspace-pages .frontdesk-readiness-item,
+.workspace-pages .frontdesk-detail-block,
+.workspace-pages .frontdesk-detail-list,
+.workspace-pages .frontdesk-detail-row {
+  border-color: #dbe4ef;
+}
+
+.workspace-pages .frontdesk-main-panel {
+  border-color: #dbe4ef;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+}
+
+.workspace-pages .frontdesk-step,
+.workspace-pages .frontdesk-support-note,
+.workspace-pages .frontdesk-preview-guide,
+.workspace-pages .frontdesk-preview-frame-shell {
+  border-color: #dbe4ef;
+  background: #f8fbff;
+}
+
 .hero-meta {
   display: flex;
   flex-wrap: wrap;
@@ -5306,5 +5569,29 @@ body {
   .workspace-page,
   .workspace-page-overview {
     min-height: 100vh;
+  }
+
+  .dashboard-help-drawer {
+    top: 76px;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: auto;
+  }
+
+  .dashboard-help-actions,
+  .dashboard-help-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-help-hint {
+    max-width: none;
+  }
+
+  .dashboard-help-fab {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
   }
 }

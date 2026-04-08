@@ -73,3 +73,18 @@ test("dashboard light-workspace badges and summary cards keep dark-on-light text
   assert.match(css, /\.overview-value,\s*\.operator-focus-title,\s*\.operator-checklist-title,\s*\.operator-empty-title\s*\{\s*color:\s*#22324a;/i);
   assert.match(css, /\.workspace-record-row-copy,[^}]*\.operator-focus-copy,[^}]*\.operator-empty-copy\s*\{\s*color:\s*#42536d;/i);
 });
+
+test("dashboard Front Desk light shell keeps settings navigation and content readable", () => {
+  const css = readDashboardCss();
+  const frontdeskPanel = getCssBlock(css, ".workspace-pages .frontdesk-main-panel");
+  const navButton = getCssBlock(css, ".workspace-pages .settings-nav-button");
+  const navButtonActive = getCssBlock(css, ".workspace-pages .settings-nav-button.active");
+
+  assert.match(frontdeskPanel, /border-color:\s*#dbe4ef/i);
+  assert.match(frontdeskPanel, /background:\s*#ffffff/i);
+  assert.match(navButton, /color:\s*#5b6f8d/i);
+  assert.match(navButtonActive, /color:\s*#1f3f76/i);
+  assert.match(navButtonActive, /background:\s*#eef4ff/i);
+  assert.match(css, /\.workspace-pages \.settings-page-title,\s*\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(css, /\.workspace-pages \.settings-page-copy,\s*\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+});
