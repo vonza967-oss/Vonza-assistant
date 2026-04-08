@@ -1236,7 +1236,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Continue setup/);
         assert.match(dashboardScript.text, /Add to website/);
         assert.match(dashboardScript.text, /Ask Vonza/);
-        assert.match(dashboardScript.text, /Product help inside the app/);
+        assert.match(dashboardScript.text, /AI guide and support inside the app/);
         assert.match(dashboardScript.text, /\/agents\/product-help/);
         assert.match(dashboardScript.text, /Operator home/);
         assert.match(dashboardScript.text, /Getting started/);

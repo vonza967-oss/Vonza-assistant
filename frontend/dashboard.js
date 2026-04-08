@@ -1066,6 +1066,8 @@ function createDashboardHelpState() {
     loading: false,
     draft: "",
     messages: [],
+    suggestedPrompts: [],
+    seededContextKey: "",
   };
 }
 
@@ -1092,6 +1094,43 @@ function getDashboardHelpContext(state = workspaceState) {
   };
 }
 
+function getDashboardHelpContextKey(context = getDashboardHelpContext()) {
+  return [context.currentSection, context.currentSubsection].filter(Boolean).join(":") || "overview";
+}
+
+function buildDashboardHelpWelcomeMessage(
+  context = getDashboardHelpContext(),
+  state = workspaceState,
+) {
+  const setup = state?.setup || inferSetup(state?.agent || {});
+  const operatorWorkspace = state?.operatorWorkspace || createEmptyOperatorWorkspace();
+  const nextActionTitle = trimText(operatorWorkspace?.nextAction?.title);
+  const needsAttentionCount = Number(operatorWorkspace?.today?.needsAttentionCount || 0);
+  const installDetected = isInstallDetected(state?.agent?.installStatus);
+  const location = context.currentSubsectionLabel
+    ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
+    : context.currentSectionLabel;
+  const guidance = [];
+
+  guidance.push(`I’m your in-app Vonza AI guide. I can explain ${location}, help you understand what is missing, and show you the best next move.`);
+
+  if (!setup.hasWebsite) {
+    guidance.push("Your workspace still needs a website connection before Vonza can be fully grounded.");
+  } else if (setup.knowledgeLimited) {
+    guidance.push("Right now the website knowledge is only partial, so improving grounding is one of the highest-leverage fixes.");
+  } else if (!installDetected) {
+    guidance.push("The front desk is not fully verified on a live site yet, so install is still part of the path to stronger results.");
+  } else if (needsAttentionCount > 0) {
+    guidance.push(`${needsAttentionCount} needs-attention item${needsAttentionCount === 1 ? "" : "s"} are visible in Today, so I can help you decide what to tackle first.`);
+  }
+
+  if (nextActionTitle) {
+    guidance.push(`The current workspace next action is ${nextActionTitle}.`);
+  }
+
+  return guidance.join(" ");
+}
+
 function ensureDashboardHelpState(context = getDashboardHelpContext()) {
   if (!dashboardHelpState) {
     dashboardHelpState = createDashboardHelpState();
@@ -1101,11 +1140,27 @@ function ensureDashboardHelpState(context = getDashboardHelpContext()) {
     dashboardHelpState.messages = [];
   }
 
+  if (!Array.isArray(dashboardHelpState.suggestedPrompts)) {
+    dashboardHelpState.suggestedPrompts = [];
+  }
+
+  const contextKey = getDashboardHelpContextKey(context);
+  const hasUserMessages = dashboardHelpState.messages.some((message) => message.role === "user");
+
   if (!dashboardHelpState.messages.length) {
     dashboardHelpState.messages.push({
       role: "assistant",
-      content: `I can help you use Vonza. Ask about ${context.currentSectionLabel}${context.currentSubsectionLabel ? `, especially ${context.currentSubsectionLabel.toLowerCase()}` : ""}, setup, install, results, or what to do next.`,
+      content: buildDashboardHelpWelcomeMessage(context),
     });
+    dashboardHelpState.seededContextKey = contextKey;
+  } else if (!hasUserMessages && dashboardHelpState.seededContextKey !== contextKey) {
+    dashboardHelpState.messages = [
+      {
+        role: "assistant",
+        content: buildDashboardHelpWelcomeMessage(context),
+      },
+    ];
+    dashboardHelpState.seededContextKey = contextKey;
   }
 
   return dashboardHelpState;
@@ -1117,10 +1172,17 @@ function buildDashboardHelpStarterPrompts(
 ) {
   const setup = state?.setup || inferSetup(state?.agent || {});
   const operatorWorkspace = state?.operatorWorkspace || createEmptyOperatorWorkspace();
-  const prompts = [
-    "What does this page do?",
-    "What should I do next?",
-  ];
+  const helpState = ensureDashboardHelpState(context);
+  const prompts = Array.isArray(helpState.suggestedPrompts) && helpState.suggestedPrompts.length
+    ? [...helpState.suggestedPrompts]
+    : [
+      "What does this page do?",
+      "What should I do next?",
+    ];
+
+  if (prompts.length >= 4) {
+    return prompts.slice(0, 4);
+  }
 
   if (context.currentSection === "install" || !setup.installReady || !isInstallDetected(state?.agent?.installStatus)) {
     prompts.push("How do I install Vonza?");
@@ -1137,6 +1199,53 @@ function buildDashboardHelpStarterPrompts(
   }
 
   return prompts.slice(0, 4);
+}
+
+function buildDashboardHelpSnapshot(
+  context = getDashboardHelpContext(),
+  state = workspaceState,
+) {
+  const setup = state?.setup || inferSetup(state?.agent || {});
+  const operatorWorkspace = state?.operatorWorkspace || createEmptyOperatorWorkspace();
+  const today = operatorWorkspace?.today || {};
+  const nextActionTitle = trimText(operatorWorkspace?.nextAction?.title);
+  const cards = [
+    {
+      label: "Page",
+      value: context.currentSubsectionLabel
+        ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
+        : context.currentSectionLabel,
+      tone: "neutral",
+    },
+    {
+      label: "Knowledge",
+      value: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Missing",
+      tone: setup.knowledgeReady ? "ready" : setup.knowledgeLimited ? "limited" : "attention",
+    },
+    {
+      label: "Install",
+      value: isInstallDetected(state?.agent?.installStatus) ? "Detected" : "Needs setup",
+      tone: isInstallDetected(state?.agent?.installStatus) ? "ready" : "attention",
+    },
+    {
+      label: "Connected tools",
+      value: operatorWorkspace?.status?.googleConnected ? "Google connected" : "Core only",
+      tone: operatorWorkspace?.status?.googleConnected ? "ready" : "neutral",
+    },
+  ];
+
+  const detail = nextActionTitle
+    ? `Next: ${nextActionTitle}`
+    : Number(today.needsAttentionCount || 0) > 0
+      ? `${today.needsAttentionCount} needs-attention item${Number(today.needsAttentionCount || 0) === 1 ? "" : "s"}`
+      : "Ready to answer product questions";
+
+  return {
+    title: "Context-aware support",
+    copy: "Ask Vonza about the page you are on, why something is missing, how setup affects results, or what to do next.",
+    detail,
+    cards,
+  };
 }
 
 function getTodayQueueItemKey(item = {}) {
@@ -9830,6 +9939,7 @@ function buildDashboardHelpAssistantMarkup() {
   const context = getDashboardHelpContext();
   const helpState = ensureDashboardHelpState(context);
   const prompts = buildDashboardHelpStarterPrompts(context);
+  const snapshot = buildDashboardHelpSnapshot(context);
   const locationLabel = context.currentSubsectionLabel
     ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
     : context.currentSectionLabel;
@@ -9841,15 +9951,25 @@ function buildDashboardHelpAssistantMarkup() {
         <div class="dashboard-help-header">
           <div class="dashboard-help-header-copy">
             <p class="support-panel-kicker">Ask Vonza</p>
-            <h2 class="dashboard-help-title">Product help inside the app</h2>
+            <h2 class="dashboard-help-title">AI guide and support inside the app</h2>
             <p class="dashboard-help-subtitle" data-help-location>Currently on ${escapeHtml(locationLabel)}</p>
           </div>
           <button class="ghost-button dashboard-help-close" type="button" data-help-close>Close</button>
         </div>
         <div class="support-panel dashboard-help-context">
-          <p class="support-panel-kicker">What this is for</p>
-          <h3 class="support-panel-title">Focused on how to use Vonza</h3>
-          <p class="support-panel-copy">Ask about the current page, setup quality, install, connected tools, Contacts, Analytics, Front Desk, or what to do next.</p>
+          <p class="support-panel-kicker">${escapeHtml(snapshot.title)}</p>
+          <h3 class="support-panel-title">Focused on how to use Vonza right now</h3>
+          <p class="support-panel-copy">${escapeHtml(snapshot.copy)}</p>
+          <div class="dashboard-help-status-grid">
+            ${snapshot.cards.map((card) => `
+              <article class="dashboard-help-status-card">
+                <span class="dashboard-help-status-label">${escapeHtml(card.label)}</span>
+                <strong class="dashboard-help-status-value">${escapeHtml(card.value)}</strong>
+                <span class="dashboard-help-status-tone ${escapeHtml(card.tone)}"></span>
+              </article>
+            `).join("")}
+          </div>
+          <p class="dashboard-help-context-note">${escapeHtml(snapshot.detail)}</p>
         </div>
         <div class="dashboard-help-prompts" data-help-prompts>
           ${prompts.map((prompt) => `<button class="dashboard-help-prompt" type="button" data-help-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`).join("")}
@@ -9860,9 +9980,9 @@ function buildDashboardHelpAssistantMarkup() {
         </div>
         <form class="dashboard-help-form" data-help-form>
           <label class="sr-only" for="dashboard-help-question">Ask about using Vonza</label>
-          <textarea id="dashboard-help-question" name="question" placeholder="Ask about this page, setup, install, Contacts, Analytics, or what to do next.">${escapeHtml(helpState.draft || "")}</textarea>
+          <textarea id="dashboard-help-question" name="question" placeholder="Ask what this page means, what to fix first, why something is missing, or what to do next.">${escapeHtml(helpState.draft || "")}</textarea>
           <div class="dashboard-help-actions">
-            <p class="dashboard-help-hint">Vonza help stays product-specific and uses the page you are on for context.</p>
+            <p class="dashboard-help-hint">Ask Vonza uses your current page and workspace state so the guidance feels like part of the product, not a generic bot.</p>
             <button class="primary-button" type="submit" ${helpState.loading ? "disabled" : ""}>Send</button>
           </div>
         </form>
@@ -11570,6 +11690,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       operatorWorkspace,
     });
     const helpState = ensureDashboardHelpState(context);
+    const snapshot = buildDashboardHelpSnapshot(context, {
+      agent,
+      messages,
+      setup,
+      actionQueue,
+      operatorWorkspace,
+    });
     const locationLabel = context.currentSubsectionLabel
       ? `${context.currentSectionLabel} / ${context.currentSubsectionLabel}`
       : context.currentSectionLabel;
@@ -11590,6 +11717,25 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }).map((prompt) => (
         `<button class="dashboard-help-prompt" type="button" data-help-prompt="${escapeHtml(prompt)}">${escapeHtml(prompt)}</button>`
       )).join("");
+    }
+
+    const contextPanel = dashboardHelp.querySelector(".dashboard-help-context");
+    if (contextPanel) {
+      contextPanel.innerHTML = `
+        <p class="support-panel-kicker">${escapeHtml(snapshot.title)}</p>
+        <h3 class="support-panel-title">Focused on how to use Vonza right now</h3>
+        <p class="support-panel-copy">${escapeHtml(snapshot.copy)}</p>
+        <div class="dashboard-help-status-grid">
+          ${snapshot.cards.map((card) => `
+            <article class="dashboard-help-status-card">
+              <span class="dashboard-help-status-label">${escapeHtml(card.label)}</span>
+              <strong class="dashboard-help-status-value">${escapeHtml(card.value)}</strong>
+              <span class="dashboard-help-status-tone ${escapeHtml(card.tone)}"></span>
+            </article>
+          `).join("")}
+        </div>
+        <p class="dashboard-help-context-note">${escapeHtml(snapshot.detail)}</p>
+      `;
     }
 
     if (helpThread) {
@@ -11675,6 +11821,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         role: "assistant",
         content: trimText(result.answer) || "I couldn't answer that clearly just yet.",
       });
+      helpState.suggestedPrompts = Array.isArray(result.suggestedPrompts)
+        ? result.suggestedPrompts.map((prompt) => trimText(prompt)).filter(Boolean).slice(0, 4)
+        : [];
       setStatus("Ask Vonza is ready.");
     } catch (error) {
       helpState.messages.push({

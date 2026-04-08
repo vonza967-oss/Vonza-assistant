@@ -1367,7 +1367,8 @@ test("dashboard help assistant renders Ask Vonza with contextual starter prompts
   const rootMarkup = harness.document.getElementById("dashboard-root").innerHTML;
 
   assert.match(rootMarkup, /Ask Vonza/);
-  assert.match(rootMarkup, /Product help inside the app/);
+  assert.match(rootMarkup, /AI guide and support inside the app/);
+  assert.match(rootMarkup, /Context-aware support/);
   assert.match(rootMarkup, /What does this page do\?/);
   assert.match(rootMarkup, /What should I do next\?/);
   assert.match(rootMarkup, /How do I install Vonza\?/);

@@ -1810,6 +1810,68 @@ button:disabled {
     rgba(255, 255, 255, 0.02);
 }
 
+.dashboard-help-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.dashboard-help-status-card {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.035);
+  overflow: hidden;
+}
+
+.dashboard-help-status-label,
+.dashboard-help-context-note {
+  margin: 0;
+  color: var(--muted-strong);
+}
+
+.dashboard-help-status-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dashboard-help-status-value {
+  color: white;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.dashboard-help-status-tone {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: rgba(148, 163, 184, 0.32);
+}
+
+.dashboard-help-status-tone.ready {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.75), rgba(16, 185, 129, 0.95));
+}
+
+.dashboard-help-status-tone.limited {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.75), rgba(245, 158, 11, 0.95));
+}
+
+.dashboard-help-status-tone.attention {
+  background: linear-gradient(90deg, rgba(248, 113, 113, 0.8), rgba(239, 68, 68, 0.96));
+}
+
+.dashboard-help-context-note {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .dashboard-help-prompts {
   display: flex;
   flex-wrap: wrap;
@@ -1823,6 +1885,14 @@ button:disabled {
   background: rgba(255, 255, 255, 0.045);
   color: var(--soft);
   box-shadow: none;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.dashboard-help-prompt:hover,
+.dashboard-help-prompt:focus-visible {
+  border-color: rgba(45, 212, 191, 0.34);
+  background: rgba(45, 212, 191, 0.1);
+  transform: translateY(-1px);
 }
 
 .dashboard-help-thread {
@@ -1843,7 +1913,9 @@ button:disabled {
 }
 
 .dashboard-help-message.assistant {
-  background: rgba(255, 255, 255, 0.05);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.03)),
+    rgba(255, 255, 255, 0.04);
 }
 
 .dashboard-help-message.user {
@@ -5975,6 +6047,10 @@ body {
   .dashboard-help-header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dashboard-help-status-grid {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-help-hint {

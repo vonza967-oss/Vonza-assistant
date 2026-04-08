@@ -225,6 +225,46 @@ function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
   return steps.slice(0, 4);
 }
 
+function buildSuggestedPrompts({
+  agent = {},
+  operatorWorkspace = {},
+  currentSection = "overview",
+  currentSubsection = "",
+} = {}) {
+  const context = buildCurrentContext({ currentSection, currentSubsection });
+  const setup = summarizeSetup(agent);
+  const tools = summarizeConnectedToolState(operatorWorkspace);
+  const prompts = [
+    "What should I fix first?",
+  ];
+
+  if (context.sectionKey === "install") {
+    prompts.push("Why is my install not verified?");
+  } else if (context.sectionKey === "analytics") {
+    prompts.push("Why am I not seeing outcomes yet?");
+  } else if (context.sectionKey === "contacts") {
+    prompts.push("What is Contacts for?");
+  } else if (context.sectionKey === "settings") {
+    prompts.push("How do I connect email?");
+  } else if (context.sectionKey === "customize") {
+    prompts.push("How do I improve results?");
+  } else {
+    prompts.push("What does this page do?");
+  }
+
+  if (setup.knowledgeLimited || setup.knowledgeMissing) {
+    prompts.push("Why is my knowledge limited?");
+  } else if (!tools.googleConnected) {
+    prompts.push("How do I connect email?");
+  } else {
+    prompts.push("What should I do next?");
+  }
+
+  prompts.push("What should I do next?");
+
+  return Array.from(new Set(prompts.filter(Boolean))).slice(0, 4);
+}
+
 function buildProductKnowledgeBlock() {
   return [
     "Vonza AI architecture:",
@@ -316,8 +356,16 @@ function matchQuestionIntent(question = "", currentSection = "") {
     return "next_step";
   }
 
+  if (/what should i fix first|fix first|what do i fix first/i.test(normalized)) {
+    return "priorities";
+  }
+
   if (/why .*not ready|why isn.?t .*ready|why is .*not ready|why can.?t .*go live|what.?s blocking/i.test(normalized)) {
     return "readiness";
+  }
+
+  if (/not verified|install not verified|install missing|verify/i.test(normalized)) {
+    return "install_status";
   }
 
   if (/setup|onboarding|how setup works|how do i set this up/i.test(normalized)) {
@@ -330,6 +378,10 @@ function matchQuestionIntent(question = "", currentSection = "") {
 
   if (/knowledge|limited content|limited knowledge|improve results|improve setup/i.test(normalized)) {
     return "knowledge";
+  }
+
+  if (/not seeing outcomes|no outcomes|why.*outcomes/i.test(normalized)) {
+    return "outcomes";
   }
 
   if (/email|google|inbox|calendar|connect/i.test(normalized)) {
@@ -576,6 +628,10 @@ function buildFallbackAnswer({
       return nextSteps.length
         ? `The best next move is to focus on the biggest setup gap first: ${nextSteps.join(" ")}`
         : `${currentContext.sectionLabel} looks usable right now. Stay with ${currentContext.sectionLabel} and work through the most visible needs-attention item first.`;
+    case "priorities":
+      return nextSteps.length
+        ? `Fix the highest-leverage gap first: ${nextSteps.join(" ")}`
+        : `${currentContext.sectionLabel} is the right place to start. Work through the most visible needs-attention item first, then come back for the next step.`;
     case "readiness":
       if (!setup.personalityReady) {
         return "Vonza is not fully ready yet because the Front Desk basics are still incomplete. Finish the assistant name, welcome message, and tone first, then preview the experience before publishing.";
@@ -592,6 +648,10 @@ function buildFallbackAnswer({
       }
 
       return "The core setup looks fairly ready. If something still feels blocked, check Today for the next action and Install for live verification details.";
+    case "install_status":
+      return setup.installDetected
+        ? "Vonza can already see an install signal, so the likely issue is verification detail rather than a missing snippet. Open Install, compare the detected host with the right website, and rerun verification."
+        : "The most likely issue is that Vonza has not confirmed the live snippet yet. Open Install, check snippet placement on the correct site, then rerun verification so the live front desk can be confirmed.";
     case "setup":
       return "The usual setup flow is basics first, then website grounding, then preview, then install. Start by giving Front Desk a clear identity, add the website, run the knowledge import, test the preview, and only then move into Install to publish.";
     case "install":
@@ -604,6 +664,10 @@ function buildFallbackAnswer({
         : setup.knowledgeMissing
           ? "Vonza needs website knowledge before answers can be properly grounded. Add the website if needed, run the import from Front Desk, and then test the preview with realistic customer questions."
           : "To improve results, review real question patterns in Analytics, sharpen Front Desk wording where answers feel weak, and keep the website import fresh whenever core site content changes.";
+    case "outcomes":
+      return Number(operatorWorkspace?.summary?.confirmedOutcomes || operatorWorkspace?.summary?.confirmedBusinessOutcomes || 0) > 0
+        ? "Vonza is already recording some outcome signal, so the next step is to review Analytics > Outcomes and confirm whether the newest customer journeys are being captured the way you expect."
+        : "You are likely not seeing outcomes yet because Vonza either does not have enough live usage or the install is not fully verified yet. Once the front desk is live and handling real visitor traffic, Outcomes becomes much more useful.";
     case "connected_tools":
       return tools.googleConnected
         ? "Google is already connected, so Inbox and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Today if you want to confirm which account is active and whether sync has completed."
@@ -650,12 +714,19 @@ export async function answerVonzaProductHelp({
     currentSection,
     currentSubsection,
   });
+  const suggestedPrompts = buildSuggestedPrompts({
+    agent,
+    operatorWorkspace,
+    currentSection,
+    currentSubsection,
+  });
 
   if (!openai?.chat?.completions?.create) {
     return {
       answer: fallbackAnswer,
       usedFallback: true,
       context: currentContext,
+      suggestedPrompts,
     };
   }
 
@@ -701,6 +772,7 @@ export async function answerVonzaProductHelp({
       answer: cleanText(answer) || fallbackAnswer,
       usedFallback: false,
       context: currentContext,
+      suggestedPrompts,
     };
   } catch (error) {
     return {
@@ -708,6 +780,7 @@ export async function answerVonzaProductHelp({
       usedFallback: true,
       context: currentContext,
       fallbackReason: cleanText(error.message || "model_unavailable"),
+      suggestedPrompts,
     };
   }
 }
