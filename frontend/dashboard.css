@@ -1841,6 +1841,10 @@ button:disabled {
   gap: 14px;
 }
 
+.contact-detail-summary-grid-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .contact-detail-summary-grid .detail-kv-item {
   padding: 14px 16px;
   border: 1px solid var(--surface-border);
@@ -1855,6 +1859,22 @@ button:disabled {
   font-size: 14px;
   font-weight: 700;
   line-height: 1.45;
+}
+
+.contacts-filter-disclosure {
+  margin-top: 0;
+}
+
+.contacts-filter-disclosure .disclosure-toggle {
+  min-height: 42px;
+}
+
+.contacts-filter-disclosure .disclosure-panel {
+  padding-top: 4px;
+}
+
+.contacts-filter-panel {
+  padding: 4px 0 0;
 }
 
 .appointment-review-support-panel {
@@ -2554,8 +2574,8 @@ body {
 
 .contacts-workspace {
   display: grid;
-  grid-template-columns: minmax(360px, 0.95fr) minmax(0, 1.25fr);
-  gap: 22px;
+  grid-template-columns: minmax(340px, 0.92fr) minmax(0, 1.18fr);
+  gap: 24px;
   align-items: start;
 }
 
@@ -2564,13 +2584,20 @@ body {
   gap: 8px;
 }
 
+.contacts-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
 .contact-row {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   align-items: start;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--surface-border);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.032);
@@ -2602,8 +2629,9 @@ body {
 }
 
 .contact-row-main {
-  gap: 6px;
+  gap: 4px;
 }
+
 .contact-row-title-line {
   display: flex;
   flex-wrap: wrap;
@@ -2615,6 +2643,12 @@ body {
   color: white;
 }
 
+.contact-row-identifier {
+  margin: 0;
+  color: var(--soft);
+  line-height: 1.45;
+}
+
 .contact-row-column strong,
 .detail-kv-item strong {
   color: white;
@@ -2622,19 +2656,15 @@ body {
 
 .contacts-detail-shell {
   min-height: 560px;
+  position: sticky;
+  top: 96px;
+  align-self: start;
 }
 
 .contact-detail-panel {
-  padding: 20px 22px;
-  border-radius: 20px;
-  border: 1px solid var(--surface-border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.028));
-  box-shadow: var(--surface-highlight);
-}
-
-.contact-detail-panel {
-  padding: 20px 22px;
-  border-radius: 20px;
+  gap: 18px;
+  padding: 24px;
+  border-radius: 24px;
   border: 1px solid var(--surface-border);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.028));
   box-shadow: var(--surface-highlight);
@@ -2650,6 +2680,50 @@ body {
   margin: 0;
   color: white;
   font-size: 0.98rem;
+}
+
+.contacts-list-copy,
+.contacts-list-meta,
+.contact-focus-copy,
+.contact-row-meta {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.55;
+}
+
+.contacts-list-meta {
+  white-space: nowrap;
+}
+
+.contact-detail-stage,
+.contact-detail-actions,
+.contact-overflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.contact-detail-stage {
+  justify-content: flex-end;
+}
+
+.contact-focus-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--surface-border);
+  background:
+    linear-gradient(180deg, rgba(20, 184, 166, 0.08), rgba(20, 184, 166, 0.03)),
+    rgba(255, 255, 255, 0.026);
+  box-shadow: var(--surface-highlight);
+}
+
+.contact-focus-title {
+  margin: 0;
+  color: white;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
 }
 
 .detail-panel-section {
@@ -3748,6 +3822,7 @@ body {
 .workspace-pages .operator-checklist-title,
 .workspace-pages .operator-empty-title,
 .workspace-pages .contact-row-name,
+.workspace-pages .contact-focus-title,
 .workspace-pages .contact-row-summary,
 .workspace-pages .contact-detail-title,
 .workspace-pages .contact-row-column strong,
@@ -3772,8 +3847,12 @@ body {
 .workspace-pages .operator-checklist-note,
 .workspace-pages .operator-empty-copy,
 .workspace-pages .contact-detail-copy,
+.workspace-pages .contacts-list-copy,
+.workspace-pages .contacts-list-meta,
+.workspace-pages .contact-row-identifier,
 .workspace-pages .contact-row-copy,
 .workspace-pages .contact-row-meta,
+.workspace-pages .contact-focus-copy,
 .workspace-pages .contact-row-column-copy,
 .workspace-pages .disclosure-toggle-summary,
 .workspace-pages .disclosure-detail-copy,
@@ -4437,7 +4516,9 @@ body {
   }
 
   .today-queue-row-actions,
-  .contact-row-actions {
+  .contact-row-actions,
+  .contact-detail-stage,
+  .contact-detail-actions {
     justify-content: flex-start;
     justify-items: start;
   }
@@ -4450,6 +4531,25 @@ body {
   .contacts-list-shell {
     padding-right: 0;
     border-right: 0;
+  }
+
+  .contact-detail-summary-grid,
+  .contact-detail-summary-grid-compact,
+  .contact-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contacts-toolbar-filters {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .contacts-filter-disclosure .disclosure-toggle,
+  .contact-detail-actions .primary-button,
+  .contact-detail-actions .ghost-button,
+  .contact-overflow-actions .ghost-button {
+    width: 100%;
   }
   .action-queue-filter-row,
   .action-queue-header,
@@ -4780,6 +4880,7 @@ body {
 .today-review-empty,
 .workspace-records-list-shell,
 .workspace-records-detail-shell,
+.contact-detail-panel,
 .workspace-inline-panel,
 .frontdesk-workspace-panel,
 .install-page-main {
@@ -4871,6 +4972,23 @@ body {
   background: #f0f5ff;
 }
 
+.contact-detail-panel {
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.contact-focus-card {
+  border-color: #dbe5f1;
+  background: #f6f9fd;
+  box-shadow: none;
+}
+
+.contacts-filter-disclosure .disclosure-toggle {
+  border-color: #d7deea;
+  background: #ffffff;
+  box-shadow: none;
+}
+
 .workspace-record-row-icon {
   display: inline-flex;
   align-items: center;
@@ -4883,6 +5001,7 @@ body {
 .workspace-record-row-title,
 .today-queue-row-title,
 .contact-row-title,
+.contact-focus-title,
 .workspace-record-detail-title,
 .flat-section-title,
 .workspace-panel-title,
@@ -4892,8 +5011,11 @@ body {
 }
 
 .workspace-record-row-meta,
+.contact-row-identifier,
 .contact-row-meta,
 .today-queue-row-meta,
+.contacts-list-copy,
+.contacts-list-meta,
 .overview-label,
 .support-panel-kicker,
 .today-review-detail-label,
@@ -4912,6 +5034,7 @@ body {
 
 .workspace-record-row-copy,
 .contact-row-copy,
+.contact-focus-copy,
 .today-queue-row-copy,
 .detail-kv-item,
 .overview-list-copy,

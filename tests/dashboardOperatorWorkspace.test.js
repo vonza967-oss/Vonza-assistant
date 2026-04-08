@@ -730,8 +730,7 @@ test("today and contacts avoid dead automations CTAs when Google beta is hidden"
   assert.match(todayActions, /data-shell-target="analytics"/);
   assert.match(todayActions, /data-target-id="action-1"/);
   assert.doesNotMatch(contactActions, /data-open-follow-up/);
-  assert.match(contactActions, /data-shell-target="contacts"/);
-  assert.match(contactActions, /data-target-id="contact-1"/);
+  assert.match(contactActions, /data-shell-target="calendar"/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up</);
 });
 
@@ -834,6 +833,17 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
       enabled: true,
       featureEnabled: true,
       contacts: {
+        filters: {
+          quick: [
+            { key: "all", label: "All", count: 1 },
+            { key: "attention", label: "Needs attention", count: 1 },
+            { key: "active", label: "Active leads", count: 1 },
+            { key: "recent", label: "Recently active", count: 1 },
+          ],
+          sources: [
+            { key: "source_chat", label: "Chat", count: 1 },
+          ],
+        },
         list: [
           {
             id: "contact-1",
@@ -843,6 +853,11 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
             nextAction: {
               title: "Draft follow-up",
               description: "Pricing question still needs a response.",
+            },
+            latestOutcome: {
+              label: "Quote requested",
+              sourceLabel: "Chat",
+              occurredAt: "2026-04-05T09:00:00.000Z",
             },
             counts: {
               leads: 1,
@@ -864,7 +879,13 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, /data-contact-row/);
   assert.match(contactsPanel, /data-contact-detail/);
+  assert.match(contactsPanel, /Selected contact/);
+  assert.match(contactsPanel, /Recommended next action/);
+  assert.match(contactsPanel, /View details/);
+  assert.match(contactsPanel, /View timeline/);
+  assert.match(contactsPanel, /More filters/);
   assert.match(contactsPanel, /Search contacts/);
+  assert.doesNotMatch(contactsPanel, /Need a follow-up/);
 });
 
 test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
