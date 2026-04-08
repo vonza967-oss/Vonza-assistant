@@ -95,7 +95,7 @@ test("activation checklist reflects durable first-run progress", () => {
 
   assert.equal(checklist.find((step) => step.key === "connect_google")?.complete, true);
   assert.equal(checklist.find((step) => step.key === "choose_context")?.complete, true);
-  assert.equal(checklist.find((step) => step.key === "run_first_sync")?.complete, false);
+  assert.equal(checklist.find((step) => step.key === "run_first_sync")?.complete, true);
   assert.equal(checklist.find((step) => step.key === "review_calendar")?.complete, false);
 });
 

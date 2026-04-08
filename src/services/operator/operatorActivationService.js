@@ -460,7 +460,7 @@ export function buildOperatorSingleNextAction({
 } = {}) {
   const googleConnected = status.googleConnected === true;
   const googleConnectReady = status.googleConnectReady !== false;
-  const needsFirstSync = googleConnected && !activation.calendarSynced;
+  const needsFirstSync = googleConnected && !activation.calendarSynced && !activation.inboxSynced;
   const openTasks = (tasks || []).filter(isOpenTask);
   const urgentComplaintTask = openTasks
     .filter((task) => cleanText(task.taskType) === "complaint_queue")
@@ -477,7 +477,7 @@ export function buildOperatorSingleNextAction({
       key: "connect_google",
       title: googleConnectReady ? "Connect Google" : "Finish Google setup",
       description: googleConnectReady
-        ? "Connect Google Calendar so Today can pull your schedule, recent appointments, and approval-first follow-up suggestions."
+        ? "Connect Gmail and Calendar so Vonza can pull support email, today’s schedule, and approval-first follow-up suggestions."
         : "Google connection is not configured on this deployment yet. Add the Google env vars before owner activation.",
       buttonLabel: googleConnectReady ? "Connect Google" : "Review deployment setup",
       actionType: googleConnectReady ? "connect_google" : "open_customize",
@@ -490,7 +490,7 @@ export function buildOperatorSingleNextAction({
     return {
       key: "choose_context",
       title: "Choose your operator context",
-      description: "Confirm the primary calendar context before syncing live data into Today.",
+      description: "Confirm the inbox and calendar context before syncing live customer work into Today.",
       buttonLabel: "Save context",
       actionType: "review_context",
       targetSection: "overview",
@@ -501,7 +501,7 @@ export function buildOperatorSingleNextAction({
     return {
       key: "run_first_sync",
       title: "Run first sync",
-      description: "Pull in the calendar now so Today can show today’s schedule, recent appointments, and follow-up suggestions.",
+      description: "Pull in the inbox and calendar now so Today can show customer email, recent appointments, and follow-up suggestions.",
       buttonLabel: "Run first sync",
       actionType: "run_first_sync",
       targetSection: "overview",
@@ -611,28 +611,28 @@ export function buildOperatorActivationChecklist({
       key: "connect_google",
       title: "Connect Google",
       description: googleConnectReady
-        ? "Authorize basic identity plus read-only Google Calendar access so Today can summarize the day."
+        ? "Connect Gmail and Calendar so Vonza can help with customer email, daily schedule context, and approval-first drafts."
         : "Google env vars still need to be configured before owners can connect.",
       complete: googleConnected,
     },
     {
       key: "choose_context",
-      title: "Confirm calendar context",
-      description: "Use the primary Google calendar as the source of truth for Today.",
+      title: "Confirm inbox and calendar context",
+      description: "Use the main inbox and primary calendar as the source of truth for Today.",
       complete: activation.calendarContextSelected,
     },
     {
       key: "run_first_sync",
       title: "Run first sync",
-      description: "Pull in today’s schedule plus very recent appointments so Today stops feeling empty.",
-      complete: activation.calendarSynced,
+      description: "Pull in recent customer email plus today’s schedule so the workspace stops feeling empty.",
+      complete: activation.calendarSynced || activation.inboxSynced,
     },
     {
       key: "review_calendar",
-      title: "Review today’s calendar summary",
+      title: "Review the first workspace summary",
       description: (events || []).length || (suggestedSlots || []).length
-        ? "Review today’s schedule, open slots, and the first follow-up or linking suggestion."
-        : "Acknowledge the calendar state so the owner still gets a useful empty summary.",
+        ? "Review today’s schedule, open slots, and the first inbox or follow-up suggestion."
+        : "Acknowledge the connected workspace state so the owner still gets a useful empty summary.",
       complete: activation.firstCalendarActionReviewed,
     },
   ];
@@ -658,14 +658,14 @@ export function buildOperatorBriefing({
   if (status.googleConnected !== true) {
     return {
       title: "Start by connecting Google",
-      text: "Google is not connected yet, so Today cannot summarize the calendar, recent appointments, or approval-first follow-up suggestions.",
+      text: "Google is not connected yet, so Today cannot summarize support email, recent appointments, or approval-first follow-up suggestions.",
     };
   }
 
-  if (!activation.calendarSynced) {
+  if (!activation.calendarSynced && !activation.inboxSynced) {
     return {
       title: "Run the first sync",
-      text: "Google is connected, but the first sync has not finished yet, so Today is still waiting on live calendar data.",
+      text: "Google is connected, but the first sync has not finished yet, so Today is still waiting on live inbox and calendar data.",
     };
   }
 
@@ -705,7 +705,7 @@ export function buildOperatorBriefing({
   const recommendation = cleanText(nextAction?.title || nextAction?.description);
   const summaryText = parts.length
     ? `${parts.join(". ")}.`
-    : "Calendar access is live, but there are no appointments or queued follow-up items standing out right now.";
+    : "Inbox and calendar access are live, but there are no appointments, customer emails, or queued follow-up items standing out right now.";
 
   return {
     title: "Operator briefing",

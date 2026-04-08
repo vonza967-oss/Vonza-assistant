@@ -6,6 +6,7 @@ import {
   buildCampaignSequence,
   buildReplyDraft,
   classifyInboxThread,
+  createGoogleConnectionStart,
   suggestCalendarSlots,
 } from "../src/services/operator/operatorWorkspaceService.js";
 
@@ -21,6 +22,20 @@ test("inbox classifier identifies complaint and billing threads", () => {
     snippet: "Can you check the charge on my card?",
     messages: [],
   }), "billing");
+});
+
+test("inbox classifier distinguishes booking and general threads", () => {
+  assert.equal(classifyInboxThread({
+    subject: "Can I book for Friday afternoon?",
+    snippet: "I need to reschedule our appointment.",
+    messages: [],
+  }), "booking");
+
+  assert.equal(classifyInboxThread({
+    subject: "Quick hello",
+    snippet: "Wanted to check in and say thanks.",
+    messages: [],
+  }), "general");
 });
 
 test("reply draft generation stays approval-first and complaint aware", () => {
@@ -44,6 +59,73 @@ test("reply draft generation stays approval-first and complaint aware", () => {
   assert.equal(draft.to, "customer@example.com");
   assert.match(draft.subject, /sorry/i);
   assert.match(draft.body, /make this right/i);
+});
+
+test("google connection start requests Gmail inbox scopes by default", async () => {
+  const previousEnv = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    GOOGLE_TOKEN_ENCRYPTION_SECRET: process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET,
+  };
+  const inserts = [];
+  const supabase = {
+    from(tableName) {
+      return {
+        async insert(payload) {
+          inserts.push({ tableName, payload });
+          return { error: null };
+        },
+      };
+    },
+  };
+
+  process.env.GOOGLE_CLIENT_ID = "client-id";
+  process.env.GOOGLE_CLIENT_SECRET = "client-secret";
+  process.env.GOOGLE_OAUTH_REDIRECT_URI = "https://example.com/google/oauth/callback";
+  process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = "test-secret";
+
+  try {
+    const result = await createGoogleConnectionStart(supabase, {
+      agent: {
+        id: "agent-1",
+        businessId: "business-1",
+      },
+      ownerUserId: "owner-1",
+    });
+
+    const scope = new URL(result.authUrl).searchParams.get("scope") || "";
+
+    assert.match(scope, /gmail\.readonly/);
+    assert.match(scope, /gmail\.compose/);
+    assert.match(scope, /gmail\.send/);
+    assert.equal(inserts[0]?.tableName, "google_oauth_states");
+    assert.equal(inserts[1]?.tableName, "operator_audit_logs");
+  } finally {
+    if (previousEnv.GOOGLE_CLIENT_ID === undefined) {
+      delete process.env.GOOGLE_CLIENT_ID;
+    } else {
+      process.env.GOOGLE_CLIENT_ID = previousEnv.GOOGLE_CLIENT_ID;
+    }
+
+    if (previousEnv.GOOGLE_CLIENT_SECRET === undefined) {
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    } else {
+      process.env.GOOGLE_CLIENT_SECRET = previousEnv.GOOGLE_CLIENT_SECRET;
+    }
+
+    if (previousEnv.GOOGLE_OAUTH_REDIRECT_URI === undefined) {
+      delete process.env.GOOGLE_OAUTH_REDIRECT_URI;
+    } else {
+      process.env.GOOGLE_OAUTH_REDIRECT_URI = previousEnv.GOOGLE_OAUTH_REDIRECT_URI;
+    }
+
+    if (previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET === undefined) {
+      delete process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET;
+    } else {
+      process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET;
+    }
+  }
 });
 
 test("slot suggestion avoids busy events and finds business-hour availability", () => {

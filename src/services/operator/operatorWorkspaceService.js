@@ -90,11 +90,18 @@ export const GOOGLE_OPERATOR_OPTIONAL_SCOPES = [
   GOOGLE_SCOPE_GMAIL_SEND,
 ];
 
+const GOOGLE_OPERATOR_RECOMMENDED_SCOPES = uniqueText([
+  ...GOOGLE_OPERATOR_SCOPES,
+  ...GOOGLE_OPERATOR_OPTIONAL_SCOPES,
+]);
+
 export const INBOX_CLASSIFICATIONS = [
   "lead_sales",
+  "booking",
   "support",
   "complaint",
   "billing",
+  "general",
   "follow_up_needed",
 ];
 
@@ -1199,11 +1206,15 @@ export function classifyInboxThread(thread = {}) {
     return "support";
   }
 
-  if (/(quote|pricing|book|booking|schedule|availability|demo|estimate|service|proposal|interested)/i.test(text)) {
+  if (/(book|booking|schedule|availability|appointment|calendar|reschedule)/i.test(text)) {
+    return "booking";
+  }
+
+  if (/(quote|pricing|demo|estimate|service|proposal|interested)/i.test(text)) {
     return "lead_sales";
   }
 
-  return "follow_up_needed";
+  return "general";
 }
 
 function getComplaintState(classification) {
@@ -1449,7 +1460,7 @@ function buildComplaintTask(thread, lead) {
 }
 
 function buildFollowUpTask(thread, lead) {
-  if (!thread || thread.classification !== "lead_sales" || !thread.needsReply) {
+  if (!thread || !["lead_sales", "booking"].includes(thread.classification) || !thread.needsReply) {
     return null;
   }
 
@@ -1668,7 +1679,7 @@ export async function createGoogleConnectionStart(supabase, options = {}) {
     throw error;
   }
 
-  const scopes = uniqueText(options.scopes?.length ? options.scopes : GOOGLE_OPERATOR_SCOPES);
+  const scopes = uniqueText(options.scopes?.length ? options.scopes : GOOGLE_OPERATOR_RECOMMENDED_SCOPES);
   const stateToken = randomBytes(24).toString("base64url");
   const stateHash = hashToken(stateToken);
   const redirectUri = getGoogleOAuthRedirectUri();
@@ -2509,6 +2520,10 @@ function buildReplySubject(thread, businessName) {
     return `Re: Next steps with ${businessName || "our business"}`;
   }
 
+  if (thread.classification === "booking") {
+    return `Re: Scheduling with ${businessName || "our business"}`;
+  }
+
   return `Re: Following up from ${businessName || "our business"}`;
 }
 
@@ -2575,6 +2590,18 @@ export function buildReplyDraft(thread = {}, options = {}) {
         `Thanks for reaching out to ${businessName}.`,
         "I reviewed your message and prepared the next step so we can keep momentum moving.",
         "If you share the timing or scope you have in mind, we can line up the right next action right away.",
+        "",
+        `Best,`,
+        senderName,
+      ].join("\n");
+      break;
+    case "booking":
+      body = [
+        greeting,
+        "",
+        `Thanks for reaching out to ${businessName}.`,
+        "I reviewed your message and prepared the next step so we can keep your scheduling request moving.",
+        "If you share the best timing or any booking preferences, we can line up the right next slot without losing context.",
         "",
         `Best,`,
         senderName,
