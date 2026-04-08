@@ -324,13 +324,13 @@ function mapWidgetConfigRow(row) {
     ...DEFAULT_WIDGET_CONFIG,
     ...(row
       ? {
-          assistantName: row.assistant_name || DEFAULT_WIDGET_CONFIG.assistantName,
-          welcomeMessage: row.welcome_message || DEFAULT_WIDGET_CONFIG.welcomeMessage,
-          buttonLabel: row.button_label || DEFAULT_WIDGET_CONFIG.buttonLabel,
-          primaryColor: row.primary_color || DEFAULT_WIDGET_CONFIG.primaryColor,
-          secondaryColor: row.secondary_color || DEFAULT_WIDGET_CONFIG.secondaryColor,
-          launcherText: row.launcher_text || DEFAULT_WIDGET_CONFIG.launcherText,
-          themeMode: row.theme_mode || DEFAULT_WIDGET_CONFIG.themeMode,
+          assistantName: row.assistant_name ?? DEFAULT_WIDGET_CONFIG.assistantName,
+          welcomeMessage: row.welcome_message ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
+          buttonLabel: row.button_label ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
+          primaryColor: row.primary_color ?? DEFAULT_WIDGET_CONFIG.primaryColor,
+          secondaryColor: row.secondary_color ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
+          launcherText: row.launcher_text ?? DEFAULT_WIDGET_CONFIG.launcherText,
+          themeMode: row.theme_mode ?? DEFAULT_WIDGET_CONFIG.themeMode,
           bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
           quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
           checkoutUrl: normalizeOptionalUrl(row.checkout_url) || "",
@@ -1055,13 +1055,13 @@ export async function listAgents(supabase, options = {}) {
       systemPrompt: row.system_prompt || "",
       websiteUrl,
       welcomeMessage:
-        widgetConfig?.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
+        widgetConfig?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
       buttonLabel:
-        widgetConfig?.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
+        widgetConfig?.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
       primaryColor:
-        widgetConfig?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
+        widgetConfig?.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
       secondaryColor:
-        widgetConfig?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+        widgetConfig?.secondaryColor ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
       bookingUrl:
         widgetConfig?.bookingUrl || DEFAULT_WIDGET_CONFIG.bookingUrl,
       quoteUrl:
@@ -1195,13 +1195,13 @@ export async function listAllAgents(supabase) {
     systemPrompt: row.system_prompt || "",
     websiteUrl: businessesById.get(row.business_id)?.website_url || "",
     welcomeMessage:
-      widgetConfigsByAgentId.get(row.id)?.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
+      widgetConfigsByAgentId.get(row.id)?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
     buttonLabel:
-      widgetConfigsByAgentId.get(row.id)?.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
+      widgetConfigsByAgentId.get(row.id)?.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
     primaryColor:
-      widgetConfigsByAgentId.get(row.id)?.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
+      widgetConfigsByAgentId.get(row.id)?.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
     secondaryColor:
-      widgetConfigsByAgentId.get(row.id)?.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+      widgetConfigsByAgentId.get(row.id)?.secondaryColor ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
     bookingUrl:
       widgetConfigsByAgentId.get(row.id)?.bookingUrl || DEFAULT_WIDGET_CONFIG.bookingUrl,
     quoteUrl:
@@ -1729,10 +1729,10 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
   return {
     ...mappedAgent,
     assistantName: widgetConfig.assistantName || mappedAgent.name || DEFAULT_WIDGET_CONFIG.assistantName,
-    welcomeMessage: widgetConfig.welcomeMessage || DEFAULT_WIDGET_CONFIG.welcomeMessage,
-    buttonLabel: widgetConfig.buttonLabel || DEFAULT_WIDGET_CONFIG.buttonLabel,
-    primaryColor: widgetConfig.primaryColor || DEFAULT_WIDGET_CONFIG.primaryColor,
-    secondaryColor: widgetConfig.secondaryColor || DEFAULT_WIDGET_CONFIG.secondaryColor,
+    welcomeMessage: widgetConfig.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
+    buttonLabel: widgetConfig.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
+    primaryColor: widgetConfig.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
+    secondaryColor: widgetConfig.secondaryColor ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
   };
 }
 
