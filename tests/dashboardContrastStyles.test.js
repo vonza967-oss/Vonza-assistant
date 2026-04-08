@@ -61,3 +61,15 @@ test("dashboard chips and light-shell support panels use explicit readable surfa
   assert.match(lightSupportPanel, /border:\s*1px solid #dbe4ef/i);
   assert.match(lightSupportPanel, /background:\s*#ffffff/i);
 });
+
+test("dashboard light-workspace badges and summary cards keep dark-on-light text", () => {
+  const css = readDashboardCss();
+  const workspaceBadgeRow = getCssBlock(css, ".workspace-badge-row");
+
+  assert.match(workspaceBadgeRow, /display:\s*flex/i);
+  assert.match(css, /\.workspace-page \.badge\.success,\s*\.workspace-page-overview \.badge\.success\s*\{[^}]*background:\s*#ddf5ea;[^}]*color:\s*#166349;/i);
+  assert.match(css, /\.workspace-page \.badge\.warning,\s*\.workspace-page-overview \.badge\.warning\s*\{[^}]*background:\s*#fff1d7;[^}]*color:\s*#9b5e00;/i);
+  assert.match(css, /\.workspace-page \.pill,\s*\.workspace-page \.badge,\s*\.workspace-page \.preview-status-pill,[^}]*color:\s*#4a5e7b;/i);
+  assert.match(css, /\.overview-value,\s*\.operator-focus-title,\s*\.operator-checklist-title,\s*\.operator-empty-title\s*\{\s*color:\s*#22324a;/i);
+  assert.match(css, /\.workspace-record-row-copy,[^}]*\.operator-focus-copy,[^}]*\.operator-empty-copy\s*\{\s*color:\s*#42536d;/i);
+});

@@ -4376,6 +4376,14 @@ body {
   gap: 8px;
 }
 
+.workspace-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
 .page-toolbar {
   align-items: center;
   gap: 14px;
@@ -4596,12 +4604,22 @@ body {
   color: #6a7b95;
 }
 
+.overview-value,
+.operator-focus-title,
+.operator-checklist-title,
+.operator-empty-title {
+  color: #22324a;
+}
+
 .workspace-record-row-copy,
 .contact-row-copy,
 .today-queue-row-copy,
 .detail-kv-item,
 .overview-list-copy,
-.analytics-item-copy {
+.analytics-item-copy,
+.operator-focus-copy,
+.operator-checklist-note,
+.operator-empty-copy {
   color: #42536d;
 }
 
@@ -4622,6 +4640,38 @@ body {
 .analytics-list,
 .timeline-list {
   gap: 0;
+}
+
+.workspace-page .pill,
+.workspace-page .badge,
+.workspace-page .preview-status-pill,
+.workspace-page-overview .pill,
+.workspace-page-overview .badge,
+.workspace-page-overview .preview-status-pill {
+  border-color: #d7e1ec;
+  background: #f4f7fb;
+  color: #4a5e7b;
+}
+
+.workspace-page .badge.success,
+.workspace-page-overview .badge.success {
+  border-color: #9ed9bf;
+  background: #ddf5ea;
+  color: #166349;
+}
+
+.workspace-page .badge.warning,
+.workspace-page-overview .badge.warning {
+  border-color: #f0cb86;
+  background: #fff1d7;
+  color: #9b5e00;
+}
+
+.workspace-page .badge.pending,
+.workspace-page-overview .badge.pending {
+  border-color: #d4deea;
+  background: #eef2f7;
+  color: #697b95;
 }
 
 .detail-kv-item,
