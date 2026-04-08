@@ -2124,6 +2124,52 @@ function buildSummaryStrip(items = []) {
   `;
 }
 
+function buildDisclosureDetailRows(rows = [], { className = "disclosure-detail-list" } = {}) {
+  const visibleRows = rows.filter((row) => row && (row.label || row.value || row.copy));
+
+  if (!visibleRows.length) {
+    return "";
+  }
+
+  return `
+    <div class="${className}">
+      ${visibleRows.map((row) => `
+        <div class="disclosure-detail-row">
+          ${row.label ? `<span class="disclosure-detail-label">${escapeHtml(row.label)}</span>` : ""}
+          ${row.value !== undefined && row.value !== null && row.value !== "" ? `<strong class="disclosure-detail-value">${escapeHtml(row.value)}</strong>` : ""}
+          ${row.copy ? `<p class="disclosure-detail-copy">${escapeHtml(row.copy)}</p>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function buildDisclosureBlock({
+  label = "View details",
+  summary = "",
+  contentMarkup = "",
+  className = "",
+  open = false,
+} = {}) {
+  if (!trimText(contentMarkup)) {
+    return "";
+  }
+
+  const disclosureClassName = ["disclosure-block", className].filter(Boolean).join(" ");
+
+  return `
+    <details class="${disclosureClassName}" ${open ? "open" : ""}>
+      <summary class="disclosure-toggle">
+        <span class="disclosure-toggle-label">${escapeHtml(label)}</span>
+        ${summary ? `<span class="disclosure-toggle-summary">${escapeHtml(summary)}</span>` : ""}
+      </summary>
+      <div class="disclosure-panel">
+        ${contentMarkup}
+      </div>
+    </details>
+  `;
+}
+
 function buildLocalSectionNav(items = [], { attribute = "data-local-target", activeKey = "" } = {}) {
   const visibleItems = items.filter((item) => item && item.key && item.label);
 
@@ -2747,7 +2793,21 @@ function buildContactCountsSummary(contact = {}) {
   ].join(" · ");
 }
 
-function buildContactRow(contact = {}) {
+function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const rowSummary = contact.nextAction?.description
+    || contact.latestOutcome?.label
+    || "No urgent next step is standing out right now.";
+  const rowMeta = [
+    contact.bestIdentifier,
+    contact.email || "",
+    contact.phone || "",
+    contact.mostRecentActivityAt
+      ? `Active ${formatSeenAt(contact.mostRecentActivityAt)}`
+      : contact.latestOutcome?.occurredAt
+        ? `Result ${formatSeenAt(contact.latestOutcome.occurredAt)}`
+        : "",
+  ].filter(Boolean).join(" · ") || "No direct identifier yet";
+
   return `
     <button
       class="contact-row"
@@ -2765,21 +2825,9 @@ function buildContactRow(contact = {}) {
           <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
           ${buildContactFlags(contact).slice(0, 2).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
         </div>
-        <p class="contact-row-meta">${escapeHtml([
-          contact.bestIdentifier,
-          contact.email || "",
-          contact.phone || "",
-        ].filter(Boolean).join(" · ") || "No direct identifier yet")}</p>
-      </div>
-      <div class="contact-row-column">
-        <span class="contact-row-column-label">Next action</span>
-        <strong>${escapeHtml(contact.nextAction?.title || "No action needed")}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(contact.nextAction?.description || "There is nothing more urgent to do here right now.")}</span>
-      </div>
-      <div class="contact-row-column">
-        <span class="contact-row-column-label">Latest result</span>
-        <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
-        <span class="contact-row-column-copy">${escapeHtml(contact.mostRecentActivityAt ? formatSeenAt(contact.mostRecentActivityAt) : "No recent activity")}</span>
+        <p class="contact-row-summary">${escapeHtml(contact.nextAction?.title || contact.latestOutcome?.label || "No action needed")}</p>
+        <p class="contact-row-copy">${escapeHtml(rowSummary)}</p>
+        <p class="contact-row-meta">${escapeHtml(rowMeta)}</p>
       </div>
     </button>
   `;
@@ -2791,35 +2839,14 @@ function buildContactDetailPanel(
   operatorWorkspace = createEmptyOperatorWorkspace(),
   selected = false
 ) {
-  return `
-    <article
-      class="contact-detail-panel ${selected ? "active" : ""}"
-      data-contact-detail
-      data-contact-id="${escapeHtml(contact.id || "")}"
-      ${selected ? "" : "hidden"}
-    >
-      <div class="contact-detail-header">
-        <div>
-          <div class="action-queue-badges">
-            <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
-            ${contact.suggestedLifecycleState && contact.suggestedLifecycleState !== contact.lifecycleState ? `<span class="pill">Suggested ${escapeHtml(formatContactLifecycleLabel(contact.suggestedLifecycleState))}</span>` : ""}
-            ${contact.partialIdentity ? `<span class="pill">Partial identity</span>` : ""}
-            ${buildContactFlags(contact).slice(0, 4).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
-          </div>
-          <h2 class="contact-detail-title">${escapeHtml(contact.name || "Unknown contact")}</h2>
-          <p class="contact-detail-copy">${escapeHtml([
-            contact.bestIdentifier,
-            contact.email || "",
-            contact.phone || "",
-          ].filter(Boolean).join(" · ") || "No direct identifier yet")}</p>
-        </div>
-        <div class="contact-detail-actions">
-          ${buildContactQuickActions(contact, operatorWorkspace)}
-        </div>
-      </div>
+  const relationshipDetailsMarkup = buildDisclosureBlock({
+    label: "View relationship details",
+    summary: buildContactCountsSummary(contact),
+    className: "contact-detail-disclosure",
+    contentMarkup: `
       <div class="contact-detail-grid">
         <section class="detail-panel-section">
-          <h3 class="detail-panel-title">Lifecycle and next action</h3>
+          <h3 class="detail-panel-title">Relationship details</h3>
           <div class="detail-kv-list">
             <div class="detail-kv-item">
               <span class="detail-kv-label">Source spine</span>
@@ -2831,7 +2858,7 @@ function buildContactDetailPanel(
               <p>${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a more important next move here.")}</p>
             </div>
             <div class="detail-kv-item">
-              <span class="detail-kv-label">Latest result</span>
+              <span class="detail-kv-label">Latest result context</span>
               <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
               <p>${escapeHtml([
                 trimText(contact.latestOutcome?.sourceLabel),
@@ -2840,13 +2867,14 @@ function buildContactDetailPanel(
               ].filter(Boolean).join(" · ") || "This contact still needs a clear result, not just activity.")}</p>
             </div>
             <div class="detail-kv-item">
-              <span class="detail-kv-label">Activity counts</span>
-              <strong>${escapeHtml(buildContactCountsSummary(contact))}</strong>
+              <span class="detail-kv-label">Suggested state</span>
+              <strong>${escapeHtml(contact.suggestedLifecycleState ? formatContactLifecycleLabel(contact.suggestedLifecycleState) : "No change suggested")}</strong>
+              <p>${escapeHtml(contact.partialIdentity ? "This record is still stitching together partial identity and activity." : "Lifecycle and action history are grounded in the linked record.")}</p>
             </div>
           </div>
         </section>
         <section class="detail-panel-section">
-          <h3 class="detail-panel-title">Contact updates</h3>
+          <h3 class="detail-panel-title">Operator controls</h3>
           <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
             <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Lifecycle state</label>
             <div class="detail-inline-form-row">
@@ -2885,19 +2913,75 @@ function buildContactDetailPanel(
           ` : ""}
         </section>
       </div>
-      <section class="detail-panel-section">
-        <h3 class="detail-panel-title">Timeline</h3>
-        ${Array.isArray(contact.timeline) && contact.timeline.length ? `
-          <div class="timeline-list">
-            ${contact.timeline.map((entry) => `
-              <div class="timeline-row">
-                <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
-                <span>${escapeHtml(`${entry.label || entry.source || "Activity"} · ${entry.summary || ""}`)}</span>
-              </div>
-            `).join("")}
+    `,
+  });
+  const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
+    <div class="timeline-list">
+      ${contact.timeline.map((entry) => `
+        <div class="timeline-row">
+          <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
+          <span>${escapeHtml(`${entry.label || entry.source || "Activity"} · ${entry.summary || ""}`)}</span>
+        </div>
+      `).join("")}
+    </div>
+  ` : `<div class="placeholder-card">This contact is here, and the timeline will fill in as more conversations, bookings, and follow-ups come through.</div>`;
+
+  return `
+    <article
+      class="contact-detail-panel ${selected ? "active" : ""}"
+      data-contact-detail
+      data-contact-card
+      data-contact-id="${escapeHtml(contact.id || "")}"
+      ${selected ? "" : "hidden"}
+    >
+      <div class="contact-detail-header">
+        <div>
+          <div class="action-queue-badges">
+            <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
+            ${contact.suggestedLifecycleState && contact.suggestedLifecycleState !== contact.lifecycleState ? `<span class="pill">Suggested ${escapeHtml(formatContactLifecycleLabel(contact.suggestedLifecycleState))}</span>` : ""}
+            ${contact.partialIdentity ? `<span class="pill">Partial identity</span>` : ""}
+            ${buildContactFlags(contact).slice(0, 4).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
           </div>
-        ` : `<div class="placeholder-card">This contact is here, and the timeline will fill in as more conversations, bookings, and follow-ups come through.</div>`}
-      </section>
+          <h2 class="contact-detail-title">${escapeHtml(contact.name || "Unknown contact")}</h2>
+          <p class="contact-detail-copy">${escapeHtml([
+            contact.bestIdentifier,
+            contact.email || "",
+            contact.phone || "",
+          ].filter(Boolean).join(" · ") || "No direct identifier yet")}</p>
+        </div>
+        <div class="contact-detail-actions">
+          ${buildContactQuickActions(contact, operatorWorkspace)}
+        </div>
+      </div>
+      <div class="contact-detail-summary-grid">
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Source spine</span>
+          <strong>${escapeHtml(buildContactSourceSummary(contact))}</strong>
+        </div>
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Recommended next action</span>
+          <strong>${escapeHtml(contact.nextAction?.title || "No action needed")}</strong>
+          <p>${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a more important next move here.")}</p>
+        </div>
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Latest result</span>
+          <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
+          <p>${escapeHtml(contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "No recent activity")}</p>
+        </div>
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Activity counts</span>
+          <strong>${escapeHtml(buildContactCountsSummary(contact))}</strong>
+        </div>
+      </div>
+      ${relationshipDetailsMarkup}
+      ${buildDisclosureBlock({
+        label: "View timeline",
+        summary: Array.isArray(contact.timeline) && contact.timeline.length
+          ? `${contact.timeline.length} recent update${contact.timeline.length === 1 ? "" : "s"}`
+          : "No timeline yet",
+        className: "contact-detail-disclosure",
+        contentMarkup: timelineMarkup,
+      })}
     </article>
   `;
 }
@@ -3033,10 +3117,15 @@ function buildCopilotSummaryCards(copilot = createEmptyOperatorWorkspace().copil
         <div class="overview-card">
           <p class="overview-label">${escapeHtml(card.label || "Copilot summary")}</p>
           <p class="overview-card-copy">${escapeHtml(card.text || "Copilot is waiting for more stable-core context.")}</p>
-          <p class="analytics-subtle">${escapeHtml([
-            card.confidence ? `Confidence: ${card.confidence}` : "",
-            card.rationale || "",
-          ].filter(Boolean).join(" · "))}</p>
+          ${buildDisclosureBlock({
+            label: "View details",
+            summary: card.confidence ? `Confidence ${card.confidence}` : "",
+            className: "disclosure-block-inline",
+            contentMarkup: buildDisclosureDetailRows([
+              { label: "Confidence", value: card.confidence || "Not scored" },
+              { label: "Reasoning", value: card.rationale || "Copilot is waiting for more stable-core context." },
+            ]),
+          })}
         </div>
       `).join("")}
       </div>
@@ -3096,6 +3185,11 @@ function buildCopilotProposalList(
               contactFallbackLabel: "Open contact",
             }
           );
+          const proposalDetailMarkup = [
+            proposal.type ? `Type: ${proposal.type.replaceAll("_", " ")}` : "",
+            proposal.priority ? `Priority: ${proposal.priority}` : "",
+            proposal.confidence ? `Confidence: ${proposal.confidence}` : "",
+          ].filter(Boolean).join(" · ");
 
           return `
           <div class="analytics-item">
@@ -3109,23 +3203,9 @@ function buildCopilotProposalList(
                   ? "Needs attention"
                   : proposal.state === "stale"
                     ? "Limited"
-                    : "Ready"
+                  : "Ready"
               )}">${escapeHtml((proposal.state || "new").replaceAll("_", " "))}</span>
             </div>
-            <p class="analytics-subtle">${escapeHtml([
-              proposal.type ? `Type: ${proposal.type.replaceAll("_", " ")}` : "",
-              proposal.priority ? `Priority: ${proposal.priority}` : "",
-              proposal.confidence ? `Confidence: ${proposal.confidence}` : "",
-            ].filter(Boolean).join(" · "))}</p>
-            ${proposal.why ? `<p class="analytics-subtle" style="margin-top:8px;">${escapeHtml(normalizeShellCopy(`Why: ${proposal.why}`))}</p>` : ""}
-            ${proposal.whatHappens ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(normalizeShellCopy(`If applied: ${proposal.whatHappens}`))}</p>` : ""}
-            ${resolvedTarget ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(`Target: ${resolvedTarget.label || resolvedTarget.section || "Existing workflow"}`)}</p>` : ""}
-            ${proposal.approvalNote ? `<p class="analytics-subtle" style="margin-top:4px;">${escapeHtml(normalizeShellCopy(`Approval-first: ${proposal.approvalNote}`))}</p>` : ""}
-            ${proposal.stateReason ? `
-              <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
-                <p>${escapeHtml(normalizeShellCopy(proposal.stateReason))}</p>
-              </div>
-            ` : ""}
             <div class="inline-actions" style="margin-top:12px;">
               <button
                 class="primary-button"
@@ -3157,6 +3237,24 @@ function buildCopilotProposalList(
                 ${escapeHtml(proposal.dismissLabel || "Dismiss")}
               </button>
             </div>
+            ${buildDisclosureBlock({
+              label: "View details",
+              summary: proposalDetailMarkup,
+              className: "disclosure-block-inline",
+              contentMarkup: `
+                ${buildDisclosureDetailRows([
+                  { label: "Why it matters", value: proposal.why ? normalizeShellCopy(proposal.why) : "No extra rationale stored." },
+                  { label: "If applied", value: proposal.whatHappens ? normalizeShellCopy(proposal.whatHappens) : "This proposal will route into the live workflow object after review." },
+                  { label: "Target", value: resolvedTarget?.label || resolvedTarget?.section || "Existing workflow" },
+                  { label: "Approval-first note", value: proposal.approvalNote ? normalizeShellCopy(proposal.approvalNote) : "The owner still reviews this before anything changes." },
+                ])}
+                ${proposal.stateReason ? `
+                  <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
+                    <p>${escapeHtml(normalizeShellCopy(proposal.stateReason))}</p>
+                  </div>
+                ` : ""}
+              `,
+            })}
           </div>
         `;
         }).join("")}
@@ -3301,7 +3399,7 @@ function buildTodayInsightCard({
           <p class="workspace-panel-copy">${escapeHtml(description || "Vonza will show the next useful context here.")}</p>
         </div>
       </div>
-      ${items.length ? `
+          ${items.length ? `
         <div class="analytics-list">
           ${items.map((item) => `
             <div class="analytics-item">
@@ -3316,6 +3414,16 @@ function buildTodayInsightCard({
               <div class="inline-actions" style="margin-top:12px;">
                 ${buildTodayInsightActionButton(item, defaultActionLabel, operatorWorkspace)}
               </div>
+              ${buildDisclosureBlock({
+                label: "View details",
+                summary: item.startAt ? formatSeenAt(item.startAt) : "",
+                className: "disclosure-block-inline",
+                contentMarkup: buildDisclosureDetailRows([
+                  { label: "Timing and context", value: formatCalendarInsightContext(item) || "Context is still loading." },
+                  { label: "Why it matters", value: normalizeShellCopy(trimText(item[reasonKey]) || "Vonza highlighted this calendar item for review.") },
+                  { label: "Workflow status", value: item.linkedContactId ? "Linked to a contact" : "Still needs linking or review" },
+                ]),
+              })}
             </div>
           `).join("")}
         </div>
@@ -4059,19 +4167,20 @@ function buildTodayReviewPanel(
           <strong class="today-review-detail-value">${escapeHtml(eventContext || "Context is still loading.")}</strong>
         </div>
         <div class="today-review-detail-row">
-          <span class="today-review-detail-label">Contact match</span>
-          <strong class="today-review-detail-value">${escapeHtml(linkState)}</strong>
-          <p class="today-review-detail-copy">${escapeHtml(linkStateCopy)}</p>
-        </div>
-        <div class="today-review-detail-row">
-          <span class="today-review-detail-label">Why it matters</span>
-          <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemWhyLabel(item))}</strong>
-        </div>
-        <div class="today-review-detail-row">
           <span class="today-review-detail-label">Suggested next move</span>
           <strong class="today-review-detail-value">${escapeHtml(getTodayQueueItemCopilotSummary(item))}</strong>
         </div>
       </div>
+      ${buildDisclosureBlock({
+        label: "View details",
+        summary: linkState,
+        className: "disclosure-block-inline",
+        contentMarkup: buildDisclosureDetailRows([
+          { label: "Contact match", value: linkState, copy: linkStateCopy },
+          { label: "Why it matters", value: getTodayQueueItemWhyLabel(item) },
+          { label: "Workflow status", value: isAppointmentReviewQueueItem(item) ? "Appointment review" : workflow.label, copy: isAppointmentReviewQueueItem(item) ? "Keep follow-up and outcomes tied to the right person." : workflow.copy },
+        ], { className: "today-review-detail-list disclosure-detail-list" }),
+      })}
       ${isAppointmentReviewQueueItem(item)
         ? buildTodayReviewDrawerActions({
           ...item,
@@ -4111,7 +4220,7 @@ function buildTodayReviewDrawer(
           <div>
             <p class="support-panel-kicker">Review drawer</p>
             <h3 class="today-review-panel-title">Stay in Today while you work through what matters.</h3>
-            <p class="support-panel-copy">Select any item to inspect the context, see why it was surfaced, and clear the next step without leaving the page.</p>
+            <p class="support-panel-copy">Select any item to review the next move. Extra reasoning and workflow context stay tucked behind details.</p>
           </div>
         </div>
         <div class="today-review-panel-stack">
@@ -7088,6 +7197,49 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
         ` : `<div class="placeholder-card">Vonza will prepare a knowledge-fix workflow for this queue item as soon as the server bridge syncs it.</div>`}
       `
       : "";
+    const queueDetailDisclosure = buildDisclosureBlock({
+      label: "View details",
+      summary: [formatActionQueueContact(item), recencyLabel].filter(Boolean).join(" · "),
+      className: "disclosure-block-inline action-queue-disclosure",
+      contentMarkup: `
+        <div class="action-queue-details">
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Conversation summary</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.snippet || "No customer question stored yet.")}</strong>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Why it was flagged</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</strong>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Operator action</span>
+            <strong class="action-queue-detail-value">${escapeHtml(getOperatorActionTypeLabel(item))}</strong>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Contact</span>
+            <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Visitor thread</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.person?.label || "Unknown visitor")}</strong>
+            <p class="action-queue-copy">${escapeHtml(item.person?.story || "Vonza could not confidently stitch this item to another visitor interaction yet.")}</p>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Owner follow-up state</span>
+            <strong class="action-queue-detail-value">${escapeHtml(workflow.label)}</strong>
+            <p class="action-queue-copy">${escapeHtml(workflow.copy)}</p>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Suggested next action</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
+          </div>
+          <div class="action-queue-detail">
+            <span class="action-queue-detail-label">Recency</span>
+            <strong class="action-queue-detail-value">${escapeHtml(metaLine)}</strong>
+          </div>
+        </div>
+      `,
+    });
 
     return `
     <article
@@ -7126,43 +7278,8 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
           <div class="action-queue-meta-inline">${escapeHtml(metaLine)}</div>
         `}
       </div>
-      <div class="action-queue-details">
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Conversation summary</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.snippet || "No customer question stored yet.")}</strong>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Why it was flagged</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.whyFlagged || "Flagged from recent conversation activity.")}</strong>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Operator action</span>
-          <strong class="action-queue-detail-value">${escapeHtml(getOperatorActionTypeLabel(item))}</strong>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Contact</span>
-          <strong class="action-queue-detail-value">${escapeHtml(formatActionQueueContact(item))}</strong>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Visitor thread</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.person?.label || "Unknown visitor")}</strong>
-          <p class="action-queue-copy">${escapeHtml(item.person?.story || "Vonza could not confidently stitch this item to another visitor interaction yet.")}</p>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Owner follow-up state</span>
-          <strong class="action-queue-detail-value">${escapeHtml(workflow.label)}</strong>
-          <p class="action-queue-copy">${escapeHtml(workflow.copy)}</p>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Suggested next action</span>
-          <strong class="action-queue-detail-value">${escapeHtml(item.suggestedAction || "Review the conversation pattern and improve the assistant or website flow.")}</strong>
-        </div>
-        <div class="action-queue-detail">
-          <span class="action-queue-detail-label">Recency</span>
-          <strong class="action-queue-detail-value">${escapeHtml(recencyLabel)}</strong>
-        </div>
-      </div>
-      ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml(metaLine)}</p>` : ""}
+      ${allowStatusUpdates ? `<p class="action-queue-meta-inline">${escapeHtml([formatActionQueueContact(item), workflow.label, recencyLabel].filter(Boolean).join(" · "))}</p>` : ""}
+      ${queueDetailDisclosure}
       ${compact ? "" : `
         <div class="action-queue-handoff">
           ${followUpSummary}
@@ -7966,17 +8083,22 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               </div>
               ${recentOutcomes.length ? `
                 <div class="results-list">
-                  ${recentOutcomes.map((outcome) => `
+              ${recentOutcomes.map((outcome) => `
                     <div class="results-list-item">
                       <div>
                         <strong>${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</strong>
                         <p>${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
                       </div>
-                      <span>${escapeHtml([
-                        trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " "),
-                        trimText(outcome.relatedIntentType),
-                        outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
-                      ].filter(Boolean).join(" · ") || "Attributed result")}</span>
+                      ${buildDisclosureBlock({
+                        label: "View details",
+                        summary: trimText(outcome.relatedIntentType) || "",
+                        className: "disclosure-block-inline results-disclosure",
+                        contentMarkup: buildDisclosureDetailRows([
+                          { label: "Attribution path", value: trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " ") || "Attributed result" },
+                          { label: "Intent", value: trimText(outcome.relatedIntentType) || "Not stored" },
+                          { label: "Recorded", value: outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "Not stored" },
+                        ]),
+                      })}
                     </div>
                   `).join("")}
                 </div>
@@ -8039,7 +8161,11 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                       <strong>${escapeHtml(item.title)}</strong>
                       <p>${escapeHtml(item.copy)}</p>
                     </div>
-                    <span>${escapeHtml(item.subtle)}</span>
+                    ${buildDisclosureBlock({
+                      label: "View details",
+                      className: "disclosure-block-inline results-disclosure",
+                      contentMarkup: `<p class="disclosure-detail-copy">${escapeHtml(item.subtle)}</p>`,
+                    })}
                   </div>
                 `).join("")}
               </div>
@@ -8168,11 +8294,16 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                       <strong>${escapeHtml(formatActionQueueContact({ contactInfo: lead.contact || {} }) || "Contact captured")}</strong>
                       <p>${escapeHtml(trimText(lead.reason) || "Captured from live chat intent.")}</p>
                     </div>
-                    <span>${escapeHtml([
-                      trimText(lead.state).replaceAll("_", " "),
-                      lead.isReturningVisitor ? "returning visitor" : "new visitor",
-                      trimText(lead.followUp?.status) ? `follow-up ${trimText(lead.followUp.status)}` : "",
-                    ].filter(Boolean).join(" · "))}</span>
+                    ${buildDisclosureBlock({
+                      label: "View details",
+                      summary: trimText(lead.state).replaceAll("_", " "),
+                      className: "disclosure-block-inline results-disclosure",
+                      contentMarkup: buildDisclosureDetailRows([
+                        { label: "Lead state", value: trimText(lead.state).replaceAll("_", " ") || "Not stored" },
+                        { label: "Visitor type", value: lead.isReturningVisitor ? "Returning visitor" : "New visitor" },
+                        { label: "Follow-up state", value: trimText(lead.followUp?.status) ? `follow-up ${trimText(lead.followUp.status)}` : "No follow-up stored" },
+                      ]),
+                    })}
                   </div>
                 `).join("")}
               </div>
@@ -8980,22 +9111,30 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
                     </div>
                     <span class="${getBadgeClass(followUp.status === "sent" ? "Ready" : followUp.status === "dismissed" ? "Limited" : "Needs attention")}">${escapeHtml(followUp.status || "draft")}</span>
                   </div>
-                  <form class="workspace-section-stack" data-follow-up-form data-follow-up-id="${escapeHtml(followUp.id)}" data-lead-id="${escapeHtml(followUp.leadId || "")}">
-                    <div class="field">
-                      <label>Subject</label>
-                      <input name="subject" type="text" value="${escapeHtml(followUp.subject || "")}">
-                    </div>
-                    <div class="field">
-                      <label>Draft</label>
-                      <textarea name="draft_content">${escapeHtml(followUp.draftContent || "")}</textarea>
-                    </div>
-                    <div class="inline-actions">
-                      <button class="ghost-button" type="submit">Save draft</button>
-                      <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready">Mark ready</button>
-                      <button class="primary-button" type="button" data-follow-up-status-action data-next-status="sent">Mark sent</button>
-                      <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed">Dismiss</button>
-                    </div>
-                  </form>
+                  <p class="analytics-item-copy">${escapeHtml(followUp.topic || "Prepared follow-up draft waiting for owner review.")}</p>
+                  ${buildDisclosureBlock({
+                    label: "Review draft",
+                    summary: followUp.channel || "email",
+                    className: "disclosure-block-inline",
+                    contentMarkup: `
+                      <form class="workspace-section-stack" data-follow-up-form data-follow-up-id="${escapeHtml(followUp.id)}" data-lead-id="${escapeHtml(followUp.leadId || "")}">
+                        <div class="field">
+                          <label>Subject</label>
+                          <input name="subject" type="text" value="${escapeHtml(followUp.subject || "")}">
+                        </div>
+                        <div class="field">
+                          <label>Draft</label>
+                          <textarea name="draft_content">${escapeHtml(followUp.draftContent || "")}</textarea>
+                        </div>
+                        <div class="inline-actions">
+                          <button class="ghost-button" type="submit">Save draft</button>
+                          <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready">Mark ready</button>
+                          <button class="primary-button" type="button" data-follow-up-status-action data-next-status="sent">Mark sent</button>
+                          <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed">Dismiss</button>
+                        </div>
+                      </form>
+                    `,
+                  })}
                 </article>
               `;
             }).join("")}
