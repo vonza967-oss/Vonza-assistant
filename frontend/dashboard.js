@@ -41,8 +41,8 @@ const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
 const DASHBOARD_HELP_SECTION_LABELS = {
-  overview: "Today",
-  contacts: "Contacts",
+  overview: "Home",
+  contacts: "Customers",
   customize: "Front Desk",
   analytics: "Analytics",
   install: "Install",
@@ -81,7 +81,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Today, Contacts, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
+      "The first public offer is the AI front desk plus Home, Customers, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -95,8 +95,8 @@ const DEFAULT_LAUNCH_PROFILE = {
     front_desk: { state: FEATURE_STATE_STABLE, label: "AI front desk" },
     website_import: { state: FEATURE_STATE_STABLE, label: "Website import" },
     widget_install: { state: FEATURE_STATE_STABLE, label: "Widget install" },
-    today: { state: FEATURE_STATE_STABLE, label: "Today" },
-    contacts: { state: FEATURE_STATE_STABLE, label: "Contacts" },
+    today: { state: FEATURE_STATE_STABLE, label: "Home" },
+    contacts: { state: FEATURE_STATE_STABLE, label: "Customers" },
     outcomes: { state: FEATURE_STATE_STABLE, label: "Analytics" },
     customize: { state: FEATURE_STATE_STABLE, label: "Front Desk" },
     lead_capture: { state: FEATURE_STATE_STABLE, label: "Lead capture" },
@@ -453,21 +453,21 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
 
   if (operatorWorkspace?.enabled === false) {
-    return {
-      key: "front_desk_only",
-      eyebrow: "Workspace",
-      title: "Your core workspace is ready.",
-      copy: "Today, Contacts, Front Desk, Analytics, and Install are available here. Optional Google tools are simply out of the way on this deployment.",
-    };
+      return {
+        key: "front_desk_only",
+        eyebrow: "Workspace",
+        title: "Your core workspace is ready.",
+        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Optional Google tools are simply out of the way on this deployment.",
+      };
   }
 
   if (!isGoogleWorkspaceConfigured(operatorWorkspace)) {
-    return {
-      key: "operator_without_google_beta",
-      eyebrow: "Workspace",
-      title: "Your main workspace is live.",
-      copy: "Today, Contacts, Front Desk, and Analytics are ready to use. Inbox, Calendar, and Automations will appear later when optional Google tools are available.",
-    };
+      return {
+        key: "operator_without_google_beta",
+        eyebrow: "Workspace",
+        title: "Your main workspace is live.",
+        copy: "Home, Customers, Front Desk, and Analytics are ready to use. Inbox, Calendar, and Automations will appear later when optional Google tools are available.",
+      };
   }
 
   if (operatorWorkspace?.status?.googleConnected === true) {
@@ -476,7 +476,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
         title: "Your workspace now includes calendar visibility.",
-        copy: "Today can see your Google Calendar and bring schedule context into the workspace. Email tools and calendar changes stay off for now.",
+        copy: "Home can see your Google Calendar and bring schedule context into the workspace. Email tools and calendar changes stay off for now.",
       };
     }
 
@@ -484,7 +484,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your workspace is fully connected.",
-      copy: "Today, Contacts, Front Desk, and Analytics stay at the center, with Inbox, Calendar, and Automations available alongside them.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center, with Inbox, Calendar, and Automations available alongside them.",
     };
   }
 
@@ -492,7 +492,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready, with optional Google tools available.",
-    copy: "Today, Contacts, Front Desk, and Analytics are ready now. Connect Google when you want Inbox, Calendar, and Automations in the same workspace.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connect Google when you want Inbox, Calendar, and Automations in the same workspace.",
   };
 }
 
@@ -2603,14 +2603,14 @@ function buildSidebarShell(
   const coreItems = [
     {
       key: "overview",
-      label: "Today",
+      label: "Home",
       note: "Your clearest next steps, recent wins, and what needs attention.",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
-      label: "Contacts",
+      label: "Customers",
       note: "People, follow-ups, and the latest customer progress.",
       badge: contactsAttention > 0 ? String(contactsAttention) : "",
       badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
@@ -2719,7 +2719,7 @@ function formatOperatorCount(value, singular, plural = `${singular}s`) {
 
 function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const actionType = trimText(nextAction.actionType || "stay_put");
-  const label = normalizeShellCopy(nextAction.buttonLabel || nextAction.title || "Open Today");
+  const label = normalizeShellCopy(nextAction.buttonLabel || nextAction.title || "Open Home");
   const disabled = nextAction.disabled === true;
 
   if (actionType === "connect_google") {
@@ -3304,6 +3304,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const contacts = operatorWorkspace.contacts?.list || [];
   const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
   const filters = operatorWorkspace.contacts?.filters || createEmptyOperatorWorkspace().contacts.filters;
+  const summary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const quickFilters = Array.isArray(filters.quick) ? filters.quick : [];
   const sourceFilters = Array.isArray(filters.sources) ? filters.sources : [];
   const primaryFilters = quickFilters.slice(0, 3);
@@ -3313,13 +3314,21 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
       ${buildPageHeader({
-        title: "Contacts",
+        eyebrow: "Relationships",
+        title: "Customers",
+        copy: "Keep the customer view simple: who needs a reply, who is close to buying, and who might slip away if no one follows up.",
         actionsMarkup: isCapabilityVisibleForWorkspace("automations", operatorWorkspace)
           ? `<button class="primary-button" type="button" data-shell-target="automations">Draft follow-up</button>`
           : "",
       })}
+      ${buildSummaryStrip([
+        { label: "Need a follow-up", value: formatOperatorCount(summary.contactsNeedingAttention, "customer"), copy: "People who likely need a reply or next step." },
+        { label: "At risk", value: formatOperatorCount(summary.complaintRiskContacts, "customer"), copy: "Relationships that may need extra care." },
+        { label: "No clear next step", value: formatOperatorCount(summary.leadsWithoutNextStep, "lead"), copy: "Interested customers still waiting on direction." },
+        { label: "With wins", value: formatOperatorCount(summary.contactsWithOutcomes, "customer"), copy: "People where Vonza can already point to a result." },
+      ])}
       ${buildPageToolbar({
-        searchMarkup: `<label class="toolbar-search"><span class="sr-only">Search contacts</span><input type="search" placeholder="Search people by name, email, phone, or next step" data-contact-search></label>`,
+        searchMarkup: `<label class="toolbar-search"><span class="sr-only">Search contacts</span><input type="search" placeholder="Search customers by name, email, phone, or next step" data-contact-search></label>`,
         filtersMarkup: `
           <div class="contacts-toolbar-filters">
             <div class="toolbar-filter-group">
@@ -3348,17 +3357,26 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
       })}
       <div class="workspace-page-body">
         ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Some contact history is still loading: ${contactsHealth.loadError}`)}</p></div>` : ""}
+        <section class="workspace-card-soft customer-intro-card">
+          <div class="workspace-panel-header">
+            <div>
+              <p class="studio-kicker">Customer view</p>
+              <h3 class="workspace-panel-title">A clearer view of who matters most</h3>
+              <p class="workspace-panel-copy">Each record is meant to help an SMB owner act quickly: understand the relationship, see the latest context, and take one useful next step.</p>
+            </div>
+          </div>
+        </section>
         ${!contacts.length ? buildOperatorEmptyState({
-          title: "Your contacts will show up here",
+          title: "Your customers will show up here",
           copy: operatorWorkspace.status?.googleConnected
-            ? "As soon as leads, bookings, inbox threads, or follow-ups appear, Vonza will build a clean contact record for each person."
-            : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect optional Google tools.",
+            ? "As soon as leads, bookings, inbox threads, or follow-ups appear, Vonza will build a clear customer record for each person."
+            : "Customers still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect optional Google tools.",
         }) : `
           <div class="contacts-workspace" data-contacts-workspace>
             <section class="contacts-list-shell">
               <div class="contacts-list-header">
                 <div>
-                  <p class="overview-label">People</p>
+                  <p class="overview-label">Customers</p>
                   <strong>${escapeHtml(formatOperatorCount(contacts.length, "contact"))}</strong>
                 </div>
               </div>
@@ -3368,7 +3386,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
             </section>
             <section class="contacts-detail-shell">
               ${contacts.map((contact, index) => buildContactDetailPanel(agent, contact, operatorWorkspace, index === 0)).join("")}
-              ${selectedContact ? "" : `<div class="placeholder-card">Choose a person to see their stage, current state, and next best action.</div>`}
+              ${selectedContact ? "" : `<div class="placeholder-card">Choose a customer to see their stage, latest context, and next best action.</div>`}
             </section>
           </div>
         `}
@@ -4799,60 +4817,219 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
-  const todayQueueItems = buildTodayQueueItems(actionQueue, operatorWorkspace);
-  const iconActionsMarkup = `
-    <div class="today-page-icons">
-      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
-        isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? "inbox" : "overview"
-      )}" aria-label="Open Inbox">
-        ${getUiIconMarkup("bell")}
-      </button>
-      <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
-        isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? "calendar" : "overview"
-      )}" aria-label="Open Calendar">
-        ${getUiIconMarkup("bell")}
-      </button>
-      <button class="today-icon-button today-icon-button-user" type="button" aria-label="${escapeHtml(
-        authUser?.email ? `Signed in as ${authUser.email}` : "Open profile"
-      )}" title="${escapeHtml(authUser?.email || "Open profile")}">
-        ${getUiIconMarkup("user")}
-      </button>
-    </div>
-  `;
-  const toolbarActions = `
-    <button class="ghost-button today-toolbar-button" type="button" data-refresh-operator data-force-sync="true" title="Refresh workspace">
-      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("sync")}</span>
-      <span>Refresh</span>
-      <span class="sr-only">Refresh workspace</span>
-    </button>
-    <button class="primary-button today-toolbar-button" type="button" data-shell-target="${escapeHtml(
-      isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? "automations" : "contacts"
-    )}">
-      <span class="today-inline-icon" aria-hidden="true">${getUiIconMarkup("plus")}</span>
-      <span>Start next step</span>
-    </button>
-  `;
+  const contactSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
+  const contactNeedsAttention = (contact = {}) => {
+    const lifecycleState = trimText(contact.lifecycleState).toLowerCase();
+    const flags = Array.isArray(contact.flags) ? contact.flags.map((flag) => trimText(flag).toLowerCase()) : [];
+
+    if (["active_lead", "qualified", "complaint_risk", "support_issue"].includes(lifecycleState)) {
+      return true;
+    }
+
+    if (trimText(contact.nextAction?.title) || trimText(contact.nextAction?.description)) {
+      return true;
+    }
+
+    return flags.some((flag) => (
+      flag.includes("follow up")
+      || flag.includes("complaint")
+      || flag.includes("campaign active")
+      || flag.includes("booked")
+    ));
+  };
+  const renderInsightList = (items = [], {
+    emptyTitle = "Nothing to review yet",
+    emptyCopy = "Helpful customer detail will show up here as soon as it matters.",
+    limit = 4,
+    detailFormatter = null,
+  } = {}) => {
+    const visibleItems = items.slice(0, limit);
+
+    if (!visibleItems.length) {
+      return buildOperatorEmptyState({
+        title: emptyTitle,
+        copy: emptyCopy,
+      });
+    }
+
+    return `
+      <div class="results-list">
+        ${visibleItems.map((contact) => `
+          <div class="results-list-item">
+            <div>
+              <strong>${escapeHtml(contact.name || contact.bestIdentifier || "Unknown customer")}</strong>
+              <p>${escapeHtml(contact.nextAction?.title || contact.latestOutcome?.label || "No action needed")}</p>
+              <p class="analytics-subtle">${escapeHtml(detailFormatter
+                ? detailFormatter(contact)
+                : [
+                  trimText(contact.nextAction?.description),
+                  trimText(contact.email || contact.phone || contact.bestIdentifier),
+                  contact.mostRecentActivityAt ? `Active ${formatSeenAt(contact.mostRecentActivityAt)}` : "",
+                ].filter(Boolean).join(" · ") || "Open the customer to review the relationship and next step."
+              )}</p>
+            </div>
+            <button
+              class="ghost-button"
+              type="button"
+              data-shell-target="contacts"
+              data-target-id="${escapeHtml(contact.id || "")}"
+              ${contact.id ? "" : "disabled"}
+            >Open customer</button>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  };
+  const customersNeedingAttention = contactsList
+    .filter((contact) => contactNeedsAttention(contact))
+    .slice()
+    .sort((left, right) => (
+      getDashboardComparableTime(right.mostRecentActivityAt, right.latestOutcome?.occurredAt)
+      - getDashboardComparableTime(left.mostRecentActivityAt, left.latestOutcome?.occurredAt)
+    ));
+  const recentWins = contactsList
+    .filter((contact) => trimText(contact.latestOutcome?.label))
+    .slice()
+    .sort((left, right) => (
+      getDashboardComparableTime(right.latestOutcome?.occurredAt, right.mostRecentActivityAt)
+      - getDashboardComparableTime(left.latestOutcome?.occurredAt, left.mostRecentActivityAt)
+    ));
+  const homeActionQueue = {
+    ...actionQueue,
+    items: (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
+      const key = trimText(item?.key || item?.id || `${item?.type || "item"}-${index}`);
+      return items.findIndex((candidate, candidateIndex) => (
+        trimText(candidate?.key || candidate?.id || `${candidate?.type || "item"}-${candidateIndex}`) === key
+      )) === index;
+    }),
+  };
 
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
-        title: "Today",
-        actionsMarkup: iconActionsMarkup,
+        eyebrow: "Overview",
+        title: "Home",
+        copy: "See what needs attention, where customers may slip away, and the clearest next move for your business.",
+        actionsMarkup: `
+          <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>
+          ${buildOverviewActionMarkup(agent, overview.primaryAction, { primary: true })}
+        `,
       })}
-      ${buildPageToolbar({
-        actionsMarkup: toolbarActions,
-      })}
+      ${buildSummaryStrip([
+        {
+          label: "Needs attention",
+          value: formatOperatorCount(contactSummary.contactsNeedingAttention || overview.queueSummary.attentionNeeded, "customer"),
+          copy: "People who likely need a reply, follow-up, or a clearer answer.",
+        },
+        {
+          label: "Questions answered",
+          value: formatAnalyticsMetric(overview.analyticsSummary.visitorQuestions, overview.analyticsSummary),
+          copy: "Real customer questions Vonza has already handled.",
+        },
+        {
+          label: "Leads captured",
+          value: formatAnalyticsMetric(overview.analyticsSummary.contactsCaptured, overview.analyticsSummary),
+          copy: "Customers who shared contact details or raised their hand.",
+        },
+        {
+          label: "Recorded wins",
+          value: String(overview.outcomeSummary.confirmedBusinessOutcomes || 0),
+          copy: "Conservative proof that Vonza helped move business forward.",
+        },
+      ])}
       <div class="workspace-page-body">
-        <div class="today-workspace">
-          <section class="today-main-column">
-            <div class="today-main-header">
-              <div>
-                <p class="overview-label">Today</p>
-                <h2 class="today-section-title">Queue</h2>
+        <div class="workspace-section-stack">
+          <section class="overview-hero overview-hero-home">
+            <span class="eyebrow">${isInstallSeen(overview.installStatus) ? "Live front desk" : "Getting ready"}</span>
+            <h2 class="overview-title">${escapeHtml(overview.title)}</h2>
+            <p class="overview-copy">${escapeHtml(overview.copy)}</p>
+            <div class="overview-metric-grid home-metric-grid">
+              <div class="overview-metric">
+                <div class="overview-metric-label">Front Desk</div>
+                <div class="overview-metric-value">${escapeHtml(getInstallSummaryLabel(overview.installStatus))}</div>
+              </div>
+              <div class="overview-metric">
+                <div class="overview-metric-label">Response quality</div>
+                <div class="overview-metric-value">${escapeHtml(
+                  overview.analyticsSummary.weakAnswerCount > 0
+                    ? `${overview.analyticsSummary.weakAnswerCount} to improve`
+                    : "Looking solid"
+                )}</div>
+              </div>
+              <div class="overview-metric">
+                <div class="overview-metric-label">Customers waiting</div>
+                <div class="overview-metric-value">${escapeHtml(String(contactSummary.contactsNeedingAttention || overview.queueSummary.attentionNeeded || 0))}</div>
+              </div>
+              <div class="overview-metric">
+                <div class="overview-metric-label">Website knowledge</div>
+                <div class="overview-metric-value">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} pages` : "Needs import")}</div>
               </div>
             </div>
-            ${buildTodayAttentionList(todayQueueItems, contactsList, operatorWorkspace)}
+            <div class="overview-action-row">
+              ${overview.nextActions.map((action) => buildOverviewActionMarkup(agent, action)).join("")}
+            </div>
           </section>
+
+          <div class="home-grid">
+            <section class="workspace-card-soft home-card home-card-wide">
+              <div class="workspace-panel-header">
+                <div>
+                  <p class="studio-kicker">Start here</p>
+                  <h3 class="workspace-panel-title">Customers who could use your help first</h3>
+                  <p class="workspace-panel-copy">This is the fastest path to saving time and avoiding missed customers. Open one person, take the next step, then move on.</p>
+                </div>
+                <button class="ghost-button" type="button" data-shell-target="contacts">Open Customers</button>
+              </div>
+              ${renderInsightList(customersNeedingAttention, {
+                emptyTitle: "No customers are waiting right now",
+                emptyCopy: "When a lead, returning customer, or at-risk conversation needs attention, it will show up here first.",
+                limit: 4,
+              })}
+            </section>
+
+            <section class="workspace-card-soft home-card">
+              <div class="workspace-panel-header">
+                <div>
+                  <p class="studio-kicker">Live signal</p>
+                  <h3 class="workspace-panel-title">What customers are asking about</h3>
+                  <p class="workspace-panel-copy">Use this quick read to spot where people need more clarity before they contact or buy.</p>
+                </div>
+                <button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>
+              </div>
+              <div class="question-list">
+                ${overview.signals.topQuestions.length
+                  ? overview.signals.topQuestions.slice(0, 4).map((item) => `
+                    <div class="question-row">
+                      <strong>${escapeHtml(item.label)}</strong>
+                      <span>${escapeHtml(`${item.count > 1 ? `${item.count} times` : "Seen once"} · ${getIntentLabel(item.intent)}`)}</span>
+                    </div>
+                  `).join("")
+                  : `<div class="placeholder-card">Question themes will appear here once real customer conversations start coming in.</div>`}
+              </div>
+            </section>
+
+            <section class="workspace-card-soft home-card">
+              <div class="workspace-panel-header">
+                <div>
+                  <p class="studio-kicker">Momentum</p>
+                  <h3 class="workspace-panel-title">Recent wins and movement</h3>
+                  <p class="workspace-panel-copy">A simple readout of what is improving so you can see progress without digging through a dashboard.</p>
+                </div>
+              </div>
+              ${renderInsightList(recentWins, {
+                emptyTitle: "No recorded wins yet",
+                emptyCopy: "Wins show up here after Vonza can safely attribute a booking, quote, follow-up, or another real business result.",
+                limit: 3,
+                detailFormatter: (contact) => [
+                  trimText(contact.latestOutcome?.label),
+                  contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "",
+                  trimText(contact.nextAction?.description),
+                ].filter(Boolean).join(" · "),
+              })}
+            </section>
+          </div>
+
+          ${buildActionQueueMarkup(agent, homeActionQueue, { compact: true, allowStatusUpdates: false })}
         </div>
       </div>
     </section>
@@ -7813,7 +7990,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
       ${visibleItems.length ? `
         ${compact ? `
           <div class="action-queue-secondary-action">
-            <button class="ghost-button" type="button" data-overview-target="overview">Review in Today</button>
+            <button class="ghost-button" type="button" data-overview-target="overview">Review in Home</button>
           </div>
         ` : `
           <div class="action-queue-filter-row">
@@ -8633,17 +8810,47 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
+        eyebrow: "Performance",
         title: "Analytics",
-        actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh signals</button>`,
+        copy: "Understand what customers want, where satisfaction may break down, and whether Vonza is helping you save time and keep more business.",
+        actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>`,
       })}
       ${buildSummaryStrip([
-        { label: "Conversations", value: formatAnalyticsMetric(analyticsSummary.totalMessages, analyticsSummary), copy: "Stored assistant and visitor messages." },
-        { label: "Customer questions", value: formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary), copy: "Questions captured from real usage." },
-        { label: "Weak answers", value: formatAnalyticsMetric(signals.weakAnswerCount, analyticsSummary), copy: "Questions that still need stronger answers." },
-        { label: "Recorded wins", value: formatAnalyticsMetric(outcomeSummary.confirmedBusinessOutcomes, analyticsSummary), copy: "Results Vonza can prove conservatively." },
+        { label: "Questions", value: formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary), copy: "Real customer questions Vonza has handled." },
+        { label: "Buying signals", value: formatAnalyticsMetric(analyticsSummary.highIntentSignals, analyticsSummary), copy: "Moments where people seem ready to move forward." },
+        { label: "Answers to improve", value: formatAnalyticsMetric(signals.weakAnswerCount, analyticsSummary), copy: "Places where customers may leave confused or unconvinced." },
+        { label: "Recorded wins", value: formatAnalyticsMetric(outcomeSummary.confirmedBusinessOutcomes, analyticsSummary), copy: "Conservative proof that Vonza helped create an outcome." },
       ])}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
+          <section class="workspace-card-soft analytics-story-card">
+            <div class="workspace-panel-header">
+              <div>
+                <p class="studio-kicker">Business readout</p>
+                <h3 class="workspace-panel-title">${escapeHtml(analyticsSummary.operatorSignal.title || "What the customer data is saying")}</h3>
+                <p class="workspace-panel-copy">${escapeHtml(analyticsSummary.operatorSignal.copy || "Vonza will summarize the strongest customer and business signal here as usage grows.")}</p>
+              </div>
+            </div>
+            <div class="analytics-story-grid">
+              <div class="detail-kv-item">
+                <span class="detail-kv-label">Front Desk status</span>
+                <strong>${escapeHtml(installStatus.label)}</strong>
+                <p>${escapeHtml(activity.copy)}</p>
+              </div>
+              <div class="detail-kv-item">
+                <span class="detail-kv-label">Website knowledge</span>
+                <strong>${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "Needs stronger website detail")}</strong>
+                <p>${escapeHtml(setup.knowledgeDescription)}</p>
+              </div>
+              <div class="detail-kv-item">
+                <span class="detail-kv-label">Lead capture path</span>
+                <strong>${escapeHtml(`${analyticsSummary.contactsCaptured || 0} captured from ${analyticsSummary.highIntentSignals || 0} high-intent moments`)}</strong>
+                <p>${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks and ${conversionSummary.directRouteCount || 0} direct routes recorded so far.`)}</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="analytics-simple-grid">
           <section class="workspace-card-soft">
             <h3 class="studio-group-title">Top customer questions</h3>
             ${signals.topQuestions.length ? `
@@ -8665,28 +8872,33 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               </div>
             ` : `<div class="placeholder-card">No weak-answer signal yet.</div>`}
           </section>
+          </div>
 
+          <div class="analytics-simple-grid">
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Core metrics</h3>
+            <h3 class="studio-group-title">Customer path health</h3>
             <div class="analytics-list">
               <div class="analytics-item">
-                <p class="analytics-item-title">Front-desk visibility</p>
-                <p class="analytics-item-copy">${escapeHtml(installStatus.label)}</p>
+                <p class="analytics-item-title">Customers reached a next step</p>
+                <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes and ${conversionSummary.captureFallbackCount || 0} fallback captures so far.`)}</p>
               </div>
               <div class="analytics-item">
-                <p class="analytics-item-title">Recent activity</p>
-                <p class="analytics-item-copy">${escapeHtml(activity.description)}</p>
-                <p class="analytics-subtle">${escapeHtml(activity.copy)}</p>
+                <p class="analytics-item-title">Customers shared contact details</p>
+                <p class="analytics-item-copy">${escapeHtml(`${analyticsSummary.contactsCaptured || 0} contact capture${analyticsSummary.contactsCaptured === 1 ? "" : "s"} recorded.`)}</p>
+                <p class="analytics-subtle">${escapeHtml(`${recentLeadCaptures.length} recent capture${recentLeadCaptures.length === 1 ? "" : "s"}.`)}</p>
               </div>
               <div class="analytics-item">
-                <p class="analytics-item-title">Knowledge state</p>
-                <p class="analytics-item-copy">${escapeHtml(setup.knowledgeDescription)}</p>
-                <p class="analytics-subtle">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "No imported pages yet")}</p>
+                <p class="analytics-item-title">Customers got a usable answer</p>
+                <p class="analytics-item-copy">${escapeHtml(
+                  signals.weakAnswerCount
+                    ? `${Math.max((analyticsSummary.visitorQuestions || 0) - signals.weakAnswerCount, 0)} questions looked healthy at first pass.`
+                    : "No weak-answer signal is standing out right now."
+                )}</p>
               </div>
               <div class="analytics-item">
-                <p class="analytics-item-title">Conversion loop</p>
-                <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
-                <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed wins`)}</p>
+                <p class="analytics-item-title">Vonza helped create results</p>
+                <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed win${outcomeSummary.confirmedBusinessOutcomes === 1 ? "" : "s"} recorded.`)}</p>
+                <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.followUpAssistedOutcomeCount || 0} came through follow-up support.`)}</p>
               </div>
             </div>
           </section>
@@ -8711,6 +8923,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           </section>
 
           ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
+          </div>
         </div>
       </div>
     </section>

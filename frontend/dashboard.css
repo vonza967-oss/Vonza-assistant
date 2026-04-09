@@ -971,6 +971,13 @@ button:disabled {
   align-items: start;
 }
 
+.home-grid,
+.analytics-simple-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
 .overview-title {
   margin: 0;
   color: white;
@@ -1029,6 +1036,26 @@ button:disabled {
 
 .overview-card-queue {
   grid-column: 1 / -1;
+}
+
+.home-card {
+  height: 100%;
+}
+
+.home-card-wide {
+  grid-column: 1 / -1;
+}
+
+.overview-hero-home {
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(56, 189, 248, 0.12), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    var(--card);
+}
+
+.home-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .overview-card-title {
@@ -2838,6 +2865,10 @@ body {
   align-items: start;
 }
 
+.customer-intro-card {
+  margin-bottom: 18px;
+}
+
 .contacts-list {
   display: grid;
   gap: 8px;
@@ -3165,6 +3196,18 @@ body {
 .analytics-stack {
   display: grid;
   gap: 18px;
+}
+
+.analytics-story-card {
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+}
+
+.analytics-story-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .results-workspace {
@@ -5122,6 +5165,8 @@ body {
   .launch-layout,
   .state-grid,
   .overview-grid,
+  .home-grid,
+  .analytics-simple-grid,
   .operator-home-grid,
   .today-command-stat-grid,
   .overview-progress-row,
@@ -5155,7 +5200,8 @@ body {
 
   .analytics-launch-grid,
   .analytics-board-dual-grid,
-  .analytics-board-chip-metrics {
+  .analytics-board-chip-metrics,
+  .analytics-story-grid {
     grid-template-columns: 1fr;
   }
 

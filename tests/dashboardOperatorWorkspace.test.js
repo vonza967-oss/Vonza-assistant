@@ -651,14 +651,13 @@ test("today workspace render uses a dominant queue and support rail shell", () =
     operatorWorkspace
   );
 
-  assert.match(overviewPanel, /today-workspace/);
-  assert.match(overviewPanel, /Queue/);
-  assert.match(overviewPanel, /today-review-panel/);
-  assert.match(overviewPanel, /Prepare follow-up/);
-  assert.match(overviewPanel, /data-appointment-review-action="prepare_follow_up"/);
+  assert.match(overviewPanel, /Home/);
+  assert.match(overviewPanel, /Customers who could use your help first/);
+  assert.match(overviewPanel, /Follow-up feed/);
+  assert.match(overviewPanel, /Open Customers/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
-  assert.match(overviewPanel, /Refresh workspace/);
+  assert.match(overviewPanel, /Refresh/);
 });
 
 test("today overview dedupes repeated queue and review items by stable keys", () => {
@@ -717,7 +716,7 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
   );
 
   assert.equal(overviewPanel.match(/Call with mail@example\.com/g)?.length || 0, 1);
-  assert.equal(overviewPanel.match(/Quote review/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/data-action-key="queue-1"/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
@@ -929,11 +928,11 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, /data-contact-row/);
   assert.match(contactsPanel, /data-contact-detail/);
-  assert.match(contactsPanel, /Selected contact/);
+  assert.match(contactsPanel, /Customers/);
   assert.match(contactsPanel, /Next step/);
   assert.match(contactsPanel, /More filters/);
-  assert.match(contactsPanel, /Search contacts/);
-  assert.doesNotMatch(contactsPanel, /Need a follow-up/);
+  assert.match(contactsPanel, /Search contacts|Search customers/);
+  assert.match(contactsPanel, /Need a follow-up/);
 });
 
 test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
@@ -1146,7 +1145,7 @@ test("outcomes page now renders as a results workspace instead of stacked equal-
   );
 
   assert.match(analyticsPanel, /Top customer questions/);
-  assert.match(analyticsPanel, /Core metrics/);
+  assert.match(analyticsPanel, /Customer path health/);
   assert.match(analyticsPanel, /Latest outcomes|No recorded wins yet/);
   assert.match(analyticsPanel, /Follow-up feed|No conversation-derived actions yet/);
 });

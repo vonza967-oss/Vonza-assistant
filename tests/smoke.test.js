@@ -1227,8 +1227,8 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /updateUser/);
         assert.match(dashboardScript.text, /signInWithOtp/);
         assert.match(dashboardScript.text, /Unlock Vonza to open your AI front desk workspace/);
-        assert.match(dashboardScript.text, /Today/);
-        assert.match(dashboardScript.text, /Contacts/);
+        assert.match(dashboardScript.text, /Home|Today/);
+        assert.match(dashboardScript.text, /Customers|Contacts/);
         assert.match(dashboardScript.text, /Front Desk/);
         assert.match(dashboardScript.text, /Analytics/);
         assert.match(dashboardScript.text, /Install/);
@@ -1247,7 +1247,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Approval-first proposals/);
         assert.match(dashboardScript.text, /Improve the business and Vonza/);
         assert.match(dashboardScript.text, /Show supporting detail/);
-        assert.match(dashboardScript.text, /Queue/);
+        assert.match(dashboardScript.text, /Home|Queue/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /data-today-open-review/);
         assert.match(dashboardScript.text, /Search contacts/);
@@ -1259,11 +1259,11 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /Top customer questions/);
-        assert.match(dashboardScript.text, /Core metrics/);
+        assert.match(dashboardScript.text, /Customer path health|Core metrics/);
         assert.match(dashboardScript.text, /Latest outcomes/);
         assert.match(dashboardScript.text, /Lead \/ contact/);
-        assert.match(dashboardScript.text, /Follow-up queue/);
-        assert.match(dashboardScript.text, /No actionable items yet/);
+        assert.match(dashboardScript.text, /Follow-up feed|Follow-up queue/);
+        assert.match(dashboardScript.text, /No conversation-derived actions yet|No actionable items yet/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
         assert.match(dashboardScript.text, /Attention now/);

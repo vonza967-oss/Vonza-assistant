@@ -575,7 +575,7 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Queue/);
+  assert.match(harness.getRootHtml(), /Home|Follow-up feed/);
   assert.match(harness.getRootHtml(), /No recorded wins yet/i);
 });
 
@@ -594,5 +594,5 @@ test("tab switching still leaves the selected section rendered as the active vie
     harness.getRootHtml(),
     /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
-  assert.match(harness.getRootHtml(), /Core metrics/);
+  assert.match(harness.getRootHtml(), /Customer path health/);
 });
