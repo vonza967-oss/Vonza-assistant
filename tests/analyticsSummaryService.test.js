@@ -42,6 +42,7 @@ test("analytics summary keeps live message, CTA, and contact counts aligned", ()
   });
 
   assert.equal(summary.totalMessages, 4);
+  assert.equal(summary.conversationCount, 2);
   assert.equal(summary.visitorQuestions, 2);
   assert.equal(summary.highIntentSignals, 2);
   assert.equal(summary.directCtasShown, 1);
@@ -73,6 +74,7 @@ test("analytics summary exposes pending sync instead of misleading zeros", () =>
 
   assert.equal(summary.totalMessages, 0);
   assert.equal(summary.visitorQuestions, 0);
+  assert.equal(summary.conversationCount, 1);
   assert.equal(summary.syncState, "pending");
   assert.match(summary.recentActivity.description, /syncing/i);
 });

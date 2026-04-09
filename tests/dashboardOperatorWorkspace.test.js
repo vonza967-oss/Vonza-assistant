@@ -1130,7 +1130,7 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
   assert.match(sidebar, /Install/);
 });
 
-test("outcomes page now renders as a results workspace instead of stacked equal-weight cards", () => {
+test("analytics page now renders as a service report instead of stacked equal-weight cards", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1161,10 +1161,12 @@ test("outcomes page now renders as a results workspace instead of stacked equal-
     }
   );
 
-  assert.match(analyticsPanel, /Top customer questions/);
-  assert.match(analyticsPanel, /Customer path health/);
-  assert.match(analyticsPanel, /Latest outcomes|No recorded wins yet/);
-  assert.match(analyticsPanel, /Follow-up feed|No conversation-derived actions yet/);
+  assert.match(analyticsPanel, /A simple customer-service performance report for your business/);
+  assert.match(analyticsPanel, /Is Vonza helping customer service\?/);
+  assert.match(analyticsPanel, /Customer conversations and successful actions/);
+  assert.match(analyticsPanel, /What stands out right now/);
+  assert.match(analyticsPanel, /Recommended service improvements/);
+  assert.match(analyticsPanel, /Opportunity snapshot/);
 });
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({

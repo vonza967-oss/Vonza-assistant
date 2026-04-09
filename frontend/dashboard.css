@@ -3748,6 +3748,342 @@ body {
   line-height: 1.55;
 }
 
+.analytics-report-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) auto;
+  gap: 18px;
+  align-items: end;
+  padding: 22px 24px;
+  border-color: rgba(96, 165, 250, 0.18);
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.026));
+}
+
+.analytics-report-kicker,
+.analytics-report-metric-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.analytics-report-title {
+  margin: 10px 0 8px;
+  color: white;
+  font-size: 1.7rem;
+  letter-spacing: -0.04em;
+}
+
+.analytics-report-copy,
+.analytics-report-section-copy,
+.analytics-report-insight p,
+.analytics-report-recommendation p,
+.analytics-report-swot-item p,
+.analytics-report-metric-note,
+.analytics-report-contact-card span {
+  margin: 0;
+  color: var(--soft);
+  line-height: 1.6;
+}
+
+.analytics-report-overview-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.analytics-report-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analytics-report-metric-card {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+  box-shadow: var(--surface-highlight);
+}
+
+.analytics-report-metric-value {
+  display: block;
+  margin-top: 10px;
+  color: white;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.analytics-report-metric-note {
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.analytics-report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.78fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.analytics-report-primary,
+.analytics-report-sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.analytics-report-chart-shell {
+  display: grid;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.analytics-report-chart-header,
+.analytics-report-legend,
+.analytics-report-chart-totals,
+.analytics-report-recommendation-head,
+.analytics-report-insight {
+  display: flex;
+  gap: 12px;
+}
+
+.analytics-report-chart-header,
+.analytics-report-recommendation-head,
+.analytics-report-insight {
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.analytics-report-legend,
+.analytics-report-chart-totals {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.analytics-report-legend span,
+.analytics-report-chart-totals span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-strong);
+  font-size: 12px;
+}
+
+.analytics-report-legend i,
+.analytics-report-insight-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.analytics-report-legend i.tone-conversations,
+.analytics-report-insight-dot.tone-conversations {
+  background: #60a5fa;
+}
+
+.analytics-report-legend i.tone-actions,
+.analytics-report-insight-dot.tone-actions,
+.analytics-report-insight-dot.tone-positive {
+  background: #34d399;
+}
+
+.analytics-report-insight-dot.tone-watch {
+  background: #fbbf24;
+}
+
+.analytics-report-insight-dot.tone-risk {
+  background: #fb7185;
+}
+
+.analytics-report-insight-dot.tone-neutral {
+  background: rgba(148, 163, 184, 0.8);
+}
+
+.analytics-report-chart {
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.008)),
+    rgba(4, 10, 24, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.analytics-report-chart-guides line {
+  stroke: rgba(148, 163, 184, 0.16);
+  stroke-width: 1;
+}
+
+.analytics-report-chart-line {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.analytics-report-chart-line-conversations {
+  stroke: #60a5fa;
+}
+
+.analytics-report-chart-line-actions {
+  stroke: #34d399;
+}
+
+.analytics-report-chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.analytics-report-insights,
+.analytics-report-recommendations,
+.analytics-report-swot-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.analytics-report-insight {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--surface-border);
+}
+
+.analytics-report-insight strong,
+.analytics-report-contact-card strong,
+.analytics-report-recommendation strong {
+  color: white;
+}
+
+.analytics-report-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analytics-report-contact-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid var(--surface-border);
+}
+
+.analytics-report-contact-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.45rem;
+  letter-spacing: -0.04em;
+}
+
+.analytics-report-recommendation,
+.analytics-report-swot-item {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.analytics-report-recommendation-head span {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.analytics-report-swot-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.analytics-report-swot-item span {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.analytics-report-swot-item p {
+  margin-top: 12px;
+}
+
+.analytics-report-recommendation.tone-positive,
+.analytics-report-swot-item.tone-positive,
+.analytics-report-metric-note.tone-positive {
+  color: #86efac;
+}
+
+.analytics-report-recommendation.tone-watch,
+.analytics-report-swot-item.tone-watch,
+.analytics-report-metric-note.tone-watch {
+  color: #fde68a;
+}
+
+.analytics-report-recommendation.tone-risk,
+.analytics-report-swot-item.tone-risk,
+.analytics-report-metric-note.tone-risk {
+  color: #fda4af;
+}
+
+.analytics-report-recommendation.tone-neutral,
+.analytics-report-swot-item.tone-neutral,
+.analytics-report-metric-note.tone-neutral {
+  color: var(--soft);
+}
+
+.analytics-report-recommendation.tone-positive,
+.analytics-report-swot-item.tone-positive {
+  border-color: rgba(74, 222, 128, 0.22);
+  background: rgba(74, 222, 128, 0.06);
+}
+
+.analytics-report-recommendation.tone-watch,
+.analytics-report-swot-item.tone-watch {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.analytics-report-recommendation.tone-risk,
+.analytics-report-swot-item.tone-risk {
+  border-color: rgba(251, 113, 133, 0.22);
+  background: rgba(251, 113, 133, 0.06);
+}
+
+.analytics-report-swot-item.tone-neutral,
+.analytics-report-recommendation.tone-neutral {
+  border-color: var(--surface-border);
+}
+
+.analytics-report-swot-item.tone-positive span {
+  background: rgba(74, 222, 128, 0.14);
+  color: #86efac;
+}
+
+.analytics-report-swot-item.tone-watch span {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fde68a;
+}
+
+.analytics-report-swot-item.tone-risk span {
+  background: rgba(251, 113, 133, 0.14);
+  color: #fda4af;
+}
+
+.analytics-report-swot-item.tone-neutral span {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5f5;
+}
+
 .analytics-launch-board {
   padding: 22px;
   border-radius: 28px;
@@ -5637,7 +5973,11 @@ body {
   .form-grid.two-col,
   .check-grid,
   .metric-grid,
+  .analytics-report-metric-grid,
   .analytics-grid,
+  .analytics-report-grid,
+  .analytics-report-contact-grid,
+  .analytics-report-swot-grid,
   .operator-thread-grid,
   .intent-grid,
   .overview-metric-grid,
@@ -5678,6 +6018,19 @@ body {
       "list";
   }
 
+  .analytics-launch-board-header,
+  .analytics-board-panel-header,
+  .analytics-board-meta-row,
+  .analytics-launch-board-footer,
+  .analytics-board-ranked-row,
+  .analytics-board-statline,
+  .analytics-report-overview,
+  .analytics-report-chart-header,
+  .analytics-report-recommendation-head,
+  .analytics-report-insight {
+    flex-direction: column;
+    align-items: flex-start;
+  }
   .preview-frame {
     height: 440px;
   }

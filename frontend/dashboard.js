@@ -7270,6 +7270,8 @@ function createEmptyAnalyticsSummary() {
     ready: true,
     syncState: "ready",
     diagnosticsMessage: "",
+    conversationCount: 0,
+    uniqueVisitorCount: 0,
     totalMessages: 0,
     visitorQuestions: 0,
     highIntentSignals: 0,
@@ -7335,6 +7337,443 @@ function formatAnalyticsRate(value, analyticsSummary = createEmptyAnalyticsSumma
   }
 
   return formatCaptureRate(value);
+}
+
+function clampNumber(value, min, max) {
+  const numeric = Number(value);
+
+  if (!Number.isFinite(numeric)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function formatAnalyticsReportNumber(value) {
+  return new Intl.NumberFormat("en-US").format(Math.round(Number(value || 0)));
+}
+
+function formatAnalyticsReportPercent(value) {
+  return `${Math.round(Number(value || 0))}%`;
+}
+
+function formatAnalyticsReportHours(value) {
+  const numeric = Number(value || 0);
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "0";
+  }
+
+  if (numeric >= 10) {
+    return String(Math.round(numeric));
+  }
+
+  return numeric.toFixed(1).replace(/\.0$/, "");
+}
+
+function formatAnalyticsReportScore(value) {
+  const numeric = Number(value || 0);
+
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "0.0";
+  }
+
+  return numeric.toFixed(1);
+}
+
+function formatAnalyticsHourLabel(hour) {
+  const normalized = ((Number(hour) % 24) + 24) % 24;
+  const suffix = normalized >= 12 ? "PM" : "AM";
+  const hourValue = normalized % 12 || 12;
+  return `${hourValue} ${suffix}`;
+}
+
+function formatAnalyticsShortDate(value) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function buildAnalyticsTimeSeries(entries = [], getDateValue, days = 30) {
+  const bucketCount = Math.max(7, Number(days || 30));
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(today.getDate() - (bucketCount - 1));
+  const dayMs = 24 * 60 * 60 * 1000;
+  const values = Array.from({ length: bucketCount }, () => 0);
+  const labels = values.map((_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return formatAnalyticsShortDate(date);
+  });
+
+  entries.forEach((entry) => {
+    const rawValue = typeof getDateValue === "function" ? getDateValue(entry) : null;
+    const date = new Date(rawValue || "");
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    date.setHours(0, 0, 0, 0);
+    const index = Math.floor((date.getTime() - start.getTime()) / dayMs);
+
+    if (index >= 0 && index < values.length) {
+      values[index] += 1;
+    }
+  });
+
+  return {
+    values,
+    labels,
+    total: values.reduce((sum, value) => sum + value, 0),
+    max: Math.max(...values, 0),
+  };
+}
+
+function buildAnalyticsChartPath(values = [], width = 640, height = 220, padding = 22) {
+  if (!values.length) {
+    return "";
+  }
+
+  const maxValue = Math.max(...values, 1);
+  const drawableWidth = width - padding * 2;
+  const drawableHeight = height - padding * 2;
+
+  return values.map((value, index) => {
+    const x = padding + (drawableWidth * index) / Math.max(values.length - 1, 1);
+    const y = height - padding - (drawableHeight * value) / maxValue;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(" ");
+}
+
+function buildAnalyticsPeakHours(userMessages = []) {
+  const buckets = Array.from({ length: 24 }, () => 0);
+
+  userMessages.forEach((message) => {
+    const date = new Date(message.createdAt || message.created_at || "");
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    buckets[date.getHours()] += 1;
+  });
+
+  const bestHour = buckets.reduce((winner, count, index) => (count > winner.count
+    ? { hour: index, count }
+    : winner), { hour: -1, count: 0 });
+
+  if (bestHour.count === 0) {
+    return "Not enough timed usage yet";
+  }
+
+  const startHour = Math.floor(bestHour.hour / 2) * 2;
+  return `${formatAnalyticsHourLabel(startHour)}-${formatAnalyticsHourLabel(startHour + 2)}`;
+}
+
+function getAnalyticsBestArea(signals = {}, conversionSummary = {}, outcomeSummary = {}, contactsCaptured = 0) {
+  const scorecards = [
+    {
+      label: "moving visitors toward booking and the next step",
+      score: Number(outcomeSummary.bookingConfirmed || 0) * 4
+        + Number(outcomeSummary.bookingStarted || 0) * 2
+        + Number(conversionSummary.bookingDirectHandoffs || 0) * 2
+        + Number(signals.intentCounts?.booking || 0),
+    },
+    {
+      label: "capturing quote and pricing interest",
+      score: Number(outcomeSummary.quoteRequested || 0) * 3
+        + Number(outcomeSummary.quoteAccepted || 0) * 4
+        + Number(conversionSummary.pricingCaptures || 0) * 2
+        + Number(signals.intentCounts?.pricing || 0),
+    },
+    {
+      label: "turning warm conversations into leads",
+      score: Number(contactsCaptured || 0) * 3
+        + Number(conversionSummary.contactDirectHandoffs || 0) * 2
+        + Number(signals.intentCounts?.contact || 0),
+    },
+    {
+      label: "handling service questions calmly",
+      score: Number(outcomeSummary.complaintResolved || 0) * 4
+        + Number(signals.intentCounts?.support || 0),
+    },
+  ].sort((left, right) => right.score - left.score);
+
+  if (!scorecards[0] || scorecards[0].score <= 0) {
+    return "answering first questions without extra owner effort";
+  }
+
+  return scorecards[0].label;
+}
+
+function getAnalyticsImprovementArea(signals = {}, weakAnswerExamples = [], conversionSummary = {}, outcomeSummary = {}, report = {}) {
+  const unresolvedComplaints = Math.max(0, Number(outcomeSummary.complaintOpened || 0) - Number(outcomeSummary.complaintResolved || 0));
+
+  if (weakAnswerExamples.length) {
+    return `sharpening answers like "${trimText(weakAnswerExamples[0])}"`;
+  }
+
+  if (unresolvedComplaints > 0) {
+    return "closing complaint and support conversations faster";
+  }
+
+  if (Number(signals.intentCounts?.pricing || 0) > 0 && Number(conversionSummary.pricingCaptures || 0) === 0) {
+    return "turning pricing questions into confident next steps";
+  }
+
+  if (Number(report.highIntentSignals || 0) > Number(report.contactsCaptured || 0)) {
+    return "capturing more contact details from warm visitors";
+  }
+
+  return "building more live conversation volume";
+}
+
+function buildAnalyticsSummarySentence(report = {}) {
+  if (report.conversationCount <= 0) {
+    return "Vonza is ready, but there is not enough live traffic yet to judge customer service performance.";
+  }
+
+  const satisfactionReadout = report.satisfactionScore >= 4.3
+    ? "customer satisfaction looks strong"
+    : report.satisfactionScore >= 3.7
+      ? "customer satisfaction looks solid with a few gaps"
+      : "customer satisfaction needs attention";
+
+  return `Vonza handled ${formatAnalyticsReportNumber(report.autonomousHandledCount)} of ${formatAnalyticsReportNumber(report.conversationCount)} conversations without owner rescue, ${satisfactionReadout}, and the biggest drop-off risk is ${report.improvementArea}.`;
+}
+
+function buildAnalyticsRecommendations(report = {}) {
+  const captureGap = Math.max(0, Number(report.highIntentSignals || 0) - Number(report.contactsCaptured || 0));
+
+  return [
+    {
+      title: "Support quality",
+      tone: report.satisfactionScore >= 4.3 ? "positive" : "watch",
+      metric: `${formatAnalyticsReportScore(report.satisfactionScore)} / 5 satisfaction`,
+      copy: report.satisfactionScore >= 4.3
+        ? "Service quality looks steady in the current sample. Keep the strongest answers easy to repeat."
+        : "A few conversations are creating friction. Tighten the answer paths customers reach most often.",
+    },
+    {
+      title: "Response speed",
+      tone: report.attentionNeeded > 0 ? "watch" : "positive",
+      metric: report.attentionNeeded > 0
+        ? `${formatAnalyticsReportNumber(report.attentionNeeded)} conversations still need attention`
+        : "No open response backlog is standing out",
+      copy: report.attentionNeeded > 0
+        ? "Review the open conversations quickly so warm visitors and support issues do not cool off."
+        : "Owner follow-up pressure looks controlled right now.",
+    },
+    {
+      title: "Weak answers",
+      tone: report.weakAnswerCount > 0 ? "risk" : "positive",
+      metric: report.weakAnswerCount > 0
+        ? `${formatAnalyticsReportNumber(report.weakAnswerCount)} weak-answer signals`
+        : "No weak-answer pattern is standing out",
+      copy: report.weakAnswerCount > 0
+        ? `Improve the wording and knowledge behind ${report.weakAnswerExample || "the weakest customer question"} so similar visitors do not stall.`
+        : "Answer coverage looks stable in the current conversation sample.",
+    },
+    {
+      title: "Complaint handling",
+      tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
+      metric: report.complaintsHandled > 0 || report.complaintOpened > 0
+        ? `${formatAnalyticsReportNumber(report.complaintsHandled)} resolved of ${formatAnalyticsReportNumber(report.complaintOpened)} recorded`
+        : "No complaint-resolution signal yet",
+      copy: report.unresolvedComplaints > 0
+        ? "Service recovery is the clearest trust risk right now. Close open complaint threads first."
+        : report.complaintsHandled > 0
+          ? "Complaint handling is landing well in the current sample."
+          : "Vonza has not recorded enough complaint handling yet to judge this area.",
+    },
+    {
+      title: "Lead capture",
+      tone: captureGap > 0 ? "watch" : report.contactsCaptured > 0 ? "positive" : "neutral",
+      metric: `${formatAnalyticsReportNumber(report.contactsCaptured)} leads captured`,
+      copy: captureGap > 0
+        ? `There are ${formatAnalyticsReportNumber(captureGap)} warm conversations that did not turn into identified contacts yet.`
+        : report.contactsCaptured > 0
+          ? "Lead capture is keeping pace with the strongest customer intent."
+          : "Add clearer contact prompts where pricing or booking intent appears.",
+    },
+  ];
+}
+
+function buildAnalyticsSwot(report = {}) {
+  return [
+    {
+      label: "Strength",
+      tone: "positive",
+      copy: report.autonomousHandledRate >= 75
+        ? "Vonza is handling most customer conversations without needing the owner to step in."
+        : "Vonza is already reducing some front-desk load and building a clearer service picture.",
+    },
+    {
+      label: "Weakness",
+      tone: report.weakAnswerCount > 0 || report.unresolvedComplaints > 0 ? "risk" : "neutral",
+      copy: report.weakAnswerCount > 0
+        ? `${formatAnalyticsReportNumber(report.weakAnswerCount)} conversations still sound uncertain or incomplete.`
+        : report.unresolvedComplaints > 0
+          ? `${formatAnalyticsReportNumber(report.unresolvedComplaints)} complaint-style conversations still feel unresolved.`
+          : "The current sample does not show one major service weakness yet.",
+    },
+    {
+      label: "Opportunity",
+      tone: "watch",
+      copy: report.guestUsers > report.identifiedUsers
+        ? "More anonymous visitors could become leads if contact capture appears earlier in warm conversations."
+        : report.highIntentSignals > report.contactsCaptured
+          ? "Warm intent is there. Tightening the handoff could turn more demand into identified customers."
+          : "Booking and pricing demand can likely convert further with clearer next-step prompts.",
+    },
+    {
+      label: "Threat",
+      tone: report.unresolvedComplaints > 0 || report.lostCustomerRisk === "High" ? "risk" : "neutral",
+      copy: report.unresolvedComplaints > 0
+        ? "Open complaint recovery work is the biggest trust risk right now."
+        : report.lostCustomerRisk === "High"
+          ? "Warm visitors may drop if pricing, booking, or support questions still need owner rescue."
+          : "No major churn threat stands out yet beyond the normal need for more live data.",
+    },
+  ];
+}
+
+function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyticsSummary(), actionQueue = createEmptyActionQueue(), conversionSummary = {}, outcomeSummary = {}) {
+  const conversationCount = Math.max(
+    Number(analyticsSummary.conversationCount || 0),
+    Number(analyticsSummary.uniqueVisitorCount || 0),
+    Number(signals.userMessageCount || 0)
+  );
+  const complaintsHandled = Number(outcomeSummary.complaintResolved || 0);
+  const complaintOpened = Number(outcomeSummary.complaintOpened || 0);
+  const unresolvedComplaints = Math.max(0, complaintOpened - complaintsHandled);
+  const weakAnswerCount = Math.max(Number(analyticsSummary.weakAnswerCount || 0), Number(signals.weakAnswerCount || 0));
+  const attentionNeeded = Number(actionQueue.summary?.attentionNeeded || analyticsSummary.attentionNeeded || 0);
+  const autonomousHandledCount = Math.max(0, conversationCount - Math.max(attentionNeeded, weakAnswerCount));
+  const autonomousHandledRate = conversationCount > 0
+    ? Math.round((autonomousHandledCount / conversationCount) * 100)
+    : 0;
+  const contactsCaptured = Number(analyticsSummary.contactsCaptured || conversionSummary.contactsCaptured || 0);
+  const highIntentSignals = Number(analyticsSummary.highIntentSignals || 0);
+  const assistedOutcomes = Number(analyticsSummary.assistedOutcomes || outcomeSummary.assistedConversions || 0);
+  const estimatedHoursSaved = (autonomousHandledCount * 6) / 60;
+  const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
+  const guestUsers = people.filter((person) => ["session", "unknown", "name"].includes(trimText(person.identityType))).length;
+  const emailUsers = people.filter((person) => trimText(person.identityType) === "email").length;
+  const phoneUsers = people.filter((person) => trimText(person.identityType) === "phone").length;
+  const identifiedUsers = emailUsers + phoneUsers;
+  const weakPenalty = conversationCount > 0 ? (weakAnswerCount / conversationCount) * 2.1 : 0;
+  const attentionPenalty = conversationCount > 0 ? (attentionNeeded / conversationCount) * 1.2 : 0;
+  const unresolvedPenalty = complaintOpened > 0 ? (unresolvedComplaints / complaintOpened) * 1.1 : 0;
+  const outcomeBonus = conversationCount > 0 ? Math.min(0.45, (assistedOutcomes / conversationCount) * 1.4) : 0;
+  const leadBonus = conversationCount > 0 ? Math.min(0.2, (contactsCaptured / conversationCount) * 0.9) : 0;
+  const satisfactionScore = conversationCount > 0
+    ? clampNumber(4.45 - weakPenalty - attentionPenalty - unresolvedPenalty + outcomeBonus + leadBonus, 1, 5)
+    : 0;
+  const mostAskedQuestion = signals.topQuestions?.[0]?.label || "No repeated question yet";
+  const bestArea = getAnalyticsBestArea(signals, conversionSummary, outcomeSummary, contactsCaptured);
+  const weakAnswerExample = signals.weakAnswerExamples?.[0] || "";
+  const improvementArea = getAnalyticsImprovementArea(signals, signals.weakAnswerExamples || [], conversionSummary, outcomeSummary, {
+    highIntentSignals,
+    contactsCaptured,
+  });
+  const contactMixCopy = actionQueue.peopleSummary?.total
+    ? guestUsers > identifiedUsers
+      ? "Most customer conversations are still anonymous, which means lead capture is the clearest growth lever."
+      : "Vonza is turning a healthy share of conversations into known customer records."
+    : "Contact identity will become more useful as more live conversations arrive.";
+  const lostCustomerRisk = unresolvedComplaints > 0 || weakAnswerCount >= 3
+    ? "High"
+    : highIntentSignals > contactsCaptured || attentionNeeded > 0
+      ? "Medium"
+      : "Low";
+
+  return {
+    conversationCount,
+    autonomousHandledCount,
+    autonomousHandledRate,
+    contactsCaptured,
+    complaintsHandled,
+    complaintOpened,
+    unresolvedComplaints,
+    satisfactionScore,
+    estimatedHoursSaved,
+    highIntentSignals,
+    assistedOutcomes,
+    weakAnswerCount,
+    weakAnswerExample,
+    attentionNeeded,
+    guestUsers,
+    emailUsers,
+    phoneUsers,
+    identifiedUsers,
+    mostAskedQuestion,
+    peakHours: buildAnalyticsPeakHours(signals.userMessages || []),
+    bestArea,
+    improvementArea,
+    contactMixCopy,
+    lostCustomerRisk,
+    recommendations: [],
+    swot: [],
+  };
+}
+
+function buildAnalyticsTrendMarkup(report = {}) {
+  const conversations = report.conversationSeries || { values: [], labels: [], total: 0, max: 0 };
+  const outcomes = report.outcomeSeries || { values: [], labels: [], total: 0, max: 0 };
+  const hasConversationData = conversations.total > 0;
+  const hasOutcomeData = outcomes.total > 0;
+
+  if (!hasConversationData && !hasOutcomeData) {
+    return `<div class="placeholder-card">Live conversation and customer-action trends will appear here as soon as dated usage starts flowing in.</div>`;
+  }
+
+  const width = 640;
+  const height = 220;
+  const conversationsPath = buildAnalyticsChartPath(conversations.values, width, height);
+  const outcomesPath = buildAnalyticsChartPath(outcomes.values, width, height);
+  const guideLines = [25, 50, 75].map((position) => {
+    const y = height - ((height - 44) * position) / 100 - 22;
+    return `<line x1="22" y1="${y.toFixed(2)}" x2="${width - 22}" y2="${y.toFixed(2)}"></line>`;
+  }).join("");
+  const axisLabels = [
+    conversations.labels[0],
+    conversations.labels[Math.floor(conversations.labels.length / 2)] || "",
+    conversations.labels[conversations.labels.length - 1] || "",
+  ].filter(Boolean);
+
+  return `
+    <div class="analytics-report-chart-shell">
+      <div class="analytics-report-chart-header">
+        <div class="analytics-report-legend">
+          <span><i class="tone-conversations"></i>Conversations</span>
+          <span><i class="tone-actions"></i>Successful actions</span>
+        </div>
+        <div class="analytics-report-chart-totals">
+          <span>${formatAnalyticsReportNumber(conversations.total)} conversations</span>
+          <span>${formatAnalyticsReportNumber(outcomes.total)} successful actions</span>
+        </div>
+      </div>
+      <svg class="analytics-report-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Conversations and successful customer actions over time">
+        <g class="analytics-report-chart-guides">${guideLines}</g>
+        ${hasConversationData ? `<path class="analytics-report-chart-line analytics-report-chart-line-conversations" d="${conversationsPath}"></path>` : ""}
+        ${hasOutcomeData ? `<path class="analytics-report-chart-line analytics-report-chart-line-actions" d="${outcomesPath}"></path>` : ""}
+      </svg>
+      <div class="analytics-report-chart-axis">
+        ${axisLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function normalizeActionQueueStatus(value) {
@@ -8981,14 +9420,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
 
 function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const signals = analyzeConversationSignals(messages);
-  const { intentCounts } = signals;
   const analyticsSummary = getAnalyticsSummary(actionQueue, agent, messages);
-  const activity = analyticsSummary.recentActivity;
-  const recentInteractions = messages.slice(0, 12);
-  const peopleSummary = {
-    ...createEmptyActionQueue().peopleSummary,
-    ...(actionQueue.peopleSummary || {}),
-  };
   const conversionSummary = {
     ...createEmptyActionQueue().conversionSummary,
     ...(actionQueue.conversionSummary || {}),
@@ -8997,378 +9429,198 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     ...createEmptyActionQueue().outcomeSummary,
     ...(actionQueue.outcomeSummary || {}),
   };
-  const recentOutcomes = Array.isArray(actionQueue.recentOutcomes) ? actionQueue.recentOutcomes : [];
-  const recentLeadCaptures = Array.isArray(actionQueue.recentLeadCaptures)
-    ? actionQueue.recentLeadCaptures
-    : [];
-  const installStatus = getDefaultInstallStatus(agent);
-  const widgetMetrics = agent.widgetMetrics || {};
-  const opportunityItems = [];
-
-  if (setup.knowledgeLimited || setup.knowledgeMissing) {
-    opportunityItems.push({
-      title: "Give the Front Desk more website detail",
-      copy: setup.knowledgeLimited
-        ? "The Front Desk already knows some of your site, and another import should make answers more complete."
-        : "Import your website so customer answers feel grounded in the business instead of generic.",
-      subtle: "Refresh the website import after your site changes or goes fully live.",
-    });
-  }
-
-  if (!isInstallSeen(installStatus)) {
-    opportunityItems.push({
-      title: "The Front Desk is not live on your site yet",
-      copy: installStatus.state === "installed_unseen"
-        ? "The snippet is on the site, but Vonza has not seen the first live visit yet."
-        : installStatus.state === "domain_mismatch"
-          ? "Vonza found a different install id or a blocked domain on the site."
-          : "Vonza has not yet detected the Front Desk on a live page.",
-      subtle: "Run verification, then open a real published page that includes the widget snippet.",
-    });
-  }
-
-  if (isInstallDetected(installStatus) && Number(widgetMetrics.conversationsSinceInstall || 0) === 0) {
-    opportunityItems.unshift({
-      title: "Your live site has not started conversations yet",
-      copy: "The install is present, but no one has started a conversation since Vonza first detected it.",
-      subtle: "Open the live site in a private window and send a test question to confirm the full path.",
-    });
-  }
-
-  if (intentCounts.pricing >= 2) {
-    opportunityItems.push({
-      title: "Customers ask about pricing",
-      copy: "Pricing questions are coming up more than once, which usually means visitors want clearer guidance before reaching out.",
-      subtle: "Consider adding pricing context or quote guidance to your website copy.",
-    });
-  }
-
-  if (intentCounts.contact >= 2) {
-    opportunityItems.push({
-      title: "Customers want a next step",
-      copy: "Contact-focused questions are appearing repeatedly, which suggests visitors are ready to move forward.",
-      subtle: "Make your contact route easier to find on the site and in the assistant responses.",
-    });
-  }
-
-  if (signals.weakAnswerCount > 0) {
-    opportunityItems.unshift({
-      title: "A few answers could be stronger",
-      copy: `${signals.weakAnswerCount} customer question${signals.weakAnswerCount === 1 ? "" : "s"} ended in a weak or uncertain answer.`,
-      subtle: "Review the list below, then improve website detail or adjust Front Desk setup.",
-    });
-  }
-
-  if (peopleSummary.returning > 0) {
-    opportunityItems.unshift({
-      title: "Repeat visitors are showing up",
-      copy: `${peopleSummary.returning} stitched visitor thread${peopleSummary.returning === 1 ? "" : "s"} already show returning behavior.`,
-      subtle: "Use the People view to see whether the same lead came back or the same support issue kept evolving.",
-    });
-  }
-
-  if (!opportunityItems.length) {
-    opportunityItems.push({
-      title: "Your Front Desk has a healthy starting point",
-      copy: "There are no strong problem signals in the current data yet, which is a solid baseline as more real usage comes in.",
-      subtle: "More insight will appear as customers ask more questions.",
-    });
-  }
-
-  const percentLabel = (value, total) => {
-    if (!Number(total)) {
-      return "0%";
-    }
-
-    return `${Math.round((Number(value || 0) / Number(total)) * 100)}%`;
-  };
-  const miniBarRows = (items = [], formatter = (value) => String(value)) => {
-    const safeItems = items.filter((item) => item && item.label);
-    const maxValue = safeItems.reduce((highest, item) => Math.max(highest, Number(item.value || 0)), 0);
-
-    if (!safeItems.length) {
-      return `<div class="analytics-board-empty">Live signal will appear here as customers start using the front desk.</div>`;
-    }
-
-    return `
-      <div class="analytics-mini-bar-list">
-        ${safeItems.map((item) => {
-          const width = maxValue > 0 ? Math.max((Number(item.value || 0) / maxValue) * 100, Number(item.value || 0) > 0 ? 8 : 0) : 0;
-          return `
-            <div class="analytics-mini-bar-row">
-              <div class="analytics-mini-bar-copy">
-                <span>${escapeHtml(item.label)}</span>
-                <strong>${escapeHtml(formatter(item.value || 0, item))}</strong>
-              </div>
-              <div class="analytics-mini-bar-track">
-                <span class="analytics-mini-bar-fill" style="width:${width}%;"></span>
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
-    `;
-  };
-  const topIntentRows = [
-    { label: "Contact", value: signals.intentCounts.contact || 0 },
-    { label: "Booking", value: signals.intentCounts.booking || 0 },
-    { label: "Pricing", value: signals.intentCounts.pricing || 0 },
-    { label: "Support", value: signals.intentCounts.support || 0 },
-  ].sort((left, right) => Number(right.value || 0) - Number(left.value || 0));
-  const topQuestionRows = (signals.topQuestions || []).slice(0, 6).map((item) => ({
-    label: item.label || "Customer question",
-    value: item.count || 1,
-  }));
-  const boardStatusTone = isInstallSeen(installStatus)
-    ? { value: "Live", meta: installStatus.lastSeenAt ? `Seen ${formatSeenAt(installStatus.lastSeenAt)}` : "Verified on site" }
-    : installStatus.state === "installed_unseen"
-      ? { value: "Pending traffic", meta: "Snippet found, waiting for first live visit" }
-      : { value: "Needs launch", meta: installStatus.lastVerifiedAt ? `Last checked ${formatSeenAt(installStatus.lastVerifiedAt)}` : "Awaiting install verification" };
-  const captureRate = percentLabel(analyticsSummary.contactsCaptured, Math.max(analyticsSummary.visitorQuestions, 1));
-  const directRouteRate = percentLabel(
-    conversionSummary.directRouteCount,
-    Math.max(conversionSummary.directRouteCount + conversionSummary.captureFallbackCount, 1),
-  );
-  const answerCoverageRate = percentLabel(
-    Math.max((analyticsSummary.visitorQuestions || 0) - (signals.weakAnswerCount || 0), 0),
-    Math.max(analyticsSummary.visitorQuestions || 0, 1),
-  );
-  const boardSignalRows = topQuestionRows.length
-    ? topQuestionRows.map((item) => ({
-      label: item.label,
-      detail: "Recurring customer demand worth checking in the question and answer flow.",
-      value: item.value ? `${item.value}` : "Review",
-    }))
-    : opportunityItems.slice(0, 6).map((item) => ({
-      label: item.title,
-      detail: item.subtle || "Customer demand and workflow pressure stay visible here for faster review.",
-      value: "Review",
-    }));
-  const analyticsBoardMarkup = `
-    <section class="analytics-launch-board">
-      <div class="analytics-launch-board-header">
-        <div>
-          <p class="analytics-launch-board-kicker">Launch board</p>
-          <h3 class="analytics-launch-board-title">Front desk performance board</h3>
-          <p class="analytics-launch-board-copy">A denser readout of live demand, lead capture, response quality, and the signals that need operator review next.</p>
-        </div>
-        <button class="ghost-button analytics-board-refresh" type="button" data-refresh-operator data-force-sync="true">Refresh signals</button>
-      </div>
-      <div class="analytics-launch-grid">
-        <article class="analytics-board-panel analytics-board-panel-status">
-          <p class="analytics-board-label">Front desk status</p>
-          <p class="analytics-board-value">${escapeHtml(boardStatusTone.value)}</p>
-          <p class="analytics-board-copy">${escapeHtml(installStatus.label)}</p>
-          <div class="analytics-board-meta-row">
-            <span>${escapeHtml(boardStatusTone.meta)}</span>
-            <span>${escapeHtml(activity.copy)}</span>
-          </div>
-        </article>
-
-        <article class="analytics-board-panel analytics-board-panel-trend">
-          <p class="analytics-board-label">Demand mix</p>
-          <div class="analytics-board-statline">
-            <strong>${escapeHtml(String(analyticsSummary.highIntentSignals || 0))}</strong>
-            <span>high-intent moments captured</span>
-          </div>
-          ${miniBarRows(topIntentRows, (value) => `${value}`)}
-        </article>
-
-        <article class="analytics-board-panel analytics-board-panel-dual">
-          <p class="analytics-board-label">Conversion pressure</p>
-          <div class="analytics-board-dual-grid">
-            <div class="analytics-board-dual-cell">
-              <p class="analytics-board-dual-value">${escapeHtml(captureRate)}</p>
-              <p class="analytics-board-dual-copy">lead capture rate</p>
-            </div>
-            <div class="analytics-board-dual-cell">
-              <p class="analytics-board-dual-value">${escapeHtml(directRouteRate)}</p>
-              <p class="analytics-board-dual-copy">direct route rate</p>
-            </div>
-          </div>
-          <p class="analytics-board-footnote">${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks · ${analyticsSummary.contactsCaptured || 0} contact captures · ${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed wins`)}</p>
-        </article>
-
-        <article class="analytics-board-panel analytics-board-panel-quality">
-          <p class="analytics-board-label">Answer quality</p>
-          <div class="analytics-board-statline">
-            <strong>${escapeHtml(answerCoverageRate)}</strong>
-            <span>of questions answered without weak-signal fallback</span>
-          </div>
-          ${miniBarRows([
-            { label: "Visitor questions", value: analyticsSummary.visitorQuestions || 0 },
-            { label: "Weak answers", value: signals.weakAnswerCount || 0 },
-            { label: "Customers captured", value: analyticsSummary.contactsCaptured || 0 },
-          ])}
-        </article>
-
-        <article class="analytics-board-panel analytics-board-panel-kpis">
-          <p class="analytics-board-label">Core ratios</p>
-          <div class="analytics-board-chip-metrics">
-            <div>
-              <strong>${escapeHtml(String(analyticsSummary.totalMessages || 0))}</strong>
-              <span>stored messages</span>
-            </div>
-            <div>
-              <strong>${escapeHtml(String(setup.knowledgePageCount || 0))}</strong>
-              <span>imported pages</span>
-            </div>
-            <div>
-              <strong>${escapeHtml(String(recentLeadCaptures.length || 0))}</strong>
-              <span>recent lead captures</span>
-            </div>
-            <div>
-              <strong>${escapeHtml(String(recentOutcomes.length || 0))}</strong>
-              <span>recent outcomes</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="analytics-board-panel analytics-board-panel-list">
-          <div class="analytics-board-panel-header">
-            <div>
-              <p class="analytics-board-label">Signals to review</p>
-              <p class="analytics-board-copy">Top repeated questions and operational pressure points in one queue.</p>
-            </div>
-            <button class="ghost-button" type="button" data-overview-focus="action-queue">Review queue</button>
-          </div>
-          <div class="analytics-board-ranked-list">
-            ${boardSignalRows.map((item) => `
-              <div class="analytics-board-ranked-row">
-                <div>
-                  <strong>${escapeHtml(item.label || "Signal")}</strong>
-                  <p>${escapeHtml(item.detail || "Customer demand and workflow pressure stay visible here for faster review.")}</p>
-                </div>
-                <span>${escapeHtml(item.value || "Review")}</span>
-              </div>
-            `).join("")}
-          </div>
-        </article>
-      </div>
-      <div class="analytics-launch-board-footer">
-        <span>Front desk launch board</span>
-        <span>${escapeHtml(analyticsSummary.operatorSignal.subtle || "Signals update as live usage grows.")}</span>
-      </div>
-    </section>
-  `;
+  const recentOutcomes = Array.isArray(actionQueue.recentOutcomes) ? actionQueue.recentOutcomes.slice(0, 6) : [];
+  const report = buildAnalyticsReport(signals, analyticsSummary, actionQueue, conversionSummary, outcomeSummary);
+  report.recommendations = buildAnalyticsRecommendations(report);
+  report.swot = buildAnalyticsSwot(report);
+  report.summarySentence = buildAnalyticsSummarySentence(report);
+  report.conversationSeries = buildAnalyticsTimeSeries(signals.userMessages || [], (message) => message.createdAt || message.created_at, 30);
+  report.outcomeSeries = buildAnalyticsTimeSeries(recentOutcomes, (outcome) => outcome.occurredAt || outcome.createdAt || outcome.created_at, 30);
+  const syncPendingMarkup = analyticsSummary.syncState === "pending"
+    ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
+    : "";
 
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
-        eyebrow: "Performance",
         title: "Analytics",
-        copy: "Understand what customers want, where satisfaction may break down, and whether Vonza is helping you save time and keep more business.",
-        actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>`,
+        copy: "A simple customer-service performance report for your business.",
+        actionsMarkup: `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>`,
       })}
-      ${buildSummaryStrip([
-        { label: "Questions", value: formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary), copy: "Real customer questions Vonza has handled." },
-        { label: "Buying signals", value: formatAnalyticsMetric(analyticsSummary.highIntentSignals, analyticsSummary), copy: "Moments where people seem ready to move forward." },
-        { label: "Answers to improve", value: formatAnalyticsMetric(signals.weakAnswerCount, analyticsSummary), copy: "Places where customers may leave confused or unconvinced." },
-        { label: "Recorded wins", value: formatAnalyticsMetric(outcomeSummary.confirmedBusinessOutcomes, analyticsSummary), copy: "Conservative proof that Vonza helped create an outcome." },
-      ])}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
-          <section class="workspace-card-soft analytics-story-card">
-            <div class="workspace-panel-header">
-              <div>
-                <p class="studio-kicker">Business readout</p>
-                <h3 class="workspace-panel-title">${escapeHtml(analyticsSummary.operatorSignal.title || "What the customer data is saying")}</h3>
-                <p class="workspace-panel-copy">${escapeHtml(analyticsSummary.operatorSignal.copy || "Vonza will summarize the strongest customer and business signal here as usage grows.")}</p>
-              </div>
+          ${syncPendingMarkup}
+          <section class="workspace-card-soft analytics-report-overview">
+            <div>
+              <p class="analytics-report-kicker">Service report</p>
+              <h2 class="analytics-report-title">Is Vonza helping customer service?</h2>
+              <p class="analytics-report-copy">${escapeHtml(report.summarySentence)}</p>
             </div>
-            <div class="analytics-story-grid">
-              <div class="detail-kv-item">
-                <span class="detail-kv-label">Front Desk status</span>
-                <strong>${escapeHtml(installStatus.label)}</strong>
-                <p>${escapeHtml(activity.copy)}</p>
-              </div>
-              <div class="detail-kv-item">
-                <span class="detail-kv-label">Website knowledge</span>
-                <strong>${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "Needs stronger website detail")}</strong>
-                <p>${escapeHtml(setup.knowledgeDescription)}</p>
-              </div>
-              <div class="detail-kv-item">
-                <span class="detail-kv-label">Lead capture path</span>
-                <strong>${escapeHtml(`${analyticsSummary.contactsCaptured || 0} captured from ${analyticsSummary.highIntentSignals || 0} high-intent moments`)}</strong>
-                <p>${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks and ${conversionSummary.directRouteCount || 0} direct routes recorded so far.`)}</p>
-              </div>
+            <div class="analytics-report-overview-pills">
+              <span class="pill">${escapeHtml(`${report.lostCustomerRisk} lost-customer risk`)}</span>
+              <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.highIntentSignals)} warm conversations`)}</span>
+              <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
             </div>
           </section>
-
-          <div class="analytics-simple-grid">
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Top customer questions</h3>
-            ${signals.topQuestions.length ? `
-              <div class="question-list">
-                ${signals.topQuestions.map((item) => `
-                  <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
-                `).join("")}
-              </div>
-            ` : `<div class="placeholder-card">Recurring question themes will appear here as usage builds.</div>`}
+          <section class="analytics-report-metric-grid">
+            ${[
+              {
+                label: "Total conversations",
+                value: formatAnalyticsReportNumber(report.conversationCount),
+                note: analyticsSummary.syncState === "pending"
+                  ? "Refreshing from live usage"
+                  : signals.usageTrend?.copy || "Live customer traffic will appear here.",
+                tone: report.conversationCount > 0 ? "positive" : "neutral",
+              },
+              {
+                label: "Autonomous handled",
+                value: formatAnalyticsReportPercent(report.autonomousHandledRate),
+                note: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} handled without owner follow-up`,
+                tone: report.autonomousHandledRate >= 75 ? "positive" : report.autonomousHandledRate >= 50 ? "watch" : "risk",
+              },
+              {
+                label: "Leads captured",
+                value: formatAnalyticsReportNumber(report.contactsCaptured),
+                note: report.highIntentSignals > report.contactsCaptured
+                  ? `${formatAnalyticsReportNumber(report.highIntentSignals - report.contactsCaptured)} warm chats still anonymous`
+                  : "Lead capture is keeping pace with demand",
+                tone: report.contactsCaptured > 0 ? "positive" : "neutral",
+              },
+              {
+                label: "Complaints handled",
+                value: formatAnalyticsReportNumber(report.complaintsHandled),
+                note: report.complaintOpened > 0
+                  ? `${formatAnalyticsReportNumber(report.unresolvedComplaints)} unresolved of ${formatAnalyticsReportNumber(report.complaintOpened)} recorded`
+                  : "No complaint risk recorded yet",
+                tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
+              },
+              {
+                label: "Avg customer satisfaction",
+                value: report.conversationCount > 0 ? formatAnalyticsReportScore(report.satisfactionScore) : "Early",
+                note: report.conversationCount > 0
+                  ? report.satisfactionScore >= 4.3
+                    ? "Strong service-quality signal"
+                    : report.satisfactionScore >= 3.7
+                      ? "Good, with room to tighten answers"
+                      : "Customers may be feeling friction"
+                  : "Waiting for enough live service signal",
+                tone: report.satisfactionScore >= 4.3 ? "positive" : report.satisfactionScore >= 3.7 ? "watch" : "risk",
+              },
+              {
+                label: "Estimated hours saved",
+                value: formatAnalyticsReportHours(report.estimatedHoursSaved),
+                note: "Estimated from conversations handled without owner rescue",
+                tone: report.estimatedHoursSaved > 0 ? "positive" : "neutral",
+              },
+            ].map((metric) => `
+              <article class="analytics-report-metric-card">
+                <p class="analytics-report-metric-label">${escapeHtml(metric.label)}</p>
+                <strong class="analytics-report-metric-value">${escapeHtml(metric.value)}</strong>
+                <p class="analytics-report-metric-note tone-${metric.tone}">${escapeHtml(metric.note)}</p>
+              </article>
+            `).join("")}
           </section>
-
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Answers needing work</h3>
-            ${signals.weakAnswerExamples.length ? `
-              <div class="question-list">
-                ${signals.weakAnswerExamples.map((question) => `
-                  <div class="question-row">${escapeHtml(question)}</div>
-                `).join("")}
+          <div class="analytics-report-grid">
+            <section class="workspace-card-soft analytics-report-primary">
+              <div class="flat-section-header">
+                <div>
+                  <p class="overview-label">Trends</p>
+                  <h3 class="flat-section-title">Customer conversations and successful actions</h3>
+                  <p class="analytics-report-section-copy">See whether support demand and completed next steps are moving in the right direction.</p>
+                </div>
               </div>
-            ` : `<div class="placeholder-card">No weak-answer signal yet.</div>`}
-          </section>
-          </div>
-
-          <div class="analytics-simple-grid">
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Customer path health</h3>
-            <div class="analytics-list">
-              <div class="analytics-item">
-                <p class="analytics-item-title">Customers reached a next step</p>
-                <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes and ${conversionSummary.captureFallbackCount || 0} fallback captures so far.`)}</p>
-              </div>
-              <div class="analytics-item">
-                <p class="analytics-item-title">Customers shared contact details</p>
-                <p class="analytics-item-copy">${escapeHtml(`${analyticsSummary.contactsCaptured || 0} contact capture${analyticsSummary.contactsCaptured === 1 ? "" : "s"} recorded.`)}</p>
-                <p class="analytics-subtle">${escapeHtml(`${recentLeadCaptures.length} recent capture${recentLeadCaptures.length === 1 ? "" : "s"}.`)}</p>
-              </div>
-              <div class="analytics-item">
-                <p class="analytics-item-title">Customers got a usable answer</p>
-                <p class="analytics-item-copy">${escapeHtml(
-                  signals.weakAnswerCount
-                    ? `${Math.max((analyticsSummary.visitorQuestions || 0) - signals.weakAnswerCount, 0)} questions looked healthy at first pass.`
-                    : "No weak-answer signal is standing out right now."
-                )}</p>
-              </div>
-              <div class="analytics-item">
-                <p class="analytics-item-title">Vonza helped create results</p>
-                <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed win${outcomeSummary.confirmedBusinessOutcomes === 1 ? "" : "s"} recorded.`)}</p>
-                <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.followUpAssistedOutcomeCount || 0} came through follow-up support.`)}</p>
-              </div>
-            </div>
-          </section>
-
-          <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Latest outcomes</h3>
-            ${recentOutcomes.length ? `
-              <div class="analytics-list">
-                ${recentOutcomes.map((outcome) => `
-                  <div class="analytics-item">
-                    <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
-                    <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "No page captured"))}</p>
-                    <p class="analytics-subtle">${escapeHtml([
-                      trimText(outcome.sourceLabel || outcome.attributionPath) ? `${trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " ")}` : "",
-                      trimText(outcome.relatedIntentType) || "",
-                      outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
-                    ].filter(Boolean).join(" · "))}</p>
+              ${buildAnalyticsTrendMarkup(report)}
+            </section>
+            <div class="analytics-report-sidebar">
+              <section class="workspace-card-soft">
+                <div class="flat-section-header">
+                  <div>
+                    <p class="overview-label">Top insights</p>
+                    <h3 class="flat-section-title">What stands out right now</h3>
                   </div>
-                `).join("")}
-              </div>
-            ` : `<div class="placeholder-card">No recorded wins yet.</div>`}
-          </section>
-
-          ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
+                </div>
+                <div class="analytics-report-insights">
+                  ${[
+                    { label: "Most asked question", value: report.mostAskedQuestion, tone: "conversations" },
+                    { label: "Peak hours", value: report.peakHours, tone: "actions" },
+                    { label: "Vonza does best at", value: report.bestArea, tone: "positive" },
+                    { label: "Needs improvement", value: report.improvementArea, tone: "risk" },
+                  ].map((item) => `
+                    <div class="analytics-report-insight">
+                      <span class="analytics-report-insight-dot tone-${item.tone}"></span>
+                      <div>
+                        <strong>${escapeHtml(item.label)}</strong>
+                        <p>${escapeHtml(item.value)}</p>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+              <section class="workspace-card-soft">
+                <div class="flat-section-header">
+                  <div>
+                    <p class="overview-label">Contact summary</p>
+                    <h3 class="flat-section-title">Who Vonza is talking to</h3>
+                  </div>
+                </div>
+                <div class="analytics-report-contact-grid">
+                  <div class="analytics-report-contact-card">
+                    <span>Guest users</span>
+                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.guestUsers))}</strong>
+                  </div>
+                  <div class="analytics-report-contact-card">
+                    <span>Identified users</span>
+                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.identifiedUsers))}</strong>
+                  </div>
+                  <div class="analytics-report-contact-card">
+                    <span>Email users</span>
+                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.emailUsers))}</strong>
+                  </div>
+                </div>
+                <p class="analytics-report-section-copy">${escapeHtml(report.contactMixCopy)}</p>
+              </section>
+            </div>
           </div>
+          <section class="workspace-card-soft">
+            <div class="flat-section-header">
+              <div>
+                <p class="overview-label">Improve next</p>
+                <h3 class="flat-section-title">Recommended service improvements</h3>
+                <p class="analytics-report-section-copy">Keep the next moves simple and tied to customer experience, not internal tooling.</p>
+              </div>
+            </div>
+            <div class="analytics-report-recommendations">
+              ${report.recommendations.map((item) => `
+                <article class="analytics-report-recommendation tone-${item.tone}">
+                  <div class="analytics-report-recommendation-head">
+                    <strong>${escapeHtml(item.title)}</strong>
+                    <span>${escapeHtml(item.metric)}</span>
+                  </div>
+                  <p>${escapeHtml(item.copy)}</p>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+          <section class="workspace-card-soft">
+            <div class="flat-section-header">
+              <div>
+                <p class="overview-label">SWOT</p>
+                <h3 class="flat-section-title">Opportunity snapshot</h3>
+              </div>
+            </div>
+            <div class="analytics-report-swot-grid">
+              ${report.swot.map((item) => `
+                <article class="analytics-report-swot-item tone-${item.tone}">
+                  <span>${escapeHtml(item.label)}</span>
+                  <p>${escapeHtml(item.copy)}</p>
+                </article>
+              `).join("")}
+            </div>
+          </section>
+          <section class="settings-page" data-analytics-section="overview"></section>
+          <section class="settings-page" data-analytics-section="questions" hidden></section>
+          <section class="settings-page" data-analytics-section="outcomes" hidden></section>
+          <section class="settings-page" data-analytics-section="improvements" hidden></section>
         </div>
       </div>
     </section>
