@@ -63,12 +63,12 @@ const SECTION_GUIDES = {
     ],
   },
   inbox: {
-    label: "Inbox",
+    label: "Email",
     summary:
-      "Inbox is an optional Google-connected workspace for review and draft support around customer email. It extends the core workspace rather than replacing it.",
+      "Email is an optional Google-connected workspace for read-only support inbox organization around customer email. It extends the core workspace rather than replacing it.",
     nextSteps: [
-      "Connect Google first if Inbox is not available yet.",
-      "Use Inbox when you want approval-first reply drafting tied into the rest of the Vonza workspace.",
+      "Connect Google first if Email is not available yet.",
+      "Use Email when you want Vonza to read, classify, and connect support email without sending or changing anything yet.",
     ],
   },
   calendar: {
@@ -215,7 +215,7 @@ function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
   }
 
   if (!tools.googleConnected) {
-    steps.push("Connect Google in Settings > Connected tools when you want Inbox, Calendar, and richer Today context inside the workspace.");
+    steps.push("Connect Google in Settings > Connected tools when you want Email, Calendar, and richer Today context inside the workspace.");
   }
 
   if (missingBusinessContext > 0) {
@@ -276,7 +276,7 @@ function buildProductKnowledgeBlock() {
     "Vonza product model:",
     "- Vonza is an approval-first AI front desk and operator command center.",
     "- The stable core inside the app is Today, Contacts, Front Desk, Analytics, Install, and Settings.",
-    "- Inbox, Calendar, and Automations are connected workspace extensions when Google tools are enabled.",
+    "- Email, Calendar, and Automations are connected workspace extensions when Google tools are enabled.",
     "- Suggested actions, drafts, approvals, and live changes should stay clearly distinct in explanations.",
     "",
     "Core surfaces:",
@@ -323,7 +323,7 @@ function buildWorkspaceContextBlock({
     `- Google connected: ${tools.googleConnected ? "yes" : "no"}`,
     tools.accountEmail ? `- Connected Google account: ${tools.accountEmail}` : "",
     tools.capabilities.length ? `- Enabled Google capabilities: ${tools.capabilities.join(", ")}` : "",
-    Number.isFinite(tools.inboxAttentionCount) ? `- Inbox items needing attention: ${tools.inboxAttentionCount}` : "",
+    Number.isFinite(tools.inboxAttentionCount) ? `- Email items needing attention: ${tools.inboxAttentionCount}` : "",
     Number.isFinite(tools.pendingCalendarApprovals) ? `- Pending calendar approvals: ${tools.pendingCalendarApprovals}` : "",
     Number.isFinite(contactSummary.totalContacts) ? `- Total tracked contacts: ${contactSummary.totalContacts}` : "",
     Number.isFinite(contactSummary.contactsNeedingAttention) ? `- Contacts needing attention: ${contactSummary.contactsNeedingAttention}` : "",
@@ -468,7 +468,7 @@ function buildProductSupportConversationGuidance({
 
   if (intent === "connected_tools") {
     guidance.push(
-      "Be clear that Google-connected tools are optional extensions. Explain what Inbox and Calendar add, and whether the current workspace is already connected."
+      "Be clear that Google-connected tools are optional extensions. Explain what Email and Calendar add, and whether the current workspace is already connected."
     );
   }
 
@@ -670,8 +670,8 @@ function buildFallbackAnswer({
         : "You are likely not seeing outcomes yet because Vonza either does not have enough live usage or the install is not fully verified yet. Once the front desk is live and handling real visitor traffic, Outcomes becomes much more useful.";
     case "connected_tools":
       return tools.googleConnected
-        ? "Google is already connected, so Inbox and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Today if you want to confirm which account is active and whether sync has completed."
-        : "Connect Google from Settings > Connected tools when you want Vonza to use email and calendar context. The core workspace still works without it, but Inbox, Calendar, and richer Today context depend on that connection.";
+        ? "Google is already connected, so Email and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Today if you want to confirm which account is active and whether sync has completed."
+        : "Connect Google from Settings > Connected tools when you want Vonza to use email and calendar context. The core workspace still works without it, but Email, Calendar, and richer Today context depend on that connection.";
     case "contacts":
       return `${SECTION_GUIDES.contacts.summary} Start in Contacts overview for health and risk, then move into People or Follow-up when you need detail or action.`;
     case "analytics":

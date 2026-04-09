@@ -1240,10 +1240,11 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /\/agents\/product-help/);
         assert.match(dashboardScript.text, /Operator home/);
         assert.match(dashboardScript.text, /Getting started/);
-        assert.match(dashboardScript.text, /Connect Google to unlock Inbox/);
+        assert.match(dashboardScript.text, /Connect Gmail/);
         assert.match(dashboardScript.text, /Connect Google/);
+        assert.match(dashboardScript.text, /Today at a glance/);
+        assert.match(dashboardScript.text, /Messages today/);
         assert.match(dashboardScript.text, /Your AI customer service snapshot for today|Today at a glance/);
-        assert.match(dashboardScript.text, /Conversations today|Messages today/);
         assert.match(dashboardScript.text, /Approval-first proposals/);
         assert.match(dashboardScript.text, /Improve the business and Vonza/);
         assert.match(dashboardScript.text, /Show supporting detail/);

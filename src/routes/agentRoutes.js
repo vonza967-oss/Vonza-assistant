@@ -568,6 +568,9 @@ export function createAgentRouter(deps = {}) {
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       const agentId = req.body.agent_id || req.body.agentId;
+      const requestedScopes = Array.isArray(req.body.scopes)
+        ? req.body.scopes.filter((scope) => typeof scope === "string" && scope.trim())
+        : [];
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
@@ -581,6 +584,7 @@ export function createAgentRouter(deps = {}) {
         ownerUserId: user.id,
         redirectPath: req.body.redirect_path || req.body.redirectPath || "/dashboard",
         selectedMailbox: req.body.selected_mailbox || req.body.selectedMailbox,
+        scopes: requestedScopes.length ? requestedScopes : undefined,
       });
 
       res.json(result);

@@ -225,12 +225,12 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.contacts.list), []);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"]
   );
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Today at a glance/);
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
-  assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
+  assert.match(harness.buildInboxPanel({}, workspace), /Connect Gmail|Email/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
@@ -329,7 +329,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "calendar", "automations", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"]
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
@@ -1273,7 +1273,7 @@ test("launch mode hides Google beta tabs when Google config is unavailable", () 
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "inbox", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "operator_without_google_beta");
 });
@@ -1340,6 +1340,8 @@ test("dashboard renders inbox threads safely when thread messages are missing", 
 
   assert.equal(Array.isArray(workspace.inbox.threads[0].messages), true);
   assert.match(markup, /Need help/);
+  assert.match(markup, /Read-only/i);
+  assert.doesNotMatch(markup, /Approve and send/i);
 });
 
 test("dashboard keeps the legacy shell only when the operator flag is off", async () => {

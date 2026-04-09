@@ -47,7 +47,7 @@ const DASHBOARD_HELP_SECTION_LABELS = {
   analytics: "Analytics",
   install: "Install",
   settings: "Settings",
-  inbox: "Inbox",
+  inbox: "Email",
   calendar: "Calendar",
   automations: "Automations",
 };
@@ -66,6 +66,12 @@ const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
 const FEATURE_STATE_STABLE = "stable";
 const FEATURE_STATE_BETA = "beta";
 const FEATURE_STATE_HIDDEN = "hidden";
+const EMAIL_READ_ONLY_GOOGLE_SCOPES = [
+  "openid",
+  "email",
+  "profile",
+  "https://www.googleapis.com/auth/gmail.readonly",
+];
 const DASHBOARD_CAPABILITY_MAP = {
   overview: "today",
   contacts: "contacts",
@@ -81,7 +87,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Home, Customers, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces when enabled.",
+      "The first public offer is the AI front desk plus Home, Customers, Analytics, website import, and install. Google-connected Email, Calendar, and Automations stay optional beta surfaces when enabled.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -101,7 +107,7 @@ const DEFAULT_LAUNCH_PROFILE = {
     customize: { state: FEATURE_STATE_STABLE, label: "Front Desk" },
     lead_capture: { state: FEATURE_STATE_STABLE, label: "Lead capture" },
     google_connect: { state: FEATURE_STATE_BETA, label: "Google connect" },
-    inbox: { state: FEATURE_STATE_BETA, label: "Inbox" },
+    inbox: { state: FEATURE_STATE_BETA, label: "Email" },
     calendar: { state: FEATURE_STATE_BETA, label: "Calendar" },
     automations: { state: FEATURE_STATE_BETA, label: "Automations" },
     advanced_guidance: { state: FEATURE_STATE_HIDDEN, label: "Advanced guidance" },
@@ -331,15 +337,13 @@ function isCapabilityVisibleForWorkspace(capabilityKey, operatorWorkspace = crea
       return false;
     }
 
-    if (["inbox", "calendar", "automations", "google_connect"].includes(capabilityKey) && !isGoogleWorkspaceConfigured(operatorWorkspace)) {
+    if (["calendar", "automations", "google_connect"].includes(capabilityKey) && !isGoogleWorkspaceConfigured(operatorWorkspace)) {
       return false;
     }
   }
 
-  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-
   if (capabilityKey === "inbox") {
-    return googleCapabilities.gmailRead === true;
+    return true;
   }
 
   return true;
@@ -462,12 +466,12 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
   }
 
   if (!isGoogleWorkspaceConfigured(operatorWorkspace)) {
-      return {
-        key: "operator_without_google_beta",
-        eyebrow: "Workspace",
-        title: "Your main workspace is live.",
-        copy: "Home, Customers, Front Desk, and Analytics are ready to use. Inbox, Calendar, and Automations will appear later when optional Google tools are available.",
-      };
+    return {
+      key: "operator_without_google_beta",
+      eyebrow: "Workspace",
+      title: "Your main workspace is live.",
+      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations appear when optional Google tools are available.",
+    };
   }
 
   if (operatorWorkspace?.status?.googleConnected === true) {
@@ -484,7 +488,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your workspace is fully connected.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center, with Inbox, Calendar, and Automations available alongside them.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center, with Email, Calendar, and Automations available alongside them.",
     };
   }
 
@@ -492,7 +496,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready, with optional Google tools available.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connect Google when you want Inbox, Calendar, and Automations in the same workspace.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connect Google when you want Email, Calendar, and Automations in the same workspace.",
   };
 }
 
@@ -1586,7 +1590,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Workspace active",
       headline: "Your Vonza workspace is open.",
-      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Analytics. Google-connected Inbox, Calendar, and Automations stay optional beta surfaces.",
+      copy: "Your public launch workspace is active. The stable core is the AI front desk, Today, Contacts, Front Desk, and Analytics. Google-connected Email, Calendar, and Automations stay optional beta surfaces.",
     };
   }
 
@@ -2630,8 +2634,8 @@ function buildSidebarShell(
   const connectedItems = [
     {
       key: "inbox",
-      label: "Inbox",
-      note: "Connected Gmail threads and review-before-send replies.",
+      label: "Email",
+      note: "Read-only Gmail support inbox with safe customer categorization.",
       tag: "Optional",
     },
     {
@@ -5872,7 +5876,7 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
             <h3 class="settings-summary-title">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available" : "Unavailable")}</h3>
             <p class="settings-summary-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
             <div class="inline-actions">
-              <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
+              <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection." ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Gmail" : "Connect Gmail"}</button>
               <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Refresh sync</button>
             </div>
           </article>
@@ -5882,11 +5886,11 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
             <p class="settings-summary-copy">${escapeHtml(calendarMode)}</p>
           </article>
           <article class="settings-summary-card">
-            <p class="overview-label">Inbox and automations</p>
+            <p class="overview-label">Email mode</p>
             <h3 class="settings-summary-title">${escapeHtml(googleCapabilities.gmailRead ? "Email connected" : "Email not connected")}</h3>
             <p class="settings-summary-copy">${escapeHtml(googleCapabilities.gmailRead
-              ? "Inbox and approval-first email work can appear in the connected workspace surfaces."
-              : "Inbox stays hidden until Gmail read access is available. Automations stay honest about the missing connection.")}</p>
+              ? "Vonza can read, classify, and connect support email to customers when it can. It does not send, archive, or silently change the mailbox."
+              : "Email stays in read-only setup mode until Gmail access is connected. Automations stay honest about the missing connection.")}</p>
           </article>
         </div>
       </section>
@@ -5896,9 +5900,9 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
         <p class="studio-group-copy">Connected tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Analytics.</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
-            <p class="overview-label">Inbox</p>
-            <h3 class="settings-summary-title">Approval-first replies</h3>
-            <p class="settings-summary-copy">Recent Gmail threads, reply drafts, and complaint recovery work show up here only when the mailbox connection is ready.</p>
+            <p class="overview-label">Email</p>
+            <h3 class="settings-summary-title">Read-only customer inbox</h3>
+            <p class="settings-summary-copy">Recent Gmail threads, complaint signals, sales intent, billing questions, and low-priority conversations show up here once the inbox connection is ready.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar</p>
@@ -9631,149 +9635,326 @@ function getThreadDraft(thread = {}) {
   return (thread.messages || []).find((message) => message.direction === "draft") || null;
 }
 
+function formatInboxClassificationLabel(value = "") {
+  switch (trimText(value)) {
+    case "lead_sales":
+      return "lead";
+    case "follow_up_needed":
+    case "general":
+      return "general";
+    default:
+      return trimText(value).replaceAll("_", " ") || "thread";
+  }
+}
+
+function getEmailPreviewCategoryKey(thread = {}) {
+  const classification = trimText(thread.classification);
+
+  if (classification === "complaint") {
+    return "complaint";
+  }
+
+  if (["lead_sales", "booking"].includes(classification)) {
+    return "lead";
+  }
+
+  if (classification === "billing") {
+    return "billing_questions";
+  }
+
+  if (!thread.needsReply || trimText(thread.status) === "waiting" || trimText(thread.riskLevel) === "low") {
+    return "resolved";
+  }
+
+  return "billing_questions";
+}
+
+function getEmailPreviewCategoryMeta(categoryKey = "") {
+  switch (trimText(categoryKey)) {
+    case "complaint":
+      return {
+        key: "complaint",
+        label: "Complaint",
+        description: "Unhappy customer who likely needs calm human review.",
+        priority: "High",
+      };
+    case "lead":
+      return {
+        key: "lead",
+        label: "Lead",
+        description: "Commercial intent, quote request, or buying signal.",
+        priority: "High",
+      };
+    case "resolved":
+      return {
+        key: "resolved",
+        label: "Resolved",
+        description: "Handled or low-priority thread that can stay quiet for now.",
+        priority: "Low",
+      };
+    case "billing_questions":
+    default:
+      return {
+        key: "billing_questions",
+        label: "Billing / question",
+        description: "Routine support, invoice help, and general customer questions.",
+        priority: "Medium",
+      };
+  }
+}
+
+function getEmailPreviewFallbackItems() {
+  return [
+    {
+      subject: "Complaint - delayed delivery",
+      snippet: "Customer says they are unhappy and want help urgently.",
+      categoryKey: "complaint",
+      priority: "High",
+      statusNote: "Customer match if possible",
+    },
+    {
+      subject: "Where is my invoice?",
+      snippet: "Routine support request that likely needs a quick answer.",
+      categoryKey: "billing_questions",
+      priority: "Medium",
+      statusNote: "Customer match if possible",
+    },
+    {
+      subject: "Can I get a quote this week?",
+      snippet: "Commercial intent from a customer asking about next steps.",
+      categoryKey: "lead",
+      priority: "High",
+      statusNote: "Customer match if possible",
+    },
+    {
+      subject: "Thanks, issue solved",
+      snippet: "Resolved thread that can safely stay in a low-priority group.",
+      categoryKey: "resolved",
+      priority: "Low",
+      statusNote: "Quiet for now",
+    },
+  ];
+}
+
+function buildEmailPreviewItems(threads = []) {
+  if (!threads.length) {
+    return getEmailPreviewFallbackItems();
+  }
+
+  return threads.slice(0, 4).map((thread) => {
+    const categoryKey = getEmailPreviewCategoryKey(thread);
+    const categoryMeta = getEmailPreviewCategoryMeta(categoryKey);
+    const latestInbound = (thread.messages || [])
+      .slice()
+      .reverse()
+      .find((message) => message.direction === "inbound") || null;
+    const linkedContactId = trimText(thread.contactId || thread.contact_id || thread.linkedContactId);
+
+    return {
+      subject: trimText(thread.subject) || "Support thread",
+      snippet:
+        trimText(latestInbound?.bodyPreview)
+        || trimText(latestInbound?.bodyText)
+        || trimText(thread.snippet)
+        || categoryMeta.description,
+      categoryKey,
+      priority: trimText(thread.riskLevel)
+        ? trimText(thread.riskLevel).replace(/^\w/, (character) => character.toUpperCase())
+        : categoryMeta.priority,
+      statusNote: linkedContactId ? "Customer matched" : "Customer match if possible",
+    };
+  });
+}
+
+function buildEmailPreviewCategorySummary(items = []) {
+  const counts = {
+    complaint: 0,
+    lead: 0,
+    billing_questions: 0,
+    resolved: 0,
+  };
+
+  items.forEach((item) => {
+    const key = getEmailPreviewCategoryMeta(item.categoryKey).key;
+    counts[key] = (counts[key] || 0) + 1;
+  });
+
+  return counts;
+}
+
 function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const accounts = operatorWorkspace.connectedAccounts || [];
   const primaryAccount = accounts[0] || null;
-  const threads = (operatorWorkspace.inbox?.threads || []).slice(0, 10);
+  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
+  const threads = operatorWorkspace.inbox?.threads || [];
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const activation = operatorWorkspace.activation || createEmptyOperatorWorkspace().activation;
-  const selectedThread = threads[0] || null;
+  const connected = primaryAccount?.status === "connected" && googleCapabilities.gmailRead === true;
+  const previewItems = buildEmailPreviewItems(threads);
+  const summary = buildEmailPreviewCategorySummary(previewItems);
+  const liveThreadCount = threads.length;
+  const nextStepLabel = !status.googleConfigReady
+    ? "Email unavailable"
+    : connected
+      ? activation.inboxSynced
+        ? "Review categories"
+        : "Run first sync"
+      : primaryAccount?.status === "connected"
+        ? "Reconnect Gmail"
+        : "Connect Gmail";
+  const nextStepCopy = !status.googleConfigReady
+    ? "Google inbox connection is not configured on this deployment."
+    : connected
+      ? activation.inboxSynced
+        ? "preview is ready"
+        : "pull first threads"
+      : primaryAccount?.status === "connected"
+        ? "finish read-only access"
+        : "review categories";
+  const accountStatusValue = connected
+    ? "Connected"
+    : primaryAccount?.status === "connected"
+      ? "Needs Gmail access"
+      : "Not connected";
+  const accountStatusCopy = connected
+    ? primaryAccount.accountEmail || "Gmail connected in read-only mode"
+    : status.googleConfigReady
+      ? "safe to start"
+      : "not available here";
+  const heroCopy = !status.googleConfigReady
+    ? "Google inbox connection is not configured on this deployment yet, so Email stays visible but unavailable for now."
+    : connected
+      ? `Vonza is connected to ${primaryAccount.accountEmail || "your Gmail inbox"} in read-only mode. It can read, organize, and classify support email without sending or changing anything.`
+      : primaryAccount?.status === "connected"
+        ? "Google is connected, but Gmail read-only access is not active yet. Reconnect Gmail so Vonza can safely review support email."
+        : "Start by connecting the inbox your team uses for complaints or customer support. Vonza will read, organize, and classify, but not send or change anything.";
+  const heroActions = connected
+    ? `
+      <button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Refresh inbox preview</button>
+      <button class="ghost-button" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection.">Reconnect Gmail</button>
+    `
+    : `
+      <button class="primary-button" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection." ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Gmail" : "Connect Gmail"}</button>
+    `;
+  const syncNote = connected
+    ? `Mailbox ${primaryAccount.selectedMailbox || "INBOX"}${primaryAccount.lastSyncAt ? `, last synced ${formatSeenAt(primaryAccount.lastSyncAt)}` : ", first sync still pending"}`
+    : "No auto-replies, no auto-archive, and no silent mailbox changes.";
+  const supportedCounts = [
+    { label: "Complaints", value: summary.complaint || 0 },
+    { label: "Leads", value: summary.lead || 0 },
+    { label: "Billing / questions", value: summary.billing_questions || 0 },
+    { label: "Resolved / low priority", value: summary.resolved || 0 },
+  ];
 
   return `
-    <section class="workspace-page" data-shell-section="inbox" hidden>
+    <section class="workspace-page workspace-page-email" data-shell-section="inbox" hidden>
       ${buildPageHeader({
         eyebrow: "Connected tools",
-        title: "Inbox",
-        copy: "Bring recent Gmail threads into Vonza so the owner can review replies, spot missed leads, and handle complaints from one place.",
-        badges: [{ label: "Optional beta surface", tone: "Limited" }],
-        actionsMarkup: `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>`,
-      })}
-      ${buildPageToolbar({
-        filtersMarkup: `
-          <div class="toolbar-filter-group">
-            <button class="toolbar-chip" type="button" data-shell-target="contacts">Open customers</button>
-            <button class="toolbar-chip" type="button" data-shell-target="automations">Open automations</button>
+        title: "Email",
+        copy: "Connect your support inbox so Vonza can organize customer email without changing anything yet.",
+        actionsMarkup: `
+          <div class="email-page-header-pills">
+            <span class="email-page-pill">Customers</span>
+            <span class="email-page-pill email-page-pill--safe">Read-only</span>
           </div>
         `,
-        actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Run inbox sync</button>`,
       })}
       <div class="workspace-page-body">
-        <section class="workspace-card-soft workspace-connection-strip">
-          <div class="workspace-panel-header">
-            <div>
-              <h3 class="studio-group-title">Mailbox connection</h3>
-              <p class="workspace-panel-copy">${escapeHtml(primaryAccount?.status === "connected"
-                ? `Connected as ${primaryAccount.accountEmail || primaryAccount.displayName || "Google account"}. Mailbox: ${primaryAccount.selectedMailbox || "INBOX"}.`
-                : status.googleConfigReady
-                  ? "Connect Google to unlock the Inbox beta, sync recent threads, and keep permissions explicit and auditable."
-                  : "This deployment is using the public launch core without the optional Google Inbox beta.")}</p>
+        <section class="email-hero-card">
+          <div class="email-hero-copy">
+            <p class="email-hero-text">${escapeHtml(heroCopy)}</p>
+            <div class="email-guardrail-row">
+              <span class="email-guardrail-chip">Read-only first</span>
+              <span class="email-guardrail-chip">No sending</span>
+              <span class="email-guardrail-chip">No mailbox changes</span>
             </div>
-            <div class="page-header-actions">
-              <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
-              <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Run inbox sync</button>
-            </div>
+            <p class="email-hero-note">${escapeHtml(syncNote)}</p>
           </div>
-          <p class="section-note">${escapeHtml(primaryAccount?.status === "connected"
-            ? `Scopes granted: ${(primaryAccount.scopes || []).length}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
-            : "Vonza requests Gmail read, compose, and send plus Calendar read and event scopes so every reply and event change can stay approval-first.")}</p>
+          <div class="email-hero-actions">
+            ${heroActions}
+          </div>
         </section>
-        ${primaryAccount?.status !== "connected" ? buildOperatorEmptyState({
-          title: "Connect Google to unlock Inbox",
-          copy: status.googleConfigReady
-            ? "Vonza will sync recent Gmail threads, classify them, and prepare approval-first drafts here."
-            : "This workspace is still useful without Inbox. Turn on the optional Google beta later if you want email threads here.",
-          actionMarkup: buildOperatorNextActionButton(operatorWorkspace.nextAction),
-        }) : !activation.inboxSynced ? buildOperatorEmptyState({
-          title: "Run your first inbox sync",
-          copy: "The Google account is connected, but Vonza has not pulled the first inbox snapshot yet. Run the first sync to make the Inbox beta useful.",
-          actionMarkup: `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run first sync</button>`,
-        }) : threads.length ? `
-          <div class="workspace-records-shell">
-            <section class="workspace-records-list-shell">
-              <div class="workspace-records-list-header">
-                <div>
-                  <p class="overview-label">Threads needing attention</p>
-                  <h3 class="flat-section-title">${escapeHtml(`${threads.length} active thread${threads.length === 1 ? "" : "s"}`)}</h3>
-                </div>
-                <p class="workspace-panel-copy">Lead, support, complaint, billing, and follow-up buckets stay preserved on reload.</p>
+
+        <div class="email-status-grid">
+          <article class="email-status-card">
+            <p class="email-status-label">Connection status</p>
+            <strong class="email-status-value">${escapeHtml(accountStatusValue)}</strong>
+            <p class="email-status-copy">${escapeHtml(accountStatusCopy)}</p>
+          </article>
+          <article class="email-status-card">
+            <p class="email-status-label">Mode</p>
+            <strong class="email-status-value">Read-only</strong>
+            <p class="email-status-copy">no email sending</p>
+          </article>
+          <article class="email-status-card">
+            <p class="email-status-label">What Vonza sees</p>
+            <strong class="email-status-value">${escapeHtml(connected && liveThreadCount ? `${liveThreadCount} live thread${liveThreadCount === 1 ? "" : "s"}` : "Support threads")}</strong>
+            <p class="email-status-copy">complaints and requests</p>
+          </article>
+          <article class="email-status-card">
+            <p class="email-status-label">Next step</p>
+            <strong class="email-status-value">${escapeHtml(nextStepLabel)}</strong>
+            <p class="email-status-copy">${escapeHtml(nextStepCopy)}</p>
+          </article>
+        </div>
+
+        <div class="email-main-grid">
+          <section class="email-preview-card">
+            <div class="email-section-header">
+              <div>
+                <h3 class="email-section-title">Support inbox preview</h3>
+                <p class="email-section-copy">${escapeHtml(connected && activation.inboxSynced
+                  ? "Vonza is showing a live read-only preview of how your support inbox is grouped right now."
+                  : "Once connected, Vonza will quietly sort customer email into clear groups your team can understand at a glance.")}</p>
               </div>
-              <div class="workspace-record-list">
-                ${threads.map((thread, index) => buildWorkspaceRecordRow({
-                  kind: "inbox",
-                  id: thread.id || "",
-                  title: thread.subject || "Connected inbox thread",
-                  meta: [
-                    thread.classification?.replaceAll("_", " "),
-                    thread.riskLevel,
-                    thread.lastMessageAt ? `last message ${formatSeenAt(thread.lastMessageAt)}` : "",
-                  ].filter(Boolean).join(" · "),
-                  copy: thread.snippet || "No preview available yet.",
-                  badge: thread.classification?.replaceAll("_", " ") || "thread",
-                  badgeTone: thread.riskLevel === "high" ? "Needs attention" : thread.needsReply ? "Limited" : "Ready",
-                  icon: "inbox",
-                  selected: index === 0,
-                })).join("")}
+              <div class="email-preview-counts">
+                ${supportedCounts.map((item) => `
+                  <div class="email-preview-count">
+                    <strong>${escapeHtml(String(item.value))}</strong>
+                    <span>${escapeHtml(item.label)}</span>
+                  </div>
+                `).join("")}
               </div>
-            </section>
-            <section class="workspace-records-detail-shell">
-              ${threads.map((thread, index) => {
-                const draft = getThreadDraft(thread);
-                const latestInbound = (thread.messages || []).slice().reverse().find((message) => message.direction === "inbound");
+            </div>
+            <div class="email-preview-list">
+              ${previewItems.map((item) => {
+                const category = getEmailPreviewCategoryMeta(item.categoryKey);
                 return `
-                  <article
-                    class="workspace-record-detail-panel ${index === 0 ? "active" : ""}"
-                    data-record-detail
-                    data-record-kind="inbox"
-                    data-record-id="${escapeHtml(thread.id || "")}"
-                    ${index === 0 ? "" : "hidden"}
-                  >
-                    <div class="workspace-record-detail-header">
-                      <div>
-                        <p class="support-panel-kicker">Inbox thread</p>
-                        <h3 class="workspace-record-detail-title">${escapeHtml(thread.subject || "Connected inbox thread")}</h3>
-                        <p class="workspace-record-detail-copy">${escapeHtml(thread.snippet || "No preview available yet.")}</p>
-                      </div>
-                      <span class="${getBadgeClass(thread.riskLevel === "high" ? "Needs attention" : thread.needsReply ? "Limited" : "Ready")}">${escapeHtml(thread.classification?.replaceAll("_", " ") || "thread")}</span>
+                  <article class="email-preview-row email-preview-row--${escapeHtml(category.key)}">
+                    <div class="email-preview-dot" aria-hidden="true"></div>
+                    <div class="email-preview-main">
+                      <p class="email-preview-subject">${escapeHtml(item.subject)}</p>
+                      <p class="email-preview-snippet">${escapeHtml(item.snippet)}</p>
                     </div>
-                    <div class="detail-kv-list">
-                      <div class="detail-kv-item">
-                        <span class="detail-kv-label">Latest inbound</span>
-                        <strong>${escapeHtml(latestInbound?.bodyPreview || latestInbound?.bodyText || "No inbound message preview stored.")}</strong>
-                      </div>
-                      <div class="detail-kv-item">
-                        <span class="detail-kv-label">Risk and state</span>
-                        <strong>${escapeHtml([
-                          thread.classification?.replaceAll("_", " "),
-                          thread.riskLevel || "normal",
-                          thread.needsReply ? "needs reply" : "monitored",
-                        ].filter(Boolean).join(" · "))}</strong>
-                      </div>
+                    <div class="email-preview-tags">
+                      <span class="email-preview-tag email-preview-tag--${escapeHtml(category.key)}">${escapeHtml(category.label)}</span>
+                      <span class="email-preview-tag email-preview-tag--priority">${escapeHtml(item.priority)}</span>
+                      <span class="email-preview-tag email-preview-tag--neutral">${escapeHtml(item.statusNote)}</span>
                     </div>
-                    <form class="workspace-section-stack" data-inbox-thread-form data-thread-id="${escapeHtml(thread.id)}">
-                      <div class="field">
-                        <label>Draft subject</label>
-                        <input name="subject" type="text" value="${escapeHtml(draft?.subject || "")}">
-                      </div>
-                      <div class="field">
-                        <label>Draft reply</label>
-                        <textarea name="body">${escapeHtml(draft?.bodyText || "")}</textarea>
-                      </div>
-                      <div class="inline-actions">
-                        <button class="ghost-button" type="button" data-draft-inbox-reply data-thread-id="${escapeHtml(thread.id)}">Generate draft</button>
-                        <button class="primary-button" type="submit">Approve and send</button>
-                      </div>
-                    </form>
                   </article>
                 `;
               }).join("")}
-              ${selectedThread ? "" : `<div class="placeholder-card">Select a thread to review draft context.</div>`}
+            </div>
+          </section>
+
+          <div class="email-side-stack">
+            <section class="email-side-card">
+              <h3 class="email-section-title">What Vonza will do</h3>
+              <ul class="email-bullet-list">
+                <li>Identify complaint emails that need careful follow-up.</li>
+                <li>Identify lead and sales-intent messages that should not sit idle.</li>
+                <li>Identify routine support and billing questions.</li>
+                <li>Identify resolved or low-priority threads that can stay quiet.</li>
+                <li>Connect email activity to the right customer when Vonza can match it safely.</li>
+              </ul>
+            </section>
+
+            <section class="email-side-card email-side-card--dark">
+              <h3 class="email-section-title">Coming next</h3>
+              <p class="email-section-copy email-section-copy--inverse">After read-only works well, Vonza can add draft replies, stronger complaint handling, and better customer matching. This first version only connects, reads, and organizes.</p>
             </section>
           </div>
-        ` : buildOperatorEmptyState({
-          title: "Inbox is synced but quiet",
-          copy: "No qualifying Gmail threads are stored yet. Vonza will surface complaints, support threads, and follow-up opportunities here as soon as they arrive.",
-          actionMarkup: `<button class="ghost-button" type="button" data-complete-operator-step="inbox_review">Mark inbox review complete</button>`,
-        })}
+        </div>
       </div>
     </section>
   `;
@@ -9995,6 +10176,14 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
         actionsMarkup: googleConnected
           ? `<button class="primary-button" type="button" data-automation-focus="campaign-draft">Generate campaign draft</button>`
           : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
+      })}
+      ${buildPageToolbar({
+        filtersMarkup: `
+          <div class="toolbar-filter-group">
+            <button class="toolbar-chip" type="button" data-shell-target="contacts">Customers</button>
+            <button class="toolbar-chip" type="button" data-shell-target="inbox">Email</button>
+          </div>
+        `,
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
@@ -10909,7 +11098,7 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
       health: {
         ...createEmptyOperatorWorkspace().health,
         globalError:
-          "Inbox, Calendar, and Automations are temporarily unavailable. Today, Contacts, Front Desk, and Analytics are still available.",
+          "Email, Calendar, and Automations are temporarily unavailable. Today, Contacts, Front Desk, and Analytics are still available.",
       },
     });
   }
@@ -12903,8 +13092,22 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
-  const connectGoogleWorkspace = async () => {
-    setStatus("Preparing Google Workspace connection...");
+  const connectGoogleWorkspace = async (event) => {
+    const button = event?.currentTarget || event?.target || null;
+    const connectMode = trimText(button?.dataset.googleConnectMode);
+    const statusMessage = trimText(button?.dataset.googleConnectStatus) || "Preparing inbox connection...";
+    const errorMessage = trimText(button?.dataset.googleConnectError) || "We couldn't start the inbox connection.";
+    const payload = {
+      client_id: getClientId(),
+      agent_id: agent.id,
+      redirect_path: "/dashboard",
+    };
+
+    if (connectMode === "email_read_only") {
+      payload.scopes = EMAIL_READ_ONLY_GOOGLE_SCOPES.slice();
+    }
+
+    setStatus(statusMessage);
 
     try {
       const result = await fetchJson("/agents/google/connect/start", {
@@ -12912,16 +13115,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          client_id: getClientId(),
-          agent_id: agent.id,
-          redirect_path: "/dashboard",
-        }),
+        body: JSON.stringify(payload),
       });
 
       window.location.href = result.authUrl;
     } catch (error) {
-      setStatus(error.message || "We couldn't start the Google connection.");
+      setStatus(error.message || errorMessage);
     }
   };
 
@@ -13513,7 +13712,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           mark_inbox_reviewed: true,
         }, {
           statusMessage: "Saving inbox review progress...",
-          successMessage: "Inbox review marked complete.",
+          successMessage: "Email review marked complete.",
         });
         return;
       }
@@ -14063,10 +14262,10 @@ async function boot() {
     }
 
     if (googleConnectionState.status === "connected") {
-      setStatus("Google Workspace connected successfully.");
+      setStatus("Google inbox connected successfully in read-only mode.");
       clearGoogleConnectionStateFromUrl();
     } else if (googleConnectionState.status === "error") {
-      setStatus(googleConnectionState.reason || "Google Workspace connection did not complete.");
+      setStatus(googleConnectionState.reason || "Email connection did not complete.");
       clearGoogleConnectionStateFromUrl();
     }
 
