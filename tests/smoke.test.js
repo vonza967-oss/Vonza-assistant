@@ -1228,7 +1228,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /signInWithOtp/);
         assert.match(dashboardScript.text, /Unlock Vonza to open your AI front desk workspace/);
         assert.match(dashboardScript.text, /Home|Today/);
-        assert.match(dashboardScript.text, /Customers|Contacts/);
+        assert.match(dashboardScript.text, /Customers/);
         assert.match(dashboardScript.text, /Front Desk/);
         assert.match(dashboardScript.text, /Analytics/);
         assert.match(dashboardScript.text, /Install/);
@@ -1252,7 +1252,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Improve service/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /data-today-open-review/);
-        assert.match(dashboardScript.text, /Search contacts/);
+        assert.match(dashboardScript.text, /Search customers/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Website \/ Context/);

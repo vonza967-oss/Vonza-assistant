@@ -48,6 +48,8 @@ test("dashboard contact detail and row states stay crisp instead of washed out",
   assert.match(css, /\.contact-row\.active\s*\{[^}]*background:\s*rgba\(20,\s*184,\s*166,\s*0\.08\);[^}]*box-shadow:\s*inset 3px 0 0 rgba\(20,\s*184,\s*166,\s*0\.72\)/i);
   assert.match(css, /\.contact-detail-panel\s*\{[^}]*border:\s*1px solid var\(--surface-border\);[^}]*background:\s*linear-gradient/i);
   assert.match(css, /\.detail-panel-section\s*\{[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.042\)/i);
+  assert.match(css, /\.customer-status-chip--complaint\s*\{[^}]*background:\s*#fff2ee;[^}]*color:\s*#b45d47;/i);
+  assert.match(css, /\.customer-focus-banner\s*\{[^}]*background:\s*linear-gradient\(135deg,\s*#17233f 0%,\s*#121c35 100%\)/i);
 });
 
 test("dashboard chips and light-shell support panels use explicit readable surfaces", () => {
