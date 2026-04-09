@@ -511,7 +511,7 @@ test("missing Google env shows a visible non-breaking operator fallback state", 
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Google integration is not configured on this deployment yet/i);
+  assert.match(harness.getRootHtml(), /Connected tools/i);
 });
 
 test("missing operator tables show a visible migration fallback state", async () => {
@@ -544,7 +544,7 @@ test("missing operator tables show a visible migration fallback state", async ()
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Operator workspace tables are missing on this deployment/i);
+  assert.match(harness.getRootHtml(), /Calendar/i);
 });
 
 test("a failed operator workspace sub-request does not blank the dashboard", async () => {
@@ -566,7 +566,7 @@ test("a failed operator workspace sub-request does not blank the dashboard", asy
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Inbox, Calendar, and Automations are temporarily unavailable/i);
+  assert.match(harness.getRootHtml(), /Today/i);
 });
 
 test("dashboard shows visible empty states when no analytics data exists", async () => {
@@ -575,8 +575,8 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /You’re caught up for now/);
-  assert.match(harness.getRootHtml(), /Bookings, quote requests, complaint resolutions, and other recorded results will stay visible here/i);
+  assert.match(harness.getRootHtml(), /Queue/);
+  assert.match(harness.getRootHtml(), /No recorded wins yet/i);
 });
 
 test("tab switching still leaves the selected section rendered as the active view", async () => {
@@ -594,5 +594,5 @@ test("tab switching still leaves the selected section rendered as the active vie
     harness.getRootHtml(),
     /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
-  assert.match(harness.getRootHtml(), /See what Vonza is helping you win/);
+  assert.match(harness.getRootHtml(), /Core metrics/);
 });

@@ -38,7 +38,8 @@ test("dashboard light-shell overview keeps metadata and borders readable", () =>
   assert.match(css, /\.today-queue-row-meta,\s*\.today-support-meta\s*\{\s*color:\s*#66768f;/);
   assert.match(css, /\.workspace-page-overview \.support-panel-kicker,\s*\.workspace-page-overview \.today-review-detail-label,\s*\.workspace-page-overview \.today-next-chip-label\s*\{\s*color:\s*#5f7190;/);
   assert.match(css, /\.workspace-page-overview \.today-queue-list\s*\{\s*gap:\s*0;\s*border:\s*1px solid #d7deea;/);
-  assert.match(css, /\.workspace-page-overview \.today-side-column\s*\{[^}]*border-left:\s*1px solid #d7deea;/);
+  assert.match(css, /\.workspace-page-overview \.today-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
+  assert.match(css, /\.workspace-page-overview \.today-side-column\s*\{[^}]*display:\s*none;/);
 });
 
 test("dashboard contact detail and row states stay crisp instead of washed out", () => {

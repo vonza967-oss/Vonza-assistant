@@ -231,7 +231,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Today at a glance/);
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Google to unlock Inbox/);
-  assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google to unlock Calendar/);
+  assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
   assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
 });
@@ -340,7 +340,8 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   assert.match(overview, /Show supporting detail/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
-  assert.match(calendarPanel, /Read-only calendar mode/);
+  assert.match(calendarPanel, /Daily summary/);
+  assert.match(calendarPanel, /Run your first calendar sync/);
   assert.doesNotMatch(calendarPanel, /Create event draft/);
 });
 
@@ -651,27 +652,12 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   );
 
   assert.match(overviewPanel, /today-workspace/);
-  assert.match(overviewPanel, /Attention now/);
+  assert.match(overviewPanel, /Queue/);
   assert.match(overviewPanel, /today-review-panel/);
-  assert.match(overviewPanel, /Clear next steps, without the old queue drawer/);
-  assert.match(overviewPanel, /Quote review/);
-  assert.match(overviewPanel, /Appointment follow-up/);
   assert.match(overviewPanel, /Prepare follow-up/);
-  assert.match(overviewPanel, /Link contact/);
-  assert.match(overviewPanel, /Record outcome/);
-  assert.match(overviewPanel, /No action needed/);
-  assert.match(overviewPanel, /Today Copilot/);
-  assert.match(overviewPanel, /Operational summary/);
-  assert.match(overviewPanel, /Approval-first proposals/);
-  assert.match(overviewPanel, /Create draft/);
-  assert.match(overviewPanel, /Mark reviewed/);
-  assert.match(overviewPanel, /Mark done/);
-  assert.match(overviewPanel, /Dismiss/);
-  assert.doesNotMatch(overviewPanel, /today-review-drawer-shell/);
-  assert.doesNotMatch(overviewPanel, /Search Today/);
-  assert.doesNotMatch(overviewPanel, /data-today-open-review/);
-  assert.doesNotMatch(overviewPanel, /data-today-filter="needs_review"/);
-  assert.match(overviewPanel, /support-panel/);
+  assert.match(overviewPanel, /data-appointment-review-action="prepare_follow_up"/);
+  assert.doesNotMatch(overviewPanel, /Today Copilot/);
+  assert.doesNotMatch(overviewPanel, /today-side-column/);
   assert.match(overviewPanel, /Refresh workspace/);
 });
 
@@ -944,9 +930,7 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, /data-contact-row/);
   assert.match(contactsPanel, /data-contact-detail/);
   assert.match(contactsPanel, /Selected contact/);
-  assert.match(contactsPanel, /Recommended next action/);
-  assert.match(contactsPanel, /View details/);
-  assert.match(contactsPanel, /View timeline/);
+  assert.match(contactsPanel, /Next step/);
   assert.match(contactsPanel, /More filters/);
   assert.match(contactsPanel, /Search contacts/);
   assert.doesNotMatch(contactsPanel, /Need a follow-up/);
@@ -1161,10 +1145,10 @@ test("outcomes page now renders as a results workspace instead of stacked equal-
     }
   );
 
-  assert.match(analyticsPanel, /results-workspace/);
-  assert.match(analyticsPanel, /Recent successful outcomes|Your wins will show up here/);
-  assert.match(analyticsPanel, /Conversion loop/);
-  assert.match(analyticsPanel, /Worth improving next/);
+  assert.match(analyticsPanel, /Top customer questions/);
+  assert.match(analyticsPanel, /Core metrics/);
+  assert.match(analyticsPanel, /Latest outcomes|No recorded wins yet/);
+  assert.match(analyticsPanel, /Follow-up feed|No conversation-derived actions yet/);
 });
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({

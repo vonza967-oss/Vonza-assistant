@@ -3184,97 +3184,6 @@ function buildContactDetailPanel(
   selected = false
 ) {
   const actionSet = buildContactDetailActionSet(contact, operatorWorkspace);
-  const detailSummary = [
-    contact.partialIdentity ? "Identity still stitching" : "",
-    buildContactCountsSummary(contact),
-  ].filter(Boolean).join(" · ");
-  const relationshipDetailsMarkup = buildDisclosureBlock({
-    label: "View details",
-    summary: detailSummary,
-    className: "contact-detail-disclosure",
-    contentMarkup: `
-      <div class="contact-detail-grid">
-        <section class="detail-panel-section">
-          <h3 class="detail-panel-title">Relationship details</h3>
-          <div class="detail-kv-list">
-            <div class="detail-kv-item">
-              <span class="detail-kv-label">Where this person came from</span>
-              <strong>${escapeHtml(buildContactSourceSummary(contact))}</strong>
-            </div>
-            <div class="detail-kv-item">
-              <span class="detail-kv-label">Suggested stage</span>
-              <strong>${escapeHtml(contact.suggestedLifecycleState ? formatContactLifecycleLabel(contact.suggestedLifecycleState) : "No change suggested")}</strong>
-              <p>${escapeHtml(contact.partialIdentity ? "This record is still filling in from partial contact details and linked activity." : "Lifecycle guidance is based on the current linked record and workflow history.")}</p>
-            </div>
-            <div class="detail-kv-item">
-              <span class="detail-kv-label">Activity counts</span>
-              <strong>${escapeHtml(buildContactCountsSummary(contact))}</strong>
-              <p>${escapeHtml("Lead, inbox, calendar, follow-up, and result counts stay here when you need the full picture.")}</p>
-            </div>
-          </div>
-        </section>
-        <section class="detail-panel-section">
-          <h3 class="detail-panel-title">Contact settings</h3>
-          <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
-            <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Stage</label>
-            <div class="detail-inline-form-row">
-              <select id="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}" name="lifecycle_state">
-                ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
-                  <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
-                `).join("")}
-              </select>
-              <button class="primary-button" type="submit" ${contact.id ? "" : "disabled"}>Save stage</button>
-            </div>
-          </form>
-          ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
-            <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
-              <div class="form-grid two-col">
-                <div class="field">
-                  <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">Record result</label>
-                  <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                    <option value="booking_confirmed">booked</option>
-                    <option value="quote_requested">quote requested</option>
-                    <option value="quote_accepted">quote accepted</option>
-                    <option value="follow_up_replied">follow-up successful</option>
-                    <option value="complaint_resolved">complaint resolved</option>
-                    <option value="manual_outcome_marked">no outcome / manual note</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">Note</label>
-                  <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" placeholder="Owner confirmed this outside an automatic proof path." ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                </div>
-              </div>
-              <div class="action-queue-form-actions">
-                <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record outcome</button>
-                <span class="action-queue-meta-inline">Manual marks stay attached to this contact’s lead, thread, follow-up, and calendar context when available.</span>
-              </div>
-            </form>
-          ` : ""}
-        </section>
-      </div>
-    `,
-  });
-  const sourceDetailsMarkup = buildDisclosureBlock({
-    label: "More activity and sources",
-    summary: buildContactSourceSummary(contact),
-    className: "contact-detail-disclosure",
-    contentMarkup: buildDisclosureDetailRows([
-      { label: "Where this person came from", value: buildContactSourceSummary(contact) },
-      { label: "Latest result context", value: buildContactLatestResultCopy(contact) },
-      { label: "Current state", value: buildContactCurrentStateCopy(contact) },
-    ]),
-  });
-  const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
-    <div class="timeline-list">
-      ${contact.timeline.map((entry) => `
-        <div class="timeline-row">
-          <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : "Recent")}</strong>
-          <span>${escapeHtml(`${entry.label || entry.source || "Activity"} · ${entry.summary || ""}`)}</span>
-        </div>
-      `).join("")}
-    </div>
-  ` : `<div class="placeholder-card">This contact is here, and the timeline will fill in as more conversations, bookings, and follow-ups come through.</div>`;
 
   return `
     <article
@@ -3292,14 +3201,13 @@ function buildContactDetailPanel(
         </div>
         <div class="contact-detail-stage">
           <span class="pill">${escapeHtml(formatContactLifecycleLabel(contact.lifecycleState))}</span>
-          ${buildContactFlags(contact).includes("complaint") ? `<span class="badge pending">Needs care</span>` : ""}
-          ${contact.partialIdentity ? `<span class="pill">Identity still matching</span>` : ""}
+          ${buildContactFlags(contact).slice(0, 2).map((flag) => `<span class="${flag.includes("complaint") ? "badge pending" : "pill"}">${escapeHtml(flag)}</span>`).join("")}
         </div>
       </div>
       <section class="contact-focus-card">
-        <span class="detail-kv-label">Recommended next action</span>
+        <span class="detail-kv-label">Next step</span>
         <h3 class="contact-focus-title">${escapeHtml(contact.nextAction?.title || "No action needed")}</h3>
-        <p class="contact-focus-copy">${escapeHtml(contact.nextAction?.description || "Vonza does not currently see a more important next move here.")}</p>
+        ${contact.nextAction?.description ? `<p class="contact-focus-copy">${escapeHtml(contact.nextAction.description)}</p>` : ""}
         <div class="contact-detail-actions">
           ${actionSet.primaryMarkup}
           ${actionSet.secondaryMarkup}
@@ -3307,27 +3215,55 @@ function buildContactDetailPanel(
       </section>
       <div class="contact-detail-summary-grid contact-detail-summary-grid-compact">
         <div class="detail-kv-item">
-          <span class="detail-kv-label">Why now</span>
-          <strong>${escapeHtml(buildContactCurrentStateTitle(contact))}</strong>
-          <p>${escapeHtml(buildContactCurrentStateCopy(contact))}</p>
-        </div>
-        <div class="detail-kv-item">
-          <span class="detail-kv-label">Latest result or state</span>
+          <span class="detail-kv-label">Latest result</span>
           <strong>${escapeHtml(contact.latestOutcome?.label || "No recorded result yet")}</strong>
           <p>${escapeHtml(buildContactLatestResultCopy(contact))}</p>
         </div>
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Activity</span>
+          <strong>${escapeHtml(buildContactCountsSummary(contact))}</strong>
+        </div>
+        <div class="detail-kv-item">
+          <span class="detail-kv-label">Source</span>
+          <strong>${escapeHtml(buildContactSourceSummary(contact))}</strong>
+        </div>
       </div>
       ${actionSet.overflowMarkup}
-      ${relationshipDetailsMarkup}
-      ${sourceDetailsMarkup}
-      ${buildDisclosureBlock({
-        label: "View timeline",
-        summary: Array.isArray(contact.timeline) && contact.timeline.length
-          ? `${contact.timeline.length} recent update${contact.timeline.length === 1 ? "" : "s"}`
-          : "No timeline yet",
-        className: "contact-detail-disclosure",
-        contentMarkup: timelineMarkup,
-      })}
+      <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
+        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Stage</label>
+        <div class="detail-inline-form-row">
+          <select id="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}" name="lifecycle_state">
+            ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
+              <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
+            `).join("")}
+          </select>
+          <button class="primary-button" type="submit" ${contact.id ? "" : "disabled"}>Save stage</button>
+        </div>
+      </form>
+      ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
+        <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
+          <div class="form-grid two-col">
+            <div class="field">
+              <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">Record result</label>
+              <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+                <option value="booking_confirmed">booked</option>
+                <option value="quote_requested">quote requested</option>
+                <option value="quote_accepted">quote accepted</option>
+                <option value="follow_up_replied">follow-up successful</option>
+                <option value="complaint_resolved">complaint resolved</option>
+                <option value="manual_outcome_marked">no outcome / manual note</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">Note</label>
+              <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
+            </div>
+          </div>
+          <div class="action-queue-form-actions">
+            <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record outcome</button>
+          </div>
+        </form>
+      ` : ""}
     </article>
   `;
 }
@@ -3373,21 +3309,14 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const primaryFilters = quickFilters.slice(0, 3);
   const secondaryFilters = [...quickFilters.slice(3), ...sourceFilters];
   const selectedContact = contacts[0] || null;
-  const onlyChatSources = contacts.length && contacts.every((contact) => {
-    const sources = buildContactSources(contact);
-    return sources.length > 0 && sources.every((source) => source === "chat");
-  });
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
       ${buildPageHeader({
-        eyebrow: "Core workflow",
         title: "Contacts",
-        copy: "See who each person is, what stage they are in, and the clearest next step to take now.",
-        badges: [
-          { label: contactsHealth.migrationRequired ? "More history loading" : "Contacts ready", tone: contactsHealth.migrationRequired ? "Limited" : "Ready" },
-          { label: contactsHealth.partialData ? "More detail coming in" : "Full customer view", tone: contactsHealth.partialData ? "Limited" : "Ready" },
-        ],
+        actionsMarkup: isCapabilityVisibleForWorkspace("automations", operatorWorkspace)
+          ? `<button class="primary-button" type="button" data-shell-target="automations">Draft follow-up</button>`
+          : "",
       })}
       ${buildPageToolbar({
         searchMarkup: `<label class="toolbar-search"><span class="sr-only">Search contacts</span><input type="search" placeholder="Search people by name, email, phone, or next step" data-contact-search></label>`,
@@ -3425,20 +3354,13 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
             ? "As soon as leads, bookings, inbox threads, or follow-ups appear, Vonza will build a clean contact record for each person."
             : "Contacts still work without Google. The timeline starts with live chat and lead capture, then gets richer if you later connect optional Google tools.",
         }) : `
-          ${onlyChatSources ? `<div class="shell-status-banner">Right now you’re seeing chat-led history only. As soon as email or calendar activity is available, Vonza will add it to these same contact records.</div>` : ""}
           <div class="contacts-workspace" data-contacts-workspace>
             <section class="contacts-list-shell">
               <div class="contacts-list-header">
                 <div>
                   <p class="overview-label">People</p>
                   <strong>${escapeHtml(formatOperatorCount(contacts.length, "contact"))}</strong>
-                  <p class="contacts-list-copy">Start with the people who need a reply, a decision, or a clear next step.</p>
                 </div>
-                <p class="contacts-list-meta">${escapeHtml(formatOperatorCount(
-                  operatorWorkspace.contacts?.summary?.contactsNeedingAttention,
-                  "person needs attention",
-                  "people need attention"
-                ))}</p>
               </div>
               <div class="contacts-list" data-contact-filter-results>
                 ${contacts.map((contact) => buildContactRow(contact)).join("")}
@@ -4876,19 +4798,8 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
 }
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
-  const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
-  const briefing = operatorWorkspace.briefing || createEmptyOperatorWorkspace().briefing;
-  const nextAction = operatorWorkspace.nextAction || createEmptyOperatorWorkspace().nextAction;
-  const health = operatorWorkspace.health || createEmptyOperatorWorkspace().health;
   const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const todayQueueItems = buildTodayQueueItems(actionQueue, operatorWorkspace);
-  const scheduleItems = Array.isArray(operatorWorkspace.calendar?.scheduleItems)
-    ? operatorWorkspace.calendar.scheduleItems.slice(0, 4)
-    : [];
-  const recentOutcomes = Array.isArray(today.recentSuccessfulOutcomes)
-    ? today.recentSuccessfulOutcomes.slice(0, 4)
-    : [];
-  const topQuestions = overview.signals.topQuestions.slice(0, 4);
   const iconActionsMarkup = `
     <div class="today-page-icons">
       <button class="today-icon-button" type="button" data-shell-target="${escapeHtml(
@@ -4931,113 +4842,18 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       ${buildPageToolbar({
         actionsMarkup: toolbarActions,
       })}
-      ${buildSummaryStrip([
-        { label: "Leads needing attention", value: today.contactsNeedingAttention || overview.queueSummary.attentionNeeded || 0, copy: "People who likely need a reply, a handoff, or a decision." },
-        { label: "Recent wins", value: today.assistedOutcomes || overview.outcomeSummary.confirmedBusinessOutcomes || 0, copy: "Bookings, quotes, and other results Vonza can tie back to real activity." },
-        { label: "Missed opportunities", value: today.highValueWithoutOutcome || today.leadsWithoutNextStep || 0, copy: "Interested leads that still need a stronger next step." },
-        { label: "Visitor questions", value: overview.analyticsSummary.visitorQuestions || 0, copy: "Helpful signal from real customer conversations." },
-      ])}
       <div class="workspace-page-body">
         <div class="today-workspace">
           <section class="today-main-column">
             <div class="today-main-header">
               <div>
                 <p class="overview-label">Today</p>
-                <h2 class="today-section-title">${escapeHtml(
-                  todayQueueItems.length > 0
-                    ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} need a look`
-                    : "You’re caught up for now"
-                )}</h2>
-                <p class="today-section-copy">${escapeHtml(
-                  todayQueueItems.length > 0
-                    ? "Start here with a simplified Today view: one grounded card per live item, with the next safe action already visible."
-                    : "Nothing important is waiting on you right now. New follow-ups and review items will show up here as soon as they matter."
-                )}</p>
+                <h2 class="today-section-title">Queue</h2>
               </div>
-              ${nextAction?.title ? `
-                <div class="today-next-chip">
-                  <span class="today-next-chip-label">Best next step</span>
-                  <strong>${escapeHtml(normalizeShellCopy(nextAction.title))}</strong>
-                </div>
-              ` : ""}
             </div>
             ${buildTodayAttentionList(todayQueueItems, contactsList, operatorWorkspace)}
           </section>
-          <aside class="today-side-column">
-            <section class="support-panel today-support-panel-quiet today-reference-note">
-              <p class="support-panel-kicker">Today’s note</p>
-              <h3 class="support-panel-title">${escapeHtml(briefing.title || "Today’s summary")}</h3>
-              <p class="support-panel-copy">${escapeHtml(briefing.text || overview.copy)}</p>
-              ${health.globalError ? `<div class="operator-inline-alert"><p>${escapeHtml(health.globalError)}</p></div>` : ""}
-              <p class="today-support-meta">${escapeHtml(todayQueueItems.length > 0
-                ? `${todayQueueItems.length} item${todayQueueItems.length === 1 ? "" : "s"} are still active in Today.`
-                : "No urgent review items are open right now.")}</p>
-            </section>
-            <section class="support-panel today-support-panel-muted">
-              <p class="support-panel-kicker">Coming up</p>
-              <h3 class="support-panel-title">${escapeHtml(scheduleItems.length ? "On your calendar today" : "Your calendar looks quiet")}</h3>
-              ${scheduleItems.length ? `
-                <div class="support-list">
-                  ${scheduleItems.map((item) => `
-                    <div class="support-list-item">
-                      <strong>${escapeHtml(item.label || item.title || "Upcoming appointment")}</strong>
-                      <p>${escapeHtml(item.scheduleReason || item.followUpReason || "Calendar context is available for review.")}</p>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<p class="support-panel-copy">${escapeHtml(operatorWorkspace.calendar?.dailySummary || "Connect Google Calendar to bring schedule context into Today.")}</p>`}
-            </section>
-            <section class="support-panel today-support-panel-muted">
-              <p class="support-panel-kicker">Recent wins</p>
-              <h3 class="support-panel-title">Results Vonza can prove</h3>
-              ${recentOutcomes.length ? `
-                <div class="support-list">
-                  ${recentOutcomes.map((outcome) => `
-                    <div class="support-list-item">
-                      <strong>${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</strong>
-                      <p>${escapeHtml([
-                        trimText(outcome.sourceLabel),
-                        outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
-                      ].filter(Boolean).join(" · ") || "Attributed result")}</p>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<p class="support-panel-copy">Bookings, quote requests, and other confirmed results will appear here as soon as Vonza can tie them back to a real customer path.</p>`}
-            </section>
-          </aside>
         </div>
-        <div class="today-secondary-grid">
-          <section class="flat-section">
-            <div class="flat-section-header">
-              <div>
-                <p class="overview-label">Leads</p>
-                <h3 class="flat-section-title">People who need a follow-up</h3>
-              </div>
-              <button class="ghost-button" type="button" data-shell-target="contacts">Open contacts</button>
-            </div>
-            ${buildContactsAttentionStrip(operatorWorkspace)}
-          </section>
-          <section class="flat-section">
-            <div class="flat-section-header">
-              <div>
-                <p class="overview-label">Customer voice</p>
-                <h3 class="flat-section-title">What people are asking about</h3>
-              </div>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open analytics</button>
-            </div>
-            ${topQuestions.length ? `
-              <div class="support-list">
-                ${topQuestions.map((item) => `
-                  <div class="support-list-item">
-                    <strong>${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""}</strong>
-                    <p>${escapeHtml(`${getIntentLabel(item.intent)} signal from real visitor usage.`)}</p>
-                  </div>
-                `).join("")}
-              </div>
-            ` : `<div class="placeholder-card">Recurring customer questions will show up here as soon as live usage builds up.</div>`}
-          </section>
-        </div>
-        ${buildTodayCopilotSection(operatorWorkspace)}
       </div>
     </section>
   `;
@@ -8817,234 +8633,45 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
-        eyebrow: "Core workflow",
         title: "Analytics",
-        copy: "See what Vonza is helping you win, where customers are leaning in, and where a little polish could improve results.",
-        badges: [
-          { label: `${analyticsSummary.highIntentSignals || 0} buying signals`, tone: analyticsSummary.highIntentSignals > 0 ? "Ready" : "Pending" },
-          { label: `${outcomeSummary.confirmedBusinessOutcomes || 0} recorded wins`, tone: outcomeSummary.confirmedBusinessOutcomes > 0 ? "Ready" : "Limited" },
-        ],
-        actionsMarkup: `<button class="primary-button" type="button" data-overview-focus="action-queue">Review queue</button>`,
-      })}
-      ${buildPageToolbar({
-        filtersMarkup: `
-          <div class="toolbar-filter-group">
-            <button class="toolbar-chip" type="button" data-shell-target="overview">Today</button>
-            <button class="toolbar-chip" type="button" data-shell-target="contacts">Contacts</button>
-          </div>
-        `,
         actionsMarkup: `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh signals</button>`,
       })}
       ${buildSummaryStrip([
         { label: "Conversations", value: formatAnalyticsMetric(analyticsSummary.totalMessages, analyticsSummary), copy: "Stored assistant and visitor messages." },
         { label: "Customer questions", value: formatAnalyticsMetric(analyticsSummary.visitorQuestions, analyticsSummary), copy: "Questions captured from real usage." },
-        { label: "Buying moments", value: formatAnalyticsMetric(analyticsSummary.highIntentSignals, analyticsSummary), copy: "Pricing, booking, contact, or urgent support intent." },
+        { label: "Weak answers", value: formatAnalyticsMetric(signals.weakAnswerCount, analyticsSummary), copy: "Questions that still need stronger answers." },
         { label: "Recorded wins", value: formatAnalyticsMetric(outcomeSummary.confirmedBusinessOutcomes, analyticsSummary), copy: "Results Vonza can prove conservatively." },
       ])}
       <div class="workspace-page-body">
-      <div class="analytics-stack">
-        ${analyticsSummary.syncState === "pending" ? `
-          <div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now. These counters should update shortly without a full page reload.</div>
-        ` : ""}
-        ${analyticsBoardMarkup}
-        <div class="results-workspace">
-          <section class="results-main-column">
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Proven results</p>
-                  <h3 class="flat-section-title">Recent successful outcomes</h3>
-                </div>
-                <button class="ghost-button" type="button" data-overview-focus="action-queue">Review queue</button>
-              </div>
-              ${recentOutcomes.length ? `
-                <div class="results-list">
-              ${recentOutcomes.map((outcome) => `
-                    <div class="results-list-item">
-                      <div>
-                        <strong>${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</strong>
-                        <p>${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "Cross-channel result"))}</p>
-                      </div>
-                      ${buildDisclosureBlock({
-                        label: "View details",
-                        summary: trimText(outcome.relatedIntentType) || "",
-                        className: "disclosure-block-inline results-disclosure",
-                        contentMarkup: buildDisclosureDetailRows([
-                          { label: "Attribution path", value: trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " ") || "Attributed result" },
-                          { label: "Intent", value: trimText(outcome.relatedIntentType) || "Not stored" },
-                          { label: "Recorded", value: outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "Not stored" },
-                        ]),
-                      })}
-                    </div>
-                  `).join("")}
-                </div>
-              ` : buildOperatorEmptyState({
-                title: "Your wins will show up here",
-                copy: "Bookings, quote requests, complaint resolutions, and other recorded results will stay visible here as soon as Vonza can tie them back to a real path.",
-              })}
-            </section>
-
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Results loop</p>
-                  <h3 class="flat-section-title">Conversion loop</h3>
-                </div>
-              </div>
-              <div class="results-list">
-                <div class="results-list-item">
-                  <div>
-                    <strong>Direct handoffs</strong>
-                    <p>${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks · ${conversionSummary.bookingDirectHandoffs || 0} booking · ${conversionSummary.quoteDirectHandoffs || 0} quote · ${conversionSummary.contactDirectHandoffs || 0} contact`)}</p>
-                  </div>
-                  <span>${escapeHtml(`${conversionSummary.checkoutDirectHandoffs || 0} checkout`)}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Saved follow-ups</strong>
-                    <p>${escapeHtml(`${conversionSummary.followUpFallbackCount || 0} fallback prompts`)}</p>
-                  </div>
-                  <span>${escapeHtml(`${conversionSummary.capturePromptsShown || 0} capture prompts shown`)}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Direct vs follow-up</strong>
-                    <p>${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
-                  </div>
-                  <span>${escapeHtml(`${outcomeSummary.directOutcomeCount || 0} direct outcomes · ${outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up assisted`)}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Recorded wins</strong>
-                    <p>${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} proved results`)}</p>
-                  </div>
-                  <span>${escapeHtml(`${outcomeSummary.bookingConfirmed || outcomeSummary.bookingCompleted || 0} booking · ${outcomeSummary.quoteRequested || 0} quote · ${outcomeSummary.checkoutCompleted || 0} checkout`)}</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Opportunities</p>
-                  <h3 class="flat-section-title">Worth improving next</h3>
-                </div>
-              </div>
-              <div class="results-list">
-                ${opportunityItems.slice(0, 4).map((item) => `
-                  <div class="results-list-item">
-                    <div>
-                      <strong>${escapeHtml(item.title)}</strong>
-                      <p>${escapeHtml(item.copy)}</p>
-                    </div>
-                    ${buildDisclosureBlock({
-                      label: "View details",
-                      className: "disclosure-block-inline results-disclosure",
-                      contentMarkup: `<p class="disclosure-detail-copy">${escapeHtml(item.subtle)}</p>`,
-                    })}
-                  </div>
+        <div class="workspace-section-stack">
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Top customer questions</h3>
+            ${signals.topQuestions.length ? `
+              <div class="question-list">
+                ${signals.topQuestions.map((item) => `
+                  <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
                 `).join("")}
               </div>
-            </section>
+            ` : `<div class="placeholder-card">Recurring question themes will appear here as usage builds.</div>`}
           </section>
 
-          <aside class="results-side-column">
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Snapshot</p>
-                  <h3 class="flat-section-title">Current readout</h3>
-                </div>
-              </div>
-              <div class="results-list">
-                <div class="results-list-item">
-                  <div>
-                    <strong>Front-desk visibility</strong>
-                    <p>${escapeHtml(installStatus.label)}</p>
-                  </div>
-                  <span>${escapeHtml(
-                    installStatus.lastSeenAt
-                      ? `Last seen ${formatSeenAt(installStatus.lastSeenAt)}`
-                      : installStatus.lastVerifiedAt
-                        ? `Last verified ${formatSeenAt(installStatus.lastVerifiedAt)}`
-                        : "Awaiting verification"
-                  )}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Recent activity</strong>
-                    <p>${escapeHtml(activity.description)}</p>
-                  </div>
-                  <span>${escapeHtml(activity.copy)}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Website detail</strong>
-                    <p>${escapeHtml(setup.knowledgeDescription)}</p>
-                  </div>
-                  <span>${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "No imported pages yet")}</span>
-                </div>
-                <div class="results-list-item">
-                  <div>
-                    <strong>Focus signal</strong>
-                    <p>${escapeHtml(analyticsSummary.operatorSignal.copy)}</p>
-                  </div>
-                  <span>${escapeHtml(analyticsSummary.operatorSignal.subtle)}</span>
-                </div>
-              </div>
-            </section>
-
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Intent mix</p>
-                  <h3 class="flat-section-title">Customer intent</h3>
-                </div>
-              </div>
-              <div class="intent-grid">
-                ${["contact", "booking", "pricing", "support"].map((intent) => `
-                  <div class="intent-card">
-                    <p class="intent-label">${escapeHtml(getIntentLabel(intent))}</p>
-                    <p class="intent-value">${signals.intentCounts[intent] || 0}</p>
-                    <p class="intent-copy">${escapeHtml(getIntentDescription(intent))}</p>
-                  </div>
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Answers needing work</h3>
+            ${signals.weakAnswerExamples.length ? `
+              <div class="question-list">
+                ${signals.weakAnswerExamples.map((question) => `
+                  <div class="question-row">${escapeHtml(question)}</div>
                 `).join("")}
               </div>
-            </section>
+            ` : `<div class="placeholder-card">No weak-answer signal yet.</div>`}
+          </section>
 
-            <section class="flat-section">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">Question themes</p>
-                  <h3 class="flat-section-title">Top customer questions</h3>
-                </div>
-              </div>
-              ${signals.topQuestions.length ? `
-                <div class="question-list">
-                  ${signals.topQuestions.map((item) => `
-                    <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
-                  `).join("")}
-                </div>
-              ` : `<div class="placeholder-card">Recurring question themes will appear here as soon as real usage builds up.</div>`}
-            </section>
-          </aside>
-        </div>
-
-        <div class="analytics-grid">
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Today snapshot</h3>
-            <p class="studio-group-copy">A quick read on what the product really knows right now.</p>
+            <h3 class="studio-group-title">Core metrics</h3>
             <div class="analytics-list">
               <div class="analytics-item">
                 <p class="analytics-item-title">Front-desk visibility</p>
                 <p class="analytics-item-copy">${escapeHtml(installStatus.label)}</p>
-                <p class="analytics-subtle">${escapeHtml(
-                  installStatus.lastSeenAt
-                    ? `Last seen ${formatSeenAt(installStatus.lastSeenAt)}.`
-                    : installStatus.lastVerifiedAt
-                      ? `Last verified ${formatSeenAt(installStatus.lastVerifiedAt)}.`
-                      : "Run verification, then wait for a real live page load to ping back."
-                )}</p>
               </div>
               <div class="analytics-item">
                 <p class="analytics-item-title">Recent activity</p>
@@ -9054,223 +8681,37 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <div class="analytics-item">
                 <p class="analytics-item-title">Knowledge state</p>
                 <p class="analytics-item-copy">${escapeHtml(setup.knowledgeDescription)}</p>
-                <p class="analytics-subtle">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"} currently support the front desk.` : "Website knowledge is still being built from your site.")}</p>
+                <p class="analytics-subtle">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} imported page${setup.knowledgePageCount === 1 ? "" : "s"}` : "No imported pages yet")}</p>
               </div>
               <div class="analytics-item">
-                <p class="analytics-item-title">Operator signal</p>
-                <p class="analytics-item-copy">${escapeHtml(analyticsSummary.operatorSignal.copy)}</p>
-                <p class="analytics-subtle">${escapeHtml(analyticsSummary.operatorSignal.subtle)}</p>
+                <p class="analytics-item-title">Conversion loop</p>
+                <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
+                <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed wins`)}</p>
               </div>
             </div>
-            ${recentLeadCaptures.length ? `
-              <div class="results-list">
-                ${recentLeadCaptures.map((lead) => `
-                  <div class="results-list-item">
-                    <div>
-                      <strong>${escapeHtml(formatActionQueueContact({ contactInfo: lead.contact || {} }) || "Contact captured")}</strong>
-                      <p>${escapeHtml(trimText(lead.reason) || "Captured from live chat intent.")}</p>
-                    </div>
-                    ${buildDisclosureBlock({
-                      label: "View details",
-                      summary: trimText(lead.state).replaceAll("_", " "),
-                      className: "disclosure-block-inline results-disclosure",
-                      contentMarkup: buildDisclosureDetailRows([
-                        { label: "Lead state", value: trimText(lead.state).replaceAll("_", " ") || "Not stored" },
-                        { label: "Visitor type", value: lead.isReturningVisitor ? "Returning visitor" : "New visitor" },
-                        { label: "Follow-up state", value: trimText(lead.followUp?.status) ? `follow-up ${trimText(lead.followUp.status)}` : "No follow-up stored" },
-                      ]),
-                    })}
-                  </div>
-                `).join("")}
-              </div>
-              ` : `<div class="placeholder-card">No live contacts captured yet. As soon as a high-intent chat turns into a real handoff, it will show up here.</div>`}
           </section>
 
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Customer intent</h3>
-            <p class="studio-group-copy">These counts show the kinds of commercial or support intent Vonza is seeing in real visitor questions.</p>
-            <div class="intent-grid">
-              ${["contact", "booking", "pricing", "support"].map((intent) => `
-                <div class="intent-card">
-                  <p class="intent-label">${escapeHtml(getIntentLabel(intent))}</p>
-                  <p class="intent-value">${signals.intentCounts[intent] || 0}</p>
-                  <p class="intent-copy">${escapeHtml(getIntentDescription(intent))}</p>
-                </div>
-              `).join("")}
-            </div>
-          </section>
-        </div>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Conversion loop</h3>
-          <p class="studio-group-copy">This is the front-desk loop: which high-intent chats were routed directly, which ones fell back to capture, and whether follow-up is already prepared.</p>
-          <div class="action-queue-summary">
-            ${buildConversionSummaryPills(conversionSummary).map((label) => `
-              <span class="pill">${escapeHtml(label)}</span>
-            `).join("")}
-          </div>
-          <div class="analytics-list" style="margin-top:16px;">
-            <div class="analytics-item">
-              <p class="analytics-item-title">Direct handoffs</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.ctaClicks || 0} CTA clicks`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.bookingDirectHandoffs || 0} booking · ${conversionSummary.quoteDirectHandoffs || 0} quote · ${conversionSummary.contactDirectHandoffs || 0} contact · ${conversionSummary.checkoutDirectHandoffs || 0} checkout`)}</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Fallback to capture</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.followUpFallbackCount || 0} fallback prompts`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${conversionSummary.capturePromptsShown || 0} capture prompts shown overall when direct routing was missing or skipped.`)}</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Capture vs direct</p>
-              <p class="analytics-item-copy">${escapeHtml(`${conversionSummary.directRouteCount || 0} direct routes · ${conversionSummary.captureFallbackCount || 0} capture fallbacks`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.directOutcomeCount || 0} direct outcomes and ${outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted outcomes are currently attributed.`)}</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Confirmed outcomes</p>
-              <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.confirmedBusinessOutcomes || 0} confirmed business outcomes`)}</p>
-              <p class="analytics-subtle">${escapeHtml(`${outcomeSummary.bookingConfirmed || outcomeSummary.bookingCompleted || 0} booking confirmed · ${outcomeSummary.quoteRequested || 0} quote requested · ${outcomeSummary.checkoutCompleted || 0} checkout completed`)}</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Recent successful outcomes</h3>
-          <p class="studio-group-copy">These are the most recent business results Vonza could attribute back to a real conversation, visitor, lead, or follow-up path.</p>
-          ${recentOutcomes.length ? `
-            <div class="analytics-list">
-              ${recentOutcomes.map((outcome) => `
-                <div class="analytics-item">
-                  <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
-                  <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "No page captured"))}</p>
-                  <p class="analytics-subtle">${escapeHtml([
-                    trimText(outcome.sourceLabel || outcome.attributionPath) ? `${trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " ")}` : "",
-                    trimText(outcome.relatedCtaType) ? `${trimText(outcome.relatedCtaType)} CTA` : "",
-                    trimText(outcome.relatedIntentType) || "",
-                    outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
-                  ].filter(Boolean).join(" · "))}</p>
-                </div>
-              `).join("")}
-            </div>
-          ` : `<div class="placeholder-card">No attributed outcomes yet. Once Vonza confirms a booking, quote request, checkout, contact action, or manual fallback mark, it will appear here with context.</div>`}
-        </section>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">What is creating business value</h3>
-          <p class="studio-group-copy">This keeps the reporting operator-facing: which pages and intents are actually producing real results.</p>
-          <div class="analytics-list">
-            <div class="analytics-item">
-              <p class="analytics-item-title">Top outcome pages</p>
-              <p class="analytics-item-copy">${escapeHtml(
-                outcomeSummary.topPages.length
-                  ? outcomeSummary.topPages.map((entry) => `${entry.label} (${entry.count})`).join(" · ")
-                  : "No outcome-linked pages yet."
-              )}</p>
-              <p class="analytics-subtle">Pages are ranked by attributed completed or contact-action outcomes.</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Top outcome intents</p>
-              <p class="analytics-item-copy">${escapeHtml(
-                outcomeSummary.topIntents.length
-                  ? outcomeSummary.topIntents.map((entry) => `${entry.label} (${entry.count})`).join(" · ")
-                  : "No outcome-linked intents yet."
-              )}</p>
-              <p class="analytics-subtle">This helps answer which customer intents are producing the most value, not just the most chat activity.</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Campaign proof</p>
-              <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.campaignReplied || 0} replies · ${outcomeSummary.campaignConverted || 0} conversions`)}</p>
-              <p class="analytics-subtle">Campaign work only counts here when Vonza can tie a reply or later conversion back to the recipient path.</p>
-            </div>
-            <div class="analytics-item">
-              <p class="analytics-item-title">Complaint proof</p>
-              <p class="analytics-item-copy">${escapeHtml(`${outcomeSummary.complaintResolved || 0} complaint resolutions`)}</p>
-              <p class="analytics-subtle">Resolved support or complaint work is now tracked as an actual operator result.</p>
-            </div>
-          </div>
-        </section>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Top customer questions</h3>
-          <p class="studio-group-copy">These are the strongest recurring question themes from real visitor usage. Similar wording is grouped lightly so you can see what customers care about most.</p>
-          ${signals.topQuestions.length ? `
-            <div class="question-list">
-              ${signals.topQuestions.map((item) => `
-                <div class="question-row">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""} · ${escapeHtml(getIntentLabel(item.intent))}</div>
-              `).join("")}
-            </div>
-          ` : `<div class="placeholder-card">No strong question themes yet. As soon as visitors start asking recurring questions, Vonza will group them here so the owner can see what the front desk is really handling.</div>`}
-        </section>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Answers needing work</h3>
-          <p class="studio-group-copy">These are the clearest places where Vonza may have responded with weak, uncertain, or missing answers.</p>
-          ${signals.weakAnswerExamples.length ? `
-            <div class="question-list">
-              ${signals.weakAnswerExamples.map((question) => `
-                <div class="question-row">${escapeHtml(question)}</div>
-              `).join("")}
-            </div>
-          ` : `<div class="placeholder-card">No weak-answer signal yet. If visitors ask questions that Vonza cannot answer well, they will appear here so the owner knows what to improve next.</div>`}
-        </section>
-
-        ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
-
-        ${buildPeopleMarkup(actionQueue)}
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Recent captured leads</h3>
-          <p class="studio-group-copy">These are the most recent live-chat contacts Vonza turned into a real operator handoff.</p>
-          ${recentLeadCaptures.length ? `
-            <div class="analytics-list">
-              ${recentLeadCaptures.map((lead) => `
-                <div class="analytics-item">
-                  <p class="analytics-item-title">${escapeHtml(formatActionQueueContact({ contactInfo: lead.contact || {} }) || "Contact captured")}</p>
-                  <p class="analytics-item-copy">${escapeHtml(trimText(lead.reason) || "Captured from live chat intent.")}</p>
-                  <p class="analytics-subtle">${escapeHtml([
-                    trimText(lead.state).replaceAll("_", " "),
-                    lead.isReturningVisitor ? "returning visitor" : "new visitor",
-                    trimText(lead.followUp?.status) ? `follow-up ${trimText(lead.followUp.status)}` : "",
-                  ].filter(Boolean).join(" · "))}</p>
-                  <div class="action-queue-secondary-action">
-                    ${lead.latestMessageId ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(lead.latestMessageId)}">Open related conversation</button>` : ""}
-                    <button class="ghost-button" type="button" data-overview-focus="action-queue">Open follow-up queue</button>
+            <h3 class="studio-group-title">Latest outcomes</h3>
+            ${recentOutcomes.length ? `
+              <div class="analytics-list">
+                ${recentOutcomes.map((outcome) => `
+                  <div class="analytics-item">
+                    <p class="analytics-item-title">${escapeHtml(getOutcomeTypeLabel(outcome.outcomeType))}</p>
+                    <p class="analytics-item-copy">${escapeHtml(trimText(outcome.pageUrl || outcome.successUrl || outcome.sourceLabel || "No page captured"))}</p>
+                    <p class="analytics-subtle">${escapeHtml([
+                      trimText(outcome.sourceLabel || outcome.attributionPath) ? `${trimText(outcome.sourceLabel || outcome.attributionPath).replaceAll("_", " ")}` : "",
+                      trimText(outcome.relatedIntentType) || "",
+                      outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "",
+                    ].filter(Boolean).join(" · "))}</p>
                   </div>
-                </div>
-              `).join("")}
-            </div>
-          ` : `<div class="placeholder-card">No live contacts captured yet. As soon as a high-intent chat turns into a real contact, it will show up here.</div>`}
-        </section>
-
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">What needs attention</h3>
-          <p class="studio-group-copy">Practical opportunities surfaced from current usage, install state, and front-desk behavior.</p>
-          <div class="analytics-list">
-            ${opportunityItems.slice(0, 4).map((item) => `
-              <div class="analytics-item">
-                <p class="analytics-item-title">${escapeHtml(item.title)}</p>
-                <p class="analytics-item-copy">${escapeHtml(item.copy)}</p>
-                <p class="analytics-subtle">${escapeHtml(item.subtle)}</p>
+                `).join("")}
               </div>
-            `).join("")}
-          </div>
-        </section>
+            ` : `<div class="placeholder-card">No recorded wins yet.</div>`}
+          </section>
 
-        <section class="workspace-card-soft">
-          <h3 class="studio-group-title">Recent conversations</h3>
-          <p class="studio-group-copy">A readable view of the most recent interactions stored for this assistant.</p>
-          ${recentInteractions.length ? `
-            <div class="messages-list">
-              ${recentInteractions.map((message) => `
-                <div class="message-row ${escapeHtml(message.role || "")}" data-conversation-message="${escapeHtml(message.id || "")}">
-                  <div class="message-role">${escapeHtml(message.role === "user" ? "Customer" : "Assistant")}</div>
-                  <div class="message-content">${escapeHtml(message.content)}</div>
-                </div>
-              `).join("")}
-            </div>
-          ` : `<div class="placeholder-card">Recent interactions will appear here once customers start using the front desk.</div>`}
-          ${recentInteractions.length ? `<p class="analytics-subtle">This section shows recent stored messages, not full reconstructed chat threads.</p>` : ""}
-        </section>
-      </div>
+          ${buildActionQueueMarkup(agent, actionQueue, { compact: true, allowStatusUpdates: false })}
+        </div>
       </div>
     </section>
   `;
@@ -9445,85 +8886,45 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
   return `
     <section class="workspace-page" data-shell-section="calendar" hidden>
       ${buildPageHeader({
-        eyebrow: "Connected tools",
         title: "Calendar",
-        copy: canWrite
-          ? "Surface the day view, suggested slots, booking signals, and approval-first calendar changes without silently mutating the owner calendar."
-          : "Stay grounded in the owner calendar with read-only schedule context, follow-up gaps, and unlinked attendee review.",
-        badges: [{ label: canWrite ? "Approval-first drafts available" : "Read-only calendar mode", tone: canWrite ? "Ready" : "Limited" }],
         actionsMarkup: primaryAccount?.status === "connected"
           ? `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button>`
           : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
       })}
-      ${buildPageToolbar({
-        filtersMarkup: `
-          <div class="toolbar-filter-group">
-            <button class="toolbar-chip" type="button" data-shell-target="overview">Today</button>
-            <button class="toolbar-chip" type="button" data-shell-target="contacts">Contacts</button>
-          </div>
-        `,
-      })}
       <div class="workspace-page-body">
-        <section class="workspace-card-soft workspace-connection-strip">
-          <div class="workspace-panel-header">
-            <div>
-              <h3 class="studio-group-title">Calendar connection</h3>
-              <p class="workspace-panel-copy">${escapeHtml(calendar.dailySummary || "Connect Google Calendar to see today’s schedule and open booking slots.")}</p>
-            </div>
-            <div class="page-header-actions">
-              ${primaryAccount?.status === "connected"
-                ? `<button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button><button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark calendar reviewed</button>`
-                : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`}
-            </div>
-          </div>
-          <p class="section-note">${escapeHtml(primaryAccount?.status === "connected"
-            ? `${canWrite ? "Approval-first write access is available." : "Read-only calendar mode is active."} Connected as ${primaryAccount.accountEmail || "Google Workspace"}. Last sync ${primaryAccount.lastSyncAt ? formatSeenAt(primaryAccount.lastSyncAt) : "not run yet"}.`
-            : "Vonza keeps calendar changes approval-first and explicit; nothing mutates the owner calendar silently.")}</p>
+        <section class="workspace-card-soft">
+          <h3 class="studio-group-title">Daily summary</h3>
+          <p class="workspace-panel-copy">${escapeHtml(calendar.dailySummary || "Connect Google Calendar to see today’s schedule.")}</p>
+          ${primaryAccount?.status === "connected"
+            ? `<div class="inline-actions"><button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button><button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark reviewed</button></div>`
+            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button></div>`}
         </section>
         ${primaryAccount?.status !== "connected" ? buildOperatorEmptyState({
-          title: "Connect Google to unlock Calendar",
+          title: "Connect Google",
           copy: status.googleConfigReady
-            ? "Vonza will bring in today’s events, spot open gaps, and keep calendar changes approval-first."
-            : "This workspace is using the public launch core without the optional Google Calendar beta.",
-          actionMarkup: buildOperatorNextActionButton(operatorWorkspace.nextAction),
+            ? "Calendar events and slots will appear here after connection."
+            : "Calendar is not available on this workspace yet.",
         }) : !activation.calendarSynced ? buildOperatorEmptyState({
           title: "Run your first calendar sync",
-          copy: "The Google account is connected, but the calendar has not been synced into Vonza yet.",
+          copy: "The Google account is connected, but the calendar has not synced yet.",
           actionMarkup: `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run first sync</button>`,
         }) : `
-          <div class="workspace-records-shell">
-            <section class="workspace-records-list-shell">
-              <div class="workspace-records-list-header">
-                <div>
-                  <p class="overview-label">Upcoming events</p>
-                  <h3 class="flat-section-title">${escapeHtml(events.length ? `${events.length} synced event${events.length === 1 ? "" : "s"}` : "No synced events")}</h3>
-                </div>
-                <p class="workspace-panel-copy">${escapeHtml(canWrite
-                  ? "Select an event to review or prepare an approval-first change."
-                  : "Select an event to review read-only context, follow-up gaps, and contact linkage.")}</p>
-              </div>
+          <div class="workspace-section-stack">
+            <section class="workspace-card-soft">
+              <h3 class="studio-group-title">Open slots</h3>
               ${(calendar.suggestedSlots || []).length ? `
-                <div class="workspace-inline-note">
-                  ${escapeHtml((calendar.suggestedSlots || []).slice(0, 2).map((slot) => `${slot.label || "Open slot"}: ${formatSeenAt(slot.startAt)} to ${formatSeenAt(slot.endAt)}`).join(" · "))}
+                <div class="analytics-list">
+                  ${(calendar.suggestedSlots || []).map((slot) => `
+                    <div class="analytics-item">
+                      <p class="analytics-item-title">${escapeHtml(slot.label || "Open slot")}</p>
+                      <p class="analytics-item-copy">${escapeHtml(`${formatSeenAt(slot.startAt)} to ${formatSeenAt(slot.endAt)}`)}</p>
+                    </div>
+                  `).join("")}
                 </div>
-              ` : ""}
-              <div class="workspace-record-list">
-                ${events.length ? events.map((event, index) => buildWorkspaceRecordRow({
-                  kind: "calendar",
-                  id: event.id || "",
-                  title: event.title || "Upcoming event",
-                  meta: [
-                    event.startAt ? formatSeenAt(event.startAt) : "",
-                    event.endAt ? `to ${formatSeenAt(event.endAt)}` : "",
-                    event.status,
-                  ].filter(Boolean).join(" "),
-                  copy: event.followUpReason || event.unlinkedReason || event.scheduleReason || "Calendar context is available for review.",
-                  badge: event.approvalStatus === "pending_owner" ? "approval pending" : trimText(event.status || "synced"),
-                  badgeTone: event.approvalStatus === "pending_owner" ? "Needs attention" : event.linkedContactId ? "Ready" : "Limited",
-                  icon: "calendar",
-                  selected: index === 0,
-                })).join("") : `<div class="placeholder-card">No calendar events synced yet. Vonza will keep this area warm with booking opportunities and follow-up gaps once they exist.</div>`}
-              </div>
+              ` : buildOperatorEmptyState({
+                title: "No open slots standing out",
+                copy: "Suggested slots will appear here when they are available.",
+              })}
             </section>
             <section class="workspace-records-detail-shell">
               ${canWrite ? `
@@ -9558,13 +8959,7 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
                     </div>
                   </form>
                 </section>
-              ` : `
-                <section class="workspace-card-soft workspace-inline-panel">
-                  <h3 class="studio-group-title">Read-only calendar mode</h3>
-                  <p class="workspace-panel-copy">Vonza is intentionally using read-only Calendar access in this pass. It can sync today’s schedule, spot follow-up gaps, and surface unlinked attendees, but it does not draft or approve calendar mutations here.</p>
-                  <p class="analytics-subtle">${escapeHtml(`${formatOperatorCount(followUpItems.length, "recent appointment")} need follow-up review and ${formatOperatorCount(unlinkedItems.length, "appointment")} are still unlinked to contacts.`)}</p>
-                </section>
-              `}
+              ` : ``}
               ${pendingApprovals.length ? `
                 <section class="workspace-card-soft workspace-inline-panel">
                   <h3 class="studio-group-title">Pending approvals</h3>
@@ -9634,21 +9029,34 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
                       </div>
                     </form>
                   ` : `
+                    <p class="analytics-item-copy">${escapeHtml(event.followUpReason || event.unlinkedReason || event.scheduleReason || "Synced event.")}</p>
                     <div class="inline-actions">
-                      <button class="ghost-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(event.id)}">Review appointment context</button>
+                      <button class="ghost-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(event.id)}">Open event</button>
                     </div>
                   `}
                 </article>
               `).join("")}
               ${selectedEvent ? "" : `<div class="placeholder-card">Select an event to review calendar detail.</div>`}
-              ${(calendar.missedBookingOpportunities || []).length ? `
+              ${(calendar.missedBookingOpportunities || []).length || followUpItems.length || unlinkedItems.length ? `
                 <section class="workspace-card-soft workspace-inline-panel">
-                  <h3 class="studio-group-title">Booking opportunities</h3>
-                  <div class="support-list">
+                  <h3 class="studio-group-title">Events</h3>
+                  <div class="analytics-list">
+                    ${followUpItems.slice(0, 4).map((item) => `
+                      <div class="analytics-item">
+                        <p class="analytics-item-title">${escapeHtml(item.label || item.title || "Needs follow-up")}</p>
+                        <p class="analytics-item-copy">${escapeHtml(item.followUpReason || "Appointment follow-up is still open.")}</p>
+                      </div>
+                    `).join("")}
+                    ${unlinkedItems.slice(0, 4).map((item) => `
+                      <div class="analytics-item">
+                        <p class="analytics-item-title">${escapeHtml(item.label || item.title || "Unlinked attendee")}</p>
+                        <p class="analytics-item-copy">${escapeHtml(item.unlinkedReason || "This attendee still needs contact linking.")}</p>
+                      </div>
+                    `).join("")}
                     ${(calendar.missedBookingOpportunities || []).map((opportunity) => `
-                      <div class="support-list-item">
-                        <strong>${escapeHtml(opportunity.contactName || opportunity.contactEmail || "Booking opportunity")}</strong>
-                        <p>${escapeHtml(opportunity.reason || "Booking signal captured without a scheduled event yet.")}</p>
+                      <div class="analytics-item">
+                        <p class="analytics-item-title">${escapeHtml(opportunity.contactName || opportunity.contactEmail || "Booking opportunity")}</p>
+                        <p class="analytics-item-copy">${escapeHtml(opportunity.reason || "Booking signal captured without a scheduled event yet.")}</p>
                       </div>
                     `).join("")}
                   </div>
@@ -9669,101 +9077,45 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
   const followUps = automations.followUps || [];
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
   const googleConnected = status.googleConnected === true;
-  const automationRecords = [
-    ...allTasks.map((task) => ({
-      kind: "automation",
-      recordType: "task",
-      id: task.id,
-      title: task.title || "Operator task",
-      meta: [
-        task.taskType ? task.taskType.replaceAll("_", " ") : "",
-        task.priority || "",
-        task.status || "open",
-      ].filter(Boolean).join(" · "),
-      copy: task.description || "Needs owner review.",
-      badge: task.status || "open",
-      badgeTone: task.status === "resolved" ? "Ready" : "Needs attention",
-      icon: "review",
-      payload: task,
-    })),
-    ...campaigns.map((campaign) => ({
-      kind: "automation",
-      recordType: "campaign",
-      id: campaign.id,
-      title: campaign.title || "Campaign",
-      meta: [
-        campaign.goal?.replaceAll("_", " "),
-        campaign.status,
-        campaign.approvalStatus,
-        `${(campaign.recipients || []).length} recipients`,
-      ].filter(Boolean).join(" · "),
-      copy: campaign.sequenceSummary || "Approval-first outbound campaign draft.",
-      badge: campaign.status || "draft",
-      badgeTone: campaign.status === "active" ? "Ready" : campaign.approvalStatus === "approved" ? "Limited" : "Needs attention",
-      icon: "automations",
-      payload: campaign,
-    })),
-    ...followUps.slice(0, 8).map((followUp) => ({
-      kind: "automation",
-      recordType: "follow_up",
-      id: followUp.id,
-      title: followUp.subject || followUp.topic || "Prepared follow-up",
-      meta: `${followUp.status || "draft"} · ${followUp.channel || "email"} · ${followUp.contactEmail || followUp.contactPhone || "missing contact"}`,
-      copy: trimText(followUp.draftContent || "").slice(0, 140) || "Prepared follow-up draft.",
-      badge: followUp.status || "draft",
-      badgeTone: followUp.status === "sent" ? "Ready" : followUp.status === "dismissed" ? "Limited" : "Needs attention",
-      icon: "mail",
-      payload: followUp,
-    })),
-  ];
-  const selectedAutomationRecord = automationRecords[0] || null;
 
   return `
     <section class="workspace-page" data-shell-section="automations" hidden>
       ${buildPageHeader({
-        eyebrow: "Connected tools",
         title: "Automations",
-        copy: "Keep campaigns, follow-up approvals, and operator tasks structured and approval-first instead of silently sending on their own.",
-        badges: [{ label: "Optional beta surface", tone: "Limited" }],
         actionsMarkup: googleConnected
           ? `<button class="primary-button" type="button" data-automation-focus="campaign-draft">Generate campaign draft</button>`
           : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
       })}
-      ${buildPageToolbar({
-        filtersMarkup: `
-          <div class="toolbar-filter-group">
-            <button class="toolbar-chip" type="button" data-shell-target="contacts">Contacts</button>
-            <button class="toolbar-chip" type="button" data-shell-target="inbox">Inbox</button>
-          </div>
-        `,
-      })}
       <div class="workspace-page-body">
-        <div class="workspace-records-shell">
-          <section class="workspace-records-list-shell">
-            <div class="workspace-records-list-header">
-              <div>
-                <p class="overview-label">Owner task queue</p>
-                <h3 class="flat-section-title">${escapeHtml(`${automationRecords.length} active item${automationRecords.length === 1 ? "" : "s"}`)}</h3>
+        <div class="workspace-section-stack">
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Owner task queue</h3>
+            ${allTasks.length ? `
+              <div class="analytics-list">
+                ${allTasks.map((task) => `
+                  <div class="analytics-item" data-operator-task-card data-task-id="${escapeHtml(task.id || "")}">
+                    <div class="workspace-record-detail-header">
+                      <div>
+                        <p class="analytics-item-title">${escapeHtml(task.title || "Operator task")}</p>
+                        <p class="analytics-item-copy">${escapeHtml(task.description || "Needs owner review.")}</p>
+                      </div>
+                      <span class="${getBadgeClass(task.status === "resolved" ? "Ready" : "Needs attention")}">${escapeHtml(task.status || "open")}</span>
+                    </div>
+                    <div class="inline-actions">
+                      <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="resolved">Mark resolved</button>
+                      <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="escalated">Escalate</button>
+                    </div>
+                  </div>
+                `).join("")}
               </div>
-              <p class="workspace-panel-copy">Tasks, campaigns, and prepared follow-ups now share one operator list instead of separate stacked blocks.</p>
-            </div>
-            <div class="workspace-record-list">
-              ${automationRecords.length ? automationRecords.map((record, index) => buildWorkspaceRecordRow({
-                kind: "automation",
-                id: record.id || "",
-                title: record.title,
-                meta: record.meta,
-                copy: record.copy,
-                badge: record.badge,
-                badgeTone: record.badgeTone,
-                icon: record.icon,
-                selected: index === 0,
-              })).join("") : `<div class="placeholder-card">${escapeHtml(googleConnected ? "No owner tasks are open right now. New campaigns and prepared follow-ups will appear here when they need review." : "No owner tasks are open right now. Connect Google if you want follow-up drafts and campaign work to appear in this beta workspace.")}</div>`}
-            </div>
+            ` : buildOperatorEmptyState({
+              title: "No owner tasks are open",
+              copy: "Tasks will appear here when they need review.",
+            })}
           </section>
-          <section class="workspace-records-detail-shell">
-            <section class="workspace-card-soft workspace-inline-panel" data-automation-panel="campaign-draft">
-              <h3 class="studio-group-title">Create approval-first campaign</h3>
+
+          <section class="workspace-card-soft" data-automation-panel="campaign-draft">
+              <h3 class="studio-group-title">Campaign draft</h3>
               <form class="workspace-section-stack" data-campaign-draft-form>
                 <div class="form-grid two-col">
                   <div class="field">
@@ -9784,77 +9136,25 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
                 <div class="inline-actions">
                   <button class="primary-button" type="submit" ${googleConnected ? "" : "disabled"}>Generate campaign draft</button>
                 </div>
-                ${googleConnected ? "" : `<p class="section-note">Connect Google first so campaign drafts have the right mailbox and calendar context.</p>`}
               </form>
-            </section>
-            ${automationRecords.map((record, index) => {
-              if (record.recordType === "task") {
-                const task = record.payload;
-                return `
-                  <article
-                    class="workspace-record-detail-panel ${index === 0 ? "active" : ""}"
-                    data-record-detail
-                    data-record-kind="automation"
-                    data-record-id="${escapeHtml(record.id || "")}"
-                    data-operator-task-card
-                    data-task-id="${escapeHtml(task.id || "")}"
-                    ${index === 0 ? "" : "hidden"}
-                  >
-                    <div class="workspace-record-detail-header">
-                      <div>
-                        <p class="support-panel-kicker">Owner task</p>
-                        <h3 class="workspace-record-detail-title">${escapeHtml(task.title || "Operator task")}</h3>
-                        <p class="workspace-record-detail-copy">${escapeHtml(task.description || "Needs owner review.")}</p>
-                      </div>
-                      <span class="${getBadgeClass(task.status === "resolved" ? "Ready" : "Needs attention")}">${escapeHtml(task.status || "open")}</span>
-                    </div>
-                    <div class="detail-kv-list">
-                      <div class="detail-kv-item">
-                        <span class="detail-kv-label">Task type</span>
-                        <strong>${escapeHtml(task.taskType ? task.taskType.replaceAll("_", " ") : "general")}</strong>
-                      </div>
-                      <div class="detail-kv-item">
-                        <span class="detail-kv-label">Priority</span>
-                        <strong>${escapeHtml(task.priority || "normal")}</strong>
-                      </div>
-                    </div>
-                    <div class="inline-actions">
-                      <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="resolved">Mark resolved</button>
-                      <button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(task.id)}" data-task-status="escalated">Escalate</button>
-                    </div>
-                  </article>
-                `;
-              }
+          </section>
 
-              if (record.recordType === "campaign") {
-                const campaign = record.payload;
-                return `
-                  <article
-                    class="workspace-record-detail-panel ${index === 0 ? "active" : ""}"
-                    data-record-detail
-                    data-record-kind="automation"
-                    data-record-id="${escapeHtml(record.id || "")}"
-                    data-campaign-card
-                    data-campaign-id="${escapeHtml(campaign.id || "")}"
-                    ${index === 0 ? "" : "hidden"}
-                  >
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Campaigns</h3>
+            ${googleConnected && campaigns.length ? `
+              <div class="operator-thread-grid">
+                ${campaigns.map((campaign) => `
+                  <article class="operator-thread-card" data-campaign-card data-campaign-id="${escapeHtml(campaign.id || "")}">
                     <div class="workspace-record-detail-header">
                       <div>
-                        <p class="support-panel-kicker">Campaign</p>
                         <h3 class="workspace-record-detail-title">${escapeHtml(campaign.title || "Campaign")}</h3>
-                        <p class="workspace-record-detail-copy">${escapeHtml(campaign.sequenceSummary || "Approval-first outbound campaign draft.")}</p>
-                      </div>
-                      <span class="${getBadgeClass(campaign.status === "active" ? "Ready" : campaign.approvalStatus === "approved" ? "Limited" : "Needs attention")}">${escapeHtml(campaign.status || "draft")}</span>
-                    </div>
-                    <div class="detail-kv-list">
-                      <div class="detail-kv-item">
-                        <span class="detail-kv-label">Campaign state</span>
-                        <strong>${escapeHtml([
+                        <p class="workspace-record-detail-copy">${escapeHtml([
                           campaign.goal?.replaceAll("_", " "),
                           campaign.approvalStatus,
                           `${(campaign.recipients || []).length} recipients`,
-                        ].filter(Boolean).join(" · "))}</strong>
+                        ].filter(Boolean).join(" · "))}</p>
                       </div>
+                      <span class="${getBadgeClass(campaign.status === "active" ? "Ready" : campaign.approvalStatus === "approved" ? "Limited" : "Needs attention")}">${escapeHtml(campaign.status || "draft")}</span>
                     </div>
                     <div class="inline-actions">
                       ${campaign.approvalStatus !== "approved"
@@ -9865,56 +9165,47 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
                         : ""}
                     </div>
                   </article>
-                `;
-              }
+                `).join("")}
+              </div>
+            ` : buildOperatorEmptyState({
+              title: "No campaigns drafted yet",
+              copy: googleConnected ? "Create a draft to start." : "Connect Google to create campaigns.",
+            })}
+          </section>
 
-              const followUp = record.payload;
-              return `
-                <article
-                  class="workspace-record-detail-panel ${index === 0 ? "active" : ""}"
-                  data-record-detail
-                  data-record-kind="automation"
-                  data-record-id="${escapeHtml(record.id || "")}"
-                  data-follow-up-card
-                  data-follow-up-id="${escapeHtml(followUp.id || "")}"
-                  ${index === 0 ? "" : "hidden"}
-                >
-                  <div class="workspace-record-detail-header">
-                    <div>
-                      <p class="support-panel-kicker">Prepared follow-up</p>
-                      <h3 class="workspace-record-detail-title">${escapeHtml(followUp.subject || followUp.topic || "Prepared follow-up")}</h3>
-                      <p class="workspace-record-detail-copy">${escapeHtml(followUp.contactEmail || followUp.contactPhone || "Missing contact")}</p>
+          <section class="workspace-card-soft">
+            <h3 class="studio-group-title">Follow-ups</h3>
+            ${followUps.length ? `
+              <div class="operator-thread-grid">
+                ${followUps.slice(0, 8).map((followUp) => `
+                  <article class="operator-thread-card" data-follow-up-card data-follow-up-id="${escapeHtml(followUp.id || "")}">
+                    <div class="workspace-record-detail-header">
+                      <div>
+                        <h3 class="workspace-record-detail-title">${escapeHtml(followUp.subject || followUp.topic || "Prepared follow-up")}</h3>
+                        <p class="workspace-record-detail-copy">${escapeHtml(followUp.contactEmail || followUp.contactPhone || "Missing contact")}</p>
+                      </div>
+                      <span class="${getBadgeClass(followUp.status === "sent" ? "Ready" : followUp.status === "dismissed" ? "Limited" : "Needs attention")}">${escapeHtml(followUp.status || "draft")}</span>
                     </div>
-                    <span class="${getBadgeClass(followUp.status === "sent" ? "Ready" : followUp.status === "dismissed" ? "Limited" : "Needs attention")}">${escapeHtml(followUp.status || "draft")}</span>
-                  </div>
-                  <p class="analytics-item-copy">${escapeHtml(followUp.topic || "Prepared follow-up draft waiting for owner review.")}</p>
-                  ${buildDisclosureBlock({
-                    label: "Review draft",
-                    summary: followUp.channel || "email",
-                    className: "disclosure-block-inline",
-                    contentMarkup: `
-                      <form class="workspace-section-stack" data-follow-up-form data-follow-up-id="${escapeHtml(followUp.id)}" data-lead-id="${escapeHtml(followUp.leadId || "")}">
-                        <div class="field">
-                          <label>Subject</label>
-                          <input name="subject" type="text" value="${escapeHtml(followUp.subject || "")}">
-                        </div>
-                        <div class="field">
-                          <label>Draft</label>
-                          <textarea name="draft_content">${escapeHtml(followUp.draftContent || "")}</textarea>
-                        </div>
-                        <div class="inline-actions">
-                          <button class="ghost-button" type="submit">Save draft</button>
-                          <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready">Mark ready</button>
-                          <button class="primary-button" type="button" data-follow-up-status-action data-next-status="sent">Mark sent</button>
-                          <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed">Dismiss</button>
-                        </div>
-                      </form>
-                    `,
-                  })}
-                </article>
-              `;
-            }).join("")}
-            ${selectedAutomationRecord ? "" : ""}
+                    <form class="workspace-section-stack" data-follow-up-form data-follow-up-id="${escapeHtml(followUp.id)}" data-lead-id="${escapeHtml(followUp.leadId || "")}">
+                      <div class="field">
+                        <label>Subject</label>
+                        <input name="subject" type="text" value="${escapeHtml(followUp.subject || "")}">
+                      </div>
+                      <div class="field">
+                        <label>Draft</label>
+                        <textarea name="draft_content">${escapeHtml(followUp.draftContent || "")}</textarea>
+                      </div>
+                      <div class="inline-actions">
+                        <button class="ghost-button" type="submit">Save draft</button>
+                        <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready">Mark ready</button>
+                        <button class="primary-button" type="button" data-follow-up-status-action data-next-status="sent">Mark sent</button>
+                        <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed">Dismiss</button>
+                      </div>
+                    </form>
+                  </article>
+                `).join("")}
+              </div>
+            ` : `<div class="placeholder-card">${escapeHtml(googleConnected ? "Prepared follow-ups will show up here." : "Connect Google to load follow-ups.")}</div>`}
           </section>
         </div>
       </div>
