@@ -914,12 +914,14 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
-  assert.match(contactsPanel, /Customer workspace/);
+  assert.match(contactsPanel, /Keep support organized without turning Vonza into a CRM/);
+  assert.match(contactsPanel, /Open unresolved only/);
+  assert.match(contactsPanel, /Export customers/);
   assert.match(contactsPanel, /data-contact-row/);
   assert.match(contactsPanel, /data-contact-detail/);
   assert.match(contactsPanel, /customer-status-chip/);
-  assert.match(contactsPanel, /View timeline and details/);
-  assert.match(contactsPanel, /Search customers/);
+  assert.match(contactsPanel, /View timeline/);
+  assert.match(contactsPanel, /Mark resolved/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up<\/button>\s*<details class="row-action-menu"/);
 });
 

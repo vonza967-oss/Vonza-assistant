@@ -1252,7 +1252,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Improve service/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /data-today-open-review/);
-        assert.match(dashboardScript.text, /Search customers/);
+        assert.match(dashboardScript.text, /Keep support organized without turning Vonza into a CRM/);
+        assert.match(dashboardScript.text, /Open unresolved only/);
+        assert.match(dashboardScript.text, /Export customers/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Website \/ Context/);

@@ -3161,6 +3161,10 @@ function buildCustomerStatusMarkup(contact = {}, limit = 2) {
     .join("");
 }
 
+function getPrimaryCustomerStatus(contact = {}) {
+  return getCustomerStatusList(contact)[0] || { key: "resolved", label: "Resolved" };
+}
+
 function buildCustomerFilterDefinitions(contacts = []) {
   const countMatching = (predicate) => contacts.filter(predicate).length;
 
@@ -3346,10 +3350,9 @@ function buildContactCountsSummary(contact = {}) {
 }
 
 function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const visibleStatuses = buildCustomerStatusMarkup(contact, 2);
+  const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
-  const primaryStatusKey = getCustomerStatusList(contact)[0]?.key || "resolved";
-  const identityMeta = [getCustomerIdentityLabel(contact), getCustomerIdentifier(contact)]
+  const identityMeta = [getCustomerIdentityLabel(contact), getCustomerLastActivityLabel(contact)]
     .filter(Boolean)
     .join(" · ");
 
@@ -3368,22 +3371,19 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       <div class="contact-row-main">
         <div class="customer-row-top">
           <div class="customer-row-title-group">
-            <span class="customer-row-dot customer-row-dot--${escapeHtml(primaryStatusKey)}" aria-hidden="true"></span>
+            <span class="customer-row-dot customer-row-dot--${escapeHtml(primaryStatus.key)}" aria-hidden="true"></span>
             <div>
               <strong class="contact-row-name">${escapeHtml(getCustomerName(contact))}</strong>
-              <p class="customer-row-identity">${escapeHtml(identityMeta)}</p>
+              <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
             </div>
           </div>
           <div class="customer-row-statuses">
-            ${visibleStatuses}
+            <span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>
           </div>
         </div>
-        <p class="contact-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
-        <p class="contact-row-copy">${escapeHtml(getCustomerSuggestedAction(contact))}</p>
-      </div>
-      <div class="contact-row-actions customer-row-meta">
-        <span class="customer-row-meta-label">Last active</span>
-        <strong class="customer-row-meta-value">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
+        <div class="customer-row-meta">
+          <span class="customer-row-meta-value">${escapeHtml(identityMeta)}</span>
+        </div>
       </div>
     </article>
   `;
@@ -3397,13 +3397,10 @@ function buildContactDetailPanel(
 ) {
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
   const canDraftReply = automationsVisible && Boolean(contact.email || contact.phone);
-  const detailActionsMarkup = buildContactQuickActions(contact, operatorWorkspace, {
-    includeDraftFollowUp: false,
-  });
-  const draftPreview = canDraftReply ? getCustomerDraftPreview(contact) : "";
   const primaryActionMarkup = canDraftReply ? `
     <button
       class="primary-button"
+      data-customer-primary-action
       type="button"
       data-draft-contact-followup
       data-contact-name="${escapeHtml(contact.name || "")}"
@@ -3414,23 +3411,15 @@ function buildContactDetailPanel(
       data-lead-id="${escapeHtml(contact.leadId || "")}"
       data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
       ${contact.email || contact.phone ? "" : "disabled"}
-    >${escapeHtml(
-      isComplaintContact(contact)
-        ? "Prepare AI apology"
-        : isLeadContact(contact)
-          ? "Prepare lead follow-up"
-          : contactNeedsReply(contact)
-            ? "Prepare AI reply"
-            : "Prepare check-in"
-    )}</button>
+    >Send AI draft</button>
   ` : contact.latestMessageId ? `
-    <button class="primary-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open recent conversation</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open conversation</button>
   ` : contact.primaryThreadId ? `
-    <button class="primary-button" type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">Open inbox thread</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">Open inbox thread</button>
   ` : contact.primaryEventId ? `
-    <button class="primary-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">Review calendar action</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">Review calendar action</button>
   ` : `
-    <button class="primary-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>Review customer</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>Review customer</button>
   `;
   const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
     <div class="timeline-list customer-timeline-list">
@@ -3446,10 +3435,18 @@ function buildContactDetailPanel(
     </div>
   ` : `<div class="placeholder-card">No timeline details are stored yet.</div>`;
   const detailDisclosureMarkup = buildDisclosureBlock({
-    label: "View timeline and details",
+    label: "View timeline",
     summary: `${contact.timeline?.length || 0} interaction${contact.timeline?.length === 1 ? "" : "s"}`,
     className: "customer-detail-disclosure",
     contentMarkup: `
+      <div class="customer-detail-disclosure-section">
+        ${canDraftReply ? `
+          <div class="customer-draft-card">
+            <span class="detail-kv-label">Optional AI draft</span>
+            <strong>${escapeHtml(getCustomerDraftPreview(contact))}</strong>
+          </div>
+        ` : ""}
+      </div>
       ${buildDisclosureDetailRows([
         { label: "Customer", value: getCustomerName(contact), copy: getCustomerIdentityLabel(contact) },
         { label: "Identifier", value: getCustomerIdentifier(contact), copy: buildContactSourceSummary(contact) },
@@ -3496,7 +3493,6 @@ function buildContactDetailPanel(
           </div>
         </form>
       ` : ""}
-      ${detailActionsMarkup ? `<div class="inline-actions customer-secondary-actions">${detailActionsMarkup}</div>` : ""}
     `,
   });
 
@@ -3510,19 +3506,15 @@ function buildContactDetailPanel(
     >
       <div class="contact-detail-header customer-detail-header">
         <div class="customer-detail-intro">
-          <p class="studio-kicker">Selected customer</p>
           <h2 class="contact-detail-title">${escapeHtml(getCustomerName(contact))}</h2>
           <p class="contact-detail-copy">${escapeHtml([
             getCustomerIdentityLabel(contact),
-            getCustomerIdentifier(contact),
+            getPrimaryCustomerStatus(contact).label,
             `Last active ${getCustomerLastActivityLabel(contact)}`,
           ].join(" · "))}</p>
           <div class="action-queue-badges customer-status-row">
-            ${buildCustomerStatusMarkup(contact, 3)}
+            ${buildCustomerStatusMarkup(contact, 2)}
           </div>
-        </div>
-        <div class="contact-detail-actions customer-detail-actions">
-          ${primaryActionMarkup}
         </div>
       </div>
       <div class="contact-detail-summary-grid customer-detail-summary-grid">
@@ -3531,20 +3523,21 @@ function buildContactDetailPanel(
           <strong>${escapeHtml(getCustomerSituationSummary(contact))}</strong>
         </div>
         <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">Satisfaction and risk</span>
-          <strong>${escapeHtml(getCustomerRiskSummary(contact))}</strong>
-        </div>
-        <div class="detail-kv-item customer-detail-card customer-detail-card-wide">
           <span class="detail-kv-label">Vonza suggests</span>
           <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
         </div>
       </div>
-      ${draftPreview ? `
-        <section class="customer-draft-card">
-          <span class="detail-kv-label">Optional AI draft</span>
-          <strong>${escapeHtml(draftPreview)}</strong>
-        </section>
-      ` : ""}
+      <div class="inline-actions customer-primary-actions">
+        ${primaryActionMarkup}
+        <button
+          class="ghost-button customer-secondary-button"
+          type="button"
+          data-contact-quick-status="customer"
+          data-contact-id="${escapeHtml(contact.id || "")}"
+          ${contact.id ? "" : "disabled"}
+        >Mark resolved</button>
+      </div>
+      <div class="customer-risk-note">${escapeHtml(getCustomerRiskSummary(contact))}</div>
       ${detailDisclosureMarkup}
     </article>
   `;
@@ -3588,34 +3581,34 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const customerFilters = buildCustomerFilterDefinitions(contacts);
   const selectedContact = contacts[0] || null;
   const peopleWorkspaceMarkup = `
-    ${buildSummaryStrip(buildCustomerSummaryItems(contacts))}
-    <section class="customer-focus-banner">
-      <div>
-        <p class="studio-kicker">Customer workspace</p>
-        <h2 class="workspace-panel-title">See who needs help, who feels unhappy, and who could become a lead.</h2>
+    <div class="customers-page-topbar">
+      <div class="customers-page-copy">
+        <h2 class="customers-page-title">Customers</h2>
+        <p class="customers-page-subtitle">Keep support organized without turning Vonza into a CRM</p>
       </div>
-      <p class="workspace-panel-copy">Keep support work organized without turning Vonza into a CRM.</p>
+      <div class="customers-page-actions">
+        <button class="ghost-button customer-utility-button" type="button" data-focus-customer-filters>Filter</button>
+        <button class="ghost-button customer-utility-button customer-utility-button-primary" type="button" data-export-customers>Export customers</button>
+      </div>
+    </div>
+    <section class="customer-focus-banner">
+      <p class="workspace-panel-title">See who needs help, who might be lost, and who is becoming a lead, all in one simple workspace.</p>
+      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">Open unresolved only</button>
     </section>
-    ${buildPageToolbar({
-      searchMarkup: `<label class="toolbar-search"><span class="sr-only">Search customers</span><input type="search" placeholder="Search name, email, phone, or recent issue" data-contact-search></label>`,
-      filtersMarkup: `
-        <div class="toolbar-filter-group">
-          ${customerFilters.map((filter, index) => `
-            <button class="contact-filter-button ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-              ${escapeHtml(`${filter.label} (${filter.count})`)}
-            </button>
-          `).join("")}
-        </div>
-      `,
-    })}
+    <div class="customer-filter-strip" data-customer-filter-strip>
+      ${customerFilters.map((filter, index) => `
+        <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
+          ${escapeHtml(filter.label)}
+        </button>
+      `).join("")}
+    </div>
     <div class="contacts-workspace" data-contacts-workspace>
       <section class="contacts-list-shell">
         <div class="contacts-list-header">
           <div>
-            <p class="overview-label">Customers</p>
+            <h3 class="flat-section-title">Customers</h3>
             <p class="workspace-panel-copy">The people who need a reply, decision, or follow-up.</p>
           </div>
-          <strong>${escapeHtml(formatOperatorCount(contacts.length, "customer"))}</strong>
         </div>
         <div class="contacts-list" data-contact-filter-results>
           ${contacts.map((contact) => buildContactRow(contact, operatorWorkspace)).join("")}
@@ -3630,10 +3623,6 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
-      ${buildPageHeader({
-        title: "Customers",
-        copy: "A simple support-first view of customers, leads, complaints, and unresolved conversations.",
-      })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Some contact history is still loading: ${contactsHealth.loadError}`)}</p></div>` : ""}
@@ -11603,12 +11592,15 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copyFollowUpButtons = document.querySelectorAll("[data-copy-follow-up]");
   const contactFilterButtons = document.querySelectorAll("[data-contact-filter]");
   const contactSearchInput = document.querySelector("[data-contact-search]");
+  const focusCustomerFilterButtons = document.querySelectorAll("[data-focus-customer-filters]");
+  const exportCustomerButtons = document.querySelectorAll("[data-export-customers]");
   const contactCards = document.querySelectorAll("[data-contact-card]");
   const contactRows = document.querySelectorAll("[data-contact-row]");
   const contactDetails = document.querySelectorAll("[data-contact-detail]");
   const workspaceRecordRows = document.querySelectorAll("[data-record-row]");
   const workspaceRecordDetails = document.querySelectorAll("[data-record-detail]");
   const contactLifecycleForms = document.querySelectorAll("[data-contact-lifecycle-form]");
+  const quickContactStatusButtons = document.querySelectorAll("[data-contact-quick-status]");
   const draftContactFollowUpButtons = document.querySelectorAll("[data-draft-contact-followup]");
   const draftContactCampaignButtons = document.querySelectorAll("[data-draft-contact-campaign]");
   const draftContactCalendarButtons = document.querySelectorAll("[data-draft-contact-calendar]");
@@ -12074,6 +12066,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       let visible = true;
 
       switch (filterKey) {
+        case "unresolved":
+          visible = statuses.some((status) => ["needs_reply", "complaint", "lead"].includes(status));
+          break;
         case "needs_reply":
           visible = statuses.includes("needs_reply");
           break;
@@ -12395,6 +12390,83 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     } catch (error) {
       setStatus(error.message || "We couldn't update that customer.");
     }
+  };
+
+  const saveQuickContactStatus = async (button) => {
+    const contactId = trimText(button.dataset.contactId);
+    const lifecycleState = trimText(button.dataset.contactQuickStatus);
+
+    if (!contactId || !lifecycleState) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus(lifecycleState === "customer" ? "Marking customer resolved..." : "Updating customer status...");
+
+    try {
+      await fetchJson("/agents/operator/contacts/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          contact_id: contactId,
+          lifecycle_state: lifecycleState,
+        }),
+      });
+
+      setActiveShellSection("contacts");
+      setStatus(lifecycleState === "customer" ? "Customer marked resolved." : "Customer status updated.");
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that customer.");
+      button.disabled = false;
+    }
+  };
+
+  const exportCustomers = () => {
+    const contacts = workspaceState?.operatorWorkspace?.contacts?.list || [];
+
+    if (!contacts.length) {
+      setStatus("No customers are available to export yet.");
+      return;
+    }
+
+    const escapeCsvValue = (value = "") => {
+      const text = String(value ?? "");
+      return /[",\n]/.test(text) ? `"${text.replaceAll("\"", "\"\"")}"` : text;
+    };
+
+    const rows = [
+      ["name", "identity", "identifier", "status", "latest_summary", "last_activity"],
+      ...contacts.map((contact) => [
+        getCustomerName(contact),
+        getCustomerIdentityLabel(contact),
+        getCustomerIdentifier(contact),
+        getCustomerStatusList(contact).map((status) => status.label).join(" / "),
+        getCustomerLatestSummary(contact),
+        getCustomerLastActivityLabel(contact),
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((value) => escapeCsvValue(value)).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const objectUrl = window.URL?.createObjectURL?.(blob);
+
+    if (!objectUrl) {
+      setStatus("Customer export is not available in this browser.");
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = "vonza-customers.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(objectUrl);
+    setStatus("Customer export downloaded.");
   };
 
   const draftContactFollowUp = async (button) => {
@@ -13055,8 +13127,26 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
+  focusCustomerFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector("[data-customer-filter-strip]")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      contactFilterButtons[0]?.focus?.();
+      setStatus("Customer filters are ready.");
+    });
+  });
+
+  exportCustomerButtons.forEach((button) => {
+    button.addEventListener("click", exportCustomers);
+  });
+
   contactSearchInput?.addEventListener("input", () => {
     applyContactFilter(activeContactFilter);
+  });
+
+  quickContactStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await saveQuickContactStatus(button);
+    });
   });
 
   contactRows.forEach((row) => {
