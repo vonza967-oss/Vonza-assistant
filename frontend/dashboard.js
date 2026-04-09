@@ -4816,77 +4816,36 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
 }
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
+  const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const contactSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
-  const contactNeedsAttention = (contact = {}) => {
-    const lifecycleState = trimText(contact.lifecycleState).toLowerCase();
-    const flags = Array.isArray(contact.flags) ? contact.flags.map((flag) => trimText(flag).toLowerCase()) : [];
-
-    if (["active_lead", "qualified", "complaint_risk", "support_issue"].includes(lifecycleState)) {
-      return true;
-    }
-
-    if (trimText(contact.nextAction?.title) || trimText(contact.nextAction?.description)) {
-      return true;
-    }
-
-    return flags.some((flag) => (
-      flag.includes("follow up")
-      || flag.includes("complaint")
-      || flag.includes("campaign active")
-      || flag.includes("booked")
-    ));
-  };
-  const renderInsightList = (items = [], {
-    emptyTitle = "Nothing to review yet",
-    emptyCopy = "Helpful customer detail will show up here as soon as it matters.",
-    limit = 4,
-    detailFormatter = null,
+  const dedupedQueueItems = (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
+    const key = trimText(item?.key || item?.id || `${item?.type || "item"}-${index}`);
+    return items.findIndex((candidate, candidateIndex) => (
+      trimText(candidate?.key || candidate?.id || `${candidate?.type || "item"}-${candidateIndex}`) === key
+    )) === index;
+  });
+  const dedupedReviewItems = (Array.isArray(operatorWorkspace.calendar?.reviewItems) ? operatorWorkspace.calendar.reviewItems : []).filter((item, index, items) => {
+    const key = trimText(item?.id || `${item?.title || "review"}-${index}`);
+    return items.findIndex((candidate, candidateIndex) => (
+      trimText(candidate?.id || `${candidate?.title || "review"}-${candidateIndex}`) === key
+    )) === index;
+  });
+  const countLabel = (value, singular, plural = `${singular}s`) => `${value} ${value === 1 ? singular : plural}`;
+  const renderHomeAction = (action = null, {
+    primary = false,
+    labelOverride = "",
   } = {}) => {
-    const visibleItems = items.slice(0, limit);
-
-    if (!visibleItems.length) {
-      return buildOperatorEmptyState({
-        title: emptyTitle,
-        copy: emptyCopy,
-      });
+    if (!action) {
+      return "";
     }
 
-    return `
-      <div class="results-list">
-        ${visibleItems.map((contact) => `
-          <div class="results-list-item">
-            <div>
-              <strong>${escapeHtml(contact.name || contact.bestIdentifier || "Unknown customer")}</strong>
-              <p>${escapeHtml(contact.nextAction?.title || contact.latestOutcome?.label || "No action needed")}</p>
-              <p class="analytics-subtle">${escapeHtml(detailFormatter
-                ? detailFormatter(contact)
-                : [
-                  trimText(contact.nextAction?.description),
-                  trimText(contact.email || contact.phone || contact.bestIdentifier),
-                  contact.mostRecentActivityAt ? `Active ${formatSeenAt(contact.mostRecentActivityAt)}` : "",
-                ].filter(Boolean).join(" · ") || "Open the customer to review the relationship and next step."
-              )}</p>
-            </div>
-            <button
-              class="ghost-button"
-              type="button"
-              data-shell-target="contacts"
-              data-target-id="${escapeHtml(contact.id || "")}"
-              ${contact.id ? "" : "disabled"}
-            >Open customer</button>
-          </div>
-        `).join("")}
-      </div>
-    `;
+    return buildOverviewActionMarkup(
+      agent,
+      labelOverride ? { ...action, label: labelOverride } : action,
+      { primary }
+    );
   };
-  const customersNeedingAttention = contactsList
-    .filter((contact) => contactNeedsAttention(contact))
-    .slice()
-    .sort((left, right) => (
-      getDashboardComparableTime(right.mostRecentActivityAt, right.latestOutcome?.occurredAt)
-      - getDashboardComparableTime(left.mostRecentActivityAt, left.latestOutcome?.occurredAt)
-    ));
   const recentWins = contactsList
     .filter((contact) => trimText(contact.latestOutcome?.label))
     .slice()
@@ -4894,142 +4853,385 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       getDashboardComparableTime(right.latestOutcome?.occurredAt, right.mostRecentActivityAt)
       - getDashboardComparableTime(left.latestOutcome?.occurredAt, left.mostRecentActivityAt)
     ));
-  const homeActionQueue = {
-    ...actionQueue,
-    items: (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
-      const key = trimText(item?.key || item?.id || `${item?.type || "item"}-${index}`);
-      return items.findIndex((candidate, candidateIndex) => (
-        trimText(candidate?.key || candidate?.id || `${candidate?.type || "item"}-${candidateIndex}`) === key
-      )) === index;
-    }),
+  const conversationsToday = Number(today.messagesToday || 0);
+  const customersHelpedToday = Number(today.contactsDealtToday || 0);
+  const complaintIssueCount = Number(today.complaintsNeedingReview || 0) + Number(today.supportNeedingReview || 0);
+  const openIssueCount = complaintIssueCount > 0
+    ? complaintIssueCount
+    : Math.max(
+      Number(today.complaintRiskContacts || 0),
+      Number(contactSummary.complaintRiskContacts || 0),
+    );
+  const weakAnswerCount = Number(overview.analyticsSummary.weakAnswerCount || 0);
+  const attentionCount = Math.max(
+    Number(today.needsAttentionCount || 0),
+    Number(today.contactsNeedingAttention || 0),
+    Number(contactSummary.contactsNeedingAttention || 0),
+    dedupedQueueItems.filter((item) => normalizeActionQueueStatus(item.status) !== "done").length,
+    dedupedReviewItems.length,
+  );
+  const leadsNeedingAction = Math.max(
+    Number(today.leadsWithoutNextStep || 0),
+    Number(contactSummary.leadsWithoutNextStep || 0),
+    Number(today.customersAwaitingFollowUp || 0),
+  );
+  const topQuestion = trimText(overview.signals.topQuestions?.[0]?.label);
+  const serviceHealth = (() => {
+    if (openIssueCount > 0) {
+      return {
+        label: openIssueCount > 2 ? "Needs attention" : "Watch closely",
+        copy: `${countLabel(openIssueCount, "open issue")} could affect satisfaction.`,
+        tone: "attention",
+      };
+    }
+
+    if (weakAnswerCount > 0) {
+      return {
+        label: weakAnswerCount > 2 ? "Mixed" : "Mostly healthy",
+        copy: `${countLabel(weakAnswerCount, "answer")} still need work.`,
+        tone: weakAnswerCount > 2 ? "attention" : "caution",
+      };
+    }
+
+    if (conversationsToday > 0 || customersHelpedToday > 0) {
+      return {
+        label: "Healthy",
+        copy: "No active complaint or service-quality warning is standing out.",
+        tone: "healthy",
+      };
+    }
+
+    return {
+      label: "No signal yet",
+      copy: "This becomes more useful once live conversations start today.",
+      tone: "muted",
+    };
+  })();
+  const priorityCards = [];
+  const addPriority = (priority) => {
+    if (priorityCards.length >= 4 || !priority) {
+      return;
+    }
+
+    priorityCards.push(priority);
   };
+
+  if (openIssueCount > 0) {
+    addPriority({
+      tone: "danger",
+      title: `${countLabel(openIssueCount, "open issue")} ${openIssueCount === 1 ? "needs" : "need"} attention`,
+      why: "Fast follow-up helps protect customer satisfaction and keep one bad experience from becoming a lost customer.",
+      action: { type: "section", value: "contacts", label: "Review customers" },
+    });
+  }
+
+  if (attentionCount > 0) {
+    addPriority({
+      tone: "brand",
+      title: `${countLabel(attentionCount, "customer conversation")} still ${attentionCount === 1 ? "needs" : "need"} attention`,
+      why: "This is the clearest place to save time today: answer what matters, then move on.",
+      action: { type: "section", value: "contacts", label: "Open customers" },
+    });
+  }
+
+  if (weakAnswerCount > 0) {
+    addPriority({
+      tone: "warning",
+      title: topQuestion
+        ? `Answers around "${topQuestion}" need work`
+        : `${countLabel(weakAnswerCount, "answer")} may be causing friction`,
+      why: "Clearer answers reduce repeat questions, speed up support, and make Vonza feel more trustworthy.",
+      action: { type: "section", value: "analytics", label: "Improve answers" },
+    });
+  }
+
+  if (leadsNeedingAction > 0) {
+    addPriority({
+      tone: "brand",
+      title: `${countLabel(leadsNeedingAction, "likely customer")} still ${leadsNeedingAction === 1 ? "needs" : "need"} a next step`,
+      why: "These customers already showed intent. A faster follow-up can stop warm demand from cooling off.",
+      action: { type: "section", value: "contacts", label: "Follow up" },
+    });
+  }
+
+  if ((!setup.knowledgeReady || setup.knowledgeLimited) && priorityCards.length < 4) {
+    addPriority({
+      tone: "slate",
+      title: "Vonza needs stronger support context",
+      why: "Better website knowledge improves answer quality without adding complexity for the owner.",
+      action: { type: "import", label: "Refresh knowledge" },
+    });
+  }
+
+  if (!isInstallSeen(overview.installStatus) && priorityCards.length < 4) {
+    addPriority({
+      tone: "slate",
+      title: "Finish the live launch",
+      why: "Home becomes much more useful once Vonza sees real customer conversations from the live site.",
+      action: { type: "focus", value: "install", label: "Open install" },
+    });
+  }
+
+  if (priorityCards.length < 2 && topQuestion) {
+    addPriority({
+      tone: "slate",
+      title: `Customers keep asking about "${topQuestion}"`,
+      why: "A stronger answer here can improve support speed and reduce repeat clarification questions.",
+      action: { type: "section", value: "analytics", label: "See question theme" },
+    });
+  }
+
+  if (priorityCards.length < 2) {
+    addPriority({
+      tone: "slate",
+      title: !setup.knowledgeReady || setup.knowledgeLimited
+        ? "One more pass will make answers stronger"
+        : "Keep Home calm by tightening one service detail",
+      why: !setup.knowledgeReady || setup.knowledgeLimited
+        ? "A fresher knowledge import is still one of the simplest ways to improve customer answers."
+        : "A small review now can prevent avoidable support friction later in the day.",
+      action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
+    });
+  }
+
+  if (!priorityCards.length) {
+    addPriority({
+      tone: "healthy",
+      title: "No urgent customer-service issue is standing out",
+      why: "Home looks calm right now, so the best next move is keeping answer quality high while live usage grows.",
+      action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
+    });
+  }
+
+  const primaryHomeAction = priorityCards[0]?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
+  const summarySentence = conversationsToday || customersHelpedToday || openIssueCount
+    ? `Today Vonza handled ${countLabel(conversationsToday, "conversation")}, helped ${countLabel(customersHelpedToday, "customer")}, and flagged ${countLabel(openIssueCount, "issue")} that still need attention.`
+    : "Home is ready. As soon as customers start using Vonza today, this page will highlight what matters first.";
+  const dailyStats = [
+    {
+      label: "Conversations today",
+      value: String(conversationsToday),
+      copy: conversationsToday > 0 ? "Live customer messages handled today." : "No conversations recorded yet today.",
+      tone: "neutral",
+    },
+    {
+      label: "Customers helped today",
+      value: String(customersHelpedToday),
+      copy: customersHelpedToday > 0 ? "Customers Vonza actively helped today." : "No helped-customer signal yet today.",
+      tone: "positive",
+    },
+    {
+      label: "Open issues",
+      value: String(openIssueCount),
+      copy: openIssueCount > 0 ? "Complaints or service issues still needing attention." : "No active service issue signal is standing out.",
+      tone: openIssueCount > 0 ? "attention" : "positive",
+    },
+    {
+      label: "Customer satisfaction",
+      value: serviceHealth.label,
+      copy: serviceHealth.copy,
+      tone: serviceHealth.tone,
+    },
+  ];
+  const recentWinItems = (() => {
+    const items = [];
+
+    if (Number(today.complaintResolutions || 0) > 0) {
+      items.push({
+        title: `${countLabel(Number(today.complaintResolutions || 0), "complaint")} resolved`,
+        copy: "A customer issue was closed instead of lingering.",
+        meta: "Today",
+      });
+    }
+
+    if (Number(today.followUpReplies || 0) > 0) {
+      items.push({
+        title: `${countLabel(Number(today.followUpReplies || 0), "customer")} replied after follow-up`,
+        copy: "Vonza kept the conversation moving after the first contact.",
+        meta: "Today",
+      });
+    }
+
+    if (customersHelpedToday > 0) {
+      items.push({
+        title: `${countLabel(customersHelpedToday, "customer")} got help today`,
+        copy: "Real customer questions were handled without needing a deep dashboard review.",
+        meta: "Today",
+      });
+    }
+
+    if (Number(today.bookingsConfirmed || 0) > 0) {
+      items.push({
+        title: `${countLabel(Number(today.bookingsConfirmed || 0), "booking")} confirmed`,
+        copy: "A customer reached a clear next step today.",
+        meta: "Today",
+      });
+    }
+
+    if (Number(today.quoteRequests || 0) > 0) {
+      items.push({
+        title: `${countLabel(Number(today.quoteRequests || 0), "quote request")} captured`,
+        copy: "A high-intent customer moved forward instead of dropping off.",
+        meta: "Today",
+      });
+    }
+
+    if (items.length) {
+      return items.slice(0, 4);
+    }
+
+    if (Array.isArray(today.recentSuccessfulOutcomes) && today.recentSuccessfulOutcomes.length) {
+      return today.recentSuccessfulOutcomes.slice(0, 4).map((outcome) => ({
+        title: getOutcomeTypeLabel(outcome.outcomeType),
+        copy: trimText(outcome.sourceLabel || outcome.relatedIntentType || outcome.pageUrl || "Recent customer outcome"),
+        meta: outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "Recent",
+      }));
+    }
+
+    return recentWins.slice(0, 4).map((contact) => ({
+      title: trimText(contact.latestOutcome?.label) || "Customer helped",
+      copy: trimText(contact.name || contact.bestIdentifier || "Recent customer"),
+      meta: contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "Recent",
+    }));
+  })();
+  const improvementRecommendation = (() => {
+    if (weakAnswerCount > 0) {
+      return {
+        title: topQuestion
+          ? `Tighten how Vonza answers "${topQuestion}"`
+          : "Tighten a few weak answers",
+        copy: "Shorter, clearer guidance here should reduce friction and improve customer confidence.",
+        action: { type: "section", value: "analytics", label: "Review answer quality" },
+      };
+    }
+
+    if (openIssueCount > 0) {
+      return {
+        title: "Add stronger complaint-recovery guidance",
+        copy: "Better recovery language helps Vonza calm tough conversations faster and makes follow-up easier.",
+        action: { type: "section", value: "customize", label: "Improve service guidance" },
+      };
+    }
+
+    if (!setup.knowledgeReady || setup.knowledgeLimited) {
+      return {
+        title: "Refresh website knowledge",
+        copy: "A fresher website import is the simplest way to improve support quality without extra workflow.",
+        action: { type: "import", label: "Refresh knowledge" },
+      };
+    }
+
+    if ((overview.analyticsSummary.highIntentSignals || 0) > (overview.analyticsSummary.contactsCaptured || 0)) {
+      return {
+        title: "Make the next step easier to say yes to",
+        copy: "More customers are showing intent than sharing contact details, so the handoff path may still be too soft.",
+        action: { type: "section", value: "customize", label: "Open Front Desk" },
+      };
+    }
+
+    return {
+      title: "Keep answers short and decisive",
+      copy: "Home looks healthy. Review one recent question and tighten wording anywhere it feels vague.",
+      action: { type: "section", value: "analytics", label: "Review signals" },
+    };
+  })();
 
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
-        eyebrow: "Overview",
         title: "Home",
-        copy: "See what needs attention, where customers may slip away, and the clearest next move for your business.",
+        copy: "Your AI customer service snapshot for today",
         actionsMarkup: `
           <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>
-          ${buildOverviewActionMarkup(agent, overview.primaryAction, { primary: true })}
+          ${renderHomeAction(primaryHomeAction, { primary: true, labelOverride: "Start next step" })}
         `,
       })}
-      ${buildSummaryStrip([
-        {
-          label: "Needs attention",
-          value: formatOperatorCount(contactSummary.contactsNeedingAttention || overview.queueSummary.attentionNeeded, "customer"),
-          copy: "People who likely need a reply, follow-up, or a clearer answer.",
-        },
-        {
-          label: "Questions answered",
-          value: formatAnalyticsMetric(overview.analyticsSummary.visitorQuestions, overview.analyticsSummary),
-          copy: "Real customer questions Vonza has already handled.",
-        },
-        {
-          label: "Leads captured",
-          value: formatAnalyticsMetric(overview.analyticsSummary.contactsCaptured, overview.analyticsSummary),
-          copy: "Customers who shared contact details or raised their hand.",
-        },
-        {
-          label: "Recorded wins",
-          value: String(overview.outcomeSummary.confirmedBusinessOutcomes || 0),
-          copy: "Conservative proof that Vonza helped move business forward.",
-        },
-      ])}
       <div class="workspace-page-body">
-        <div class="workspace-section-stack">
-          <section class="overview-hero overview-hero-home">
-            <span class="eyebrow">${isInstallSeen(overview.installStatus) ? "Live front desk" : "Getting ready"}</span>
-            <h2 class="overview-title">${escapeHtml(overview.title)}</h2>
-            <p class="overview-copy">${escapeHtml(overview.copy)}</p>
-            <div class="overview-metric-grid home-metric-grid">
-              <div class="overview-metric">
-                <div class="overview-metric-label">Front Desk</div>
-                <div class="overview-metric-value">${escapeHtml(getInstallSummaryLabel(overview.installStatus))}</div>
-              </div>
-              <div class="overview-metric">
-                <div class="overview-metric-label">Response quality</div>
-                <div class="overview-metric-value">${escapeHtml(
-                  overview.analyticsSummary.weakAnswerCount > 0
-                    ? `${overview.analyticsSummary.weakAnswerCount} to improve`
-                    : "Looking solid"
-                )}</div>
-              </div>
-              <div class="overview-metric">
-                <div class="overview-metric-label">Customers waiting</div>
-                <div class="overview-metric-value">${escapeHtml(String(contactSummary.contactsNeedingAttention || overview.queueSummary.attentionNeeded || 0))}</div>
-              </div>
-              <div class="overview-metric">
-                <div class="overview-metric-label">Website knowledge</div>
-                <div class="overview-metric-value">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} pages` : "Needs import")}</div>
-              </div>
+        <div class="workspace-section-stack home-surface">
+          <section class="home-daily-banner">
+            <div class="home-daily-banner-copy">
+              <p class="home-daily-banner-kicker">Today</p>
+              <h2 class="home-daily-banner-title">${escapeHtml(summarySentence)}</h2>
             </div>
-            <div class="overview-action-row">
-              ${overview.nextActions.map((action) => buildOverviewActionMarkup(agent, action)).join("")}
+            <div class="home-daily-banner-actions">
+              ${renderHomeAction(primaryHomeAction, { labelOverride: primaryHomeAction.label || "See next step" })}
             </div>
           </section>
 
-          <div class="home-grid">
-            <section class="workspace-card-soft home-card home-card-wide">
-              <div class="workspace-panel-header">
-                <div>
-                  <p class="studio-kicker">Start here</p>
-                  <h3 class="workspace-panel-title">Customers who could use your help first</h3>
-                  <p class="workspace-panel-copy">This is the fastest path to saving time and avoiding missed customers. Open one person, take the next step, then move on.</p>
-                </div>
-                <button class="ghost-button" type="button" data-shell-target="contacts">Open Customers</button>
-              </div>
-              ${renderInsightList(customersNeedingAttention, {
-                emptyTitle: "No customers are waiting right now",
-                emptyCopy: "When a lead, returning customer, or at-risk conversation needs attention, it will show up here first.",
-                limit: 4,
-              })}
-            </section>
-
-            <section class="workspace-card-soft home-card">
-              <div class="workspace-panel-header">
-                <div>
-                  <p class="studio-kicker">Live signal</p>
-                  <h3 class="workspace-panel-title">What customers are asking about</h3>
-                  <p class="workspace-panel-copy">Use this quick read to spot where people need more clarity before they contact or buy.</p>
-                </div>
-                <button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>
-              </div>
-              <div class="question-list">
-                ${overview.signals.topQuestions.length
-                  ? overview.signals.topQuestions.slice(0, 4).map((item) => `
-                    <div class="question-row">
-                      <strong>${escapeHtml(item.label)}</strong>
-                      <span>${escapeHtml(`${item.count > 1 ? `${item.count} times` : "Seen once"} · ${getIntentLabel(item.intent)}`)}</span>
-                    </div>
-                  `).join("")
-                  : `<div class="placeholder-card">Question themes will appear here once real customer conversations start coming in.</div>`}
-              </div>
-            </section>
-
-            <section class="workspace-card-soft home-card">
-              <div class="workspace-panel-header">
-                <div>
-                  <p class="studio-kicker">Momentum</p>
-                  <h3 class="workspace-panel-title">Recent wins and movement</h3>
-                  <p class="workspace-panel-copy">A simple readout of what is improving so you can see progress without digging through a dashboard.</p>
-                </div>
-              </div>
-              ${renderInsightList(recentWins, {
-                emptyTitle: "No recorded wins yet",
-                emptyCopy: "Wins show up here after Vonza can safely attribute a booking, quote, follow-up, or another real business result.",
-                limit: 3,
-                detailFormatter: (contact) => [
-                  trimText(contact.latestOutcome?.label),
-                  contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "",
-                  trimText(contact.nextAction?.description),
-                ].filter(Boolean).join(" · "),
-              })}
-            </section>
+          <div class="home-daily-strip">
+            ${dailyStats.map((stat) => `
+              <article class="home-daily-card home-daily-card-${escapeHtml(stat.tone)}">
+                <p class="home-daily-card-label">${escapeHtml(stat.label)}</p>
+                <strong class="home-daily-card-value">${escapeHtml(stat.value)}</strong>
+                <p class="home-daily-card-copy">${escapeHtml(stat.copy)}</p>
+              </article>
+            `).join("")}
           </div>
 
-          ${buildActionQueueMarkup(agent, homeActionQueue, { compact: true, allowStatusUpdates: false })}
+          <div class="home-command-grid">
+            <section class="workspace-card-soft home-priority-panel">
+              <div class="workspace-panel-header">
+                <div>
+                  <p class="studio-kicker">AI priorities</p>
+                  <h3 class="workspace-panel-title">What matters most right now</h3>
+                  <p class="workspace-panel-copy">The shortest path to protecting customer satisfaction, saving time, and keeping warm demand from slipping away.</p>
+                </div>
+              </div>
+              <div class="home-priority-list">
+                ${priorityCards.map((priority) => `
+                  <article class="home-priority-card home-priority-card-${escapeHtml(priority.tone || "slate")}">
+                    <div class="home-priority-copy">
+                      <h4 class="home-priority-title">${escapeHtml(priority.title)}</h4>
+                      <p class="home-priority-why">${escapeHtml(priority.why)}</p>
+                    </div>
+                    <div class="home-priority-action">
+                      ${renderHomeAction(priority.action, { primary: true })}
+                    </div>
+                  </article>
+                `).join("")}
+              </div>
+            </section>
+
+            <div class="home-side-stack">
+              <section class="workspace-card-soft home-mini-panel">
+                <div class="workspace-panel-header">
+                  <div>
+                    <p class="studio-kicker">Recent wins</p>
+                    <h3 class="workspace-panel-title">Saved customers and good moments</h3>
+                    <p class="workspace-panel-copy">Small proof that Vonza is helping today without making you dig through analytics.</p>
+                  </div>
+                </div>
+                ${recentWinItems.length ? `
+                  <div class="home-win-list">
+                    ${recentWinItems.map((item) => `
+                      <div class="home-win-row">
+                        <span class="home-win-dot" aria-hidden="true"></span>
+                        <div>
+                          <strong>${escapeHtml(item.title)}</strong>
+                          <p>${escapeHtml(item.copy)}</p>
+                          <span>${escapeHtml(item.meta)}</span>
+                        </div>
+                      </div>
+                    `).join("")}
+                  </div>
+                ` : `<div class="placeholder-card">Recent customer wins will show up here as soon as Vonza can point to a real helped moment or resolved issue.</div>`}
+              </section>
+
+              <section class="workspace-card-soft home-improve-panel">
+                <div class="workspace-panel-header">
+                  <div>
+                    <p class="studio-kicker">Improve Vonza</p>
+                    <h3 class="workspace-panel-title">Improve service</h3>
+                    <p class="workspace-panel-copy">${escapeHtml(improvementRecommendation.title)}</p>
+                  </div>
+                </div>
+                <p class="home-improve-copy">${escapeHtml(improvementRecommendation.copy)}</p>
+                <div class="home-improve-actions">
+                  ${renderHomeAction(improvementRecommendation.action, { primary: true })}
+                </div>
+              </section>
+            </div>
+          </div>
         </div>
       </div>
     </section>

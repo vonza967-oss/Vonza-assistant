@@ -652,12 +652,15 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   );
 
   assert.match(overviewPanel, /Home/);
-  assert.match(overviewPanel, /Customers who could use your help first/);
-  assert.match(overviewPanel, /Follow-up feed/);
-  assert.match(overviewPanel, /Open Customers/);
+  assert.match(overviewPanel, /Your AI customer service snapshot for today/);
+  assert.match(overviewPanel, /Conversations today/);
+  assert.match(overviewPanel, /AI priorities/);
+  assert.match(overviewPanel, /Recent wins/);
+  assert.match(overviewPanel, /Improve service/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
-  assert.match(overviewPanel, /Refresh/);
+  assert.doesNotMatch(overviewPanel, /Follow-up feed/);
+  assert.match(overviewPanel, /Start next step/);
 });
 
 test("today overview dedupes repeated queue and review items by stable keys", () => {
@@ -715,8 +718,7 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
     })
   );
 
-  assert.equal(overviewPanel.match(/Call with mail@example\.com/g)?.length || 0, 1);
-  assert.equal(overviewPanel.match(/data-action-key="queue-1"/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/1 customer conversation still needs attention/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {

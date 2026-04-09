@@ -575,7 +575,7 @@ test("dashboard shows visible empty states when no analytics data exists", async
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Home|Follow-up feed/);
+  assert.match(harness.getRootHtml(), /Home|AI priorities/);
   assert.match(harness.getRootHtml(), /No recorded wins yet/i);
 });
 
