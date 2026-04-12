@@ -250,7 +250,15 @@ export function createAgentRouter(deps = {}) {
     deps.findTodayCopilotProposal || findTodayCopilotProposal;
   const answerVonzaProductHelpImpl =
     deps.answerVonzaProductHelp || answerVonzaProductHelp;
-  const getAdminToken = (req) => req.query.token || req.headers["x-admin-token"];
+  const getAdminToken = (req) => {
+    const bearerToken =
+      typeof req.headers.authorization === "string" &&
+      req.headers.authorization.toLowerCase().startsWith("bearer ")
+        ? req.headers.authorization.slice("Bearer ".length)
+        : "";
+
+    return req.headers["x-admin-token"] || bearerToken;
+  };
   const readBodyField = (body, snakeCaseKey, camelCaseKey) => {
     if (Object.prototype.hasOwnProperty.call(body, snakeCaseKey)) {
       return body[snakeCaseKey];
@@ -274,13 +282,13 @@ export function createAgentRouter(deps = {}) {
 
     if (!configuredToken) {
       const error = new Error("ADMIN_TOKEN is not configured on the server.");
-      error.statusCode = 403;
+      error.statusCode = 503;
       throw error;
     }
 
     if (getAdminToken(req) !== configuredToken) {
-      const error = new Error("Forbidden");
-      error.statusCode = 403;
+      const error = new Error("Invalid or missing admin token.");
+      error.statusCode = 401;
       throw error;
     }
   }

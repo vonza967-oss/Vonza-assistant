@@ -11704,7 +11704,11 @@ async function sendPromptToPreview(agent, prompt) {
   };
 
   previewFrame.addEventListener("load", onLoad, { once: true });
-  previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
+  if (!previewFrame.getAttribute("src")) {
+    previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
+  } else {
+    setStatus("Preview is still loading. Try the starter again in a moment.");
+  }
 }
 
 function updateStudioSummary(

@@ -1186,11 +1186,10 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);
 
-        const adminAllowed = await getText(server.baseUrl, "/admin?token=admin-1234");
-        assert.equal(adminAllowed.status, 200);
-
-        const adminBlocked = await getText(server.baseUrl, "/admin?token=wrong-token");
-        assert.equal(adminBlocked.status, 403);
+        const adminPage = await getText(server.baseUrl, "/admin");
+        assert.equal(adminPage.status, 200);
+        assert.match(adminPage.text, /x-admin-token/);
+        assert.doesNotMatch(adminPage.text, /access-status\?token/);
       } finally {
         await server.close();
       }

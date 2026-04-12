@@ -120,6 +120,28 @@ test("repeated CTA prompts are suppressed once the same decision was shown in-se
   assert.equal(suppressed.shouldShowCapture, true);
 });
 
+test("direct routing carries lead capture attribution when no queue context is present", () => {
+  const result = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "Can I get a quote for this project?",
+    leadCapture: {
+      id: "lead-1",
+      shouldPrompt: true,
+      latestActionKey: "action-quote-1",
+      latestMessageId: "message-1",
+      personKey: "person-1",
+      relatedFollowUpId: "follow-up-1",
+    },
+  }));
+
+  assert.equal(result.mode, "direct_then_capture");
+  assert.equal(result.relatedActionKey, "action-quote-1");
+  assert.equal(result.relatedConversationId, "action-quote-1");
+  assert.equal(result.relatedMessageId, "message-1");
+  assert.equal(result.relatedPersonKey, "person-1");
+  assert.equal(result.relatedLeadId, "lead-1");
+  assert.equal(result.relatedFollowUpId, "follow-up-1");
+});
+
 test("placeholder contact config never becomes a live contact CTA", () => {
   const result = evaluateLiveConversionRouting(buildRoutingOptions({
     widgetConfig: {

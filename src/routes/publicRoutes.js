@@ -102,15 +102,7 @@ window.VONZA_LAUNCH_PROFILE = ${JSON.stringify(launchProfile)};
     );
   });
 
-  router.get("/admin", (req, res) => {
-    const configuredToken = process.env.ADMIN_TOKEN;
-    const providedToken = req.query.token;
-
-    if (!configuredToken || !providedToken || providedToken !== configuredToken) {
-      res.status(403).send("Forbidden");
-      return;
-    }
-
+  router.get("/admin", (_req, res) => {
     res.sendFile(path.join(rootDir, "admin.html"));
   });
 

@@ -89,7 +89,44 @@
     const statusEl = document.getElementById("status");
     const funnelEl = document.getElementById("funnel");
     const agentListEl = document.getElementById("agent-list");
-    const token = new URLSearchParams(window.location.search).get("token");
+    const ADMIN_TOKEN_STORAGE_KEY = "vonza_admin_token";
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getAdminToken() {
+      const url = new URL(window.location.href);
+
+      if (url.searchParams.has("token")) {
+        url.searchParams.delete("token");
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+      }
+
+      let token = window.sessionStorage.getItem(ADMIN_TOKEN_STORAGE_KEY) || "";
+
+      if (!token) {
+        token = window.prompt("Enter admin token") || "";
+
+        if (token) {
+          window.sessionStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+        }
+      }
+
+      return token;
+    }
+
+    function buildAdminHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "x-admin-token": getAdminToken(),
+      };
+    }
 
     function renderFunnel(funnel) {
       if (!funnel) {
@@ -103,22 +140,20 @@
         <div class="funnel-grid">
           ${(funnel.stages || []).map((stage) => `
             <div class="funnel-stage">
-              <div class="muted">${stage.label}</div>
-              <div class="funnel-count">${stage.count || 0}</div>
-              <div class="muted">${stage.percentFromPrevious || 0}% of previous step</div>
+              <div class="muted">${escapeHtml(stage.label)}</div>
+              <div class="funnel-count">${escapeHtml(stage.count || 0)}</div>
+              <div class="muted">${escapeHtml(stage.percentFromPrevious || 0)}% of previous step</div>
             </div>
           `).join("")}
         </div>
-        <p class="muted" style="margin-top:12px;">Knowledge breakdown: imported ${funnel.breakdown?.knowledge_imported || 0}, limited ${funnel.breakdown?.knowledge_limited || 0}</p>
+        <p class="muted" style="margin-top:12px;">Knowledge breakdown: imported ${escapeHtml(funnel.breakdown?.knowledge_imported || 0)}, limited ${escapeHtml(funnel.breakdown?.knowledge_limited || 0)}</p>
       `;
     }
 
     async function updateAccessStatus(agentId, accessStatus) {
-      const response = await fetch(`/agents/access-status?token=${encodeURIComponent(token || "")}`, {
+      const response = await fetch("/agents/access-status", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: buildAdminHeaders(),
         body: JSON.stringify({
           agent_id: agentId,
           access_status: accessStatus,
@@ -137,8 +172,9 @@
     async function loadAgents() {
       try {
         const url = new URL("/agents/admin-list", window.location.origin);
-        url.searchParams.set("token", token || "");
-        const response = await fetch(url.toString());
+        const response = await fetch(url.toString(), {
+          headers: buildAdminHeaders(),
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -151,24 +187,24 @@
 
         agentListEl.innerHTML = agents.map((agent) => `
           <section class="agent">
-            <h2>${agent.assistantName || agent.name}</h2>
-            <p class="muted">${agent.websiteUrl || "No website URL"}</p>
-            <p class="muted">agent_key: ${agent.publicAgentKey || "-"}</p>
-            <p class="muted">client_id: ${agent.clientId || "-"}</p>
-            <p class="muted">owner_user_id: ${agent.ownerUserId || "-"}</p>
-            <p class="muted">access: ${agent.accessStatus || "pending"}</p>
-            <p class="muted">install status: ${agent.installStatus?.label || "Not detected on a live site yet"}</p>
-            <p class="muted">latest host: ${agent.installStatus?.host || "-"}</p>
-            <p class="muted">last seen: ${agent.installStatus?.lastSeenAt || "-"}</p>
-            <p class="muted">messages: ${agent.messageCount || 0}</p>
-            <p class="muted">last message: ${agent.lastMessageAt || "-"}</p>
+            <h2>${escapeHtml(agent.assistantName || agent.name)}</h2>
+            <p class="muted">${escapeHtml(agent.websiteUrl || "No website URL")}</p>
+            <p class="muted">agent_key: ${escapeHtml(agent.publicAgentKey || "-")}</p>
+            <p class="muted">client_id: ${escapeHtml(agent.clientId || "-")}</p>
+            <p class="muted">owner_user_id: ${escapeHtml(agent.ownerUserId || "-")}</p>
+            <p class="muted">access: ${escapeHtml(agent.accessStatus || "pending")}</p>
+            <p class="muted">install status: ${escapeHtml(agent.installStatus?.label || "Not detected on a live site yet")}</p>
+            <p class="muted">latest host: ${escapeHtml(agent.installStatus?.host || "-")}</p>
+            <p class="muted">last seen: ${escapeHtml(agent.installStatus?.lastSeenAt || "-")}</p>
+            <p class="muted">messages: ${escapeHtml(agent.messageCount || 0)}</p>
+            <p class="muted">last message: ${escapeHtml(agent.lastMessageAt || "-")}</p>
             <div class="access-row">
-              <select data-access-select="${agent.id}">
+              <select data-access-select="${escapeHtml(agent.id)}">
                 <option value="pending" ${agent.accessStatus === "pending" ? "selected" : ""}>pending</option>
                 <option value="active" ${agent.accessStatus === "active" ? "selected" : ""}>active</option>
                 <option value="suspended" ${agent.accessStatus === "suspended" ? "selected" : ""}>suspended</option>
               </select>
-              <button type="button" data-access-save="${agent.id}">Save access</button>
+              <button type="button" data-access-save="${escapeHtml(agent.id)}">Save access</button>
             </div>
           </section>
         `).join("");

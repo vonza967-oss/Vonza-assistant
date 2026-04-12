@@ -379,8 +379,8 @@ function buildRoutingMetadata(routing, cta) {
     relatedActionKey: trimText(routing?.relatedActionKey || liveLeadCapture?.latestActionKey || ""),
     relatedConversationId: trimText(routing?.relatedConversationId || ""),
     relatedPersonKey: trimText(routing?.relatedPersonKey || liveLeadCapture?.personKey || ""),
-    leadId: trimText(liveLeadCapture?.id || ""),
-    followUpId: trimText(liveLeadCapture?.relatedFollowUpId || ""),
+    leadId: trimText(routing?.relatedLeadId || liveLeadCapture?.id || ""),
+    followUpId: trimText(routing?.relatedFollowUpId || liveLeadCapture?.relatedFollowUpId || ""),
     routingMode: trimText(routing?.routingMode || routing?.mode || ""),
     sourceUrl: getPageUrl(),
   };

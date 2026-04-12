@@ -720,6 +720,19 @@ export async function resolveAgentContext(supabase, options = {}) {
       agent = await findAgentByKey(supabase, agentKey);
     }
 
+    if (
+      agentId &&
+      !agent &&
+      !agentKey &&
+      !businessId &&
+      !websiteUrl &&
+      !businessName
+    ) {
+      const error = new Error("Agent not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
     if (agent) {
       const business =
         (await findBusinessByIdentifier(supabase, agent.businessId)) ||

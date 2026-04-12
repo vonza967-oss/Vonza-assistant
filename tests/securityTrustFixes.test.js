@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createChatRouter } from "../src/routes/chatRoutes.js";
+import { createAgentRouter } from "../src/routes/agentRoutes.js";
 import { handleChatRequest } from "../src/services/chat/chatService.js";
 import {
   listAgents,
@@ -91,6 +92,11 @@ function createFakeSupabase(initialState = {}) {
       return this;
     }
 
+    gte(field, value) {
+      this.filters.push({ type: "gte", field, value });
+      return this;
+    }
+
     order(field, options = {}) {
       this.orderBy = { field, ascending: options.ascending !== false };
       return this;
@@ -137,6 +143,10 @@ function createFakeSupabase(initialState = {}) {
 
           if (filter.type === "in") {
             return (filter.values || []).includes(row[filter.field]);
+          }
+
+          if (filter.type === "gte") {
+            return new Date(row[filter.field] || 0).getTime() >= new Date(filter.value || 0).getTime();
           }
 
           return true;
@@ -281,6 +291,18 @@ async function postJson(baseUrl, pathname, body) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+  const text = await response.text();
+
+  return {
+    status: response.status,
+    json: text ? JSON.parse(text) : null,
+  };
+}
+
+async function getJson(baseUrl, pathname, options = {}) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    headers: options.headers || {},
   });
   const text = await response.text();
 
@@ -444,6 +466,116 @@ test("/chat/capture rejects disallowed origins when install_id is present", asyn
   }
 });
 
+test("protected owner routes return 401 when bearer auth is missing", async () => {
+  const supabase = createFakeSupabase();
+  let accessChecked = false;
+  const app = express();
+  app.use(express.json());
+  app.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+    requireActiveAgentAccess: async () => {
+      accessChecked = true;
+      return { id: "agent-1" };
+    },
+  }));
+  const server = await startServer(app);
+
+  try {
+    const response = await getJson(server.baseUrl, "/agents/operator-workspace?agent_id=agent-1");
+
+    assert.equal(response.status, 401);
+    assert.match(response.json.error, /unauthorized/i);
+    assert.equal(accessChecked, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("admin APIs reject query-string tokens and accept header tokens", async () => {
+  await withEnv({ ADMIN_TOKEN: "admin-1234" }, async () => {
+    const supabase = createFakeSupabase({
+      agents: [
+        buildAgentRow({
+          name: "Admin Safe Agent",
+          owner_user_id: "owner-1",
+        }),
+      ],
+      businesses: [
+        {
+          id: "business-1",
+          name: "Vonza",
+          website_url: "https://allowed.example",
+        },
+      ],
+      widget_configs: [
+        {
+          agent_id: "agent-1",
+          assistant_name: "Admin Safe Agent",
+          install_id: "install-1",
+          allowed_domains: ["allowed.example"],
+        },
+      ],
+    });
+    const app = express();
+    app.use(express.json());
+    app.use(createAgentRouter({
+      getSupabaseClient: () => supabase,
+    }));
+    const server = await startServer(app);
+
+    try {
+      const queryTokenResponse = await getJson(
+        server.baseUrl,
+        "/agents/admin-list?token=admin-1234"
+      );
+      assert.equal(queryTokenResponse.status, 401);
+      assert.match(queryTokenResponse.json.error, /admin token/i);
+
+      const headerTokenResponse = await getJson(
+        server.baseUrl,
+        "/agents/admin-list",
+        {
+          headers: {
+            "x-admin-token": "admin-1234",
+          },
+        }
+      );
+      assert.equal(headerTokenResponse.status, 200);
+      assert.equal(headerTokenResponse.json.agents.length, 1);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("/chat with only an unknown agent_id fails consistently instead of falling into business validation", async () => {
+  const supabase = createFakeSupabase();
+  let openAiCalled = false;
+
+  await assert.rejects(
+    handleChatRequest({
+      supabase,
+      openai: {
+        chat: {
+          completions: {
+            create: async () => {
+              openAiCalled = true;
+              return { choices: [{ message: { content: "not reached" } }] };
+            },
+          },
+        },
+      },
+      body: {
+        agent_id: "missing-agent",
+        message: "Hello",
+      },
+    }),
+    (error) => error.statusCode === 404 && /agent not found/i.test(error.message)
+  );
+
+  assert.equal(openAiCalled, false);
+});
+
 test("chat logging emits metadata without raw conversation or business content", async () => {
   const supabase = createFakeSupabase(buildChatState());
   const records = [];
@@ -574,4 +706,29 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   assert.match(script, /reveal_capture/);
   assert.doesNotMatch(script, /contactHash/);
   assert.doesNotMatch(script, /replyHash/);
+});
+
+test("admin rendering escapes dynamic data and avoids query-string token APIs", () => {
+  const admin = readFileSync(path.join(repoRoot, "admin.html"), "utf8");
+
+  assert.match(admin, /function escapeHtml/);
+  assert.match(admin, /x-admin-token/);
+  assert.match(admin, /replaceState/);
+  assert.doesNotMatch(admin, /access-status\?token/);
+  assert.doesNotMatch(admin, /admin-list[\s\S]{0,120}searchParams\.set\("token"/);
+});
+
+test("dashboard preview starter prompts do not force-reset a loaded iframe", () => {
+  const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(dashboard, /Preview is still loading\. Try the starter again in a moment\./);
+  assert.match(dashboard, /if \(!previewFrame\.getAttribute\("src"\)\)/);
+});
+
+test("test:supabase cleans up the live row it writes", () => {
+  const script = readFileSync(path.join(repoRoot, "test-supabase.js"), "utf8");
+
+  assert.match(script, /\.delete\(\)/);
+  assert.match(script, /Cleanup DELETE succeeded/);
+  assert.match(script, /SELECT, INSERT, and cleanup DELETE worked/);
 });

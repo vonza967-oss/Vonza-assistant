@@ -81,7 +81,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   }
 }
 
-export async function listAgentMessages(supabase, agentId) {
+export async function listAgentMessages(supabase, agentId, options = {}) {
   const normalizedAgentId = cleanText(agentId);
 
   if (!normalizedAgentId) {

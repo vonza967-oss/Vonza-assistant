@@ -7,6 +7,7 @@ import {
   buildReplyDraft,
   classifyInboxThread,
   createGoogleConnectionStart,
+  sendDueCampaignSteps,
   suggestCalendarSlots,
 } from "../src/services/operator/operatorWorkspaceService.js";
 
@@ -61,7 +62,7 @@ test("reply draft generation stays approval-first and complaint aware", () => {
   assert.match(draft.body, /make this right/i);
 });
 
-test("google connection start requests Gmail inbox scopes by default", async () => {
+test("google connection start defaults to minimal identity and read-only calendar scopes", async () => {
   const previousEnv = {
     GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
@@ -96,11 +97,122 @@ test("google connection start requests Gmail inbox scopes by default", async () 
 
     const scope = new URL(result.authUrl).searchParams.get("scope") || "";
 
-    assert.match(scope, /gmail\.readonly/);
-    assert.match(scope, /gmail\.compose/);
-    assert.match(scope, /gmail\.send/);
+    assert.match(scope, /openid/);
+    assert.match(scope, /email/);
+    assert.match(scope, /profile/);
+    assert.match(scope, /calendar\.readonly/);
+    assert.doesNotMatch(scope, /gmail\.readonly/);
+    assert.doesNotMatch(scope, /gmail\.compose/);
+    assert.doesNotMatch(scope, /gmail\.send/);
     assert.equal(inserts[0]?.tableName, "google_oauth_states");
     assert.equal(inserts[1]?.tableName, "operator_audit_logs");
+  } finally {
+    if (previousEnv.GOOGLE_CLIENT_ID === undefined) {
+      delete process.env.GOOGLE_CLIENT_ID;
+    } else {
+      process.env.GOOGLE_CLIENT_ID = previousEnv.GOOGLE_CLIENT_ID;
+    }
+
+    if (previousEnv.GOOGLE_CLIENT_SECRET === undefined) {
+      delete process.env.GOOGLE_CLIENT_SECRET;
+    } else {
+      process.env.GOOGLE_CLIENT_SECRET = previousEnv.GOOGLE_CLIENT_SECRET;
+    }
+
+    if (previousEnv.GOOGLE_OAUTH_REDIRECT_URI === undefined) {
+      delete process.env.GOOGLE_OAUTH_REDIRECT_URI;
+    } else {
+      process.env.GOOGLE_OAUTH_REDIRECT_URI = previousEnv.GOOGLE_OAUTH_REDIRECT_URI;
+    }
+
+    if (previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET === undefined) {
+      delete process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET;
+    } else {
+      process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET;
+    }
+  }
+});
+
+test("campaign sending fails before lookup without Gmail send capability", async () => {
+  const previousEnv = {
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
+    GOOGLE_TOKEN_ENCRYPTION_SECRET: process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET,
+  };
+  let campaignLookupAttempted = false;
+  const supabase = {
+    from(tableName) {
+      return {
+        filters: [],
+        select() {
+          return this;
+        },
+        eq(field, value) {
+          this.filters.push({ field, value });
+          return this;
+        },
+        order() {
+          return this;
+        },
+        async then(resolve, reject) {
+          try {
+            if (tableName === "google_connected_accounts") {
+              return resolve({
+                data: [
+                  {
+                    id: "account-1",
+                    agent_id: "agent-1",
+                    business_id: "business-1",
+                    owner_user_id: "owner-1",
+                    provider: "google",
+                    account_email: "owner@example.com",
+                    scopes: [
+                      "openid",
+                      "email",
+                      "profile",
+                      "https://www.googleapis.com/auth/calendar.readonly",
+                    ],
+                    status: "connected",
+                    created_at: "2026-04-01T00:00:00.000Z",
+                  },
+                ],
+                error: null,
+              });
+            }
+
+            if (tableName === "operator_campaigns") {
+              campaignLookupAttempted = true;
+            }
+
+            return resolve({ data: [], error: null });
+          } catch (error) {
+            return reject(error);
+          }
+        },
+      };
+    },
+  };
+
+  process.env.GOOGLE_CLIENT_ID = "client-id";
+  process.env.GOOGLE_CLIENT_SECRET = "client-secret";
+  process.env.GOOGLE_OAUTH_REDIRECT_URI = "https://example.com/google/oauth/callback";
+  process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = "test-secret";
+
+  try {
+    await assert.rejects(
+      sendDueCampaignSteps(supabase, {
+        agent: {
+          id: "agent-1",
+          businessId: "business-1",
+        },
+        ownerUserId: "owner-1",
+        campaignId: "campaign-1",
+      }),
+      (error) => error.statusCode === 409 && /gmail send access/i.test(error.message)
+    );
+
+    assert.equal(campaignLookupAttempted, false);
   } finally {
     if (previousEnv.GOOGLE_CLIENT_ID === undefined) {
       delete process.env.GOOGLE_CLIENT_ID;

@@ -30,6 +30,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey);
 
 async function run() {
   console.log(`Testing Supabase read/write using table: ${tableName}`);
+  let insertedId = null;
 
   const { data: selectData, error: selectError } = await supabase
     .from(tableName)
@@ -50,18 +51,35 @@ async function run() {
     website_url: `https://supabase-test-${Date.now()}.local`,
   };
 
-  const { data: insertData, error: insertError } = await supabase
-    .from(tableName)
-    .insert(insertPayload)
-    .select("id, name, website_url, created_at")
-    .single();
+  try {
+    const { data: insertData, error: insertError } = await supabase
+      .from(tableName)
+      .insert(insertPayload)
+      .select("id, name, website_url, created_at")
+      .single();
 
-  if (insertError) {
-    fail("INSERT query failed.", insertError);
+    if (insertError) {
+      fail("INSERT query failed.", insertError);
+    }
+
+    insertedId = insertData?.id || null;
+    console.log("INSERT succeeded.", insertData);
+  } finally {
+    if (insertedId) {
+      const { error: deleteError } = await supabase
+        .from(tableName)
+        .delete()
+        .eq("id", insertedId);
+
+      if (deleteError) {
+        fail("Cleanup DELETE failed after INSERT.", deleteError);
+      }
+
+      console.log("Cleanup DELETE succeeded.", { id: insertedId });
+    }
   }
 
-  console.log("INSERT succeeded.", insertData);
-  console.log("Supabase test passed: both SELECT and INSERT worked.");
+  console.log("Supabase test passed: SELECT, INSERT, and cleanup DELETE worked.");
 }
 
 run().catch((error) => {

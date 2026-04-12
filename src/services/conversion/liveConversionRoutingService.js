@@ -434,11 +434,22 @@ export function evaluateLiveConversionRouting(options = {}) {
   );
   const route = intentRoute || fallbackRoute;
   const sessionContext = options.sessionContext || {};
-  const relatedActionKey = cleanText(sessionContext.triggerItem?.key || sessionContext.latestSessionItem?.key);
-  const relatedConversationId = relatedActionKey || `session:${cleanText(options.sessionKey)}`;
   const recentEvents = (options.recentWidgetEvents || []).map((row) => normalizeRoutingEvent(row));
   const leadCapture = options.leadCapture && typeof options.leadCapture === "object" ? options.leadCapture : null;
   const fallbackCaptureAvailable = leadCapture?.shouldPrompt === true;
+  const relatedActionKey = cleanText(
+    sessionContext.triggerItem?.key ||
+    sessionContext.latestSessionItem?.key ||
+    leadCapture?.latestActionKey
+  );
+  const relatedMessageId = cleanText(
+    sessionContext.latestSessionItem?.messageId ||
+    leadCapture?.latestMessageId
+  );
+  const relatedPersonKey = cleanText(sessionContext.personKey || leadCapture?.personKey);
+  const relatedLeadId = cleanText(leadCapture?.id);
+  const relatedFollowUpId = cleanText(leadCapture?.relatedFollowUpId);
+  const relatedConversationId = relatedActionKey || `session:${cleanText(options.sessionKey)}`;
 
   if (!route) {
     return {
@@ -449,8 +460,10 @@ export function evaluateLiveConversionRouting(options = {}) {
       shouldStayInChat: true,
       relatedActionKey,
       relatedConversationId,
-      relatedMessageId: cleanText(sessionContext.latestSessionItem?.messageId),
-      relatedPersonKey: cleanText(sessionContext.personKey),
+      relatedMessageId,
+      relatedPersonKey,
+      relatedLeadId,
+      relatedFollowUpId,
     };
   }
 
@@ -472,8 +485,10 @@ export function evaluateLiveConversionRouting(options = {}) {
       shouldStayInChat: true,
       relatedActionKey,
       relatedConversationId,
-      relatedMessageId: cleanText(sessionContext.latestSessionItem?.messageId),
-      relatedPersonKey: cleanText(sessionContext.personKey),
+      relatedMessageId,
+      relatedPersonKey,
+      relatedLeadId,
+      relatedFollowUpId,
     };
   }
 
@@ -487,8 +502,10 @@ export function evaluateLiveConversionRouting(options = {}) {
       shouldStayInChat: true,
       relatedActionKey,
       relatedConversationId,
-      relatedMessageId: cleanText(sessionContext.latestSessionItem?.messageId),
-      relatedPersonKey: cleanText(sessionContext.personKey),
+      relatedMessageId,
+      relatedPersonKey,
+      relatedLeadId,
+      relatedFollowUpId,
     };
   }
 
@@ -514,7 +531,9 @@ export function evaluateLiveConversionRouting(options = {}) {
     },
     relatedActionKey,
     relatedConversationId,
-    relatedMessageId: cleanText(sessionContext.latestSessionItem?.messageId),
-    relatedPersonKey: cleanText(sessionContext.personKey),
+    relatedMessageId,
+    relatedPersonKey,
+    relatedLeadId,
+    relatedFollowUpId,
   };
 }

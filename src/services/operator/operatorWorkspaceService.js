@@ -90,11 +90,6 @@ export const GOOGLE_OPERATOR_OPTIONAL_SCOPES = [
   GOOGLE_SCOPE_GMAIL_SEND,
 ];
 
-const GOOGLE_OPERATOR_RECOMMENDED_SCOPES = uniqueText([
-  ...GOOGLE_OPERATOR_SCOPES,
-  ...GOOGLE_OPERATOR_OPTIONAL_SCOPES,
-]);
-
 export const INBOX_CLASSIFICATIONS = [
   "lead_sales",
   "booking",
@@ -1679,7 +1674,7 @@ export async function createGoogleConnectionStart(supabase, options = {}) {
     throw error;
   }
 
-  const scopes = uniqueText(options.scopes?.length ? options.scopes : GOOGLE_OPERATOR_RECOMMENDED_SCOPES);
+  const scopes = uniqueText(options.scopes?.length ? options.scopes : GOOGLE_OPERATOR_SCOPES);
   const stateToken = randomBytes(24).toString("base64url");
   const stateHash = hashToken(stateToken);
   const redirectUri = getGoogleOAuthRedirectUri();
@@ -5402,6 +5397,14 @@ export async function sendDueCampaignSteps(supabase, options = {}, deps = {}) {
 
   if (!account || account.status !== "connected") {
     const error = new Error("Connect Google before sending campaign steps.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (!getAccountCapabilities(account).gmailSend) {
+    const error = new Error(
+      "This Google connection does not include Gmail send access. Reconnect with Gmail send access before sending campaign steps."
+    );
     error.statusCode = 409;
     throw error;
   }

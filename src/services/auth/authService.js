@@ -14,7 +14,9 @@ export async function getAuthenticatedUser(supabase, req) {
   const accessToken = getBearerToken(req);
 
   if (!accessToken) {
-    return null;
+    const authError = new Error("Unauthorized");
+    authError.statusCode = 401;
+    throw authError;
   }
 
   const { data, error } = await supabase.auth.getUser(accessToken);
@@ -27,4 +29,3 @@ export async function getAuthenticatedUser(supabase, req) {
 
   return data.user;
 }
-
