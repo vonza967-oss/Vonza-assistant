@@ -1,8 +1,6 @@
 import { resolveAgentContext } from "../agents/agentService.js";
 import {
-  getWidgetInstallContextByInstallId,
-  isOriginAllowed,
-  logWidgetInitFailure,
+  requireAllowedInstallOrigin,
 } from "../install/installPresenceService.js";
 import {
   getStoredWebsiteContent,
@@ -97,32 +95,14 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
 
 async function resolveWidgetConversationContext(supabase, options = {}) {
   const installId = cleanText(options.installId);
-  const requestedOrigin = cleanText(options.origin);
   const pageUrl = cleanText(options.pageUrl);
 
   if (installId) {
-    const installContext = await getWidgetInstallContextByInstallId(supabase, installId);
-
-    if (!installContext?.agent || !installContext.business) {
-      const error = new Error("Install not found");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    if (requestedOrigin && !isOriginAllowed(requestedOrigin, installContext.allowedDomains)) {
-      logWidgetInitFailure({
-        reason: "domain_blocked",
-        installId,
-        origin: requestedOrigin,
-        pageUrl,
-        allowedDomains: installContext.allowedDomains,
-        message: "Origin is not on the install allowlist.",
-      });
-      const error = new Error("This website origin is not allowed for the current install.");
-      error.statusCode = 403;
-      error.code = "domain_blocked";
-      throw error;
-    }
+    const installContext = await requireAllowedInstallOrigin(supabase, {
+      installId,
+      origin: options.origin,
+      pageUrl,
+    });
 
     return resolveAgentContext(supabase, {
       agentId: installContext.agent.id,
@@ -138,6 +118,24 @@ async function resolveWidgetConversationContext(supabase, options = {}) {
     businessId: options.businessId,
     websiteUrl: options.websiteUrl,
     businessName: options.businessName,
+  });
+}
+
+function logChatMetadata(eventName, payload = {}) {
+  console.info(`[chat] ${eventName}`, {
+    agentId: cleanText(payload.agentId) || null,
+    businessId: cleanText(payload.businessId) || null,
+    installId: cleanText(payload.installId) || null,
+    sessionKey: cleanText(payload.sessionKey) || null,
+    originPresent: Boolean(cleanText(payload.origin)),
+    pageUrlPresent: Boolean(cleanText(payload.pageUrl)),
+    messageLength: Number(payload.messageLength || 0),
+    historyCount: Number(payload.historyCount || 0),
+    businessContextLength: Number(payload.businessContextLength || 0),
+    replyLength: Number(payload.replyLength || 0),
+    repairIssueCount: Number(payload.repairIssueCount || 0),
+    leadCaptureState: cleanText(payload.leadCaptureState) || null,
+    routingMode: cleanText(payload.routingMode) || null,
   });
 }
 
@@ -211,8 +209,6 @@ export async function handleChatRequest({
   openai,
   body,
 }) {
-  console.log("FULL BODY:", body);
-
   const message = body.message;
   const agentId = body.agent_id || body.agentId;
   const agentKey = body.agent_key || body.agentKey;
@@ -233,10 +229,6 @@ export async function handleChatRequest({
   const normalizedMessage = cleanText(message || "");
   const language = detectResponseLanguage(normalizedMessage);
   const conversationGuidance = buildConversationGuidance(message, history);
-
-  console.log("USER MESSAGE:", message);
-  console.log("CHAT HISTORY:", history);
-  console.log("CONVERSATION GUIDANCE:", conversationGuidance);
 
   if (!message || !String(message).trim()) {
     const error = new Error("Message cannot be empty.");
@@ -312,10 +304,20 @@ export async function handleChatRequest({
       widgetConfig,
     }
   );
-
-  console.log("CHAT BUSINESS CONTEXT:", businessContext);
+  logChatMetadata("request_prepared", {
+    agentId: agent.id,
+    businessId: business.id,
+    installId,
+    sessionKey,
+    origin,
+    pageUrl,
+    messageLength: normalizedMessage.length,
+    historyCount: history.length,
+    businessContextLength: businessContext.length,
+  });
 
   const systemPrompt = buildChatSystemPrompt(language, agent);
+  const openaiClient = typeof openai === "function" ? openai() : openai;
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,
     widgetConfig,
@@ -324,7 +326,7 @@ export async function handleChatRequest({
     visitorIdentity,
   });
   let finalReply = await generateAssistantReply({
-    openai,
+    openai: openaiClient,
     userMessage: message,
     history,
     systemPrompt,
@@ -343,8 +345,18 @@ export async function handleChatRequest({
     repair: {
       getIssues: (reply) => {
         const issues = getReplyRepairIssues(reply, language);
-        console.log("INITIAL MODEL REPLY:", reply);
-        console.log("REPLY REPAIR ISSUES:", issues);
+        logChatMetadata("reply_repair_checked", {
+          agentId: agent.id,
+          businessId: business.id,
+          installId,
+          sessionKey,
+          origin,
+          pageUrl,
+          messageLength: normalizedMessage.length,
+          historyCount: history.length,
+          replyLength: cleanText(reply).length,
+          repairIssueCount: issues.length,
+        });
         return issues;
       },
       buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
@@ -360,8 +372,6 @@ export async function handleChatRequest({
     });
     finalReply = buildMissingVerifiedContactReply(language);
   }
-
-  console.log("FINAL REPLY:", finalReply);
 
   const leadCapture = await processLiveChatLeadCapture(supabase, {
     agent,
@@ -395,6 +405,19 @@ export async function handleChatRequest({
     intentType: directRouting?.intentType || "",
     ctaType: directRouting?.primaryCta?.ctaType || "",
     suppressReason: directRouting?.suppressReason || "",
+  });
+  logChatMetadata("response_ready", {
+    agentId: agent.id,
+    businessId: websiteContent.businessId,
+    installId,
+    sessionKey,
+    origin,
+    pageUrl,
+    messageLength: normalizedMessage.length,
+    historyCount: history.length,
+    replyLength: finalReply.length,
+    leadCaptureState: leadCapture?.state,
+    routingMode: directRouting?.mode,
   });
 
   return buildChatResponse({

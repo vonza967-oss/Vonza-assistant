@@ -10,14 +10,16 @@ import { enforceChatRateLimit } from "../utils/httpGuards.js";
 
 export function createChatRouter(deps = {}) {
   const router = express.Router();
+  const getSupabase = deps.getSupabaseClient || getSupabaseClient;
+  const getOpenAI = deps.getOpenAIClient || getOpenAIClient;
   const handleChatRequestImpl = deps.handleChatRequest || handleChatRequest;
   const handleLeadCaptureRequestImpl = deps.handleLeadCaptureRequest || handleLeadCaptureRequest;
 
   router.post("/chat", enforceChatRateLimit, async (req, res) => {
     try {
       const result = await handleChatRequestImpl({
-        supabase: getSupabaseClient(),
-        openai: getOpenAIClient(),
+        supabase: getSupabase(),
+        openai: getOpenAI,
         body: req.body,
       });
 
@@ -33,7 +35,7 @@ export function createChatRouter(deps = {}) {
   router.post("/chat/capture", enforceChatRateLimit, async (req, res) => {
     try {
       const result = await handleLeadCaptureRequestImpl({
-        supabase: getSupabaseClient(),
+        supabase: getSupabase(),
         body: req.body,
       });
 

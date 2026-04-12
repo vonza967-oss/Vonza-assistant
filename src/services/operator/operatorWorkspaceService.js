@@ -1866,6 +1866,51 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
     accountRow = data;
   }
 
+  const connectedAccount = mapConnectedAccountRow(accountRow);
+  try {
+    await patchOperatorActivationState(supabase, {
+      agent: {
+        id: connectedAccount.agentId,
+        businessId: connectedAccount.businessId,
+      },
+      ownerUserId: connectedAccount.ownerUserId,
+      changes: {
+        googleConnected: true,
+        calendarContextSelected: true,
+        metadata: {
+          googleConnectedAt: new Date().toISOString(),
+          selectedMailbox: connectedAccount.selectedMailbox || MAILBOX_FALLBACK,
+          grantedScopes: connectedAccount.scopes || [],
+          grantedCapabilities: connectedAccount.capabilities || {},
+          googleConnectionMode: connectedAccount.capabilities?.calendarWrite ? "read_write" : "calendar_read_only",
+        },
+      },
+    });
+  } catch (activationError) {
+    await Promise.allSettled([
+      supabase
+        .from(CONNECTED_ACCOUNT_TABLE)
+        .update({
+          status: "error",
+          last_error: cleanText(activationError.message) || "Activation update failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", connectedAccount.id),
+      supabase
+        .from(GOOGLE_OAUTH_STATE_TABLE)
+        .update({
+          status: "failed",
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...(stateRecord.metadata && typeof stateRecord.metadata === "object" ? stateRecord.metadata : {}),
+            activationError: cleanText(activationError.message) || "Activation update failed",
+          },
+        })
+        .eq("id", stateRecord.id),
+    ]);
+    throw activationError;
+  }
+
   await supabase
     .from(GOOGLE_OAUTH_STATE_TABLE)
     .update({
@@ -1875,7 +1920,6 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
     })
     .eq("id", stateRecord.id);
 
-  const connectedAccount = mapConnectedAccountRow(accountRow);
   await writeAuditLog(supabase, {
     agentId: connectedAccount.agentId,
     businessId: connectedAccount.businessId,
@@ -1890,25 +1934,6 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
       scopes,
       selectedMailbox: connectedAccount.selectedMailbox,
       accountEmail: connectedAccount.accountEmail,
-    },
-  });
-
-  await patchOperatorActivationState(supabase, {
-    agent: {
-      id: connectedAccount.agentId,
-      businessId: connectedAccount.businessId,
-    },
-    ownerUserId: connectedAccount.ownerUserId,
-    changes: {
-      googleConnected: true,
-      calendarContextSelected: true,
-      metadata: {
-        googleConnectedAt: new Date().toISOString(),
-        selectedMailbox: connectedAccount.selectedMailbox || MAILBOX_FALLBACK,
-        grantedScopes: connectedAccount.scopes || [],
-        grantedCapabilities: connectedAccount.capabilities || {},
-        googleConnectionMode: connectedAccount.capabilities?.calendarWrite ? "read_write" : "calendar_read_only",
-      },
     },
   });
 

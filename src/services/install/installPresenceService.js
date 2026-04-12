@@ -442,6 +442,43 @@ export async function getWidgetInstallContextByInstallId(supabase, installId) {
   };
 }
 
+export async function requireAllowedInstallOrigin(supabase, options = {}) {
+  const installId = cleanText(options.installId);
+  const origin = cleanText(options.origin);
+  const pageUrl = cleanText(options.pageUrl);
+  const context = await getWidgetInstallContextByInstallId(supabase, installId);
+
+  if (!context) {
+    const error = new Error("Install not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!origin) {
+    const error = new Error("origin is required for installed widget requests.");
+    error.statusCode = 400;
+    error.code = "origin_required";
+    throw error;
+  }
+
+  if (!isOriginAllowed(origin, context.allowedDomains)) {
+    logWidgetInitFailure({
+      reason: "domain_blocked",
+      installId,
+      origin,
+      pageUrl,
+      allowedDomains: context.allowedDomains,
+      message: "Origin is not on the install allowlist.",
+    });
+    const error = new Error("Origin is not allowed for this install.");
+    error.statusCode = 403;
+    error.code = "domain_blocked";
+    throw error;
+  }
+
+  return context;
+}
+
 export async function getWidgetInstallContextByAgentId(supabase, agentId) {
   const normalizedAgentId = cleanText(agentId);
   const widgetConfigRow = await getWidgetConfigRowByAgentId(supabase, normalizedAgentId);

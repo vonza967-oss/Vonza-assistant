@@ -938,7 +938,9 @@ export async function listAgents(supabase, options = {}) {
   if (normalizedOwnerUserId) {
     query = query.eq("owner_user_id", normalizedOwnerUserId);
   } else {
-    query = query.eq("client_id", normalizedClientId);
+    query = query
+      .eq("client_id", normalizedClientId)
+      .is("owner_user_id", null);
   }
 
   const { data, error } = await query;
@@ -1808,6 +1810,12 @@ export async function requireAgentAccess(supabase, options = {}) {
     return agent;
   }
 
+  if (cleanText(agent.ownerUserId)) {
+    const error = new Error("Authenticated owner is required");
+    error.statusCode = 401;
+    throw error;
+  }
+
   if (normalizedClientId && cleanText(agent.clientId) === normalizedClientId) {
     return agent;
   }
@@ -1815,6 +1823,21 @@ export async function requireAgentAccess(supabase, options = {}) {
   const error = new Error("Forbidden");
   error.statusCode = 403;
   throw error;
+}
+
+export async function requirePreClaimAgentAccess(supabase, options = {}) {
+  const agent = await requireAgentAccess(supabase, {
+    agentId: options.agentId,
+    clientId: options.clientId,
+  });
+
+  if (cleanText(agent.ownerUserId)) {
+    const error = new Error("Authenticated owner is required");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  return agent;
 }
 
 export async function requireActiveAgentAccess(supabase, options = {}) {

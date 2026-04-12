@@ -62,7 +62,9 @@ let visitorIdentity = {
   email: "",
   name: "",
 };
+let lastLeadReferenceMessage = "";
 const sentTelemetryKeys = new Set();
+const leadCapturePromptShownKeys = new Set();
 const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
 
@@ -451,6 +453,19 @@ function bindDirectRoutingInteractions(slot, routing) {
   if (continueButton) {
     continueButton.addEventListener("click", () => {
       rememberDismissedRoute(routing.decisionKey);
+      if (trimText(routing.continueButton?.action) === "reveal_capture" && liveLeadCapture?.shouldPrompt) {
+        renderLeadCapture(liveLeadCapture, { force: true });
+        void trackWidgetEvent("capture_fallback_offered", {
+          relatedConversationId: trimText(routing.relatedConversationId || ""),
+          relatedIntentType: trimText(routing.intentType || ""),
+          relatedActionKey: trimText(routing.relatedActionKey || ""),
+        }, {
+          dedupeKey: `${INSTALL_ID}::capture_fallback_offered::${trimText(routing.decisionKey || getVisitorSessionKey())}`,
+        });
+        setComposerStatus("The visitor can leave a contact detail here without leaving chat.");
+        return;
+      }
+
       renderDirectRouting(null);
       setComposerStatus("No problem. We can keep going here in chat.");
     });
@@ -523,8 +538,167 @@ function renderDirectRouting(routing) {
   });
 }
 
-function renderLeadCapture(leadCapture) {
+function bindLeadCaptureInteractions(slot, leadCapture) {
+  const form = slot.querySelector("[data-lead-capture-form]");
+  const declineButton = slot.querySelector("[data-lead-capture-decline]");
+
+  if (form) {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      await submitLeadCaptureAction("submit", {
+        name: formData.get("name"),
+        email: formData.get("email"),
+        phone: formData.get("phone"),
+        preferred_channel: formData.get("preferred_channel"),
+      });
+    });
+  }
+
+  if (declineButton) {
+    declineButton.addEventListener("click", async () => {
+      await submitLeadCaptureAction("decline");
+    });
+  }
+
+  const promptShownKey = trimText(leadCapture?.id) || `${getVisitorSessionKey()}::${trimText(leadCapture?.trigger)}`;
+  if (leadCapture?.shouldPrompt && !leadCapturePromptShownKeys.has(promptShownKey)) {
+    leadCapturePromptShownKeys.add(promptShownKey);
+    void submitLeadCaptureAction("prompt_shown", {}, { silent: true });
+  }
+}
+
+function renderLeadCapture(leadCapture, options = {}) {
+  const slot = getDirectRoutingSlot();
   liveLeadCapture = leadCapture && typeof leadCapture === "object" ? leadCapture : null;
+
+  if (!slot || !liveLeadCapture) {
+    return;
+  }
+
+  const state = trimText(liveLeadCapture.state).toLowerCase();
+  const directRouteVisible = Boolean(
+    liveDirectRouting
+    && ["direct_cta", "direct_then_capture"].includes(trimText(liveDirectRouting.mode))
+    && liveDirectRouting.primaryCta
+    && !isRouteDismissed(liveDirectRouting.decisionKey)
+  );
+
+  if (directRouteVisible && options.force !== true) {
+    return;
+  }
+
+  if (state === "captured") {
+    slot.hidden = false;
+    slot.innerHTML = `
+      <article class="lead-capture-card success">
+        <p class="lead-capture-eyebrow">Follow-up saved</p>
+        <h3 class="lead-capture-title">The owner has a contact path now.</h3>
+        <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.message) || "Thanks. I saved the contact details so the team can follow up from here.")}</p>
+        <p class="lead-capture-contact">${escapeHtml([
+          trimText(liveLeadCapture.contact?.name),
+          trimText(liveLeadCapture.contact?.email),
+          trimText(liveLeadCapture.contact?.phone),
+        ].filter(Boolean).join(" · "))}</p>
+      </article>
+    `;
+    return;
+  }
+
+  if (!liveLeadCapture.shouldPrompt) {
+    return;
+  }
+
+  slot.hidden = false;
+  slot.innerHTML = `
+    <article class="lead-capture-card">
+      <p class="lead-capture-eyebrow">Follow-up details</p>
+      <h3 class="lead-capture-title">Keep the next step warm</h3>
+      <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.prompt?.body) || "What is the best email or phone number to use?")}</p>
+      <form class="lead-capture-form" data-lead-capture-form>
+        <div class="lead-capture-grid">
+          <div class="lead-capture-field">
+            <label for="lead-capture-name">Name</label>
+            <input id="lead-capture-name" name="name" autocomplete="name" value="${escapeHtml(trimText(liveLeadCapture.contact?.name))}">
+          </div>
+          <div class="lead-capture-field">
+            <label for="lead-capture-channel">Best channel</label>
+            <select id="lead-capture-channel" name="preferred_channel">
+              <option value="">Either is fine</option>
+              <option value="email" ${trimText(liveLeadCapture.preferredChannel) === "email" ? "selected" : ""}>Email</option>
+              <option value="phone" ${trimText(liveLeadCapture.preferredChannel) === "phone" ? "selected" : ""}>Phone</option>
+            </select>
+          </div>
+          <div class="lead-capture-field">
+            <label for="lead-capture-email">Email</label>
+            <input id="lead-capture-email" name="email" type="email" autocomplete="email" value="${escapeHtml(trimText(liveLeadCapture.contact?.email))}">
+          </div>
+          <div class="lead-capture-field">
+            <label for="lead-capture-phone">Phone</label>
+            <input id="lead-capture-phone" name="phone" autocomplete="tel" value="${escapeHtml(trimText(liveLeadCapture.contact?.phone))}">
+          </div>
+        </div>
+        <div class="lead-capture-actions">
+          <button type="submit" id="lead-capture-submit" data-lead-capture-submit>Save follow-up</button>
+          <button type="button" class="ghost-button" data-lead-capture-decline>Not now</button>
+        </div>
+      </form>
+    </article>
+  `;
+  bindLeadCaptureInteractions(slot, liveLeadCapture);
+}
+
+async function submitLeadCaptureAction(action, fields = {}, options = {}) {
+  if (!liveLeadCapture || !trimText(action)) {
+    return null;
+  }
+
+  try {
+    const response = await fetch("/chat/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        agent_id: resolvedAgentId,
+        agent_key: resolvedAgentKey,
+        business_id: resolvedBusinessId,
+        install_id: INSTALL_ID,
+        website_url: WEBSITE_URL,
+        page_url: getPageUrl(),
+        origin: getPageOrigin(),
+        visitor_session_key: getVisitorSessionKey(),
+        reference_message: lastLeadReferenceMessage,
+        ...buildVisitorIdentityPayload(),
+        ...fields,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Capture request failed");
+    }
+
+    if (options.silent === true) {
+      return data.leadCapture || null;
+    }
+
+    renderLeadCapture(data.leadCapture || null, { force: true });
+    if (trimText(data.leadCapture?.message)) {
+      appendMessage(document.getElementById("chat"), "bot", data.leadCapture.message);
+    }
+    setComposerStatus(
+      trimText(data.leadCapture?.state).toLowerCase() === "captured"
+        ? "Contact details are saved for owner follow-up."
+        : "No problem. The visitor can keep chatting here."
+    );
+    return data.leadCapture || null;
+  } catch (error) {
+    if (options.silent !== true) {
+      setComposerStatus("Those contact details could not be saved just now. Try again in a moment.");
+    }
+    console.warn("Vonza lead capture failed:", error);
+    return null;
+  }
 }
 
 async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
@@ -769,6 +943,7 @@ async function sendMessage() {
   }
 
   appendMessage(chat, "user", message);
+  lastLeadReferenceMessage = message;
   input.value = "";
   button.disabled = true;
   input.disabled = true;
@@ -795,13 +970,13 @@ async function sendMessage() {
         business_id: resolvedBusinessId,
         install_id: INSTALL_ID,
         website_url: WEBSITE_URL,
-      page_url: getPageUrl(),
-      origin: getPageOrigin(),
-      visitor_session_key: sessionKey,
-      history: historySnapshot,
-      ...buildVisitorIdentityPayload(),
-    }),
-  });
+        page_url: getPageUrl(),
+        origin: getPageOrigin(),
+        visitor_session_key: sessionKey,
+        history: historySnapshot,
+        ...buildVisitorIdentityPayload(),
+      }),
+    });
 
     const data = await res.json();
 
@@ -828,11 +1003,13 @@ async function sendMessage() {
     addToHistory("assistant", data.reply);
     liveLeadCapture = data.leadCapture || null;
     renderDirectRouting(data.directRouting || null);
-    renderLeadCapture(liveLeadCapture);
+    renderLeadCapture(liveLeadCapture, {
+      force: trimText(data.directRouting?.mode) === "capture_only",
+    });
     if (trimText(data.leadCapture?.state).toLowerCase() === "captured") {
       void trackWidgetEvent("contact_captured", {
         preferredChannel: trimText(data.leadCapture?.preferredChannel || ""),
-        contactHash: trimText(data.leadCapture?.contact?.email || data.leadCapture?.contact?.phone || data.leadCapture?.id || ""),
+        contactPresent: Boolean(trimText(data.leadCapture?.contact?.email || data.leadCapture?.contact?.phone)),
       }, {
         dedupeKey: `${INSTALL_ID}::contact_captured::${sessionKey}::${trimText(data.leadCapture?.id || "")}`,
       });
@@ -841,7 +1018,6 @@ async function sendMessage() {
       "message_replied",
       {
         replyLength: trimText(data.reply).length,
-        replyHash: trimText(data.reply).slice(0, 48),
       },
       {
         dedupeKey: `${INSTALL_ID}::message_replied::${sessionKey}::${conversationHistory.length}`,

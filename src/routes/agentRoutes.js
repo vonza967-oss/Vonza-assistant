@@ -13,6 +13,7 @@ import {
   listAgents,
   requireActiveAgentAccess,
   requireAgentAccess,
+  requirePreClaimAgentAccess,
   resolveAgentContext,
   updateAgentAccessStatus,
   updateOwnedAccessStatus,
@@ -166,6 +167,7 @@ export function createAgentRouter(deps = {}) {
   const listAgentsImpl = deps.listAgents || listAgents;
   const createAgentForBusinessNameImpl = deps.createAgentForBusinessName || createAgentForBusinessName;
   const requireAgentAccessImpl = deps.requireAgentAccess || requireAgentAccess;
+  const requirePreClaimAgentAccessImpl = deps.requirePreClaimAgentAccess || deps.requireAgentAccess || requirePreClaimAgentAccess;
   const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
   const assertMessagesSchemaReadyImpl = deps.assertMessagesSchemaReady || assertMessagesSchemaReady;
   const assertWidgetTelemetrySchemaReadyImpl =
@@ -1890,7 +1892,7 @@ export function createAgentRouter(deps = {}) {
           clientId: req.body.client_id || req.body.clientId,
         });
       } else {
-        await requireAgentAccessImpl(supabase, {
+        await requirePreClaimAgentAccessImpl(supabase, {
           agentId: context.agent.id,
           clientId: req.body.client_id || req.body.clientId,
         });
