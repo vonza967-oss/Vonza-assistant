@@ -509,6 +509,19 @@ test("chat logging emits metadata without raw conversation or business content",
   assert.match(logged, /messageLength/);
 });
 
+test("website content logging does not expose scraped business text previews", () => {
+  const service = readFileSync(
+    path.join(repoRoot, "src", "services", "scraping", "websiteContentService.js"),
+    "utf8"
+  );
+
+  assert.doesNotMatch(service, /CONTENT LENGTH/);
+  assert.doesNotMatch(service, /content\.slice\(0,\s*500\)/);
+  assert.doesNotMatch(service, /contentPreview/);
+  assert.doesNotMatch(service, /sample images/);
+  assert.match(service, /logScrapeMetadata/);
+});
+
 test("Google OAuth callback completes and updates activation state", async () => {
   await withEnv({
     VONZA_OPERATOR_WORKSPACE_V1: "true",

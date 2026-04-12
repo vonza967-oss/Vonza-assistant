@@ -27,6 +27,17 @@ const MEDIA_BLOCK_PATTERN = new RegExp(
   "i"
 );
 
+function logScrapeMetadata(eventName, metadata = {}) {
+  console.info(`[scrape] ${eventName}`, {
+    pageUrlPresent: Boolean(cleanText(metadata.pageUrl)),
+    businessId: cleanText(metadata.businessId) || null,
+    contentLength: Number(metadata.contentLength || 0),
+    discoveredImageCount: Number(metadata.discoveredImageCount || 0),
+    keptImageCount: Number(metadata.keptImageCount || 0),
+    pageCount: Number(metadata.pageCount || 0),
+  });
+}
+
 function normalizeMediaAsset(asset = {}, fallbackPageUrl = "") {
   const rawUrl = cleanText(asset.url);
   const url = /^https?:\/\//i.test(rawUrl)
@@ -356,7 +367,11 @@ export function extractUsefulImageAssets(html, pageUrl) {
   });
 
   const keptImages = imageAssets.slice(0, 12);
-  console.log(`[image-debug] ${pageUrl} found ${discoveredCount} <img> tags, kept ${keptImages.length}`);
+  logScrapeMetadata("images_extracted", {
+    pageUrl,
+    discoveredImageCount: discoveredCount,
+    keptImageCount: keptImages.length,
+  });
 
   return keptImages;
 }
@@ -458,9 +473,11 @@ export function extractWebsiteContentFromHtml(html, pageUrl) {
     .join("\n\n");
   const content = cleanExtractedContent(structuredContent);
 
-  console.log("CONTENT LENGTH:", content.length);
-  console.log(content.slice(0, 500));
-  console.log(`[image-debug] ${pageUrl} sample images:`, imageUrls.slice(0, 5));
+  logScrapeMetadata("page_extracted", {
+    pageUrl,
+    contentLength: content.length,
+    keptImageCount: imageUrls.length,
+  });
 
   return {
     pageTitle,
@@ -638,7 +655,12 @@ export async function extractBusinessWebsiteContent(supabase, options = {}) {
         }
       : buildFallbackContentRecord(business, pageResults);
 
-  console.log("[image-debug] stored image sample:", extractImageUrlsFromContent(combinedRecord.content).slice(0, 5));
+  logScrapeMetadata("content_ready", {
+    businessId: business.id,
+    contentLength: combinedRecord.content.length,
+    keptImageCount: extractImageUrlsFromContent(combinedRecord.content).length,
+    pageCount: combinedRecord.pageCount,
+  });
 
   await storeWebsiteContent(supabase, combinedRecord);
 
@@ -672,7 +694,6 @@ export async function scrapeAllBusinesses(supabase) {
         pageCount: result.pageCount,
         crawledUrls: result.crawledUrls,
         contentLength: result.content.length,
-        contentPreview: result.content.slice(0, 500),
       });
     } catch (err) {
       results.push({
