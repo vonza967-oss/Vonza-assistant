@@ -43,6 +43,16 @@ test("pricing intent with quote URL shows a quote CTA", () => {
   assert.equal(result.primaryCta.href, "https://example.com/quote");
 });
 
+test("normal pricing questions stay in chat", () => {
+  const result = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "How much does it cost?",
+  }));
+
+  assert.equal(result.mode, "chat_only");
+  assert.equal(result.suppressReason, "chat_answer_preferred");
+  assert.equal(result.shouldStayInChat, true);
+});
+
 test("contact intent prefers call or email CTA first", () => {
   const result = evaluateLiveConversionRouting(buildRoutingOptions({
     userMessage: "Can someone call me back today?",

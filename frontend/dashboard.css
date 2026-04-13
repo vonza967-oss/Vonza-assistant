@@ -4017,6 +4017,20 @@ body {
   margin-top: 12px;
 }
 
+.analytics-question-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.analytics-question-list p {
+  margin: 0;
+}
+
+.analytics-question-list strong {
+  color: white;
+}
+
 .analytics-report-recommendation.tone-positive,
 .analytics-report-swot-item.tone-positive,
 .analytics-report-metric-note.tone-positive {

@@ -88,8 +88,8 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
   }
 
   const summary = metaDescription
-      ? `From the website, this is the clearest detail I have about ${name}: ${metaDescription}`
-      : `I don't have enough detail from the website to answer that confidently about ${name}.`;
+      ? `The clearest detail I have about ${name} is: ${metaDescription}`
+      : `I don't have enough detail to answer that confidently about ${name}.`;
   return `${summary} I can still help with the next step. Are you trying to understand their services, pricing, or how to contact ${siteLabel}?`;
 }
 

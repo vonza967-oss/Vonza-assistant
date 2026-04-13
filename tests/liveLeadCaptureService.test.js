@@ -255,10 +255,10 @@ function buildConversationRows(messages, sessionKey = "session-1", startAt = "20
   return rows;
 }
 
-test("pricing intent triggers a prompt-ready lead capture state", async () => {
+test("normal pricing questions stay AI-handled without contact capture", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([
-      { role: "user", content: "How much does it cost for a quote?" },
+      { role: "user", content: "How much does it cost?" },
       { role: "assistant", content: "Pricing depends on scope, but I can explain the options." },
     ]),
   });
@@ -268,7 +268,31 @@ test("pricing intent triggers a prompt-ready lead capture state", async () => {
     business: buildBusiness(),
     widgetConfig: buildWidgetConfig(),
     sessionKey: "session-1",
-    userMessage: "How much does it cost for a quote?",
+    userMessage: "How much does it cost?",
+    language: "English",
+    pageUrl: "https://example.com/pricing",
+    origin: "https://example.com",
+  });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.shouldPrompt, false);
+  assert.equal(supabase.state.agent_contact_leads.length, 0);
+});
+
+test("explicit quote request triggers a prompt-ready lead capture state", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "Can I get a quote for this project?" },
+      { role: "assistant", content: "I can help with that next step." },
+    ]),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-1",
+    userMessage: "Can I get a quote for this project?",
     language: "English",
     pageUrl: "https://example.com/pricing",
     origin: "https://example.com",
@@ -395,11 +419,11 @@ test("lead capture keeps business contact questions anonymous", async () => {
     language: "English",
   });
 
-  assert.equal(result.state, "prompt_ready");
+  assert.equal(result.state, "none");
+  assert.equal(result.shouldPrompt, false);
   assert.equal(result.contact.email, "");
   assert.equal(result.contact.phone, "");
-  assert.equal(supabase.state.agent_contact_leads[0].contact_email, null);
-  assert.equal(supabase.state.agent_contact_leads[0].contact_phone, null);
+  assert.equal(supabase.state.agent_contact_leads.length, 0);
 });
 
 test("declined capture is respected and not re-prompted immediately", async () => {
@@ -417,7 +441,7 @@ test("declined capture is respected and not re-prompted immediately", async () =
     action: "prompt_shown",
     sessionKey: "session-5",
     language: "English",
-    userMessage: "How much does it cost?",
+    userMessage: "Can I get a quote?",
   });
 
   const declined = await applyLeadCaptureAction(supabase, {
@@ -427,7 +451,7 @@ test("declined capture is respected and not re-prompted immediately", async () =
     action: "decline",
     sessionKey: "session-5",
     language: "English",
-    userMessage: "How much does it cost?",
+    userMessage: "Can I get a quote?",
   });
 
   assert.equal(declined.state, "declined");
@@ -465,7 +489,7 @@ test("successful capture creates a durable lead and updates the follow-up draft"
     action: "prompt_shown",
     sessionKey: "session-6",
     language: "English",
-    userMessage: "How much does it cost?",
+    userMessage: "Can I get a quote?",
   });
 
   const captured = await applyLeadCaptureAction(supabase, {
@@ -475,7 +499,7 @@ test("successful capture creates a durable lead and updates the follow-up draft"
     action: "submit",
     sessionKey: "session-6",
     language: "English",
-    userMessage: "How much does it cost?",
+    userMessage: "Can I get a quote?",
     email: "buyer@example.com",
     name: "Jordan Blake",
     preferredChannel: "email",

@@ -192,7 +192,12 @@ test("widget can continue as guest and build a guest payload", () => {
   const harness = createWidgetHarness();
   const input = harness.elements.get("input");
 
-  assert.equal(input.disabled, true);
+  assert.equal(input.disabled, false);
+  assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
+    mode: "guest",
+    email: "",
+    name: "",
+  });
 
   harness.hooks.continueIntoChat({
     mode: "guest",

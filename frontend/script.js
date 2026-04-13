@@ -258,18 +258,15 @@ function updateComposerAvailability() {
   const input = document.getElementById("input");
   const button = document.getElementById("send-button");
   const inputArea = document.querySelector(".input-area");
-  const identityReady = hasChosenVisitorIdentity();
 
   if (!input || !button || !inputArea) {
     return;
   }
 
-  input.disabled = !identityReady;
-  button.disabled = !identityReady;
-  input.placeholder = identityReady
-    ? "Type here"
-    : "Choose how to continue to start chatting";
-  inputArea.classList.toggle("is-locked", !identityReady);
+  input.disabled = false;
+  button.disabled = false;
+  input.placeholder = "Type here";
+  inputArea.classList.toggle("is-locked", false);
 }
 
 function renderVisitorIdentityGate() {
@@ -281,15 +278,15 @@ function renderVisitorIdentityGate() {
   const identityReady = Boolean(normalized.mode);
 
   if (identityPanel) {
-    identityPanel.hidden = identityReady;
+    identityPanel.hidden = true;
   }
 
   if (welcomeContent) {
-    welcomeContent.hidden = !identityReady;
+    welcomeContent.hidden = false;
   }
 
   if (introMessage) {
-    introMessage.hidden = !identityReady;
+    introMessage.hidden = false;
   }
 
   if (summary) {
@@ -462,14 +459,37 @@ function bindDirectRoutingInteractions(slot, routing) {
         }, {
           dedupeKey: `${INSTALL_ID}::capture_fallback_offered::${trimText(routing.decisionKey || getVisitorSessionKey())}`,
         });
-        setComposerStatus("The visitor can leave a contact detail here without leaving chat.");
+        setComposerStatus("You can share contact details in chat whenever you want.");
         return;
       }
 
       renderDirectRouting(null);
-      setComposerStatus("No problem. We can keep going here in chat.");
+      setComposerStatus("No problem. We can keep going here.");
     });
   }
+}
+
+function getRoutingSuggestionTitle(routing = {}, cta = {}) {
+  const intentType = trimText(routing.intentType);
+  const label = trimText(cta.label);
+
+  if (intentType === "booking") {
+    return "Ready to book?";
+  }
+
+  if (intentType === "quote") {
+    return "Want to request a quote?";
+  }
+
+  if (intentType === "checkout") {
+    return "Ready to continue?";
+  }
+
+  if (intentType === "contact") {
+    return "Want to contact the team?";
+  }
+
+  return label ? `Want to ${label.toLowerCase()}?` : "Want the next step?";
 }
 
 function renderDirectRouting(routing) {
@@ -501,11 +521,10 @@ function renderDirectRouting(routing) {
 
   slot.hidden = false;
   slot.innerHTML = `
-    <article class="lead-capture-card routing-card">
-      <p class="lead-capture-eyebrow">Front desk handoff</p>
-      <h3 class="lead-capture-title">${escapeHtml(trimText(primaryCta.label) || "Next step")}</h3>
-      <p class="lead-capture-copy">${escapeHtml(trimText(liveDirectRouting.reason) || "Vonza found a stronger direct path for this conversation.")}</p>
-      ${trimText(liveDirectRouting.availabilityNote) ? `<p class="lead-capture-meta">${escapeHtml(trimText(liveDirectRouting.availabilityNote))}</p>` : ""}
+    <article class="customer-next-step">
+      <h3 class="customer-next-step-title">${escapeHtml(getRoutingSuggestionTitle(liveDirectRouting, primaryCta))}</h3>
+      <p class="customer-next-step-copy">I can keep helping here, or you can use this direct option.</p>
+      ${trimText(liveDirectRouting.availabilityNote) ? `<p class="customer-next-step-note">${escapeHtml(trimText(liveDirectRouting.availabilityNote))}</p>` : ""}
       <div class="routing-actions">
         <button
           type="button"
@@ -570,6 +589,7 @@ function bindLeadCaptureInteractions(slot, leadCapture) {
 
 function renderLeadCapture(leadCapture, options = {}) {
   const slot = getDirectRoutingSlot();
+  const chat = document.getElementById("chat");
   liveLeadCapture = leadCapture && typeof leadCapture === "object" ? leadCapture : null;
 
   if (!slot || !liveLeadCapture) {
@@ -589,63 +609,32 @@ function renderLeadCapture(leadCapture, options = {}) {
   }
 
   if (state === "captured") {
-    slot.hidden = false;
-    slot.innerHTML = `
-      <article class="lead-capture-card success">
-        <p class="lead-capture-eyebrow">Follow-up saved</p>
-        <h3 class="lead-capture-title">The owner has a contact path now.</h3>
-        <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.message) || "Thanks. I saved the contact details so the team can follow up from here.")}</p>
-        <p class="lead-capture-contact">${escapeHtml([
-          trimText(liveLeadCapture.contact?.name),
-          trimText(liveLeadCapture.contact?.email),
-          trimText(liveLeadCapture.contact?.phone),
-        ].filter(Boolean).join(" · "))}</p>
-      </article>
-    `;
+    slot.hidden = true;
+    slot.innerHTML = "";
+
+    const promptShownKey = `${trimText(liveLeadCapture?.id) || getVisitorSessionKey()}::captured`;
+    if (chat && !leadCapturePromptShownKeys.has(promptShownKey)) {
+      leadCapturePromptShownKeys.add(promptShownKey);
+      appendMessage(chat, "bot", trimText(liveLeadCapture.message) || "Thanks. I saved those details so the team can follow up.");
+    }
     return;
   }
 
   if (!liveLeadCapture.shouldPrompt) {
+    slot.hidden = true;
+    slot.innerHTML = "";
     return;
   }
 
-  slot.hidden = false;
-  slot.innerHTML = `
-    <article class="lead-capture-card">
-      <p class="lead-capture-eyebrow">Follow-up details</p>
-      <h3 class="lead-capture-title">Keep the next step warm</h3>
-      <p class="lead-capture-copy">${escapeHtml(trimText(liveLeadCapture.prompt?.body) || "What is the best email or phone number to use?")}</p>
-      <form class="lead-capture-form" data-lead-capture-form>
-        <div class="lead-capture-grid">
-          <div class="lead-capture-field">
-            <label for="lead-capture-name">Name</label>
-            <input id="lead-capture-name" name="name" autocomplete="name" value="${escapeHtml(trimText(liveLeadCapture.contact?.name))}">
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-channel">Best channel</label>
-            <select id="lead-capture-channel" name="preferred_channel">
-              <option value="">Either is fine</option>
-              <option value="email" ${trimText(liveLeadCapture.preferredChannel) === "email" ? "selected" : ""}>Email</option>
-              <option value="phone" ${trimText(liveLeadCapture.preferredChannel) === "phone" ? "selected" : ""}>Phone</option>
-            </select>
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-email">Email</label>
-            <input id="lead-capture-email" name="email" type="email" autocomplete="email" value="${escapeHtml(trimText(liveLeadCapture.contact?.email))}">
-          </div>
-          <div class="lead-capture-field">
-            <label for="lead-capture-phone">Phone</label>
-            <input id="lead-capture-phone" name="phone" autocomplete="tel" value="${escapeHtml(trimText(liveLeadCapture.contact?.phone))}">
-          </div>
-        </div>
-        <div class="lead-capture-actions">
-          <button type="submit" id="lead-capture-submit" data-lead-capture-submit>Save follow-up</button>
-          <button type="button" class="ghost-button" data-lead-capture-decline>Not now</button>
-        </div>
-      </form>
-    </article>
-  `;
-  bindLeadCaptureInteractions(slot, liveLeadCapture);
+  slot.hidden = true;
+  slot.innerHTML = "";
+
+  const promptShownKey = trimText(liveLeadCapture?.id) || `${getVisitorSessionKey()}::${trimText(liveLeadCapture?.trigger)}`;
+  if (chat && !leadCapturePromptShownKeys.has(promptShownKey)) {
+    leadCapturePromptShownKeys.add(promptShownKey);
+    appendMessage(chat, "bot", trimText(liveLeadCapture.prompt?.body) || "What is the best email or phone number to use?");
+    void submitLeadCaptureAction("prompt_shown", {}, { silent: true });
+  }
 }
 
 async function submitLeadCaptureAction(action, fields = {}, options = {}) {
@@ -683,13 +672,13 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
     }
 
     renderLeadCapture(data.leadCapture || null, { force: true });
-    if (trimText(data.leadCapture?.message)) {
+    if (trimText(data.leadCapture?.message) && trimText(data.leadCapture?.state).toLowerCase() !== "captured") {
       appendMessage(document.getElementById("chat"), "bot", data.leadCapture.message);
     }
     setComposerStatus(
       trimText(data.leadCapture?.state).toLowerCase() === "captured"
-        ? "Contact details are saved for owner follow-up."
-        : "No problem. The visitor can keep chatting here."
+        ? "Contact details saved."
+        : "No problem. We can keep chatting here."
     );
     return data.leadCapture || null;
   } catch (error) {
@@ -919,9 +908,7 @@ async function sendMessage() {
   const historySnapshot = conversationHistory.slice(-6);
 
   if (!hasChosenVisitorIdentity()) {
-    setComposerStatus("Choose how to continue before sending the first message.");
-    document.getElementById("identity-guest-button")?.focus();
-    return;
+    setVisitorIdentityState({ mode: "guest" });
   }
 
   if (!message) return;
@@ -1025,8 +1012,8 @@ async function sendMessage() {
     );
     setComposerStatus(
       trimText(data.directRouting?.primaryCta?.label)
-        ? `${trimText(data.directRouting.primaryCta.label)} is ready if the visitor wants the fastest next step.`
-      : "Ask a follow-up to keep exploring what your visitors would experience."
+        ? "That option is ready if you want the fastest next step."
+      : "Ask anything else about services, pricing, booking, or contact details."
     );
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
@@ -1106,6 +1093,9 @@ if (EMBEDDED_MODE) {
 }
 
 visitorIdentity = loadStoredVisitorIdentity();
+if (!hasChosenVisitorIdentity()) {
+  visitorIdentity = saveVisitorIdentity({ mode: "guest", email: "", name: "" });
+}
 renderVisitorIdentityGate();
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 loadWidgetBootstrap();

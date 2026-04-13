@@ -701,7 +701,8 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
 
   assert.match(script, /function renderLeadCapture/);
-  assert.match(script, /data-lead-capture-submit/);
+  assert.doesNotMatch(script, /data-lead-capture-submit/);
+  assert.match(script, /appendMessage\(chat, "bot"/);
   assert.match(script, /fetch\(\"\/chat\/capture\"/);
   assert.match(script, /reveal_capture/);
   assert.doesNotMatch(script, /contactHash/);

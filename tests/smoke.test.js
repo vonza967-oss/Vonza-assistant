@@ -1252,9 +1252,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Improve service/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /data-today-open-review/);
-        assert.match(dashboardScript.text, /Keep support organized without turning Vonza into a CRM/);
-        assert.match(dashboardScript.text, /Open unresolved only/);
-        assert.match(dashboardScript.text, /Export customers/);
+        assert.match(dashboardScript.text, /Who contacted you, who needs a reply, and what to do next/);
+        assert.match(dashboardScript.text, /Show customers needing help/);
+        assert.doesNotMatch(dashboardScript.text, /Export customers/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
         assert.match(dashboardScript.text, /Website \/ Context/);
@@ -1268,7 +1268,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /What stands out right now/);
         assert.match(dashboardScript.text, /Who Vonza is talking to/);
         assert.match(dashboardScript.text, /Recommended service improvements/);
-        assert.match(dashboardScript.text, /Opportunity snapshot/);
+        assert.match(dashboardScript.text, /Top questions and weak answers/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);
         assert.match(dashboardScript.text, /Attention now/);
@@ -1285,9 +1285,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
 
         const widgetPreview = await getText(server.baseUrl, "/widget");
         assert.equal(widgetPreview.status, 200);
-        assert.match(widgetPreview.text, /Website front desk/i);
-        assert.match(widgetPreview.text, /routes high-intent visitors/i);
-        assert.match(widgetPreview.text, /feeds the operator workspace/i);
+        assert.match(widgetPreview.text, /Customer help/i);
+        assert.match(widgetPreview.text, /Ask a question and get a clear answer/i);
+        assert.doesNotMatch(widgetPreview.text, /operator workspace/i);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);

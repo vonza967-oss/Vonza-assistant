@@ -194,6 +194,32 @@ function detectIntentFromMessage(message = "") {
   };
 }
 
+function shouldOfferDirectRoute(intentType, message = "") {
+  const normalized = cleanText(message).toLowerCase();
+
+  if (!normalized || intentType === "general") {
+    return false;
+  }
+
+  if (intentType === "quote") {
+    return /\b(quote|estimate|proposal)\b|send (me )?(pricing|price)|pricing details|price details/.test(normalized);
+  }
+
+  if (intentType === "booking") {
+    return /\b(book|booking|appointment|schedule|reserve|consultation|demo)\b/.test(normalized);
+  }
+
+  if (intentType === "checkout") {
+    return /\b(checkout|order|buy now|purchase|pay now|cart)\b/.test(normalized);
+  }
+
+  if (intentType === "contact") {
+    return /\b(call me|call back|callback|email me|contact me|reach out|get in touch|talk to|speak to)\b/.test(normalized);
+  }
+
+  return false;
+}
+
 function mapActionTypeToIntent(actionType = "", fallbackIntent = "") {
   switch (cleanText(actionType).toLowerCase()) {
     case "booking_intent":
@@ -425,6 +451,7 @@ function wasRouteAlreadyHandled(events = [], decisionKey = "") {
 export function evaluateLiveConversionRouting(options = {}) {
   const settings = normalizeDirectRoutingSettings(options.widgetConfig);
   const intent = resolveIntent(options);
+  const directRouteAllowed = shouldOfferDirectRoute(intent.intentType, options.userMessage);
   const intentRoute = buildIntentPreferredRoute(intent.intentType, settings, intent.contactPreference);
   const fallbackMode = normalizeCtaMode(settings.fallbackCtaMode, "capture");
   const fallbackRoute = intentRoute ? null : buildConfiguredRoute(
@@ -451,11 +478,14 @@ export function evaluateLiveConversionRouting(options = {}) {
   const relatedFollowUpId = cleanText(leadCapture?.relatedFollowUpId);
   const relatedConversationId = relatedActionKey || `session:${cleanText(options.sessionKey)}`;
 
-  if (!route) {
+  if (!directRouteAllowed || !route) {
     return {
       mode: fallbackCaptureAvailable ? "capture_only" : "chat_only",
       intentType: intent.intentType,
-      reason: buildRoutingReason(intent.intentType, null, ""),
+      reason: directRouteAllowed
+        ? buildRoutingReason(intent.intentType, null, "")
+        : "Vonza answered in chat because the customer has not asked to leave the conversation yet.",
+      suppressReason: directRouteAllowed ? "" : "chat_answer_preferred",
       shouldShowCapture: fallbackCaptureAvailable,
       shouldStayInChat: true,
       relatedActionKey,

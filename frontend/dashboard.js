@@ -3173,11 +3173,11 @@ function buildCustomerFilterDefinitions(contacts = []) {
   const countMatching = (predicate) => contacts.filter(predicate).length;
 
   return [
-    { key: "all", label: "All", count: contacts.length },
+    { key: "all", label: "All customers", count: contacts.length },
     { key: "needs_reply", label: "Needs reply", count: countMatching((contact) => contactNeedsReply(contact)) },
-    { key: "complaints", label: "Complaints", count: countMatching((contact) => isComplaintContact(contact)) },
+    { key: "complaints", label: "Unhappy", count: countMatching((contact) => isComplaintContact(contact)) },
     { key: "leads", label: "Leads", count: countMatching((contact) => isLeadContact(contact)) },
-    { key: "resolved", label: "Resolved", count: countMatching((contact) => isResolvedContact(contact)) },
+    { key: "resolved", label: "Helped", count: countMatching((contact) => isResolvedContact(contact)) },
   ];
 }
 
@@ -3191,7 +3191,7 @@ function buildCustomerSummaryItems(contacts = []) {
       copy: "People waiting on an answer, follow-up, or decision.",
     },
     {
-      label: "Complaints",
+      label: "Unhappy",
       value: countMatching((contact) => isComplaintContact(contact)),
       copy: "Unhappy or at-risk conversations that should not sit idle.",
     },
@@ -3201,7 +3201,7 @@ function buildCustomerSummaryItems(contacts = []) {
       copy: "People showing buying intent or asking for next-step details.",
     },
     {
-      label: "Resolved",
+      label: "Helped",
       value: countMatching((contact) => isResolvedContact(contact)),
       copy: "Threads that currently look closed without urgent follow-up.",
     },
@@ -3443,10 +3443,10 @@ function buildContactDetailPanel(
     summary: `${contact.timeline?.length || 0} interaction${contact.timeline?.length === 1 ? "" : "s"}`,
     className: "customer-detail-disclosure",
     contentMarkup: `
-      <div class="customer-detail-disclosure-section">
+        <div class="customer-detail-disclosure-section">
         ${canDraftReply ? `
           <div class="customer-draft-card">
-            <span class="detail-kv-label">Optional AI draft</span>
+            <span class="detail-kv-label">Reply idea</span>
             <strong>${escapeHtml(getCustomerDraftPreview(contact))}</strong>
           </div>
         ` : ""}
@@ -3463,14 +3463,14 @@ function buildContactDetailPanel(
       ])}
       ${timelineMarkup}
       <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
-        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Customer status</label>
+        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Customer type</label>
         <div class="detail-inline-form-row">
           <select id="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}" name="lifecycle_state">
             ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
               <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
             `).join("")}
           </select>
-          <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>Save status</button>
+          <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>Save</button>
         </div>
       </form>
       ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
@@ -3527,7 +3527,7 @@ function buildContactDetailPanel(
           <strong>${escapeHtml(getCustomerSituationSummary(contact))}</strong>
         </div>
         <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">Vonza suggests</span>
+          <span class="detail-kv-label">Next best step</span>
           <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
         </div>
       </div>
@@ -3588,21 +3588,21 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
     <div class="customers-page-topbar">
       <div class="customers-page-copy">
         <h2 class="customers-page-title">Customers</h2>
-        <p class="customers-page-subtitle">Keep support organized without turning Vonza into a CRM</p>
+        <p class="customers-page-subtitle">Who contacted you, who needs a reply, and what to do next.</p>
       </div>
       <div class="customers-page-actions">
-        <button class="ghost-button customer-utility-button" type="button" data-focus-customer-filters>Filter</button>
-        <button class="ghost-button customer-utility-button customer-utility-button-primary" type="button" data-export-customers>Export customers</button>
+        <button class="ghost-button customer-utility-button" type="button" data-focus-customer-filters>Show filters</button>
       </div>
     </div>
+    ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
     <section class="customer-focus-banner">
-      <p class="workspace-panel-title">See who needs help, who might be lost, and who is becoming a lead, all in one simple workspace.</p>
-      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">Open unresolved only</button>
+      <p class="workspace-panel-title">Focus first on unhappy customers, unanswered questions, and warm leads.</p>
+      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">Show customers needing help</button>
     </section>
     <div class="customer-filter-strip" data-customer-filter-strip>
       ${customerFilters.map((filter, index) => `
         <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-          ${escapeHtml(filter.label)}
+          ${escapeHtml(`${filter.label} (${filter.count})`)}
         </button>
       `).join("")}
     </div>
@@ -7553,7 +7553,7 @@ function buildAnalyticsSummarySentence(report = {}) {
       ? "customer satisfaction looks solid with a few gaps"
       : "customer satisfaction needs attention";
 
-  return `Vonza handled ${formatAnalyticsReportNumber(report.autonomousHandledCount)} of ${formatAnalyticsReportNumber(report.conversationCount)} conversations without owner rescue, ${satisfactionReadout}, and the biggest drop-off risk is ${report.improvementArea}.`;
+  return `Vonza handled ${formatAnalyticsReportNumber(report.autonomousHandledCount)} of ${formatAnalyticsReportNumber(report.conversationCount)} conversations without needing a human reply, ${satisfactionReadout}, and the biggest drop-off risk is ${report.improvementArea}.`;
 }
 
 function buildAnalyticsRecommendations(report = {}) {
@@ -7646,7 +7646,7 @@ function buildAnalyticsSwot(report = {}) {
       copy: report.unresolvedComplaints > 0
         ? "Open complaint recovery work is the biggest trust risk right now."
         : report.lostCustomerRisk === "High"
-          ? "Warm visitors may drop if pricing, booking, or support questions still need owner rescue."
+          ? "Warm visitors may drop if pricing, booking, or support questions still need a human reply."
           : "No major churn threat stands out yet beyond the normal need for more live data.",
     },
   ];
@@ -9440,6 +9440,12 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   report.summarySentence = buildAnalyticsSummarySentence(report);
   report.conversationSeries = buildAnalyticsTimeSeries(signals.userMessages || [], (message) => message.createdAt || message.created_at, 30);
   report.outcomeSeries = buildAnalyticsTimeSeries(recentOutcomes, (outcome) => outcome.occurredAt || outcome.createdAt || outcome.created_at, 30);
+  const topQuestionItems = Array.isArray(signals.topQuestions) && signals.topQuestions.length
+    ? signals.topQuestions.slice(0, 5)
+    : [];
+  const weakAnswerItems = Array.isArray(signals.weakAnswerExamples) && signals.weakAnswerExamples.length
+    ? signals.weakAnswerExamples.slice(0, 4)
+    : [];
   const syncPendingMarkup = analyticsSummary.syncState === "pending"
     ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
     : "";
@@ -9477,9 +9483,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.conversationCount > 0 ? "positive" : "neutral",
               },
               {
-                label: "Autonomous handled",
+                label: "AI-handled",
                 value: formatAnalyticsReportPercent(report.autonomousHandledRate),
-                note: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} handled without owner follow-up`,
+                note: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} answered without needing a human reply`,
                 tone: report.autonomousHandledRate >= 75 ? "positive" : report.autonomousHandledRate >= 50 ? "watch" : "risk",
               },
               {
@@ -9513,7 +9519,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               {
                 label: "Estimated hours saved",
                 value: formatAnalyticsReportHours(report.estimatedHoursSaved),
-                note: "Estimated from conversations handled without owner rescue",
+                note: "Estimated from customer questions Vonza handled itself",
                 tone: report.estimatedHoursSaved > 0 ? "positive" : "neutral",
               },
             ].map((metric) => `
@@ -9608,17 +9614,30 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           <section class="workspace-card-soft">
             <div class="flat-section-header">
               <div>
-                <p class="overview-label">SWOT</p>
-                <h3 class="flat-section-title">Opportunity snapshot</h3>
+                <p class="overview-label">Customer questions</p>
+                <h3 class="flat-section-title">Top questions and weak answers</h3>
+                <p class="analytics-report-section-copy">Use this to improve the answers customers see most often.</p>
               </div>
             </div>
             <div class="analytics-report-swot-grid">
-              ${report.swot.map((item) => `
-                <article class="analytics-report-swot-item tone-${item.tone}">
-                  <span>${escapeHtml(item.label)}</span>
-                  <p>${escapeHtml(item.copy)}</p>
-                </article>
-              `).join("")}
+              <article class="analytics-report-swot-item tone-neutral">
+                <span>Top questions</span>
+                ${topQuestionItems.length ? `
+                  <div class="analytics-question-list">
+                    ${topQuestionItems.map((item) => `
+                      <p><strong>${escapeHtml(item.label || "Customer question")}</strong> ${escapeHtml(formatAnalyticsReportNumber(item.count || 0))} asked</p>
+                    `).join("")}
+                  </div>
+                ` : `<p>No repeated customer question is standing out yet.</p>`}
+              </article>
+              <article class="analytics-report-swot-item tone-${weakAnswerItems.length ? "risk" : "positive"}">
+                <span>Weak-answer areas</span>
+                ${weakAnswerItems.length ? `
+                  <div class="analytics-question-list">
+                    ${weakAnswerItems.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
+                  </div>
+                ` : `<p>No weak-answer pattern is standing out in the current sample.</p>`}
+              </article>
             </div>
           </section>
           <section class="settings-page" data-analytics-section="overview"></section>

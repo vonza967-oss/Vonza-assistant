@@ -371,10 +371,10 @@ function detectCurrentHighIntentAction(message = "") {
   if (
     normalized.includes("quote")
     || normalized.includes("estimate")
-    || normalized.includes("pricing")
-    || normalized.includes("price")
-    || normalized.includes("cost")
-    || normalized.includes("how much")
+    || normalized.includes("proposal")
+    || normalized.includes("send pricing")
+    || normalized.includes("pricing details")
+    || normalized.includes("price details")
     || normalized.includes("buy")
     || normalized.includes("purchase")
     || normalized.includes("order")
@@ -490,12 +490,18 @@ function getSessionLeadContext(actionQueue = {}, sessionKey = "", message = "") 
     triggerCode = "repeat_high_intent_visitor";
   }
 
-  if (latestSessionItem && ACTIVE_HIGH_INTENT_ACTION_TYPES.has(cleanText(latestSessionItem.actionType))) {
+  const latestActionType = cleanText(latestSessionItem?.actionType);
+  const latestActionIsExplicitEnough =
+    latestActionType !== "pricing_interest"
+    || cleanText(currentHighIntent?.actionType) === "pricing_interest"
+    || Boolean(explicitTrigger);
+
+  if (latestSessionItem && ACTIVE_HIGH_INTENT_ACTION_TYPES.has(latestActionType) && latestActionIsExplicitEnough) {
     triggerItem = latestSessionItem;
-    triggerCode = cleanText(latestSessionItem.actionType);
+    triggerCode = latestActionType;
   }
 
-  if (latestSessionItem && latestSessionItem.unresolved && ACTIVE_HIGH_INTENT_ACTION_TYPES.has(cleanText(latestSessionItem.actionType))) {
+  if (latestSessionItem && latestSessionItem.unresolved && ACTIVE_HIGH_INTENT_ACTION_TYPES.has(latestActionType) && latestActionIsExplicitEnough) {
     triggerItem = latestSessionItem;
     triggerCode = "unresolved_high_value_question";
   }

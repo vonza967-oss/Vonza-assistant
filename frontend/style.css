@@ -586,6 +586,34 @@ h1 {
   border-color: color-mix(in srgb, var(--brand-primary) 24%, rgba(255, 255, 255, 0.08));
 }
 
+.customer-next-step {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.customer-next-step-title {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 0.96rem;
+  letter-spacing: -0.02em;
+}
+
+.customer-next-step-copy,
+.customer-next-step-note {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.customer-next-step-note {
+  color: var(--text-muted);
+}
+
 .routing-actions {
   display: flex;
   flex-wrap: wrap;

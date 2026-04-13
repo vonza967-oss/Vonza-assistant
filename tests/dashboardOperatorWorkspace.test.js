@@ -914,9 +914,9 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
-  assert.match(contactsPanel, /Keep support organized without turning Vonza into a CRM/);
-  assert.match(contactsPanel, /Open unresolved only/);
-  assert.match(contactsPanel, /Export customers/);
+  assert.match(contactsPanel, /Who contacted you, who needs a reply, and what to do next/);
+  assert.match(contactsPanel, /Show customers needing help/);
+  assert.doesNotMatch(contactsPanel, /Export customers/);
   assert.match(contactsPanel, /data-contact-row/);
   assert.match(contactsPanel, /data-contact-detail/);
   assert.match(contactsPanel, /customer-status-chip/);
@@ -1166,7 +1166,7 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /Customer conversations and successful actions/);
   assert.match(analyticsPanel, /What stands out right now/);
   assert.match(analyticsPanel, /Recommended service improvements/);
-  assert.match(analyticsPanel, /Opportunity snapshot/);
+  assert.match(analyticsPanel, /Top questions and weak answers/);
 });
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
