@@ -3587,15 +3587,11 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const contacts = operatorWorkspace.contacts?.list || [];
   const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
   const customerFilters = buildCustomerFilterDefinitions(contacts);
-  const selectedContact = contacts[0] || null;
   const peopleWorkspaceMarkup = `
     <div class="customers-page-topbar">
       <div class="customers-page-copy">
         <h2 class="customers-page-title">Customers</h2>
         <p class="customers-page-subtitle">Who contacted you, who needs a reply, and what to do next.</p>
-      </div>
-      <div class="customers-page-actions">
-        <button class="ghost-button customer-utility-button" type="button" data-focus-customer-filters>Show filters</button>
       </div>
     </div>
     ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
@@ -3621,10 +3617,6 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         <div class="contacts-list" data-contact-filter-results>
           ${contacts.map((contact) => buildContactRow(contact, operatorWorkspace)).join("")}
         </div>
-      </section>
-      <section class="contacts-detail-shell">
-        ${contacts.map((contact, index) => buildContactDetailPanel(agent, contact, operatorWorkspace, index === 0)).join("")}
-        ${selectedContact ? "" : `<div class="placeholder-card">Choose a customer to review the situation, next action, and recent history.</div>`}
       </section>
     </div>
   `;

@@ -872,7 +872,7 @@ test("today knowledge-fix CTAs route to the actionable analytics workflow", () =
   assert.match(drawerMarkup, /data-target-id="action-knowledge"/);
 });
 
-test("contacts render as a list-detail workspace instead of repeated cards", () => {
+test("customers render as a single-column workspace without inactive controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -891,6 +891,7 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
             name: "Taylor Reed",
             email: "taylor@example.com",
             lifecycleState: "active_lead",
+            mostRecentActivityAt: "2026-04-05T09:00:00.000Z",
             nextAction: {
               title: "Draft follow-up",
               description: "Pricing question still needs a response.",
@@ -916,12 +917,13 @@ test("contacts render as a list-detail workspace instead of repeated cards", () 
   assert.match(contactsPanel, />Customers</);
   assert.match(contactsPanel, /Who contacted you, who needs a reply, and what to do next/);
   assert.match(contactsPanel, /Show customers needing help/);
+  assert.doesNotMatch(contactsPanel, /Show filters/);
   assert.doesNotMatch(contactsPanel, /Export customers/);
   assert.match(contactsPanel, /data-contact-row/);
-  assert.match(contactsPanel, /data-contact-detail/);
+  assert.doesNotMatch(contactsPanel, /data-contact-detail/);
+  assert.doesNotMatch(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /customer-status-chip/);
-  assert.match(contactsPanel, /View timeline/);
-  assert.match(contactsPanel, /Mark resolved/);
+  assert.match(contactsPanel, /Email user ·/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up<\/button>\s*<details class="row-action-menu"/);
 });
 

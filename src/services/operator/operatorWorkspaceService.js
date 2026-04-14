@@ -4355,6 +4355,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     agent,
     ownerUserId,
     leads: leadCaptureResult.records || [],
+    messages: getSettledValue(messagesResult, []),
     threads: enrichedThreads,
     events,
     tasks,

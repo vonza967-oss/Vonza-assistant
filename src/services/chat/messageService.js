@@ -48,7 +48,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
       role: cleanText(entry.role),
       content: cleanText(entry.content),
       session_key: cleanText(entry.sessionKey || normalizedSessionKey) || null,
-      created_at: new Date().toISOString(),
+      created_at: entry.createdAt || entry.created_at || new Date().toISOString(),
     }))
     .filter((entry) => {
       if (!normalizedAgentId || !entry.role || !entry.content) {
@@ -69,7 +69,10 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     return;
   }
 
-  const { error } = await supabase.from(MESSAGES_TABLE).insert(payload);
+  const { data, error } = await supabase
+    .from(MESSAGES_TABLE)
+    .insert(payload)
+    .select("id, agent_id, role, content, session_key, created_at");
 
   if (error) {
     if (isMissingMessagesSchemaError(error)) {
@@ -79,6 +82,15 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     console.error(error);
     throw error;
   }
+
+  return (data || []).map((row) => ({
+    id: row.id,
+    agentId: row.agent_id,
+    role: row.role,
+    content: row.content,
+    sessionKey: row.session_key || null,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function listAgentMessages(supabase, agentId, options = {}) {

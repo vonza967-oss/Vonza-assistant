@@ -302,6 +302,13 @@ function pickLatestItem(items = []) {
   return [...items].sort((left, right) => getTimestamp(right.lastSeenAt) - getTimestamp(left.lastSeenAt))[0] || null;
 }
 
+function pickLatestSessionMessage(messages = [], sessionKey = "") {
+  const normalizedSessionKey = cleanText(sessionKey);
+  return messages
+    .filter((message) => cleanText(message.sessionKey) === normalizedSessionKey)
+    .sort((left, right) => getTimestamp(right.createdAt) - getTimestamp(left.createdAt))[0] || null;
+}
+
 function detectExplicitCaptureLanguage(message = "") {
   const normalized = cleanText(message).toLowerCase();
 
@@ -599,7 +606,7 @@ function mergeLeadPayload(existing, payload) {
     ...(payload.relatedActionKeys || []),
   ]);
   next.firstSeenAt = current.firstSeenAt || payload.firstSeenAt || new Date().toISOString();
-  next.lastSeenAt = payload.lastSeenAt || current.lastSeenAt || new Date().toISOString();
+  next.lastSeenAt = payload.lastSeenAt || current.lastSeenAt || null;
   next.captureMetadata = {
     ...(current.captureMetadata || {}),
     ...(payload.captureMetadata || {}),
@@ -613,6 +620,14 @@ function mergeLeadPayload(existing, payload) {
   });
 
   return next;
+}
+
+function getLeadActivityTimestamp(context = {}, fallback = null) {
+  return context.sessionContext?.latestSessionItem?.lastSeenAt
+    || context.sessionContext?.latestSessionItem?.createdAt
+    || fallback
+    || context.latestSessionMessage?.createdAt
+    || null;
 }
 
 async function insertLeadCaptureRecord(supabase, payload) {
@@ -934,6 +949,7 @@ async function buildLiveLeadContext(supabase, options = {}) {
   const messages = await listAgentMessages(supabase, options.agent.id);
   const actionQueue = buildActionQueue(messages, []);
   const sessionContext = getSessionLeadContext(actionQueue, options.sessionKey, options.userMessage);
+  const latestSessionMessage = pickLatestSessionMessage(messages, options.sessionKey);
   const listed = await listLeadCaptureRecordsInternal(supabase, {
     agentId: options.agent.id,
     ownerUserId: options.agent.ownerUserId,
@@ -964,6 +980,7 @@ async function buildLiveLeadContext(supabase, options = {}) {
     messages,
     actionQueue,
     sessionContext,
+    latestSessionMessage,
     extractedContact: mergedContact,
     visitorIdentity,
     existing,
@@ -1016,13 +1033,13 @@ export async function processLiveChatLeadCapture(supabase, options = {}) {
       latestIntentType: cleanText(context.sessionContext.latestSessionItem?.intent || leadRecord?.latestIntentType),
       latestActionType: cleanText(context.sessionContext.triggerItem?.actionType || context.sessionContext.latestSessionItem?.actionType || leadRecord?.latestActionType),
       latestActionKey: cleanText(context.sessionContext.triggerItem?.key || context.sessionContext.latestSessionItem?.key || leadRecord?.latestActionKey),
-      latestMessageId: cleanText(context.sessionContext.latestSessionItem?.messageId || leadRecord?.latestMessageId),
+      latestMessageId: cleanText(context.sessionContext.latestSessionItem?.messageId || context.latestSessionMessage?.id || leadRecord?.latestMessageId),
       relatedActionKeys: uniqueText([
         cleanText(context.sessionContext.latestSessionItem?.key),
         cleanText(context.sessionContext.repeatItem?.key),
         ...(leadRecord?.relatedActionKeys || []),
       ]),
-      lastSeenAt: new Date().toISOString(),
+      lastSeenAt: getLeadActivityTimestamp(context, options.messageCreatedAt),
       captureTrigger: decision.trigger,
       captureReason: decision.reason,
       capturePrompt: decision.prompt?.body || leadRecord?.capturePrompt || "",
@@ -1174,7 +1191,7 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     latestIntentType: cleanText(context.sessionContext.latestSessionItem?.intent || existing?.latestIntentType),
     latestActionType: cleanText(context.sessionContext.triggerItem?.actionType || context.sessionContext.latestSessionItem?.actionType || existing?.latestActionType),
     latestActionKey: cleanText(context.sessionContext.triggerItem?.key || context.sessionContext.latestSessionItem?.key || existing?.latestActionKey),
-    latestMessageId: cleanText(context.sessionContext.latestSessionItem?.messageId || existing?.latestMessageId),
+    latestMessageId: cleanText(context.sessionContext.latestSessionItem?.messageId || context.latestSessionMessage?.id || existing?.latestMessageId),
     relatedActionKeys: uniqueText([
       cleanText(context.sessionContext.latestSessionItem?.key),
       cleanText(context.sessionContext.repeatItem?.key),
@@ -1193,7 +1210,7 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
       isReturningVisitor: context.sessionContext.isReturningVisitor === true,
       visitorIdentityMode: context.visitorIdentity.mode || "",
     },
-    lastSeenAt: new Date().toISOString(),
+    lastSeenAt: getLeadActivityTimestamp(context),
   });
 
   let leadRecord = await persistLeadCaptureRecord(supabase, existing, payload) || existing;

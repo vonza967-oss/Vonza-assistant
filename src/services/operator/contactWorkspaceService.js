@@ -242,6 +242,7 @@ function createGroup(seed = {}) {
     recipients: [],
     campaigns: [],
     outcomes: [],
+    messages: [],
     latestMessageId: cleanText(seed.latestMessageId || seed.persistedContact?.metadata?.latestMessageId),
     lastActivityAt: seed.lastActivityAt || seed.persistedContact?.lastActivityAt || null,
   };
@@ -302,6 +303,7 @@ function mergeGroups(primary, secondary, identityMaps, groups) {
     "recipients",
     "campaigns",
     "outcomes",
+    "messages",
   ].forEach((collectionKey) => {
     secondary[collectionKey].forEach((record) => addToGroupCollection(primary, collectionKey, record));
   });
@@ -547,6 +549,17 @@ function getOutcomeFlags(outcome = {}) {
 function buildTimelineEntries(group = {}) {
   const entries = [];
 
+  group.messages.forEach((message) => {
+    entries.push({
+      id: `message:${message.id}`,
+      at: message.createdAt || null,
+      source: "chat",
+      label: cleanText(message.role) === "assistant" ? "Assistant message" : "Visitor message",
+      summary: cleanText(message.content || "Chat message"),
+      messageId: cleanText(message.id),
+    });
+  });
+
   group.leads.forEach((lead) => {
     entries.push({
       id: `lead:${lead.id}`,
@@ -641,6 +654,16 @@ function buildTimelineEntries(group = {}) {
     .sort((left, right) => parseTimestamp(right.at) - parseTimestamp(left.at));
 }
 
+function isPlaceholderDisplayName(value = "") {
+  return ["unknown contact", "anonymous visitor", "guest visitor", "identity unknown", "session continuity only"]
+    .includes(cleanText(value).toLowerCase());
+}
+
+function getLatestMessageActivityAt(group = {}) {
+  const latest = getMostRecentTimestamp((group.messages || []).map((message) => message.createdAt));
+  return latest ? new Date(latest).toISOString() : null;
+}
+
 function pickDisplayName(group = {}) {
   const hasCurrentSignal = Boolean(
     normalizeEmail(group.emails[0])
@@ -658,7 +681,11 @@ function pickDisplayName(group = {}) {
     || group.outcomes.length
   );
 
-  return cleanText(group.displayNames[0])
+  const explicitDisplayName = group.displayNames.find((displayName) =>
+    cleanText(displayName) && !isPlaceholderDisplayName(displayName)
+  );
+
+  return cleanText(explicitDisplayName)
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
     || (hasCurrentSignal ? cleanText(group.persistedContact?.displayName) : "")
@@ -848,7 +875,8 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const lastActivityAt = timeline[0]?.at || group.lastActivityAt || group.persistedContact?.lastActivityAt || null;
+  const latestMessageActivityAt = getLatestMessageActivityAt(group);
+  const lastActivityAt = latestMessageActivityAt || timeline[0]?.at || group.lastActivityAt || group.persistedContact?.lastActivityAt || null;
   const sourceSet = new Set(group.sourceKinds.concat(
     group.threads.length ? ["inbox"] : [],
     group.events.length ? ["calendar"] : [],
@@ -1121,6 +1149,32 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     registerIdentity(identityMaps, group, "session_key", lead.visitorSessionKey);
     registerIdentity(identityMaps, group, "lead_id", lead.id);
   });
+
+  normalizeArray(options.messages)
+    .slice()
+    .sort((left, right) => parseTimestamp(left.createdAt || left.created_at) - parseTimestamp(right.createdAt || right.created_at))
+    .forEach((message) => {
+      const sessionKey = cleanText(message.sessionKey || message.session_key);
+      const group = sessionKey ? identityMaps.session_key.get(sessionKey) : null;
+
+      if (!group) {
+        return;
+      }
+
+      addToGroupCollection(group, "messages", {
+        id: cleanText(message.id),
+        role: cleanText(message.role),
+        content: cleanText(message.content),
+        sessionKey,
+        createdAt: message.createdAt || message.created_at || null,
+      });
+      addIdentityValues(group, {
+        sessionKeys: [sessionKey],
+        sourceKinds: ["chat"],
+        latestMessageId: message.id,
+        lastActivityAt: message.createdAt || message.created_at || null,
+      });
+    });
 
   normalizeArray(options.followUps).forEach((followUp) => {
     const explicitGroups = [

@@ -181,11 +181,15 @@ async function buildChatResponse({
   leadCapture = null,
   directRouting = null,
   visitorIdentity = null,
+  storeUserMessage = true,
+  userMessageCreatedAt = null,
 }) {
-  await storeAgentMessages(supabase, agent.id, [
-    { role: "user", content: userMessage },
+  const entries = [
+    storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
     { role: "assistant", content: reply },
-  ], {
+  ].filter(Boolean);
+
+  await storeAgentMessages(supabase, agent.id, entries, {
     sessionKey,
   });
 
@@ -373,6 +377,7 @@ export async function handleChatRequest({
     finalReply = buildMissingVerifiedContactReply(language);
   }
 
+  const userMessageCreatedAt = new Date().toISOString();
   const leadCapture = await processLiveChatLeadCapture(supabase, {
     agent,
     business,
@@ -382,6 +387,7 @@ export async function handleChatRequest({
     pageUrl,
     origin,
     userMessage: message,
+    messageCreatedAt: userMessageCreatedAt,
     language,
     visitorIdentity,
   });
@@ -431,6 +437,7 @@ export async function handleChatRequest({
     leadCapture,
     directRouting,
     visitorIdentity,
+    userMessageCreatedAt,
   });
 }
 

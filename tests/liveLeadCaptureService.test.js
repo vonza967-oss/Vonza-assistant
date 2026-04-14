@@ -442,6 +442,8 @@ test("identified visitor email is captured even before high-intent lead prompts"
   assert.equal(supabase.state.agent_contact_leads[0].contact_email, "visitor@example.com");
   assert.equal(supabase.state.agent_contact_leads[0].contact_name, "Jordan Lane");
   assert.equal(supabase.state.agent_contact_leads[0].capture_trigger, "visitor_identity");
+  assert.equal(supabase.state.agent_contact_leads[0].latest_message_id, "message-2");
+  assert.equal(supabase.state.agent_contact_leads[0].last_seen_at, "2026-04-03T09:00:01.000Z");
 });
 
 test("lead capture keeps business contact questions anonymous", async () => {

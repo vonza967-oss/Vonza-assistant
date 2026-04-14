@@ -7279,14 +7279,13 @@ body {
 }
 
 .workspace-page[data-shell-section="contacts"] .contacts-workspace {
-  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1fr);
-  gap: 28px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   border: 0;
   background: transparent;
 }
 
-.workspace-page[data-shell-section="contacts"] .contacts-list-shell,
-.workspace-page[data-shell-section="contacts"] .contacts-detail-shell {
+.workspace-page[data-shell-section="contacts"] .contacts-list-shell {
   display: grid;
   gap: 18px;
   padding: 18px;

@@ -233,6 +233,72 @@ test("stored contact fallbacks do not masquerade as a new anonymous visitor iden
   assert.equal(anonymousLead.name, "Anonymous visitor");
 });
 
+test("identified widget visitors replace placeholder contact identity", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-1",
+        displayName: "Unknown contact",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-1",
+        identityType: "session_key",
+        identityValue: "session-identified",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-1",
+        contactId: "contact-1",
+        visitorSessionKey: "session-identified",
+        contactName: "mate",
+        contactEmail: "bobitamate@hotmail.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        lastSeenAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "mate");
+  assert.equal(result.list[0].email, "bobitamate@hotmail.com");
+  assert.notEqual(result.list[0].name, "Unknown contact");
+});
+
+test("chat customers use persisted message time for last activity", () => {
+  const result = buildContactWorkspaceFromRecords({
+    leads: [
+      {
+        id: "lead-1",
+        visitorSessionKey: "session-1",
+        contactName: "Taylor Reed",
+        contactEmail: "taylor@example.com",
+        captureState: "captured",
+        captureReason: "Asked for pricing.",
+        lastSeenAt: "2026-04-14T12:00:00.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "Can you send pricing?",
+        sessionKey: "session-1",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
+});
+
 test("unresolved partial identities stay separate instead of merging on name alone", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [
