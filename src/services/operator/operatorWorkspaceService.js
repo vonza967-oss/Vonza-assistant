@@ -4224,9 +4224,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       agentId: agent.id,
       ownerUserId,
     }),
-    copilotFeatureEnabled
-      ? listAgentMessages(supabase, agent.id)
-      : Promise.resolve([]),
+    listAgentMessages(supabase, agent.id),
     copilotFeatureEnabled
       ? listActionQueueStatuses(supabase, {
         agentId: agent.id,

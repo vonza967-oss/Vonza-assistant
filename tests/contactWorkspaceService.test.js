@@ -299,6 +299,86 @@ test("chat customers use persisted message time for last activity", () => {
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
 });
 
+test("guest widget conversations create customer contacts from stored messages", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-guest-1",
+        role: "user",
+        content: "Do you offer weekend appointments?",
+        sessionKey: "guest-session-1",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-guest-2",
+        role: "assistant",
+        content: "Yes, weekend appointments are available.",
+        sessionKey: "guest-session-1",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Anonymous visitor");
+  assert.equal(result.list[0].bestIdentifier, "Session continuity only");
+  assert.ok(result.list[0].sources.includes("chat"));
+  assert.equal(result.list[0].latestMessageId, "message-guest-1");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+});
+
+test("identified widget conversations create customer contacts from stored messages", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-identified-1",
+        role: "user",
+        content: "My name is mate. My email is bobitamate@hotmail.com.",
+        sessionKey: "identified-session-1",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "mate");
+  assert.equal(result.list[0].email, "bobitamate@hotmail.com");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+});
+
+test("chat customer timestamps do not drift to render time", () => {
+  const realDateNow = Date.now;
+  Date.now = () => new Date("2026-04-20T18:30:00.000Z").getTime();
+
+  try {
+    const result = buildContactWorkspaceFromRecords({
+      messages: [
+        {
+          id: "message-stable-1",
+          role: "user",
+          content: "Can you send availability?",
+          sessionKey: "stable-session-1",
+          createdAt: "2026-04-14T09:03:55.000Z",
+        },
+        {
+          id: "message-stable-2",
+          role: "assistant",
+          content: "I can help with that.",
+          sessionKey: "stable-session-1",
+          createdAt: "2026-04-14T09:04:20.000Z",
+        },
+      ],
+    });
+
+    assert.equal(result.list.length, 1);
+    assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+    assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-20T18:30:00.000Z");
+    assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
+  } finally {
+    Date.now = realDateNow;
+  }
+});
+
 test("unresolved partial identities stay separate instead of merging on name alone", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [

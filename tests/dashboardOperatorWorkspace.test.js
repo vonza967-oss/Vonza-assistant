@@ -1374,6 +1374,149 @@ test("dashboard keeps the legacy shell only when the operator flag is off", asyn
   );
 });
 
+test("dashboard refresh reloads live agent messages, summaries, and workspace data", async () => {
+  const calls = [];
+  const agent = {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza",
+    welcomeMessage: "Welcome to Vonza.",
+    tone: "friendly",
+    publicAgentKey: "public-key",
+    websiteUrl: "https://example.com",
+    knowledge: {
+      state: "ready",
+      description: "Knowledge ready.",
+    },
+    installStatus: {
+      state: "seen_recently",
+      label: "Live",
+      host: "example.com",
+    },
+    accessStatus: "active",
+  };
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+    fetchImpl: async (url) => {
+      const parsed = new URL(url);
+      calls.push(`${parsed.pathname}${parsed.search}`);
+
+      if (parsed.pathname === "/agents/install-status") {
+        return {
+          ok: true,
+          async json() {
+            return { agent };
+          },
+        };
+      }
+
+      if (parsed.pathname === "/agents/messages") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              messages: [
+                {
+                  id: "message-1",
+                  role: "user",
+                  content: "Fresh live question",
+                  sessionKey: "session-1",
+                  createdAt: "2026-04-14T09:03:55.000Z",
+                },
+              ],
+            };
+          },
+        };
+      }
+
+      if (parsed.pathname === "/agents/action-queue") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              items: [],
+              summary: { total: 0, attentionNeeded: 0 },
+              analyticsSummary: {
+                totalMessages: 1,
+                visitorQuestions: 1,
+                syncState: "ready",
+                recentActivity: {
+                  lastActivityAt: "2026-04-14T09:03:55.000Z",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (parsed.pathname === "/agents/operator-workspace") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              enabled: true,
+              featureEnabled: true,
+              contacts: {
+                list: [
+                  {
+                    id: "contact-1",
+                    name: "Anonymous visitor",
+                    bestIdentifier: "Session continuity only",
+                    mostRecentActivityAt: "2026-04-14T09:03:55.000Z",
+                    sources: ["chat"],
+                    counts: { messages: 1 },
+                    timeline: [
+                      {
+                        at: "2026-04-14T09:03:55.000Z",
+                        label: "Visitor message",
+                        summary: "Fresh live question",
+                      },
+                    ],
+                  },
+                ],
+                summary: {
+                  totalContacts: 1,
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  await harness.refreshAgentInstallState("agent-1", { forceSync: true });
+
+  assert.ok(calls.some((call) => call.startsWith("/agents/install-status?")));
+  assert.ok(calls.some((call) => call.startsWith("/agents/messages?")));
+  assert.ok(calls.some((call) => call.startsWith("/agents/action-queue?")));
+  assert.ok(calls.some((call) => call.includes("/agents/operator-workspace?") && call.includes("force_sync=true")));
+  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Fresh live question/);
+  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Anonymous visitor/);
+});
+
+test("dashboard refresh buttons use the full live reload path", () => {
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(dashboardScript, /refreshAgentInstallState\(agent\.id,\s*\{\s*forceSync\s*\}\)/);
+});
+
 test("dashboard coalesces partial workspace failures without blanking the shell", () => {
   const harness = createDashboardHarness();
 

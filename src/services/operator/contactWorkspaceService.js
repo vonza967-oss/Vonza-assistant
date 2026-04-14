@@ -11,6 +11,7 @@ import {
   OPERATOR_TASK_TABLE,
 } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
+import { extractVisitorContactInfo } from "../leads/visitorIdentityService.js";
 
 export const CONTACT_LIFECYCLE_STATES = [
   "new",
@@ -128,6 +129,11 @@ function normalizeArray(value) {
 
 function uniqueText(values = []) {
   return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
+}
+
+function normalizeMessageRole(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+  return normalized === "user" || normalized === "visitor" ? "user" : normalized;
 }
 
 function parseTimestamp(value) {
@@ -659,8 +665,12 @@ function isPlaceholderDisplayName(value = "") {
     .includes(cleanText(value).toLowerCase());
 }
 
-function getLatestMessageActivityAt(group = {}) {
-  const latest = getMostRecentTimestamp((group.messages || []).map((message) => message.createdAt));
+function getLatestVisitorMessageActivityAt(group = {}) {
+  const latest = getMostRecentTimestamp(
+    (group.messages || [])
+      .filter((message) => normalizeMessageRole(message.role) === "user")
+      .map((message) => message.createdAt)
+  );
   return latest ? new Date(latest).toISOString() : null;
 }
 
@@ -679,6 +689,7 @@ function pickDisplayName(group = {}) {
     || group.recipients.length
     || group.campaigns.length
     || group.outcomes.length
+    || group.messages.length
   );
 
   const explicitDisplayName = group.displayNames.find((displayName) =>
@@ -875,14 +886,14 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestMessageActivityAt = getLatestMessageActivityAt(group);
+  const latestMessageActivityAt = getLatestVisitorMessageActivityAt(group);
   const lastActivityAt = latestMessageActivityAt || timeline[0]?.at || group.lastActivityAt || group.persistedContact?.lastActivityAt || null;
   const sourceSet = new Set(group.sourceKinds.concat(
     group.threads.length ? ["inbox"] : [],
     group.events.length ? ["calendar"] : [],
     group.recipients.length ? ["campaign"] : [],
     group.followUps.length ? ["follow_up"] : [],
-    group.leads.length ? ["chat"] : []
+    group.leads.length || group.messages.length ? ["chat"] : []
   ));
   const flags = uniqueText(group.flags.concat(
     group.leads.flatMap(getLeadFlags),
@@ -948,6 +959,7 @@ function buildContactSummary(group = {}, options = {}) {
       followUps: group.followUps.length,
       tasks: group.tasks.length,
       outcomes: group.outcomes.length,
+      messages: group.messages.length,
     },
     complaintTaskIds: group.tasks
       .filter((task) => ["complaint_queue", "support_follow_up"].includes(cleanText(task.taskType)) && cleanText(task.status) === "open")
@@ -1055,6 +1067,80 @@ function buildContactsHealth(options = {}) {
   };
 }
 
+function normalizeWidgetMessage(message = {}) {
+  return {
+    id: cleanText(message.id),
+    role: normalizeMessageRole(message.role),
+    content: cleanText(message.content),
+    sessionKey: cleanText(message.sessionKey || message.session_key),
+    createdAt: message.createdAt || message.created_at || null,
+  };
+}
+
+function getCompactMessageIdentity(content = "") {
+  const normalized = cleanText(content);
+  const email = normalizeEmail(normalized);
+
+  if (!email || normalized.includes("?")) {
+    return {
+      name: "",
+      email: "",
+      phone: "",
+      phoneNormalized: "",
+    };
+  }
+
+  const withoutEmail = cleanText(normalized.replace(new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), " "));
+  const nameWords = withoutEmail
+    .split(/\s+/)
+    .map((word) => cleanText(word.replace(/[^A-Za-z'-]/g, "")))
+    .filter(Boolean);
+  const blockedWords = new Set([
+    "email",
+    "mail",
+    "contact",
+    "call",
+    "send",
+    "reach",
+    "reply",
+    "write",
+    "please",
+    "at",
+  ]);
+  const canUseName =
+    nameWords.length > 0
+    && nameWords.length <= 3
+    && nameWords.every((word) => !blockedWords.has(word.toLowerCase()));
+
+  return {
+    name: canUseName ? nameWords.join(" ") : "",
+    email,
+    phone: "",
+    phoneNormalized: "",
+  };
+}
+
+function getWidgetMessageContactInfo(message = {}) {
+  if (normalizeMessageRole(message.role) !== "user") {
+    return {
+      name: "",
+      email: "",
+      phone: "",
+      phoneNormalized: "",
+    };
+  }
+
+  const extracted = extractVisitorContactInfo(message.content, {
+    allowBareContact: true,
+  });
+
+  if (extracted.email || extracted.phone || extracted.name) {
+    return extracted;
+  }
+
+  return getCompactMessageIdentity(message.content);
+}
+
 export function buildContactWorkspaceFromRecords(options = {}) {
   const groups = [];
   const identityMaps = createIdentityMaps();
@@ -1150,30 +1236,56 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     registerIdentity(identityMaps, group, "lead_id", lead.id);
   });
 
-  normalizeArray(options.messages)
-    .slice()
-    .sort((left, right) => parseTimestamp(left.createdAt || left.created_at) - parseTimestamp(right.createdAt || right.created_at))
-    .forEach((message) => {
-      const sessionKey = cleanText(message.sessionKey || message.session_key);
-      const group = sessionKey ? identityMaps.session_key.get(sessionKey) : null;
+  const widgetMessages = normalizeArray(options.messages)
+    .map(normalizeWidgetMessage)
+    .filter((message) => message.id && message.role && message.content)
+    .sort((left, right) => parseTimestamp(left.createdAt) - parseTimestamp(right.createdAt));
+  const visitorSessionKeys = new Set(
+    widgetMessages
+      .filter((message) => message.role === "user")
+      .map((message) => message.sessionKey)
+      .filter(Boolean)
+  );
 
-      if (!group) {
+  widgetMessages
+    .forEach((message) => {
+      const sessionKey = message.sessionKey;
+      const contactInfo = getWidgetMessageContactInfo(message);
+      const explicitGroups = [
+        sessionKey ? identityMaps.session_key.get(sessionKey) : null,
+        contactInfo.email ? identityMaps.email.get(normalizeEmail(contactInfo.email)) : null,
+        contactInfo.phoneNormalized || contactInfo.phone
+          ? identityMaps.phone.get(normalizePhoneDigits(contactInfo.phoneNormalized || contactInfo.phone))
+          : null,
+      ].filter(Boolean);
+      const strongIdentities = [
+        { type: "email", value: contactInfo.email },
+        { type: "phone", value: contactInfo.phoneNormalized || contactInfo.phone },
+      ].filter((entry) => cleanText(entry.value));
+      const weakIdentities = [
+        { type: "session_key", value: sessionKey },
+      ].filter((entry) => cleanText(entry.value));
+
+      if (message.role !== "user" && !explicitGroups.length && (!sessionKey || !visitorSessionKeys.has(sessionKey))) {
         return;
       }
 
-      addToGroupCollection(group, "messages", {
-        id: cleanText(message.id),
-        role: cleanText(message.role),
-        content: cleanText(message.content),
-        sessionKey,
-        createdAt: message.createdAt || message.created_at || null,
-      });
+      const group = findOrCreateGroup({ explicitGroups, strongIdentities, weakIdentities });
+
+      addToGroupCollection(group, "messages", message);
       addIdentityValues(group, {
+        displayName: contactInfo.name,
+        email: contactInfo.email,
+        phone: contactInfo.phone,
+        phoneDigits: contactInfo.phoneNormalized,
         sessionKeys: [sessionKey],
         sourceKinds: ["chat"],
-        latestMessageId: message.id,
-        lastActivityAt: message.createdAt || message.created_at || null,
+        latestMessageId: message.role === "user" ? message.id : "",
+        lastActivityAt: message.role === "user" ? message.createdAt : null,
       });
+      registerIdentity(identityMaps, group, "email", contactInfo.email);
+      registerIdentity(identityMaps, group, "phone", contactInfo.phoneNormalized || contactInfo.phone);
+      registerIdentity(identityMaps, group, "session_key", sessionKey);
     });
 
   normalizeArray(options.followUps).forEach((followUp) => {
@@ -1643,6 +1755,7 @@ export async function getOperatorContactsWorkspace(
     agent,
     ownerUserId,
     leads = [],
+    messages = [],
     threads = [],
     events = [],
     tasks = [],
@@ -1708,6 +1821,7 @@ export async function getOperatorContactsWorkspace(
     storedContacts,
     storedIdentities,
     leads,
+    messages,
     threads,
     events,
     tasks,

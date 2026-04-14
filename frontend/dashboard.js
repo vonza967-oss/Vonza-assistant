@@ -11173,7 +11173,7 @@ function renderWorkspaceFromState() {
   );
 }
 
-async function refreshAgentInstallState(agentId) {
+async function refreshAgentInstallState(agentId, options = {}) {
   if (!workspaceState?.agent || workspaceState.agent.id !== agentId) {
     await boot();
     return;
@@ -11183,7 +11183,9 @@ async function refreshAgentInstallState(agentId) {
     loadAgentInstallSnapshot(agentId),
     loadAgentMessages(agentId),
     loadActionQueue(agentId),
-    loadOperatorWorkspaceSafe(agentId),
+    loadOperatorWorkspaceSafe(agentId, {
+      forceSync: options.forceSync === true,
+    }),
   ]);
   const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
   const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
@@ -13687,22 +13689,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", async () => {
       const forceSync = button.dataset.forceSync === "true";
 
-      setStatus(forceSync ? "Running first sync..." : "Refreshing connected workspace...");
+      setStatus(forceSync ? "Refreshing live dashboard data..." : "Refreshing dashboard data...");
 
       try {
-        const operatorSnapshot = await loadOperatorWorkspaceSafe(agent.id, { forceSync });
-        workspaceState = {
-          ...(workspaceState || {}),
-          agent,
-          messages,
-          actionQueue,
-          operatorWorkspace: operatorSnapshot,
-          setup,
-        };
-        renderWorkspaceFromState();
-        setStatus(forceSync ? "Connected workspace synced." : "Connected workspace refreshed.");
+        await refreshAgentInstallState(agent.id, { forceSync });
+        setStatus(forceSync ? "Live dashboard data refreshed." : "Dashboard data refreshed.");
       } catch (error) {
-        setStatus(error.message || "We couldn't refresh the connected workspace.");
+        setStatus(error.message || "We couldn't refresh the dashboard data.");
       }
     });
   });
