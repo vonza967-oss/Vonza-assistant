@@ -210,7 +210,7 @@ function createDashboardHarness({
           calendar: {
             events: [],
             suggestedSlots: [],
-            dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
+            dailySummary: "Calendar context is coming soon. Home works without it for now.",
             missedBookingOpportunities: [],
           },
           automations: {
@@ -471,7 +471,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Analytics/);
   assert.match(harness.getRootHtml(), /Your core workspace is ready/i);
-  assert.match(harness.getRootHtml(), /optional Google tools are simply out of the way/i);
+  assert.match(harness.getRootHtml(), /Connected tools are coming soon/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);

@@ -14,7 +14,7 @@
     {
       key: "connected_tools",
       label: "Connected tools",
-      note: "Google connection state and extension surfaces.",
+      note: "Coming soon. Email, Calendar, and Automations are not ready yet.",
     },
     {
       key: "workspace",
@@ -666,20 +666,7 @@
   }
 
   function buildConnectedToolsSettingsPanel(agent, operatorWorkspace, helpers) {
-    const { escapeHtml, getBadgeClass, getGoogleWorkspaceCapabilities, createEmptyOperatorWorkspace } = helpers;
-    const emptyWorkspace = createEmptyOperatorWorkspace();
-    const accounts = operatorWorkspace.connectedAccounts || [];
-    const primaryAccount = accounts[0] || null;
-    const status = operatorWorkspace.status || emptyWorkspace.status || {};
-    const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-    const canWriteCalendar = googleCapabilities.calendarWrite === true;
-    const calendarMode = primaryAccount?.status === "connected"
-      ? canWriteCalendar
-        ? "Calendar can prepare approval-first drafts."
-        : "Calendar is connected in read-only mode."
-      : status.googleConfigReady
-        ? "Google beta is available but not connected yet."
-        : "This workspace is running without the optional Google-connected extensions.";
+    const { escapeHtml, getBadgeClass } = helpers;
 
     return `
       <div class="settings-shell-form">
@@ -687,7 +674,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Connected tools</p>
             <h2 class="settings-shell-page-title">Connected tools</h2>
-            <p class="settings-shell-page-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
+            <p class="settings-shell-page-copy">Coming soon. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
           </div>
         </header>
 
@@ -695,35 +682,29 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Google workspace connection</h3>
-              <p class="settings-shell-section-copy">Manage the real Google connection that powers Inbox, Calendar, and optional connected-tool extensions.</p>
+              <p class="settings-shell-section-copy">This connection is not available from the dashboard yet. The core workspace works without it.</p>
             </div>
           </div>
           <div class="settings-shell-status-list">
-            <div class="settings-shell-status-row settings-shell-status-row--actions">
+            <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Account</p>
-                <h4 class="settings-shell-status-value">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available to connect" : "Unavailable on this deployment")}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
-              </div>
-              <div class="settings-shell-status-actions">
-                <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Google" : "Connect Google"}</button>
-                <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Refresh sync</button>
+                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <p class="settings-shell-status-copy">Google connection is not ready to use here yet.</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Calendar mode</p>
-                <h4 class="settings-shell-status-value">${escapeHtml(canWriteCalendar ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected")}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(calendarMode)}</p>
+                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <p class="settings-shell-status-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Connection scope</p>
-                <h4 class="settings-shell-status-value">${escapeHtml(googleCapabilities.gmailRead ? "Inbox and email work enabled" : "Email surfaces unavailable")}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(googleCapabilities.gmailRead
-                  ? "Inbox and approval-first email work can appear in the connected workspace surfaces."
-                  : "Inbox stays hidden until Gmail read access is available. Automations stay honest about the missing connection.")}</p>
+                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <p class="settings-shell-status-copy">Inbox review and automation controls are not available yet.</p>
               </div>
             </div>
           </div>
@@ -732,34 +713,34 @@
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Connected surfaces</h3>
-              <p class="settings-shell-section-copy">These tools extend the customer service workspace. They do not replace the stable core around Home, Customers, Front Desk, and Analytics.</p>
+              <h3 class="settings-shell-section-title">Coming soon</h3>
+              <p class="settings-shell-section-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
             </div>
           </div>
           <div class="settings-shell-key-value-list">
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
                 <p class="settings-shell-key-value-label">Inbox</p>
-                <h4 class="settings-shell-key-value-title">Approval-first replies</h4>
-                <p class="settings-shell-key-value-copy">Recent Gmail threads, reply drafts, and complaint recovery work show up here only when the mailbox connection is ready.</p>
+                <h4 class="settings-shell-key-value-title">Email connection</h4>
+                <p class="settings-shell-key-value-copy">Email review is not self-serve yet.</p>
               </div>
-              <span class="${getBadgeClass(googleCapabilities.gmailRead ? "Ready" : "Pending")}">${escapeHtml(googleCapabilities.gmailRead ? "Connected" : "Not connected")}</span>
+              <span class="${getBadgeClass("Pending")}">Coming soon</span>
             </div>
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
                 <p class="settings-shell-key-value-label">Calendar</p>
                 <h4 class="settings-shell-key-value-title">Schedule context</h4>
-                <p class="settings-shell-key-value-copy">Vonza can surface today’s schedule, follow-up gaps, and event drafts without silently mutating the owner calendar.</p>
+                <p class="settings-shell-key-value-copy">Calendar access is not ready yet.</p>
               </div>
-              <span class="${getBadgeClass(primaryAccount?.status === "connected" ? "Ready" : "Pending")}">${escapeHtml(primaryAccount?.status === "connected" ? "Available" : "Waiting for connection")}</span>
+              <span class="${getBadgeClass("Pending")}">Coming soon</span>
             </div>
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
                 <p class="settings-shell-key-value-label">Automations</p>
-                <h4 class="settings-shell-key-value-title">Draft-first workflows</h4>
-                <p class="settings-shell-key-value-copy">Campaigns, follow-ups, and owner tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
+                <h4 class="settings-shell-key-value-title">Workflow support</h4>
+                <p class="settings-shell-key-value-copy">Automations are not available yet.</p>
               </div>
-              <span class="${getBadgeClass(status.googleConfigReady ? "Limited" : "Pending")}">${escapeHtml(status.googleConfigReady ? "Connection-dependent" : "Unavailable")}</span>
+              <span class="${getBadgeClass("Pending")}">Coming soon</span>
             </div>
           </div>
         </section>

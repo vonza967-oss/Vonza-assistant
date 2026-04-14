@@ -87,7 +87,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Google-connected Email, Calendar, and Automations stay optional connected tools when enabled.",
+      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Connected tools are coming soon and stay clearly marked until they are ready.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -465,7 +465,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "front_desk_only",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Optional Google tools are simply out of the way on this deployment.",
+        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are coming soon and stay out of the way for now.",
       };
   }
 
@@ -474,7 +474,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
-      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations appear when optional Google tools are available.",
+      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations are marked Coming soon until they are ready.",
     };
   }
 
@@ -483,24 +483,24 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       return {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
-        title: "Your workspace now includes calendar visibility.",
-        copy: "Home can see your Google Calendar and bring schedule context into the workspace. Email tools and calendar changes stay off for now.",
+        title: "Your core workspace is ready.",
+        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon and are not self-serve yet.",
       };
     }
 
     return {
       key: "operator_google_connected",
       eyebrow: "Workspace",
-      title: "Your workspace is fully connected.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center, with Email, Calendar, and Automations available alongside them.",
+      title: "Your core workspace is ready.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon and are not ready to use yet.",
     };
   }
 
   return {
     key: "operator_beta_available",
     eyebrow: "Workspace",
-    title: "Your main workspace is ready, with optional Google tools available.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connect Google when you want Email, Calendar, and Automations in the same workspace.",
+    title: "Your main workspace is ready.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools are coming soon, so Email, Calendar, and Automations stay clearly marked as not ready yet.",
   };
 }
 
@@ -1680,7 +1680,7 @@ function renderAccessLocked(agent) {
             <div class="pill">AI front desk and routing</div>
             <div class="pill">Home, Customers, and Analytics</div>
             <div class="pill">Website import and install</div>
-            <div class="pill">Optional Google beta</div>
+            <div class="pill">Connected tools coming soon</div>
           </div>
         </div>
         <div class="pricing-actions">
@@ -2639,20 +2639,20 @@ function buildSidebarShell(
     {
       key: "inbox",
       label: "Email",
-      note: "Read-only Gmail support inbox with safe customer categorization.",
-      tag: "Optional",
+      note: "Coming soon. Email is not self-serve yet.",
+      tag: "Coming soon",
     },
     {
       key: "calendar",
       label: "Calendar",
-      note: "Schedule visibility, follow-up gaps, and event review.",
-      tag: "Optional",
+      note: "Coming soon. Calendar access is not ready yet.",
+      tag: "Coming soon",
     },
     {
       key: "automations",
       label: "Automations",
-      note: "Saved tasks, campaign drafts, and follow-ups.",
-      tag: "Optional",
+      note: "Coming soon. Automated workflows are not available yet.",
+      tag: "Coming soon",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -2731,7 +2731,7 @@ function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = crea
   const disabled = nextAction.disabled === true;
 
   if (actionType === "connect_google") {
-    return `<button class="primary-button" type="button" data-google-connect ${disabled ? "disabled" : ""}>${escapeHtml(label)}</button>`;
+    return `<button class="ghost-button" type="button" disabled>${escapeHtml(label || "Coming soon")}</button>`;
   }
 
   if (actionType === "run_first_sync") {
@@ -2814,7 +2814,7 @@ function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWor
               <input id="operator-calendar-context" type="text" value="Primary calendar" disabled>
               <p class="field-help">${escapeHtml(googleCapabilities.calendarRead
                 ? "Vonza uses your primary Google Calendar to bring schedule context, recent appointments, and follow-up suggestions into Home."
-                : "Connect Google Calendar and Vonza will use your primary calendar to support Home.")}</p>
+                : "Calendar context is coming soon and is not ready to use from the dashboard yet.")}</p>
             </div>
           </div>
           <div class="inline-actions">
@@ -4261,13 +4261,10 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
       <section class="workspace-card-soft today-support-card">
         <div class="workspace-panel-header">
           <div>
-            <p class="studio-kicker">Google Calendar</p>
-            <h3 class="workspace-panel-title">Connect Google to unlock schedule context</h3>
-            <p class="workspace-panel-copy">Calendar-heavy detail now lives behind supporting detail so Home stays clean by default.</p>
+            <p class="studio-kicker">Connected tools</p>
+            <h3 class="workspace-panel-title">Calendar is coming soon</h3>
+            <p class="workspace-panel-copy">Calendar-heavy detail is not ready yet, so Home keeps this area informational for now.</p>
           </div>
-        </div>
-        <div class="inline-actions">
-          <button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>
         </div>
       </section>
     ` : ""}
@@ -4279,10 +4276,10 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
         items: scheduleItems,
         emptyTitle: status.googleConnected
           ? "No more appointments are on today’s schedule"
-          : "Connect Google to see today’s schedule",
+          : "Calendar coming soon",
         emptyCopy: status.googleConnected
           ? "Vonza will keep today’s remaining schedule here."
-          : "Connect Google Calendar to bring daily appointments into Home.",
+          : "Schedule context is not ready to use from the dashboard yet.",
         reasonKey: "scheduleReason",
         defaultActionLabel: "Open context",
         operatorWorkspace,
@@ -4378,8 +4375,6 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   }
 
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
-  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-
   return `
     <section class="workspace-card-soft operator-home-card">
       <div class="workspace-panel-header">
@@ -4389,9 +4384,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           <p class="workspace-panel-copy">Home is the daily command page: current-day signals, compact proposals, and the clearest recommendations only.</p>
         </div>
         <div class="workspace-badge-row">
-          <span class="${getBadgeClass(status.googleConnected ? "Ready" : "Limited")}">${status.googleConnected
-            ? (googleCapabilities.calendarRead && !googleCapabilities.gmailRead ? "Google Calendar connected" : "Google connected")
-            : "Google Calendar optional"}</span>
+          <span class="${getBadgeClass("Limited")}">Connected tools coming soon</span>
           <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Workspace ready"}</span>
         </div>
       </div>
@@ -5384,10 +5377,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       ${buildPageHeader({
         title: "Home",
         copy: "Your AI customer service snapshot for today",
-        actionsMarkup: `
-          <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>
-          ${renderHomeAction(primaryHomeAction, { primary: true, labelOverride: "Start next step" })}
-        `,
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack home-surface">
@@ -5845,70 +5834,54 @@ function buildFrontDeskSettingsForm(agent, setup) {
 }
 
 function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const accounts = operatorWorkspace.connectedAccounts || [];
-  const primaryAccount = accounts[0] || null;
-  const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
-  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-  const canWriteCalendar = googleCapabilities.calendarWrite === true;
-  const calendarMode = primaryAccount?.status === "connected"
-    ? canWriteCalendar
-      ? "Calendar can prepare approval-first drafts."
-      : "Calendar is connected in read-only mode."
-    : status.googleConfigReady
-      ? "Google beta is available but not connected yet."
-      : "This workspace is running without the optional Google-connected extensions.";
-
   return `
     <div class="settings-panel-stack">
       <section class="workspace-card-soft">
         <div class="settings-section-intro">
           <p class="studio-kicker">Connected tools</p>
           <h2 class="settings-section-title">Connected tools</h2>
-          <p class="settings-section-copy">Keep optional extensions clearly separated from the stable core. If something is not connected or not self-serve yet, Vonza should say that plainly.</p>
+          <p class="settings-section-copy">Coming soon. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
         </div>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Google workspace</p>
-            <h3 class="settings-summary-title">${escapeHtml(primaryAccount?.status === "connected" ? "Connected" : status.googleConfigReady ? "Available" : "Unavailable")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(primaryAccount?.accountEmail || "No Google account connected yet.")}</p>
-            <div class="inline-actions">
-              <button class="${primaryAccount?.status === "connected" ? "ghost-button" : "primary-button"}" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection." ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Gmail" : "Connect Gmail"}</button>
-              <button class="ghost-button" type="button" data-refresh-operator data-force-sync="true" ${primaryAccount?.status === "connected" ? "" : "disabled"}>Refresh sync</button>
-            </div>
+            <h3 class="settings-summary-title">Coming soon</h3>
+            <p class="settings-summary-copy">Google connection is not available in this dashboard yet. The core workspace works without it.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar mode</p>
-            <h3 class="settings-summary-title">${escapeHtml(canWriteCalendar ? "Approval-first drafts" : primaryAccount?.status === "connected" ? "Read-only mode" : "Not connected")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(calendarMode)}</p>
+            <h3 class="settings-summary-title">Coming soon</h3>
+            <p class="settings-summary-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Email mode</p>
-            <h3 class="settings-summary-title">${escapeHtml(googleCapabilities.gmailRead ? "Email connected" : "Email not connected")}</h3>
-            <p class="settings-summary-copy">${escapeHtml(googleCapabilities.gmailRead
-              ? "Vonza can read, classify, and connect support email to customers when it can. It does not send, archive, or silently change the mailbox."
-              : "Email stays in read-only setup mode until Gmail access is connected. Automations stay honest about the missing connection.")}</p>
+            <h3 class="settings-summary-title">Coming soon</h3>
+            <p class="settings-summary-copy">Inbox review is not usable yet, so the dashboard does not present connect or sync actions.</p>
           </article>
         </div>
       </section>
 
       <section class="workspace-card-soft">
-        <h3 class="studio-group-title">What each extension adds</h3>
-        <p class="studio-group-copy">Connected tools extend the customer service workspace. They do not replace the stable core around Home, Customers, Front Desk, and Analytics.</p>
+        <h3 class="studio-group-title">Coming soon</h3>
+        <p class="studio-group-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Email</p>
-            <h3 class="settings-summary-title">Read-only customer inbox</h3>
-            <p class="settings-summary-copy">Recent Gmail threads, complaint signals, sales intent, billing questions, and low-priority conversations show up here once the inbox connection is ready.</p>
+            <span class="badge pending">Coming soon</span>
+            <h3 class="settings-summary-title">Inbox connection</h3>
+            <p class="settings-summary-copy">Email review is not self-serve yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar</p>
+            <span class="badge pending">Coming soon</span>
             <h3 class="settings-summary-title">Schedule context</h3>
-            <p class="settings-summary-copy">Vonza can surface today’s schedule, follow-up gaps, and event drafts without silently mutating the owner calendar.</p>
+            <p class="settings-summary-copy">Calendar access is not ready yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Automations</p>
-            <h3 class="settings-summary-title">Draft-first workflows</h3>
-            <p class="settings-summary-copy">Campaigns, follow-ups, and owner tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
+            <span class="badge pending">Coming soon</span>
+            <h3 class="settings-summary-title">Workflow support</h3>
+            <p class="settings-summary-copy">Automations are not available yet.</p>
           </article>
         </div>
       </section>
@@ -7057,16 +7030,16 @@ function createEmptyOperatorWorkspace() {
     },
     briefing: {
       title: "Home briefing",
-      text: "Connect Google Calendar and run the first sync to bring schedule context into Home.",
+      text: "Calendar context is coming soon. Home, Customers, Front Desk, and Analytics are ready without it.",
     },
     nextAction: {
       key: "connect_google",
-      title: "Connect Google",
-      description: "Connect Google Calendar so Home can show your schedule, recent appointments, and reviewed follow-up suggestions.",
-      buttonLabel: "Connect Google",
+      title: "Connected tools coming soon",
+      description: "Email, Calendar, and Automations are not ready to use from the dashboard yet.",
+      buttonLabel: "Coming soon",
       actionType: "connect_google",
       targetSection: "overview",
-      disabled: false,
+      disabled: true,
     },
     today: {
       messagesToday: 0,
@@ -7202,7 +7175,7 @@ function createEmptyOperatorWorkspace() {
     calendar: {
       events: [],
       suggestedSlots: [],
-      dailySummary: "Connect Google Calendar to see your day, open slots, and booking opportunities here.",
+      dailySummary: "Calendar context is coming soon. Home works without it for now.",
       missedBookingOpportunities: [],
       scheduleItems: [],
       reviewItems: [],
@@ -9797,7 +9770,34 @@ function buildEmailPreviewCategorySummary(items = []) {
   return counts;
 }
 
+function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
+  return `
+    <section class="workspace-page" data-shell-section="${escapeHtml(sectionKey)}" hidden>
+      ${buildPageHeader({
+        eyebrow: "Connected tools",
+        title,
+        copy: "Coming soon. This connected tool is not ready to use from the dashboard yet.",
+        actionsMarkup: `<span class="badge pending">Coming soon</span>`,
+      })}
+      <div class="workspace-page-body">
+        <section class="workspace-card-soft">
+          <p class="overview-label">Status</p>
+          <h3 class="studio-group-title">Coming soon</h3>
+          <p class="workspace-panel-copy">${escapeHtml(copy)}</p>
+        </section>
+      </div>
+    </section>
+  `;
+}
+
 function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  // Keep connected tools informational until self-serve access is ready.
+  return buildConnectedToolComingSoonPanel(
+    "inbox",
+    "Email",
+    "Email connection is planned, but it is not self-serve yet. Vonza will not ask you to connect Gmail until the feature is ready."
+  );
+
   const accounts = operatorWorkspace.connectedAccounts || [];
   const primaryAccount = accounts[0] || null;
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
@@ -9976,6 +9976,13 @@ function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace
 }
 
 function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  // Keep connected tools informational until self-serve access is ready.
+  return buildConnectedToolComingSoonPanel(
+    "calendar",
+    "Calendar",
+    "Calendar context is planned, but it is not ready yet. Home and Customers still work without Google Calendar."
+  );
+
   const accounts = operatorWorkspace.connectedAccounts || [];
   const primaryAccount = accounts[0] || null;
   const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
@@ -10177,6 +10184,13 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
 }
 
 function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  // Keep connected tools informational until self-serve access is ready.
+  return buildConnectedToolComingSoonPanel(
+    "automations",
+    "Automations",
+    "Automations are planned, but they are not available yet. The dashboard will keep this area clearly marked until workflows are ready."
+  );
+
   const automations = operatorWorkspace.automations || createEmptyOperatorWorkspace().automations;
   const allTasks = automations.tasks || [];
   const campaigns = automations.campaigns || [];
@@ -12086,6 +12100,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const shellMenuButtons = document.querySelectorAll("[data-shell-menu-toggle]");
   const shellBackdrop = document.querySelector("[data-shell-backdrop]");
   const frontDeskSectionButtons = document.querySelectorAll("[data-frontdesk-target]");
+  const frontDeskOpenButtons = document.querySelectorAll("[data-frontdesk-open]");
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
@@ -12816,15 +12831,19 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
   const showFrontDeskSection = (target = "overview") => {
+    const normalizedTarget = FRONT_DESK_SECTIONS.includes(target) ? target : "overview";
+    setActiveFrontDeskSection(normalizedTarget);
+
     frontDeskSectionButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.frontdeskTarget === target);
+      button.classList.toggle("active", button.dataset.frontdeskTarget === normalizedTarget);
     });
 
     frontDeskSections.forEach((section) => {
-      section.hidden = section.dataset.frontdeskSection !== target;
+      section.hidden = section.dataset.frontdeskSection !== normalizedTarget;
     });
 
     syncDashboardHelpUi();
+    return normalizedTarget;
   };
 
   const saveContactLifecycle = async (form) => {
@@ -14128,6 +14147,16 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   frontDeskSectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
       showFrontDeskSection(button.dataset.frontdeskTarget || "overview");
+    });
+  });
+
+  frontDeskOpenButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = showFrontDeskSection(button.dataset.frontdeskOpen || "overview");
+      document.querySelector(`[data-frontdesk-section="${target}"]`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     });
   });
 

@@ -230,10 +230,12 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Home at a glance/);
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
-  assert.match(harness.buildInboxPanel({}, workspace), /Connect Gmail|Email/);
-  assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google/);
-  assert.match(harness.buildAutomationsPanel({}, workspace), /Owner task queue/);
-  assert.match(harness.buildAutomationsPanel({}, workspace), /No owner tasks are open/);
+  assert.match(harness.buildInboxPanel({}, workspace), /Coming soon/);
+  assert.doesNotMatch(harness.buildInboxPanel({}, workspace), /Connect Gmail/);
+  assert.match(harness.buildCalendarPanel({}, workspace), /Coming soon/);
+  assert.doesNotMatch(harness.buildCalendarPanel({}, workspace), /Connect Google/);
+  assert.match(harness.buildAutomationsPanel({}, workspace), /Coming soon/);
+  assert.doesNotMatch(harness.buildAutomationsPanel({}, workspace), /Connect Google/);
 });
 
 test("dashboard renders a simplified Today command page and read-only calendar mode", () => {
@@ -340,8 +342,9 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   assert.match(overview, /Show supporting detail/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
-  assert.match(calendarPanel, /Daily summary/);
-  assert.match(calendarPanel, /Run your first calendar sync/);
+  assert.match(calendarPanel, /Coming soon/);
+  assert.doesNotMatch(calendarPanel, /Run your first calendar sync/);
+  assert.doesNotMatch(calendarPanel, /Connect Google/);
   assert.doesNotMatch(calendarPanel, /Create event draft/);
 });
 
@@ -497,6 +500,8 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Business profile/);
   assert.match(settings, /Front Desk/);
   assert.match(settings, /Connected tools/);
+  assert.match(settings, /Coming soon/);
+  assert.doesNotMatch(settings, /Connect Google/);
   assert.match(settings, /Workspace/);
   assert.match(settings, /Business context setup/);
   assert.match(settings, /Save business context/);
@@ -660,7 +665,8 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
   assert.doesNotMatch(overviewPanel, /Follow-up feed/);
-  assert.match(overviewPanel, /Start next step/);
+  assert.doesNotMatch(overviewPanel, /Start next step/);
+  assert.doesNotMatch(overviewPanel, /data-refresh-operator data-force-sync="true">Refresh/);
 });
 
 test("today overview dedupes repeated queue and review items by stable keys", () => {
@@ -1126,6 +1132,8 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
 
   assert.match(sidebar, /Primary/);
   assert.match(sidebar, /Connected tools/);
+  assert.match(sidebar, /Coming soon/);
+  assert.doesNotMatch(sidebar, /Optional/);
   assert.match(sidebar, /Utilities/);
   assert.match(sidebar, /Workspace/);
   assert.match(sidebar, /Knowledge/);
@@ -1341,8 +1349,9 @@ test("dashboard renders inbox threads safely when thread messages are missing", 
   const markup = harness.buildInboxPanel({}, workspace);
 
   assert.equal(Array.isArray(workspace.inbox.threads[0].messages), true);
-  assert.match(markup, /Need help/);
-  assert.match(markup, /Read-only/i);
+  assert.match(markup, /Coming soon/);
+  assert.doesNotMatch(markup, /Need help/);
+  assert.doesNotMatch(markup, /Read-only/i);
   assert.doesNotMatch(markup, /Approve and send/i);
 });
 

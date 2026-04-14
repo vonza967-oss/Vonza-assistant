@@ -7210,7 +7210,7 @@ body {
 
 .customers-page-subtitle {
   margin: 0;
-  color: #6d7f98;
+  color: #4f617c;
   font-size: 1.05rem;
 }
 
@@ -7226,13 +7226,14 @@ body {
   border-radius: 18px;
   border: 1px solid #dbe4ef;
   background: #ffffff;
-  color: #637695;
+  color: #334963;
+  font-weight: 700;
   box-shadow: none;
 }
 
 .customer-utility-button-primary {
   background: #f3f7ff;
-  color: #5c74a4;
+  color: #264f9f;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-focus-banner {
@@ -7261,7 +7262,8 @@ body {
   border-radius: 16px;
   border: 1px solid rgba(219, 228, 239, 0.75);
   background: #ffffff;
-  color: #5e7395;
+  color: #334963;
+  font-weight: 700;
   box-shadow: none;
 }
 
@@ -7277,7 +7279,8 @@ body {
   border-radius: 999px;
   border: 1px solid #dbe4ef;
   background: #ffffff;
-  color: #7183a1;
+  color: #40516c;
+  font-weight: 700;
   box-shadow: none;
 }
 
@@ -7317,16 +7320,34 @@ body {
   gap: 10px;
 }
 
+.workspace-page[data-shell-section="contacts"] .summary-strip-item {
+  border-color: #d7e1ec;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.workspace-page[data-shell-section="contacts"] .summary-strip-label {
+  color: #40516c;
+}
+
+.workspace-page[data-shell-section="contacts"] .summary-strip-value {
+  color: #17233f;
+}
+
+.workspace-page[data-shell-section="contacts"] .summary-strip-copy {
+  color: #4f617c;
+}
+
 .workspace-page[data-shell-section="contacts"] .customer-row {
   gap: 16px;
   padding: 16px 18px;
-  border: 1px solid #e3eaf4;
+  border: 1px solid #d7e1ec;
   border-radius: 18px;
-  background: #fbfcfe;
+  background: #ffffff;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row:hover {
-  background: #f8fbff;
+  background: #f6f9ff;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row.active {
@@ -7345,7 +7366,7 @@ body {
 
 .workspace-page[data-shell-section="contacts"] .customer-row-summary {
   margin: 2px 0 0;
-  color: #6e819b;
+  color: #40516c;
   font-size: 0.98rem;
 }
 
@@ -7357,9 +7378,13 @@ body {
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row-meta-value {
-  color: #8a99b0;
+  color: #4f617c;
   font-size: 0.92rem;
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-row-meta-label {
+  color: #40516c;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row-statuses {
@@ -7369,7 +7394,28 @@ body {
 .workspace-page[data-shell-section="contacts"] .customer-status-chip {
   min-height: 32px;
   padding: 6px 14px;
+  color: #334963;
   font-size: 12px;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--complaint {
+  color: #913d2f;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--lead {
+  color: #2f4eb0;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply {
+  color: #765100;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--resolved {
+  color: #1f6748;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--returning {
+  color: #435b77;
 }
 
 .workspace-page[data-shell-section="contacts"] .contacts-detail-shell {
@@ -7392,7 +7438,7 @@ body {
 
 .workspace-page[data-shell-section="contacts"] .contact-detail-copy {
   margin-top: 0;
-  color: #7386a3;
+  color: #40516c;
   font-size: 1rem;
 }
 
@@ -7430,12 +7476,13 @@ body {
   border-radius: 16px;
   border-color: #dbe4ef;
   background: #ffffff;
-  color: #637796;
+  color: #334963;
+  font-weight: 700;
   box-shadow: none;
 }
 
 .customer-risk-note {
-  color: #6d7e97;
+  color: #40516c;
   line-height: 1.55;
 }
 
@@ -7465,6 +7512,21 @@ body {
   border-bottom-left-radius: 18px;
   border-bottom-right-radius: 18px;
   background: #ffffff;
+}
+
+.workspace-page[data-shell-section="contacts"] .disclosure-toggle-summary,
+.workspace-page[data-shell-section="contacts"] .disclosure-detail-copy,
+.workspace-page[data-shell-section="contacts"] .customer-timeline-copy,
+.workspace-page[data-shell-section="contacts"] .timeline-row {
+  color: #40516c;
+}
+
+.workspace-page[data-shell-section="contacts"] .timeline-row strong {
+  color: #17233f;
+}
+
+.workspace-page[data-shell-section="contacts"] .timeline-row span {
+  color: #4f617c;
 }
 
 .customer-detail-disclosure-section {

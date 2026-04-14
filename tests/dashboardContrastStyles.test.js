@@ -56,6 +56,18 @@ test("dashboard contact detail and row states stay crisp instead of washed out",
   assert.match(css, /\.customer-focus-banner\s*\{[^}]*background:\s*linear-gradient\(135deg,\s*#17233f 0%,\s*#121c35 100%\)/i);
 });
 
+test("dashboard Customers page text uses readable active-content contrast", () => {
+  const css = readDashboardCss();
+
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.summary-strip-label\s*\{\s*color:\s*#40516c;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.summary-strip-value\s*\{\s*color:\s*#17233f;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-summary\s*\{[^}]*color:\s*#40516c;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-meta-value\s*\{[^}]*color:\s*#4f617c;[^}]*font-weight:\s*600;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip\s*\{[^}]*color:\s*#334963;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip--needs_reply\s*\{\s*color:\s*#765100;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.timeline-row strong\s*\{\s*color:\s*#17233f;/i);
+});
+
 test("dashboard chips and light-shell support panels use explicit readable surfaces", () => {
   const css = readDashboardCss();
   const contactFilterButton = getCssBlock(css, ".contact-filter-button");
