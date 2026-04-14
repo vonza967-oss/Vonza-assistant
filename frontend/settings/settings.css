@@ -416,3 +416,71 @@
   padding-top: 16px;
   background: linear-gradient(180deg, rgba(247, 249, 253, 0), #f7f9fd 42%);
 }
+
+/* Settings readability polish for the light dashboard shell */
+.settings-shell-sidebar,
+.settings-shell-mobile-bar,
+.settings-shell-page-header,
+.settings-shell-section,
+.settings-shell-sticky-save {
+  border-color: #cfd9e6;
+}
+
+.settings-shell-choice-row,
+.settings-shell-status-row,
+.settings-shell-key-value-row {
+  border-top-color: #d8e2ee;
+}
+
+.settings-shell-nav-heading,
+.settings-shell-mobile-label,
+.settings-shell-status-label,
+.settings-shell-key-value-label {
+  color: #435775;
+}
+
+.settings-shell-nav-button {
+  color: #40536f;
+}
+
+.settings-shell-nav-button:hover {
+  color: #1f2d44;
+  background: #edf4ff;
+}
+
+.settings-shell-nav-button.active {
+  color: #173f9f;
+  background: #e5eeff;
+}
+
+.settings-shell-page-title,
+.settings-shell-section-title,
+.settings-shell-choice-title,
+.settings-shell-status-value,
+.settings-shell-key-value-title {
+  color: #1f2d44;
+}
+
+.settings-shell-page-copy,
+.settings-shell-mobile-copy,
+.settings-shell-section-copy,
+.settings-shell-status-copy,
+.settings-shell-key-value-copy {
+  color: #40516c;
+}
+
+.settings-shell-choice-row select,
+.settings-shell-mobile-select {
+  border-color: #bcc9dc;
+  color: #1f2d44;
+}
+
+.settings-shell-chip-option {
+  border-color: #c7d3e3;
+  background: #ffffff;
+  color: #334963;
+}
+
+.settings-shell-sticky-save {
+  background: linear-gradient(180deg, rgba(247, 249, 253, 0), #f7f9fd 42%);
+}

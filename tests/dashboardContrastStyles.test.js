@@ -12,6 +12,10 @@ function readDashboardCss() {
   return readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
 }
 
+function readSettingsCss() {
+  return readFileSync(path.join(repoRoot, "frontend", "settings", "settings.css"), "utf8");
+}
+
 function getCssBlock(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = source.match(new RegExp(`(^|\\n)${escaped}\\s*\\{([^}]*)\\}`, "m"));
@@ -90,4 +94,21 @@ test("dashboard Front Desk light shell keeps settings navigation and content rea
   assert.match(navButtonActive, /background:\s*#eef4ff/i);
   assert.match(css, /\.workspace-pages \.settings-page-title,\s*\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
   assert.match(css, /\.workspace-pages \.settings-page-copy,\s*\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+});
+
+test("dashboard contrast pass covers analytics, chips, active rows, and settings shell text", () => {
+  const dashboardCss = readDashboardCss();
+  const settingsCss = readSettingsCss();
+
+  assert.match(dashboardCss, /--light-surface-text:\s*#40516c/i);
+  assert.match(dashboardCss, /--light-surface-muted-strong:\s*#435775/i);
+  assert.match(dashboardCss, /\.workspace-page \.analytics-report-title,[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(dashboardCss, /\.workspace-page \.analytics-report-copy,[^}]*\.workspace-page \.frontdesk-section-copy,[^}]*\.workspace-page \.field-help,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(dashboardCss, /\.workspace-page \.analytics-report-metric-note\.tone-neutral,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(dashboardCss, /\.workspace-page \.toolbar-chip,[^}]*\.workspace-page \.local-section-button,[^}]*\.workspace-page \.prompt-chip,[^}]*color:\s*var\(--light-pill-text\)/i);
+  assert.match(dashboardCss, /\.workspace-record-row\.active,[^}]*\.contact-row\.active\s*\{[^}]*background:\s*var\(--light-active-bg\);[^}]*box-shadow:\s*inset 3px 0 0 #2f67e3;/i);
+
+  assert.match(settingsCss, /\.settings-shell-page-copy,[^}]*\.settings-shell-key-value-copy\s*\{[^}]*color:\s*#40516c;/i);
+  assert.match(settingsCss, /\.settings-shell-nav-button\.active\s*\{[^}]*color:\s*#173f9f;[^}]*background:\s*#e5eeff;/i);
+  assert.match(settingsCss, /\.settings-shell-chip-option\s*\{[^}]*border-color:\s*#c7d3e3;[^}]*color:\s*#334963;/i);
 });

@@ -5157,22 +5157,31 @@ body {
 }
 
 .workspace-pages {
-  --light-surface-title: #24334e;
-  --light-surface-text: #52637e;
-  --light-surface-muted: #6b7d97;
-  --light-surface-muted-strong: #5d708d;
-  --light-pill-text: #4b5f7c;
-  --light-pill-bg: #f5f8fc;
-  --light-pill-border: #d8e1ec;
-  --light-success-text: #13624a;
-  --light-success-bg: #ddf5ea;
-  --light-success-border: #9fd7be;
-  --light-warning-text: #9a5c00;
-  --light-warning-bg: #fff1d6;
-  --light-warning-border: #f0ca82;
-  --light-pending-text: #687a94;
-  --light-pending-bg: #eef2f7;
-  --light-pending-border: #d3dde8;
+  --light-surface-title: #1f2d44;
+  --light-surface-text: #40516c;
+  --light-surface-muted: #52657f;
+  --light-surface-muted-strong: #435775;
+  --light-surface-border: #cfd9e6;
+  --light-surface-border-strong: #b8c8dc;
+  --light-surface-bg: #ffffff;
+  --light-surface-bg-soft: #f6f9fd;
+  --light-pill-text: #334963;
+  --light-pill-bg: #f3f7fb;
+  --light-pill-border: #c7d3e3;
+  --light-active-bg: #eaf2ff;
+  --light-active-border: #7f9dff;
+  --light-success-text: #135a43;
+  --light-success-bg: #dff5ea;
+  --light-success-border: #94d2b7;
+  --light-warning-text: #804900;
+  --light-warning-bg: #fff0d1;
+  --light-warning-border: #e7bd72;
+  --light-danger-text: #9d2f3c;
+  --light-danger-bg: #fde8e9;
+  --light-danger-border: #efb6bc;
+  --light-pending-text: #4f627c;
+  --light-pending-bg: #edf2f7;
+  --light-pending-border: #c9d4e2;
 }
 
 .workspace-pages .studio-kicker,
@@ -7675,4 +7684,510 @@ body {
     bottom: 16px;
     left: 16px;
   }
+}
+
+/* Dashboard readability contrast pass */
+.sidebar-shell {
+  border-right-color: rgba(148, 163, 184, 0.24);
+}
+
+.shell-sidebar-label {
+  color: #b9c7dc;
+}
+
+.shell-nav-button {
+  color: #dbe5f1;
+}
+
+.shell-nav-button:hover,
+.shell-nav-button.active {
+  color: #ffffff;
+}
+
+.workspace-page,
+.workspace-page-overview,
+.page-header,
+.page-toolbar,
+.workspace-card-soft,
+.support-panel,
+.placeholder-card,
+.settings-summary-card,
+.today-review-panel,
+.today-review-empty,
+.workspace-records-shell,
+.workspace-records-list-shell,
+.workspace-records-detail-shell,
+.contact-detail-panel,
+.workspace-inline-panel,
+.frontdesk-workspace-panel,
+.install-page-main,
+.metric-card,
+.analytics-report-metric-card,
+.analytics-report-insight,
+.analytics-report-contact-card,
+.analytics-report-recommendation,
+.analytics-report-swot-item,
+.analytics-report-chart,
+.install-step,
+.studio-group,
+.guidance-card,
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell,
+.frontdesk-readiness-item,
+.frontdesk-detail-block,
+.customer-detail-card,
+.customer-draft-card,
+.customer-risk-note {
+  border-color: var(--light-surface-border);
+}
+
+.workspace-card-soft,
+.support-panel,
+.today-review-panel,
+.today-review-empty,
+.workspace-records-list-shell,
+.workspace-records-detail-shell,
+.contact-detail-panel,
+.workspace-inline-panel,
+.frontdesk-workspace-panel,
+.install-page-main,
+.metric-card,
+.analytics-report-metric-card,
+.analytics-report-insight,
+.analytics-report-contact-card,
+.analytics-report-recommendation,
+.analytics-report-swot-item,
+.install-step,
+.studio-group,
+.guidance-card,
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell,
+.frontdesk-readiness-item,
+.frontdesk-detail-block,
+.customer-detail-card,
+.customer-draft-card {
+  background: var(--light-surface-bg);
+}
+
+.workspace-page .page-eyebrow,
+.workspace-page .overview-label,
+.workspace-page .metric-label,
+.workspace-page .analytics-report-kicker,
+.workspace-page .analytics-report-metric-label,
+.workspace-page .analytics-report-legend span,
+.workspace-page .analytics-report-chart-totals span,
+.workspace-page .analytics-report-chart-axis,
+.workspace-page .analytics-report-recommendation-head span,
+.workspace-page .support-panel-kicker,
+.workspace-page .today-review-detail-label,
+.workspace-page .today-next-chip-label,
+.workspace-page .detail-kv-label,
+.workspace-page .contact-row-column-label,
+.workspace-page .disclosure-detail-label,
+.workspace-page .frontdesk-detail-kicker,
+.workspace-page .frontdesk-detail-row-label,
+.workspace-page .frontdesk-step-label,
+.workspace-page .action-queue-filter-label,
+.workspace-page .action-queue-control-label,
+.workspace-page .action-queue-detail-label,
+.workspace-page .customer-row-meta-label,
+.workspace-page .home-daily-card-label,
+.workspace-page .settings-shell-status-label,
+.workspace-page .settings-shell-key-value-label {
+  color: var(--light-surface-muted-strong);
+}
+
+.workspace-page .page-title,
+.workspace-page .workspace-panel-title,
+.workspace-page .overview-card-title,
+.workspace-page .overview-value,
+.workspace-page .metric-value,
+.workspace-page .analytics-item-title,
+.workspace-page .analytics-report-title,
+.workspace-page .analytics-report-metric-value,
+.workspace-page .analytics-report-insight strong,
+.workspace-page .analytics-report-contact-card strong,
+.workspace-page .analytics-report-recommendation strong,
+.workspace-page .analytics-question-list strong,
+.workspace-page .analytics-report-swot-item strong,
+.workspace-page .operator-focus-title,
+.workspace-page .operator-checklist-title,
+.workspace-page .operator-empty-title,
+.workspace-page .contact-row-name,
+.workspace-page .contact-row-summary,
+.workspace-page .contact-detail-title,
+.workspace-page .contact-row-column strong,
+.workspace-page .detail-panel-title,
+.workspace-page .detail-kv-item strong,
+.workspace-page .disclosure-toggle-label,
+.workspace-page .disclosure-detail-value,
+.workspace-page .today-review-panel-title,
+.workspace-page .today-review-detail-value,
+.workspace-page .support-panel-title,
+.workspace-page .results-list-item strong,
+.workspace-page .question-row strong,
+.workspace-page .timeline-row strong,
+.workspace-page .frontdesk-section-title,
+.workspace-page .frontdesk-detail-title,
+.workspace-page .frontdesk-support-title,
+.workspace-page .frontdesk-preview-frame-title,
+.workspace-page .frontdesk-step-title,
+.workspace-page .frontdesk-detail-row-value,
+.workspace-page .install-step-title,
+.workspace-page .section-heading,
+.workspace-page .settings-section-title,
+.workspace-page .settings-summary-title,
+.workspace-page .studio-group-title,
+.workspace-page .field label,
+.workspace-page .home-priority-title,
+.workspace-page .home-win-row strong,
+.workspace-page .customers-page-title {
+  color: var(--light-surface-title);
+}
+
+.workspace-page .page-copy,
+.workspace-page .workspace-panel-copy,
+.workspace-page .overview-card-copy,
+.workspace-page .overview-copy,
+.workspace-page .overview-list-copy,
+.workspace-page .progress-copy,
+.workspace-page .analytics-item-copy,
+.workspace-page .analytics-subtle,
+.workspace-page .analytics-report-copy,
+.workspace-page .analytics-report-section-copy,
+.workspace-page .analytics-report-insight p,
+.workspace-page .analytics-report-recommendation p,
+.workspace-page .analytics-report-swot-item p,
+.workspace-page .analytics-report-contact-card span,
+.workspace-page .operator-focus-copy,
+.workspace-page .operator-checklist-note,
+.workspace-page .operator-empty-copy,
+.workspace-page .contact-detail-copy,
+.workspace-page .contacts-list-copy,
+.workspace-page .contacts-list-meta,
+.workspace-page .contact-row-identifier,
+.workspace-page .contact-row-copy,
+.workspace-page .contact-row-meta,
+.workspace-page .contact-focus-copy,
+.workspace-page .contact-row-column-copy,
+.workspace-page .disclosure-toggle-summary,
+.workspace-page .disclosure-detail-copy,
+.workspace-page .detail-kv-item p,
+.workspace-page .today-review-detail-copy,
+.workspace-page .support-panel-copy,
+.workspace-page .results-list-item p,
+.workspace-page .results-list-item span,
+.workspace-page .timeline-row,
+.workspace-page .question-row,
+.workspace-page .frontdesk-section-copy,
+.workspace-page .frontdesk-readiness-copy,
+.workspace-page .frontdesk-detail-copy,
+.workspace-page .frontdesk-step-copy,
+.workspace-page .frontdesk-support-copy,
+.workspace-page .install-step-copy,
+.workspace-page .install-help,
+.workspace-page .install-upcoming,
+.workspace-page .section-copy,
+.workspace-page .settings-section-copy,
+.workspace-page .settings-summary-copy,
+.workspace-page .studio-group-copy,
+.workspace-page .studio-summary-copy,
+.workspace-page .field-help,
+.workspace-page .customers-page-subtitle,
+.workspace-page .customer-row-summary,
+.workspace-page .customer-row-meta-value,
+.workspace-page .customer-risk-note,
+.workspace-page .home-daily-card-copy,
+.workspace-page .home-priority-why,
+.workspace-page .home-improve-copy,
+.workspace-page .home-win-row p,
+.workspace-page .home-win-row span {
+  color: var(--light-surface-text);
+}
+
+.workspace-page .analytics-report-overview {
+  border-color: var(--light-surface-border);
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9fd 100%);
+}
+
+.workspace-page .analytics-report-chart {
+  background: #ffffff;
+}
+
+.workspace-page .analytics-report-chart-guides line {
+  stroke: #d8e2ee;
+}
+
+.workspace-page .analytics-report-metric-note.tone-positive,
+.workspace-page .analytics-report-recommendation.tone-positive,
+.workspace-page .analytics-report-swot-item.tone-positive {
+  color: var(--light-success-text);
+}
+
+.workspace-page .analytics-report-metric-note.tone-watch,
+.workspace-page .analytics-report-recommendation.tone-watch,
+.workspace-page .analytics-report-swot-item.tone-watch {
+  color: var(--light-warning-text);
+}
+
+.workspace-page .analytics-report-metric-note.tone-risk,
+.workspace-page .analytics-report-recommendation.tone-risk,
+.workspace-page .analytics-report-swot-item.tone-risk {
+  color: var(--light-danger-text);
+}
+
+.workspace-page .analytics-report-metric-note.tone-neutral,
+.workspace-page .analytics-report-recommendation.tone-neutral,
+.workspace-page .analytics-report-swot-item.tone-neutral {
+  color: var(--light-surface-text);
+}
+
+.workspace-page .analytics-report-recommendation.tone-positive,
+.workspace-page .analytics-report-swot-item.tone-positive {
+  border-color: var(--light-success-border);
+  background: var(--light-success-bg);
+}
+
+.workspace-page .analytics-report-recommendation.tone-watch,
+.workspace-page .analytics-report-swot-item.tone-watch {
+  border-color: var(--light-warning-border);
+  background: var(--light-warning-bg);
+}
+
+.workspace-page .analytics-report-recommendation.tone-risk,
+.workspace-page .analytics-report-swot-item.tone-risk {
+  border-color: var(--light-danger-border);
+  background: var(--light-danger-bg);
+}
+
+.workspace-page .analytics-report-swot-item.tone-positive span {
+  background: #caefdc;
+  color: var(--light-success-text);
+}
+
+.workspace-page .analytics-report-swot-item.tone-watch span {
+  background: #ffe6b0;
+  color: var(--light-warning-text);
+}
+
+.workspace-page .analytics-report-swot-item.tone-risk span {
+  background: #f9d1d6;
+  color: var(--light-danger-text);
+}
+
+.workspace-page .analytics-report-swot-item.tone-neutral span {
+  background: var(--light-pill-bg);
+  color: var(--light-pill-text);
+}
+
+.workspace-records-shell,
+.today-workspace,
+.contacts-workspace,
+.workspace-records-list-shell,
+.today-main-column,
+.contacts-list-shell,
+.today-queue-list {
+  border-color: var(--light-surface-border);
+}
+
+.workspace-record-row,
+.today-queue-row,
+.contact-row,
+.detail-kv-item,
+.support-list-item,
+.overview-list-item,
+.analytics-item,
+.timeline-row {
+  border-color: #d8e2ee;
+}
+
+.workspace-record-row:hover,
+.today-queue-row:hover,
+.contact-row:hover {
+  background: #f3f7ff;
+}
+
+.workspace-record-row.active,
+.today-queue-row.active,
+.contact-row.active {
+  background: var(--light-active-bg);
+  box-shadow: inset 3px 0 0 #2f67e3;
+}
+
+.workspace-page .toolbar-chip,
+.workspace-page .local-section-button,
+.workspace-page .contact-filter-button,
+.workspace-page .customer-filter-pill,
+.workspace-page .customer-utility-button,
+.workspace-page .customer-secondary-button,
+.workspace-page .prompt-chip,
+.workspace-page .disclosure-toggle,
+.workspace-page .test-link {
+  border-color: var(--light-pill-border);
+  background: var(--light-surface-bg);
+  color: var(--light-pill-text);
+}
+
+.workspace-page .toolbar-chip:hover,
+.workspace-page .local-section-button:hover,
+.workspace-page .contact-filter-button:hover,
+.workspace-page .customer-filter-pill:hover,
+.workspace-page .customer-utility-button:hover,
+.workspace-page .customer-secondary-button:hover,
+.workspace-page .prompt-chip:hover,
+.workspace-page .disclosure-toggle:hover {
+  border-color: var(--light-surface-border-strong);
+  background: #eef4ff;
+  color: #203d66;
+}
+
+.workspace-page .toolbar-chip.active,
+.workspace-page .local-section-button.active,
+.workspace-page .contact-filter-button.active,
+.workspace-page .customer-filter-pill.active {
+  border-color: #2f67e3;
+  background: #2f67e3;
+  color: #ffffff;
+}
+
+.workspace-page .pill,
+.workspace-page .badge,
+.workspace-page .preview-status-pill,
+.workspace-page-overview .pill,
+.workspace-page-overview .badge,
+.workspace-page-overview .preview-status-pill {
+  border-color: var(--light-pill-border);
+  background: var(--light-pill-bg);
+  color: var(--light-pill-text);
+}
+
+.workspace-page .badge.success,
+.workspace-page-overview .badge.success,
+.workspace-page .pill-green {
+  border-color: var(--light-success-border);
+  background: var(--light-success-bg);
+  color: var(--light-success-text);
+}
+
+.workspace-page .badge.warning,
+.workspace-page-overview .badge.warning,
+.workspace-page .pill-orange {
+  border-color: var(--light-warning-border);
+  background: var(--light-warning-bg);
+  color: var(--light-warning-text);
+}
+
+.workspace-page .badge.pending,
+.workspace-page-overview .badge.pending {
+  border-color: var(--light-pending-border);
+  background: var(--light-pending-bg);
+  color: var(--light-pending-text);
+}
+
+.workspace-page .pill-blue {
+  border-color: #b9ccff;
+  background: #e8f0ff;
+  color: #244fb7;
+}
+
+.workspace-page .pill-red {
+  border-color: var(--light-danger-border);
+  background: var(--light-danger-bg);
+  color: var(--light-danger-text);
+}
+
+.workspace-page .customer-status-chip {
+  border-color: var(--light-pill-border);
+  background: var(--light-pill-bg);
+  color: var(--light-pill-text);
+}
+
+.workspace-page .customer-status-chip--complaint {
+  border-color: #e7b4a6;
+  background: #fff0ec;
+  color: #954833;
+}
+
+.workspace-page .customer-status-chip--lead {
+  border-color: #b9c8ff;
+  background: #eaf1ff;
+  color: #2f55ae;
+}
+
+.workspace-page .customer-status-chip--needs_reply {
+  border-color: #e6c77e;
+  background: #fff2cc;
+  color: #7d5400;
+}
+
+.workspace-page .customer-status-chip--resolved {
+  border-color: #add9c1;
+  background: #e6f6ed;
+  color: #246744;
+}
+
+.workspace-page .customer-status-chip--returning {
+  border-color: var(--light-pill-border);
+  background: var(--light-pill-bg);
+  color: #465b77;
+}
+
+.workspace-page .placeholder-card {
+  border-color: #bac8da;
+  background: #ffffff;
+  color: var(--light-surface-text);
+}
+
+.workspace-page button:disabled,
+.workspace-page .test-link.disabled {
+  border-color: #cbd6e4;
+  background: #edf2f7;
+  color: #596a82;
+}
+
+.workspace-page .page-toolbar input[type="search"],
+.workspace-page .page-toolbar input[type="text"],
+.workspace-page .page-toolbar select,
+.workspace-page .field input,
+.workspace-page .field select,
+.workspace-page .field textarea,
+.workspace-page .detail-inline-form-row select,
+.workspace-page .detail-inline-form-row input {
+  border-color: #bcc9dc;
+  color: var(--light-surface-title);
+}
+
+.workspace-page .page-toolbar input[type="search"]::placeholder,
+.workspace-page .page-toolbar input[type="text"]::placeholder,
+.workspace-page .field input::placeholder,
+.workspace-page .field textarea::placeholder {
+  color: #65758f;
+}
+
+.home-daily-banner-kicker,
+.home-improve-panel .workspace-panel-copy,
+.customer-focus-banner .studio-kicker,
+.customer-focus-banner .workspace-panel-copy,
+.analytics-launch-board-kicker,
+.analytics-board-label {
+  color: #dbe7f6;
+}
+
+.home-improve-copy,
+.analytics-launch-board-copy,
+.analytics-board-copy,
+.analytics-board-meta-row,
+.analytics-board-dual-copy,
+.analytics-board-footnote,
+.analytics-launch-board-footer,
+.analytics-mini-bar-copy span,
+.analytics-board-ranked-row p,
+.analytics-board-empty,
+.analytics-board-chip-metrics span,
+.analytics-board-statline span {
+  color: #e5edff;
 }
