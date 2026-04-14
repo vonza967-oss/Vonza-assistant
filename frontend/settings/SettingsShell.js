@@ -108,7 +108,7 @@
   function defaultWorkspaceMode() {
     return {
       title: "Workspace mode unavailable",
-      copy: "Workspace mode will appear here when operator workspace data is available.",
+      copy: "Workspace mode will appear here when customer service workspace data is available.",
     };
   }
 
@@ -241,7 +241,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
             <h2 class="settings-shell-page-title">Business profile</h2>
-            <p class="settings-shell-page-copy">Business context setup for Today and Copilot: define what Vonza should trust before it prepares approval-first drafts, recommendations, or next steps.</p>
+            <p class="settings-shell-page-copy">Business context setup for Home and Vonza: define what Vonza should trust before it prepares owner-reviewed drafts, recommendations, or next steps.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
@@ -280,7 +280,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Core business facts</h3>
-              <p class="settings-shell-section-copy">Keep this concise and operator-facing. This is not website copy; it is the working context Copilot should trust when it prepares approval-first proposals.</p>
+              <p class="settings-shell-section-copy">Keep this concise and owner-facing. This is not website copy; it is the working context Vonza should trust when it prepares owner-reviewed proposals.</p>
             </div>
           </div>
           <div class="settings-shell-field-stack">
@@ -321,7 +321,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Approved owner paths</h3>
-              <p class="settings-shell-section-copy">Copilot should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
+              <p class="settings-shell-section-copy">Vonza should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
             </div>
           </div>
           <div class="settings-shell-field-stack">
@@ -345,7 +345,7 @@
                   </label>
                 `).join("")}
               </div>
-              <p class="field-help">These do not send anything automatically. They define which owner-approved channels Copilot may prepare drafts for.</p>
+              <p class="field-help">These do not send anything automatically. They define which owner-approved channels Vonza may prepare drafts for.</p>
             </div>
             <div class="field">
               <label>Approval preferences</label>
@@ -369,7 +369,7 @@
                   </div>
                 `).join("")}
               </div>
-              <p class="field-help">Use explicit approval modes so Copilot stays review-first even when it has enough context to act.</p>
+              <p class="field-help">Use explicit approval modes so Vonza stays review-first even when it has enough context to act.</p>
             </div>
           </div>
         </section>
@@ -551,12 +551,12 @@
             </div>
             ${manualOutcomeVisible ? `
               <div class="field">
-                <label for="assistant-manual-outcome-mode">Manual outcome mode</label>
+                <label for="assistant-manual-outcome-mode">Fallback outcome mode</label>
                 <select id="assistant-manual-outcome-mode" name="manual_outcome_mode">
                   <option value="false" ${agent.manualOutcomeMode === true ? "" : "selected"}>automatic only</option>
-                  <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow manual mark fallback</option>
+                  <option value="true" ${agent.manualOutcomeMode === true ? "selected" : ""}>allow owner mark fallback</option>
                 </select>
-                <p class="field-help">Turn this on only when the real success page cannot be instrumented and the owner needs a manual fallback.</p>
+                <p class="field-help">Turn this on only when the real success page cannot be instrumented and the owner needs a fallback.</p>
               </div>
             ` : ""}
             <div class="field">
@@ -695,7 +695,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Google workspace connection</h3>
-              <p class="settings-shell-section-copy">Manage the real Google connection that powers Inbox, Calendar, and optional operator extensions.</p>
+              <p class="settings-shell-section-copy">Manage the real Google connection that powers Inbox, Calendar, and optional connected-tool extensions.</p>
             </div>
           </div>
           <div class="settings-shell-status-list">
@@ -733,7 +733,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Connected surfaces</h3>
-              <p class="settings-shell-section-copy">These tools extend the operator workspace. They do not replace the stable core around Today, Contacts, Front Desk, and Outcomes.</p>
+              <p class="settings-shell-section-copy">These tools extend the customer service workspace. They do not replace the stable core around Home, Customers, Front Desk, and Analytics.</p>
             </div>
           </div>
           <div class="settings-shell-key-value-list">
@@ -757,7 +757,7 @@
               <div class="settings-shell-key-value-main">
                 <p class="settings-shell-key-value-label">Automations</p>
                 <h4 class="settings-shell-key-value-title">Draft-first workflows</h4>
-                <p class="settings-shell-key-value-copy">Campaigns, follow-ups, and operator tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
+                <p class="settings-shell-key-value-copy">Campaigns, follow-ups, and owner tasks stay visible as tracked draft or approval objects instead of pretending to run autonomously.</p>
               </div>
               <span class="${getBadgeClass(status.googleConfigReady ? "Limited" : "Pending")}">${escapeHtml(status.googleConfigReady ? "Connection-dependent" : "Unavailable")}</span>
             </div>
@@ -820,7 +820,7 @@
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Operator boundaries</h3>
+              <h3 class="settings-shell-section-title">Workspace boundaries</h3>
               <p class="settings-shell-section-copy">Keep the product honest about what is and is not self-serve today.</p>
             </div>
           </div>

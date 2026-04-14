@@ -120,7 +120,7 @@ function normalizeVisitorIdentityState(input = {}) {
   );
   const email = normalizeEmail(input.email || input.visitorEmail || input.visitor_email);
   const name = trimText(input.name || input.visitorName || input.visitor_name);
-  const mode = modeCandidate || (email ? "identified" : "");
+  const mode = modeCandidate;
 
   if (mode === "guest") {
     return {

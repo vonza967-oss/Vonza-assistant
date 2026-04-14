@@ -48,3 +48,17 @@ test("drops invalid identified mode without a usable email", () => {
   });
   assert.equal(buildPublicVisitorIdentity(identity), null);
 });
+
+test("does not infer identified identity from email without explicit mode", () => {
+  const identity = normalizeVisitorIdentity({
+    visitor_email: "stale@example.com",
+    visitor_name: "Stale Visitor",
+  });
+
+  assert.deepEqual(identity, {
+    mode: "",
+    email: "",
+    name: "",
+  });
+  assert.equal(buildPublicVisitorIdentity(identity), null);
+});

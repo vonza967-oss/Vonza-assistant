@@ -407,14 +407,14 @@ export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
     status,
     activation,
     briefing: {
-      title: "Operator briefing",
-      text: "Connect Google Calendar and run the first sync to turn Today into your operator command center.",
+      title: "Home briefing",
+      text: "Connect Google Calendar and run the first sync to turn Home into your customer service workspace.",
       ...(overrides.briefing || {}),
     },
     nextAction: {
       key: "connect_google",
       title: "Connect Google",
-      description: "Connect Google Calendar so Today can show your schedule, recent appointments, and approval-first follow-up suggestions.",
+      description: "Connect Google Calendar so Home can show your schedule, recent appointments, and approval-first follow-up suggestions.",
       buttonLabel: "Connect Google",
       actionType: "connect_google",
       targetSection: "overview",
@@ -659,7 +659,7 @@ export async function getOperatorWorkspaceCapabilities(supabase) {
       missingTables: [],
       status: "disabled",
       alerts: [
-        "Connected Operator Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 to expose Inbox, Calendar, and Automations.",
+        "Connected Customer Service Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 to expose Inbox, Calendar, and Automations.",
       ],
     };
   }
@@ -673,12 +673,12 @@ export async function getOperatorWorkspaceCapabilities(supabase) {
 
   if (schema.missingTables.length) {
     alerts.push(
-      `Operator workspace tables are missing on this deployment. Run the production deploy workflow so Supabase applies the latest workspace migrations before enabling connected Inbox, Calendar, and Automations. Missing tables: ${schema.missingTables.join(", ")}.`
+      `Customer service workspace tables are missing on this deployment. Run the production deploy workflow so Supabase applies the latest workspace migrations before enabling connected Inbox, Calendar, and Automations. Missing tables: ${schema.missingTables.join(", ")}.`
     );
   }
 
   if (schema.unexpectedErrors.length) {
-    alerts.push("Operator workspace data is temporarily unavailable. The rest of the dashboard remains usable.");
+    alerts.push("Customer service workspace data is temporarily unavailable. The rest of the dashboard remains usable.");
   }
 
   return {
@@ -700,7 +700,7 @@ async function assertOperatorWorkspaceMutationReady(supabase, options = {}) {
 
   if (!capabilities.featureEnabled) {
     const error = new Error(
-      "Connected Operator Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 first."
+      "Connected Customer Service Workspace v1 is disabled for this deployment. Turn on VONZA_OPERATOR_WORKSPACE_V1 first."
     );
     error.statusCode = 409;
     throw error;
@@ -708,7 +708,7 @@ async function assertOperatorWorkspaceMutationReady(supabase, options = {}) {
 
   if (!capabilities.persistenceAvailable) {
     const error = new Error(
-      `Connected Operator Workspace tables are missing. Run the production deploy workflow so Supabase applies the latest workspace migrations first. Missing tables: ${capabilities.missingTables.join(", ")}.`
+      `Connected Customer Service Workspace tables are missing. Run the production deploy workflow so Supabase applies the latest workspace migrations first. Missing tables: ${capabilities.missingTables.join(", ")}.`
     );
     error.statusCode = 503;
     throw error;
@@ -2282,7 +2282,7 @@ export async function createOperatorTask(supabase, options = {}) {
   });
 
   if (!task?.id) {
-    const error = new Error("The operator task could not be created.");
+    const error = new Error("The owner task could not be created.");
     error.statusCode = 409;
     throw error;
   }
@@ -3013,7 +3013,7 @@ function buildAppointmentReviewReason({
   }
 
   if (openFollowUp) {
-    return "A follow-up draft already exists for this appointment, but the operator still needs to confirm that it is the right next step.";
+    return "A follow-up draft already exists for this appointment, but the owner still needs to confirm that it is the right next step.";
   }
 
   if (openTask) {
@@ -3031,10 +3031,10 @@ function buildAppointmentReviewReason({
 
 function buildAppointmentReviewImpact(event = {}) {
   if (event.isUnlinked) {
-    return "Until the attendee is linked to the right person, follow-up, attribution, and outcomes can split across Today, Contacts, and Outcomes.";
+    return "Until the attendee is linked to the right person, follow-up, attribution, and outcomes can split across Home, Customers, and Analytics.";
   }
 
-  return "Explicit review is what closes the loop between a finished appointment, the next operator move, and real business proof.";
+  return "Explicit review is what closes the loop between a finished appointment, the next owner move, and real business proof.";
 }
 
 function listMeaningfulOutcomesForEvent(recentOutcomes = [], event = {}, contact = null) {
@@ -3595,7 +3595,7 @@ export async function syncInboxWorkspace(supabase, options = {}, deps = {}) {
             actionKey: task.relatedActionKey,
             status: "reviewed",
             followUpNeeded: true,
-            note: "Connected inbox complaint/support thread needs operator review.",
+            note: "Connected inbox complaint/support thread needs owner review.",
           });
         } catch (error) {
           console.warn("[operator] Could not sync complaint state to action queue:", error.message);
@@ -4028,20 +4028,20 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         operatorWorkspaceEnabled: false,
       },
       briefing: {
-        title: "Operator workspace is off",
-        text: "The full operator workspace is disabled on this deployment, so Vonza is keeping the lighter front-desk workspace active.",
+        title: "Customer service workspace is off",
+        text: "The full customer service workspace is disabled on this deployment, so Vonza is keeping the lighter front-desk workspace active.",
       },
       nextAction: {
         key: "legacy_workspace",
         title: "Open workspace",
-        description: "Today, Front Desk, and Outcomes stay available while the website front desk continues to work.",
+        description: "Home, Front Desk, and Analytics stay available while the website front desk continues to work.",
         buttonLabel: "Open Front Desk",
         actionType: "open_customize",
         targetSection: "customize",
       },
       calendar: {
         ...emptySnapshot.calendar,
-        dailySummary: "Operator Workspace v1 is currently turned off for this deployment.",
+        dailySummary: "Customer Service Workspace v1 is currently turned off for this deployment.",
         missedBookingOpportunities: [],
         scheduleItems: [],
         reviewItems: [],
@@ -4083,12 +4083,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         googleConnectReady: false,
       },
       briefing: {
-        title: "Operator workspace needs its migration",
+        title: "Customer service workspace needs its migration",
         text: "Vonza kept the dashboard visible, but connected Inbox, Calendar, and Automations stay in safe fallback mode until the production deploy workflow applies the latest workspace migrations.",
       },
       nextAction: {
         key: "apply_operator_workspace_migration",
-        title: "Finish the operator workspace migration",
+        title: "Finish the customer service workspace migration",
         description: "Run the production deploy workflow before enabling live Inbox, Calendar, and Automations data on this deployment.",
         buttonLabel: "Review workspace status",
         actionType: "stay_put",

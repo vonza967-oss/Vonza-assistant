@@ -441,7 +441,7 @@ export function buildBusinessProfileReadiness(profile = {}) {
     missingSections,
     summary: missingSections.length
       ? `${completedSections} of ${READINESS_SECTIONS.length} business context areas are filled. Missing: ${missingSections.join(", ")}.`
-      : "All core business context areas are filled for Copilot.",
+      : "All core business context areas are filled for Vonza.",
   };
 }
 
@@ -593,7 +593,7 @@ export async function upsertOperatorBusinessProfile(supabase, { agent, ownerUser
   if (error) {
     if (isMissingRelationError(error, OPERATOR_BUSINESS_PROFILE_TABLE)) {
       const migrationError = new Error(
-        "Operator business profile persistence is not ready on this deployment. Run the production deploy workflow so Supabase applies the latest migrations, including operator business profiles."
+        "Business profile persistence is not ready on this deployment. Run the production deploy workflow so Supabase applies the latest migrations, including business profiles."
       );
       migrationError.statusCode = 503;
       throw migrationError;

@@ -416,9 +416,9 @@ test("dashboard renders visible shell content when data loads normally", async (
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Vonza Assistant/);
-  assert.match(harness.getRootHtml(), /Today/);
+  assert.match(harness.getRootHtml(), /Home/);
   assert.match(harness.getRootHtml(), /Front Desk/);
-  assert.match(harness.getRootHtml(), /Outcomes/);
+  assert.match(harness.getRootHtml(), /Analytics/);
 });
 
 test("auth bootstrap failures render a visible error state instead of a blank shell", async () => {
@@ -467,7 +467,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Today/);
+  assert.match(harness.getRootHtml(), /Home/);
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Analytics/);
   assert.match(harness.getRootHtml(), /Your core workspace is ready/i);
@@ -566,7 +566,7 @@ test("a failed operator workspace sub-request does not blank the dashboard", asy
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Today/i);
+  assert.match(harness.getRootHtml(), /Home/i);
 });
 
 test("dashboard shows visible empty states when no analytics data exists", async () => {

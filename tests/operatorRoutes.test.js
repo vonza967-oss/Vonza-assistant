@@ -128,7 +128,7 @@ function buildRouteDeps(overrides = {}) {
         completedSections: 8,
         missingCount: 0,
         missingSections: [],
-        summary: "All core business context areas are filled for Copilot.",
+        summary: "All core business context areas are filled for Vonza.",
       },
     }),
     getStoredWebsiteContent: async () => ({

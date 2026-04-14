@@ -228,7 +228,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
     ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"]
   );
 
-  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Today at a glance/);
+  assert.match(harness.buildOperatorOverviewSection({}, workspace), /Home at a glance/);
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
   assert.match(harness.buildInboxPanel({}, workspace), /Connect Gmail|Email/);
   assert.match(harness.buildCalendarPanel({}, workspace), /Connect Google/);
@@ -333,7 +333,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today at a glance/);
+  assert.match(overview, /Home at a glance/);
   assert.match(overview, /Messages today/);
   assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /Improve the business and Vonza/);
@@ -387,7 +387,7 @@ test("today copilot renders inside Today when the flag is on", () => {
       draftOnly: true,
       sparseData: false,
       headline: "1 thing needs attention today.",
-      summary: "Copilot is summarizing stable-core data only.",
+      summary: "Vonza is summarizing stable-core data only.",
       summaryCards: [
         {
           id: "what_matters",
@@ -414,7 +414,7 @@ test("today copilot renders inside Today when the flag is on", () => {
           rationale: "Pricing intent is high-buying-intent.",
           targetSection: "contacts",
           targetId: "contact-1",
-          surfaceLabel: "Open Contacts",
+          surfaceLabel: "Open Customers",
         },
       ],
       drafts: [
@@ -456,7 +456,7 @@ test("today copilot renders inside Today when the flag is on", () => {
       context: {
         businessProfile: {
           readiness: {
-            summary: "All core business context areas are filled for Copilot.",
+            summary: "All core business context areas are filled for Vonza.",
             missingCount: 0,
           },
         },
@@ -468,7 +468,7 @@ test("today copilot renders inside Today when the flag is on", () => {
     },
     businessProfile: {
       readiness: {
-        summary: "All core business context areas are filled for Copilot.",
+        summary: "All core business context areas are filled for Vonza.",
         missingCount: 0,
       },
       prefill: {
@@ -480,7 +480,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Today at a glance/);
+  assert.match(overview, /Home at a glance/);
   assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /Improve the business and Vonza/);
   assert.match(overview, /Show supporting detail/);
@@ -538,7 +538,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
           linkedContactEmail: "taylor@example.com",
           endAt: "2026-04-05T11:30:00.000Z",
           reviewReason: "Missing follow-up after the appointment ended.",
-          reviewWhyItMatters: "Copilot wants a single explicit resolution before the appointment drops out of context.",
+          reviewWhyItMatters: "Vonza wants a single explicit resolution before the appointment drops out of context.",
           appointmentReviewState: {},
         },
       ],
@@ -566,7 +566,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
       draftOnly: true,
       sparseData: false,
       headline: "Close the pricing follow-up gap first.",
-      summary: "Copilot is summarizing stable-core data only.",
+      summary: "Vonza is summarizing stable-core data only.",
       summaryCards: [
         {
           id: "what_matters",
@@ -601,7 +601,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
       context: {
         businessProfile: {
           readiness: {
-            summary: "All core business context areas are filled for Copilot.",
+            summary: "All core business context areas are filled for Vonza.",
             missingCount: 0,
           },
         },
@@ -613,7 +613,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
     },
     businessProfile: {
       readiness: {
-        summary: "All core business context areas are filled for Copilot.",
+        summary: "All core business context areas are filled for Vonza.",
         missingCount: 0,
       },
       prefill: {
@@ -1185,8 +1185,8 @@ test("sparse-data copilot rendering stays honest and points back to business con
       readOnly: true,
       draftOnly: true,
       sparseData: true,
-      headline: "Copilot sees the foundation, but not enough live operating data yet.",
-      summary: "Copilot is intentionally read-first and draft-first.",
+      headline: "Vonza sees the foundation, but not enough live operating data yet.",
+      summary: "Vonza is intentionally read-first and draft-first.",
       summaryCards: [
         {
           id: "what_matters",
@@ -1203,7 +1203,7 @@ test("sparse-data copilot rendering stays honest and points back to business con
         },
       },
       fallback: {
-        title: "Copilot needs a little more real operating context",
+        title: "Vonza needs a little more real operating context",
         description: "There is not enough stable-core activity yet for strong recommendations.",
         guidance: ["Fill the business context foundation next: Pricing, Policies."],
       },
@@ -1220,7 +1220,7 @@ test("sparse-data copilot rendering stays honest and points back to business con
   });
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
-  assert.match(overview, /Copilot needs a little more real operating context/);
+  assert.match(overview, /Vonza needs a little more real operating context/);
   assert.match(overview, /Open business context/);
 });
 

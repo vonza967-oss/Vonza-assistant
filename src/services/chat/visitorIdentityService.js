@@ -25,7 +25,7 @@ export function normalizeVisitorIdentity(input = {}) {
       || source.visitorName
       || source.visitor_name
   );
-  const mode = modeCandidate || (email ? "identified" : "");
+  const mode = modeCandidate;
 
   if (mode === "guest") {
     return {

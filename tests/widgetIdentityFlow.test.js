@@ -246,3 +246,17 @@ test("widget can continue with email and build identified chat payloads", () => 
     visitor_name: "Avery Hart",
   });
 });
+
+test("widget does not infer identity from an email without explicit mode", () => {
+  const harness = createWidgetHarness();
+  const identity = harness.hooks.normalizeVisitorIdentityState({
+    email: "stale@example.com",
+    name: "Stale Visitor",
+  });
+
+  assert.deepEqual(plain(identity), {
+    mode: "",
+    email: "",
+    name: "",
+  });
+});

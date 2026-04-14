@@ -31,11 +31,11 @@ const PUBLIC_COHORT_V1_MATRIX = Object.freeze({
   },
   today: {
     state: FEATURE_STATES.STABLE,
-    label: "Today",
+    label: "Home",
   },
   contacts: {
     state: FEATURE_STATES.STABLE,
-    label: "Contacts",
+    label: "Customers",
   },
   outcomes: {
     state: FEATURE_STATES.STABLE,
@@ -110,9 +110,9 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
     mode: "public_cohort_v1",
     product: {
       name: "Vonza Front Desk",
-      headline: "AI front desk for service businesses with an operator command center.",
+      headline: "AI front desk for service businesses with a simple customer service workspace.",
       purchaseSummary:
-        "The first public offer is the AI front desk plus Today, Contacts, Front Desk, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional connected tools when enabled.",
+        "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional connected tools when enabled.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",

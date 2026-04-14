@@ -279,6 +279,52 @@ test("normal pricing questions stay AI-handled without contact capture", async (
   assert.equal(supabase.state.agent_contact_leads.length, 0);
 });
 
+test("normal service and hours questions stay AI-handled without contact capture", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "What services do you offer?" },
+      { role: "assistant", content: "We offer installation, maintenance, and repair." },
+      { role: "user", content: "How late are you open?" },
+      { role: "assistant", content: "The website lists weekday opening hours." },
+    ], "session-routine"),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-routine",
+    userMessage: "How late are you open?",
+    language: "English",
+  });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.shouldPrompt, false);
+  assert.equal(supabase.state.agent_contact_leads.length, 0);
+});
+
+test("complaint tone stays in chat unless contact is explicitly requested", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "I'm frustrated that delivery was late." },
+      { role: "assistant", content: "I'm sorry that happened. I can help check the available support steps." },
+    ], "session-complaint"),
+  });
+
+  const result = await processLiveChatLeadCapture(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-complaint",
+    userMessage: "I'm frustrated that delivery was late.",
+    language: "English",
+  });
+
+  assert.equal(result.state, "none");
+  assert.equal(result.shouldPrompt, false);
+  assert.equal(supabase.state.agent_contact_leads.length, 0);
+});
+
 test("explicit quote request triggers a prompt-ready lead capture state", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([

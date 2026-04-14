@@ -85,7 +85,7 @@ function normalizeProposalCandidate(candidate = {}, sourceKind = "") {
     key: cleanText(proposal.key),
     type: cleanText(proposal.type),
     hash: cleanText(proposal.hash),
-    title: cleanText(candidate.title) || cleanText(candidate.subject) || "Copilot proposal",
+    title: cleanText(candidate.title) || cleanText(candidate.subject) || "Vonza proposal",
     summary: cleanText(candidate.summary || proposal.summary || candidate.subject),
     why: cleanText(candidate.rationale || proposal.rationale),
     whatHappens: cleanText(proposal.effect),
@@ -134,7 +134,7 @@ function resolveProposalState(candidate, existingState = null) {
   ) {
     return {
       state: "stale",
-      stateReason: "The underlying context changed after the last action, so Copilot surfaced this proposal again.",
+      stateReason: "The underlying context changed after the last action, so Vonza surfaced this proposal again.",
     };
   }
 
@@ -303,7 +303,7 @@ async function executeCreateFollowUpDraft(supabase, options = {}) {
   if (!contactEmail && !contactPhone) {
     return {
       status: "blocked",
-      statusReason: "A usable email address or phone number is required before Copilot can create this follow-up draft safely.",
+      statusReason: "A usable email address or phone number is required before Vonza can create this follow-up draft safely.",
     };
   }
 
@@ -451,7 +451,7 @@ async function executeCreateContactNextStep(supabase, options = {}) {
 
   return {
     status: "blocked",
-    statusReason: proposal.blockedReason || "This next step cannot be created safely from Copilot yet.",
+    statusReason: proposal.blockedReason || "This next step cannot be created safely from Vonza yet.",
   };
 }
 
@@ -550,7 +550,7 @@ export async function dismissTodayCopilotProposal(supabase, options = {}) {
     proposalType: cleanText(proposal.type),
     status: "dismissed",
     proposalHash: cleanText(proposal.hash),
-    statusReason: "Dismissed by owner from Today.",
+    statusReason: "Dismissed by owner from Home.",
   });
 
   return {
@@ -586,7 +586,7 @@ export async function applyTodayCopilotProposal(supabase, options = {}) {
         execution = await executeOpenExistingSurface(supabase, options);
         break;
       default: {
-        const error = new Error("Unsupported Copilot proposal type.");
+        const error = new Error("Unsupported Vonza proposal type.");
         error.statusCode = 400;
         throw error;
       }
@@ -594,7 +594,7 @@ export async function applyTodayCopilotProposal(supabase, options = {}) {
   } catch (error) {
     execution = {
       status: "blocked",
-      statusReason: cleanText(error?.message) || "Copilot could not apply this proposal safely.",
+      statusReason: cleanText(error?.message) || "Vonza could not apply this proposal safely.",
     };
   }
 

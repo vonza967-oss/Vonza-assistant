@@ -9,21 +9,21 @@ import { generateAssistantReply } from "../chat/assistantReplyService.js";
 
 const SECTION_GUIDES = {
   overview: {
-    label: "Today",
+    label: "Home",
     summary:
-      "Today is the main Vonza workspace. It keeps the next action, setup health, approvals, and the most important operating context in one place.",
+      "Home is the main Vonza workspace. It keeps the next action, setup health, customer-service signals, and the most important operating context in one place.",
     nextSteps: [
       "Review the single best next action and any needs-attention cards first.",
-      "Use Today to see whether setup, approvals, or follow-up work needs owner attention now.",
+      "Use Home to see whether setup, customer-service quality, or follow-up work needs attention now.",
     ],
   },
   contacts: {
-    label: "Contacts",
+    label: "Customers",
     summary:
-      "Contacts shows the people and companies Vonza is tracking, plus lifecycle state, follow-up risk, recent activity, and the next relationship move.",
+      "Customers is a lightweight support workspace for people Vonza has safely identified, plus lifecycle state, follow-up risk, recent activity, and the next service move.",
     nextSteps: [
-      "Use Contacts to review who needs follow-up, who is at risk, and who has progressed.",
-      "Open a specific contact when you want to update lifecycle, prepare follow-up, or review context.",
+      "Use Customers to review who needs follow-up, who is at risk, and who has progressed.",
+      "Open a specific customer when you want to update lifecycle, prepare follow-up, or review context.",
     ],
   },
   customize: {
@@ -38,7 +38,7 @@ const SECTION_GUIDES = {
   analytics: {
     label: "Analytics",
     summary:
-      "Analytics explains how Vonza is performing by showing customer questions, proof of outcomes, and where answers or flows should improve.",
+      "Analytics explains how Vonza is performing by showing customer questions, proof of results, and where answers or flows should improve.",
     nextSteps: [
       "Use Analytics to understand what customers are asking and where Vonza is helping or missing.",
       "Review improvement areas when you want clearer answers, stronger routing, or better next-step guidance.",
@@ -59,7 +59,7 @@ const SECTION_GUIDES = {
       "Settings holds the deeper workspace configuration for business context, front desk behavior, connected tools, and workspace status.",
     nextSteps: [
       "Use Settings when you want to change business context, assistant behavior, or connected-tool setup.",
-      "Most day-to-day operating work stays in Today, Contacts, Front Desk, Analytics, and Install.",
+      "Most day-to-day operating work stays in Home, Customers, Front Desk, Analytics, and Install.",
     ],
   },
   inbox: {
@@ -83,9 +83,9 @@ const SECTION_GUIDES = {
   automations: {
     label: "Automations",
     summary:
-      "Automations keeps follow-up drafts, campaign drafts, and operator tasks together so owner-reviewed work stays visible and controlled.",
+      "Automations keeps follow-up drafts, campaign drafts, and owner tasks together so reviewed work stays visible and controlled.",
     nextSteps: [
-      "Use Automations to review prepared follow-up, campaign steps, and operator tasks.",
+      "Use Automations to review prepared follow-up, campaign steps, and owner tasks.",
       "This area is strongest after the core workspace has enough live signal from setup and usage.",
     ],
   },
@@ -99,15 +99,15 @@ const SUBSECTION_GUIDES = {
     launch: "Launch focuses on getting the customer-facing front desk ready to publish safely.",
   },
   contacts: {
-    overview: "Contacts overview summarizes relationship health, risk, and where attention is needed.",
-    people: "People is the detailed contact list and contact record view.",
-    follow_up: "Follow-up surfaces contacts that need the next move, recovery, or manual attention.",
+    overview: "Customers overview summarizes relationship health, support risk, and where attention is needed.",
+    people: "People is the detailed customer list and customer record view.",
+    follow_up: "Follow-up surfaces customers that need the next move, recovery, or service attention.",
     activity: "Activity shows movement, source coverage, and who has gone quiet.",
   },
   analytics: {
-    overview: "Analytics overview gives the high-level read on questions, outcomes, and improvement pressure.",
+    overview: "Analytics overview gives the high-level read on questions, results, and improvement pressure.",
     questions: "Questions groups real customer question themes so you can see what people are trying to understand.",
-    outcomes: "Outcomes shows the results Vonza can prove conservatively from recorded activity.",
+    outcomes: "Analytics shows the results Vonza can prove conservatively from recorded activity.",
     improvements: "Improvements highlights weak answers, weak routing, and places where setup or guidance should get stronger.",
   },
   settings: {
@@ -215,7 +215,7 @@ function buildRecommendedNextSteps(agent = {}, operatorWorkspace = {}) {
   }
 
   if (!tools.googleConnected) {
-    steps.push("Connect Google in Settings > Connected tools when you want Email, Calendar, and richer Today context inside the workspace.");
+    steps.push("Connect Google in Settings > Connected tools when you want Email, Calendar, and richer Home context inside the workspace.");
   }
 
   if (missingBusinessContext > 0) {
@@ -241,9 +241,9 @@ function buildSuggestedPrompts({
   if (context.sectionKey === "install") {
     prompts.push("Why is my install not verified?");
   } else if (context.sectionKey === "analytics") {
-    prompts.push("Why am I not seeing outcomes yet?");
+    prompts.push("Why am I not seeing Analytics results yet?");
   } else if (context.sectionKey === "contacts") {
-    prompts.push("What is Contacts for?");
+    prompts.push("What is Customers for?");
   } else if (context.sectionKey === "settings") {
     prompts.push("How do I connect email?");
   } else if (context.sectionKey === "customize") {
@@ -274,8 +274,8 @@ function buildProductKnowledgeBlock() {
     "- Keep the difference between customer-facing website help and in-app product support explicit when relevant.",
     "",
     "Vonza product model:",
-    "- Vonza is an approval-first AI front desk and operator command center.",
-    "- The stable core inside the app is Today, Contacts, Front Desk, Analytics, Install, and Settings.",
+    "- Vonza is an AI front desk and simple customer-service workspace.",
+    "- The stable core inside the app is Home, Customers, Front Desk, Analytics, Install, and Settings.",
     "- Email, Calendar, and Automations are connected workspace extensions when Google tools are enabled.",
     "- Suggested actions, drafts, approvals, and live changes should stay clearly distinct in explanations.",
     "",
@@ -326,12 +326,12 @@ function buildWorkspaceContextBlock({
     Number.isFinite(tools.inboxAttentionCount) ? `- Email items needing attention: ${tools.inboxAttentionCount}` : "",
     Number.isFinite(tools.pendingCalendarApprovals) ? `- Pending calendar approvals: ${tools.pendingCalendarApprovals}` : "",
     Number.isFinite(contactSummary.totalContacts) ? `- Total tracked contacts: ${contactSummary.totalContacts}` : "",
-    Number.isFinite(contactSummary.contactsNeedingAttention) ? `- Contacts needing attention: ${contactSummary.contactsNeedingAttention}` : "",
+    Number.isFinite(contactSummary.contactsNeedingAttention) ? `- Customers needing attention: ${contactSummary.contactsNeedingAttention}` : "",
     cleanText(businessReadiness.summary) ? `- Business context readiness: ${cleanText(businessReadiness.summary)}` : "",
     incompleteActivationItems.length ? `- Incomplete setup checklist items: ${incompleteActivationItems.length}` : "",
     nextActionTitle ? `- Current next action: ${nextActionTitle}` : "",
     nextActionDescription ? `- Next action detail: ${nextActionDescription}` : "",
-    briefingText ? `- Today briefing: ${briefingText}` : "",
+    briefingText ? `- Home briefing: ${briefingText}` : "",
     "",
     recommendedNextSteps.length
       ? `Recommended next steps right now:\n${recommendedNextSteps.map((step) => `- ${step}`).join("\n")}`
@@ -380,7 +380,7 @@ function matchQuestionIntent(question = "", currentSection = "") {
     return "knowledge";
   }
 
-  if (/not seeing outcomes|no outcomes|why.*outcomes/i.test(normalized)) {
+  if (/not seeing outcomes|no outcomes|why.*outcomes|not seeing analytics results|no analytics results|why.*analytics results/i.test(normalized)) {
     return "outcomes";
   }
 
@@ -388,7 +388,7 @@ function matchQuestionIntent(question = "", currentSection = "") {
     return "connected_tools";
   }
 
-  if (/contacts/i.test(normalized)) {
+  if (/customers|contacts/i.test(normalized)) {
     return "contacts";
   }
 
@@ -404,7 +404,7 @@ function matchQuestionIntent(question = "", currentSection = "") {
     return "settings";
   }
 
-  if (/today/i.test(normalized) || cleanText(currentSection).toLowerCase() === "overview") {
+  if (/home|today/i.test(normalized) || cleanText(currentSection).toLowerCase() === "overview") {
     return "overview";
   }
 
@@ -456,7 +456,7 @@ function buildProductSupportConversationGuidance({
 
   if (intent === "install") {
     guidance.push(
-      "Focus on the install path: snippet placement, verification, and how live install affects Today and Analytics."
+      "Focus on the install path: snippet placement, verification, and how live install affects Home and Analytics."
     );
   }
 
@@ -474,7 +474,7 @@ function buildProductSupportConversationGuidance({
 
   if (intent === "contacts") {
     guidance.push(
-      "Explain Contacts in operator terms: lifecycle, risk, follow-up, and the next relationship move."
+      "Explain Customers in customer-service terms: lifecycle, risk, follow-up, and the next support move."
     );
   }
 
@@ -492,7 +492,7 @@ function buildProductSupportConversationGuidance({
 
   if (intent === "settings") {
     guidance.push(
-      "Explain Settings as the deeper configuration surface, and redirect day-to-day operating work back to Today, Contacts, Front Desk, Analytics, or Install when appropriate."
+      "Explain Settings as the deeper configuration surface, and redirect day-to-day operating work back to Home, Customers, Front Desk, Analytics, or Install when appropriate."
     );
   }
 
@@ -552,7 +552,7 @@ Core behavior:
 - Use short bullets only when steps are clearer that way
 - Mention the current page when it genuinely improves orientation
 - Be explicit about what is blocked, what is ready, and what should happen next
-- If asked about a surface like Contacts, Analytics, Front Desk, Install, or Settings, explain both what it is for and when to use it
+- If asked about a surface like Customers, Analytics, Front Desk, Install, or Settings, explain both what it is for and when to use it
 - If the question is unrelated to using Vonza, say you only help with using Vonza and redirect to a relevant area inside the product
 - Keep the tone calm, practical, and product-support-focused
 
@@ -647,7 +647,7 @@ function buildFallbackAnswer({
         return "Vonza is not fully live yet because the website install is not detected. Open Install, place the snippet on the site, then verify it so the live front desk can be confirmed.";
       }
 
-      return "The core setup looks fairly ready. If something still feels blocked, check Today for the next action and Install for live verification details.";
+      return "The core setup looks fairly ready. If something still feels blocked, check Home for the next action and Install for live verification details.";
     case "install_status":
       return setup.installDetected
         ? "Vonza can already see an install signal, so the likely issue is verification detail rather than a missing snippet. Open Install, compare the detected host with the right website, and rerun verification."
@@ -657,7 +657,7 @@ function buildFallbackAnswer({
     case "install":
       return setup.installDetected
         ? "Vonza already looks installed, so the main job now is verification: open Install, confirm the snippet is still live, and make sure the detected host matches the right website."
-        : "Open Install, copy the Vonza snippet, place it on the website, then run verification. Once the install is detected, Today and Analytics can start reflecting more live signal.";
+        : "Open Install, copy the Vonza snippet, place it on the website, then run verification. Once the install is detected, Home and Analytics can start reflecting more live signal.";
     case "knowledge":
       return setup.knowledgeLimited
         ? "Your knowledge is limited because Vonza only has a partial website import right now. Re-run the knowledge import from Front Desk, make sure the website URL points to the strongest public pages, and test the preview again after the import finishes."
@@ -666,24 +666,24 @@ function buildFallbackAnswer({
           : "To improve results, review real question patterns in Analytics, sharpen Front Desk wording where answers feel weak, and keep the website import fresh whenever core site content changes.";
     case "outcomes":
       return Number(operatorWorkspace?.summary?.confirmedOutcomes || operatorWorkspace?.summary?.confirmedBusinessOutcomes || 0) > 0
-        ? "Vonza is already recording some outcome signal, so the next step is to review Analytics > Outcomes and confirm whether the newest customer journeys are being captured the way you expect."
-        : "You are likely not seeing outcomes yet because Vonza either does not have enough live usage or the install is not fully verified yet. Once the front desk is live and handling real visitor traffic, Outcomes becomes much more useful.";
+        ? "Vonza is already recording some result signal, so the next step is to review Analytics and confirm whether the newest customer journeys are being captured the way you expect."
+        : "You are likely not seeing Analytics results yet because Vonza either does not have enough live usage or the install is not fully verified yet. Once the front desk is live and handling real visitor traffic, Analytics becomes much more useful.";
     case "connected_tools":
       return tools.googleConnected
-        ? "Google is already connected, so Email and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Today if you want to confirm which account is active and whether sync has completed."
-        : "Connect Google from Settings > Connected tools when you want Vonza to use email and calendar context. The core workspace still works without it, but Email, Calendar, and richer Today context depend on that connection.";
+        ? "Google is already connected, so Email and Calendar can extend the core Vonza workspace. Use Settings > Connected tools or Home if you want to confirm which account is active and whether sync has completed."
+        : "Connect Google from Settings > Connected tools when you want Vonza to use email and calendar context. The core workspace still works without it, but Email, Calendar, and richer Home context depend on that connection.";
     case "contacts":
-      return `${SECTION_GUIDES.contacts.summary} Start in Contacts overview for health and risk, then move into People or Follow-up when you need detail or action.`;
+      return `${SECTION_GUIDES.contacts.summary} Start in Customers overview for health and risk, then move into People or Follow-up when you need detail or action.`;
     case "analytics":
-      return `${SECTION_GUIDES.analytics.summary} Use Questions to see demand, Outcomes to see proof, and Improvements when you want to tighten weak answers or weak routing.`;
+      return `${SECTION_GUIDES.analytics.summary} Use Questions to see demand, proof to see results, and Improvements when you want to tighten weak answers or weak routing.`;
     case "customize":
       return `${SECTION_GUIDES.customize.summary} The usual order is basics first, then preview, then knowledge quality, then install.`;
     case "settings":
-      return `${SECTION_GUIDES.settings.summary} Use Settings for deeper configuration, but keep day-to-day operating work in Today, Contacts, Front Desk, Analytics, and Install.`;
+      return `${SECTION_GUIDES.settings.summary} Use Settings for deeper configuration, but keep day-to-day operating work in Home, Customers, Front Desk, Analytics, and Install.`;
     case "overview":
-      return `${SECTION_GUIDES.overview.summary} If you are not sure where to begin, use Today to follow the clearest next action and then jump into the related surface.`;
+      return `${SECTION_GUIDES.overview.summary} If you are not sure where to begin, use Home to follow the clearest next action and then jump into the related surface.`;
     default:
-      return `I can help with using Vonza itself, like Today, Contacts, Front Desk, Analytics, Install, setup quality, and connected tools. Right now, ${currentContext.sectionLabel} is the active page, and ${currentContext.sectionNextSteps[0] || "that is usually the best place to start."}`;
+      return `I can help with using Vonza itself, like Home, Customers, Front Desk, Analytics, Install, setup quality, and connected tools. Right now, ${currentContext.sectionLabel} is the active page, and ${currentContext.sectionNextSteps[0] || "that is usually the best place to start."}`;
   }
 }
 

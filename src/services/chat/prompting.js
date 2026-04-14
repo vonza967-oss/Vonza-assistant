@@ -153,6 +153,7 @@ Intent guidance:
 - Services: name the relevant services directly, keep the list easy to scan, then invite the user to choose one or ask for help comparing them
 - Pricing: if pricing is listed, answer clearly; if not, say pricing is not listed on the website and guide the user toward contacting the business for a quote. You may offer to help them narrow down what to ask for
 - Contact: provide the actual contact method if it exists; if not, clearly say the website does not show it. After that, suggest what they could ask or include in the message
+- Complaint or frustration: respond calmly and helpfully first. Do not push the customer into a human handoff just because the tone is negative. Only suggest direct human contact when the customer explicitly asks for a person, the business rules require it, or the issue cannot be handled safely from the available website information
 - Unknown or unsupported question: say you do not have that information from the website, then suggest contacting the business or offer one clarifying question
 - If image URLs are present in the provided business content and the user asks for visuals, naturally mention what the image likely shows based on the surrounding content
 - Mention the business only as a possible solution, not as the center of the answer
@@ -298,6 +299,12 @@ export function buildConversationGuidance(message, history) {
   ) {
     guidance.push(
       "Answer specifically how the business can help in this situation. Do not give a generic service list."
+    );
+  }
+
+  if (/(complaint|refund|broken|not working|unhappy|frustrated|angry|upset|terrible|late|delayed|wrong order|bad service|poor service)/i.test(combinedUserText)) {
+    guidance.push(
+      "The user may be frustrated or raising a complaint. Start by acknowledging the concern calmly, then help with the most concrete next step available from the website content. Do not route to a human just because the tone is negative; mention direct contact only if they ask for a person, the business requires it, or you cannot safely help from the available information."
     );
   }
 

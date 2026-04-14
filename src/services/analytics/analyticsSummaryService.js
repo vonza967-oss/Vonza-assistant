@@ -33,7 +33,7 @@ function buildDefaultRecentActivity() {
 
 function buildDefaultOperatorSignal() {
   return {
-    title: "No operator signal yet",
+    title: "No service signal yet",
     copy: "There is not a strong lead, booking, pricing, or support signal yet.",
     subtle: "No weak-answer signal has been detected yet.",
   };
@@ -136,7 +136,7 @@ function buildOperatorSignal({
 
   if (highIntentSignals > 0) {
     return {
-      title: "High-intent operator signal",
+      title: "High-intent service signal",
       copy: `${highIntentSignals} high-intent customer signal${highIntentSignals === 1 ? "" : "s"} have already appeared.`,
       subtle: weakAnswerCount > 0
         ? `${weakAnswerCount} conversation${weakAnswerCount === 1 ? "" : "s"} still need a stronger answer path.`
@@ -150,7 +150,7 @@ function buildOperatorSignal({
       copy: "0 conversations since install. Run a live test flow to confirm visitors can reach the assistant.",
       subtle: weakAnswerCount > 0
         ? `${weakAnswerCount} conversation${weakAnswerCount === 1 ? "" : "s"} already showed a weak-answer signal.`
-        : "Once real conversations arrive, Vonza will surface operator-facing signals here.",
+        : "Once real conversations arrive, Vonza will surface customer-service signals here.",
     };
   }
 

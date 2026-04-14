@@ -41,7 +41,7 @@ test("product help fallback explains install verification and returns contextual
   ]);
 });
 
-test("product help fallback explains missing outcomes and returns contextual prompts", async () => {
+test("product help fallback explains missing Analytics results and returns contextual prompts", async () => {
   const result = await answerVonzaProductHelp({
     openai: null,
     question: "Why am I not seeing outcomes yet?",
@@ -70,10 +70,10 @@ test("product help fallback explains missing outcomes and returns contextual pro
   });
 
   assert.equal(result.usedFallback, true);
-  assert.match(result.answer, /not seeing outcomes yet|does not have enough live usage|install is not fully verified/i);
+  assert.match(result.answer, /not seeing Analytics results yet|does not have enough live usage|install is not fully verified/i);
   assert.deepEqual(result.suggestedPrompts, [
     "What should I fix first?",
-    "Why am I not seeing outcomes yet?",
+    "Why am I not seeing Analytics results yet?",
     "What should I do next?",
   ]);
 });

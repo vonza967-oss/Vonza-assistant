@@ -602,7 +602,7 @@ function buildTimelineEntries(group = {}) {
       id: `task:${task.id}`,
       at: task.updatedAt || task.createdAt || null,
       source: "task",
-      label: cleanText(task.title || task.taskType || "Operator task"),
+      label: cleanText(task.title || task.taskType || "Owner task"),
       summary: cleanText(task.description || task.status || "Task activity"),
       taskId: task.id,
     });
@@ -769,7 +769,7 @@ function buildNextAction(contact = {}, group = {}) {
     return {
       key: "review_support",
       title: "Review support issue",
-      description: cleanText(openSupportTask.title || openSupportTask.description || "A support issue still needs an operator decision."),
+      description: cleanText(openSupportTask.title || openSupportTask.description || "A support issue still needs an owner decision."),
       actionType: "open_automations_task",
       targetSection: "automations",
       targetId: openSupportTask.id,
@@ -837,7 +837,7 @@ function buildNextAction(contact = {}, group = {}) {
   return {
     key: "no_action_needed",
     title: "No action needed",
-    description: "This contact does not have a higher-priority manual next step right now.",
+    description: "This contact does not have a higher-priority owner next step right now.",
     actionType: "stay_put",
     targetSection: "contacts",
   };
@@ -1644,7 +1644,7 @@ export async function getOperatorContactsWorkspace(
       health: buildContactsHealth({
         persistenceAvailable: false,
         migrationRequired: false,
-        loadError: cleanText(error.message || loadError || "Contacts workspace could not load."),
+        loadError: cleanText(error.message || loadError || "Customers workspace could not load."),
       }),
     };
   }
@@ -1687,7 +1687,7 @@ export async function getOperatorContactsWorkspace(
         health: buildContactsHealth({
           persistenceAvailable: false,
           migrationRequired: false,
-          loadError: cleanText(error.message || loadError || "Contacts sync failed."),
+          loadError: cleanText(error.message || loadError || "Customers sync failed."),
           partialData: true,
         }),
       };
@@ -1739,7 +1739,7 @@ export async function updateOperatorContactLifecycleState(
 
   if (error) {
     if (isMissingRelationError(error, OPERATOR_CONTACT_TABLE)) {
-      const missing = new Error("Contacts persistence is not available until the latest migration is applied.");
+      const missing = new Error("Customers persistence is not available until the latest migration is applied.");
       missing.statusCode = 409;
       throw missing;
     }

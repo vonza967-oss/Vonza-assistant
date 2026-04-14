@@ -794,6 +794,15 @@ button:disabled {
   .lead-capture-grid {
     grid-template-columns: 1fr;
   }
+
+  .routing-actions {
+    align-items: stretch;
+  }
+
+  .routing-primary-button,
+  .routing-secondary-button {
+    width: 100%;
+  }
 }
 
 html.embedded-mode .ambient,

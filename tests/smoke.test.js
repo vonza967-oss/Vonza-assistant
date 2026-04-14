@@ -1142,15 +1142,15 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove outcomes/i);
+        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove service results/i);
         assert.match(marketingHome.text, /service businesses an AI front desk/i);
         assert.match(marketingHome.text, /secondary connected tools when enabled/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Operator command center/);
-        assert.match(marketingHome.text, /Today, Contacts, Front Desk, and Analytics/i);
+        assert.match(marketingHome.text, /simple workspace/);
+        assert.match(marketingHome.text, /Home, Customers, Front Desk, and Analytics/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
@@ -1226,7 +1226,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /updateUser/);
         assert.match(dashboardScript.text, /signInWithOtp/);
         assert.match(dashboardScript.text, /Unlock Vonza to open your AI front desk workspace/);
-        assert.match(dashboardScript.text, /Home|Today/);
+        assert.match(dashboardScript.text, /Home/);
         assert.match(dashboardScript.text, /Customers/);
         assert.match(dashboardScript.text, /Front Desk/);
         assert.match(dashboardScript.text, /Analytics/);
@@ -1237,13 +1237,13 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Ask Vonza/);
         assert.match(dashboardScript.text, /AI guide and support inside the app/);
         assert.match(dashboardScript.text, /\/agents\/product-help/);
-        assert.match(dashboardScript.text, /Operator home/);
+        assert.match(dashboardScript.text, /Home/);
         assert.match(dashboardScript.text, /Getting started/);
         assert.match(dashboardScript.text, /Connect Gmail/);
         assert.match(dashboardScript.text, /Connect Google/);
-        assert.match(dashboardScript.text, /Today at a glance/);
+        assert.match(dashboardScript.text, /Home at a glance/);
         assert.match(dashboardScript.text, /Messages today/);
-        assert.match(dashboardScript.text, /Your AI customer service snapshot for today|Today at a glance/);
+        assert.match(dashboardScript.text, /Your AI customer service snapshot for today|Home at a glance/);
         assert.match(dashboardScript.text, /Approval-first proposals/);
         assert.match(dashboardScript.text, /Improve the business and Vonza/);
         assert.match(dashboardScript.text, /Show supporting detail/);
@@ -1279,8 +1279,8 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Conversation summary/);
         assert.match(dashboardScript.text, /Visitor thread/);
         assert.match(dashboardScript.text, /People view/);
-        assert.match(dashboardScript.text, /Open owner handoff/);
-        assert.match(dashboardScript.text, /Save owner handoff/);
+        assert.match(dashboardScript.text, /Open follow-up note/);
+        assert.match(dashboardScript.text, /Save follow-up note/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");

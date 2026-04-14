@@ -489,8 +489,8 @@ export function buildOperatorSingleNextAction({
   if (!activation.calendarContextSelected) {
     return {
       key: "choose_context",
-      title: "Choose your operator context",
-      description: "Confirm the inbox and calendar context before syncing live customer work into Today.",
+      title: "Choose your business context",
+      description: "Confirm the inbox and calendar context before syncing live customer work into Home.",
       buttonLabel: "Save context",
       actionType: "review_context",
       targetSection: "overview",
@@ -501,7 +501,7 @@ export function buildOperatorSingleNextAction({
     return {
       key: "run_first_sync",
       title: "Run first sync",
-      description: "Pull in the inbox and calendar now so Today can show customer email, recent appointments, and follow-up suggestions.",
+      description: "Pull in the inbox and calendar now so Home can show customer email, recent appointments, and follow-up suggestions.",
       buttonLabel: "Run first sync",
       actionType: "run_first_sync",
       targetSection: "overview",
@@ -546,7 +546,7 @@ export function buildOperatorSingleNextAction({
       key: "review_appointment_follow_up",
       title: cleanText(followUpAppointment.title) || "Review appointment follow-up",
       description: cleanText(followUpAppointment.followUpReason) || "A recent appointment likely needs a clear next step.",
-      buttonLabel: "Review Today cards",
+      buttonLabel: "Review Home cards",
       actionType: "review_context",
       targetSection: "overview",
     };
@@ -557,7 +557,7 @@ export function buildOperatorSingleNextAction({
       key: "review_unlinked_appointment",
       title: cleanText(unlinkedAppointment.title) || "Review unlinked appointment",
       description: cleanText(unlinkedAppointment.unlinkedReason) || "An appointment is not linked to a contact yet.",
-      buttonLabel: "Review Today cards",
+      buttonLabel: "Review Home cards",
       actionType: "review_context",
       targetSection: "overview",
     };
@@ -587,11 +587,11 @@ export function buildOperatorSingleNextAction({
 
   return {
     key: "operator_overview",
-    title: "Review operator overview",
+    title: "Review Home overview",
     description: cleanText(summary.operatorLoad) > "0"
-      ? "Today is ready with the current workload and approvals."
-      : "Today is connected and ready for the next owner decision.",
-    buttonLabel: "Stay on Today",
+      ? "Home is ready with the current workload and approvals."
+      : "Home is connected and ready for the next owner decision.",
+    buttonLabel: "Stay on Home",
     actionType: "stay_put",
     targetSection: "overview",
   };
@@ -618,7 +618,7 @@ export function buildOperatorActivationChecklist({
     {
       key: "choose_context",
       title: "Confirm inbox and calendar context",
-      description: "Use the main inbox and primary calendar as the source of truth for Today.",
+      description: "Use the main inbox and primary calendar as the source of truth for Home.",
       complete: activation.calendarContextSelected,
     },
     {
@@ -650,22 +650,22 @@ export function buildOperatorBriefing({
 } = {}) {
   if (status.featureEnabled === false) {
     return {
-      title: "Operator briefing unavailable",
-      text: "The full operator workspace is off on this deployment, so Vonza is still showing the lighter front-desk workspace.",
+      title: "Home briefing unavailable",
+      text: "The full customer service workspace is off on this deployment, so Vonza is still showing the lighter front-desk workspace.",
     };
   }
 
   if (status.googleConnected !== true) {
     return {
       title: "Start by connecting Google",
-      text: "Google is not connected yet, so Today cannot summarize support email, recent appointments, or approval-first follow-up suggestions.",
+      text: "Google is not connected yet, so Home cannot summarize support email, recent appointments, or approval-first follow-up suggestions.",
     };
   }
 
   if (!activation.calendarSynced && !activation.inboxSynced) {
     return {
       title: "Run the first sync",
-      text: "Google is connected, but the first sync has not finished yet, so Today is still waiting on live inbox and calendar data.",
+      text: "Google is connected, but the first sync has not finished yet, so Home is still waiting on live inbox and calendar data.",
     };
   }
 
@@ -681,7 +681,7 @@ export function buildOperatorBriefing({
   }
 
   if ((events || []).length > 0) {
-    parts.push(`${events.length} calendar event${events.length === 1 ? " is" : "s are"} visible in Today`);
+    parts.push(`${events.length} calendar event${events.length === 1 ? " is" : "s are"} visible in Home`);
   } else if ((suggestedSlots || []).length > 0) {
     parts.push(`the best open slot is ${suggestedSlots[0].label}`);
   }
@@ -708,7 +708,7 @@ export function buildOperatorBriefing({
     : "Inbox and calendar access are live, but there are no appointments, customer emails, or queued follow-up items standing out right now.";
 
   return {
-    title: "Operator briefing",
+    title: "Home briefing",
     text: `${summaryText}${recommendation ? ` Recommended next step: ${recommendation}.` : ""}`.replace(/\.\./g, "."),
   };
 }

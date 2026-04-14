@@ -192,11 +192,11 @@ function buildFallbackGuidance({
   const guidance = [];
 
   if (!websiteReady) {
-    guidance.push("Re-import website knowledge so Copilot can ground pricing, policy, and service answers in the current site content.");
+    guidance.push("Re-import website knowledge so Vonza can ground pricing, policy, and service answers in the current site content.");
   }
 
   if (!installLive) {
-    guidance.push("Confirm the widget is live so Today starts seeing real front-desk activity instead of setup-only state.");
+    guidance.push("Confirm the widget is live so Home starts seeing real front-desk activity instead of setup-only state.");
   }
 
   if ((businessProfile.readiness?.missingSections || []).length) {
@@ -204,7 +204,7 @@ function buildFallbackGuidance({
   }
 
   if (!guidance.length) {
-    guidance.push("As soon as live conversations, queue items, or outcomes appear, Copilot will summarize them here.");
+    guidance.push("As soon as live conversations, queue items, or outcomes appear, Vonza will summarize them here.");
   }
 
   return guidance;
@@ -235,7 +235,7 @@ function buildGeneratedDraft(contact = {}, options = {}) {
     subject,
     body,
     confidence: "medium",
-    rationale: cleanText(options.rationale) || "No stored follow-up draft existed, so Copilot prepared a deterministic approval-first draft from the latest stable-core context.",
+    rationale: cleanText(options.rationale) || "No stored follow-up draft existed, so Vonza prepared a deterministic approval-first draft from the latest stable-core context.",
     targetSection: cleanText(options.targetSection) || "automations",
     targetId: cleanText(options.targetId),
     actionType: cleanText(options.actionType) || "draft_follow_up",
@@ -265,7 +265,7 @@ function buildGeneratedDraft(contact = {}, options = {}) {
       dismissLabel: "Dismiss",
       openLabel: cleanText(options.surfaceLabel) || "Open workflow",
       blockedReason: !cleanText(contact.contactEmail || contact.contactPhone)
-        ? "A usable email address or phone number is required before Copilot can create this follow-up draft safely."
+        ? "A usable email address or phone number is required before Vonza can create this follow-up draft safely."
         : "",
       target: {
         section: cleanText(options.targetSection) || "automations",
@@ -343,7 +343,7 @@ function buildSupportRiskRecommendation(contact = {}) {
     targetSection: cleanText(contact.nextAction?.targetSection) || "contacts",
     targetId: cleanText(contact.nextAction?.targetId || contact.id),
     actionType: cleanText(contact.nextAction?.actionType) || "open_contact",
-    surfaceLabel: "Open Contacts",
+    surfaceLabel: "Open Customers",
     proposal: {
       key: `open-contact:${cleanText(contact.id)}:support-risk`,
       type: "open_existing_surface",
@@ -357,14 +357,14 @@ function buildSupportRiskRecommendation(contact = {}) {
       summary: cleanText(contact.nextAction?.title) || "Route into support-risk review",
       rationale: "Complaint and support risk should route straight into the existing owner surface instead of spawning a freeform write.",
       effect: "Open the related contact record so the owner can review the complaint or support issue in context.",
-      approvalNote: "This is routing only. Copilot does not resolve the issue or send anything automatically.",
+      approvalNote: "This is routing only. Vonza does not resolve the issue or send anything automatically.",
       applyLabel: "Route there",
       dismissLabel: "Dismiss",
-      openLabel: "Open Contacts",
+      openLabel: "Open Customers",
       target: {
         section: cleanText(contact.nextAction?.targetSection) || "contacts",
         id: cleanText(contact.nextAction?.targetId || contact.id),
-        label: "Open Contacts",
+        label: "Open Customers",
       },
       applyPayload: {
         targetSection: cleanText(contact.nextAction?.targetSection) || "contacts",
@@ -386,7 +386,7 @@ function buildContactNextStepRecommendation(contact = {}) {
   const canCreateFollowUp = nextActionType === "draft_follow_up";
   const hasUsableContact = Boolean(cleanText(contact.primaryEmail || contact.primaryPhone));
   const blockedReason = canCreateFollowUp && !hasUsableContact
-    ? "This contact still needs a usable email address or phone number before Copilot can prepare the next-step draft safely."
+    ? "This contact still needs a usable email address or phone number before Vonza can prepare the next-step draft safely."
     : "";
 
   return createRecommendation({
@@ -398,7 +398,7 @@ function buildContactNextStepRecommendation(contact = {}) {
       || "A lead still needs a concrete next step routed through the current workflow surfaces.",
     priority: "high",
     confidence: "high",
-    rationale: "Contacts already carry deterministic next actions, so Copilot should point the owner back to that workflow instead of inventing a new one.",
+    rationale: "Customers already carry deterministic next actions, so Vonza should point the owner back to that workflow instead of inventing a new one.",
     source: {
       contactId: cleanText(contact.id),
       lifecycleState: cleanText(contact.lifecycleState),
@@ -406,7 +406,7 @@ function buildContactNextStepRecommendation(contact = {}) {
     targetSection,
     targetId,
     actionType: nextActionType || "open_contact",
-    surfaceLabel: "Open Contacts",
+    surfaceLabel: "Open Customers",
     proposal: {
       key: `contact-next-step:${cleanText(contact.id)}`,
       type: "create_contact_next_step",
@@ -421,7 +421,7 @@ function buildContactNextStepRecommendation(contact = {}) {
         contact.primaryPhone,
       ]),
       summary: cleanText(nextAction.title) || "Create the next-step object",
-      rationale: "Copilot is following the deterministic contact next-action signal instead of inventing a freeform write path.",
+      rationale: "Vonza is following the deterministic contact next-action signal instead of inventing a freeform write path.",
       effect: canCreateFollowUp
         ? "Create a real approval-first follow-up draft if the contact details are complete enough."
         : "Route you into the existing deterministic surface for this contact's next step.",
@@ -430,12 +430,12 @@ function buildContactNextStepRecommendation(contact = {}) {
         : "This routes you to the right surface without silently creating follow-on actions.",
       applyLabel: canCreateFollowUp ? "Create next step" : "Route there",
       dismissLabel: "Dismiss",
-      openLabel: "Open Contacts",
+      openLabel: "Open Customers",
       blockedReason,
       target: {
         section: targetSection,
         id: targetId,
-        label: "Open Contacts",
+        label: "Open Customers",
       },
       applyPayload: {
         executionMode: canCreateFollowUp
@@ -481,14 +481,14 @@ function buildOutcomeReviewRecommendation(contact = {}) {
       : "A contact still shows intent without a recorded result.",
     priority: "medium",
     confidence: "medium",
-    rationale: "Outcome review keeps Contacts and Outcomes grounded when activity exists but no final result has been recorded yet.",
+    rationale: "Outcome review keeps Customers and Analytics grounded when activity exists but no final result has been recorded yet.",
     source: {
       contactId: cleanText(contact.id),
     },
     targetSection: "contacts",
     targetId: cleanText(contact.id),
     actionType: "open_contact",
-    surfaceLabel: "Open Contacts",
+    surfaceLabel: "Open Customers",
     proposal: {
       key: `open-contact:${cleanText(contact.id)}:outcome-review`,
       type: "open_existing_surface",
@@ -500,16 +500,16 @@ function buildOutcomeReviewRecommendation(contact = {}) {
         contact.lifecycleState,
       ]),
       summary: "Route into outcome review",
-      rationale: "When Copilot cannot safely create a stronger object, it should still route the owner into the right existing review surface.",
+      rationale: "When Vonza cannot safely create a stronger object, it should still route the owner into the right existing review surface.",
       effect: "Open the contact record with the current outcome-review context so the owner can confirm the real result.",
       approvalNote: "This does not record an outcome automatically.",
       applyLabel: "Route there",
       dismissLabel: "Dismiss",
-      openLabel: "Open Contacts",
+      openLabel: "Open Customers",
       target: {
         section: "contacts",
         id: cleanText(contact.id),
-        label: "Open Contacts",
+        label: "Open Customers",
       },
       applyPayload: {
         targetSection: "contacts",
@@ -537,7 +537,7 @@ function buildTaskProposal(topRecommendation = null) {
       "This is a proposal only. Use the existing deterministic workflow to create or resolve the real task.",
     ].filter(Boolean).join("\n"),
     confidence: cleanText(topRecommendation.confidence) || "medium",
-    rationale: "Copilot is preparing a task recommendation only; it is not creating tasks directly.",
+    rationale: "Vonza is preparing a task recommendation only; it is not creating tasks directly.",
     targetSection: cleanText(topRecommendation.targetSection),
     targetId: cleanText(topRecommendation.targetId),
     actionType: cleanText(topRecommendation.actionType),
@@ -560,8 +560,8 @@ function buildTaskProposal(topRecommendation = null) {
         topRecommendation.priority,
       ]),
       summary: cleanText(topRecommendation.title) || "Create owner task",
-      rationale: "Turn the current top Copilot recommendation into a real tracked task without changing any core record directly.",
-      effect: "Create a real approval-first operator task linked back to this recommendation.",
+      rationale: "Turn the current top Vonza recommendation into a real tracked task without changing any core record directly.",
+      effect: "Create a real approval-first owner task linked back to this recommendation.",
       approvalNote: "The task is created for review only. It does not trigger autonomous follow-on work.",
       applyLabel: "Create task",
       dismissLabel: "Dismiss",
@@ -605,11 +605,11 @@ function buildOutcomeReviewProposal(contact = {}) {
       "This proposal does not mark the outcome. Use the current deterministic workflow if a real result is confirmed.",
     ].join("\n"),
     confidence: "medium",
-    rationale: "Copilot can prepare the review path, but owner confirmation still decides whether any deterministic outcome service should run.",
+    rationale: "Vonza can prepare the review path, but owner confirmation still decides whether any deterministic outcome service should run.",
     targetSection: "contacts",
     targetId: cleanText(contact.id),
     actionType: "open_contact",
-    surfaceLabel: "Open Contacts",
+    surfaceLabel: "Open Customers",
     source: {
       contactId: cleanText(contact.id),
     },
@@ -627,16 +627,16 @@ function buildOutcomeReviewProposal(contact = {}) {
         contact.lifecycleState,
       ]),
       summary: "Create outcome review",
-      rationale: "Copilot can safely create a review task, but it should never confirm or apply an outcome automatically.",
+      rationale: "Vonza can safely create a review task, but it should never confirm or apply an outcome automatically.",
       effect: "Create a real review object so the owner can confirm whether a booking, quote, follow-up reply, or complaint resolution happened.",
       approvalNote: "This creates a review task only. It does not mark the outcome.",
       applyLabel: "Create review",
       dismissLabel: "Dismiss",
-      openLabel: "Open Contacts",
+      openLabel: "Open Customers",
       target: {
         section: "contacts",
         id: cleanText(contact.id),
-        label: "Open Contacts",
+        label: "Open Customers",
       },
       applyPayload: {
         taskType: "outcome_review",
@@ -661,7 +661,7 @@ function buildAppointmentFollowUpRecommendation(appointment = {}) {
   const contactLabel = cleanText(appointment.linkedContactName || appointment.title || "this appointment");
   const targetSection = contactId ? "contacts" : cleanText(appointment.actionTargetSection || "calendar");
   const targetId = contactId || cleanText(appointment.actionTargetId || appointment.id);
-  const surfaceLabel = contactId ? "Open Contacts" : cleanText(appointment.actionLabel || "Open Calendar");
+  const surfaceLabel = contactId ? "Open Customers" : cleanText(appointment.actionLabel || "Open Calendar");
 
   return createRecommendation({
     id: `appointment-follow-up:${cleanText(appointment.id)}`,
@@ -672,7 +672,7 @@ function buildAppointmentFollowUpRecommendation(appointment = {}) {
     summary: cleanText(appointment.followUpReason) || "A recent appointment likely needs a next step.",
     priority: "high",
     confidence: "high",
-    rationale: "Recent completed appointments are deterministic follow-up opportunities, so Copilot should surface them before lower-signal work.",
+    rationale: "Recent completed appointments are deterministic follow-up opportunities, so Vonza should surface them before lower-signal work.",
     source: {
       eventId: cleanText(appointment.id),
       contactId,
@@ -696,7 +696,7 @@ function buildAppointmentFollowUpRecommendation(appointment = {}) {
       summary: contactId
         ? `Create outcome review for ${contactLabel}`
         : `Create follow-up review for ${cleanText(appointment.title || "this appointment")}`,
-      rationale: "Copilot can safely create a review task for a recent appointment, but it should never mark the outcome or send follow-up automatically.",
+      rationale: "Vonza can safely create a review task for a recent appointment, but it should never mark the outcome or send follow-up automatically.",
       effect: "Create a review task so the owner can confirm the next step, follow-up, or real outcome from this appointment.",
       approvalNote: "This creates a review task only. It does not send follow-up or mark the outcome automatically.",
       applyLabel: "Create review",
@@ -735,7 +735,7 @@ function buildUnlinkedAppointmentRecommendation(appointment = {}) {
     summary: cleanText(appointment.unlinkedReason) || "An appointment attendee is not linked to a contact yet.",
     priority: "medium",
     confidence: "high",
-    rationale: "Unlinked appointments fragment follow-up and outcome attribution, so Copilot should surface them explicitly instead of hiding them.",
+    rationale: "Unlinked appointments fragment follow-up and outcome attribution, so Vonza should surface them explicitly instead of hiding them.",
     source: {
       eventId: cleanText(appointment.id),
       contactEmail: cleanText(appointment.linkedContactEmail),
@@ -754,8 +754,8 @@ function buildUnlinkedAppointmentRecommendation(appointment = {}) {
         appointment.unlinkedReason,
       ]),
       summary: `Create a linking review for ${cleanText(appointment.title || "this appointment")}`,
-      rationale: "Copilot can safely create a review task for attendee linking, but it should not create or merge contacts automatically.",
-      effect: "Create an approval-first operator task to review whether this attendee should be linked to an existing or new contact.",
+      rationale: "Vonza can safely create a review task for attendee linking, but it should not create or merge contacts automatically.",
+      effect: "Create an approval-first owner task to review whether this attendee should be linked to an existing or new contact.",
       approvalNote: "This creates a review task only. It does not link contacts automatically.",
       applyLabel: "Create task",
       dismissLabel: "Dismiss",
@@ -791,7 +791,7 @@ function buildAppointmentFollowUpDraft(appointment = {}, agent = {}) {
 
   const targetSection = cleanText(appointment.linkedContactId) ? "contacts" : cleanText(appointment.actionTargetSection || "calendar");
   const targetId = cleanText(appointment.linkedContactId || appointment.actionTargetId || appointment.id);
-  const surfaceLabel = cleanText(appointment.linkedContactId ? "Open Contacts" : appointment.actionLabel || "Open Calendar");
+  const surfaceLabel = cleanText(appointment.linkedContactId ? "Open Customers" : appointment.actionLabel || "Open Calendar");
   const appointmentTitle = cleanText(appointment.title || "your appointment");
 
   return buildGeneratedDraft({
@@ -809,7 +809,7 @@ function buildAppointmentFollowUpDraft(appointment = {}, agent = {}) {
     title: cleanText(appointment.linkedContactName)
       ? `Draft post-appointment follow-up for ${cleanText(appointment.linkedContactName)}`
       : `Draft post-appointment follow-up for ${appointmentTitle}`,
-    rationale: cleanText(appointment.followUpReason) || "A recent appointment ended without a clear next step, so Copilot prepared an approval-first follow-up draft.",
+    rationale: cleanText(appointment.followUpReason) || "A recent appointment ended without a clear next step, so Vonza prepared an approval-first follow-up draft.",
     targetSection,
     targetId,
     actionType: cleanText(appointment.linkedContactId) ? "open_contact" : "open_calendar_event",
@@ -831,8 +831,8 @@ export function createEmptyTodayCopilotState({ featureEnabled = false } = {}) {
     autonomousActionsEnabled: false,
     sparseData: true,
     generatedAt: new Date().toISOString(),
-    headline: "Copilot is waiting for stable-core activity.",
-    summary: "Today stays fully usable without Copilot. When stable-core data shows up, Copilot will summarize it here without taking external actions on its own.",
+    headline: "Vonza is waiting for stable-core activity.",
+    summary: "Home stays fully usable without Vonza. When stable-core data shows up, Vonza will summarize it here without taking external actions on its own.",
     questions: [...COPILOT_QUESTIONS],
     summaryCards: [],
     recommendedNextActionId: "",
@@ -872,7 +872,7 @@ export function createEmptyTodayCopilotState({ featureEnabled = false } = {}) {
       hiddenCount: 0,
     },
     fallback: {
-      title: "Copilot needs a little more context",
+      title: "Vonza needs a little more context",
       description: "There is not enough stable-core data yet to make strong recommendations.",
       guidance: [],
     },
@@ -971,14 +971,14 @@ export function buildTodayCopilotSnapshot(options = {}) {
       summary: cleanText(item.operatorSummary || item.whyFlagged || item.snippet) || "A stable-core issue needs owner review.",
       priority: "high",
       confidence: "high",
-      rationale: "The action queue already marks this item as needing attention, so Copilot is surfacing it before lower-signal work.",
+      rationale: "The action queue already marks this item as needing attention, so Vonza is surfacing it before lower-signal work.",
       source: {
         actionKey: cleanText(item.key),
       },
       targetSection: "analytics",
       targetId: cleanText(item.key),
       actionType: "open_action_queue",
-      surfaceLabel: "Open Outcomes",
+      surfaceLabel: "Open Analytics",
     }));
   }
 
@@ -998,7 +998,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       targetSection: cleanText(topLeadContact?.nextAction?.targetSection) || "contacts",
       targetId: cleanText(topLeadContact?.id || item.key),
       actionType: cleanText(topLeadContact?.nextAction?.actionType) || "open_contact",
-      surfaceLabel: topLeadContact ? "Open Contacts" : "Open Outcomes",
+      surfaceLabel: topLeadContact ? "Open Customers" : "Open Analytics",
     }));
   }
 
@@ -1024,7 +1024,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       targetSection: "analytics",
       targetId: cleanText(workflow.sourceActionKey || workflow.id),
       actionType: "open_action_queue",
-      surfaceLabel: "Open Outcomes",
+      surfaceLabel: "Open Analytics",
     }));
   }
 
@@ -1041,7 +1041,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       summary: cleanText(businessProfile.readiness.summary),
       priority: sparseData ? "medium" : "low",
       confidence: "high",
-      rationale: "Copilot can stay useful with sparse data, but services, pricing, policies, and hours make follow-up drafts and recommendations more grounded.",
+      rationale: "Vonza can stay useful with sparse data, but services, pricing, policies, and hours make follow-up drafts and recommendations more grounded.",
       source: {
         missingSections: businessProfile.readiness.missingSections || [],
       },
@@ -1060,7 +1060,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
         summary: "Open Front Desk context",
         rationale: "When context is missing, the safest next move is routing the owner back into the existing Front Desk context surface.",
         effect: "Open Front Desk context so the missing sections can be filled deterministically.",
-        approvalNote: "This only routes the owner. Copilot does not change Front Desk context automatically.",
+        approvalNote: "This only routes the owner. Vonza does not change Front Desk context automatically.",
         applyLabel: "Route there",
         dismissLabel: "Dismiss",
         openLabel: "Open Front Desk",
@@ -1164,11 +1164,11 @@ export function buildTodayCopilotSnapshot(options = {}) {
       title: cleanText(attentionQueueItems[0].contactInfo?.name)
         ? `Draft follow-up for ${cleanText(attentionQueueItems[0].contactInfo?.name)}`
         : "Draft follow-up from the top queue item",
-      rationale: "Copilot used the top stable-core queue item to draft a follow-up, but it still requires owner approval before any send.",
+      rationale: "Vonza used the top stable-core queue item to draft a follow-up, but it still requires owner approval before any send.",
       targetSection: "analytics",
       targetId: cleanText(attentionQueueItems[0].key),
       actionType: "open_action_queue",
-      surfaceLabel: "Open Outcomes",
+      surfaceLabel: "Open Analytics",
       evidence: cleanText(attentionQueueItems[0].operatorSummary || attentionQueueItems[0].snippet),
       contextSnippet: cleanText(attentionQueueItems[0].snippet),
       subject: `${cleanText(agent.name)}: following up on ${cleanText(attentionQueueItems[0].topic || attentionQueueItems[0].label || attentionQueueItems[0].type || "your request")}`,
@@ -1193,21 +1193,21 @@ export function buildTodayCopilotSnapshot(options = {}) {
       label: "What matters today",
       text: sparseData
         ? "Stable-core activity is still sparse, so there is not enough live work to rank yet."
-        : cleanText(topRecommendation?.summary) || "Today looks steady across the current stable core.",
+        : cleanText(topRecommendation?.summary) || "Home looks steady across the current stable core.",
       confidence: sparseData ? "low" : "high",
       rationale: sparseData
-        ? "Copilot only has setup-level context so far."
+        ? "Vonza only has setup-level context so far."
         : "This summary is grounded in calendar context, the action queue, contacts, follow-up workflows, and outcomes.",
       recommendationIds: topRecommendation ? [topRecommendation.id] : [],
     }),
     createSummaryCard({
       id: "calendar_day",
-      label: "Today's schedule",
+      label: "Home's schedule",
       text: scheduleItems.length
         ? `${pluralize(scheduleItems.length, "appointment")} are still on today’s schedule. Next up: ${cleanText(scheduleItems[0].title || "the next appointment")}.`
         : calendarEvents.length
           ? "No more upcoming appointments are visible on today’s schedule."
-          : "No calendar appointments are visible yet in Copilot context.",
+          : "No calendar appointments are visible yet in Vonza context.",
       confidence: scheduleItems.length ? "high" : "medium",
       rationale: "This summary is grounded in read-only Google Calendar context.",
       recommendationIds: recommendations
@@ -1247,7 +1247,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       label: "Pricing or booking interest",
       text: pricingWithoutOutcomeItems.length
         ? `${pluralize(pricingWithoutOutcomeItems.length, "pricing conversation")} still has intent without a recorded outcome.`
-        : "Copilot does not currently see a pricing or booking intent gap that lacks a recorded result.",
+        : "Vonza does not currently see a pricing or booking intent gap that lacks a recorded result.",
       confidence: "medium",
       rationale: "This summary comes from pricing-interest queue items and contact progression state.",
       recommendationIds: recommendations
@@ -1285,10 +1285,10 @@ export function buildTodayCopilotSnapshot(options = {}) {
         ? "Stable-core activity is still sparse, so there is nothing urgent to rank yet."
         : recommendations.length
           ? `${pluralize(recommendations.length, "recommendation")} stand out. ${cleanText(topRecommendation?.title || "Start with the top recommendation.")}`
-          : "Nothing in stable-core data is currently marked urgent. Today looks steady.",
+          : "Nothing in stable-core data is currently marked urgent. Home looks steady.",
       confidence: sparseData ? "low" : "high",
       rationale: sparseData
-        ? "Copilot only has setup-level context so far."
+        ? "Vonza only has setup-level context so far."
         : "This answer is grounded in recommendations built from calendar context, contacts, queue, follow-up work, and outcomes.",
       recommendationIds: topRecommendation ? [topRecommendation.id] : [],
     }),
@@ -1305,7 +1305,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
           ? `${pluralize(leadsNeedingFollowUp.length, "lead")} still need a concrete next step, but no prepared follow-up draft is stored yet.`
           : "No stable-core lead currently looks like it needs a follow-up.",
       confidence: appointmentFollowUpItems.length || followUpCandidates.length ? "high" : "medium",
-      rationale: "Copilot is checking recent appointments first, then stored follow-up workflows, then falling back to contact next-action signals.",
+      rationale: "Vonza is checking recent appointments first, then stored follow-up workflows, then falling back to contact next-action signals.",
       recommendationIds: recommendations
         .filter((entry) => ["appointment_follow_up", "contact_next_step", "pricing_gap"].includes(entry.type))
         .map((entry) => entry.id),
@@ -1315,7 +1315,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       question: COPILOT_QUESTIONS[2],
       answer: pricingWithoutOutcomeItems.length
         ? `${pluralize(pricingWithoutOutcomeItems.length, "pricing conversation")} still has interest but no recorded outcome.`
-        : "Copilot does not currently see an open pricing-without-outcome gap in stable-core data.",
+        : "Vonza does not currently see an open pricing-without-outcome gap in stable-core data.",
       confidence: "medium",
       rationale: "This answer is based on pricing-interest queue items that still have no linked outcome.",
       recommendationIds: recommendations
@@ -1327,9 +1327,9 @@ export function buildTodayCopilotSnapshot(options = {}) {
       question: COPILOT_QUESTIONS[3],
       answer: complaintRiskContacts.length
         ? `${pluralize(complaintRiskContacts.length, "contact")} still shows complaint or support risk and should be reviewed before it goes stale.`
-        : "Copilot does not currently see an unresolved complaint or support risk in the stable core.",
+        : "Vonza does not currently see an unresolved complaint or support risk in the stable core.",
       confidence: complaintRiskContacts.length ? "high" : "medium",
-      rationale: "This answer uses deterministic complaint-risk and support-state signals from Contacts and operator tasks.",
+      rationale: "This answer uses deterministic complaint-risk and support-state signals from Customers and owner tasks.",
       recommendationIds: recommendations
         .filter((entry) => entry.type === "support_risk_review")
         .map((entry) => entry.id),
@@ -1346,7 +1346,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
     createAnswer({
       key: "next_best_action",
       question: COPILOT_QUESTIONS[5],
-      answer: cleanText(topRecommendation?.title) || "Copilot does not see a stronger next action than staying on top of Today right now.",
+      answer: cleanText(topRecommendation?.title) || "Vonza does not see a stronger next action than staying on top of Home right now.",
       confidence: cleanText(topRecommendation?.confidence) || "low",
       rationale: cleanText(topRecommendation?.rationale) || "There is not enough stable-core urgency to rank a stronger recommendation.",
       recommendationIds: topRecommendation ? [topRecommendation.id] : [],
@@ -1355,7 +1355,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
       key: "front_desk_activity",
       question: COPILOT_QUESTIONS[6],
       answer: sparseData
-        ? "The front desk is still mostly in setup mode, so Copilot only sees sparse stable-core activity."
+        ? "The front desk is still mostly in setup mode, so Vonza only sees sparse stable-core activity."
         : scheduleItems.length || appointmentFollowUpItems.length || unlinkedAppointments.length
           ? `${pluralize(scheduleItems.length, "appointment")} remain on today’s schedule, ${pluralize(appointmentFollowUpItems.length, "recent appointment")} likely need follow-up, and ${pluralize(unlinkedAppointments.length, "appointment")} are still unlinked to contacts.`
           : `${pluralize(todaysMessages.length, "message")} arrived today. Website knowledge is ${websiteReady ? "ready" : "still limited"}, the widget is ${installLive ? "live or recently detected" : "not yet confirmed live"}, and ${pluralize(routingEvents.length, "routing event")} have been recorded.`,
@@ -1369,7 +1369,7 @@ export function buildTodayCopilotSnapshot(options = {}) {
         ? `${topDraft.title} is ready in draft-only mode and still requires owner approval before any send.`
         : "There is not enough stable-core contact context yet to prepare a safe follow-up draft.",
       confidence: cleanText(topDraft?.confidence) || "low",
-      rationale: cleanText(topDraft?.rationale) || "Copilot only drafts when there is a stored follow-up or enough contact context to keep the draft grounded.",
+      rationale: cleanText(topDraft?.rationale) || "Vonza only drafts when there is a stored follow-up or enough contact context to keep the draft grounded.",
       draftIds: topDraft ? [topDraft.id] : [],
     }),
   ];
@@ -1394,13 +1394,13 @@ export function buildTodayCopilotSnapshot(options = {}) {
     sparseData,
     generatedAt: nowIso,
     headline: sparseData
-      ? "Copilot sees the foundation, but not enough live operating data yet."
+      ? "Vonza sees the foundation, but not enough live operating data yet."
       : cleanText(topRecommendation?.title)
         ? `${cleanText(topRecommendation.title)} is the clearest next move.`
-        : "Today looks stable across the current core.",
+        : "Home looks stable across the current core.",
     summary: sparseData
-      ? "Copilot is intentionally read-first and draft-first. It will stay conservative until stable-core activity gives it something real to summarize."
-      : `${cleanText(topRecommendation?.summary || "Copilot is summarizing stable-core data only.")} It is staying inside calendar context, front-desk activity, contacts, outcomes, follow-up workflows, action queue, and knowledge-fix context.`,
+      ? "Vonza is intentionally read-first and draft-first. It will stay conservative until stable-core activity gives it something real to summarize."
+      : `${cleanText(topRecommendation?.summary || "Vonza is summarizing stable-core data only.")} It is staying inside calendar context, front-desk activity, contacts, outcomes, follow-up workflows, action queue, and knowledge-fix context.`,
     questions: [...COPILOT_QUESTIONS],
     summaryCards,
     recommendedNextActionId: cleanText(topRecommendation?.id),
@@ -1424,10 +1424,10 @@ export function buildTodayCopilotSnapshot(options = {}) {
       hiddenCount: 0,
     },
     fallback: {
-      title: sparseData ? "Copilot needs a little more real operating context" : "Copilot fallback",
+      title: sparseData ? "Vonza needs a little more real operating context" : "Vonza fallback",
       description: sparseData
         ? "There is not enough stable-core activity yet for strong recommendations."
-        : "If one data source is sparse or missing, Copilot falls back to the remaining stable-core context instead of hallucinating certainty.",
+        : "If one data source is sparse or missing, Vonza falls back to the remaining stable-core context instead of hallucinating certainty.",
       guidance: buildFallbackGuidance({
         businessProfile,
         websiteReady,

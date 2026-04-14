@@ -157,7 +157,7 @@ test("operator briefing summarizes live workload with next recommendation", () =
   });
 
   assert.match(briefing.text, /1 complaint needs review/i);
-  assert.match(briefing.text, /1 calendar event is visible in Today/i);
+  assert.match(briefing.text, /1 calendar event is visible in Home/i);
   assert.match(briefing.text, /1 recent appointment likely needs follow-up/i);
   assert.match(briefing.text, /recommended next step: Review complaints/i);
 });

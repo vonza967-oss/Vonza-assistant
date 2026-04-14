@@ -163,7 +163,7 @@ test("copilot produces read-only answers, recommendations, and drafts from stabl
         completedSections: 8,
         missingCount: 0,
         missingSections: [],
-        summary: "All core business context areas are filled for Copilot.",
+        summary: "All core business context areas are filled for Vonza.",
       },
     },
   });

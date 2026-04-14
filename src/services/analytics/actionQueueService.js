@@ -492,6 +492,28 @@ function buildConversationActionKey(message = {}, fallbackIndex = 0) {
   return `conversation:${timestamp || `index-${fallbackIndex}`}:${questionSlug || "message"}`;
 }
 
+function hasServiceQuestionSignal(normalized = "") {
+  return (
+    normalized.includes("service")
+    || normalized.includes("offer")
+    || normalized.includes("product")
+    || normalized.includes("help with")
+    || normalized.includes("do you do")
+    || normalized.includes("what do you do")
+    || /\b(?:do you|can you|what)\s+(?:offer|provide)\b/i.test(normalized)
+  );
+}
+
+function hasComplaintOrSupportIssueSignal(normalized = "") {
+  return [
+    /\b(problem|issue|broken|not working|complaint|refund|unhappy|frustrated|angry|upset)\b/i,
+    /\b(?:cancel|cancellation)\b/i,
+    /\b(?:need|want|looking for)\s+(?:customer\s+)?support\b/i,
+    /\b(?:order|delivery|package|shipment|appointment|booking)\b.*\b(?:late|delayed|missing|wrong|damaged|lost)\b/i,
+    /\b(?:late|delayed|missing|wrong|damaged|lost)\b.*\b(?:order|delivery|package|shipment|appointment|booking)\b/i,
+  ].some((pattern) => pattern.test(normalized));
+}
+
 function categorizeIntent(message) {
   const normalized = cleanText(String(message || "")).toLowerCase();
 
@@ -530,19 +552,11 @@ function categorizeIntent(message) {
     return "pricing";
   }
 
-  if (
-    normalized.includes("problem")
-    || normalized.includes("issue")
-    || normalized.includes("broken")
-    || normalized.includes("not working")
-    || normalized.includes("complaint")
-    || normalized.includes("refund")
-    || normalized.includes("cancel")
-    || normalized.includes("unhappy")
-    || normalized.includes("support")
-    || normalized.includes("frustrated")
-    || normalized.includes("late")
-  ) {
+  if (hasServiceQuestionSignal(normalized)) {
+    return "services";
+  }
+
+  if (hasComplaintOrSupportIssueSignal(normalized)) {
     return "support";
   }
 
@@ -558,17 +572,6 @@ function categorizeIntent(message) {
     || normalized.includes("someone")
   ) {
     return "contact";
-  }
-
-  if (
-    normalized.includes("service")
-    || normalized.includes("offer")
-    || normalized.includes("product")
-    || normalized.includes("help with")
-    || normalized.includes("do you do")
-    || normalized.includes("what do you do")
-  ) {
-    return "services";
   }
 
   return "general";
@@ -592,7 +595,7 @@ function getIntentLabel(intent) {
 function getSuggestedAction(intent) {
   switch (intent) {
     case "contact":
-      return "Review whether the site and assistant make the contact path obvious enough, then follow-up manually if contact details were captured.";
+      return "Review whether the site and assistant make the contact path obvious enough, then follow-up by hand if contact details were captured.";
     case "booking":
       return "Clarify the booking path, availability, or consultation steps so the visitor can move forward faster.";
     case "pricing":
@@ -762,7 +765,7 @@ function buildOperatorSummary(item = {}) {
     case "lead_follow_up":
       return item.contactCaptured
         ? "A direct follow-up path is available because the visitor shared contact details."
-        : "This lead signal still needs a manual follow-up path.";
+        : "This lead signal still needs a clear owner follow-up path.";
     case "pricing_interest":
       return Number(item.count || 0) > 1
         ? "Pricing intent repeated, so Vonza kept one pricing issue instead of duplicating it."
@@ -776,7 +779,7 @@ function buildOperatorSummary(item = {}) {
     case "unanswered_question":
       return "This question still needs a usable answer before it becomes a clearer knowledge-gap pattern.";
     default:
-      return "This conversation pattern still needs an owner-visible operator action.";
+      return "This conversation pattern still needs an owner-visible service action.";
   }
 }
 
@@ -1195,7 +1198,7 @@ function buildRepeatHighIntentItems(people = [], actionItems = [], persistedMap 
         relatedActionKeys,
         messageId: highIntentTimeline[0]?.messageId || "",
         priority: "high",
-        operatorSummary: "A returning visitor showed multiple high-intent moments, so Vonza created one dedicated operator action.",
+        operatorSummary: "A returning visitor showed multiple high-intent moments, so Vonza created one dedicated service action.",
         evidence: {
           interactionCount: highIntentTimeline.length,
           relatedActionKeys,

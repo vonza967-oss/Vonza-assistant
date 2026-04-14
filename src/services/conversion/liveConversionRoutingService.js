@@ -214,7 +214,8 @@ function shouldOfferDirectRoute(intentType, message = "") {
   }
 
   if (intentType === "contact") {
-    return /\b(call me|call back|callback|email me|contact me|reach out|get in touch|talk to|speak to)\b/.test(normalized);
+    return /\b(call me|call back|callback|email me|contact me|reach out|get in touch)\b/.test(normalized)
+      || /\b(?:talk|speak)\s+to\s+(?:a\s+)?(?:human|person|someone|agent|representative|team|staff|owner)\b/.test(normalized);
   }
 
   return false;

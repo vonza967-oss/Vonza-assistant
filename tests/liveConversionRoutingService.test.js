@@ -53,6 +53,32 @@ test("normal pricing questions stay in chat", () => {
   assert.equal(result.shouldStayInChat, true);
 });
 
+test("ordinary service and hours questions stay in chat", () => {
+  const examples = [
+    "What services do you offer?",
+    "How long does delivery take?",
+    "What are your opening hours?",
+    "Talk to me about your services.",
+  ];
+
+  examples.forEach((userMessage) => {
+    const result = evaluateLiveConversionRouting(buildRoutingOptions({ userMessage }));
+
+    assert.equal(result.mode, "chat_only");
+    assert.equal(result.suppressReason, "chat_answer_preferred");
+    assert.equal(result.shouldStayInChat, true);
+  });
+});
+
+test("explicit human requests still route to contact", () => {
+  const result = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "Can I speak to a human?",
+  }));
+
+  assert.equal(result.mode, "direct_cta");
+  assert.equal(result.primaryCta.ctaType, "contact");
+});
+
 test("contact intent prefers call or email CTA first", () => {
   const result = evaluateLiveConversionRouting(buildRoutingOptions({
     userMessage: "Can someone call me back today?",
