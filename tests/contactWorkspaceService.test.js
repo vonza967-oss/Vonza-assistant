@@ -291,11 +291,18 @@ test("chat customers use persisted message time for last activity", () => {
         sessionKey: "session-1",
         createdAt: "2026-04-14T09:03:55.000Z",
       },
+      {
+        id: "message-2",
+        role: "assistant",
+        content: "I can help with pricing.",
+        sessionKey: "session-1",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
     ],
   });
 
   assert.equal(result.list.length, 1);
-  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
 });
 
@@ -323,8 +330,8 @@ test("guest widget conversations create customer contacts from stored messages",
   assert.equal(result.list[0].name, "Anonymous visitor");
   assert.equal(result.list[0].bestIdentifier, "Session continuity only");
   assert.ok(result.list[0].sources.includes("chat"));
-  assert.equal(result.list[0].latestMessageId, "message-guest-1");
-  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].latestMessageId, "message-guest-2");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
 });
 
 test("identified widget conversations create customer contacts from stored messages", () => {
@@ -371,9 +378,8 @@ test("chat customer timestamps do not drift to render time", () => {
     });
 
     assert.equal(result.list.length, 1);
-    assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+    assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
     assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-20T18:30:00.000Z");
-    assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
   } finally {
     Date.now = realDateNow;
   }

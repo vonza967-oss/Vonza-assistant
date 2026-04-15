@@ -665,10 +665,9 @@ function isPlaceholderDisplayName(value = "") {
     .includes(cleanText(value).toLowerCase());
 }
 
-function getLatestVisitorMessageActivityAt(group = {}) {
+function getLatestMessageActivityAt(group = {}) {
   const latest = getMostRecentTimestamp(
     (group.messages || [])
-      .filter((message) => normalizeMessageRole(message.role) === "user")
       .map((message) => message.createdAt)
   );
   return latest ? new Date(latest).toISOString() : null;
@@ -699,12 +698,20 @@ function pickDisplayName(group = {}) {
   return cleanText(explicitDisplayName)
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
-    || (hasCurrentSignal ? cleanText(group.persistedContact?.displayName) : "")
-    || (group.sessionKeys.length || group.leads.length ? "Anonymous visitor" : "Unknown contact");
+    || (
+      hasCurrentSignal && !isPlaceholderDisplayName(group.persistedContact?.displayName)
+        ? cleanText(group.persistedContact?.displayName)
+        : ""
+    )
+    || (group.sessionKeys.length || group.leads.length || group.messages.length ? "Anonymous visitor" : "Unknown contact");
 }
 
 function pickBestIdentifier(group = {}) {
-  return cleanText(group.displayNames[0])
+  const explicitDisplayName = group.displayNames.find((displayName) =>
+    cleanText(displayName) && !isPlaceholderDisplayName(displayName)
+  );
+
+  return cleanText(explicitDisplayName)
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
     || (group.sessionKeys.length ? "Session continuity only" : "Identity unknown");
@@ -886,7 +893,7 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestMessageActivityAt = getLatestVisitorMessageActivityAt(group);
+  const latestMessageActivityAt = getLatestMessageActivityAt(group);
   const lastActivityAt = latestMessageActivityAt || timeline[0]?.at || group.lastActivityAt || group.persistedContact?.lastActivityAt || null;
   const sourceSet = new Set(group.sourceKinds.concat(
     group.threads.length ? ["inbox"] : [],
@@ -1280,8 +1287,8 @@ export function buildContactWorkspaceFromRecords(options = {}) {
         phoneDigits: contactInfo.phoneNormalized,
         sessionKeys: [sessionKey],
         sourceKinds: ["chat"],
-        latestMessageId: message.role === "user" ? message.id : "",
-        lastActivityAt: message.role === "user" ? message.createdAt : null,
+        latestMessageId: message.id,
+        lastActivityAt: message.createdAt,
       });
       registerIdentity(identityMaps, group, "email", contactInfo.email);
       registerIdentity(identityMaps, group, "phone", contactInfo.phoneNormalized || contactInfo.phone);
