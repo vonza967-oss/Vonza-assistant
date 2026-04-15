@@ -665,9 +665,10 @@ function isPlaceholderDisplayName(value = "") {
     .includes(cleanText(value).toLowerCase());
 }
 
-function getLatestMessageActivityAt(group = {}) {
+function getLatestVisitorMessageActivityAt(group = {}) {
   const latest = getMostRecentTimestamp(
     (group.messages || [])
+      .filter((message) => normalizeMessageRole(message.role) === "user")
       .map((message) => message.createdAt)
   );
   return latest ? new Date(latest).toISOString() : null;
@@ -893,8 +894,12 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestMessageActivityAt = getLatestMessageActivityAt(group);
-  const lastActivityAt = latestMessageActivityAt || timeline[0]?.at || group.lastActivityAt || group.persistedContact?.lastActivityAt || null;
+  const latestVisitorMessageActivityAt = getLatestVisitorMessageActivityAt(group);
+  const fallbackActivityAt = timeline.find((entry) => entry.source !== "chat" || entry.label !== "Assistant message")?.at || null;
+  const lastActivityAt = latestVisitorMessageActivityAt
+    || fallbackActivityAt
+    || (!group.messages.length ? group.lastActivityAt || group.persistedContact?.lastActivityAt : null)
+    || null;
   const sourceSet = new Set(group.sourceKinds.concat(
     group.threads.length ? ["inbox"] : [],
     group.events.length ? ["calendar"] : [],

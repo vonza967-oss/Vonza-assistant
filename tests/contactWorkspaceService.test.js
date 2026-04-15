@@ -270,7 +270,7 @@ test("identified widget visitors replace placeholder contact identity", () => {
   assert.notEqual(result.list[0].name, "Unknown contact");
 });
 
-test("chat customers use persisted message time for last activity", () => {
+test("chat customers use persisted visitor message time for last activity", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [
       {
@@ -302,7 +302,8 @@ test("chat customers use persisted message time for last activity", () => {
   });
 
   assert.equal(result.list.length, 1);
-  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
 });
 
@@ -331,7 +332,7 @@ test("guest widget conversations create customer contacts from stored messages",
   assert.equal(result.list[0].bestIdentifier, "Session continuity only");
   assert.ok(result.list[0].sources.includes("chat"));
   assert.equal(result.list[0].latestMessageId, "message-guest-2");
-  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
 });
 
 test("identified widget conversations create customer contacts from stored messages", () => {
@@ -344,6 +345,13 @@ test("identified widget conversations create customer contacts from stored messa
         sessionKey: "identified-session-1",
         createdAt: "2026-04-14T09:03:55.000Z",
       },
+      {
+        id: "message-identified-2",
+        role: "assistant",
+        content: "Thanks mate, I have your email.",
+        sessionKey: "identified-session-1",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
     ],
   });
 
@@ -351,6 +359,7 @@ test("identified widget conversations create customer contacts from stored messa
   assert.equal(result.list[0].name, "mate");
   assert.equal(result.list[0].email, "bobitamate@hotmail.com");
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
 });
 
 test("chat customer timestamps do not drift to render time", () => {
@@ -378,7 +387,8 @@ test("chat customer timestamps do not drift to render time", () => {
     });
 
     assert.equal(result.list.length, 1);
-    assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
+    assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+    assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
     assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-20T18:30:00.000Z");
   } finally {
     Date.now = realDateNow;
