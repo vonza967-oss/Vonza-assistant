@@ -127,6 +127,7 @@ let authSession = null;
 let authUser = null;
 let authViewMode = AUTH_VIEW_MODES.SIGN_UP;
 let authFeedback = null;
+let authCallbackIssue = null;
 let authStateListenerBound = false;
 let workspaceState = null;
 let dashboardHelpState = null;
@@ -599,7 +600,7 @@ function renderTopbarMeta() {
   topbarMeta.innerHTML = "";
 }
 
-async function ensureAuthClient() {
+function createAuthClientIfNeeded() {
   if (authClient || !hasAuthConfig()) {
     return authClient;
   }
@@ -630,12 +631,30 @@ async function ensureAuthClient() {
     authStateListenerBound = true;
   }
 
-  const { data } = await authClient.auth.getSession();
-  authSession = data.session || null;
+  return authClient;
+}
+
+async function ensureAuthClient() {
+  const client = createAuthClientIfNeeded();
+
+  if (!client) {
+    return null;
+  }
+
+  const { data, error } = await client.auth.getSession();
+
+  if (error) {
+    throw error;
+  }
+
+  const nextSession = data?.session && typeof data.session === "object"
+    ? data.session
+    : null;
+  authSession = nextSession?.access_token ? nextSession : null;
   authUser = authSession?.user || null;
   renderTopbarMeta();
 
-  return authClient;
+  return client;
 }
 
 function getArrivalContext() {
@@ -711,22 +730,68 @@ function getAuthFlowType() {
   return trimText(searchParams.get("type") || hashParams.get("type")).toLowerCase();
 }
 
+function getAuthUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const hashValue = typeof window.location.hash === "string" ? window.location.hash : "";
+  const hashParams = new URLSearchParams(hashValue.replace(/^#/, ""));
+
+  hashParams.forEach((value, key) => {
+    if (!params.has(key)) {
+      params.set(key, value);
+    }
+  });
+
+  return params;
+}
+
+function getAuthCallbackIssue() {
+  const params = getAuthUrlParams();
+  const error = trimText(params.get("error"));
+  const errorCode = trimText(params.get("error_code"));
+  const description = trimText(params.get("error_description"));
+
+  if (!error && !errorCode && !description) {
+    return null;
+  }
+
+  const normalized = `${error} ${errorCode} ${description}`.toLowerCase();
+  const expired = normalized.includes("otp_expired")
+    || normalized.includes("expired");
+
+  return {
+    kind: expired ? "expired_link" : "invalid_link",
+    headline: expired ? "That email link has expired." : "That email link could not be used.",
+    status: expired
+      ? "That email link expired. Send a new magic link or sign in another way."
+      : "That email link could not be used. Send a new magic link or sign in another way.",
+    feedback: expired
+      ? "Email links only work for a short time and can be used once. Enter your email to send a fresh magic link, sign in with your password, or reset your password."
+      : "This email link is no longer valid. Enter your email to send a fresh magic link, sign in with your password, or reset your password.",
+  };
+}
+
 function clearAuthFlowStateFromUrl() {
   const url = new URL(window.location.href);
   let changed = false;
 
-  if (url.searchParams.has("type")) {
-    url.searchParams.delete("type");
-    changed = true;
-  }
+  ["type", "error", "error_code", "error_description"].forEach((key) => {
+    if (url.searchParams.has(key)) {
+      url.searchParams.delete(key);
+      changed = true;
+    }
+  });
 
   if (url.hash) {
     const hashParams = new URLSearchParams(String(url.hash || "").replace(/^#/, ""));
 
-    if (hashParams.has("type") || hashParams.has("access_token") || hashParams.has("refresh_token")) {
-      url.hash = "";
-      changed = true;
-    }
+    ["type", "access_token", "refresh_token", "error", "error_code", "error_description"].forEach((key) => {
+      if (hashParams.has(key)) {
+        hashParams.delete(key);
+        changed = true;
+      }
+    });
+
+    url.hash = hashParams.toString() ? `#${hashParams.toString()}` : "";
   }
 
   if (changed) {
@@ -767,6 +832,16 @@ function getAuthRedirectUrl() {
 }
 
 function getAuthModeConfig(mode, arrival) {
+  if (mode === AUTH_VIEW_MODES.MAGIC && authCallbackIssue) {
+    return {
+      eyebrow: authCallbackIssue.kind === "expired_link" ? "Email link expired" : "Email link issue",
+      headline: authCallbackIssue.headline,
+      copy: "No worries. Vonza can send a fresh email link, or you can use password sign-in instead.",
+      submitLabel: "Send new magic link",
+      note: "Use the newest email from Vonza. Older links may stop working after a newer one is sent.",
+    };
+  }
+
   const configs = {
     [AUTH_VIEW_MODES.SIGN_UP]: {
       eyebrow: arrival.arrivedFromSite ? "Step 1 of 3" : "Create your Vonza account",
@@ -868,10 +943,19 @@ function renderAuthSecondaryLinks(mode) {
     `;
   }
 
+  if (mode === AUTH_VIEW_MODES.MAGIC) {
+    return `
+      <div class="auth-links-row">
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Sign in with password</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.RESET}">Reset password instead</button>
+      </div>
+    `;
+  }
+
   return `
     <div class="auth-links-row">
       <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Back to password sign in</button>
-      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_UP}">Create account instead</button>
+      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">Use email link instead</button>
     </div>
   `;
 }
@@ -1897,6 +1981,7 @@ function renderAuthEntry() {
       if (authViewMode !== AUTH_VIEW_MODES.UPDATE_PASSWORD) {
         clearAuthFlowStateFromUrl();
       }
+      authCallbackIssue = null;
       setAuthFeedback(null, "");
       renderAuthEntry();
     });
@@ -2017,6 +2102,7 @@ function renderAuthEntry() {
         }
 
         setAuthFeedback("success", "Magic link sent. Open the email from this device to continue into Vonza.");
+        authCallbackIssue = null;
         renderAuthEntry();
         setStatus("Magic link sent.");
         return;
@@ -14253,6 +14339,20 @@ async function boot() {
   if (!hasAuthConfig()) {
     setStatus("Supabase Auth is not configured yet.");
     renderAuthEntry();
+    return;
+  }
+
+  const callbackIssue = getAuthCallbackIssue();
+  if (callbackIssue) {
+    authCallbackIssue = callbackIssue;
+    authViewMode = AUTH_VIEW_MODES.MAGIC;
+    authSession = null;
+    authUser = null;
+    clearAuthFlowStateFromUrl();
+    createAuthClientIfNeeded();
+    setAuthFeedback("error", callbackIssue.feedback);
+    renderAuthEntry();
+    setStatus(callbackIssue.status);
     return;
   }
 

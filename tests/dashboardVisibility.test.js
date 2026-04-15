@@ -28,6 +28,7 @@ function createStorageMock() {
 
 function createDashboardHarness({
   search = "?from=app",
+  hash = "",
   session = {
     access_token: "token-1",
     user: {
@@ -122,7 +123,8 @@ function createDashboardHarness({
     origin: "https://vonza-assistant.onrender.com",
     pathname: "/dashboard",
     search,
-    href: `https://vonza-assistant.onrender.com/dashboard${search}`,
+    hash,
+    href: `https://vonza-assistant.onrender.com/dashboard${search}${hash}`,
     reload() {},
   };
 
@@ -246,6 +248,7 @@ function createDashboardHarness({
         const parsed = new URL(nextUrl, location.origin);
         location.href = parsed.toString();
         location.search = parsed.search;
+        location.hash = parsed.hash;
       },
     },
     localStorage: storage,
@@ -342,6 +345,9 @@ function createDashboardHarness({
     getGlobal(name) {
       return context[name];
     },
+    getLocation() {
+      return location;
+    },
     fetchCalls,
   };
 }
@@ -430,6 +436,61 @@ test("auth bootstrap failures render a visible error state instead of a blank sh
   assert.match(harness.getRootHtml(), /We couldn&#39;t load your Vonza workspace/);
   assert.match(harness.getRootHtml(), /Try again/);
   assert.match(harness.getStatus(), /Malformed session payload/);
+  assert.equal(
+    harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
+    false
+  );
+});
+
+test("expired magic link callback renders a clean retry UI instead of booting the dashboard", async () => {
+  const harness = createDashboardHarness({
+    search: "?from=app&error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired",
+    session: null,
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /That email link has expired/);
+  assert.match(harness.getRootHtml(), /Send new magic link/);
+  assert.match(harness.getRootHtml(), /Sign in with password/);
+  assert.match(harness.getRootHtml(), /Reset password instead/);
+  assert.doesNotMatch(harness.getRootHtml(), /otp_expired|access_denied/);
+  assert.match(harness.getStatus(), /email link expired/i);
+  assert.doesNotMatch(harness.getStatus(), /otp_expired|access_denied/);
+  assert.equal(
+    harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
+    false
+  );
+  assert.equal(harness.getLocation().search, "?from=app");
+});
+
+test("invalid auth callback hash renders recovery options and clears bad callback state", async () => {
+  const harness = createDashboardHarness({
+    hash: "#error=access_denied&error_description=Email+link+is+invalid",
+    session: null,
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /That email link could not be used/);
+  assert.match(harness.getRootHtml(), /Send new magic link/);
+  assert.match(harness.getRootHtml(), /Reset password instead/);
+  assert.doesNotMatch(harness.getRootHtml(), /access_denied/);
+  assert.equal(harness.getLocation().hash, "");
+  assert.equal(
+    harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
+    false
+  );
+});
+
+test("null auth user session renders the auth shell without fetching dashboard data", async () => {
+  const harness = createDashboardHarness({
+    session: {
+      access_token: "token-without-user",
+      user: null,
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Create your Vonza account|Sign in to continue into Vonza/);
   assert.equal(
     harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
     false
