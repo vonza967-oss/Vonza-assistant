@@ -468,6 +468,52 @@ test("updateAgentSettings persists clearing brand colors", async () => {
   assert.equal(state.widget_configs[0].secondary_color, "");
 });
 
+test("updateAgentSettings persists widget logo upload data", async () => {
+  const logoDataUrl = "data:image/png;base64,iVBORw0KGgo=";
+  const supabase = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        public_agent_key: "agent-key",
+        name: "Acme Assistant",
+        purpose: "support",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Acme",
+        website_url: "https://acme.example",
+      },
+    ],
+    widget_configs: [
+      {
+        agent_id: "agent-1",
+        assistant_name: "Acme Assistant",
+        welcome_message: "Hello.",
+        button_label: "Chat",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "YOUR PERSONAL ASSISTANT",
+        theme_mode: "dark",
+        install_id: "install-1",
+        allowed_domains: ["acme.example"],
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    widgetLogoUrl: logoDataUrl,
+  });
+
+  assert.equal(result.widgetLogoUrl, logoDataUrl);
+  assert.equal(supabase.state.widget_configs[0].widget_logo_url, logoDataUrl);
+});
+
 test("updateAgentSettings persists clearing the website", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [

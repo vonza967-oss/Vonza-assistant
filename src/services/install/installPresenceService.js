@@ -6,6 +6,10 @@ const AGENT_INSTALLATIONS_TABLE = "agent_installations";
 const AGENTS_TABLE = "agents";
 const BUSINESSES_TABLE = "businesses";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
+const WIDGET_CONFIG_SELECT =
+  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, widget_logo_url, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
+const LEGACY_WIDGET_CONFIG_SELECT =
+  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
 const INSTALL_STATUS_STALE_HOURS = 72;
 const VERIFICATION_STATUS = {
   FOUND: "found",
@@ -23,6 +27,11 @@ export function isMissingRelationError(error, relationName) {
     message.includes(`'public.${relationName}'`) ||
     message.includes(`${relationName} was not found`)
   );
+}
+
+function isMissingWidgetLogoColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return error?.code === "42703" || error?.code === "PGRST204" || message.includes("widget_logo_url");
 }
 
 function parseAbsoluteUrl(value) {
@@ -325,13 +334,19 @@ function logStructured(message, payload, method = "info") {
 }
 
 async function getWidgetConfigRowByAgentId(supabase, agentId) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
-    .select(
-      "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details"
-    )
+    .select(WIDGET_CONFIG_SELECT)
     .eq("agent_id", agentId)
     .maybeSingle();
+
+  if (error && isMissingWidgetLogoColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .select(LEGACY_WIDGET_CONFIG_SELECT)
+      .eq("agent_id", agentId)
+      .maybeSingle());
+  }
 
   if (error) {
     if (isMissingRelationError(error, WIDGET_CONFIGS_TABLE)) {
@@ -352,13 +367,19 @@ async function getWidgetConfigRowByInstallId(supabase, installId) {
     return null;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
-    .select(
-      "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details"
-    )
+    .select(WIDGET_CONFIG_SELECT)
     .eq("install_id", normalizedInstallId)
     .maybeSingle();
+
+  if (error && isMissingWidgetLogoColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .select(LEGACY_WIDGET_CONFIG_SELECT)
+      .eq("install_id", normalizedInstallId)
+      .maybeSingle());
+  }
 
   if (error) {
     if (isMissingRelationError(error, WIDGET_CONFIGS_TABLE)) {

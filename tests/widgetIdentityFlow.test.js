@@ -105,6 +105,8 @@ function createWidgetHarness() {
     "launcher-text",
     "welcome-message",
     "intro-avatar",
+    "brand-mark",
+    "brand-mark-logo",
     "brand-mark-v",
     "powered-by",
     "chat",
@@ -126,6 +128,10 @@ function createWidgetHarness() {
     querySelector(selector) {
       if (selector === ".input-area") {
         return inputArea;
+      }
+
+      if (selector === ".brand-mark") {
+        return getElement("brand-mark");
       }
 
       if (selector === 'meta[name="apple-mobile-web-app-title"]') {
@@ -259,4 +265,28 @@ test("widget does not infer identity from an email without explicit mode", () =>
     email: "",
     name: "",
   });
+});
+
+test("widget renders custom header logo and falls back safely when unset", () => {
+  const harness = createWidgetHarness();
+  const logo = harness.elements.get("brand-mark-logo");
+  const mark = harness.elements.get("brand-mark-v");
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Acme Desk",
+    widgetLogoUrl: "data:image/png;base64,iVBORw0KGgo=",
+  });
+
+  assert.equal(logo.hidden, false);
+  assert.equal(logo.src, "data:image/png;base64,iVBORw0KGgo=");
+  assert.equal(mark.textContent, "A");
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Fallback Desk",
+    widgetLogoUrl: "",
+  });
+
+  assert.equal(logo.hidden, true);
+  assert.equal(logo.src, undefined);
+  assert.equal(mark.textContent, "F");
 });

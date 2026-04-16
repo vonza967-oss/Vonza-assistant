@@ -44,6 +44,7 @@ const DEFAULT_WIDGET_CONFIG = {
   welcomeMessage: "How may I be of your service today?",
   buttonLabel: "Chat with Vonza",
   launcherText: "YOUR PERSONAL ASSISTANT",
+  widgetLogoUrl: "",
   primaryColor: "#10a37f",
   secondaryColor: "#0c7f75",
   themeMode: "dark",
@@ -801,6 +802,10 @@ function applyWidgetConfig(config = {}) {
     ...config,
   };
 
+  const brandMark = document.querySelector(".brand-mark");
+  const brandLogo = document.getElementById("brand-mark-logo");
+  const customLogoUrl = trimText(widgetConfig.widgetLogoUrl);
+
   document.title = widgetConfig.assistantName;
   document.documentElement.style.setProperty("--brand-primary", widgetConfig.primaryColor);
   document.documentElement.style.setProperty("--brand-secondary", widgetConfig.secondaryColor);
@@ -809,6 +814,17 @@ function applyWidgetConfig(config = {}) {
   document.getElementById("welcome-message").textContent = widgetConfig.welcomeMessage;
   document.getElementById("intro-avatar").textContent = getAssistantMark();
   document.getElementById("brand-mark-v").textContent = getAssistantMark();
+  if (brandLogo && brandMark) {
+    if (customLogoUrl) {
+      brandLogo.src = customLogoUrl;
+      brandLogo.hidden = false;
+      brandMark.classList.add("has-custom-logo");
+    } else {
+      brandLogo.removeAttribute("src");
+      brandLogo.hidden = true;
+      brandMark.classList.remove("has-custom-logo");
+    }
+  }
   document.getElementById("send-button").textContent = widgetConfig.buttonLabel;
   document.getElementById("powered-by").textContent = `Powered by ${widgetConfig.assistantName}`;
   if (hasChosenVisitorIdentity()) {
@@ -1101,6 +1117,7 @@ applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 loadWidgetBootstrap();
 
 window.__VONZA_WIDGET_TEST_HOOKS__ = {
+  applyWidgetConfig,
   buildVisitorIdentityPayload,
   continueIntoChat: (identity) => continueIntoChat(identity, {
     track: false,

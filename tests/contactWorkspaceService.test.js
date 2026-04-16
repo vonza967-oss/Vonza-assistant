@@ -270,6 +270,46 @@ test("identified widget visitors replace placeholder contact identity", () => {
   assert.notEqual(result.list[0].name, "Unknown contact");
 });
 
+test("stored email identities hydrate customer primary identifiers", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-identified",
+        displayName: "Unknown contact",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-identified",
+        identityType: "session_key",
+        identityValue: "session-email",
+      },
+      {
+        contactId: "contact-identified",
+        identityType: "email",
+        identityValue: "Visitor@Example.com",
+      },
+    ],
+    messages: [
+      {
+        id: "message-identified-email",
+        role: "user",
+        content: "Do you have weekend hours?",
+        sessionKey: "session-email",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].email, "visitor@example.com");
+  assert.equal(result.list[0].name, "visitor@example.com");
+  assert.equal(result.list[0].bestIdentifier, "visitor@example.com");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Do you have weekend hours?");
+});
+
 test("chat customers use persisted visitor message time for last activity", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [
@@ -305,6 +345,36 @@ test("chat customers use persisted visitor message time for last activity", () =
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
+});
+
+test("persisted guest contacts keep the latest customer message snapshot without loaded messages", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-guest",
+        displayName: "Anonymous visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:03:55.000Z",
+        metadata: {
+          latestCustomerMessageAt: "2026-04-14T09:03:55.000Z",
+          latestCustomerMessageSummary: "Do you offer weekend appointments?",
+        },
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-guest",
+        identityType: "session_key",
+        identityValue: "guest-session-1",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Anonymous visitor");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Do you offer weekend appointments?");
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
 });
 
 test("guest widget conversations create customer contacts from stored messages", () => {

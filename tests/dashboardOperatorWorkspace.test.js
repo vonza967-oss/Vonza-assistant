@@ -401,11 +401,11 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Home at a glance/);
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Show supporting detail/);
-  assert.match(harness.buildInboxPanel({}, workspace), /Coming soon/);
+  assert.match(harness.buildInboxPanel({}, workspace), /Beta/);
   assert.doesNotMatch(harness.buildInboxPanel({}, workspace), /Connect Gmail/);
-  assert.match(harness.buildCalendarPanel({}, workspace), /Coming soon/);
+  assert.match(harness.buildCalendarPanel({}, workspace), /Beta/);
   assert.doesNotMatch(harness.buildCalendarPanel({}, workspace), /Connect Google/);
-  assert.match(harness.buildAutomationsPanel({}, workspace), /Coming soon/);
+  assert.match(harness.buildAutomationsPanel({}, workspace), /Beta/);
   assert.doesNotMatch(harness.buildAutomationsPanel({}, workspace), /Connect Google/);
 });
 
@@ -513,7 +513,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   assert.match(overview, /Show supporting detail/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
-  assert.match(calendarPanel, /Coming soon/);
+  assert.match(calendarPanel, /Beta/);
   assert.doesNotMatch(calendarPanel, /Run your first calendar sync/);
   assert.doesNotMatch(calendarPanel, /Connect Google/);
   assert.doesNotMatch(calendarPanel, /Create event draft/);
@@ -671,6 +671,8 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Business profile/);
   assert.match(settings, /Front Desk/);
   assert.match(settings, /Widget purpose/);
+  assert.match(settings, /Widget logo/);
+  assert.match(settings, /Upload the icon\/logo shown at the top of your widget/);
   assert.match(settings, /What should your widget mainly help visitors do/);
   assert.match(settings, /Guidance/);
   assert.match(settings, /Support/);
@@ -678,7 +680,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Lead capture \/ contact/);
   assert.match(settings, /Booking \/ next step guidance/);
   assert.match(settings, /Connected tools/);
-  assert.match(settings, /Coming soon/);
+  assert.match(settings, /Beta/);
   assert.doesNotMatch(settings, /Connect Google/);
   assert.match(settings, /Workspace/);
   assert.match(settings, /Business context setup/);
@@ -1419,10 +1421,34 @@ test("customer rows separate guest identity from the widget question text", () =
     ],
   });
 
-  assert.match(row, /<strong class="contact-row-name">Unknown<\/strong>/);
+  assert.match(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
   assert.match(row, /<p class="customer-row-summary">hey, what services do you offer<\/p>/);
   assert.doesNotMatch(row, /<strong class="contact-row-name">hey, what services do you offer<\/strong>/);
   assert.doesNotMatch(row, /No action needed/);
+});
+
+test("guest customer rows show stored customer message summary and last message time", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-guest",
+    name: "Anonymous visitor",
+    bestIdentifier: "Session continuity only",
+    lifecycleState: "active_lead",
+    partialIdentity: true,
+    sources: ["chat"],
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    latestCustomerMessageSummary: "Do you offer weekend appointments?",
+    timeline: [],
+  });
+
+  assert.match(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
+  assert.match(row, /Do you offer weekend appointments\?/);
+  assert.match(row, /data-contact-last-activity="2026-04-16T09:47:46\.000Z"/);
+  assert.doesNotMatch(row, /No customer message yet/);
 });
 
 test("customer rows do not fall back to generic activity timestamps", () => {
@@ -1490,7 +1516,7 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
 
   assert.match(sidebar, /Primary/);
   assert.match(sidebar, /Connected tools/);
-  assert.match(sidebar, /Coming soon/);
+  assert.match(sidebar, /Beta/);
   assert.doesNotMatch(sidebar, /Optional/);
   assert.match(sidebar, /Utilities/);
   assert.match(sidebar, /Workspace/);
@@ -1540,6 +1566,8 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /Estimated customer satisfaction/);
   assert.match(analyticsPanel, /Booking or availability/);
   assert.match(analyticsPanel, /Asking for contact info/);
+  assert.doesNotMatch(analyticsPanel, /AI-handled/);
+  assert.doesNotMatch(analyticsPanel, /answered without needing a team reply/);
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
 });
@@ -1744,7 +1772,7 @@ test("dashboard renders inbox threads safely when thread messages are missing", 
   const markup = harness.buildInboxPanel({}, workspace);
 
   assert.equal(Array.isArray(workspace.inbox.threads[0].messages), true);
-  assert.match(markup, /Coming soon/);
+  assert.match(markup, /Beta/);
   assert.doesNotMatch(markup, /Need help/);
   assert.doesNotMatch(markup, /Read-only/i);
   assert.doesNotMatch(markup, /Approve and send/i);
@@ -1912,7 +1940,7 @@ test("dashboard refresh reloads live agent messages, summaries, and workspace da
   assert.ok(calls.some((call) => call.startsWith("/agents/action-queue?")));
   assert.ok(calls.some((call) => call.includes("/agents/operator-workspace?") && call.includes("force_sync=true")));
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Fresh live question/);
-  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Unknown/);
+  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Guest visitor/);
 });
 
 test("dashboard refresh buttons use the full live reload path", () => {

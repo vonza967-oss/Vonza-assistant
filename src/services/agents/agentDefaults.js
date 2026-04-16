@@ -8,6 +8,7 @@ export const DEFAULT_WIDGET_CONFIG = {
   welcomeMessage: "How may I be of your service today?",
   buttonLabel: "Chat with Vonza",
   launcherText: "YOUR PERSONAL ASSISTANT",
+  widgetLogoUrl: "",
   primaryColor: "#10a37f",
   secondaryColor: "#0c7f75",
   themeMode: "dark",

@@ -136,6 +136,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "operator-only",
     note: "Adds lightweight proposal state persistence so Today Copilot can hide applied or dismissed proposals without autonomous execution.",
   }),
+  Object.freeze({
+    id: "widget_logo_url",
+    version: "20260416000000",
+    name: "widget_logo_url",
+    file: "supabase/migrations/20260416000000_widget_logo_url.sql",
+    legacySources: Object.freeze(["db/widget_logo_url.sql"]),
+    tier: "feature-gated",
+    note: "Adds optional widget logo image persistence for customer-facing widget header branding.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

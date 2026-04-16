@@ -43,6 +43,7 @@ const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "primary_cta_mode",
   "fallback_cta_mode",
   "business_hours_note",
+  "widget_logo_url",
 ];
 const LEGACY_WIDGET_CONFIG_SELECT = [
   "id",
@@ -71,6 +72,7 @@ const WIDGET_CONFIG_SELECT = [
   "primary_color",
   "secondary_color",
   "launcher_text",
+  "widget_logo_url",
   "theme_mode",
   "booking_url",
   "quote_url",
@@ -178,6 +180,29 @@ function buildInvalidPhoneError() {
   return buildAgentSettingsError("Enter a valid contact phone number.", 400);
 }
 
+function normalizeOptionalImageSource(value) {
+  const normalized = cleanText(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.length > 90000) {
+    return "";
+  }
+
+  if (/^data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/i.test(normalized)) {
+    return normalized;
+  }
+
+  const normalizedUrl = normalizeOptionalUrl(normalized);
+  return normalizedUrl || "";
+}
+
+function buildInvalidWidgetLogoError() {
+  return buildAgentSettingsError("Upload a small PNG, JPG, WebP, or GIF logo image.", 400);
+}
+
 function normalizeCtaMode(value, fallbackValue) {
   const normalized = cleanText(value).toLowerCase();
   return CTA_MODES.includes(normalized) ? normalized : fallbackValue;
@@ -222,6 +247,10 @@ function buildWidgetConfigUpsertPayload(agentId, config, options = {}) {
     allowed_domains: config.allowedDomains || [],
     updated_at: new Date().toISOString(),
   };
+
+  if (options.includeWidgetLogoField !== false) {
+    payload.widget_logo_url = config.widgetLogoUrl || null;
+  }
 
   if (options.includeRoutingFields !== false) {
     payload.booking_url = config.bookingUrl || null;
@@ -331,6 +360,7 @@ function mapWidgetConfigRow(row) {
           primaryColor: row.primary_color ?? DEFAULT_WIDGET_CONFIG.primaryColor,
           secondaryColor: row.secondary_color ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
           launcherText: row.launcher_text ?? DEFAULT_WIDGET_CONFIG.launcherText,
+          widgetLogoUrl: normalizeOptionalImageSource(row.widget_logo_url) || "",
           themeMode: row.theme_mode ?? DEFAULT_WIDGET_CONFIG.themeMode,
           bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
           quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
@@ -375,6 +405,7 @@ function mapPersistedWidgetConfigRow(row) {
     primaryColor: cleanText(row?.primary_color),
     secondaryColor: cleanText(row?.secondary_color),
     launcherText: cleanText(row?.launcher_text),
+    widgetLogoUrl: normalizeOptionalImageSource(row?.widget_logo_url) || "",
     themeMode: cleanText(row?.theme_mode),
     bookingUrl: normalizeOptionalUrl(row?.booking_url) || "",
     quoteUrl: normalizeOptionalUrl(row?.quote_url) || "",
@@ -508,7 +539,10 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
   if (error && isMissingWidgetRoutingColumnError(error)) {
     ({ data, error } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
-      .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, { includeRoutingFields: false }), { onConflict: "agent_id" })
+      .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, {
+        includeRoutingFields: false,
+        includeWidgetLogoField: false,
+      }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
   }
@@ -1076,6 +1110,8 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
       buttonLabel:
         widgetConfig?.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
+      widgetLogoUrl:
+        widgetConfig?.widgetLogoUrl || DEFAULT_WIDGET_CONFIG.widgetLogoUrl,
       primaryColor:
         widgetConfig?.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
       secondaryColor:
@@ -1217,6 +1253,8 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
     buttonLabel:
       widgetConfigsByAgentId.get(row.id)?.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
+    widgetLogoUrl:
+      widgetConfigsByAgentId.get(row.id)?.widgetLogoUrl || DEFAULT_WIDGET_CONFIG.widgetLogoUrl,
     primaryColor:
       widgetConfigsByAgentId.get(row.id)?.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
     secondaryColor:
@@ -1282,6 +1320,7 @@ export async function updateAgentSettings(
     systemPrompt,
     welcomeMessage,
     buttonLabel,
+    widgetLogoUrl,
     websiteUrl,
     primaryColor,
     secondaryColor,
@@ -1390,6 +1429,12 @@ export async function updateAgentSettings(
     throw buildInvalidPhoneError();
   }
 
+  const providedWidgetLogoUrl = hasField("widgetLogoUrl") ? cleanText(widgetLogoUrl) : "";
+  const normalizedWidgetLogoUrl = normalizeOptionalImageSource(providedWidgetLogoUrl);
+  if (hasField("widgetLogoUrl") && providedWidgetLogoUrl && !normalizedWidgetLogoUrl) {
+    throw buildInvalidWidgetLogoError();
+  }
+
   const agent = await findAgentById(supabase, normalizedAgentId);
 
   if (!agent) {
@@ -1422,6 +1467,7 @@ export async function updateAgentSettings(
         primaryColor: cleanText(currentWidgetConfig.primaryColor),
         secondaryColor: cleanText(currentWidgetConfig.secondaryColor),
         launcherText: cleanText(currentWidgetConfig.launcherText),
+        widgetLogoUrl: currentWidgetConfig.widgetLogoUrl || "",
         themeMode: cleanText(currentWidgetConfig.themeMode),
         bookingUrl: currentWidgetConfig.bookingUrl || "",
         quoteUrl: currentWidgetConfig.quoteUrl || "",
@@ -1455,6 +1501,9 @@ export async function updateAgentSettings(
   const nextSecondaryColor = hasField("secondaryColor")
     ? cleanText(secondaryColor)
     : persistedWidgetConfig.secondaryColor;
+  const nextWidgetLogoUrl = hasField("widgetLogoUrl")
+    ? normalizedWidgetLogoUrl || ""
+    : persistedWidgetConfig.widgetLogoUrl;
   const nextBookingUrl = hasField("bookingUrl")
     ? normalizedBookingUrl || ""
     : persistedWidgetConfig.bookingUrl;
@@ -1602,6 +1651,7 @@ export async function updateAgentSettings(
       primaryColor: nextPrimaryColor,
       secondaryColor: nextSecondaryColor,
       launcherText: currentWidgetConfig.launcherText,
+      widgetLogoUrl: nextWidgetLogoUrl,
       themeMode: currentWidgetConfig.themeMode,
       bookingUrl: nextBookingUrl,
       quoteUrl: nextQuoteUrl,
@@ -1631,9 +1681,13 @@ export async function updateAgentSettings(
         primaryColor: nextPrimaryColor,
         secondaryColor: nextSecondaryColor,
         launcherText: currentWidgetConfig.launcherText,
+        widgetLogoUrl: nextWidgetLogoUrl,
         themeMode: currentWidgetConfig.themeMode,
         allowedDomains: nextAllowedDomainsRaw,
-      }, { includeRoutingFields: false }), { onConflict: "agent_id" }));
+      }, {
+        includeRoutingFields: false,
+        includeWidgetLogoField: false,
+      }), { onConflict: "agent_id" }));
   }
 
   if (widgetError) {
@@ -1664,6 +1718,7 @@ export async function updateAgentSettings(
     },
     welcomeMessage: nextWelcomeMessage,
     buttonLabel: nextButtonLabel,
+    widgetLogoUrl: nextWidgetLogoUrl,
     primaryColor: nextPrimaryColor,
     secondaryColor: nextSecondaryColor,
     bookingUrl: nextBookingUrl,

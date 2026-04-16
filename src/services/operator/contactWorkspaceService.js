@@ -295,6 +295,34 @@ function registerIdentity(identityMaps, group, identityType, identityValue) {
   identityMaps[identityType].set(value, group);
 }
 
+function addStoredIdentityToGroup(group, identity = {}) {
+  const identityType = cleanText(identity.identityType);
+  const identityValue = cleanText(identity.identityValue);
+
+  if (!identityType || !identityValue) {
+    return;
+  }
+
+  if (identityType === "email") {
+    addIdentityValues(group, {
+      email: identityValue,
+    });
+  } else if (identityType === "phone") {
+    addIdentityValues(group, {
+      phone: identityValue,
+      phoneDigits: identityValue,
+    });
+  } else if (identityType === "person_key") {
+    addIdentityValues(group, {
+      personKey: identityValue,
+    });
+  } else if (identityType === "session_key") {
+    addIdentityValues(group, {
+      sessionKeys: [identityValue],
+    });
+  }
+}
+
 function mergeGroups(primary, secondary, identityMaps, groups) {
   if (!primary || !secondary || primary === secondary) {
     return primary || secondary;
@@ -755,6 +783,21 @@ function getLatestCustomerMessageSnapshot(group = {}) {
   return snapshots[0] || null;
 }
 
+function getPersistedCustomerMessageSnapshot(group = {}) {
+  const metadata = group.persistedContact?.metadata || {};
+  const at = metadata.latestCustomerMessageAt || metadata.lastCustomerMessageAt || null;
+  const summary = cleanText(metadata.latestCustomerMessageSummary || metadata.lastCustomerMessageSummary);
+
+  if (!parseTimestamp(at) && !summary) {
+    return null;
+  }
+
+  return {
+    at,
+    summary,
+  };
+}
+
 function pickDisplayName(group = {}) {
   const hasCurrentSignal = Boolean(
     normalizeEmail(group.emails[0])
@@ -973,7 +1016,7 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestCustomerMessage = getLatestCustomerMessageSnapshot(group);
+  const latestCustomerMessage = getLatestCustomerMessageSnapshot(group) || getPersistedCustomerMessageSnapshot(group);
   const latestVisitorMessageActivityAt = latestCustomerMessage?.at || getLatestVisitorMessageActivityAt(group);
   const fallbackActivityAt = timeline.find((entry) => entry.source !== "chat" || entry.label !== "Assistant message")?.at || null;
   const lastActivityAt = latestVisitorMessageActivityAt
@@ -1260,12 +1303,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
 
     storedIdentities.forEach((identity) => {
       registerIdentity(identityMaps, group, identity.identityType, identity.identityValue);
-
-      if (identity.identityType === "session_key") {
-        addIdentityValues(group, {
-          sessionKeys: [identity.identityValue],
-        });
-      }
+      addStoredIdentityToGroup(group, identity);
     });
   };
 
@@ -1687,6 +1725,8 @@ function buildContactPayload(contact = {}, group = {}, options = {}) {
       bestIdentifier: contact.bestIdentifier,
       partialIdentity: contact.partialIdentity === true,
       latestMessageId: contact.latestMessageId || "",
+      latestCustomerMessageAt: contact.lastCustomerMessageAt || "",
+      latestCustomerMessageSummary: contact.latestCustomerMessageSummary || "",
       related: contact.related || {},
       counts: contact.counts || {},
     },

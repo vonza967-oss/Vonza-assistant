@@ -115,7 +115,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Connected tools are coming soon and stay clearly marked until they are ready.",
+      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Connected tools are beta and stay clearly marked until they are ready.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -494,7 +494,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "front_desk_only",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are coming soon and stay out of the way for now.",
+        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are beta and stay out of the way for now.",
       };
   }
 
@@ -503,7 +503,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
-      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations are marked Coming soon until they are ready.",
+      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations are marked Beta until they are ready.",
     };
   }
 
@@ -513,7 +513,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon and are not self-serve yet.",
+        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not self-serve yet.",
       };
     }
 
@@ -521,7 +521,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your core workspace is ready.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon and are not ready to use yet.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not ready to use yet.",
     };
   }
 
@@ -529,7 +529,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools are coming soon, so Email, Calendar, and Automations stay clearly marked as not ready yet.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools are beta, so Email, Calendar, and Automations stay clearly marked as not ready yet.",
   };
 }
 
@@ -1824,7 +1824,7 @@ function renderAccessLocked(agent) {
             <div class="pill">AI front desk and routing</div>
             <div class="pill">Home, Customers, and Analytics</div>
             <div class="pill">Website import and install</div>
-            <div class="pill">Connected tools coming soon</div>
+            <div class="pill">Connected tools beta</div>
           </div>
         </div>
         <div class="pricing-actions">
@@ -2785,20 +2785,20 @@ function buildSidebarShell(
     {
       key: "inbox",
       label: "Email",
-      note: "Coming soon. Email is not self-serve yet.",
-      tag: "Coming soon",
+      note: "Beta. Email is not self-serve yet.",
+      tag: "Beta",
     },
     {
       key: "calendar",
       label: "Calendar",
-      note: "Coming soon. Calendar access is not ready yet.",
-      tag: "Coming soon",
+      note: "Beta. Calendar access is not ready yet.",
+      tag: "Beta",
     },
     {
       key: "automations",
       label: "Automations",
-      note: "Coming soon. Automated workflows are not available yet.",
-      tag: "Coming soon",
+      note: "Beta. Automated workflows are not available yet.",
+      tag: "Beta",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -2877,7 +2877,7 @@ function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = crea
   const disabled = nextAction.disabled === true;
 
   if (actionType === "connect_google") {
-    return `<button class="ghost-button" type="button" disabled>${escapeHtml(label || "Coming soon")}</button>`;
+    return `<button class="ghost-button" type="button" disabled>${escapeHtml(label || "Beta")}</button>`;
   }
 
   if (actionType === "run_first_sync") {
@@ -2960,7 +2960,7 @@ function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWor
               <input id="operator-calendar-context" type="text" value="Primary calendar" disabled>
               <p class="field-help">${escapeHtml(googleCapabilities.calendarRead
                 ? "Vonza uses your primary Google Calendar to bring schedule context, recent appointments, and follow-up suggestions into Home."
-                : "Calendar context is coming soon and is not ready to use from the dashboard yet.")}</p>
+                : "Calendar context is beta and is not ready to use from the dashboard yet.")}</p>
             </div>
           </div>
           <div class="inline-actions">
@@ -3228,6 +3228,7 @@ function getCustomerName(contact = {}) {
     || trimText(contact.phone)
     || getValidCustomerLabel(contact.name)
     || getValidCustomerLabel(contact.bestIdentifier)
+    || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
     || "Unknown";
 }
 
@@ -3254,11 +3255,31 @@ function getCustomerIdentifier(contact = {}) {
     || trimText(contact.phone)
     || getValidCustomerLabel(contact.bestIdentifier)
     || getValidCustomerLabel(contact.name)
+    || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
     || "No direct identifier yet";
 }
 
 function getCustomerLastMessageAt(contact = {}) {
   return trimText(contact.lastCustomerMessageAt);
+}
+
+function hasGuestCustomerActivity(contact = {}) {
+  if (getCustomerEmailLabel(contact.email) || trimText(contact.phone)) {
+    return false;
+  }
+
+  const sources = Array.isArray(contact.sources) ? contact.sources.map((source) => trimText(source).toLowerCase()) : [];
+  const timeline = Array.isArray(contact.timeline) ? contact.timeline : [];
+
+  return contact.partialIdentity === true
+    || sources.includes("chat")
+    || sources.includes("inbox")
+    || isPlaceholderCustomerLabel(contact.name)
+    || isPlaceholderCustomerLabel(contact.bestIdentifier)
+    || timeline.some((entry) =>
+      ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
+      || ["chat", "inbox"].includes(trimText(entry.source))
+    );
 }
 
 function getCustomerLastActivityLabel(contact = {}) {
@@ -4606,7 +4627,7 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
         <div class="workspace-panel-header">
           <div>
             <p class="studio-kicker">Connected tools</p>
-            <h3 class="workspace-panel-title">Calendar is coming soon</h3>
+            <h3 class="workspace-panel-title">Calendar is beta</h3>
             <p class="workspace-panel-copy">Calendar-heavy detail is not ready yet, so Home keeps this area informational for now.</p>
           </div>
         </div>
@@ -4620,7 +4641,7 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
         items: scheduleItems,
         emptyTitle: status.googleConnected
           ? "No more appointments are on today’s schedule"
-          : "Calendar coming soon",
+          : "Calendar beta",
         emptyCopy: status.googleConnected
           ? "Vonza will keep today’s remaining schedule here."
           : "Schedule context is not ready to use from the dashboard yet.",
@@ -4728,7 +4749,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
           <p class="workspace-panel-copy">Home is the daily command page: current-day signals, compact proposals, and the clearest recommendations only.</p>
         </div>
         <div class="workspace-badge-row">
-          <span class="${getBadgeClass("Limited")}">Connected tools coming soon</span>
+          <span class="${getBadgeClass("Limited")}">Connected tools beta</span>
           <span class="${getBadgeClass(status.migrationRequired ? "Limited" : "Ready")}">${status.migrationRequired ? "Workspace still syncing" : "Workspace ready"}</span>
         </div>
       </div>
@@ -6192,46 +6213,46 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
         <div class="settings-section-intro">
           <p class="studio-kicker">Connected tools</p>
           <h2 class="settings-section-title">Connected tools</h2>
-          <p class="settings-section-copy">Coming soon. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
+          <p class="settings-section-copy">Beta. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
         </div>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Google workspace</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
+            <h3 class="settings-summary-title">Beta</h3>
             <p class="settings-summary-copy">Google connection is not available in this dashboard yet. The core workspace works without it.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar mode</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
+            <h3 class="settings-summary-title">Beta</h3>
             <p class="settings-summary-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Email mode</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
+            <h3 class="settings-summary-title">Beta</h3>
             <p class="settings-summary-copy">Inbox review is not usable yet, so the dashboard does not present connect or sync actions.</p>
           </article>
         </div>
       </section>
 
       <section class="workspace-card-soft">
-        <h3 class="studio-group-title">Coming soon</h3>
+        <h3 class="studio-group-title">Beta</h3>
         <p class="studio-group-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Email</p>
-            <span class="badge pending">Coming soon</span>
+            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Inbox connection</h3>
             <p class="settings-summary-copy">Email review is not self-serve yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar</p>
-            <span class="badge pending">Coming soon</span>
+            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Schedule context</h3>
             <p class="settings-summary-copy">Calendar access is not ready yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Automations</p>
-            <span class="badge pending">Coming soon</span>
+            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Workflow support</h3>
             <p class="settings-summary-copy">Automations are not available yet.</p>
           </article>
@@ -7482,13 +7503,13 @@ function createEmptyOperatorWorkspace() {
     },
     briefing: {
       title: "Home briefing",
-      text: "Calendar context is coming soon. Home, Customers, Front Desk, and Analytics are ready without it.",
+      text: "Calendar context is beta. Home, Customers, Front Desk, and Analytics are ready without it.",
     },
     nextAction: {
       key: "connect_google",
-      title: "Connected tools coming soon",
+      title: "Connected tools beta",
       description: "Email, Calendar, and Automations are not ready to use from the dashboard yet.",
-      buttonLabel: "Coming soon",
+      buttonLabel: "Beta",
       actionType: "connect_google",
       targetSection: "overview",
       disabled: true,
@@ -7627,7 +7648,7 @@ function createEmptyOperatorWorkspace() {
     calendar: {
       events: [],
       suggestedSlots: [],
-      dailySummary: "Calendar context is coming soon. Home works without it for now.",
+      dailySummary: "Calendar context is beta. Home works without it for now.",
       missedBookingOpportunities: [],
       scheduleItems: [],
       reviewItems: [],
@@ -9952,12 +9973,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.conversationCount > 0 ? "positive" : "neutral",
               },
               {
-                label: "AI-handled",
-                value: formatAnalyticsReportPercent(report.autonomousHandledRate),
-                note: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} answered without needing a team reply`,
-                tone: report.autonomousHandledRate >= 75 ? "positive" : report.autonomousHandledRate >= 50 ? "watch" : "risk",
-              },
-              {
                 label: "Leads captured",
                 value: formatAnalyticsReportNumber(report.contactsCaptured),
                 note: report.highIntentSignals > report.contactsCaptured
@@ -10276,13 +10291,13 @@ function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
       ${buildPageHeader({
         eyebrow: "Connected tools",
         title,
-        copy: "Coming soon. This connected tool is not ready to use from the dashboard yet.",
-        actionsMarkup: `<span class="badge pending">Coming soon</span>`,
+        copy: "Beta. This connected tool is not self-serve from the dashboard yet.",
+        actionsMarkup: `<span class="badge pending">Beta</span>`,
       })}
       <div class="workspace-page-body">
         <section class="workspace-card-soft">
           <p class="overview-label">Status</p>
-          <h3 class="studio-group-title">Coming soon</h3>
+          <h3 class="studio-group-title">Beta</h3>
           <p class="workspace-panel-copy">${escapeHtml(copy)}</p>
         </section>
       </div>
@@ -11973,6 +11988,36 @@ async function createAssistant(event) {
   }
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "")));
+    reader.addEventListener("error", () => reject(new Error("That logo could not be read. Try a smaller image.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function readWidgetLogoUpload(form) {
+  const input = form?.querySelector('input[name="widget_logo_file"]');
+  const file = input?.files?.[0] || null;
+
+  if (!file) {
+    return "";
+  }
+
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+  if (!allowedTypes.has(file.type)) {
+    throw new Error("Upload a PNG, JPG, WebP, or GIF logo image.");
+  }
+
+  if (file.size > 65000) {
+    throw new Error("Use a smaller widget logo image under 65 KB.");
+  }
+
+  return readFileAsDataUrl(file);
+}
+
 async function saveAssistant(event, agent) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -12066,6 +12111,22 @@ async function saveAssistant(event, agent) {
       payload[fieldName] = formData.get(fieldName);
     }
   });
+
+  try {
+    const widgetLogoUrl = await readWidgetLogoUpload(form);
+    if (widgetLogoUrl) {
+      payload.widget_logo_url = widgetLogoUrl;
+    }
+  } catch (error) {
+    const message = error.message || "That widget logo could not be uploaded.";
+    setStatus(message);
+    if (saveState) {
+      saveState.textContent = "Could not save logo.";
+      saveState.className = "save-state unsaved";
+      saveState.title = message;
+    }
+    return;
+  }
 
   submitButton.disabled = true;
   if (saveState) {

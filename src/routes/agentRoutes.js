@@ -869,6 +869,7 @@ export function createAgentRouter(deps = {}) {
         systemPrompt: readBodyField(req.body, "system_prompt", "systemPrompt"),
         welcomeMessage: readBodyField(req.body, "welcome_message", "welcomeMessage"),
         buttonLabel: readBodyField(req.body, "button_label", "buttonLabel"),
+        widgetLogoUrl: readBodyField(req.body, "widget_logo_url", "widgetLogoUrl"),
         websiteUrl: readBodyField(req.body, "website_url", "websiteUrl"),
         primaryColor: readBodyField(req.body, "primary_color", "primaryColor"),
         secondaryColor: readBodyField(req.body, "secondary_color", "secondaryColor"),

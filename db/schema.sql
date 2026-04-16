@@ -58,6 +58,7 @@ create table if not exists public.widget_configs (
   primary_color text,
   secondary_color text,
   launcher_text text,
+  widget_logo_url text,
   theme_mode text,
   booking_url text,
   quote_url text,

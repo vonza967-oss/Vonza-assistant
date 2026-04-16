@@ -14,7 +14,7 @@
     {
       key: "connected_tools",
       label: "Connected tools",
-      note: "Coming soon. Email, Calendar, and Automations are not ready yet.",
+      note: "Beta. Email, Calendar, and Automations are not ready yet.",
     },
     {
       key: "workspace",
@@ -658,6 +658,18 @@
           </div>
           <div class="settings-shell-field-stack">
             <div class="field">
+              <label for="assistant-widget-logo">Widget logo</label>
+              <div class="settings-shell-logo-upload">
+                <div class="settings-shell-logo-preview" aria-hidden="true">
+                  ${agent.widgetLogoUrl ? `<img src="${escapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
+                </div>
+                <div>
+                  <input id="assistant-widget-logo" name="widget_logo_file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+                  <p class="field-help">Upload the icon/logo shown at the top of your widget. Use a small square PNG, JPG, WebP, or GIF.</p>
+                </div>
+              </div>
+            </div>
+            <div class="field">
               <label for="assistant-primary-color">Primary color</label>
               <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
             </div>
@@ -707,6 +719,12 @@
           <div class="settings-shell-live-summary">
             <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name || "")}</h3>
             <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
+            <div class="settings-shell-logo-summary">
+              <span class="settings-shell-logo-summary-label">Widget logo</span>
+              <span class="settings-shell-logo-preview settings-shell-logo-preview--small" aria-hidden="true">
+                ${agent.widgetLogoUrl ? `<img src="${escapeHtml(agent.widgetLogoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
+              </span>
+            </div>
             <div class="studio-summary-badge-row">
               <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
               <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
@@ -756,7 +774,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Connected tools</p>
             <h2 class="settings-shell-page-title">Connected tools</h2>
-            <p class="settings-shell-page-copy">Coming soon. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
+            <p class="settings-shell-page-copy">Beta. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
           </div>
         </header>
 
@@ -771,21 +789,21 @@
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Account</p>
-                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <h4 class="settings-shell-status-value">Beta</h4>
                 <p class="settings-shell-status-copy">Google connection is not ready to use here yet.</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Calendar mode</p>
-                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <h4 class="settings-shell-status-value">Beta</h4>
                 <p class="settings-shell-status-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Connection scope</p>
-                <h4 class="settings-shell-status-value">Coming soon</h4>
+                <h4 class="settings-shell-status-value">Beta</h4>
                 <p class="settings-shell-status-copy">Inbox review and automation controls are not available yet.</p>
               </div>
             </div>
@@ -795,7 +813,7 @@
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Coming soon</h3>
+              <h3 class="settings-shell-section-title">Beta</h3>
               <p class="settings-shell-section-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
             </div>
           </div>
@@ -806,7 +824,7 @@
                 <h4 class="settings-shell-key-value-title">Email connection</h4>
                 <p class="settings-shell-key-value-copy">Email review is not self-serve yet.</p>
               </div>
-              <span class="${getBadgeClass("Pending")}">Coming soon</span>
+              <span class="${getBadgeClass("Pending")}">Beta</span>
             </div>
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
@@ -814,7 +832,7 @@
                 <h4 class="settings-shell-key-value-title">Schedule context</h4>
                 <p class="settings-shell-key-value-copy">Calendar access is not ready yet.</p>
               </div>
-              <span class="${getBadgeClass("Pending")}">Coming soon</span>
+              <span class="${getBadgeClass("Pending")}">Beta</span>
             </div>
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
@@ -822,7 +840,7 @@
                 <h4 class="settings-shell-key-value-title">Workflow support</h4>
                 <p class="settings-shell-key-value-copy">Automations are not available yet.</p>
               </div>
-              <span class="${getBadgeClass("Pending")}">Coming soon</span>
+              <span class="${getBadgeClass("Pending")}">Beta</span>
             </div>
           </div>
         </section>

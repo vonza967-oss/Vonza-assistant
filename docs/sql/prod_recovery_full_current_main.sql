@@ -1170,3 +1170,8 @@ create unique index if not exists agent_copilot_proposal_states_agent_owner_key_
 
 create index if not exists agent_copilot_proposal_states_status_idx
   on public.agent_copilot_proposal_states (agent_id, owner_user_id, status, updated_at desc);
+-- Source: supabase/migrations/20260416000000_widget_logo_url.sql
+-- Legacy source: db/widget_logo_url.sql
+
+alter table public.widget_configs
+  add column if not exists widget_logo_url text;
