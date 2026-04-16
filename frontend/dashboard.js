@@ -3459,7 +3459,6 @@ function buildCustomerFilterDefinitions(contacts = []) {
     { key: "needs_reply", label: "Needs reply", count: countMatching((contact) => contactNeedsReply(contact)) },
     { key: "complaints", label: "Unhappy", count: countMatching((contact) => isComplaintContact(contact)) },
     { key: "leads", label: "Leads", count: countMatching((contact) => isLeadContact(contact)) },
-    { key: "resolved", label: "Helped", count: countMatching((contact) => isResolvedContact(contact)) },
   ];
 }
 
@@ -3481,11 +3480,6 @@ function buildCustomerSummaryItems(contacts = []) {
       label: "Leads",
       value: countMatching((contact) => isLeadContact(contact)),
       copy: "People showing buying intent or asking for next-step details.",
-    },
-    {
-      label: "Helped",
-      value: countMatching((contact) => isResolvedContact(contact)),
-      copy: "Threads that currently look closed without urgent follow-up.",
     },
     {
       label: "Returning",
@@ -5477,6 +5471,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     Number(today.customersAwaitingFollowUp || 0),
   );
   const topQuestion = trimText(overview.signals.topQuestions?.[0]?.label);
+  const pricingQuestionCount = Number(overview.signals.intentCounts?.pricing || 0);
+  const pricingWeakAnswer = (overview.signals.weakAnswerExamples || []).some((item) =>
+    /pricing|price|quote|cost|package/i.test(trimText(item))
+  );
   const serviceHealth = (() => {
     if (openIssueCount > 0) {
       return {
@@ -5537,7 +5535,17 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     });
   }
 
-  if (weakAnswerCount > 0) {
+  if (pricingWeakAnswer || (pricingQuestionCount > 0 && weakAnswerCount > 0)) {
+    addPriority({
+      tone: "warning",
+      title: "Clarify pricing guidance",
+      why: "Pricing questions usually come from customers who are close to deciding, and unclear answers make the next step feel risky.",
+      change: "Add clearer pricing ranges, quote guidance, or the exact details customers should share to get an estimate.",
+      action: { type: "section", value: "analytics", label: "Review pricing questions" },
+    });
+  }
+
+  if (weakAnswerCount > 0 && !pricingWeakAnswer) {
     addPriority({
       tone: "warning",
       title: "Make service answers clearer",
@@ -5683,6 +5691,14 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     }));
   })();
   const improvementRecommendation = (() => {
+    if (pricingWeakAnswer || (pricingQuestionCount > 0 && weakAnswerCount > 0)) {
+      return {
+        title: "Clarify pricing answers and the quote next step",
+        copy: "Customers asking about pricing need a more useful answer: what affects cost, what range to expect, or what to do next for a quote.",
+        action: { type: "section", value: "analytics", label: "Review pricing questions" },
+      };
+    }
+
     if (weakAnswerCount > 0) {
       return {
         title: topQuestion
@@ -6212,47 +6228,47 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
       <section class="workspace-card-soft">
         <div class="settings-section-intro">
           <p class="studio-kicker">Connected tools</p>
-          <h2 class="settings-section-title">Connected tools</h2>
-          <p class="settings-section-copy">Beta. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
+          <div class="settings-title-row">
+            <h2 class="settings-section-title">Connected Tools</h2>
+            <span class="settings-title-badge">Coming soon</span>
+          </div>
+          <p class="settings-section-copy">Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
         </div>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Google workspace</p>
-            <h3 class="settings-summary-title">Beta</h3>
+            <h3 class="settings-summary-title">Coming soon</h3>
             <p class="settings-summary-copy">Google connection is not available in this dashboard yet. The core workspace works without it.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar mode</p>
-            <h3 class="settings-summary-title">Beta</h3>
+            <h3 class="settings-summary-title">Coming soon</h3>
             <p class="settings-summary-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Email mode</p>
-            <h3 class="settings-summary-title">Beta</h3>
+            <h3 class="settings-summary-title">Coming soon</h3>
             <p class="settings-summary-copy">Inbox review is not usable yet, so the dashboard does not present connect or sync actions.</p>
           </article>
         </div>
       </section>
 
       <section class="workspace-card-soft">
-        <h3 class="studio-group-title">Beta</h3>
+        <h3 class="studio-group-title">Planned tools</h3>
         <p class="studio-group-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
             <p class="overview-label">Email</p>
-            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Inbox connection</h3>
             <p class="settings-summary-copy">Email review is not self-serve yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Calendar</p>
-            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Schedule context</h3>
             <p class="settings-summary-copy">Calendar access is not ready yet.</p>
           </article>
           <article class="settings-summary-card">
             <p class="overview-label">Automations</p>
-            <span class="badge pending">Beta</span>
             <h3 class="settings-summary-title">Workflow support</h3>
             <p class="settings-summary-copy">Automations are not available yet.</p>
           </article>
@@ -7033,15 +7049,15 @@ function getQuestionThemeLabel(question, intent = "general") {
   const hasAny = (terms) => terms.some((term) => normalized.includes(term));
 
   if (hasAny(["contact", "call", "phone", "email", "get in touch", "talk to", "speak to", "someone", "boss", "owner", "manager"])) {
-    return "Asking for contact info";
+    return "Asking how to contact the business directly";
   }
 
   if (hasAny(["book", "booking", "appointment", "schedule", "reserve", "availability", "available", "slot"])) {
-    return "Booking or availability";
+    return "Looking for booking, availability, or next-step details";
   }
 
   if (hasAny(["price", "pricing", "cost", "quote", "estimate", "rate", "fee", "package", "plan", "buy", "purchase"])) {
-    return "Pricing and quote requests";
+    return "Requesting a quote or pricing details";
   }
 
   if (hasAny(["hour", "hours", "open", "closed", "opening", "when are you"])) {
@@ -7053,24 +7069,24 @@ function getQuestionThemeLabel(question, intent = "general") {
   }
 
   if (hasAny(["support", "problem", "issue", "broken", "not working", "refund", "cancel", "complaint", "wrong"])) {
-    return "Support or problem help";
+    return "Needing help with a support issue or complaint";
   }
 
   if (hasAny(["service", "services", "offer", "product", "products", "help with", "do you do", "what do you do"])) {
-    return "Understanding services";
+    return "Trying to understand which service fits their needs";
   }
 
   switch (intent) {
     case "contact":
-      return "Asking for contact info";
+      return "Asking how to contact the business directly";
     case "booking":
-      return "Booking or availability";
+      return "Looking for booking, availability, or next-step details";
     case "pricing":
-      return "Pricing and quote requests";
+      return "Requesting a quote or pricing details";
     case "support":
-      return "Support or problem help";
+      return "Needing help with a support issue or complaint";
     case "services":
-      return "Understanding services";
+      return "Trying to understand which service fits their needs";
     default:
       return "General business questions";
   }
@@ -7080,20 +7096,20 @@ function getWeakAnswerThemeLabel(question, intent = "general") {
   const theme = getQuestionThemeLabel(question, intent);
 
   switch (theme) {
-    case "Asking for contact info":
-      return "Customers asking for contact options";
-    case "Booking or availability":
-      return "Booking and availability answers need tightening";
-    case "Pricing and quote requests":
+    case "Asking how to contact the business directly":
+      return "Customers need a clearer contact path";
+    case "Looking for booking, availability, or next-step details":
+      return "Booking guidance needs a stronger next step";
+    case "Requesting a quote or pricing details":
       return "Pricing questions need clearer answers";
     case "Hours and opening times":
       return "Hours and availability need clearer answers";
     case "Location and service area":
       return "Location or service-area answers need improvement";
-    case "Support or problem help":
+    case "Needing help with a support issue or complaint":
       return "Support concerns need stronger guidance";
-    case "Understanding services":
-      return "Service explanation needs improvement";
+    case "Trying to understand which service fits their needs":
+      return "Service explanations are too vague";
     case "General business questions":
       return "General questions need clearer guidance";
     default:

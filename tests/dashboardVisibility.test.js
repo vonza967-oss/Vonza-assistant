@@ -640,6 +640,131 @@ test("dashboard shows visible empty states when no analytics data exists", async
   assert.match(harness.getRootHtml(), /What stands out right now/i);
 });
 
+test("Home surfaces weak pricing guidance as an AI priority", async () => {
+  const agent = createActiveAgent({
+    installStatus: {
+      state: "seen_recently",
+      label: "Seen recently",
+      host: "example.com",
+    },
+  });
+  const messages = [
+    {
+      id: "message-pricing-1",
+      role: "user",
+      content: "How much does your monthly package cost?",
+      sessionKey: "session-pricing",
+      createdAt: "2026-04-14T09:00:00.000Z",
+    },
+    {
+      id: "message-pricing-2",
+      role: "assistant",
+      content: "Pricing is not mentioned on the website. Please contact the business directly.",
+      sessionKey: "session-pricing",
+      createdAt: "2026-04-14T09:00:05.000Z",
+    },
+  ];
+  const harness = createDashboardHarness({
+    agents: () => [agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/messages") {
+        return buildResponse({ status: 200, body: { messages } });
+      }
+
+      if (pathname === "/agents/action-queue") {
+        return buildResponse({
+          status: 200,
+          body: {
+            items: [],
+            people: [],
+            peopleSummary: {},
+            summary: {},
+            analyticsSummary: {
+              totalMessages: 2,
+              visitorQuestions: 1,
+              highIntentSignals: 1,
+              weakAnswerCount: 1,
+              contactsCaptured: 0,
+            },
+            persistenceAvailable: true,
+            migrationRequired: false,
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Clarify pricing guidance/);
+  assert.match(harness.getRootHtml(), /Pricing questions usually come from customers who are close to deciding/);
+  assert.match(harness.getRootHtml(), /Add clearer pricing ranges, quote guidance, or the exact details customers should share/);
+});
+
+test("customer filters and summaries no longer render Helped", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const buildCustomerFilterDefinitions = harness.getGlobal("buildCustomerFilterDefinitions");
+  const buildCustomerSummaryItems = harness.getGlobal("buildCustomerSummaryItems");
+
+  assert.equal(
+    buildCustomerFilterDefinitions([{ nextAction: { key: "no_action_needed" }, flags: [], lifecycleState: "new" }])
+      .some((item) => item.label === "Helped"),
+    false
+  );
+  assert.equal(
+    buildCustomerSummaryItems([{ nextAction: { key: "no_action_needed" }, flags: [], lifecycleState: "new" }])
+      .some((item) => item.label === "Helped"),
+    false
+  );
+});
+
+test("Analytics question labels are specific and not raw customer messages", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const getQuestionThemeLabel = harness.getGlobal("getQuestionThemeLabel");
+  const getWeakAnswerThemeLabel = harness.getGlobal("getWeakAnswerThemeLabel");
+
+  assert.equal(
+    getQuestionThemeLabel("What is the best way to email or call you?", "contact"),
+    "Asking how to contact the business directly"
+  );
+  assert.equal(
+    getQuestionThemeLabel("Can I get a quote for the monthly package?", "pricing"),
+    "Requesting a quote or pricing details"
+  );
+  assert.equal(
+    getWeakAnswerThemeLabel("Can I get a quote for the monthly package?", "pricing"),
+    "Pricing questions need clearer answers"
+  );
+  assert.equal(
+    getWeakAnswerThemeLabel("Which service should I choose?", "services"),
+    "Service explanations are too vague"
+  );
+});
+
+test("Connected Tools heading shows Coming soon as the main state", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const markup = harness.getGlobal("buildConnectedToolsSettingsPanel")(
+    createActiveAgent(),
+    harness.getGlobal("createEmptyOperatorWorkspace")()
+  );
+
+  assert.match(markup, /<h2 class="settings-section-title">Connected Tools<\/h2>\s*<span class="settings-title-badge">Coming soon<\/span>/);
+  assert.doesNotMatch(markup, /<span class="badge pending">Beta<\/span>/);
+});
+
 test("tab switching still leaves the selected section rendered as the active view", async () => {
   const agent = createActiveAgent();
   const harness = createDashboardHarness({

@@ -446,6 +446,86 @@ test("identified visitor email is captured even before high-intent lead prompts"
   assert.equal(supabase.state.agent_contact_leads[0].last_seen_at, "2026-04-03T09:00:01.000Z");
 });
 
+test("identified visitor choice upgrades an existing guest lead in the same session", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "Can you send pricing?" },
+      { role: "assistant", content: "Pricing depends on scope." },
+    ], "session-upgrade"),
+    agent_contact_leads: [
+      {
+        id: "lead-guest",
+        agent_id: "agent-1",
+        business_id: "business-1",
+        owner_user_id: "owner-1",
+        lead_key: "session:session-upgrade",
+        visitor_session_key: "session-upgrade",
+        capture_state: "prompt_ready",
+        latest_action_type: "pricing_interest",
+        related_action_keys: ["operator:person:session:session-upgrade:pricing_interest"],
+        first_seen_at: "2026-04-03T09:00:00.000Z",
+        last_seen_at: "2026-04-03T09:00:01.000Z",
+      },
+    ],
+  });
+
+  const result = await applyLeadCaptureAction(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-upgrade",
+    action: "submit",
+    userMessage: "Visitor continued with email.",
+    language: "English",
+    name: "Avery Hart",
+    email: "Avery@Example.com",
+    preferredChannel: "email",
+    visitorIdentity: {
+      mode: "identified",
+      email: "Avery@Example.com",
+      name: "Avery Hart",
+    },
+  });
+
+  assert.equal(result.state, "captured");
+  assert.equal(supabase.state.agent_contact_leads.length, 1);
+  assert.equal(supabase.state.agent_contact_leads[0].id, "lead-guest");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_email, "avery@example.com");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_name, "Avery Hart");
+  assert.equal(supabase.state.agent_contact_leads[0].lead_key, "email:avery@example.com");
+});
+
+test("lead hydration upgrades action queue people from guest session to identified email", () => {
+  const messages = buildConversationRows([
+    { role: "user", content: "How much does the monthly package cost?" },
+    { role: "assistant", content: "Pricing depends on scope." },
+  ], "session-hydrated");
+  const queue = buildActionQueue(messages, []);
+  const hydrated = hydrateActionQueueWithLeadCaptures(queue, {
+    records: [
+      {
+        id: "lead-identified",
+        agent_id: "agent-1",
+        owner_user_id: "owner-1",
+        lead_key: "email:visitor@example.com",
+        visitor_session_key: "session-hydrated",
+        capture_state: "captured",
+        contact_name: "Visitor Person",
+        contact_email: "visitor@example.com",
+        latest_action_type: "pricing_interest",
+        related_action_keys: ["operator:person:session:session-hydrated:pricing_interest"],
+        last_seen_at: "2026-04-03T09:00:01.000Z",
+      },
+    ],
+  });
+
+  assert.equal(hydrated.people[0].identityType, "email");
+  assert.equal(hydrated.people[0].email, "visitor@example.com");
+  assert.equal(hydrated.items[0].contactCaptured, true);
+  assert.equal(hydrated.items[0].contactInfo.email, "visitor@example.com");
+  assert.equal(hydrated.items[0].person.identityType, "email");
+});
+
 test("lead capture keeps business contact questions anonymous", async () => {
   const supabase = createFakeSupabase({
     messages: buildConversationRows([

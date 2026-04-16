@@ -1564,8 +1564,8 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
   assert.match(analyticsPanel, /Estimated customer satisfaction/);
-  assert.match(analyticsPanel, /Booking or availability/);
-  assert.match(analyticsPanel, /Asking for contact info/);
+  assert.match(analyticsPanel, /Looking for booking, availability, or next-step details/);
+  assert.match(analyticsPanel, /Asking how to contact the business directly/);
   assert.doesNotMatch(analyticsPanel, /AI-handled/);
   assert.doesNotMatch(analyticsPanel, /answered without needing a team reply/);
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);

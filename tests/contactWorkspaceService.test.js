@@ -270,6 +270,52 @@ test("identified widget visitors replace placeholder contact identity", () => {
   assert.notEqual(result.list[0].name, "Unknown contact");
 });
 
+test("identified widget visitors upgrade same-session guest contacts without a contact id", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-guest",
+        displayName: "Anonymous visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-guest",
+        identityType: "session_key",
+        identityValue: "session-upgrade",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-upgrade",
+        visitorSessionKey: "session-upgrade",
+        contactName: "Avery Hart",
+        contactEmail: "avery@example.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        lastSeenAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: "message-upgrade",
+        role: "user",
+        content: "How much does this cost?",
+        sessionKey: "session-upgrade",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Avery Hart");
+  assert.equal(result.list[0].email, "avery@example.com");
+  assert.equal(result.list[0].bestIdentifier, "Avery Hart");
+  assert.equal(result.list[0].partialIdentity, false);
+});
+
 test("stored email identities hydrate customer primary identifiers", () => {
   const result = buildContactWorkspaceFromRecords({
     storedContacts: [

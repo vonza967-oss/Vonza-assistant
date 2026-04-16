@@ -1334,6 +1334,53 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
   const outcomesByPersonKey = new Map();
   const outcomesBySessionKey = new Map();
 
+  const getLeadContactInfo = (record = null) => {
+    const normalized = record ? normalizeLeadRecord(record) : null;
+
+    if (!normalized || !hasUsableContact(normalized)) {
+      return null;
+    }
+
+    return {
+      name: normalized.contactName || null,
+      email: normalized.contactEmail || null,
+      phone: normalized.contactPhone || null,
+    };
+  };
+  const getPersonSessionKey = (person = {}) => {
+    const key = cleanText(person.key);
+    const prefix = "person:session:";
+
+    return key.startsWith(prefix) ? key.slice(prefix.length) : "";
+  };
+  const findLeadForPerson = (person = {}) => {
+    const personKey = cleanText(person.key);
+    const sessionKey = getPersonSessionKey(person);
+
+    return personMap.get(personKey)
+      || (sessionKey ? sessionMap.get(sessionKey) : null)
+      || null;
+  };
+  const hydratePersonWithLead = (person = {}, record = null) => {
+    const contactInfo = getLeadContactInfo(record);
+
+    if (!contactInfo) {
+      return person;
+    }
+
+    const email = normalizeEmail(contactInfo.email);
+    const phone = normalizePhone(contactInfo.phone);
+
+    return {
+      ...person,
+      label: cleanText(contactInfo.name) || email || contactInfo.phone || person.label,
+      identityType: email ? "email" : phone ? "phone" : person.identityType,
+      email: email || person.email || null,
+      phone: contactInfo.phone || person.phone || null,
+      name: cleanText(contactInfo.name) || person.name || null,
+    };
+  };
+
   leadRecords.forEach((record) => {
     record.relatedActionKeys.forEach((actionKey) => {
       if (!actionMap.has(actionKey)) {
@@ -1492,9 +1539,16 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
     const sortedOutcomes = dedupedOutcomes
       .slice()
       .sort((left, right) => getTimestamp(right.occurredAt) - getTimestamp(left.occurredAt));
+    const leadContactInfo = getLeadContactInfo(leadRecord);
+    const hydratedPerson = leadRecord && item.person
+      ? hydratePersonWithLead(item.person, leadRecord)
+      : item.person;
 
     return {
       ...item,
+      person: hydratedPerson,
+      contactCaptured: item.contactCaptured === true || Boolean(leadContactInfo),
+      contactInfo: leadContactInfo || item.contactInfo || null,
       followUp: item.followUp || followUp || null,
       routing,
       outcomes: {
@@ -1510,6 +1564,9 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
         : null,
     };
   });
+  const hydratedPeople = Array.isArray(queue.people)
+    ? queue.people.map((person) => hydratePersonWithLead(person, findLeadForPerson(person)))
+    : [];
 
   const highIntentConversations = hydratedItems.filter((item) =>
     ACTIVE_HIGH_INTENT_ACTION_TYPES.has(cleanText(item.actionType))
@@ -1540,6 +1597,12 @@ export function hydrateActionQueueWithLeadCaptures(actionQueue = {}, options = {
   return {
     ...queue,
     items: hydratedItems,
+    people: hydratedPeople,
+    peopleSummary: hydratedPeople.length ? {
+      total: hydratedPeople.length,
+      returning: hydratedPeople.filter((person) => person.isReturning).length,
+      linkedQueueItems: hydratedPeople.filter((person) => Number(person.queueItemCount || 0) > 0).length,
+    } : queue.peopleSummary,
     outcomeSummary: options.outcomes?.summary || null,
     recentOutcomes: options.outcomes?.recentOutcomes || [],
     recentLeadCaptures: leadRecords

@@ -69,9 +69,10 @@ function createFakeElement(id = "") {
   };
 }
 
-function createWidgetHarness() {
+function createWidgetHarness({ customFetch = null } = {}) {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const elements = new Map();
+  const fetchCalls = [];
   const getElement = (id) => {
     if (!elements.has(id)) {
       elements.set(id, createFakeElement(id));
@@ -151,12 +152,20 @@ function createWidgetHarness() {
   const context = {
     console,
     document,
-    fetch: async () => ({
-      ok: false,
-      async json() {
-        return { error: "not configured" };
-      },
-    }),
+    fetch: async (input, options = {}) => {
+      fetchCalls.push({ input: String(input), options });
+
+      if (typeof customFetch === "function") {
+        return customFetch(input, options);
+      }
+
+      return {
+        ok: false,
+        async json() {
+          return { error: "not configured" };
+        },
+      };
+    },
     navigator: {},
     URL,
     URLSearchParams,
@@ -187,6 +196,7 @@ function createWidgetHarness() {
   return {
     hooks: context.window.__VONZA_WIDGET_TEST_HOOKS__,
     elements,
+    fetchCalls,
   };
 }
 
@@ -251,6 +261,47 @@ test("widget can continue with email and build identified chat payloads", () => 
     visitor_email: "visitor@example.com",
     visitor_name: "Avery Hart",
   });
+});
+
+test("widget persists continue-with-email identity as a captured lead", async () => {
+  const harness = createWidgetHarness({
+    customFetch: async (input) => ({
+      ok: String(input) === "/chat/capture",
+      async json() {
+        return {
+          leadCapture: {
+            id: "lead-1",
+            state: "captured",
+            contact: {
+              email: "visitor@example.com",
+              name: "Avery Hart",
+            },
+          },
+          visitorIdentity: {
+            mode: "identified",
+            email: "visitor@example.com",
+            name: "Avery Hart",
+          },
+        };
+      },
+    }),
+  });
+
+  harness.hooks.continueIntoChat({
+    mode: "identified",
+    email: "Visitor@Example.com",
+    name: "Avery Hart",
+  }, { capture: true });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const captureCall = harness.fetchCalls.find((call) => call.input === "/chat/capture");
+  assert.ok(captureCall);
+  const payload = JSON.parse(captureCall.options.body);
+  assert.equal(payload.action, "submit");
+  assert.equal(payload.visitor_session_key, "uuid-1");
+  assert.equal(payload.visitor_identity_mode, "identified");
+  assert.equal(payload.email, "visitor@example.com");
+  assert.equal(payload.preferred_channel, "email");
 });
 
 test("widget does not infer identity from an email without explicit mode", () => {

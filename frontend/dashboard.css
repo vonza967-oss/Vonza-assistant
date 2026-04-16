@@ -930,6 +930,26 @@ a.ghost-button:hover {
   letter-spacing: -0.02em;
 }
 
+.settings-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-title-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f7f9fc;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .settings-section-copy {
   margin: 0;
   color: var(--soft);

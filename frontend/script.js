@@ -332,8 +332,59 @@ function continueIntoChat(identity, options = {}) {
     });
   }
 
+  if (normalized.mode === "identified" && options.capture !== false) {
+    void persistIdentifiedVisitorChoice(normalized);
+  }
+
   document.getElementById("input")?.focus();
   return normalized;
+}
+
+async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
+  const normalized = normalizeVisitorIdentityState(identity);
+
+  if (normalized.mode !== "identified" || !normalized.email) {
+    return null;
+  }
+
+  try {
+    const response = await fetch("/chat/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "submit",
+        agent_id: resolvedAgentId,
+        agent_key: resolvedAgentKey,
+        business_id: resolvedBusinessId,
+        install_id: INSTALL_ID,
+        website_url: WEBSITE_URL,
+        page_url: getPageUrl(),
+        origin: getPageOrigin(),
+        visitor_session_key: getVisitorSessionKey(),
+        reference_message: "Visitor continued with email.",
+        name: normalized.name,
+        email: normalized.email,
+        preferred_channel: "email",
+        ...buildVisitorIdentityPayload(normalized),
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Visitor identity capture failed");
+    }
+
+    liveLeadCapture = data.leadCapture || liveLeadCapture;
+    if (data.visitorIdentity) {
+      visitorIdentity = normalizeVisitorIdentityState(data.visitorIdentity);
+      renderVisitorIdentityGate();
+    }
+
+    return liveLeadCapture;
+  } catch (error) {
+    console.warn("Vonza visitor identity capture failed:", error);
+    return null;
+  }
 }
 function getDirectRoutingSlot() {
   return document.getElementById("direct-routing-slot");
@@ -831,6 +882,7 @@ function applyWidgetConfig(config = {}) {
     continueIntoChat(visitorIdentity, {
       persist: false,
       track: false,
+      capture: false,
     });
   } else {
     setComposerStatus("Choose how to continue, then ask about services, pricing, contact details, or the next step.");
@@ -877,6 +929,7 @@ async function loadWidgetBootstrap() {
       continueIntoChat(visitorIdentity, {
         persist: false,
         track: false,
+        capture: false,
       });
     } else {
       setComposerStatus("Choose how to continue, then start chatting with the current website knowledge.");
@@ -1119,8 +1172,9 @@ loadWidgetBootstrap();
 window.__VONZA_WIDGET_TEST_HOOKS__ = {
   applyWidgetConfig,
   buildVisitorIdentityPayload,
-  continueIntoChat: (identity) => continueIntoChat(identity, {
+  continueIntoChat: (identity, options = {}) => continueIntoChat(identity, {
     track: false,
+    capture: options.capture === true,
   }),
   getVisitorIdentity: () => ({ ...visitorIdentity }),
   normalizeVisitorIdentityState,
