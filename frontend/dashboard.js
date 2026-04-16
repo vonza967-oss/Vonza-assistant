@@ -6261,34 +6261,49 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           <div class="frontdesk-section-divider"></div>
           <div class="frontdesk-step-list">
             <article class="frontdesk-step">
-              <div class="frontdesk-step-head">
-                <span class="frontdesk-step-label">Step 1</span>
-                <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
+              <div class="frontdesk-step-number">1</div>
+              <div class="frontdesk-step-body">
+                <div class="frontdesk-step-head">
+                  <div>
+                    <p class="frontdesk-step-label">Step 1</p>
+                    <h3 class="frontdesk-step-title">Run a real preview conversation</h3>
+                  </div>
+                  <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
+                </div>
+                <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live preview for testing.")}</p>
               </div>
-              <h3 class="frontdesk-step-title">Run a real preview conversation</h3>
-              <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live preview for testing.")}</p>
             </article>
             <article class="frontdesk-step">
-              <div class="frontdesk-step-head">
-                <span class="frontdesk-step-label">Step 2</span>
-                <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Ready" : "Worth a quick pass")}</span>
+              <div class="frontdesk-step-number">2</div>
+              <div class="frontdesk-step-body">
+                <div class="frontdesk-step-head">
+                  <div>
+                    <p class="frontdesk-step-label">Step 2</p>
+                    <h3 class="frontdesk-step-title">Move into the install flow</h3>
+                  </div>
+                  <span class="${getBadgeClass(setup.isReady ? "Ready" : "Limited")}">${escapeHtml(setup.isReady ? "Ready" : "Worth a quick pass")}</span>
+                </div>
+                <p class="frontdesk-step-copy">${escapeHtml(setup.isReady ? "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong." : "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.")}</p>
               </div>
-              <h3 class="frontdesk-step-title">Move into the install flow</h3>
-              <p class="frontdesk-step-copy">${escapeHtml(setup.isReady ? "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong." : "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.")}</p>
             </article>
             <article class="frontdesk-step">
-              <div class="frontdesk-step-head">
-                <span class="frontdesk-step-label">Step 3</span>
-                <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : isInstallDetected(installStatus) ? "Limited" : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed" ? "Needs attention" : "Pending")}">${escapeHtml(liveVerificationLabel)}</span>
+              <div class="frontdesk-step-number">3</div>
+              <div class="frontdesk-step-body">
+                <div class="frontdesk-step-head">
+                  <div>
+                    <p class="frontdesk-step-label">Step 3</p>
+                    <h3 class="frontdesk-step-title">${escapeHtml(installStatus.label || "Confirm the live site")}</h3>
+                  </div>
+                  <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : isInstallDetected(installStatus) ? "Limited" : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed" ? "Needs attention" : "Pending")}">${escapeHtml(liveVerificationLabel)}</span>
+                </div>
+                <p class="frontdesk-step-copy">${escapeHtml(isInstallSeen(installStatus)
+                  ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
+                  : isInstallDetected(installStatus)
+                    ? "The snippet is in place, and the next step is simply confirming the first live visit."
+                    : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
+                      ? "Verification needs attention before the launch can be treated as confidently live."
+                      : "The site still needs the snippet and first verification pass before launch is complete.")}</p>
               </div>
-              <h3 class="frontdesk-step-title">${escapeHtml(installStatus.label || "Confirm the live site")}</h3>
-              <p class="frontdesk-step-copy">${escapeHtml(isInstallSeen(installStatus)
-                ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
-                : isInstallDetected(installStatus)
-                  ? "The snippet is in place, and the next step is simply confirming the first live visit."
-                  : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
-                    ? "Verification needs attention before the launch can be treated as confidently live."
-                    : "The site still needs the snippet and first verification pass before launch is complete.")}</p>
             </article>
           </div>
           <div class="frontdesk-support-note">
@@ -6717,6 +6732,59 @@ function normalizeQuestion(message) {
     .trim();
 }
 
+function getQuestionThemeLabel(question, intent = "general") {
+  const normalized = normalizeQuestion(question);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const hasAny = (terms) => terms.some((term) => normalized.includes(term));
+
+  if (hasAny(["contact", "call", "phone", "email", "get in touch", "talk to", "speak to", "someone", "boss", "owner", "manager"])) {
+    return "Asking for contact info";
+  }
+
+  if (hasAny(["book", "booking", "appointment", "schedule", "reserve", "availability", "available", "slot"])) {
+    return "Booking or availability";
+  }
+
+  if (hasAny(["price", "pricing", "cost", "quote", "estimate", "rate", "fee", "package", "plan", "buy", "purchase"])) {
+    return "Pricing and quote requests";
+  }
+
+  if (hasAny(["hour", "hours", "open", "closed", "opening", "when are you"])) {
+    return "Hours and opening times";
+  }
+
+  if (hasAny(["where", "location", "address", "directions", "near me", "service area"])) {
+    return "Location and service area";
+  }
+
+  if (hasAny(["support", "problem", "issue", "broken", "not working", "refund", "cancel", "complaint", "wrong"])) {
+    return "Support or problem help";
+  }
+
+  if (hasAny(["service", "services", "offer", "product", "products", "help with", "do you do", "what do you do"])) {
+    return "Understanding services";
+  }
+
+  switch (intent) {
+    case "contact":
+      return "Asking for contact info";
+    case "booking":
+      return "Booking or availability";
+    case "pricing":
+      return "Pricing and quote requests";
+    case "support":
+      return "Support or problem help";
+    case "services":
+      return "Understanding services";
+    default:
+      return "General business questions";
+  }
+}
+
 function getIntentLabel(intent) {
   switch (intent) {
     case "contact":
@@ -6899,23 +6967,22 @@ function analyzeConversationSignals(messages) {
     const content = trimText(message.content || "");
     const intent = categorizeIntent(content);
     const normalizedQuestion = normalizeQuestion(content);
+    const questionThemeLabel = getQuestionThemeLabel(content, intent);
     intentCounts[intent] += 1;
 
-    if (!normalizedQuestion) {
+    if (!normalizedQuestion || !questionThemeLabel) {
       return;
     }
 
-    const existing = questionThemes.get(normalizedQuestion) || {
-      label: content,
+    const themeKey = normalizeQuestion(questionThemeLabel);
+    const existing = questionThemes.get(themeKey) || {
+      label: questionThemeLabel,
       count: 0,
       intent,
     };
 
     existing.count += 1;
-    if (content.length < existing.label.length) {
-      existing.label = content;
-    }
-    questionThemes.set(normalizedQuestion, existing);
+    questionThemes.set(themeKey, existing);
   });
 
   chronologicalMessages.forEach((message, index) => {
@@ -9511,7 +9578,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
       ${buildPageHeader({
         title: "Analytics",
         copy: "A simple customer-service performance report for your business.",
-        actionsMarkup: `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Refresh</button>`,
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
@@ -9561,15 +9627,15 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
               },
               {
-                label: "Avg customer satisfaction",
+                label: "Estimated customer satisfaction",
                 value: report.conversationCount > 0 ? formatAnalyticsReportScore(report.satisfactionScore) : "Early",
                 note: report.conversationCount > 0
                   ? report.satisfactionScore >= 4.3
-                    ? "Strong service-quality signal"
+                    ? "Estimated from strong service-quality signals"
                     : report.satisfactionScore >= 3.7
-                      ? "Good, with room to tighten answers"
-                      : "Customers may be feeling friction"
-                  : "Waiting for enough live service signal",
+                      ? "Estimated as good, with room to tighten answers"
+                      : "Estimated friction risk from current service signals"
+                  : "Waiting for enough live service signal to estimate",
                 tone: report.satisfactionScore >= 4.3 ? "positive" : report.satisfactionScore >= 3.7 ? "watch" : "risk",
               },
               {
@@ -9681,7 +9747,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 ${topQuestionItems.length ? `
                   <div class="analytics-question-list">
                     ${topQuestionItems.map((item) => `
-                      <p><strong>${escapeHtml(item.label || "Customer question")}</strong> ${escapeHtml(formatAnalyticsReportNumber(item.count || 0))} asked</p>
+                      <p><strong>${escapeHtml(item.label || "Customer question theme")}</strong> ${escapeHtml(formatAnalyticsReportNumber(item.count || 0))} mention${Number(item.count || 0) === 1 ? "" : "s"}</p>
                     `).join("")}
                   </div>
                 ` : `<p>No repeated customer question is standing out yet.</p>`}
@@ -10563,7 +10629,6 @@ function renderAssistantShell(
           ${buildSettingsPanel(agent, setup, operatorWorkspace)}
         </div>
       </div>
-      ${buildDashboardHelpAssistantMarkup()}
     </div>
   `;
 

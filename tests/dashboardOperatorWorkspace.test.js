@@ -1152,6 +1152,8 @@ test("analytics page now renders as a service report instead of stacked equal-we
     [
       { id: "m1", role: "user", content: "Can I book an appointment?" },
       { id: "m2", role: "assistant", content: "Yes, I can help with that." },
+      { id: "m3", role: "user", content: "Yeah I'd like to contact the boss" },
+      { id: "m4", role: "assistant", content: "Here is the best contact path." },
     ],
     {
       knowledgeDescription: "Knowledge ready.",
@@ -1177,6 +1179,11 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /What stands out right now/);
   assert.match(analyticsPanel, /Recommended service improvements/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
+  assert.match(analyticsPanel, /Estimated customer satisfaction/);
+  assert.match(analyticsPanel, /Booking or availability/);
+  assert.match(analyticsPanel, /Asking for contact info/);
+  assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
+  assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
 });
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
@@ -1550,7 +1557,7 @@ test("dashboard coalesces partial workspace failures without blanking the shell"
   assert.equal(state.hasPartialFailure, true);
 });
 
-test("dashboard help assistant renders Ask Vonza with contextual starter prompts", () => {
+test("dashboard help assistant stays out of the dashboard shell for now", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1583,13 +1590,11 @@ test("dashboard help assistant renders Ask Vonza with contextual starter prompts
 
   const rootMarkup = harness.document.getElementById("dashboard-root").innerHTML;
 
-  assert.match(rootMarkup, /Ask Vonza/);
-  assert.match(rootMarkup, /AI guide and support inside the app/);
-  assert.match(rootMarkup, /Context-aware support/);
-  assert.match(rootMarkup, /What does this page do\?/);
-  assert.match(rootMarkup, /What should I do next\?/);
-  assert.match(rootMarkup, /How do I install Vonza\?/);
-  assert.match(rootMarkup, /Why is my knowledge limited\?/);
+  assert.doesNotMatch(rootMarkup, /Ask Vonza/);
+  assert.doesNotMatch(rootMarkup, /AI guide and support inside the app/);
+  assert.doesNotMatch(rootMarkup, /data-dashboard-help/);
+  assert.doesNotMatch(rootMarkup, /data-help-toggle/);
+  assert.doesNotMatch(rootMarkup, /dashboard-help-drawer/);
 });
 
 test("dashboard help prompt chips submit real AI questions instead of canned answers", () => {

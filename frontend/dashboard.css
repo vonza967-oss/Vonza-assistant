@@ -1498,6 +1498,56 @@ button:disabled {
   align-items: flex-start;
 }
 
+.frontdesk-step-list {
+  display: grid;
+  gap: 14px;
+}
+
+.frontdesk-step {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.042);
+  box-shadow: var(--surface-highlight);
+}
+
+.frontdesk-step-number {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #13233a 0%, #174238 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.frontdesk-step-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.frontdesk-step .frontdesk-step-head {
+  align-items: flex-start;
+}
+
+.frontdesk-step-label {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .today-main-header,
 .flat-section-header,
 .contacts-list-header,
@@ -5367,7 +5417,14 @@ body {
 .workspace-pages .frontdesk-preview-guide,
 .workspace-pages .frontdesk-preview-frame-shell {
   border-color: #dbe4ef;
-  background: #f8fbff;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+}
+
+.workspace-pages .frontdesk-step-number {
+  background: linear-gradient(135deg, #17304f 0%, #0f766e 100%);
+  border-color: rgba(15, 118, 110, 0.18);
+  color: #ffffff;
 }
 
 .hero-meta {
@@ -5434,10 +5491,20 @@ body {
 }
 
 .preview-warning {
-  margin-top: 10px;
-  color: #fde68a;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
   font-size: 13px;
   line-height: 1.6;
+}
+
+.workspace-pages .preview-warning {
+  border-color: var(--light-warning-border);
+  background: var(--light-warning-bg);
+  color: var(--light-warning-text);
 }
 
 .prompt-chip-row {
@@ -5487,24 +5554,26 @@ body {
 .install-step {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 14px;
+  gap: 16px;
   align-items: start;
-  padding: 16px 18px;
-  border-radius: 18px;
+  padding: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: var(--surface-highlight);
 }
 
 .install-step-number {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.06);
-  color: #e2e8f0;
-  font-size: 13px;
-  font-weight: 700;
+  background: linear-gradient(135deg, #13233a 0%, #174238 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
 }
 
 .install-step-title {
