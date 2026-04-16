@@ -3098,22 +3098,88 @@ function isReturningContact(contact = {}) {
     || (contact.timeline || []).length > 1;
 }
 
+function normalizeCustomerLabelForCompare(value = "") {
+  return trimText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function isPlaceholderCustomerLabel(value = "") {
+  return [
+    "anonymous visitor",
+    "guest visitor",
+    "unknown visitor",
+    "unknown contact",
+    "identity unknown",
+    "session continuity only",
+    "no direct identifier yet",
+  ].includes(trimText(value).toLowerCase());
+}
+
+function isLikelyCustomerMessageLabel(value = "") {
+  const label = trimText(value);
+  const normalizedLabel = normalizeCustomerLabelForCompare(label);
+
+  if (!label || !normalizedLabel) {
+    return false;
+  }
+
+  const wordCount = label.split(/\s+/).filter(Boolean).length;
+
+  if (["hi", "hey", "hello"].includes(label.toLowerCase())) {
+    return true;
+  }
+
+  if (/^(?:hi|hey|hello)[,!.\s]+/i.test(label)) {
+    return true;
+  }
+
+  if (label.includes("?")) {
+    return true;
+  }
+
+  if (wordCount >= 3) {
+    return (
+      /\b(?:what|why|how|when|where|who|which)\b/i.test(label)
+      || /\b(?:can|could|would|should|do|does|did|is|are|will)\s+(?:i|we|you|your|they)\b/i.test(label)
+      || /\b(?:i|we)\s+(?:need|want|would|am|have)\b/i.test(label)
+      || /\b(?:services|pricing|price|cost|quote|booking|appointment|schedule)\b/i.test(label)
+    );
+  }
+
+  return false;
+}
+
+function getValidCustomerLabel(value = "") {
+  const label = trimText(value);
+
+  return label && !isPlaceholderCustomerLabel(label) && !isLikelyCustomerMessageLabel(label)
+    ? label
+    : "";
+}
+
+function getCustomerEmailLabel(value = "") {
+  const match = trimText(value).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : "";
+}
+
 function getCustomerName(contact = {}) {
-  return trimText(contact.name)
-    || trimText(contact.bestIdentifier)
-    || trimText(contact.email)
+  return getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
-    || "Guest visitor";
+    || getValidCustomerLabel(contact.name)
+    || getValidCustomerLabel(contact.bestIdentifier)
+    || "Unknown";
 }
 
 function getCustomerRowIdentifier(contact = {}) {
-  return trimText(contact.email)
+  return getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
     || getCustomerName(contact);
 }
 
 function getCustomerIdentityLabel(contact = {}) {
-  if (trimText(contact.email)) {
+  if (getCustomerEmailLabel(contact.email)) {
     return "Email user";
   }
 
@@ -3125,9 +3191,10 @@ function getCustomerIdentityLabel(contact = {}) {
 }
 
 function getCustomerIdentifier(contact = {}) {
-  return trimText(contact.email)
+  return getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
-    || trimText(contact.bestIdentifier)
+    || getValidCustomerLabel(contact.bestIdentifier)
+    || getValidCustomerLabel(contact.name)
     || "No direct identifier yet";
 }
 
@@ -3150,10 +3217,26 @@ function getCustomerLatestSummary(contact = {}) {
     ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
     || ["chat", "inbox"].includes(trimText(entry.source))
   ) || {};
+  const messageLikeName = isLikelyCustomerMessageLabel(contact.name)
+    ? trimText(contact.name)
+    : isLikelyCustomerMessageLabel(contact.bestIdentifier)
+      ? trimText(contact.bestIdentifier)
+      : "";
+  const latestCustomerMessageSummary = trimText(contact.latestCustomerMessageSummary);
+  const customerMessageSummary = trimText(customerMessageEntry.summary);
 
-  return trimText(contact.latestCustomerMessageSummary)
-    || trimText(customerMessageEntry.summary)
+  if (
+    messageLikeName
+    && (!latestCustomerMessageSummary || isGenericCustomerNoActionCopy(latestCustomerMessageSummary))
+    && (!customerMessageSummary || isGenericCustomerNoActionCopy(customerMessageSummary))
+  ) {
+    return messageLikeName;
+  }
+
+  return latestCustomerMessageSummary
+    || customerMessageSummary
     || trimText(customerMessageEntry.label)
+    || messageLikeName
     || trimText(contact.nextAction?.description)
     || trimText(contact.latestOutcome?.label)
     || "No recent message summary yet.";
@@ -3193,8 +3276,11 @@ function getCustomerRiskSummary(contact = {}) {
 }
 
 function getCustomerSuggestedAction(contact = {}) {
-  return trimText(contact.nextAction?.description)
-    || trimText(contact.nextAction?.title)
+  const nextActionDescription = trimText(contact.nextAction?.description);
+  const nextActionTitle = trimText(contact.nextAction?.title);
+
+  return (!isGenericCustomerNoActionCopy(nextActionDescription) ? nextActionDescription : "")
+    || (!isGenericCustomerNoActionTitle(nextActionTitle) ? nextActionTitle : "")
     || (isComplaintContact(contact)
       ? "Send a calm reply, confirm the issue, and give one clear next step."
       : isLeadContact(contact)
@@ -3202,6 +3288,19 @@ function getCustomerSuggestedAction(contact = {}) {
         : isReturningContact(contact)
           ? "Reconnect with context from the last interaction and confirm the next step."
           : "Review the latest interaction and decide whether a follow-up is still needed.");
+}
+
+function isGenericCustomerNoActionCopy(value = "") {
+  const copy = trimText(value).toLowerCase();
+
+  return !copy
+    || copy === "this contact does not have a higher-priority owner next step right now."
+    || copy === "this contact does not have a higher-priority manual next step right now."
+    || copy === "no customer message yet.";
+}
+
+function isGenericCustomerNoActionTitle(value = "") {
+  return ["", "no action needed"].includes(trimText(value).toLowerCase());
 }
 
 function getCustomerDraftPreview(contact = {}) {

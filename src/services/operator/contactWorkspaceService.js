@@ -104,7 +104,7 @@ function nowIso() {
 function normalizeEmail(value) {
   const cleaned = cleanText(value);
   const match = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0].toLowerCase() : cleaned.toLowerCase();
+  return match ? match[0].toLowerCase() : "";
 }
 
 function normalizePhone(value) {
@@ -671,6 +671,58 @@ function isPlaceholderDisplayName(value = "") {
     .includes(cleanText(value).toLowerCase());
 }
 
+function isLikelyCustomerMessageDisplayName(value = "", group = {}) {
+  const displayName = cleanText(value);
+  const normalizedDisplayName = normalizeDisplayName(displayName);
+
+  if (!displayName || !normalizedDisplayName) {
+    return false;
+  }
+
+  const userMessages = normalizeArray(group.messages)
+    .filter((message) => normalizeMessageRole(message.role) === "user")
+    .map((message) => normalizeDisplayName(message.content))
+    .filter(Boolean);
+
+  if (userMessages.includes(normalizedDisplayName)) {
+    return true;
+  }
+
+  const lowerDisplayName = displayName.toLowerCase();
+  const wordCount = displayName.split(/\s+/).filter(Boolean).length;
+
+  if (["hi", "hey", "hello"].includes(lowerDisplayName)) {
+    return true;
+  }
+
+  if (/^(?:hi|hey|hello)[,!.\s]+/i.test(displayName)) {
+    return true;
+  }
+
+  if (displayName.includes("?")) {
+    return true;
+  }
+
+  if (wordCount >= 3) {
+    return (
+      /\b(?:what|why|how|when|where|who|which)\b/i.test(displayName)
+      || /\b(?:can|could|would|should|do|does|did|is|are|will)\s+(?:i|we|you|your|they)\b/i.test(displayName)
+      || /\b(?:i|we)\s+(?:need|want|would|am|have)\b/i.test(displayName)
+      || /\b(?:services|pricing|price|cost|quote|booking|appointment|schedule)\b/i.test(displayName)
+    );
+  }
+
+  return false;
+}
+
+function getPreferredDisplayName(displayNames = [], group = {}) {
+  return normalizeArray(displayNames).find((displayName) =>
+    cleanText(displayName)
+    && !isPlaceholderDisplayName(displayName)
+    && !isLikelyCustomerMessageDisplayName(displayName, group)
+  ) || "";
+}
+
 function getLatestVisitorMessageActivityAt(group = {}) {
   const latest = getMostRecentTimestamp(
     (group.messages || [])
@@ -721,15 +773,15 @@ function pickDisplayName(group = {}) {
     || group.messages.length
   );
 
-  const explicitDisplayName = group.displayNames.find((displayName) =>
-    cleanText(displayName) && !isPlaceholderDisplayName(displayName)
-  );
+  const explicitDisplayName = getPreferredDisplayName(group.displayNames, group);
 
   return cleanText(explicitDisplayName)
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
     || (
-      hasCurrentSignal && !isPlaceholderDisplayName(group.persistedContact?.displayName)
+      hasCurrentSignal
+      && !isPlaceholderDisplayName(group.persistedContact?.displayName)
+      && !isLikelyCustomerMessageDisplayName(group.persistedContact?.displayName, group)
         ? cleanText(group.persistedContact?.displayName)
         : ""
     )
@@ -737,9 +789,7 @@ function pickDisplayName(group = {}) {
 }
 
 function pickBestIdentifier(group = {}) {
-  const explicitDisplayName = group.displayNames.find((displayName) =>
-    cleanText(displayName) && !isPlaceholderDisplayName(displayName)
-  );
+  const explicitDisplayName = getPreferredDisplayName(group.displayNames, group);
 
   return cleanText(explicitDisplayName)
     || normalizeEmail(group.emails[0])

@@ -335,6 +335,52 @@ test("guest widget conversations create customer contacts from stored messages",
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
 });
 
+test("guest widget question text is not promoted into the contact identity", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-1",
+        displayName: "hey, what services do you offer",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-1",
+        identityType: "session_key",
+        identityValue: "session-question",
+      },
+    ],
+    messages: [
+      {
+        id: "message-question-1",
+        role: "user",
+        content: "hey, what services do you offer",
+        sessionKey: "session-question",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-1",
+        contactId: "contact-1",
+        contactName: "hey, what services do you offer",
+        visitorSessionKey: "session-question",
+        captureState: "prompt_ready",
+        captureReason: "This contact does not have a higher-priority owner next step right now.",
+        latestMessageId: "message-question-1",
+        lastSeenAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Anonymous visitor");
+  assert.equal(result.list[0].bestIdentifier, "Session continuity only");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "hey, what services do you offer");
+});
+
 test("identified widget conversations create customer contacts from stored messages", () => {
   const result = buildContactWorkspaceFromRecords({
     messages: [

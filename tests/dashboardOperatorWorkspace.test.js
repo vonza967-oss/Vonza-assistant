@@ -1208,6 +1208,40 @@ test("customer rows for email users show email, customer question, and persisted
   assert.doesNotMatch(row, /Vonza/);
 });
 
+test("customer rows separate guest identity from the widget question text", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-question",
+    name: "hey, what services do you offer",
+    bestIdentifier: "hey, what services do you offer",
+    lifecycleState: "active_lead",
+    sources: ["chat"],
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    nextAction: {
+      key: "no_action_needed",
+      title: "No action needed",
+      description: "This contact does not have a higher-priority owner next step right now.",
+    },
+    timeline: [
+      {
+        at: "2026-04-16T09:47:46.000Z",
+        label: "Visitor message",
+        source: "chat",
+        summary: "",
+      },
+    ],
+  });
+
+  assert.match(row, /<strong class="contact-row-name">Unknown<\/strong>/);
+  assert.match(row, /<p class="customer-row-summary">hey, what services do you offer<\/p>/);
+  assert.doesNotMatch(row, /<strong class="contact-row-name">hey, what services do you offer<\/strong>/);
+  assert.doesNotMatch(row, /No action needed/);
+});
+
 test("customer rows do not fall back to generic activity timestamps", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -1665,7 +1699,7 @@ test("dashboard refresh reloads live agent messages, summaries, and workspace da
   assert.ok(calls.some((call) => call.startsWith("/agents/action-queue?")));
   assert.ok(calls.some((call) => call.includes("/agents/operator-workspace?") && call.includes("force_sync=true")));
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Fresh live question/);
-  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Anonymous visitor/);
+  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Unknown/);
 });
 
 test("dashboard refresh buttons use the full live reload path", () => {
