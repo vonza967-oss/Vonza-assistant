@@ -135,6 +135,29 @@ button:disabled {
   box-shadow: 0 16px 34px rgba(20, 184, 166, 0.2);
 }
 
+a.primary-button,
+a.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+a.primary-button {
+  border-color: rgba(20, 184, 166, 0.5);
+}
+
+a.primary-button:hover,
+a.ghost-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.3);
+}
+
 .ghost-button {
   background: rgba(255, 255, 255, 0.04);
 }
@@ -5335,6 +5358,23 @@ body {
   border-color: var(--light-pending-border);
 }
 
+.workspace-page[data-shell-section="contacts"] {
+  --light-warning-text: #653900;
+  --light-warning-bg: #fff0c7;
+  --light-warning-border: #d7952a;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply,
+.workspace-page[data-shell-section="contacts"] .badge.warning {
+  color: var(--light-warning-text);
+  background: var(--light-warning-bg);
+  border-color: var(--light-warning-border);
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-row-dot--needs_reply {
+  background: #9f5f00;
+}
+
 .workspace-pages .settings-sidebar {
   border-right-color: #dbe4ef;
 }
@@ -7476,7 +7516,9 @@ body {
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply {
-  color: #765100;
+  border-color: #d7952a;
+  background: #fff0c7;
+  color: #653900;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-status-chip--resolved {

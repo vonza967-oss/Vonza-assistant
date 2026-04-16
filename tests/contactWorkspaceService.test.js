@@ -395,6 +395,44 @@ test("chat customer timestamps do not drift to render time", () => {
   }
 });
 
+test("inbox customer activity uses latest inbound customer message instead of outbound reply", () => {
+  const result = buildContactWorkspaceFromRecords({
+    threads: [
+      {
+        id: "thread-1",
+        subject: "Pricing help",
+        classification: "lead_sales",
+        lastMessageAt: "2026-04-14T09:08:20.000Z",
+        messages: [
+          {
+            id: "inbound-1",
+            direction: "inbound",
+            sender: "Alex Buyer <alex@example.com>",
+            bodyPreview: "Can you send pricing?",
+            sentAt: "2026-04-14T09:03:55.000Z",
+          },
+          {
+            id: "outbound-1",
+            direction: "outbound",
+            sender: "Vonza <hello@example.com>",
+            recipients: ["alex@example.com"],
+            bodyPreview: "Here is a pricing reply.",
+            sentAt: "2026-04-14T09:08:20.000Z",
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].email, "alex@example.com");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Can you send pricing?");
+  assert.equal(result.list[0].timeline[0].at, "2026-04-14T09:03:55.000Z");
+  assert.notEqual(result.list[0].timeline[0].at, "2026-04-14T09:08:20.000Z");
+});
+
 test("unresolved partial identities stay separate instead of merging on name alone", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [

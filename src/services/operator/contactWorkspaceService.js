@@ -555,16 +555,18 @@ function getOutcomeFlags(outcome = {}) {
 function buildTimelineEntries(group = {}) {
   const entries = [];
 
-  group.messages.forEach((message) => {
-    entries.push({
-      id: `message:${message.id}`,
-      at: message.createdAt || null,
-      source: "chat",
-      label: cleanText(message.role) === "assistant" ? "Assistant message" : "Visitor message",
-      summary: cleanText(message.content || "Chat message"),
-      messageId: cleanText(message.id),
+  group.messages
+    .filter((message) => normalizeMessageRole(message.role) === "user")
+    .forEach((message) => {
+      entries.push({
+        id: `message:${message.id}`,
+        at: message.createdAt || null,
+        source: "chat",
+        label: "Visitor message",
+        summary: cleanText(message.content || "Chat message"),
+        messageId: cleanText(message.id),
+      });
     });
-  });
 
   group.leads.forEach((lead) => {
     entries.push({
@@ -592,12 +594,16 @@ function buildTimelineEntries(group = {}) {
   group.threads.forEach((thread) => {
     const latestInbound = normalizeArray(thread.messages)
       .slice()
-      .reverse()
+      .sort((left, right) =>
+        parseTimestamp(right.sentAt || right.createdAt || right.updatedAt)
+        - parseTimestamp(left.sentAt || left.createdAt || left.updatedAt)
+      )
       .find((message) => cleanText(message.direction) === "inbound");
+    const latestInboundAt = latestInbound?.sentAt || latestInbound?.createdAt || latestInbound?.updatedAt || null;
 
     entries.push({
       id: `thread:${thread.id}`,
-      at: thread.lastMessageAt || thread.updatedAt || thread.createdAt || null,
+      at: latestInboundAt || thread.lastMessageAt || thread.updatedAt || thread.createdAt || null,
       source: "inbox",
       label: cleanText(thread.subject || "Inbox thread"),
       summary: cleanText(latestInbound?.bodyPreview || latestInbound?.bodyText || thread.snippet || thread.classification),
@@ -672,6 +678,29 @@ function getLatestVisitorMessageActivityAt(group = {}) {
       .map((message) => message.createdAt)
   );
   return latest ? new Date(latest).toISOString() : null;
+}
+
+function getLatestCustomerMessageSnapshot(group = {}) {
+  const snapshots = [
+    ...normalizeArray(group.messages)
+      .filter((message) => normalizeMessageRole(message.role) === "user")
+      .map((message) => ({
+        at: message.createdAt || null,
+        summary: cleanText(message.content),
+      })),
+    ...normalizeArray(group.threads).flatMap((thread) =>
+      normalizeArray(thread.messages)
+        .filter((message) => cleanText(message.direction) === "inbound")
+        .map((message) => ({
+          at: message.sentAt || message.createdAt || message.updatedAt || null,
+          summary: cleanText(message.bodyPreview || message.bodyText || thread.snippet || thread.subject),
+        }))
+    ),
+  ]
+    .filter((snapshot) => parseTimestamp(snapshot.at) || snapshot.summary)
+    .sort((left, right) => parseTimestamp(right.at) - parseTimestamp(left.at));
+
+  return snapshots[0] || null;
 }
 
 function pickDisplayName(group = {}) {
@@ -894,7 +923,8 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestVisitorMessageActivityAt = getLatestVisitorMessageActivityAt(group);
+  const latestCustomerMessage = getLatestCustomerMessageSnapshot(group);
+  const latestVisitorMessageActivityAt = latestCustomerMessage?.at || getLatestVisitorMessageActivityAt(group);
   const fallbackActivityAt = timeline.find((entry) => entry.source !== "chat" || entry.label !== "Assistant message")?.at || null;
   const lastActivityAt = latestVisitorMessageActivityAt
     || fallbackActivityAt
@@ -937,6 +967,8 @@ function buildContactSummary(group = {}, options = {}) {
     lifecycleStateSource,
     suggestedLifecycleState,
     mostRecentActivityAt: lastActivityAt,
+    lastCustomerMessageAt: latestCustomerMessage?.at || null,
+    latestCustomerMessageSummary: latestCustomerMessage?.summary || "",
     sources: [...sourceSet].map(formatSourceLabel),
     flags: flags.map(formatSourceLabel),
     partialIdentity: !normalizeEmail(group.emails[0])

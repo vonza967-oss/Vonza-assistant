@@ -929,7 +929,8 @@ test("customers render as a single-column workspace without inactive controls", 
   assert.doesNotMatch(contactsPanel, /data-contact-detail/);
   assert.doesNotMatch(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /customer-status-chip/);
-  assert.match(contactsPanel, /Email user ·/);
+  assert.match(contactsPanel, /<strong class="contact-row-name">taylor@example\.com<\/strong>/);
+  assert.match(contactsPanel, /Taylor Reed · Last active/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up<\/button>\s*<details class="row-action-menu"/);
 });
 
@@ -1090,6 +1091,103 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /frontdesk-main-panel/);
   assert.doesNotMatch(panel, /settings-summary-grid/);
   assert.doesNotMatch(panel, /frontdesk-context-grid/);
+});
+
+test("front desk preview CTAs use the same primary treatment as open install", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const agent = {
+    publicAgentKey: "agent-key",
+    installId: "install-123",
+    websiteUrl: "https://acme.example",
+  };
+  const setup = {
+    personalityReady: true,
+    knowledgeReady: true,
+    knowledgeLimited: false,
+    knowledgeState: "ready",
+    knowledgeDescription: "Website knowledge is ready.",
+    isReady: true,
+  };
+  const workspace = harness.normalizeOperatorWorkspace({});
+
+  harness.setActiveFrontDeskSection("overview");
+  const overviewPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
+  assert.match(overviewPanel, /<a class="primary-button"[^>]*>Try front desk<\/a>/);
+
+  harness.setActiveFrontDeskSection("preview");
+  const previewPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
+  assert.match(previewPanel, /<a class="primary-button"[^>]*>Open full preview<\/a>/);
+
+  harness.setActiveFrontDeskSection("launch");
+  const launchPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
+  assert.match(launchPanel, /<button class="primary-button"[^>]*>Open install<\/button>/);
+});
+
+test("analytics weak-answer areas use actionable summaries instead of raw questions", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const rawQuestion = "Can you send the exact custom enterprise pricing for three locations?";
+  const panel = harness.buildAnalyticsPanel(
+    {},
+    [
+      { id: "m1", role: "user", content: rawQuestion, createdAt: "2026-04-14T09:03:55.000Z" },
+      { id: "m2", role: "assistant", content: "I'm not sure.", createdAt: "2026-04-14T09:04:20.000Z" },
+    ],
+    {
+      knowledgeDescription: "Knowledge ready.",
+      knowledgeReady: true,
+      knowledgeLimited: false,
+      knowledgePageCount: 4,
+    },
+    harness.createEmptyActionQueue()
+  );
+
+  assert.match(panel, /Pricing questions need clearer answers/);
+  assert.doesNotMatch(panel, new RegExp(rawQuestion.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(panel, /sharpening answers like/);
+});
+
+test("customer rows for email users show email, customer question, and persisted customer message time", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-1",
+    name: "Alex Buyer",
+    email: "alex@example.com",
+    lifecycleState: "active_lead",
+    sources: ["chat"],
+    flags: ["follow up due"],
+    lastCustomerMessageAt: "2026-04-14T09:03:55.000Z",
+    mostRecentActivityAt: "2026-04-16T12:34:56.000Z",
+    latestCustomerMessageSummary: "Can you send pricing?",
+    nextAction: {
+      key: "draft_quote_follow_up",
+      title: "Draft quote follow-up",
+      description: "Follow up on pricing.",
+    },
+    counts: { messages: 2 },
+  });
+
+  const emailIndex = row.indexOf("alex@example.com");
+  const questionIndex = row.indexOf("Can you send pricing?");
+  const timeIndex = row.indexOf("Last message");
+
+  assert.ok(emailIndex >= 0);
+  assert.ok(questionIndex > emailIndex);
+  assert.ok(timeIndex > questionIndex);
+  assert.match(row, /data-contact-last-activity="2026-04-14T09:03:55\.000Z"/);
+  assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
+  assert.doesNotMatch(row, /Vonza/);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {

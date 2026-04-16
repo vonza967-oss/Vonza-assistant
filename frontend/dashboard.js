@@ -3106,6 +3106,12 @@ function getCustomerName(contact = {}) {
     || "Guest visitor";
 }
 
+function getCustomerRowIdentifier(contact = {}) {
+  return trimText(contact.email)
+    || trimText(contact.phone)
+    || getCustomerName(contact);
+}
+
 function getCustomerIdentityLabel(contact = {}) {
   if (trimText(contact.email)) {
     return "Email user";
@@ -3126,6 +3132,10 @@ function getCustomerIdentifier(contact = {}) {
 }
 
 function getCustomerLastActivityLabel(contact = {}) {
+  if (contact.lastCustomerMessageAt) {
+    return formatSeenAt(contact.lastCustomerMessageAt);
+  }
+
   if (contact.mostRecentActivityAt) {
     return formatSeenAt(contact.mostRecentActivityAt);
   }
@@ -3138,10 +3148,14 @@ function getCustomerLastActivityLabel(contact = {}) {
 }
 
 function getCustomerLatestSummary(contact = {}) {
-  const recentTimelineEntry = (contact.timeline || [])[0] || {};
+  const customerMessageEntry = (contact.timeline || []).find((entry) =>
+    ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
+    || ["chat", "inbox"].includes(trimText(entry.source))
+  ) || {};
 
-  return trimText(recentTimelineEntry.summary)
-    || trimText(recentTimelineEntry.label)
+  return trimText(contact.latestCustomerMessageSummary)
+    || trimText(customerMessageEntry.summary)
+    || trimText(customerMessageEntry.label)
     || trimText(contact.nextAction?.description)
     || trimText(contact.latestOutcome?.label)
     || "No recent message summary yet.";
@@ -3447,9 +3461,15 @@ function buildContactCountsSummary(contact = {}) {
 function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
-  const identityMeta = [getCustomerIdentityLabel(contact), getCustomerLastActivityLabel(contact)]
+  const rowIdentifier = getCustomerRowIdentifier(contact);
+  const customerName = getCustomerName(contact);
+  const identityMeta = [
+    trimText(contact.email) && customerName !== trimText(contact.email) ? customerName : getCustomerIdentityLabel(contact),
+    contact.lastCustomerMessageAt ? `Last message ${getCustomerLastActivityLabel(contact)}` : `Last active ${getCustomerLastActivityLabel(contact)}`,
+  ]
     .filter(Boolean)
     .join(" · ");
+  const visibleLastActivityAt = contact.lastCustomerMessageAt || contact.mostRecentActivityAt || "";
 
   return `
     <article
@@ -3461,14 +3481,14 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
       data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"
       data-contact-statuses="${escapeHtml(statusKeys)}"
-      data-contact-last-activity="${escapeHtml(contact.mostRecentActivityAt || "")}"
+      data-contact-last-activity="${escapeHtml(visibleLastActivityAt)}"
     >
       <div class="contact-row-main">
         <div class="customer-row-top">
           <div class="customer-row-title-group">
             <span class="customer-row-dot customer-row-dot--${escapeHtml(primaryStatus.key)}" aria-hidden="true"></span>
             <div>
-              <strong class="contact-row-name">${escapeHtml(getCustomerName(contact))}</strong>
+              <strong class="contact-row-name">${escapeHtml(rowIdentifier)}</strong>
               <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
             </div>
           </div>
@@ -6785,6 +6805,31 @@ function getQuestionThemeLabel(question, intent = "general") {
   }
 }
 
+function getWeakAnswerThemeLabel(question, intent = "general") {
+  const theme = getQuestionThemeLabel(question, intent);
+
+  switch (theme) {
+    case "Asking for contact info":
+      return "Customers asking for contact options";
+    case "Booking or availability":
+      return "Booking and availability answers need tightening";
+    case "Pricing and quote requests":
+      return "Pricing questions need clearer answers";
+    case "Hours and opening times":
+      return "Hours and availability need clearer answers";
+    case "Location and service area":
+      return "Location or service-area answers need improvement";
+    case "Support or problem help":
+      return "Support concerns need stronger guidance";
+    case "Understanding services":
+      return "Service explanation needs improvement";
+    case "General business questions":
+      return "General questions need clearer guidance";
+    default:
+      return theme ? `${theme} need clearer answers` : "Weak-answer theme needs review";
+  }
+}
+
 function getIntentLabel(intent) {
   switch (intent) {
     case "contact":
@@ -7016,7 +7061,10 @@ function analyzeConversationSignals(messages) {
 
     weakAnswerCount += 1;
     if (weakAnswerExamples.length < 4) {
-      weakAnswerExamples.push(question);
+      const weakAnswerTheme = getWeakAnswerThemeLabel(question, categorizeIntent(question));
+      if (weakAnswerTheme && !weakAnswerExamples.includes(weakAnswerTheme)) {
+        weakAnswerExamples.push(weakAnswerTheme);
+      }
     }
   });
 
@@ -7647,7 +7695,7 @@ function getAnalyticsImprovementArea(signals = {}, weakAnswerExamples = [], conv
   const unresolvedComplaints = Math.max(0, Number(outcomeSummary.complaintOpened || 0) - Number(outcomeSummary.complaintResolved || 0));
 
   if (weakAnswerExamples.length) {
-    return `sharpening answers like "${trimText(weakAnswerExamples[0])}"`;
+    return trimText(weakAnswerExamples[0]).replace(/\.$/, "").toLowerCase();
   }
 
   if (unresolvedComplaints > 0) {
@@ -7708,7 +7756,7 @@ function buildAnalyticsRecommendations(report = {}) {
         ? `${formatAnalyticsReportNumber(report.weakAnswerCount)} weak-answer signals`
         : "No weak-answer pattern is standing out",
       copy: report.weakAnswerCount > 0
-        ? `Improve the wording and knowledge behind ${report.weakAnswerExample || "the weakest customer question"} so similar visitors do not stall.`
+        ? `${report.weakAnswerExample || "Weak-answer themes need review"}. Improve the wording and source knowledge so similar visitors do not stall.`
         : "Answer coverage looks stable in the current conversation sample.",
     },
     {

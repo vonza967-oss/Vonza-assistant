@@ -64,8 +64,19 @@ test("dashboard Customers page text uses readable active-content contrast", () =
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-summary\s*\{[^}]*color:\s*#40516c;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-meta-value\s*\{[^}]*color:\s*#4f617c;[^}]*font-weight:\s*600;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip\s*\{[^}]*color:\s*#334963;/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip--needs_reply\s*\{\s*color:\s*#765100;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip--needs_reply\s*\{[^}]*background:\s*#fff0c7;[^}]*color:\s*#653900;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.timeline-row strong\s*\{\s*color:\s*#17233f;/i);
+});
+
+test("dashboard anchor CTAs share the button box model", () => {
+  const css = readDashboardCss();
+  const anchorButtons = getCssBlock(css, "a.primary-button,\na.ghost-button");
+  const primaryAnchor = getCssBlock(css, "a.primary-button");
+
+  assert.match(anchorButtons, /display:\s*inline-flex/i);
+  assert.match(anchorButtons, /padding:\s*13px 18px/i);
+  assert.match(anchorButtons, /border:\s*1px solid var\(--border\)/i);
+  assert.match(primaryAnchor, /border-color:\s*rgba\(20,\s*184,\s*166,\s*0\.5\)/i);
 });
 
 test("dashboard chips and light-shell support panels use explicit readable surfaces", () => {
