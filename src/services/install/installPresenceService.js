@@ -381,7 +381,7 @@ async function getAgentAndBusinessByAgentId(supabase, agentId) {
 
   const { data: agentRow, error: agentError } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, public_agent_key, name, is_active")
+    .select("id, business_id, public_agent_key, name, purpose, is_active")
     .eq("id", normalizedAgentId)
     .maybeSingle();
 

@@ -538,6 +538,7 @@ export function createAgentRouter(deps = {}) {
 
       const hasInitialSettings = [
         req.body.assistant_name || req.body.assistantName,
+        req.body.widget_purpose || req.body.widgetPurpose || req.body.purpose,
         req.body.tone,
         req.body.system_prompt || req.body.systemPrompt,
         req.body.welcome_message || req.body.welcomeMessage,
@@ -552,6 +553,7 @@ export function createAgentRouter(deps = {}) {
           agentId: result.agent.id,
           name: req.body.business_name,
           assistantName: req.body.assistant_name || req.body.assistantName,
+          widgetPurpose: req.body.widget_purpose || req.body.widgetPurpose || req.body.purpose,
           tone: req.body.tone,
           systemPrompt: req.body.system_prompt || req.body.systemPrompt,
           welcomeMessage: req.body.welcome_message || req.body.welcomeMessage,
@@ -860,6 +862,9 @@ export function createAgentRouter(deps = {}) {
         agentId: req.body.agent_id || req.body.agentId,
         name: readBodyField(req.body, "name"),
         assistantName: readBodyField(req.body, "assistant_name", "assistantName"),
+        widgetPurpose:
+          readBodyField(req.body, "widget_purpose", "widgetPurpose")
+          ?? readBodyField(req.body, "purpose"),
         tone: readBodyField(req.body, "tone"),
         systemPrompt: readBodyField(req.body, "system_prompt", "systemPrompt"),
         welcomeMessage: readBodyField(req.body, "welcome_message", "welcomeMessage"),

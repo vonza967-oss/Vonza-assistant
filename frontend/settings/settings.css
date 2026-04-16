@@ -221,6 +221,14 @@
   flex: 0 0 auto;
 }
 
+.settings-shell-choice-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
 .settings-shell-status-copy,
 .settings-shell-key-value-copy {
   margin: 6px 0 0;

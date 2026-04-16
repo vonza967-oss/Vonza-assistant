@@ -1,5 +1,5 @@
 export const DEFAULT_AGENT_NAME = "Vonza AI";
-export const DEFAULT_PURPOSE = "Guide website visitors toward the best next step.";
+export const DEFAULT_PURPOSE = "support";
 export const DEFAULT_TONE = "helpful, natural, concise";
 export const DEFAULT_LANGUAGE = "auto";
 

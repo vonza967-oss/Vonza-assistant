@@ -23,6 +23,33 @@
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
+  const WIDGET_PURPOSE_OPTIONS = Object.freeze([
+    {
+      value: "guidance",
+      label: "Guidance",
+      description: "Help visitors find what they need quickly.",
+    },
+    {
+      value: "support",
+      label: "Support",
+      description: "Answer customer questions and solve common issues.",
+    },
+    {
+      value: "make_decision",
+      label: "Make a decision",
+      description: "Help visitors choose the right service, product, or next step.",
+    },
+    {
+      value: "lead_capture",
+      label: "Lead capture / contact",
+      description: "Guide warm visitors toward contact details or follow-up.",
+    },
+    {
+      value: "booking_next_step",
+      label: "Booking / next step guidance",
+      description: "Help visitors book, request a quote, or move forward.",
+    },
+  ]);
 
   function defaultTrimText(value) {
     return String(value || "").trim();
@@ -116,6 +143,38 @@
     return {
       label: "Not installed yet",
     };
+  }
+
+  function normalizeWidgetPurpose(value) {
+    const normalized = defaultTrimText(value)
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+
+    if (WIDGET_PURPOSE_OPTIONS.some((option) => option.value === normalized)) {
+      return normalized;
+    }
+
+    if (/decision|decide|choose|compare/.test(normalized)) {
+      return "make_decision";
+    }
+    if (/lead|capture|contact|follow_up|quote/.test(normalized)) {
+      return "lead_capture";
+    }
+    if (/book|booking|next_step/.test(normalized)) {
+      return "booking_next_step";
+    }
+    if (/guid|find|navigate/.test(normalized)) {
+      return "guidance";
+    }
+
+    return "support";
+  }
+
+  function getWidgetPurposeOption(value) {
+    const normalizedPurpose = normalizeWidgetPurpose(value);
+    return WIDGET_PURPOSE_OPTIONS.find((option) => option.value === normalizedPurpose) || WIDGET_PURPOSE_OPTIONS[1];
   }
 
   function getHelpers(options = {}) {
@@ -397,6 +456,8 @@
     const manualOutcomeVisible = isCapabilityExplicitlyVisible("manual_outcome_marks");
     const advancedGuidanceVisible = isCapabilityExplicitlyVisible("advanced_guidance");
     const installStatus = getDefaultInstallStatus(agent);
+    const selectedPurpose = normalizeWidgetPurpose(agent.purpose);
+    const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
 
     return `
       <form data-settings-form data-form-kind="customize" class="settings-shell-form settings-shell-form--system">
@@ -407,10 +468,31 @@
             <p class="settings-shell-page-copy">Adjust how the customer-facing front desk speaks, routes, and represents the business without turning settings into a dashboard.</p>
           </div>
           <div class="settings-shell-page-meta">
+            <span class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
             <span class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
             <span class="${getBadgeClass(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeState === "ready" ? "Knowledge ready" : setup.knowledgeState === "limited" ? "Knowledge limited" : "Knowledge missing")}</span>
           </div>
         </header>
+
+        <section class="settings-shell-section">
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">Widget purpose</h3>
+              <p class="settings-shell-section-copy">What should your widget mainly help visitors do?</p>
+            </div>
+          </div>
+          <div class="settings-shell-choice-list">
+            ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+              <label class="settings-shell-choice-row" for="widget-purpose-${escapeHtml(option.value)}">
+                <div class="settings-shell-choice-main">
+                  <p class="settings-shell-choice-title">${escapeHtml(option.label)}</p>
+                  <p class="settings-shell-key-value-copy">${escapeHtml(option.description)}</p>
+                </div>
+                <input id="widget-purpose-${escapeHtml(option.value)}" name="widget_purpose" type="radio" value="${escapeHtml(option.value)}" ${selectedPurpose === option.value ? "checked" : ""}>
+              </label>
+            `).join("")}
+          </div>
+        </section>
 
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">

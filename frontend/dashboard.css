@@ -2786,6 +2786,7 @@ body {
 }
 
 .home-priority-why,
+.home-priority-change,
 .home-improve-copy,
 .home-win-row p,
 .home-win-row span {
@@ -2793,6 +2794,10 @@ body {
   color: #6f7d95;
   font-size: 13px;
   line-height: 1.5;
+}
+
+.home-priority-change {
+  color: #40516c;
 }
 
 .home-priority-copy {

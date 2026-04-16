@@ -19,6 +19,7 @@ import {
   DEFAULT_TONE,
   DEFAULT_WIDGET_CONFIG,
 } from "./agentDefaults.js";
+import { normalizeWidgetPurpose } from "./widgetPurpose.js";
 
 const AGENTS_TABLE = "agents";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
@@ -309,7 +310,7 @@ function mapAgentRow(row) {
     accessStatus: normalizeAccessStatus(row.access_status),
     publicAgentKey: row.public_agent_key,
     name: row.name || DEFAULT_AGENT_NAME,
-    purpose: row.purpose || DEFAULT_PURPOSE,
+    purpose: normalizeWidgetPurpose(row.purpose || DEFAULT_PURPOSE),
     systemPrompt: row.system_prompt || "",
     tone: row.tone || DEFAULT_TONE,
     language: row.language || DEFAULT_LANGUAGE,
@@ -834,6 +835,7 @@ export async function getWidgetBootstrap(supabase, options = {}) {
         id: installContext.agent.id,
         publicAgentKey: installContext.agent.public_agent_key || "",
         name: installContext.agent.name || DEFAULT_AGENT_NAME,
+        purpose: normalizeWidgetPurpose(installContext.agent.purpose || DEFAULT_PURPOSE),
       },
       business: installContext.business,
       widgetConfig: mapWidgetConfigRow(installContext.widgetConfigRow),
@@ -945,7 +947,7 @@ export async function listAgents(supabase, options = {}) {
 
   let query = supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
     .order("name", { ascending: true });
 
   if (normalizedOwnerUserId) {
@@ -1060,6 +1062,7 @@ export async function listAgents(supabase, options = {}) {
       ownerUserId: row.owner_user_id || "",
       accessStatus: normalizeAccessStatus(row.access_status),
       name: row.name || DEFAULT_AGENT_NAME,
+      purpose: normalizeWidgetPurpose(row.purpose || DEFAULT_PURPOSE),
       assistantName:
         widgetConfig?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
       publicAgentKey: row.public_agent_key || "",
@@ -1120,7 +1123,7 @@ export async function listAgents(supabase, options = {}) {
 export async function listAllAgents(supabase) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
     .order("name", { ascending: true });
 
   if (error) {
@@ -1197,6 +1200,7 @@ export async function listAllAgents(supabase) {
     ownerUserId: row.owner_user_id || "",
     accessStatus: normalizeAccessStatus(row.access_status),
     name: row.name || DEFAULT_AGENT_NAME,
+    purpose: normalizeWidgetPurpose(row.purpose || DEFAULT_PURPOSE),
     assistantName:
       widgetConfigsByAgentId.get(row.id)?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
     publicAgentKey: row.public_agent_key || "",
@@ -1272,6 +1276,8 @@ export async function updateAgentSettings(
     agentId,
     name,
     assistantName,
+    purpose,
+    widgetPurpose,
     tone,
     systemPrompt,
     welcomeMessage,
@@ -1393,6 +1399,12 @@ export async function updateAgentSettings(
   }
 
   const nextAssistantName = cleanText(assistantName) || cleanText(name) || agent.name || DEFAULT_AGENT_NAME;
+  const hasPurposeUpdate =
+    (hasField("purpose") && purpose !== undefined)
+    || (hasField("widgetPurpose") && widgetPurpose !== undefined);
+  const nextPurpose = hasPurposeUpdate
+    ? normalizeWidgetPurpose(purpose ?? widgetPurpose)
+    : normalizeWidgetPurpose(agent.purpose || DEFAULT_PURPOSE);
   const nextTone = hasField("tone")
     ? cleanText(tone) || agent.tone || DEFAULT_TONE
     : agent.tone || DEFAULT_TONE;
@@ -1506,6 +1518,7 @@ export async function updateAgentSettings(
     .from(AGENTS_TABLE)
     .update({
       name: nextAssistantName,
+      purpose: nextPurpose,
       tone: nextTone,
       system_prompt: nextSystemPrompt,
     })
@@ -1640,6 +1653,7 @@ export async function updateAgentSettings(
     publicAgentKey: agent.publicAgentKey,
     name: nextAssistantName,
     assistantName: nextAssistantName,
+    purpose: nextPurpose,
     tone: nextTone,
     systemPrompt: nextSystemPrompt,
     websiteUrl: resolvedWebsiteUrl,
@@ -1714,7 +1728,7 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
 
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
     .eq("client_id", normalizedClientId)
     .eq("is_active", true)
     .order("created_at", { ascending: false })

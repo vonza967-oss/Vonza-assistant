@@ -499,6 +499,13 @@ test("today copilot renders inside Today when the flag is on", () => {
   );
   assert.match(settings, /Business profile/);
   assert.match(settings, /Front Desk/);
+  assert.match(settings, /Widget purpose/);
+  assert.match(settings, /What should your widget mainly help visitors do/);
+  assert.match(settings, /Guidance/);
+  assert.match(settings, /Support/);
+  assert.match(settings, /Make a decision/);
+  assert.match(settings, /Lead capture \/ contact/);
+  assert.match(settings, /Booking \/ next step guidance/);
   assert.match(settings, /Connected tools/);
   assert.match(settings, /Coming soon/);
   assert.doesNotMatch(settings, /Connect Google/);
@@ -660,6 +667,11 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
   assert.match(overviewPanel, /Conversations today/);
   assert.match(overviewPanel, /AI priorities/);
+  assert.match(overviewPanel, /customer issue|customer conversation|warm lead|Customers need clearer/i);
+  assert.match(overviewPanel, /satisfaction|confidence|trust|friction/i);
+  assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
+  assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
+  assert.doesNotMatch(overviewPanel, /Finish the live launch/);
   assert.match(overviewPanel, /Recent wins/);
   assert.match(overviewPanel, /Improve service/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
@@ -724,7 +736,7 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
     })
   );
 
-  assert.equal(overviewPanel.match(/1 customer conversation still needs attention/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/1 customer conversation may be waiting too long/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {

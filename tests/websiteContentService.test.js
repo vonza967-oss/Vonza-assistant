@@ -8,7 +8,10 @@ import {
   hasVisualIntent,
   selectRelevantImageUrls,
 } from "../src/services/scraping/websiteContentService.js";
-import { buildBusinessContextForChat } from "../src/services/chat/prompting.js";
+import {
+  buildBusinessContextForChat,
+  buildChatSystemPrompt,
+} from "../src/services/chat/prompting.js";
 
 const MEDIA_BLOCK = `[[VONZA_MEDIA_ASSETS]]
 [{"url":"https://example.com/images/hero.jpg","pageUrl":"https://example.com/gallery","alt":"Kitchen remodel hero"},{"url":"https://example.com/images/logo.png","pageUrl":"https://example.com","alt":"Company logo"}]
@@ -72,6 +75,25 @@ test("business context ignores placeholder site contacts and keeps verified conf
   assert.doesNotMatch(context, /mail@example\.com/i);
   assert.doesNotMatch(context, /123-456-7890/);
   assert.match(context, /Configured live contact details: Email: team@acmeservices\.com \| Phone: \+1 206 555 0199\./);
+});
+
+test("chat system prompt changes behavior for the selected widget purpose", () => {
+  const decisionPrompt = buildChatSystemPrompt("English", {
+    name: "Acme Front Desk",
+    purpose: "make_decision",
+  });
+
+  assert.match(decisionPrompt, /widget purpose: Make a decision/);
+  assert.match(decisionPrompt, /compare options/i);
+  assert.match(decisionPrompt, /choose the right service, product, or next step/i);
+
+  const defaultPrompt = buildChatSystemPrompt("English", {
+    name: "Acme Front Desk",
+    purpose: "",
+  });
+
+  assert.match(defaultPrompt, /widget purpose: Support/);
+  assert.match(defaultPrompt, /resolving common confusion/i);
 });
 
 test("explicit visual requests can still retrieve structured media assets", () => {

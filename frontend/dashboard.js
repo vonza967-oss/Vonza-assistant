@@ -64,6 +64,33 @@ const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
 const ACTION_QUEUE_STATUSES = ["new", "reviewed", "done", "dismissed"];
+const WIDGET_PURPOSE_OPTIONS = [
+  {
+    value: "guidance",
+    label: "Guidance",
+    description: "Help visitors find what they need quickly.",
+  },
+  {
+    value: "support",
+    label: "Support",
+    description: "Answer customer questions and solve common issues.",
+  },
+  {
+    value: "make_decision",
+    label: "Make a decision",
+    description: "Help visitors choose the right service, product, or next step.",
+  },
+  {
+    value: "lead_capture",
+    label: "Lead capture / contact",
+    description: "Guide warm visitors toward contact details or follow-up.",
+  },
+  {
+    value: "booking_next_step",
+    label: "Booking / next step guidance",
+    description: "Help visitors book, request a quote, or move forward.",
+  },
+];
 const FEATURE_STATE_STABLE = "stable";
 const FEATURE_STATE_BETA = "beta";
 const FEATURE_STATE_HIDDEN = "hidden";
@@ -1409,6 +1436,38 @@ function escapeHtml(value) {
 
 function trimText(value) {
   return String(value || "").trim();
+}
+
+function normalizeWidgetPurpose(value) {
+  const normalized = trimText(value)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (WIDGET_PURPOSE_OPTIONS.some((option) => option.value === normalized)) {
+    return normalized;
+  }
+
+  if (/decision|decide|choose|compare/.test(normalized)) {
+    return "make_decision";
+  }
+  if (/lead|capture|contact|follow_up|quote/.test(normalized)) {
+    return "lead_capture";
+  }
+  if (/book|booking|next_step/.test(normalized)) {
+    return "booking_next_step";
+  }
+  if (/guid|find|navigate/.test(normalized)) {
+    return "guidance";
+  }
+
+  return "support";
+}
+
+function getWidgetPurposeOption(value) {
+  const normalizedPurpose = normalizeWidgetPurpose(value);
+  return WIDGET_PURPOSE_OPTIONS.find((option) => option.value === normalizedPurpose) || WIDGET_PURPOSE_OPTIONS[1];
 }
 
 function formatRichTextHtml(value) {
@@ -5353,8 +5412,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (openIssueCount > 0) {
     addPriority({
       tone: "danger",
-      title: `${countLabel(openIssueCount, "open issue")} ${openIssueCount === 1 ? "needs" : "need"} attention`,
-      why: "Fast follow-up helps protect customer satisfaction and keep one bad experience from becoming a lost customer.",
+      title: `${countLabel(openIssueCount, "customer issue")} could hurt satisfaction`,
+      why: "Unresolved complaints or service problems can turn a fixable moment into a lost customer or negative word of mouth.",
+      change: "Review the affected customers, add clearer complaint-handling guidance, and make the follow-up path easier to trust.",
       action: { type: "section", value: "contacts", label: "Review customers" },
     });
   }
@@ -5362,8 +5422,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (attentionCount > 0) {
     addPriority({
       tone: "brand",
-      title: `${countLabel(attentionCount, "customer conversation")} still ${attentionCount === 1 ? "needs" : "need"} attention`,
-      why: "This is the clearest place to save time today: answer what matters, then move on.",
+      title: `${countLabel(attentionCount, "customer conversation")} may be waiting too long`,
+      why: "Slow or unclear follow-up makes the business feel harder to reach and can lower customer confidence.",
+      change: "Check the open conversations and tighten the next-step guidance customers see after common questions.",
       action: { type: "section", value: "contacts", label: "Open customers" },
     });
   }
@@ -5372,9 +5433,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     addPriority({
       tone: "warning",
       title: topQuestion
-        ? `Answers around "${topQuestion}" need work`
-        : `${countLabel(weakAnswerCount, "answer")} may be causing friction`,
-      why: "Clearer answers reduce repeat questions, speed up support, and make Vonza feel more trustworthy.",
+        ? `Customers asking about "${topQuestion}" need clearer answers`
+        : `${countLabel(weakAnswerCount, "answer")} may be weakening customer trust`,
+      why: "Weak answers create repeat questions, make pricing or service details feel uncertain, and reduce confidence in the business.",
+      change: "Improve the FAQ or business context for that question so visitors get a direct answer and a clear next step.",
       action: { type: "section", value: "analytics", label: "Improve answers" },
     });
   }
@@ -5382,8 +5444,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (leadsNeedingAction > 0) {
     addPriority({
       tone: "brand",
-      title: `${countLabel(leadsNeedingAction, "likely customer")} still ${leadsNeedingAction === 1 ? "needs" : "need"} a next step`,
-      why: "These customers already showed intent. A faster follow-up can stop warm demand from cooling off.",
+      title: `${countLabel(leadsNeedingAction, "warm lead")} ${leadsNeedingAction === 1 ? "needs" : "need"} a clearer quote or contact path`,
+      why: "Visitors who ask about quotes, bookings, or contact are close to taking action, but interest cools quickly without an obvious path.",
+      change: "Make the quote, booking, or contact route more direct and follow up on high-intent customers before they drift away.",
       action: { type: "section", value: "contacts", label: "Follow up" },
     });
   }
@@ -5391,8 +5454,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if ((!setup.knowledgeReady || setup.knowledgeLimited) && priorityCards.length < 4) {
     addPriority({
       tone: "slate",
-      title: "Vonza needs stronger support context",
-      why: "Better website knowledge improves answer quality without adding complexity for the owner.",
+      title: "Customers need clearer service, pricing, hours, and contact details",
+      why: "Missing or thin business context makes answers feel vague, especially when visitors compare options or need practical details.",
+      change: "Refresh website knowledge and strengthen FAQ, service descriptions, pricing explanation, hours, and contact guidance.",
       action: { type: "import", label: "Refresh knowledge" },
     });
   }
@@ -5400,8 +5464,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (!isInstallSeen(overview.installStatus) && priorityCards.length < 4) {
     addPriority({
       tone: "slate",
-      title: "Finish the live launch",
-      why: "Home becomes much more useful once Vonza sees real customer conversations from the live site.",
+      title: "Visitors need an easier path to ask questions on the live site",
+      why: "If the front desk is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
+      change: "Confirm the widget is installed on the right site so visitors can get support at the moment they need it.",
       action: { type: "focus", value: "install", label: "Open install" },
     });
   }
@@ -5410,20 +5475,25 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     addPriority({
       tone: "slate",
       title: `Customers keep asking about "${topQuestion}"`,
-      why: "A stronger answer here can improve support speed and reduce repeat clarification questions.",
+      why: "Repeated questions usually point to missing pricing, service, contact, hours, or decision-making information.",
+      change: "Turn the repeated question into a stronger FAQ answer and make the best next step obvious.",
       action: { type: "section", value: "analytics", label: "See question theme" },
     });
   }
 
   if (priorityCards.length < 2) {
+    const fallbackHasKnowledgeGap = !setup.knowledgeReady || setup.knowledgeLimited;
     addPriority({
       tone: "slate",
-      title: !setup.knowledgeReady || setup.knowledgeLimited
-        ? "One more pass will make answers stronger"
-        : "Keep Home calm by tightening one service detail",
-      why: !setup.knowledgeReady || setup.knowledgeLimited
-        ? "A fresher knowledge import is still one of the simplest ways to improve customer answers."
-        : "A small review now can prevent avoidable support friction later in the day.",
+      title: fallbackHasKnowledgeGap
+        ? "Customer answers would improve with stronger business context"
+        : "One service detail could be made easier for customers",
+      why: fallbackHasKnowledgeGap
+        ? "Customers trust the business faster when answers include specific services, pricing guidance, hours, and contact paths."
+        : "Small gaps in service descriptions or next-step wording can create avoidable friction later.",
+      change: fallbackHasKnowledgeGap
+        ? "Add or refresh the business context that customers ask about most."
+        : "Review one recent question and make the service, FAQ, or next-step wording more concrete.",
       action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
     });
   }
@@ -5432,7 +5502,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     addPriority({
       tone: "healthy",
       title: "No urgent customer-service issue is standing out",
-      why: "Home looks calm right now, so the best next move is keeping answer quality high while live usage grows.",
+      why: "Customer satisfaction signals look calm right now, with no obvious complaint, weak-answer, or lead-follow-up risk.",
+      change: "Keep answers sharp by checking one common question and confirming the contact, pricing, or booking path is still clear.",
       action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
     });
   }
@@ -5613,6 +5684,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                     <div class="home-priority-copy">
                       <h4 class="home-priority-title">${escapeHtml(priority.title)}</h4>
                       <p class="home-priority-why">${escapeHtml(priority.why)}</p>
+                      ${priority.change ? `<p class="home-priority-change">${escapeHtml(priority.change)}</p>` : ""}
                     </div>
                     <div class="home-priority-action">
                       ${renderHomeAction(priority.action, { primary: true })}
@@ -5810,6 +5882,8 @@ function buildFrontDeskSettingsForm(agent, setup) {
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
   const manualOutcomeVisible = isCapabilityExplicitlyVisible("manual_outcome_marks");
   const advancedGuidanceVisible = isCapabilityExplicitlyVisible("advanced_guidance");
+  const selectedPurpose = normalizeWidgetPurpose(agent.purpose);
+  const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
 
   return `
     <form data-settings-form data-form-kind="customize" class="settings-form-shell">
@@ -5820,6 +5894,23 @@ function buildFrontDeskSettingsForm(agent, setup) {
       </div>
       <div class="studio-layout">
         <div class="studio-groups">
+          <section class="studio-group">
+            <p class="studio-kicker">Widget purpose</p>
+            <h3 class="studio-group-title">What should your widget mainly help visitors do?</h3>
+            <p class="studio-group-copy">Choose the customer-facing job Vonza should prioritize when it answers, guides, and suggests next steps.</p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="assistant-widget-purpose">Widget purpose</label>
+                <select id="assistant-widget-purpose" name="widget_purpose">
+                  ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+                    <option value="${escapeHtml(option.value)}" ${selectedPurpose === option.value ? "selected" : ""}>${escapeHtml(option.label)} - ${escapeHtml(option.description)}</option>
+                  `).join("")}
+                </select>
+                <p class="field-help">Current purpose: ${escapeHtml(selectedPurposeOption.description)}</p>
+              </div>
+            </div>
+          </section>
+
           <section class="studio-group">
             <p class="studio-kicker">Identity and welcome</p>
             <h3 class="studio-group-title">Set the first impression customers meet.</h3>
@@ -6004,6 +6095,7 @@ function buildFrontDeskSettingsForm(agent, setup) {
           <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name)}</h3>
           <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
           <div class="studio-summary-badge-row">
+            <span id="studio-summary-purpose" class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
             <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
             <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
           </div>
@@ -6181,6 +6273,7 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
 function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
+  const purposeOption = getWidgetPurposeOption(agent.purpose);
   const activeFrontDeskSection = getActiveFrontDeskSection();
   const hasPreview = Boolean(trimText(agent.publicAgentKey));
   const frontDeskSections = [
@@ -6331,6 +6424,10 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 <div class="frontdesk-detail-row">
                   <span class="frontdesk-detail-row-label">Launcher</span>
                   <strong class="frontdesk-detail-row-value">${escapeHtml(agent.buttonLabel || "Chat")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Purpose</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(purposeOption.label)} - ${escapeHtml(purposeOption.description)}</strong>
                 </div>
                 <div class="frontdesk-detail-row">
                   <span class="frontdesk-detail-row-label">Primary route</span>
@@ -11827,6 +11924,7 @@ async function saveAssistant(event, agent) {
   };
   const updateFieldNames = [
     "assistant_name",
+    "widget_purpose",
     "tone",
     "system_prompt",
     "welcome_message",
@@ -12041,6 +12139,7 @@ function updateStudioSummary(
   const copyEl = document.getElementById("studio-summary-copy");
   const toneEl = document.getElementById("studio-summary-tone");
   const buttonEl = document.getElementById("studio-summary-button");
+  const purposeEl = document.getElementById("studio-summary-purpose");
   const primarySwatch = document.getElementById("studio-swatch-primary");
   const secondarySwatch = document.getElementById("studio-swatch-secondary");
   const brandWidgetTitle = document.getElementById("brand-widget-title");
@@ -12066,6 +12165,7 @@ function updateStudioSummary(
     || "Your assistant is ready to greet visitors with a clear, helpful first message.";
   const tone = getSummaryValue("tone", fallbackAgent.tone) || "friendly";
   const buttonLabel = getSummaryValue("button_label", fallbackAgent.buttonLabel) || "Chat";
+  const purpose = getWidgetPurposeOption(getSummaryValue("widget_purpose", fallbackAgent.purpose));
   const primaryColor = getSummaryValue("primary_color", fallbackAgent.primaryColor) || "#14b8a6";
   const secondaryColor = getSummaryValue("secondary_color", fallbackAgent.secondaryColor) || "#0f766e";
 
@@ -12073,6 +12173,9 @@ function updateStudioSummary(
   copyEl.textContent = welcomeMessage;
   toneEl.textContent = tone;
   buttonEl.textContent = buttonLabel;
+  if (purposeEl) {
+    purposeEl.textContent = purpose.label;
+  }
   primarySwatch.style.setProperty("--swatch-color", primaryColor);
   secondarySwatch.style.setProperty("--swatch-color", secondaryColor);
 

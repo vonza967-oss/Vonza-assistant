@@ -13,6 +13,11 @@ import {
   normalizeAssistantReply,
 } from "../../utils/text.js";
 import { buildRelevantContextBlock } from "../scraping/websiteContentService.js";
+import {
+  getWidgetPurposeInstruction,
+  getWidgetPurposeLabel,
+  normalizeWidgetPurpose,
+} from "../agents/widgetPurpose.js";
 
 function escapeRegex(value = "") {
   return String(value).replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
@@ -113,7 +118,9 @@ export function buildBusinessContextForChat(contentRecord, userMessage, options 
 
 export function buildChatSystemPrompt(language, agent = {}) {
   const customPrompt = cleanText(agent.systemPrompt || "");
-  const purpose = cleanText(agent.purpose || "");
+  const purpose = normalizeWidgetPurpose(agent.purpose || "");
+  const purposeLabel = getWidgetPurposeLabel(purpose);
+  const purposeInstruction = getWidgetPurposeInstruction(purpose);
   const tone = cleanText(agent.tone || "");
   const agentName = cleanText(agent.name || "the assistant");
 
@@ -124,7 +131,8 @@ Your job:
 - help the customer with the clearest useful answer you can
 - guide them toward the best next step when the website does not provide everything
 - represent the assistant identity as ${agentName}
-${purpose ? `- primary assistant purpose: ${purpose}` : ""}
+- widget purpose: ${purposeLabel}
+- purpose-specific behavior: ${purposeInstruction}
 
 Core behavior:
 - Always reply in ${language}
