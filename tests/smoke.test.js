@@ -1243,7 +1243,8 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Messages today/);
         assert.match(dashboardScript.text, /Your AI customer service snapshot for today|Home at a glance/);
         assert.match(dashboardScript.text, /Approval-first proposals/);
-        assert.match(dashboardScript.text, /Improve the business and Vonza/);
+        assert.match(dashboardScript.text, /What to improve next/);
+        assert.match(dashboardScript.text, /These are the changes most likely to improve customer satisfaction and save time/);
         assert.match(dashboardScript.text, /Show supporting detail/);
         assert.match(dashboardScript.text, /AI priorities|Home|Queue/);
         assert.match(dashboardScript.text, /Recent wins/);
@@ -1265,7 +1266,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Customer conversations and successful actions/);
         assert.match(dashboardScript.text, /What stands out right now/);
         assert.match(dashboardScript.text, /Who Vonza is talking to/);
-        assert.match(dashboardScript.text, /Recommended service improvements/);
+        assert.match(dashboardScript.text, /Clarify pricing guidance/);
         assert.match(dashboardScript.text, /Top questions and weak answers/);
         assert.match(dashboardScript.text, /Reviewed/);
         assert.match(dashboardScript.text, /Follow-up needed/);

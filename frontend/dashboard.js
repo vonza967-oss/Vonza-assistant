@@ -4140,6 +4140,93 @@ function getTodayRecommendationCategory(recommendation = {}) {
   return "Business";
 }
 
+function getRecommendationSignalText(recommendation = {}) {
+  return [
+    recommendation.type,
+    recommendation.actionType,
+    recommendation.title,
+    recommendation.summary,
+    recommendation.rationale,
+    recommendation.surfaceLabel,
+    recommendation.source?.actionKey,
+    recommendation.source?.knowledgeFixId,
+    recommendation.proposal?.summary,
+    recommendation.proposal?.rationale,
+  ].map((value) => trimText(value).toLowerCase()).filter(Boolean).join(" ");
+}
+
+function hasRecommendationSignal(signalText = "", patterns = []) {
+  return patterns.some((pattern) => pattern.test(signalText));
+}
+
+function getBusinessPriorityCopy(recommendation = {}) {
+  const signalText = getRecommendationSignalText(recommendation);
+  const hasSignal = (patterns) => hasRecommendationSignal(signalText, patterns);
+  const replyFasterCopy = {
+    title: "Reply faster to open questions",
+    why: "Open questions can turn into lost customers when people do not get a clear next step.",
+    change: "Review the latest unanswered conversations and give each one a clear reply or owner follow-up.",
+    cta: "Review open questions",
+    tone: "watch",
+  };
+
+  if (hasSignal([/complaint/, /frustrat/, /support/, /risk/])) {
+    return {
+      title: "Improve complaint handling",
+      why: "Frustrated customers need a fast, clear recovery path to protect trust.",
+      change: "Review the complaint, confirm the owner follow-up, and add guidance for similar cases.",
+      cta: "Review complaint handling",
+      tone: "risk",
+    };
+  }
+
+  if (hasSignal([/unanswered/, /open customer question/, /open conversation/, /response backlog/, /attention_item/])) {
+    return replyFasterCopy;
+  }
+
+  if (hasSignal([/pricing/, /price/, /cost/, /package/, /purchase/])) {
+    return {
+      title: "Clarify pricing guidance",
+      why: "Pricing questions usually come from visitors who are close to deciding.",
+      change: "Add clearer pricing ranges, quote guidance, or what details are needed for an estimate.",
+      cta: "Clarify pricing",
+      tone: "watch",
+    };
+  }
+
+  if (hasSignal([/booking/, /appointment/, /schedule/, /availability/, /calendar/, /reserve/, /quote/])) {
+    return {
+      title: "Strengthen quote or booking guidance",
+      why: "Booking or quote intent should move quickly to a clear next step.",
+      change: "Make the booking, callback, or quote request path obvious and easy to complete.",
+      cta: "Improve booking path",
+      tone: "watch",
+    };
+  }
+
+  if (hasSignal([/contact/, /lead/, /follow[-\s]?up/, /callback/, /phone/, /email/, /reach/])) {
+    return {
+      title: "Make contacting you easier",
+      why: "Interested visitors can drop off if the best way to reach you is unclear.",
+      change: "Show the best contact route and ask for the details your team needs to follow up.",
+      cta: "Improve contact path",
+      tone: "watch",
+    };
+  }
+
+  if (hasSignal([/weak/, /knowledge/, /answer/, /service/, /offer/, /business_context/, /policy/, /faq/])) {
+    return {
+      title: "Make service answers clearer",
+      why: "Customers need to understand what you offer before they can choose the right service.",
+      change: "Add clearer service descriptions, examples, or FAQ answers where the front desk was unsure.",
+      cta: "Improve service answers",
+      tone: "watch",
+    };
+  }
+
+  return replyFasterCopy;
+}
+
 function buildTodaySummaryStats(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const stats = [
@@ -4315,15 +4402,15 @@ function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorksp
 
 function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
-  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations.slice(0, 6) : [];
+  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations.slice(0, 3) : [];
 
   return `
     <section class="today-command-section">
       <div class="workspace-panel-header">
         <div>
-          <p class="studio-kicker">Recommendations</p>
-          <h3 class="workspace-panel-title">Improve the business and Vonza</h3>
-          <p class="workspace-panel-copy">Business performance, assistant quality, setup, and conversion follow-up suggestions live here.</p>
+          <p class="studio-kicker">AI priorities</p>
+          <h3 class="workspace-panel-title">What to improve next</h3>
+          <p class="workspace-panel-copy">These are the changes most likely to improve customer satisfaction and save time.</p>
         </div>
       </div>
       ${recommendations.length ? `
@@ -4341,17 +4428,18 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
                 contactFallbackLabel: "Open customer",
               }
             );
+            const priorityCopy = getBusinessPriorityCopy(recommendation);
 
             return `
               <article class="today-command-card">
                 <div class="today-command-card-head">
                   <div>
                     <div class="today-command-pill-row">
-                      <span class="pill">${escapeHtml(getTodayRecommendationCategory(recommendation))}</span>
                       ${recommendation.priority ? `<span class="${getBadgeClass(recommendation.priority === "high" ? "Needs attention" : "Ready")}">${escapeHtml(recommendation.priority)}</span>` : ""}
                     </div>
-                    <h4 class="today-command-card-title">${escapeHtml(normalizeShellCopy(recommendation.title || "Recommendation"))}</h4>
-                    <p class="today-command-card-copy">${escapeHtml(normalizeShellCopy(recommendation.summary || "Vonza surfaced a recommendation from current workspace signals."))}</p>
+                    <h4 class="today-command-card-title">${escapeHtml(priorityCopy.title)}</h4>
+                    <p class="today-command-card-copy">${escapeHtml(priorityCopy.why)}</p>
+                    <p class="today-command-card-copy">${escapeHtml(priorityCopy.change)}</p>
                   </div>
                 </div>
                 <div class="today-command-actions">
@@ -4363,7 +4451,7 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
                       data-shell-target="${escapeHtml(resolvedTarget.section || "overview")}"
                       data-target-id="${escapeHtml(resolvedTarget.id || "")}"
                     >
-                      ${escapeHtml(resolvedTarget.label || "Open")}
+                      ${escapeHtml(priorityCopy.cta)}
                     </button>
                   ` : ""}
                 </div>
@@ -4372,9 +4460,9 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
                   summary: recommendation.confidence ? `Confidence ${recommendation.confidence}` : "",
                   className: "disclosure-block-inline",
                   contentMarkup: buildDisclosureDetailRows([
-                    { label: "Category", value: getTodayRecommendationCategory(recommendation) },
-                    { label: "Why it matters", value: recommendation.rationale || "This recommendation came from current-day and live-workspace context." },
-                    { label: "Best place to act", value: resolvedTarget?.label || resolvedTarget?.section || recommendation.surfaceLabel || "Current workspace" },
+                    { label: "Why it matters", value: priorityCopy.why },
+                    { label: "What to change", value: priorityCopy.change },
+                    { label: "Where to act", value: resolvedTarget?.label || resolvedTarget?.section || recommendation.surfaceLabel || "Current workspace" },
                   ]),
                 })}
               </article>
@@ -4383,8 +4471,7 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
         </div>
       ` : `
         <div class="today-command-empty">
-          <p>No recommendations are standing out right now.</p>
-          <p class="analytics-subtle">When Vonza sees a clear business, setup, assistant-quality, or follow-up opportunity, it will appear here.</p>
+          <p>No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</p>
         </div>
       `}
     </section>
@@ -5402,7 +5489,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   })();
   const priorityCards = [];
   const addPriority = (priority) => {
-    if (priorityCards.length >= 4 || !priority) {
+    if (priorityCards.length >= 3 || !priority) {
       return;
     }
 
@@ -5422,29 +5509,27 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (attentionCount > 0) {
     addPriority({
       tone: "brand",
-      title: `${countLabel(attentionCount, "customer conversation")} may be waiting too long`,
-      why: "Slow or unclear follow-up makes the business feel harder to reach and can lower customer confidence.",
-      change: "Check the open conversations and tighten the next-step guidance customers see after common questions.",
-      action: { type: "section", value: "contacts", label: "Open customers" },
+      title: "Reply faster to open questions",
+      why: "Open questions can turn into lost customers when people do not get a clear next step.",
+      change: "Review the latest unanswered conversations and give each one a clear reply or owner follow-up.",
+      action: { type: "section", value: "contacts", label: "Review open questions" },
     });
   }
 
   if (weakAnswerCount > 0) {
     addPriority({
       tone: "warning",
-      title: topQuestion
-        ? `Customers asking about "${topQuestion}" need clearer answers`
-        : `${countLabel(weakAnswerCount, "answer")} may be weakening customer trust`,
-      why: "Weak answers create repeat questions, make pricing or service details feel uncertain, and reduce confidence in the business.",
-      change: "Improve the FAQ or business context for that question so visitors get a direct answer and a clear next step.",
-      action: { type: "section", value: "analytics", label: "Improve answers" },
+      title: "Make service answers clearer",
+      why: "Customers need to understand what you offer before they can choose the right service.",
+      change: "Add clearer service descriptions, examples, or FAQ answers where the front desk was unsure.",
+      action: { type: "section", value: "analytics", label: "Improve service answers" },
     });
   }
 
   if (leadsNeedingAction > 0) {
     addPriority({
       tone: "brand",
-      title: `${countLabel(leadsNeedingAction, "warm lead")} ${leadsNeedingAction === 1 ? "needs" : "need"} a clearer quote or contact path`,
+      title: "Strengthen quote or booking guidance",
       why: "Visitors who ask about quotes, bookings, or contact are close to taking action, but interest cools quickly without an obvious path.",
       change: "Make the quote, booking, or contact route more direct and follow up on high-intent customers before they drift away.",
       action: { type: "section", value: "contacts", label: "Follow up" },
@@ -5454,7 +5539,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if ((!setup.knowledgeReady || setup.knowledgeLimited) && priorityCards.length < 4) {
     addPriority({
       tone: "slate",
-      title: "Customers need clearer service, pricing, hours, and contact details",
+      title: "Make service answers clearer",
       why: "Missing or thin business context makes answers feel vague, especially when visitors compare options or need practical details.",
       change: "Refresh website knowledge and strengthen FAQ, service descriptions, pricing explanation, hours, and contact guidance.",
       action: { type: "import", label: "Refresh knowledge" },
@@ -5464,7 +5549,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (!isInstallSeen(overview.installStatus) && priorityCards.length < 4) {
     addPriority({
       tone: "slate",
-      title: "Visitors need an easier path to ask questions on the live site",
+      title: "Make contacting you easier",
       why: "If the front desk is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
       change: "Confirm the widget is installed on the right site so visitors can get support at the moment they need it.",
       action: { type: "focus", value: "install", label: "Open install" },
@@ -5474,38 +5559,15 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (priorityCards.length < 2 && topQuestion) {
     addPriority({
       tone: "slate",
-      title: `Customers keep asking about "${topQuestion}"`,
+      title: "Make service answers clearer",
       why: "Repeated questions usually point to missing pricing, service, contact, hours, or decision-making information.",
       change: "Turn the repeated question into a stronger FAQ answer and make the best next step obvious.",
       action: { type: "section", value: "analytics", label: "See question theme" },
     });
   }
 
-  if (priorityCards.length < 2) {
-    const fallbackHasKnowledgeGap = !setup.knowledgeReady || setup.knowledgeLimited;
-    addPriority({
-      tone: "slate",
-      title: fallbackHasKnowledgeGap
-        ? "Customer answers would improve with stronger business context"
-        : "One service detail could be made easier for customers",
-      why: fallbackHasKnowledgeGap
-        ? "Customers trust the business faster when answers include specific services, pricing guidance, hours, and contact paths."
-        : "Small gaps in service descriptions or next-step wording can create avoidable friction later.",
-      change: fallbackHasKnowledgeGap
-        ? "Add or refresh the business context that customers ask about most."
-        : "Review one recent question and make the service, FAQ, or next-step wording more concrete.",
-      action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
-    });
-  }
-
   if (!priorityCards.length) {
-    addPriority({
-      tone: "healthy",
-      title: "No urgent customer-service issue is standing out",
-      why: "Customer satisfaction signals look calm right now, with no obvious complaint, weak-answer, or lead-follow-up risk.",
-      change: "Keep answers sharp by checking one common question and confirming the contact, pricing, or booking path is still clear.",
-      action: overview.primaryAction || { type: "section", value: "analytics", label: "Review signals" },
-    });
+    priorityCards.push(null);
   }
 
   const primaryHomeAction = priorityCards[0]?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
@@ -5674,12 +5736,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <div class="workspace-panel-header">
                 <div>
                   <p class="studio-kicker">AI priorities</p>
-                  <h3 class="workspace-panel-title">What matters most right now</h3>
-                  <p class="workspace-panel-copy">The shortest path to protecting customer satisfaction, saving time, and keeping warm demand from slipping away.</p>
+                  <h3 class="workspace-panel-title">What to improve next</h3>
+                  <p class="workspace-panel-copy">These are the changes most likely to improve customer satisfaction and save time.</p>
                 </div>
               </div>
               <div class="home-priority-list">
-                ${priorityCards.map((priority) => `
+                ${priorityCards[0] ? priorityCards.map((priority) => `
                   <article class="home-priority-card home-priority-card-${escapeHtml(priority.tone || "slate")}">
                     <div class="home-priority-copy">
                       <h4 class="home-priority-title">${escapeHtml(priority.title)}</h4>
@@ -5690,7 +5752,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                       ${renderHomeAction(priority.action, { primary: true })}
                     </div>
                   </article>
-                `).join("")}
+                `).join("") : `<div class="placeholder-card">No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</div>`}
               </div>
             </section>
 
@@ -5722,7 +5784,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <section class="workspace-card-soft home-improve-panel">
                 <div class="workspace-panel-header">
                   <div>
-                    <p class="studio-kicker">Improve Vonza</p>
+                    <p class="studio-kicker">Service quality</p>
                     <h3 class="workspace-panel-title">Improve service</h3>
                     <p class="workspace-panel-copy">${escapeHtml(improvementRecommendation.title)}</p>
                   </div>
@@ -7675,6 +7737,18 @@ function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {},
   return {
     ...fallbackSummary,
     ...providedSummary,
+    visitorQuestions: Math.max(
+      Number(fallbackSummary.visitorQuestions || 0),
+      Number(providedSummary.visitorQuestions || 0)
+    ),
+    highIntentSignals: Math.max(
+      Number(fallbackSummary.highIntentSignals || 0),
+      Number(providedSummary.highIntentSignals || 0)
+    ),
+    weakAnswerCount: Math.max(
+      Number(fallbackSummary.weakAnswerCount || 0),
+      Number(providedSummary.weakAnswerCount || 0)
+    ),
     recentActivity: {
       ...fallbackSummary.recentActivity,
       ...(providedSummary.recentActivity || {}),
@@ -7917,59 +7991,84 @@ function buildAnalyticsSummarySentence(report = {}) {
 
 function buildAnalyticsRecommendations(report = {}) {
   const captureGap = Math.max(0, Number(report.highIntentSignals || 0) - Number(report.contactsCaptured || 0));
+  const candidates = [];
 
-  return [
-    {
-      title: "Support quality",
-      tone: report.satisfactionScore >= 4.3 ? "positive" : "watch",
-      metric: `${formatAnalyticsReportScore(report.satisfactionScore)} / 5 satisfaction`,
-      copy: report.satisfactionScore >= 4.3
-        ? "Service quality looks steady in the current sample. Keep the strongest answers easy to repeat."
-        : "A few conversations are creating friction. Tighten the answer paths customers reach most often.",
-    },
-    {
-      title: "Response speed",
-      tone: report.attentionNeeded > 0 ? "watch" : "positive",
-      metric: report.attentionNeeded > 0
-        ? `${formatAnalyticsReportNumber(report.attentionNeeded)} conversations still need attention`
-        : "No open response backlog is standing out",
-      copy: report.attentionNeeded > 0
-        ? "Review the open conversations quickly so warm visitors and support issues do not cool off."
-        : "Owner follow-up pressure looks controlled right now.",
-    },
-    {
-      title: "Weak answers",
-      tone: report.weakAnswerCount > 0 ? "risk" : "positive",
-      metric: report.weakAnswerCount > 0
-        ? `${formatAnalyticsReportNumber(report.weakAnswerCount)} weak-answer signals`
-        : "No weak-answer pattern is standing out",
-      copy: report.weakAnswerCount > 0
-        ? `${report.weakAnswerExample || "Weak-answer themes need review"}. Improve the wording and source knowledge so similar visitors do not stall.`
-        : "Answer coverage looks stable in the current conversation sample.",
-    },
-    {
-      title: "Complaint handling",
-      tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
-      metric: report.complaintsHandled > 0 || report.complaintOpened > 0
-        ? `${formatAnalyticsReportNumber(report.complaintsHandled)} resolved of ${formatAnalyticsReportNumber(report.complaintOpened)} recorded`
-        : "No complaint-resolution signal yet",
-      copy: report.unresolvedComplaints > 0
-        ? "Service recovery is the clearest trust risk right now. Close open complaint threads first."
-        : report.complaintsHandled > 0
-          ? "Complaint handling is landing well in the current sample."
-          : "Vonza has not recorded enough complaint handling yet to judge this area.",
-    },
-    {
-      title: "Lead capture",
-      tone: captureGap > 0 ? "watch" : report.contactsCaptured > 0 ? "positive" : "neutral",
-      metric: `${formatAnalyticsReportNumber(report.contactsCaptured)} leads captured`,
-      copy: captureGap > 0
-        ? `There are ${formatAnalyticsReportNumber(captureGap)} warm conversations that did not turn into identified contacts yet.`
-        : report.contactsCaptured > 0
-          ? "Lead capture is keeping pace with the strongest customer intent."
-          : "Add clearer contact prompts where pricing or booking intent appears.",
-    },
-  ];
+  if (Number(report.attentionNeeded || 0) > 0) {
+    candidates.push({
+      recommendation: {
+        type: "unanswered_question",
+        title: "open customer questions",
+        summary: "Open conversations still need a customer reply.",
+      },
+      metric: `${formatAnalyticsReportNumber(report.attentionNeeded)} open conversation${Number(report.attentionNeeded) === 1 ? "" : "s"}`,
+    });
+  }
+
+  if (Number(report.weakAnswerCount || 0) > 0) {
+    candidates.push({
+      recommendation: {
+        type: "knowledge_fix",
+        title: "weak service answer",
+        summary: report.weakAnswerExample || "Customers reached an unclear service answer.",
+      },
+      metric: `${formatAnalyticsReportNumber(report.weakAnswerCount)} answer${Number(report.weakAnswerCount) === 1 ? "" : "s"} to improve`,
+    });
+  }
+
+  if (Number(report.unresolvedComplaints || 0) > 0) {
+    candidates.push({
+      recommendation: {
+        type: "support_risk_review",
+        title: "complaint handling",
+        summary: "Complaint or support recovery still needs a clear owner path.",
+      },
+      metric: `${formatAnalyticsReportNumber(report.unresolvedComplaints)} unresolved complaint${Number(report.unresolvedComplaints) === 1 ? "" : "s"}`,
+    });
+  }
+
+  if (Number(report.pricingQuestions || 0) > 0 && Number(report.pricingCaptures || 0) === 0) {
+    candidates.push({
+      recommendation: {
+        type: "pricing_gap",
+        title: "pricing guidance",
+        summary: "Visitors asked about price, cost, or packages without a clear pricing next step.",
+      },
+      metric: `${formatAnalyticsReportNumber(report.pricingQuestions)} pricing question${Number(report.pricingQuestions) === 1 ? "" : "s"}`,
+    });
+  }
+
+  if (captureGap > 0) {
+    candidates.push({
+      recommendation: {
+        type: "contact_next_step",
+        title: "contact path",
+        summary: "Warm visitors did not all become identified contacts.",
+      },
+      metric: `${formatAnalyticsReportNumber(captureGap)} warm conversation${captureGap === 1 ? "" : "s"} without contact details`,
+    });
+  }
+
+  if (Number(report.bookingQuestions || 0) > 0 && Number(report.bookingDirectHandoffs || 0) === 0) {
+    candidates.push({
+      recommendation: {
+        type: "booking_intent",
+        title: "booking guidance",
+        summary: "Visitors asked about booking or availability without a clear booking path.",
+      },
+      metric: `${formatAnalyticsReportNumber(report.bookingQuestions)} booking question${Number(report.bookingQuestions) === 1 ? "" : "s"}`,
+    });
+  }
+
+  return candidates.slice(0, 3).map((candidate) => {
+    const priorityCopy = getBusinessPriorityCopy(candidate.recommendation);
+
+    return {
+      title: priorityCopy.title,
+      tone: priorityCopy.tone,
+      metric: candidate.metric,
+      copy: `${priorityCopy.why} ${priorityCopy.change}`,
+    };
+  });
 }
 
 function buildAnalyticsSwot(report = {}) {
@@ -8029,6 +8128,12 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
   const contactsCaptured = Number(analyticsSummary.contactsCaptured || conversionSummary.contactsCaptured || 0);
   const highIntentSignals = Number(analyticsSummary.highIntentSignals || 0);
   const assistedOutcomes = Number(analyticsSummary.assistedOutcomes || outcomeSummary.assistedConversions || 0);
+  const pricingQuestions = Number(signals.intentCounts?.pricing || 0);
+  const bookingQuestions = Number(signals.intentCounts?.booking || 0);
+  const contactQuestions = Number(signals.intentCounts?.contact || 0);
+  const serviceQuestions = Number(signals.intentCounts?.services || 0);
+  const pricingCaptures = Number(conversionSummary.pricingCaptures || 0);
+  const bookingDirectHandoffs = Number(conversionSummary.bookingDirectHandoffs || 0);
   const estimatedHoursSaved = (autonomousHandledCount * 6) / 60;
   const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
   const guestUsers = people.filter((person) => ["session", "unknown", "name"].includes(trimText(person.identityType))).length;
@@ -8073,6 +8178,12 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     estimatedHoursSaved,
     highIntentSignals,
     assistedOutcomes,
+    pricingQuestions,
+    bookingQuestions,
+    contactQuestions,
+    serviceQuestions,
+    pricingCaptures,
+    bookingDirectHandoffs,
     weakAnswerCount,
     weakAnswerExample,
     attentionNeeded,
@@ -9953,12 +10064,12 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             <div class="flat-section-header">
               <div>
                 <p class="overview-label">Improve next</p>
-                <h3 class="flat-section-title">Recommended service improvements</h3>
-                <p class="analytics-report-section-copy">Keep the next moves simple and tied to customer experience, not internal tooling.</p>
+                <h3 class="flat-section-title">What to improve next</h3>
+                <p class="analytics-report-section-copy">These are the changes most likely to improve customer satisfaction and save time.</p>
               </div>
             </div>
             <div class="analytics-report-recommendations">
-              ${report.recommendations.map((item) => `
+              ${report.recommendations.length ? report.recommendations.map((item) => `
                 <article class="analytics-report-recommendation tone-${item.tone}">
                   <div class="analytics-report-recommendation-head">
                     <strong>${escapeHtml(item.title)}</strong>
@@ -9966,7 +10077,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                   </div>
                   <p>${escapeHtml(item.copy)}</p>
                 </article>
-              `).join("")}
+              `).join("") : `<div class="placeholder-card">No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</div>`}
             </div>
           </section>
           <section class="workspace-card-soft">

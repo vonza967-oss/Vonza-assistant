@@ -183,6 +183,177 @@ test("dashboard flag resolver prefers the canonical browser flag and falls back 
   assert.equal(canonicalOffHarness.isOperatorWorkspaceFlagEnabled(), false);
 });
 
+test("home AI priorities translate raw signals into practical business recommendations", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_TODAY_COPILOT_V1_ENABLED: true,
+    },
+  });
+
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "unanswered_question",
+      title: "\"General business questions\" may be waiting too long",
+    }).title,
+    "Reply faster to open questions"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "knowledge_fix",
+      summary: "Weak service explanation in a customer answer.",
+    }).title,
+    "Make service answers clearer"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "pricing_gap",
+      summary: "Pricing confusion without a clear quote next step.",
+    }).title,
+    "Clarify pricing guidance"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "contact_next_step",
+      summary: "Contact intent without a clear path.",
+    }).title,
+    "Make contacting you easier"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "support_risk_review",
+      summary: "Complaint frustration needs owner review.",
+    }).title,
+    "Improve complaint handling"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "booking_intent",
+      summary: "Booking and quote request path is unclear.",
+    }).title,
+    "Strengthen quote or booking guidance"
+  );
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      recommendations: [
+        {
+          type: "unanswered_question",
+          title: "\"General business questions\" may be waiting too long",
+          summary: "Improve Vonza for a raw category.",
+          priority: "high",
+        },
+        {
+          type: "knowledge_fix",
+          title: "Weak answer",
+          summary: "A weak service explanation needs better knowledge.",
+          priority: "medium",
+        },
+        {
+          type: "pricing_gap",
+          title: "Close pricing-follow-up gap",
+          summary: "Pricing confusion without a clear next step.",
+          priority: "high",
+        },
+        {
+          type: "contact_next_step",
+          title: "Fourth item should stay out of the three-card priority view.",
+          summary: "Contact intent without a clear path.",
+          priority: "high",
+        },
+      ],
+    },
+  });
+  const overview = harness.buildOperatorOverviewSection({}, workspace);
+
+  assert.match(overview, /What to improve next/);
+  assert.match(overview, /These are the changes most likely to improve customer satisfaction and save time/);
+  assert.match(overview, /Reply faster to open questions/);
+  assert.match(overview, /Make service answers clearer/);
+  assert.match(overview, /Clarify pricing guidance/);
+  assert.doesNotMatch(overview, /Make contacting you easier/);
+  assert.doesNotMatch(overview, /General business questions/);
+  assert.doesNotMatch(overview, /may be waiting too long/);
+  assert.doesNotMatch(overview, /Improve Vonza/);
+
+  const emptyState = harness.buildTodayRecommendationsSection(harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      recommendations: [],
+    },
+  }));
+  assert.match(emptyState, /No urgent improvements right now/);
+});
+
+test("home overview AI priorities use business-facing wording and a calm empty state", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const setup = {
+    isReady: true,
+    knowledgeReady: true,
+    knowledgeLimited: false,
+  };
+  const agent = {
+    installStatus: {
+      state: "seen_recently",
+    },
+  };
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    items: [
+      {
+        key: "queue-1",
+        type: "contact",
+        status: "new",
+        label: "Open customer question",
+        whyFlagged: "A customer still needs a clear reply.",
+      },
+    ],
+    summary: {
+      ...harness.createEmptyActionQueue().summary,
+      attentionNeeded: 1,
+    },
+  };
+
+  const panel = harness.buildOverviewPanel(
+    agent,
+    [
+      { createdAt: "2026-04-04T08:00:00.000Z", role: "user", content: "What services do you offer?" },
+      { createdAt: "2026-04-04T08:01:00.000Z", role: "assistant", content: "I do not have that information on the website." },
+    ],
+    setup,
+    actionQueue,
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(panel, /What to improve next/);
+  assert.match(panel, /These are the changes most likely to improve customer satisfaction and save time/);
+  assert.match(panel, /Reply faster to open questions/);
+  assert.match(panel, /Make service answers clearer/);
+  assert.doesNotMatch(panel, /What matters most right now/);
+  assert.doesNotMatch(panel, /may be waiting too long/);
+  assert.doesNotMatch(panel, /Improve Vonza/);
+
+  const emptyPanel = harness.buildOverviewPanel(
+    agent,
+    [],
+    setup,
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assert.match(emptyPanel, /No urgent improvements right now/);
+});
+
 test("dashboard normalizes sparse operator payloads without forcing the legacy shell", async () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -338,7 +509,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   assert.match(overview, /Home at a glance/);
   assert.match(overview, /Messages today/);
   assert.match(overview, /Approval-first proposals/);
-  assert.match(overview, /Improve the business and Vonza/);
+  assert.match(overview, /What to improve next/);
   assert.match(overview, /Show supporting detail/);
 
   const calendarPanel = harness.buildCalendarPanel({}, workspace);
@@ -485,7 +656,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Home at a glance/);
   assert.match(overview, /Approval-first proposals/);
-  assert.match(overview, /Improve the business and Vonza/);
+  assert.match(overview, /What to improve next/);
   assert.match(overview, /Show supporting detail/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
@@ -667,7 +838,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
   assert.match(overviewPanel, /Conversations today/);
   assert.match(overviewPanel, /AI priorities/);
-  assert.match(overviewPanel, /customer issue|customer conversation|warm lead|Customers need clearer/i);
+  assert.match(overviewPanel, /Reply faster to open questions|Make service answers clearer|Make contacting you easier/i);
   assert.match(overviewPanel, /satisfaction|confidence|trust|friction/i);
   assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
@@ -736,7 +907,7 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
     })
   );
 
-  assert.equal(overviewPanel.match(/1 customer conversation may be waiting too long/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/Reply faster to open questions/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
@@ -1050,7 +1221,7 @@ test("shell copy normalizes outdated Outcomes labels to Analytics", () => {
 
   assert.equal(harness.normalizeShellCopy("Open Outcomes"), "Open Analytics");
   assert.match(overview, /Open Analytics/);
-  assert.match(overview, /Improve the business and Vonza/);
+  assert.match(overview, /What to improve next/);
   assert.doesNotMatch(overview, /Open Outcomes/);
   assert.match(proposals, /Open Analytics/);
   assert.doesNotMatch(proposals, /Open Outcomes/);
@@ -1364,7 +1535,7 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /Is Vonza helping customer service\?/);
   assert.match(analyticsPanel, /Customer conversations and successful actions/);
   assert.match(analyticsPanel, /What stands out right now/);
-  assert.match(analyticsPanel, /Recommended service improvements/);
+  assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
   assert.match(analyticsPanel, /Estimated customer satisfaction/);
   assert.match(analyticsPanel, /Booking or availability/);
@@ -1372,6 +1543,36 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
 });
+
+test("analytics priorities map weak-answer pricing and contact signals to business-friendly wording", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [
+      { createdAt: "2026-04-04T08:00:00.000Z", role: "user", content: "What services do you offer?" },
+      { createdAt: "2026-04-04T08:01:00.000Z", role: "assistant", content: "I do not have that information on the website." },
+      { createdAt: "2026-04-04T08:02:00.000Z", role: "user", content: "How much does it cost?" },
+      { createdAt: "2026-04-04T08:03:00.000Z", role: "assistant", content: "Pricing is not mentioned on the website." },
+      { createdAt: "2026-04-04T08:04:00.000Z", role: "user", content: "Can someone contact me?" },
+      { createdAt: "2026-04-04T08:05:00.000Z", role: "assistant", content: "Please contact the business directly." },
+    ],
+    { knowledgeReady: true },
+    harness.createEmptyActionQueue()
+  );
+
+  assert.match(analyticsPanel, /What to improve next/);
+  assert.match(analyticsPanel, /Make service answers clearer/);
+  assert.match(analyticsPanel, /Clarify pricing guidance/);
+  assert.match(analyticsPanel, /Make contacting you easier/);
+  assert.doesNotMatch(analyticsPanel, /Weak answers/);
+  assert.doesNotMatch(analyticsPanel, /General business questions/);
+});
+
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {
   const harness = createDashboardHarness({
     windowFlags: {
