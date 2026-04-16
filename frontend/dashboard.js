@@ -14,6 +14,7 @@ const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
+const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -12370,9 +12371,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     } catch (error) {
       helpState.messages.push({
         role: "assistant",
-        content: error.message || "I couldn't load a Vonza help answer just yet. Please try again in a moment.",
+        content: DASHBOARD_HELP_UNAVAILABLE_MESSAGE,
       });
-      setStatus(error.message || "Ask Vonza could not answer right now.");
+      setStatus(DASHBOARD_HELP_UNAVAILABLE_MESSAGE);
     } finally {
       helpState.loading = false;
       syncDashboardHelpUi();

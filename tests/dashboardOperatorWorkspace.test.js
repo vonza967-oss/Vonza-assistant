@@ -1591,3 +1591,20 @@ test("dashboard help assistant renders Ask Vonza with contextual starter prompts
   assert.match(rootMarkup, /How do I install Vonza\?/);
   assert.match(rootMarkup, /Why is my knowledge limited\?/);
 });
+
+test("dashboard help prompt chips submit real AI questions instead of canned answers", () => {
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(dashboardScript, /await submitDashboardHelpQuestion\(button\.dataset\.helpPrompt \|\| ""\);/);
+  assert.match(dashboardScript, /fetchJson\("\/agents\/product-help"/);
+  assert.doesNotMatch(dashboardScript, /data-help-answer/);
+  assert.doesNotMatch(dashboardScript, /buildDashboardHelpFallbackAnswer/);
+});
+
+test("dashboard help shows a clean explicit fallback when AI support fails", () => {
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(dashboardScript, /DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now\. Please try again\."/);
+  assert.match(dashboardScript, /content: DASHBOARD_HELP_UNAVAILABLE_MESSAGE/);
+  assert.doesNotMatch(dashboardScript, /I couldn't load a Vonza help answer just yet/);
+});

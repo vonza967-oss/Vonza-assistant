@@ -246,12 +246,18 @@ test("operator workspace route exposes inbox, calendar, and automations surfaces
 test("product help route returns Vonza-scoped guidance with current page context", async () => {
   let capturedPayload = null;
   const server = await startServer(createApp(buildRouteDeps({
-    getOpenAIClient: () => null,
+    getOpenAIClient: () => ({
+      responses: {
+        create: async () => ({
+          output_text: "not used by this route unit test",
+        }),
+      },
+    }),
     answerVonzaProductHelp: async (payload) => {
       capturedPayload = payload;
       return {
         answer: "Today is your main Vonza workspace for the next best action and setup guidance.",
-        usedFallback: true,
+        usedFallback: false,
         context: {
           sectionLabel: "Today",
         },
@@ -275,8 +281,43 @@ test("product help route returns Vonza-scoped guidance with current page context
     assert.equal(response.status, 200);
     assert.match(response.json.answer, /Today is your main Vonza workspace/i);
     assert.equal(capturedPayload.currentSection, "overview");
+    assert.equal(capturedPayload.openai.responses.create instanceof Function, true);
     assert.equal(capturedPayload.agent.id, "agent-1");
     assert.equal(capturedPayload.operatorWorkspace.nextAction.key, "review_inbox");
+  } finally {
+    await server.close();
+  }
+});
+
+test("product help route returns an explicit temporary fallback when OpenAI is unavailable", async () => {
+  let serviceCalled = false;
+  const server = await startServer(createApp(buildRouteDeps({
+    getOpenAIClient: () => {
+      const error = new Error("Missing environment variables: OPENAI_API_KEY");
+      error.statusCode = 500;
+      throw error;
+    },
+    answerVonzaProductHelp: async () => {
+      serviceCalled = true;
+      return {
+        answer: "This should not be used.",
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/product-help", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        question: "Why is my install not verified?",
+        current_section: "install",
+      }),
+    });
+
+    assert.equal(response.status, 500);
+    assert.equal(response.json.error, "I couldn't load Vonza help right now. Please try again.");
+    assert.equal(serviceCalled, false);
   } finally {
     await server.close();
   }

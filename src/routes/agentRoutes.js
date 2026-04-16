@@ -102,7 +102,10 @@ import {
   dismissTodayCopilotProposal,
   findTodayCopilotProposal,
 } from "../services/operator/copilotProposalService.js";
-import { answerVonzaProductHelp } from "../services/support/productHelpService.js";
+import {
+  PRODUCT_HELP_UNAVAILABLE_MESSAGE,
+  answerVonzaProductHelp,
+} from "../services/support/productHelpService.js";
 import { cleanText } from "../utils/text.js";
 
 function expandGroupedFollowUpItems(queue = {}) {
@@ -729,7 +732,6 @@ export function createAgentRouter(deps = {}) {
 
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
       let operatorWorkspace = {};
-      let openai = null;
 
       try {
         operatorWorkspace = await getOperatorWorkspaceSnapshotImpl(supabase, {
@@ -741,11 +743,7 @@ export function createAgentRouter(deps = {}) {
         console.warn("[product help] Could not load operator workspace context:", error.message);
       }
 
-      try {
-        openai = getOpenAI();
-      } catch (error) {
-        console.warn("[product help] OpenAI unavailable, using fallback guidance:", error.message);
-      }
+      const openai = getOpenAI();
 
       const result = await answerVonzaProductHelpImpl({
         openai,
@@ -760,8 +758,12 @@ export function createAgentRouter(deps = {}) {
       res.json(result);
     } catch (err) {
       console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
+      const statusCode = err.statusCode || 500;
+      const errorMessage = err.exposeToClient || statusCode >= 500
+        ? (err.exposeToClient ? err.message : PRODUCT_HELP_UNAVAILABLE_MESSAGE)
+        : (err.message || "Something went wrong");
+      res.status(statusCode).json({
+        error: errorMessage,
       });
     }
   });
