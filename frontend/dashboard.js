@@ -12,6 +12,7 @@ const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
+const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
@@ -1060,6 +1061,53 @@ function getClientId() {
   }
 
   return clientId;
+}
+
+function normalizeDashboardTheme(value = "") {
+  return trimText(value).toLowerCase() === "dark" ? "dark" : "light";
+}
+
+function getDashboardTheme() {
+  try {
+    return normalizeDashboardTheme(window.localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY));
+  } catch {
+    return "light";
+  }
+}
+
+function syncDashboardThemeControls(root = document) {
+  const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardTheme || getDashboardTheme());
+  root.querySelectorAll?.("[data-dashboard-theme-choice]")?.forEach((input) => {
+    const selected = normalizeDashboardTheme(input.value) === theme;
+    input.checked = selected;
+    input.closest?.(".settings-shell-theme-option")?.classList.toggle("active", selected);
+  });
+}
+
+function applyDashboardTheme(theme = getDashboardTheme()) {
+  const normalizedTheme = normalizeDashboardTheme(theme);
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardTheme = normalizedTheme;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardTheme = normalizedTheme;
+  }
+
+  syncDashboardThemeControls();
+  return normalizedTheme;
+}
+
+function saveDashboardTheme(theme) {
+  const normalizedTheme = normalizeDashboardTheme(theme);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, normalizedTheme);
+  } catch {}
+
+  applyDashboardTheme(normalizedTheme);
+  return normalizedTheme;
 }
 
 function getInstallStorageKey(agentId) {
@@ -3292,6 +3340,79 @@ function getCustomerLastActivityLabel(contact = {}) {
   return "No customer message yet";
 }
 
+function isGuestCustomerRow(contact = {}) {
+  return !getCustomerEmailLabel(contact.email) && !trimText(contact.phone) && hasGuestCustomerActivity(contact);
+}
+
+function getCustomerConversationSourceText(contact = {}) {
+  const customerMessageEntry = (contact.timeline || []).find((entry) =>
+    ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
+    || ["chat", "inbox"].includes(trimText(entry.source))
+  ) || {};
+  const messageLikeName = isLikelyCustomerMessageLabel(contact.name)
+    ? trimText(contact.name)
+    : isLikelyCustomerMessageLabel(contact.bestIdentifier)
+      ? trimText(contact.bestIdentifier)
+      : "";
+
+  return [
+    trimText(contact.latestCustomerMessageSummary),
+    trimText(customerMessageEntry.summary),
+    messageLikeName,
+    trimText(contact.nextAction?.description),
+    trimText(contact.nextAction?.title),
+    trimText(contact.latestOutcome?.label),
+    trimText(customerMessageEntry.label),
+  ].find((value) => value && !isGenericCustomerNoActionCopy(value) && !isGenericCustomerNoActionTitle(value)) || "";
+}
+
+function getGuestConversationRowSummary(contact = {}) {
+  const sourceText = getCustomerConversationSourceText(contact);
+  const signalText = [
+    sourceText,
+    trimText(contact.nextAction?.description),
+    trimText(contact.nextAction?.title),
+    trimText(contact.lifecycleState),
+    ...(Array.isArray(contact.flags) ? contact.flags : []),
+  ].join(" ").toLowerCase();
+
+  if (!signalText) {
+    return "No recent conversation summary yet.";
+  }
+
+  if (/\b(?:complaint|frustrat|refund|cancel|issue|problem|support|upset|angry|unhappy)\b/.test(signalText)) {
+    return "Needed help with a support issue";
+  }
+
+  if (/\b(?:price|pricing|cost|quote|estimate|package|rate|buy|purchase|checkout)\b/.test(signalText)) {
+    return /\b(?:book|booking|appointment|schedule|availability|next step|contact|call|email)\b/.test(signalText)
+      ? "Asked about pricing and next steps"
+      : "Asked about pricing or quote details";
+  }
+
+  if (/\b(?:book|booking|appointment|appointments|schedule|scheduling|availability|available|reserve|reservation|consultation|calendar)\b/.test(signalText)) {
+    return "Needed help with booking or availability";
+  }
+
+  if (/\b(?:which|fit|best|recommend|choose|service|services|offer|offers|available|need|looking for)\b/.test(signalText)) {
+    return "Asked which service fits their needs";
+  }
+
+  if (/\b(?:contact|call|email|phone|reach|message|talk|speak|get in touch)\b/.test(signalText)) {
+    return "Wanted to contact the business";
+  }
+
+  if (/\b(?:hour|hours|open|location|where|area|near|weekend)\b/.test(signalText)) {
+    return "Asked about hours or service area";
+  }
+
+  if (/\b(?:hi|hey|hello)\b/.test(signalText) && sourceText.split(/\s+/).filter(Boolean).length <= 4) {
+    return "Started a new chat with the business";
+  }
+
+  return "Asked for help choosing a next step";
+}
+
 function getCustomerLatestSummary(contact = {}) {
   const customerMessageEntry = (contact.timeline || []).find((entry) =>
     ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
@@ -3304,6 +3425,10 @@ function getCustomerLatestSummary(contact = {}) {
       : "";
   const latestCustomerMessageSummary = trimText(contact.latestCustomerMessageSummary);
   const customerMessageSummary = trimText(customerMessageEntry.summary);
+
+  if (isGuestCustomerRow(contact)) {
+    return getGuestConversationRowSummary(contact);
+  }
 
   if (
     messageLikeName
@@ -3320,6 +3445,17 @@ function getCustomerLatestSummary(contact = {}) {
     || trimText(contact.nextAction?.description)
     || trimText(contact.latestOutcome?.label)
     || "No recent message summary yet.";
+}
+
+function getCustomerSecondaryIdentityLine(contact = {}) {
+  const email = getCustomerEmailLabel(contact.email);
+  const displayName = getValidCustomerLabel(contact.name) || getValidCustomerLabel(contact.bestIdentifier);
+
+  if (!email || !displayName || getCustomerEmailLabel(displayName) === email) {
+    return "";
+  }
+
+  return displayName;
 }
 
 function getCustomerSituationSummary(contact = {}) {
@@ -3633,6 +3769,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
   const rowIdentifier = getCustomerRowIdentifier(contact);
+  const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
 
   return `
@@ -3654,6 +3791,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             <div>
               <strong class="contact-row-name">${escapeHtml(rowIdentifier)}</strong>
               <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
+              ${secondaryIdentityLine ? `<p class="customer-row-identity">${escapeHtml(secondaryIdentityLine)}</p>` : ""}
             </div>
           </div>
           <div class="customer-row-statuses">
@@ -4177,13 +4315,6 @@ function hasRecommendationSignal(signalText = "", patterns = []) {
 function getBusinessPriorityCopy(recommendation = {}) {
   const signalText = getRecommendationSignalText(recommendation);
   const hasSignal = (patterns) => hasRecommendationSignal(signalText, patterns);
-  const replyFasterCopy = {
-    title: "Reply faster to open questions",
-    why: "Open questions can turn into lost customers when people do not get a clear next step.",
-    change: "Review the latest unanswered conversations and give each one a clear reply or owner follow-up.",
-    cta: "Review open questions",
-    tone: "watch",
-  };
 
   if (hasSignal([/complaint/, /frustrat/, /support/, /risk/])) {
     return {
@@ -4196,7 +4327,13 @@ function getBusinessPriorityCopy(recommendation = {}) {
   }
 
   if (hasSignal([/unanswered/, /open customer question/, /open conversation/, /response backlog/, /attention_item/])) {
-    return replyFasterCopy;
+    return {
+      title: "Give open customer questions a clear next step",
+      why: "Unanswered needs create friction when the customer is ready for an answer, booking, contact, or decision.",
+      change: "Review the open conversations and confirm the answer, owner follow-up, or next-step path each customer needs.",
+      cta: "Review open needs",
+      tone: "watch",
+    };
   }
 
   if (hasSignal([/pricing/, /price/, /cost/, /package/, /purchase/])) {
@@ -4239,7 +4376,7 @@ function getBusinessPriorityCopy(recommendation = {}) {
     };
   }
 
-  return replyFasterCopy;
+  return null;
 }
 
 function buildTodaySummaryStats(operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -4251,9 +4388,9 @@ function buildTodaySummaryStats(operatorWorkspace = createEmptyOperatorWorkspace
       copy: "Current-day front desk volume only.",
     },
     {
-      label: "Customers handled",
+      label: "Guided customers",
       value: String(today.contactsDealtToday || 0),
-      copy: "People Vonza touched today across live work.",
+      copy: "Unique customers tied to a booking, follow-up, or recorded outcome today.",
     },
     {
       label: "Results today",
@@ -4417,7 +4554,15 @@ function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorksp
 
 function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const copilot = operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot;
-  const recommendations = Array.isArray(copilot.recommendations) ? copilot.recommendations.slice(0, 3) : [];
+  const recommendations = Array.isArray(copilot.recommendations)
+    ? copilot.recommendations
+      .map((recommendation) => ({
+        recommendation,
+        priorityCopy: getBusinessPriorityCopy(recommendation),
+      }))
+      .filter((item) => item.priorityCopy)
+      .slice(0, 3)
+    : [];
 
   return `
     <section class="today-command-section">
@@ -4430,7 +4575,7 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
       </div>
       ${recommendations.length ? `
         <div class="today-command-card-list">
-          ${recommendations.map((recommendation) => {
+          ${recommendations.map(({ recommendation, priorityCopy }) => {
             const resolvedTarget = resolveVisibleShellTarget(
               recommendation.targetSection || recommendation.proposal?.target?.section || "overview",
               recommendation.targetId || recommendation.proposal?.target?.id || "",
@@ -4443,7 +4588,6 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
                 contactFallbackLabel: "Open customer",
               }
             );
-            const priorityCopy = getBusinessPriorityCopy(recommendation);
 
             return `
               <article class="today-command-card">
@@ -5528,10 +5672,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   if (attentionCount > 0) {
     addPriority({
       tone: "brand",
-      title: "Reply faster to open questions",
-      why: "Open questions can turn into lost customers when people do not get a clear next step.",
-      change: "Review the latest unanswered conversations and give each one a clear reply or owner follow-up.",
-      action: { type: "section", value: "contacts", label: "Review open questions" },
+      title: "Give open customer needs a clear next step",
+      why: "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.",
+      change: "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.",
+      action: { type: "section", value: "contacts", label: "Review open needs" },
     });
   }
 
@@ -5601,7 +5745,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
   const primaryHomeAction = priorityCards[0]?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
   const summarySentence = conversationsToday || customersHelpedToday || openIssueCount
-    ? `So far today, Vonza handled ${countLabel(conversationsToday, "conversation")}, helped ${countLabel(customersHelpedToday, "customer")}, and flagged ${countLabel(openIssueCount, "issue")} that still need attention.`
+    ? `So far today, Vonza handled ${countLabel(conversationsToday, "conversation")}, guided ${countLabel(customersHelpedToday, "customer")} to a next step or recorded outcome, and flagged ${countLabel(openIssueCount, "issue")} that still need attention.`
     : "Home is ready. As soon as customers start using Vonza today, this page will highlight what matters first.";
   const dailyStats = [
     {
@@ -5611,9 +5755,11 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "neutral",
     },
     {
-      label: "Customers helped today",
+      label: "Guided to next step",
       value: String(customersHelpedToday),
-      copy: customersHelpedToday > 0 ? "Customers Vonza actively helped today." : "No helped-customer signal yet today.",
+      copy: customersHelpedToday > 0
+        ? "Unique customers with a booking, follow-up, or recorded outcome today."
+        : "No customer has a booking, follow-up, or recorded outcome yet today.",
       tone: "positive",
     },
     {
@@ -5650,8 +5796,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
     if (customersHelpedToday > 0) {
       items.push({
-        title: `${countLabel(customersHelpedToday, "customer")} got help today`,
-        copy: "Real customer questions were handled without needing a deep dashboard review.",
+        title: `${countLabel(customersHelpedToday, "customer")} reached a next step`,
+        copy: "A booking, follow-up, or recorded outcome was tied to a customer today.",
         meta: "Daily",
       });
     }
@@ -12685,6 +12831,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskOpenButtons = document.querySelectorAll("[data-frontdesk-open]");
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
+  const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
   const helpCloseButtons = document.querySelectorAll("[data-help-close]");
@@ -13831,6 +13978,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     bindStudioState: (form) => bindStudioState(form, agent),
     bindSimpleDirtyState,
   }) || null;
+  applyDashboardTheme(getDashboardTheme());
+
+  themeChoiceInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedTheme = saveDashboardTheme(input.value);
+      setStatus(savedTheme === "dark" ? "Dashboard theme set to dark." : "Dashboard theme set to light.");
+    });
+  });
 
   shellMenuButtons.forEach((button) => {
     button.addEventListener("click", () => {

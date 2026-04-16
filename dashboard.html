@@ -7,6 +7,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <script>
+    (() => {
+      let theme = "light";
+      try {
+        theme = window.localStorage?.getItem("vonza_dashboard_theme") === "dark" ? "dark" : "light";
+      } catch {}
+      document.documentElement.dataset.dashboardTheme = theme;
+    })();
+  </script>
   <link rel="stylesheet" href="/dashboard.css">
   <link rel="stylesheet" href="/settings/settings.css">
 </head>

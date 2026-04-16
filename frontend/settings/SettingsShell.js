@@ -853,6 +853,9 @@
     const installStatus = getDefaultInstallStatus(agent);
     const workspaceMode = getWorkspaceMode(operatorWorkspace);
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
+    const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
+      ? "dark"
+      : "light";
 
     return `
       <div class="settings-shell-form">
@@ -896,6 +899,36 @@
               </div>
             </div>
           </div>
+        </section>
+
+        <section class="settings-shell-section">
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">Theme</h3>
+              <p class="settings-shell-section-copy">Choose how the dashboard looks in this browser. Light is the default.</p>
+            </div>
+          </div>
+          <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
+            ${[
+              { value: "light", label: "Light", copy: "Default dashboard theme." },
+              { value: "dark", label: "Dark", copy: "Lower-light dashboard theme for the app shell." },
+            ].map((theme) => `
+              <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
+                <input
+                  type="radio"
+                  name="dashboard_theme"
+                  value="${escapeHtml(theme.value)}"
+                  data-dashboard-theme-choice
+                  ${dashboardTheme === theme.value ? "checked" : ""}
+                >
+                <span>
+                  <strong>${escapeHtml(theme.label)}</strong>
+                  <small>${escapeHtml(theme.copy)}</small>
+                </span>
+              </label>
+            `).join("")}
+          </div>
+          <p class="settings-shell-section-copy">Saved as a dashboard preference on this device.</p>
         </section>
 
         <section class="settings-shell-section">

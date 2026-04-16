@@ -140,3 +140,17 @@ test("dashboard contrast pass covers analytics, chips, active rows, and settings
   assert.match(settingsCss, /\.settings-shell-nav-button\.active\s*\{[^}]*color:\s*#173f9f;[^}]*background:\s*#e5eeff;/i);
   assert.match(settingsCss, /\.settings-shell-chip-option\s*\{[^}]*border-color:\s*#c7d3e3;[^}]*color:\s*#334963;/i);
 });
+
+test("dashboard dark mode has scoped tokens and settings controls", () => {
+  const dashboardCss = readDashboardCss();
+  const settingsCss = readSettingsCss();
+
+  assert.match(dashboardCss, /html\[data-dashboard-theme="dark"\]\s*\{[^}]*--theme-bg:\s*#111318;/i);
+  assert.match(dashboardCss, /html\[data-dashboard-theme="dark"\] \.workspace-pages\s*\{[^}]*--light-surface-title:\s*var\(--theme-text\);/i);
+  assert.match(dashboardCss, /html\[data-dashboard-theme="dark"\] \.app-shell,[^}]*\.workspace-page-overview\s*\{[^}]*background:\s*var\(--theme-bg\);/i);
+  assert.match(dashboardCss, /html\[data-dashboard-theme="dark"\] \.sidebar-shell\s*\{[^}]*background:\s*#141821;/i);
+  assert.match(dashboardCss, /html\[data-dashboard-theme="dark"\] \.workspace-context-bar,[^}]*\.customer-row,[^}]*\.settings-shell-theme-option\s*\{[^}]*background:\s*var\(--theme-panel\);/i);
+
+  assert.match(settingsCss, /\.settings-shell-theme-options\s*\{/i);
+  assert.match(settingsCss, /html\[data-dashboard-theme="dark"\] \.settings-shell-theme-option\.active\s*\{[^}]*background:\s*#18342d;/i);
+});

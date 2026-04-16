@@ -183,6 +183,31 @@ test("dashboard flag resolver prefers the canonical browser flag and falls back 
   assert.equal(canonicalOffHarness.isOperatorWorkspaceFlagEnabled(), false);
 });
 
+test("dashboard theme defaults to light, persists dark mode, and renders Settings controls", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  assert.equal(harness.getDashboardTheme(), "light");
+  assert.equal(harness.applyDashboardTheme(), "light");
+  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "light");
+
+  assert.equal(harness.saveDashboardTheme("dark"), "dark");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "dark");
+  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "dark");
+
+  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+    agent: {},
+    setup: {},
+  });
+
+  assert.match(settingsPanel, /Theme/);
+  assert.match(settingsPanel, /data-dashboard-theme-choice/);
+  assert.match(settingsPanel, /value="dark"[\s\S]*checked/);
+});
+
 test("home AI priorities translate raw signals into practical business recommendations", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -196,7 +221,7 @@ test("home AI priorities translate raw signals into practical business recommend
       type: "unanswered_question",
       title: "\"General business questions\" may be waiting too long",
     }).title,
-    "Reply faster to open questions"
+    "Give open customer questions a clear next step"
   );
   assert.equal(
     harness.getBusinessPriorityCopy({
@@ -225,6 +250,13 @@ test("home AI priorities translate raw signals into practical business recommend
       summary: "Complaint frustration needs owner review.",
     }).title,
     "Improve complaint handling"
+  );
+  assert.equal(
+    harness.getBusinessPriorityCopy({
+      type: "general_status",
+      summary: "No strong customer friction signal.",
+    }),
+    null
   );
   assert.equal(
     harness.getBusinessPriorityCopy({
@@ -272,7 +304,7 @@ test("home AI priorities translate raw signals into practical business recommend
 
   assert.match(overview, /What to improve next/);
   assert.match(overview, /These are the changes most likely to improve customer satisfaction and save time/);
-  assert.match(overview, /Reply faster to open questions/);
+  assert.match(overview, /Give open customer questions a clear next step/);
   assert.match(overview, /Make service answers clearer/);
   assert.match(overview, /Clarify pricing guidance/);
   assert.doesNotMatch(overview, /Make contacting you easier/);
@@ -338,7 +370,7 @@ test("home overview AI priorities use business-facing wording and a calm empty s
 
   assert.match(panel, /What to improve next/);
   assert.match(panel, /These are the changes most likely to improve customer satisfaction and save time/);
-  assert.match(panel, /Reply faster to open questions/);
+  assert.match(panel, /Give open customer needs a clear next step/);
   assert.match(panel, /Make service answers clearer/);
   assert.doesNotMatch(panel, /What matters most right now/);
   assert.doesNotMatch(panel, /may be waiting too long/);
@@ -839,8 +871,10 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Home/);
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
   assert.match(overviewPanel, /Conversations today/);
+  assert.match(overviewPanel, /Guided to next step/);
+  assert.doesNotMatch(overviewPanel, /Customers helped today/);
   assert.match(overviewPanel, /AI priorities/);
-  assert.match(overviewPanel, /Reply faster to open questions|Make service answers clearer|Make contacting you easier/i);
+  assert.match(overviewPanel, /Give open customer needs a clear next step|Make service answers clearer|Make contacting you easier/i);
   assert.match(overviewPanel, /satisfaction|confidence|trust|friction/i);
   assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
@@ -909,7 +943,7 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
     })
   );
 
-  assert.equal(overviewPanel.match(/Reply faster to open questions/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/Give open customer needs a clear next step/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
@@ -1356,6 +1390,7 @@ test("customer rows for email users show email, customer question, and persisted
   const row = harness.buildContactRow({
     id: "contact-1",
     name: "Can you send the pricing package?",
+    bestIdentifier: "Alex Harper",
     email: "alex@example.com",
     lifecycleState: "active_lead",
     sources: ["chat"],
@@ -1387,13 +1422,14 @@ test("customer rows for email users show email, customer question, and persisted
   assert.ok(questionIndex > emailIndex);
   assert.ok(timeIndex > questionIndex);
   assert.match(row, /<strong class="contact-row-name">alex@example\.com<\/strong>\s*<p class="customer-row-summary">Can you send pricing\?<\/p>/);
+  assert.match(row, /<p class="customer-row-identity">Alex Harper<\/p>/);
   assert.match(row, /data-contact-last-activity="2026-04-14T09:03:55\.000Z"/);
   assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
   assert.doesNotMatch(row, /Last active/);
   assert.doesNotMatch(row, /Vonza/);
 });
 
-test("customer rows separate guest identity from the widget question text", () => {
+test("customer rows separate guest identity from the widget question text and summarize the conversation", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1422,9 +1458,34 @@ test("customer rows separate guest identity from the widget question text", () =
   });
 
   assert.match(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
-  assert.match(row, /<p class="customer-row-summary">hey, what services do you offer<\/p>/);
+  assert.match(row, /<p class="customer-row-summary">Asked which service fits their needs<\/p>/);
   assert.doesNotMatch(row, /<strong class="contact-row-name">hey, what services do you offer<\/strong>/);
+  assert.doesNotMatch(row, /<p class="customer-row-summary">hey, what services do you offer<\/p>/);
   assert.doesNotMatch(row, /No action needed/);
+});
+
+test("customer rows upgrade guest sessions to identified email state", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-upgraded",
+    name: "Avery Hart",
+    bestIdentifier: "Session continuity only",
+    email: "avery@example.com",
+    lifecycleState: "active_lead",
+    partialIdentity: false,
+    sources: ["chat"],
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    latestCustomerMessageSummary: "Can you send pricing?",
+    timeline: [],
+  });
+
+  assert.match(row, /<strong class="contact-row-name">avery@example\.com<\/strong>/);
+  assert.match(row, /<p class="customer-row-identity">Avery Hart<\/p>/);
+  assert.doesNotMatch(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
 });
 
 test("guest customer rows show stored customer message summary and last message time", () => {
@@ -1446,7 +1507,8 @@ test("guest customer rows show stored customer message summary and last message 
   });
 
   assert.match(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
-  assert.match(row, /Do you offer weekend appointments\?/);
+  assert.match(row, /Needed help with booking or availability/);
+  assert.doesNotMatch(row, /Do you offer weekend appointments\?/);
   assert.match(row, /data-contact-last-activity="2026-04-16T09:47:46\.000Z"/);
   assert.doesNotMatch(row, /No customer message yet/);
 });
@@ -1939,7 +2001,8 @@ test("dashboard refresh reloads live agent messages, summaries, and workspace da
   assert.ok(calls.some((call) => call.startsWith("/agents/messages?")));
   assert.ok(calls.some((call) => call.startsWith("/agents/action-queue?")));
   assert.ok(calls.some((call) => call.includes("/agents/operator-workspace?") && call.includes("force_sync=true")));
-  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Fresh live question/);
+  assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Asked for help choosing a next step/);
+  assert.doesNotMatch(harness.document.getElementById("dashboard-root").innerHTML, /<p class="customer-row-summary">Fresh live question<\/p>/);
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Guest visitor/);
 });
 

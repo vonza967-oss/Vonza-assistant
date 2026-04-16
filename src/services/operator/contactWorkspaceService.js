@@ -204,6 +204,7 @@ function createIdentityMaps() {
     phone: new Map(),
     person_key: new Map(),
     session_key: new Map(),
+    message_id: new Map(),
     lead_id: new Map(),
     follow_up_id: new Map(),
     thread_id: new Map(),
@@ -1300,6 +1301,10 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     registerIdentity(identityMaps, group, "email", storedContact.primaryEmail);
     registerIdentity(identityMaps, group, "phone", storedContact.primaryPhoneNormalized || storedContact.primaryPhone);
     registerIdentity(identityMaps, group, "person_key", storedContact.primaryPersonKey);
+    registerIdentity(identityMaps, group, "message_id", storedContact.metadata?.latestMessageId);
+
+    normalizeArray(storedContact.metadata?.related?.leadIds)
+      .forEach((leadId) => registerIdentity(identityMaps, group, "lead_id", leadId));
 
     storedIdentities.forEach((identity) => {
       registerIdentity(identityMaps, group, identity.identityType, identity.identityValue);
@@ -1384,6 +1389,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       const sessionKey = message.sessionKey;
       const contactInfo = getWidgetMessageContactInfo(message);
       const explicitGroups = [
+        identityMaps.message_id.get(cleanText(message.id)),
         sessionKey ? identityMaps.session_key.get(sessionKey) : null,
         contactInfo.email ? identityMaps.email.get(normalizeEmail(contactInfo.email)) : null,
         contactInfo.phoneNormalized || contactInfo.phone
@@ -1418,6 +1424,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       registerIdentity(identityMaps, group, "email", contactInfo.email);
       registerIdentity(identityMaps, group, "phone", contactInfo.phoneNormalized || contactInfo.phone);
       registerIdentity(identityMaps, group, "session_key", sessionKey);
+      registerIdentity(identityMaps, group, "message_id", message.id);
     });
 
   normalizeArray(options.followUps).forEach((followUp) => {

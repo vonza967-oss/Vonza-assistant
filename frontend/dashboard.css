@@ -8501,3 +8501,517 @@ body {
 .analytics-board-statline span {
   color: #e5edff;
 }
+
+/* Dashboard theme system */
+html[data-dashboard-theme="light"] {
+  color-scheme: light;
+  --theme-bg: #f7f9fd;
+  --theme-shell: #ffffff;
+  --theme-panel: #ffffff;
+  --theme-panel-soft: #f6f9fd;
+  --theme-border: #cfd9e6;
+  --theme-border-strong: #b8c8dc;
+  --theme-text: #1f2d44;
+  --theme-copy: #40516c;
+  --theme-muted: #52657f;
+  --theme-pill-bg: #f3f7fb;
+  --theme-pill-text: #334963;
+  --theme-active-bg: #eaf2ff;
+  --theme-accent: #2f67e3;
+}
+
+html[data-dashboard-theme="light"] body {
+  background: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="light"] .topbar {
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-shell);
+}
+
+html[data-dashboard-theme="light"] .brand,
+html[data-dashboard-theme="light"] .status-banner,
+html[data-dashboard-theme="light"] .topbar-meta {
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] {
+  color-scheme: dark;
+  --theme-bg: #111318;
+  --theme-shell: #151922;
+  --theme-panel: #1b202b;
+  --theme-panel-soft: #202634;
+  --theme-panel-raised: #232a38;
+  --theme-border: #343c4d;
+  --theme-border-strong: #4a5468;
+  --theme-text: #f4f6fb;
+  --theme-copy: #c6d0df;
+  --theme-muted: #aeb8c8;
+  --theme-pill-bg: #252c3a;
+  --theme-pill-text: #dce4ef;
+  --theme-active-bg: #18342d;
+  --theme-accent: #34d399;
+  --theme-accent-strong: #10b981;
+  --theme-warning-text: #f7d58a;
+  --theme-warning-bg: #3a2a12;
+  --theme-warning-border: #7c5a1d;
+  --theme-danger-text: #f6b0b7;
+  --theme-danger-bg: #3a1f25;
+  --theme-danger-border: #76404a;
+  --theme-success-text: #9ee8d3;
+  --theme-success-bg: #18342d;
+  --theme-success-border: #2d765f;
+}
+
+html[data-dashboard-theme="dark"] body,
+html[data-dashboard-theme="dark"] .app-shell,
+html[data-dashboard-theme="dark"] .workspace-shell,
+html[data-dashboard-theme="dark"] .workspace-pages,
+html[data-dashboard-theme="dark"] .workspace-page,
+html[data-dashboard-theme="dark"] .workspace-page-overview {
+  background: var(--theme-bg);
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .workspace-pages {
+  --light-surface-title: var(--theme-text);
+  --light-surface-text: var(--theme-copy);
+  --light-surface-muted: var(--theme-muted);
+  --light-surface-muted-strong: var(--theme-muted);
+  --light-surface-border: var(--theme-border);
+  --light-surface-border-strong: var(--theme-border-strong);
+  --light-surface-bg: var(--theme-panel);
+  --light-surface-bg-soft: var(--theme-panel-soft);
+  --light-pill-text: var(--theme-pill-text);
+  --light-pill-bg: var(--theme-pill-bg);
+  --light-pill-border: var(--theme-border);
+  --light-active-bg: var(--theme-active-bg);
+  --light-active-border: var(--theme-accent);
+  --light-success-text: var(--theme-success-text);
+  --light-success-bg: var(--theme-success-bg);
+  --light-success-border: var(--theme-success-border);
+  --light-warning-text: var(--theme-warning-text);
+  --light-warning-bg: var(--theme-warning-bg);
+  --light-warning-border: var(--theme-warning-border);
+  --light-danger-text: var(--theme-danger-text);
+  --light-danger-bg: var(--theme-danger-bg);
+  --light-danger-border: var(--theme-danger-border);
+  --light-pending-text: var(--theme-muted);
+  --light-pending-bg: var(--theme-pill-bg);
+  --light-pending-border: var(--theme-border);
+}
+
+html[data-dashboard-theme="dark"] .topbar {
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--theme-border);
+  background: var(--theme-shell);
+}
+
+html[data-dashboard-theme="dark"] .brand,
+html[data-dashboard-theme="dark"] .status-banner,
+html[data-dashboard-theme="dark"] .topbar-meta {
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .brand-mark,
+html[data-dashboard-theme="dark"] .sidebar-identity-mark {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: linear-gradient(145deg, rgba(52, 211, 153, 0.2), rgba(96, 165, 250, 0.08));
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .sidebar-shell {
+  border-right-color: var(--theme-border);
+  background: #141821;
+  color: var(--theme-text);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .sidebar-eyebrow,
+html[data-dashboard-theme="dark"] .sidebar-copy,
+html[data-dashboard-theme="dark"] .shell-sidebar-label,
+html[data-dashboard-theme="dark"] .shell-nav-note,
+html[data-dashboard-theme="dark"] .sidebar-status-label {
+  color: var(--theme-muted);
+}
+
+html[data-dashboard-theme="dark"] .sidebar-title,
+html[data-dashboard-theme="dark"] .sidebar-status-item strong {
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .shell-nav-button {
+  color: var(--theme-copy);
+}
+
+html[data-dashboard-theme="dark"] .shell-nav-button:hover {
+  background: #202634;
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .shell-nav-button.active {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: var(--theme-active-bg);
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .sidebar-status-dock,
+html[data-dashboard-theme="dark"] .sidebar-status-item {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+}
+
+html[data-dashboard-theme="dark"] .workspace-context-bar,
+html[data-dashboard-theme="dark"] .page-header,
+html[data-dashboard-theme="dark"] .page-toolbar,
+html[data-dashboard-theme="dark"] .workspace-card-soft,
+html[data-dashboard-theme="dark"] .today-command-section,
+html[data-dashboard-theme="dark"] .today-command-stat,
+html[data-dashboard-theme="dark"] .today-command-card,
+html[data-dashboard-theme="dark"] .today-command-empty,
+html[data-dashboard-theme="dark"] .overview-card,
+html[data-dashboard-theme="dark"] .summary-strip-item,
+html[data-dashboard-theme="dark"] .metric-card,
+html[data-dashboard-theme="dark"] .placeholder-card,
+html[data-dashboard-theme="dark"] .operator-focus-card,
+html[data-dashboard-theme="dark"] .operator-briefing-card,
+html[data-dashboard-theme="dark"] .frontdesk-polished-panel,
+html[data-dashboard-theme="dark"] .frontdesk-readiness-item,
+html[data-dashboard-theme="dark"] .frontdesk-detail-block,
+html[data-dashboard-theme="dark"] .frontdesk-step,
+html[data-dashboard-theme="dark"] .frontdesk-support-note,
+html[data-dashboard-theme="dark"] .frontdesk-preview-guide,
+html[data-dashboard-theme="dark"] .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="dark"] .install-page-main,
+html[data-dashboard-theme="dark"] .install-step,
+html[data-dashboard-theme="dark"] .studio-group,
+html[data-dashboard-theme="dark"] .guidance-card,
+html[data-dashboard-theme="dark"] .analytics-item,
+html[data-dashboard-theme="dark"] .analytics-report-overview,
+html[data-dashboard-theme="dark"] .analytics-report-metric-card,
+html[data-dashboard-theme="dark"] .analytics-report-insight,
+html[data-dashboard-theme="dark"] .analytics-report-contact-card,
+html[data-dashboard-theme="dark"] .analytics-report-recommendation,
+html[data-dashboard-theme="dark"] .analytics-report-swot-item,
+html[data-dashboard-theme="dark"] .analytics-report-chart,
+html[data-dashboard-theme="dark"] .support-panel,
+html[data-dashboard-theme="dark"] .workspace-inline-panel,
+html[data-dashboard-theme="dark"] .customer-row,
+html[data-dashboard-theme="dark"] .contact-row,
+html[data-dashboard-theme="dark"] .contacts-list-shell,
+html[data-dashboard-theme="dark"] .customer-detail-card,
+html[data-dashboard-theme="dark"] .customer-draft-card,
+html[data-dashboard-theme="dark"] .customer-risk-note,
+html[data-dashboard-theme="dark"] .customer-detail-disclosure .disclosure-toggle,
+html[data-dashboard-theme="dark"] .customer-detail-disclosure .disclosure-content,
+html[data-dashboard-theme="dark"] .today-review-drawer-frame,
+html[data-dashboard-theme="dark"] .today-review-panel,
+html[data-dashboard-theme="dark"] .today-review-empty,
+html[data-dashboard-theme="dark"] .today-queue-list,
+html[data-dashboard-theme="dark"] .today-queue-row,
+html[data-dashboard-theme="dark"] .message-row,
+html[data-dashboard-theme="dark"] .settings-shell-theme-option {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+  color: var(--theme-copy);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .workspace-page-overview .page-header,
+html[data-dashboard-theme="dark"] .workspace-page-overview .page-toolbar,
+html[data-dashboard-theme="dark"] .workspace-page-overview .today-main-column,
+html[data-dashboard-theme="dark"] .workspace-page-overview .today-review-drawer-frame,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .contacts-list-shell,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .summary-strip-item,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-row,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-detail-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-draft-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-risk-note,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-polished-panel,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .workspace-page-overview .workspace-card-soft,
+html[data-dashboard-theme="dark"] .home-daily-card,
+html[data-dashboard-theme="dark"] .home-priority-card,
+html[data-dashboard-theme="dark"] .home-mini-panel {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .home-daily-banner,
+html[data-dashboard-theme="dark"] .home-improve-panel,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner {
+  border: 1px solid #2b3a34;
+  background: linear-gradient(135deg, #17241f 0%, #161b24 62%, #111318 100%);
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .home-daily-banner-kicker,
+html[data-dashboard-theme="dark"] .home-daily-banner-title,
+html[data-dashboard-theme="dark"] .home-improve-panel .studio-kicker,
+html[data-dashboard-theme="dark"] .home-improve-panel .workspace-panel-title,
+html[data-dashboard-theme="dark"] .home-improve-panel .workspace-panel-copy,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner .workspace-panel-title {
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .home-improve-copy,
+html[data-dashboard-theme="dark"] .home-daily-banner .workspace-panel-copy {
+  color: var(--theme-copy);
+}
+
+html[data-dashboard-theme="dark"] .home-daily-card-attention,
+html[data-dashboard-theme="dark"] .home-priority-card-danger {
+  border-color: var(--theme-danger-border);
+  background: var(--theme-danger-bg);
+}
+
+html[data-dashboard-theme="dark"] .home-daily-card-caution,
+html[data-dashboard-theme="dark"] .home-priority-card-warning {
+  border-color: var(--theme-warning-border);
+  background: var(--theme-warning-bg);
+}
+
+html[data-dashboard-theme="dark"] .home-daily-card-positive,
+html[data-dashboard-theme="dark"] .home-daily-card-healthy,
+html[data-dashboard-theme="dark"] .home-priority-card-healthy {
+  border-color: var(--theme-success-border);
+  background: var(--theme-success-bg);
+}
+
+html[data-dashboard-theme="dark"] .home-daily-card-value,
+html[data-dashboard-theme="dark"] .home-priority-title,
+html[data-dashboard-theme="dark"] .home-win-row strong,
+html[data-dashboard-theme="dark"] .page-title,
+html[data-dashboard-theme="dark"] .workspace-panel-title,
+html[data-dashboard-theme="dark"] .overview-value,
+html[data-dashboard-theme="dark"] .metric-value,
+html[data-dashboard-theme="dark"] .analytics-item-title,
+html[data-dashboard-theme="dark"] .analytics-report-title,
+html[data-dashboard-theme="dark"] .analytics-report-metric-value,
+html[data-dashboard-theme="dark"] .analytics-report-insight strong,
+html[data-dashboard-theme="dark"] .analytics-report-contact-card strong,
+html[data-dashboard-theme="dark"] .analytics-report-recommendation strong,
+html[data-dashboard-theme="dark"] .analytics-question-list strong,
+html[data-dashboard-theme="dark"] .analytics-report-swot-item strong,
+html[data-dashboard-theme="dark"] .customers-page-title,
+html[data-dashboard-theme="dark"] .contact-row-name,
+html[data-dashboard-theme="dark"] .customer-row-summary,
+html[data-dashboard-theme="dark"] .contact-detail-title,
+html[data-dashboard-theme="dark"] .timeline-row strong,
+html[data-dashboard-theme="dark"] .frontdesk-section-title,
+html[data-dashboard-theme="dark"] .frontdesk-detail-title,
+html[data-dashboard-theme="dark"] .frontdesk-support-title,
+html[data-dashboard-theme="dark"] .frontdesk-preview-frame-title,
+html[data-dashboard-theme="dark"] .frontdesk-step-title,
+html[data-dashboard-theme="dark"] .install-step-title,
+html[data-dashboard-theme="dark"] .studio-group-title,
+html[data-dashboard-theme="dark"] .field label {
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .page-copy,
+html[data-dashboard-theme="dark"] .workspace-panel-copy,
+html[data-dashboard-theme="dark"] .overview-card-copy,
+html[data-dashboard-theme="dark"] .analytics-item-copy,
+html[data-dashboard-theme="dark"] .analytics-subtle,
+html[data-dashboard-theme="dark"] .analytics-report-copy,
+html[data-dashboard-theme="dark"] .analytics-report-section-copy,
+html[data-dashboard-theme="dark"] .analytics-report-insight p,
+html[data-dashboard-theme="dark"] .analytics-report-recommendation p,
+html[data-dashboard-theme="dark"] .analytics-report-swot-item p,
+html[data-dashboard-theme="dark"] .analytics-report-contact-card span,
+html[data-dashboard-theme="dark"] .customers-page-subtitle,
+html[data-dashboard-theme="dark"] .customer-row-identity,
+html[data-dashboard-theme="dark"] .customer-row-meta-value,
+html[data-dashboard-theme="dark"] .customer-risk-note,
+html[data-dashboard-theme="dark"] .timeline-row,
+html[data-dashboard-theme="dark"] .customer-timeline-copy,
+html[data-dashboard-theme="dark"] .home-daily-card-copy,
+html[data-dashboard-theme="dark"] .home-priority-why,
+html[data-dashboard-theme="dark"] .home-priority-change,
+html[data-dashboard-theme="dark"] .home-win-row p,
+html[data-dashboard-theme="dark"] .home-win-row span,
+html[data-dashboard-theme="dark"] .frontdesk-section-copy,
+html[data-dashboard-theme="dark"] .frontdesk-detail-copy,
+html[data-dashboard-theme="dark"] .frontdesk-step-copy,
+html[data-dashboard-theme="dark"] .frontdesk-support-copy,
+html[data-dashboard-theme="dark"] .install-step-copy,
+html[data-dashboard-theme="dark"] .studio-group-copy,
+html[data-dashboard-theme="dark"] .field-help {
+  color: var(--theme-copy);
+}
+
+html[data-dashboard-theme="dark"] .studio-kicker,
+html[data-dashboard-theme="dark"] .overview-label,
+html[data-dashboard-theme="dark"] .metric-label,
+html[data-dashboard-theme="dark"] .analytics-report-kicker,
+html[data-dashboard-theme="dark"] .analytics-report-metric-label,
+html[data-dashboard-theme="dark"] .customer-row-meta-label,
+html[data-dashboard-theme="dark"] .home-daily-card-label,
+html[data-dashboard-theme="dark"] .detail-kv-label,
+html[data-dashboard-theme="dark"] .support-panel-kicker {
+  color: var(--theme-muted);
+}
+
+html[data-dashboard-theme="dark"] input,
+html[data-dashboard-theme="dark"] textarea,
+html[data-dashboard-theme="dark"] select,
+html[data-dashboard-theme="dark"] .workspace-page .field input,
+html[data-dashboard-theme="dark"] .workspace-page .field select,
+html[data-dashboard-theme="dark"] .workspace-page .field textarea,
+html[data-dashboard-theme="dark"] .workspace-page .page-toolbar input[type="search"],
+html[data-dashboard-theme="dark"] .workspace-page .page-toolbar input[type="text"] {
+  border-color: #444d60;
+  background: #151922;
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] input::placeholder,
+html[data-dashboard-theme="dark"] textarea::placeholder {
+  color: #8f9caf;
+}
+
+html[data-dashboard-theme="dark"] .ghost-button,
+html[data-dashboard-theme="dark"] .customer-secondary-button,
+html[data-dashboard-theme="dark"] .customer-utility-button,
+html[data-dashboard-theme="dark"] .customer-banner-button,
+html[data-dashboard-theme="dark"] .workspace-page-overview .ghost-button,
+html[data-dashboard-theme="dark"] .today-row-secondary-action,
+html[data-dashboard-theme="dark"] .workspace-page .toolbar-chip,
+html[data-dashboard-theme="dark"] .workspace-page .local-section-button,
+html[data-dashboard-theme="dark"] .workspace-page .contact-filter-button,
+html[data-dashboard-theme="dark"] .workspace-page .customer-filter-pill,
+html[data-dashboard-theme="dark"] .workspace-page .prompt-chip,
+html[data-dashboard-theme="dark"] .workspace-page .disclosure-toggle,
+html[data-dashboard-theme="dark"] .workspace-page .test-link {
+  border-color: var(--theme-border);
+  background: var(--theme-pill-bg);
+  color: var(--theme-pill-text);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .ghost-button:hover,
+html[data-dashboard-theme="dark"] .customer-secondary-button:hover,
+html[data-dashboard-theme="dark"] .customer-utility-button:hover,
+html[data-dashboard-theme="dark"] .customer-banner-button:hover,
+html[data-dashboard-theme="dark"] .workspace-page .toolbar-chip:hover,
+html[data-dashboard-theme="dark"] .workspace-page .local-section-button:hover,
+html[data-dashboard-theme="dark"] .workspace-page .contact-filter-button:hover,
+html[data-dashboard-theme="dark"] .workspace-page .customer-filter-pill:hover,
+html[data-dashboard-theme="dark"] .workspace-page .prompt-chip:hover,
+html[data-dashboard-theme="dark"] .workspace-page .disclosure-toggle:hover {
+  border-color: var(--theme-border-strong);
+  background: #2a3140;
+  color: var(--theme-text);
+}
+
+html[data-dashboard-theme="dark"] .primary-button,
+html[data-dashboard-theme="dark"] .workspace-page-overview .primary-button,
+html[data-dashboard-theme="dark"] .workspace-page .toolbar-chip.active,
+html[data-dashboard-theme="dark"] .workspace-page .local-section-button.active,
+html[data-dashboard-theme="dark"] .workspace-page .contact-filter-button.active,
+html[data-dashboard-theme="dark"] .workspace-page .customer-filter-pill.active {
+  border-color: var(--theme-accent-strong);
+  background: linear-gradient(135deg, var(--theme-accent) 0%, var(--theme-accent-strong) 100%);
+  color: #07110f;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .pill,
+html[data-dashboard-theme="dark"] .badge,
+html[data-dashboard-theme="dark"] .preview-status-pill,
+html[data-dashboard-theme="dark"] .workspace-page .pill,
+html[data-dashboard-theme="dark"] .workspace-page .badge,
+html[data-dashboard-theme="dark"] .workspace-page .preview-status-pill,
+html[data-dashboard-theme="dark"] .workspace-page-overview .pill,
+html[data-dashboard-theme="dark"] .workspace-page-overview .badge,
+html[data-dashboard-theme="dark"] .workspace-page-overview .preview-status-pill,
+html[data-dashboard-theme="dark"] .customer-status-chip {
+  border-color: var(--theme-border);
+  background: var(--theme-pill-bg);
+  color: var(--theme-pill-text);
+}
+
+html[data-dashboard-theme="dark"] .badge.success,
+html[data-dashboard-theme="dark"] .workspace-page .badge.success,
+html[data-dashboard-theme="dark"] .workspace-page .pill-green,
+html[data-dashboard-theme="dark"] .customer-status-chip--resolved {
+  border-color: var(--theme-success-border);
+  background: var(--theme-success-bg);
+  color: var(--theme-success-text);
+}
+
+html[data-dashboard-theme="dark"] .badge.warning,
+html[data-dashboard-theme="dark"] .workspace-page .badge.warning,
+html[data-dashboard-theme="dark"] .workspace-page .pill-orange,
+html[data-dashboard-theme="dark"] .customer-status-chip--needs_reply {
+  border-color: var(--theme-warning-border);
+  background: var(--theme-warning-bg);
+  color: var(--theme-warning-text);
+}
+
+html[data-dashboard-theme="dark"] .workspace-page .pill-red,
+html[data-dashboard-theme="dark"] .customer-status-chip--complaint {
+  border-color: var(--theme-danger-border);
+  background: var(--theme-danger-bg);
+  color: var(--theme-danger-text);
+}
+
+html[data-dashboard-theme="dark"] .customer-status-chip--lead,
+html[data-dashboard-theme="dark"] .workspace-page .pill-blue {
+  border-color: #48629a;
+  background: #202c45;
+  color: #b7cdfd;
+}
+
+html[data-dashboard-theme="dark"] .workspace-record-row:hover,
+html[data-dashboard-theme="dark"] .today-queue-row:hover,
+html[data-dashboard-theme="dark"] .contact-row:hover,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-row:hover {
+  background: #202634;
+}
+
+html[data-dashboard-theme="dark"] .workspace-record-row.active,
+html[data-dashboard-theme="dark"] .today-queue-row.active,
+html[data-dashboard-theme="dark"] .contact-row.active,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-row.active {
+  border-color: rgba(52, 211, 153, 0.48);
+  background: var(--theme-active-bg);
+  box-shadow: inset 3px 0 0 var(--theme-accent);
+}
+
+html[data-dashboard-theme="dark"] .analytics-report-chart-guides line {
+  stroke: #343c4d;
+}
+
+html[data-dashboard-theme="dark"] .analytics-report-chart {
+  background: #151922;
+}
+
+html[data-dashboard-theme="dark"] .operator-inline-alert {
+  border-color: var(--theme-warning-border);
+  background: var(--theme-warning-bg);
+  color: var(--theme-warning-text);
+}
+
+html[data-dashboard-theme="dark"] button:disabled,
+html[data-dashboard-theme="dark"] .workspace-page button:disabled,
+html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
+  border-color: #343c4d;
+  background: #202634;
+  color: #9aa6b8;
+}

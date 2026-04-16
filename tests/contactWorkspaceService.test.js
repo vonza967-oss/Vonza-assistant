@@ -356,6 +356,58 @@ test("stored email identities hydrate customer primary identifiers", () => {
   assert.equal(result.list[0].latestCustomerMessageSummary, "Do you have weekend hours?");
 });
 
+test("guest sessions upgrade to one identified customer when email is captured later", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-legacy-guest",
+        displayName: "Anonymous visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:04:20.000Z",
+        metadata: {
+          latestMessageId: "message-legacy-assistant",
+          latestCustomerMessageAt: "2026-04-14T09:03:55.000Z",
+          latestCustomerMessageSummary: "Do you offer weekend appointments?",
+        },
+      },
+    ],
+    leads: [
+      {
+        id: "lead-upgraded",
+        visitorSessionKey: "session-upgraded",
+        contactName: "Avery Hart",
+        contactEmail: "avery@example.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        latestMessageId: "message-legacy-assistant",
+        lastSeenAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: "message-legacy-user",
+        role: "user",
+        content: "Do you offer weekend appointments?",
+        sessionKey: "session-upgraded",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-legacy-assistant",
+        role: "assistant",
+        content: "Yes, weekend appointments are available.",
+        sessionKey: "session-upgraded",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].email, "avery@example.com");
+  assert.equal(result.list[0].name, "Avery Hart");
+  assert.equal(result.list[0].partialIdentity, false);
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Do you offer weekend appointments?");
+});
+
 test("chat customers use persisted visitor message time for last activity", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [

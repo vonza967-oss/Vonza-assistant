@@ -539,3 +539,135 @@
 .settings-shell-sticky-save {
   background: linear-gradient(180deg, rgba(247, 249, 253, 0), #f7f9fd 42%);
 }
+
+.settings-shell-theme-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-shell-theme-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #c7d3e3;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1f2d44;
+}
+
+.settings-shell-theme-option.active {
+  border-color: #2f67e3;
+  background: #eef4ff;
+}
+
+.settings-shell-theme-option input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #2f67e3;
+}
+
+.settings-shell-theme-option span {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-shell-theme-option strong {
+  color: #1f2d44;
+}
+
+.settings-shell-theme-option small {
+  color: #40516c;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-sidebar,
+html[data-dashboard-theme="dark"] .settings-shell-mobile-bar,
+html[data-dashboard-theme="dark"] .settings-shell-page-header,
+html[data-dashboard-theme="dark"] .settings-shell-section,
+html[data-dashboard-theme="dark"] .settings-shell-sticky-save {
+  border-color: #343c4d;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-choice-row,
+html[data-dashboard-theme="dark"] .settings-shell-status-row,
+html[data-dashboard-theme="dark"] .settings-shell-key-value-row {
+  border-top-color: #2a3140;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-nav-heading,
+html[data-dashboard-theme="dark"] .settings-shell-mobile-label,
+html[data-dashboard-theme="dark"] .settings-shell-status-label,
+html[data-dashboard-theme="dark"] .settings-shell-key-value-label {
+  color: #aeb8c8;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-nav-button {
+  color: #c6d0df;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-nav-button:hover {
+  color: #f4f6fb;
+  background: #202634;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-nav-button.active {
+  color: #9ee8d3;
+  background: #18342d;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-page-title,
+html[data-dashboard-theme="dark"] .settings-shell-section-title,
+html[data-dashboard-theme="dark"] .settings-shell-choice-title,
+html[data-dashboard-theme="dark"] .settings-shell-status-value,
+html[data-dashboard-theme="dark"] .settings-shell-key-value-title {
+  color: #f4f6fb;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-page-copy,
+html[data-dashboard-theme="dark"] .settings-shell-mobile-copy,
+html[data-dashboard-theme="dark"] .settings-shell-section-copy,
+html[data-dashboard-theme="dark"] .settings-shell-status-copy,
+html[data-dashboard-theme="dark"] .settings-shell-key-value-copy {
+  color: #c6d0df;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-choice-row select,
+html[data-dashboard-theme="dark"] .settings-shell-mobile-select {
+  border-color: #444d60;
+  background: #151922;
+  color: #f4f6fb;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-chip-option,
+html[data-dashboard-theme="dark"] .settings-shell-theme-option {
+  border-color: #343c4d;
+  background: #1b202b;
+  color: #e7ecf5;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-theme-option.active {
+  border-color: #34d399;
+  background: #18342d;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-theme-option strong {
+  color: #f4f6fb;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-theme-option small {
+  color: #c6d0df;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-sticky-save {
+  background: linear-gradient(180deg, rgba(17, 19, 24, 0), #111318 42%);
+}
+
+@media (max-width: 700px) {
+  .settings-shell-theme-options {
+    grid-template-columns: 1fr;
+  }
+}
