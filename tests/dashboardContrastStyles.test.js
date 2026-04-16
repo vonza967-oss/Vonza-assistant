@@ -64,7 +64,9 @@ test("dashboard Customers page text uses readable active-content contrast", () =
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-summary\s*\{[^}]*color:\s*#40516c;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-row-meta-value\s*\{[^}]*color:\s*#4f617c;[^}]*font-weight:\s*600;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip\s*\{[^}]*color:\s*#334963;/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip--needs_reply\s*\{[^}]*background:\s*#fff0c7;[^}]*color:\s*#653900;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\]\s*\{[^}]*--light-warning-text:\s*#4a2a00;[^}]*--light-warning-bg:\s*#fff4dc;[^}]*--light-warning-border:\s*#b97412;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-status-chip--needs_reply,\s*\.workspace-page\[data-shell-section="contacts"\] \.badge\.warning\s*\{[^}]*background:\s*var\(--light-warning-bg\);[^}]*color:\s*var\(--light-warning-text\)/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.customer-focus-banner\s*\{[^}]*background:\s*linear-gradient\(135deg,\s*#121d35 0%,\s*#0a1329 100%\)/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.timeline-row strong\s*\{\s*color:\s*#17233f;/i);
 });
 
@@ -117,6 +119,9 @@ test("dashboard Front Desk light shell keeps settings navigation and content rea
   assert.match(navButtonActive, /background:\s*#eef4ff/i);
   assert.match(css, /\.workspace-pages \.settings-page-title,\s*\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
   assert.match(css, /\.workspace-pages \.settings-page-copy,\s*\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-polished-panel\s*\{[^}]*border-radius:\s*26px;[^}]*background:\s*linear-gradient\(180deg,\s*#ffffff 0%,\s*#f8fbff 100%\)/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-overview-panel \.frontdesk-readiness-list,\s*\.workspace-page\[data-shell-section="customize"\] \.frontdesk-context-panel \.frontdesk-detail-stack\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-preview-panel \.preview-header\s*\{[^}]*background:\s*#f4f8ff;/i);
 });
 
 test("dashboard contrast pass covers analytics, chips, active rows, and settings shell text", () => {

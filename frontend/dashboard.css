@@ -5359,9 +5359,9 @@ body {
 }
 
 .workspace-page[data-shell-section="contacts"] {
-  --light-warning-text: #653900;
-  --light-warning-bg: #fff0c7;
-  --light-warning-border: #d7952a;
+  --light-warning-text: #4a2a00;
+  --light-warning-bg: #fff4dc;
+  --light-warning-border: #b97412;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply,
@@ -5372,7 +5372,7 @@ body {
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row-dot--needs_reply {
-  background: #9f5f00;
+  background: #8a4d00;
 }
 
 .workspace-pages .settings-sidebar {
@@ -8292,9 +8292,9 @@ body {
 }
 
 .workspace-page .customer-status-chip--needs_reply {
-  border-color: #e6c77e;
-  background: #fff2cc;
-  color: #7d5400;
+  border-color: #b97412;
+  background: #fff4dc;
+  color: #4a2a00;
 }
 
 .workspace-page .customer-status-chip--resolved {
@@ -8339,6 +8339,118 @@ body {
 .workspace-page .field input::placeholder,
 .workspace-page .field textarea::placeholder {
   color: #65758f;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-focus-banner {
+  border: 1px solid rgba(219, 228, 239, 0.18);
+  background: linear-gradient(135deg, #121d35 0%, #0a1329 100%);
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-focus-banner .workspace-panel-title {
+  color: #ffffff;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-banner-button {
+  border-color: #c7d3e3;
+  background: #ffffff;
+  color: #24364f;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply,
+.workspace-page[data-shell-section="contacts"] .badge.warning {
+  border-color: var(--light-warning-border);
+  background: var(--light-warning-bg);
+  color: var(--light-warning-text);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  gap: 22px;
+  padding: 28px;
+  border-radius: 26px;
+  border: 1px solid #d8e2ef;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 22px 48px rgba(25, 40, 68, 0.09);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-intro {
+  padding: 2px 2px 18px;
+  border-bottom: 1px solid #e4ebf5;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-divider {
+  display: none;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
+  padding: 18px;
+  border: 1px solid #dfe7f2;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(31, 45, 68, 0.055);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
+  align-content: start;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-support-note {
+  border-color: #cbd9ef;
+  background: #f2f7ff;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e4ebf5;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-row {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header {
+  background: #f4f8ff;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-status-row {
+  margin-top: 0;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
+  margin-bottom: -4px;
+  background: #f7faff;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-frame {
+  margin-top: 0;
+  border-color: #cad7e8;
+  border-radius: 18px;
+  background: #0f172a;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+@media (max-width: 980px) {
+  .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
+  .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
+    grid-template-columns: 1fr;
+  }
 }
 
 .home-daily-banner-kicker,

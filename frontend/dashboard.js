@@ -3125,26 +3125,24 @@ function getCustomerIdentityLabel(contact = {}) {
 }
 
 function getCustomerIdentifier(contact = {}) {
-  return trimText(contact.bestIdentifier)
-    || trimText(contact.email)
+  return trimText(contact.email)
     || trimText(contact.phone)
+    || trimText(contact.bestIdentifier)
     || "No direct identifier yet";
 }
 
+function getCustomerLastMessageAt(contact = {}) {
+  return trimText(contact.lastCustomerMessageAt);
+}
+
 function getCustomerLastActivityLabel(contact = {}) {
-  if (contact.lastCustomerMessageAt) {
-    return formatSeenAt(contact.lastCustomerMessageAt);
+  const lastCustomerMessageAt = getCustomerLastMessageAt(contact);
+
+  if (lastCustomerMessageAt) {
+    return formatSeenAt(lastCustomerMessageAt);
   }
 
-  if (contact.mostRecentActivityAt) {
-    return formatSeenAt(contact.mostRecentActivityAt);
-  }
-
-  if (contact.latestOutcome?.occurredAt) {
-    return formatSeenAt(contact.latestOutcome.occurredAt);
-  }
-
-  return "No recent activity";
+  return "No customer message yet";
 }
 
 function getCustomerLatestSummary(contact = {}) {
@@ -3462,14 +3460,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
   const rowIdentifier = getCustomerRowIdentifier(contact);
-  const customerName = getCustomerName(contact);
-  const identityMeta = [
-    trimText(contact.email) && customerName !== trimText(contact.email) ? customerName : getCustomerIdentityLabel(contact),
-    contact.lastCustomerMessageAt ? `Last message ${getCustomerLastActivityLabel(contact)}` : `Last active ${getCustomerLastActivityLabel(contact)}`,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const visibleLastActivityAt = contact.lastCustomerMessageAt || contact.mostRecentActivityAt || "";
+  const visibleLastActivityAt = getCustomerLastMessageAt(contact);
 
   return `
     <article
@@ -3497,7 +3488,8 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
           </div>
         </div>
         <div class="customer-row-meta">
-          <span class="customer-row-meta-value">${escapeHtml(identityMeta)}</span>
+          <span class="customer-row-meta-label">Last message</span>
+          <strong class="customer-row-meta-value">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
         </div>
       </div>
     </article>
@@ -3621,11 +3613,11 @@ function buildContactDetailPanel(
     >
       <div class="contact-detail-header customer-detail-header">
         <div class="customer-detail-intro">
-          <h2 class="contact-detail-title">${escapeHtml(getCustomerName(contact))}</h2>
+          <h2 class="contact-detail-title">${escapeHtml(getCustomerRowIdentifier(contact))}</h2>
           <p class="contact-detail-copy">${escapeHtml([
             getCustomerIdentityLabel(contact),
             getPrimaryCustomerStatus(contact).label,
-            `Last active ${getCustomerLastActivityLabel(contact)}`,
+            `Last message ${getCustomerLastActivityLabel(contact)}`,
           ].join(" · "))}</p>
           <div class="action-queue-badges customer-status-row">
             ${buildCustomerStatusMarkup(contact, 2)}
@@ -6161,7 +6153,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: activeFrontDeskSection }),
       })}
       <div class="workspace-page-body">
-        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="overview" ${activeFrontDeskSection === "overview" ? "" : "hidden"}>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-overview-panel" data-frontdesk-section="overview" ${activeFrontDeskSection === "overview" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
               <p class="studio-kicker">Overview</p>
@@ -6196,10 +6188,10 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           </div>
         </section>
 
-        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-preview-shell" data-frontdesk-section="preview" ${activeFrontDeskSection === "preview" ? "" : "hidden"}>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-preview-shell frontdesk-preview-panel" data-frontdesk-section="preview" ${activeFrontDeskSection === "preview" ? "" : "hidden"}>
           ${buildPreviewSection(agent, setup)}
         </section>
-        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
               <p class="studio-kicker">Website / Context</p>

@@ -897,7 +897,9 @@ test("customers render as a single-column workspace without inactive controls", 
             name: "Taylor Reed",
             email: "taylor@example.com",
             lifecycleState: "active_lead",
+            lastCustomerMessageAt: "2026-04-05T09:00:00.000Z",
             mostRecentActivityAt: "2026-04-05T09:00:00.000Z",
+            latestCustomerMessageSummary: "Visitor asked for pricing.",
             nextAction: {
               title: "Draft follow-up",
               description: "Pricing question still needs a response.",
@@ -930,7 +932,9 @@ test("customers render as a single-column workspace without inactive controls", 
   assert.doesNotMatch(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /customer-status-chip/);
   assert.match(contactsPanel, /<strong class="contact-row-name">taylor@example\.com<\/strong>/);
-  assert.match(contactsPanel, /Taylor Reed · Last active/);
+  assert.match(contactsPanel, /Visitor asked for pricing/);
+  assert.match(contactsPanel, /Last message/);
+  assert.doesNotMatch(contactsPanel, /Last active/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up<\/button>\s*<details class="row-action-menu"/);
 });
 
@@ -1087,6 +1091,10 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Open install/);
   assert.match(panel, /What stays out of the way/);
   assert.match(panel, /Deeper configuration lives in Settings/);
+  assert.match(panel, /frontdesk-polished-panel frontdesk-overview-panel/);
+  assert.match(panel, /frontdesk-polished-panel frontdesk-preview-shell frontdesk-preview-panel/);
+  assert.match(panel, /frontdesk-polished-panel frontdesk-context-panel/);
+  assert.match(panel, /class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="launch"/);
   assert.match(panel, /data-frontdesk-section="launch"/);
   assert.match(panel, /frontdesk-main-panel/);
   assert.doesNotMatch(panel, /settings-summary-grid/);
@@ -1162,7 +1170,7 @@ test("customer rows for email users show email, customer question, and persisted
   });
   const row = harness.buildContactRow({
     id: "contact-1",
-    name: "Alex Buyer",
+    name: "Can you send the pricing package?",
     email: "alex@example.com",
     lifecycleState: "active_lead",
     sources: ["chat"],
@@ -1175,6 +1183,14 @@ test("customer rows for email users show email, customer question, and persisted
       title: "Draft quote follow-up",
       description: "Follow up on pricing.",
     },
+    timeline: [
+      {
+        at: "2026-04-14T09:04:20.000Z",
+        label: "Assistant message",
+        source: "chat",
+        summary: "Vonza can help with pricing.",
+      },
+    ],
     counts: { messages: 2 },
   });
 
@@ -1185,9 +1201,36 @@ test("customer rows for email users show email, customer question, and persisted
   assert.ok(emailIndex >= 0);
   assert.ok(questionIndex > emailIndex);
   assert.ok(timeIndex > questionIndex);
+  assert.match(row, /<strong class="contact-row-name">alex@example\.com<\/strong>\s*<p class="customer-row-summary">Can you send pricing\?<\/p>/);
   assert.match(row, /data-contact-last-activity="2026-04-14T09:03:55\.000Z"/);
   assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
+  assert.doesNotMatch(row, /Last active/);
   assert.doesNotMatch(row, /Vonza/);
+});
+
+test("customer rows do not fall back to generic activity timestamps", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-2",
+    email: "no-message@example.com",
+    lifecycleState: "customer",
+    mostRecentActivityAt: "2026-04-16T12:34:56.000Z",
+    latestOutcome: {
+      label: "Quote accepted",
+      occurredAt: "2026-04-15T10:00:00.000Z",
+    },
+  });
+
+  assert.match(row, /<span class="customer-row-meta-label">Last message<\/span>/);
+  assert.match(row, /No customer message yet/);
+  assert.match(row, /data-contact-last-activity=""/);
+  assert.doesNotMatch(row, /Last active/);
+  assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
+  assert.doesNotMatch(row, /2026-04-15T10:00:00\.000Z/);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
