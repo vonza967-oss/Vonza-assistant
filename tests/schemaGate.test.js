@@ -51,9 +51,9 @@ test("schema sync detects missing canonical and migration coverage", () => {
     ]),
     schemaHints: {
       messages: {
-        requiredColumns: ["id", "agent_id", "role", "content", "session_key", "created_at"],
+        requiredColumns: ["id", "agent_id", "role", "content", "session_key", "visitor_email", "created_at"],
         migrationFiles: ["messages_visitor_identity.sql"],
-        migrationColumns: ["session_key"],
+        migrationColumns: ["session_key", "visitor_email"],
       },
     },
   });

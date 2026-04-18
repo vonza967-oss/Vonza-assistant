@@ -1249,6 +1249,9 @@ function normalizeWidgetMessage(message = {}) {
     role: normalizeMessageRole(message.role),
     content: cleanText(message.content),
     sessionKey: cleanText(message.sessionKey || message.session_key),
+    visitorIdentityMode: cleanText(message.visitorIdentityMode || message.visitor_identity_mode),
+    visitorEmail: cleanText(message.visitorEmail || message.visitor_email),
+    visitorName: cleanText(message.visitorName || message.visitor_name),
     createdAt: message.createdAt || message.created_at || null,
   };
 }
@@ -1301,6 +1304,19 @@ function getWidgetMessageContactInfo(message = {}) {
     return {
       name: "",
       email: "",
+      phone: "",
+      phoneNormalized: "",
+    };
+  }
+
+  const identityMode = cleanText(message.visitorIdentityMode || message.visitor_identity_mode);
+  const identityEmail = normalizeEmail(message.visitorEmail || message.visitor_email);
+  const identityName = cleanText(message.visitorName || message.visitor_name);
+
+  if (identityMode === "identified" && identityEmail) {
+    return {
+      name: identityName,
+      email: identityEmail,
       phone: "",
       phoneNormalized: "",
     };

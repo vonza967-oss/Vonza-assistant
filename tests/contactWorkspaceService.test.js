@@ -356,6 +356,38 @@ test("stored email identities hydrate customer primary identifiers", () => {
   assert.equal(result.list[0].latestCustomerMessageSummary, "Do you have weekend hours?");
 });
 
+test("identified widget conversations use durable message identity fields", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "What does this cost?",
+        sessionKey: "session-durable",
+        visitorIdentityMode: "identified",
+        visitorEmail: "durable@example.com",
+        visitorName: "Durable Visitor",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-2",
+        role: "assistant",
+        content: "Pricing depends on scope.",
+        sessionKey: "session-durable",
+        visitorIdentityMode: "identified",
+        visitorEmail: "durable@example.com",
+        visitorName: "Durable Visitor",
+        createdAt: "2026-04-14T09:04:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Durable Visitor");
+  assert.equal(result.list[0].email, "durable@example.com");
+  assert.notEqual(result.list[0].name, "Anonymous visitor");
+});
+
 test("guest sessions upgrade to one identified customer when email is captured later", () => {
   const result = buildContactWorkspaceFromRecords({
     storedContacts: [

@@ -204,22 +204,47 @@ function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-test("widget can continue as guest and build a guest payload", () => {
-  const harness = createWidgetHarness();
+test("widget can continue as guest and build a guest payload", async () => {
+  const harness = createWidgetHarness({
+    customFetch: async (input) => ({
+      ok: String(input) === "/chat/capture",
+      async json() {
+        return {
+          leadCapture: {
+            id: "lead-guest",
+            state: "none",
+          },
+          visitorIdentity: {
+            mode: "guest",
+            email: "",
+            name: "",
+          },
+        };
+      },
+    }),
+  });
   const input = harness.elements.get("input");
+  const identityPanel = harness.elements.get("identity-choice-panel");
+  const welcomeContent = harness.elements.get("welcome-content");
 
-  assert.equal(input.disabled, false);
+  assert.equal(input.disabled, true);
+  assert.equal(identityPanel.hidden, false);
+  assert.equal(welcomeContent.hidden, true);
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
-    mode: "guest",
+    mode: "",
     email: "",
     name: "",
   });
+  assert.equal(harness.fetchCalls.length, 0);
 
   harness.hooks.continueIntoChat({
     mode: "guest",
-  });
+  }, { capture: true });
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(input.disabled, false);
+  assert.equal(identityPanel.hidden, true);
+  assert.equal(welcomeContent.hidden, false);
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
     mode: "guest",
     email: "",
@@ -235,6 +260,13 @@ test("widget can continue as guest and build a guest payload", () => {
     visitor_email: "",
     visitor_name: "",
   });
+
+  const captureCall = harness.fetchCalls.find((call) => call.input === "/chat/capture");
+  assert.ok(captureCall);
+  const payload = JSON.parse(captureCall.options.body);
+  assert.equal(payload.action, "choose_guest");
+  assert.equal(payload.visitor_identity_mode, "guest");
+  assert.equal(payload.email, "");
 });
 
 test("widget can continue with email and build identified chat payloads", () => {

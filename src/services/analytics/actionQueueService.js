@@ -823,6 +823,26 @@ function mergeContactInfo(existing = {}, next = {}) {
   };
 }
 
+function getMessageVisitorContactInfo(message = {}) {
+  const mode = cleanText(message.visitorIdentityMode || message.visitor_identity_mode);
+  const email = normalizeEmail(message.visitorEmail || message.visitor_email);
+  const name = cleanText(message.visitorName || message.visitor_name);
+
+  if (mode !== "identified" || !email) {
+    return {
+      email: "",
+      phone: "",
+      name: "",
+    };
+  }
+
+  return {
+    email,
+    phone: "",
+    name,
+  };
+}
+
 function normalizeEmail(value) {
   return cleanText(value).toLowerCase();
 }
@@ -1075,10 +1095,10 @@ function buildConversationInteractions(messages = []) {
     const unresolved = !cleanText(reply);
     const type = actionableIntent ? intent : "weak_answer";
     const contactInfo = mergeContactInfo(
+      getMessageVisitorContactInfo(message),
       extractVisitorContactInfo(question, {
         allowBareContact: true,
-      }),
-      {}
+      })
     );
     const actionKey = buildConversationActionKey(message, index);
     const lastSeenAt = assistantMessage?.createdAt || assistantMessage?.created_at || message.createdAt || message.created_at || null;

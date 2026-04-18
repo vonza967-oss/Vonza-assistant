@@ -98,6 +98,9 @@ create table if not exists public.messages (
   role text not null,
   content text not null,
   session_key text,
+  visitor_identity_mode text,
+  visitor_email text,
+  visitor_name text,
   created_at timestamp with time zone default now()
 );
 
@@ -109,6 +112,10 @@ create index if not exists messages_agent_id_created_at_idx
 
 create index if not exists messages_agent_id_session_key_created_at_idx
   on public.messages (agent_id, session_key, created_at desc);
+
+create index if not exists messages_agent_id_visitor_email_created_at_idx
+  on public.messages (agent_id, visitor_email, created_at desc)
+  where visitor_email is not null;
 
 create table if not exists public.agent_action_queue_statuses (
   id uuid primary key default gen_random_uuid(),

@@ -495,6 +495,29 @@ test("identified visitor choice upgrades an existing guest lead in the same sess
   assert.equal(supabase.state.agent_contact_leads[0].lead_key, "email:avery@example.com");
 });
 
+test("explicit guest choice creates durable session identity without contact info", async () => {
+  const supabase = createFakeSupabase();
+
+  const result = await applyLeadCaptureAction(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    sessionKey: "session-guest-choice",
+    action: "choose_guest",
+    userMessage: "Visitor continued as guest.",
+    language: "English",
+    visitorIdentity: {
+      mode: "guest",
+    },
+  });
+
+  assert.equal(result.state, "none");
+  assert.equal(supabase.state.agent_contact_leads.length, 1);
+  assert.equal(supabase.state.agent_contact_leads[0].visitor_session_key, "session-guest-choice");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_email, null);
+  assert.equal(supabase.state.agent_contact_leads[0].capture_metadata.visitorIdentityMode, "guest");
+});
+
 test("lead hydration upgrades action queue people from guest session to identified email", () => {
   const messages = buildConversationRows([
     { role: "user", content: "How much does the monthly package cost?" },

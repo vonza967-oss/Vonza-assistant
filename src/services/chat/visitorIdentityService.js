@@ -3,7 +3,38 @@ import { cleanText } from "../../utils/text.js";
 export function normalizeVisitorEmail(value) {
   const cleaned = cleanText(value).toLowerCase();
   const match = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0].toLowerCase() : "";
+  const email = match ? match[0].toLowerCase() : "";
+
+  if (!email) {
+    return "";
+  }
+
+  const [localPart, domain] = email.split("@");
+  const blockedLocalParts = new Set([
+    "anonymous",
+    "guest",
+    "none",
+    "no-reply",
+    "noreply",
+    "placeholder",
+    "test",
+    "unknown",
+    "user",
+    "you",
+  ]);
+
+  if (
+    blockedLocalParts.has(localPart)
+    || localPart.startsWith("your")
+    || localPart.includes("placeholder")
+    || localPart.includes("example")
+    || domain === "example.invalid"
+    || domain === "invalid.invalid"
+  ) {
+    return "";
+  }
+
+  return email;
 }
 
 export function normalizeVisitorIdentity(input = {}) {

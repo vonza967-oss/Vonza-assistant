@@ -1665,6 +1665,36 @@ test("action queue groups repeat interactions under one lightweight person threa
   assert.ok(result.items.some((item) => item.actionType === "repeat_high_intent_visitor"));
 });
 
+test("action queue uses durable message visitor identity instead of guest session identity", () => {
+  const result = buildActionQueue([
+    {
+      id: "message-1",
+      role: "user",
+      content: "What does this cost?",
+      sessionKey: "session-durable",
+      visitorIdentityMode: "identified",
+      visitorEmail: "durable@example.com",
+      visitorName: "Durable Visitor",
+      createdAt: "2026-04-02T10:00:00.000Z",
+    },
+    {
+      id: "message-2",
+      role: "assistant",
+      content: "Pricing depends on scope.",
+      sessionKey: "session-durable",
+      visitorIdentityMode: "identified",
+      visitorEmail: "durable@example.com",
+      visitorName: "Durable Visitor",
+      createdAt: "2026-04-02T10:00:05.000Z",
+    },
+  ], []);
+
+  assert.equal(result.people.length, 1);
+  assert.equal(result.people[0].identityType, "email");
+  assert.equal(result.people[0].email, "durable@example.com");
+  assert.equal(result.people[0].name, "Durable Visitor");
+});
+
 test("action queue does not treat assistant routing contact details as visitor identity", () => {
   const messages = [
     {

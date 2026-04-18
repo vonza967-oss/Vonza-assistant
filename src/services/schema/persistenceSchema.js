@@ -116,10 +116,13 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "role",
       "content",
       "session_key",
+      "visitor_identity_mode",
+      "visitor_email",
+      "visitor_name",
       "created_at",
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.messages_visitor_identity],
-    migrationColumns: ["session_key"],
+    migrationColumns: ["session_key", "visitor_identity_mode", "visitor_email", "visitor_name"],
   },
   agent_action_queue_statuses: {
     requiredColumns: [

@@ -1,5 +1,6 @@
 import { MESSAGES_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
+import { normalizeVisitorIdentity } from "./visitorIdentityService.js";
 
 function isMissingMessagesSchemaError(error) {
   const message = cleanText(error?.message || "").toLowerCase();
@@ -26,7 +27,7 @@ function buildMissingMessagesSchemaError(phase = "request") {
 export async function assertMessagesSchemaReady(supabase, options = {}) {
   const { error } = await supabase
     .from(MESSAGES_TABLE)
-    .select("id, agent_id, role, content, session_key, created_at")
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at")
     .limit(1);
 
   if (error) {
@@ -41,6 +42,7 @@ export async function assertMessagesSchemaReady(supabase, options = {}) {
 export async function storeAgentMessages(supabase, agentId, entries = [], options = {}) {
   const normalizedAgentId = cleanText(agentId);
   const normalizedSessionKey = cleanText(options.sessionKey);
+  const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
   const seenEntries = new Set();
   const payload = entries
     .map((entry) => ({
@@ -48,6 +50,9 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
       role: cleanText(entry.role),
       content: cleanText(entry.content),
       session_key: cleanText(entry.sessionKey || normalizedSessionKey) || null,
+      visitor_identity_mode: visitorIdentity.mode || null,
+      visitor_email: visitorIdentity.email || null,
+      visitor_name: visitorIdentity.name || null,
       created_at: entry.createdAt || entry.created_at || new Date().toISOString(),
     }))
     .filter((entry) => {
@@ -72,7 +77,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   const { data, error } = await supabase
     .from(MESSAGES_TABLE)
     .insert(payload)
-    .select("id, agent_id, role, content, session_key, created_at");
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at");
 
   if (error) {
     if (isMissingMessagesSchemaError(error)) {
@@ -89,6 +94,9 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     role: row.role,
     content: row.content,
     sessionKey: row.session_key || null,
+    visitorIdentityMode: row.visitor_identity_mode || null,
+    visitorEmail: row.visitor_email || null,
+    visitorName: row.visitor_name || null,
     createdAt: row.created_at,
   }));
 }
@@ -104,7 +112,7 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
 
   const { data, error } = await supabase
     .from(MESSAGES_TABLE)
-    .select("id, agent_id, role, content, session_key, created_at")
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at")
     .eq("agent_id", normalizedAgentId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -124,6 +132,9 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
     role: row.role,
     content: row.content,
     sessionKey: row.session_key || null,
+    visitorIdentityMode: row.visitor_identity_mode || null,
+    visitorEmail: row.visitor_email || null,
+    visitorName: row.visitor_name || null,
     createdAt: row.created_at,
   }));
 }

@@ -641,6 +641,46 @@ test("chat logging emits metadata without raw conversation or business content",
   assert.match(logged, /messageLength/);
 });
 
+test("/chat persists explicit visitor identity on stored messages", async () => {
+  const supabase = createFakeSupabase(buildChatState());
+
+  await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "Sure, I can help." } }],
+          }),
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      visitor_session_key: "session-identity",
+      visitor_identity: {
+        mode: "identified",
+        email: "durable@example.com",
+        name: "Durable Visitor",
+      },
+      message: "What does this cost?",
+    },
+  });
+
+  assert.equal(supabase.state.messages.length, 2);
+  assert.equal(supabase.state.messages[0].session_key, "session-identity");
+  assert.equal(supabase.state.messages[0].visitor_identity_mode, "identified");
+  assert.equal(supabase.state.messages[0].visitor_email, "durable@example.com");
+  assert.equal(supabase.state.messages[0].visitor_name, "Durable Visitor");
+  assert.equal(supabase.state.messages[1].visitor_email, "durable@example.com");
+  assert.equal(supabase.state.agent_contact_leads.length, 1);
+  assert.equal(supabase.state.agent_contact_leads[0].contact_email, "durable@example.com");
+  assert.equal(supabase.state.agent_contact_leads[0].contact_name, "Durable Visitor");
+  assert.equal(supabase.state.agent_contact_leads[0].capture_state, "captured");
+});
+
 test("website content logging does not expose scraped business text previews", () => {
   const service = readFileSync(
     path.join(repoRoot, "src", "services", "scraping", "websiteContentService.js"),
@@ -699,10 +739,21 @@ test("Google OAuth callback completes and updates activation state", async () =>
 
 test("widget lead capture UI posts to the live capture endpoint without raw contact telemetry", () => {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
 
   assert.match(script, /function renderLeadCapture/);
+  assert.match(script, /function renderVisitorIdentityGate/);
+  assert.match(script, /function persistVisitorIdentityChoice/);
+  assert.match(script, /identityPanel\.hidden = identityReady/);
+  assert.match(script, /welcomeContent\.hidden = !identityReady/);
   assert.doesNotMatch(script, /data-lead-capture-submit/);
   assert.match(script, /appendMessage\(chat, "bot"/);
+  assert.match(script, /action: normalized\.mode === "guest" \? "choose_guest" : "submit"/);
+  assert.match(script, /\.\.\.buildVisitorIdentityPayload\(\)/);
+  assert.doesNotMatch(script, /saveVisitorIdentity\(\{\s*mode:\s*"guest"/);
+  assert.match(widget, /identity-choice-panel/);
+  assert.match(widget, /Continue as guest/);
+  assert.match(widget, /Continue with email/);
   assert.match(script, /fetch\(\"\/chat\/capture\"/);
   assert.match(script, /reveal_capture/);
   assert.doesNotMatch(script, /contactHash/);

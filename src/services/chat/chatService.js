@@ -191,6 +191,7 @@ async function buildChatResponse({
 
   await storeAgentMessages(supabase, agent.id, entries, {
     sessionKey,
+    visitorIdentity,
   });
 
   return {

@@ -259,15 +259,16 @@ function updateComposerAvailability() {
   const input = document.getElementById("input");
   const button = document.getElementById("send-button");
   const inputArea = document.querySelector(".input-area");
+  const identityReady = hasChosenVisitorIdentity();
 
   if (!input || !button || !inputArea) {
     return;
   }
 
-  input.disabled = false;
-  button.disabled = false;
-  input.placeholder = "Type here";
-  inputArea.classList.toggle("is-locked", false);
+  input.disabled = !identityReady;
+  button.disabled = !identityReady;
+  input.placeholder = identityReady ? "Type here" : "Choose guest or email first";
+  inputArea.classList.toggle("is-locked", !identityReady);
 }
 
 function renderVisitorIdentityGate() {
@@ -279,15 +280,15 @@ function renderVisitorIdentityGate() {
   const identityReady = Boolean(normalized.mode);
 
   if (identityPanel) {
-    identityPanel.hidden = true;
+    identityPanel.hidden = identityReady;
   }
 
   if (welcomeContent) {
-    welcomeContent.hidden = false;
+    welcomeContent.hidden = !identityReady;
   }
 
   if (introMessage) {
-    introMessage.hidden = false;
+    introMessage.hidden = !identityReady;
   }
 
   if (summary) {
@@ -332,18 +333,18 @@ function continueIntoChat(identity, options = {}) {
     });
   }
 
-  if (normalized.mode === "identified" && options.capture !== false) {
-    void persistIdentifiedVisitorChoice(normalized);
+  if (options.capture !== false) {
+    void persistVisitorIdentityChoice(normalized);
   }
 
   document.getElementById("input")?.focus();
   return normalized;
 }
 
-async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
+async function persistVisitorIdentityChoice(identity = visitorIdentity) {
   const normalized = normalizeVisitorIdentityState(identity);
 
-  if (normalized.mode !== "identified" || !normalized.email) {
+  if (!normalized.mode) {
     return null;
   }
 
@@ -352,7 +353,7 @@ async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "submit",
+        action: normalized.mode === "guest" ? "choose_guest" : "submit",
         agent_id: resolvedAgentId,
         agent_key: resolvedAgentKey,
         business_id: resolvedBusinessId,
@@ -361,10 +362,12 @@ async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
         page_url: getPageUrl(),
         origin: getPageOrigin(),
         visitor_session_key: getVisitorSessionKey(),
-        reference_message: "Visitor continued with email.",
+        reference_message: normalized.mode === "guest"
+          ? "Visitor continued as guest."
+          : "Visitor continued with email.",
         name: normalized.name,
         email: normalized.email,
-        preferred_channel: "email",
+        preferred_channel: normalized.mode === "identified" ? "email" : "",
         ...buildVisitorIdentityPayload(normalized),
       }),
     });
@@ -385,6 +388,10 @@ async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
     console.warn("Vonza visitor identity capture failed:", error);
     return null;
   }
+}
+
+async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
+  return persistVisitorIdentityChoice(identity);
 }
 function getDirectRoutingSlot() {
   return document.getElementById("direct-routing-slot");
@@ -976,11 +983,13 @@ async function sendMessage() {
   const message = input.value.trim();
   const historySnapshot = conversationHistory.slice(-6);
 
-  if (!hasChosenVisitorIdentity()) {
-    setVisitorIdentityState({ mode: "guest" });
-  }
-
   if (!message) return;
+
+  if (!hasChosenVisitorIdentity()) {
+    renderVisitorIdentityGate();
+    setComposerStatus("Choose guest or email before sending your first message.");
+    return;
+  }
 
   hideWelcomePanel();
 
@@ -1162,9 +1171,6 @@ if (EMBEDDED_MODE) {
 }
 
 visitorIdentity = loadStoredVisitorIdentity();
-if (!hasChosenVisitorIdentity()) {
-  visitorIdentity = saveVisitorIdentity({ mode: "guest", email: "", name: "" });
-}
 renderVisitorIdentityGate();
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 loadWidgetBootstrap();
