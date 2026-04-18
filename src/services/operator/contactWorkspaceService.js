@@ -696,7 +696,7 @@ function buildTimelineEntries(group = {}) {
 }
 
 function isPlaceholderDisplayName(value = "") {
-  return ["unknown contact", "anonymous visitor", "guest visitor", "identity unknown", "session continuity only"]
+  return ["unknown", "unknown contact", "anonymous visitor", "guest visitor", "unknown visitor", "identity unknown", "session continuity only"]
     .includes(cleanText(value).toLowerCase());
 }
 
@@ -784,6 +784,22 @@ function getLatestCustomerMessageSnapshot(group = {}) {
   return snapshots[0] || null;
 }
 
+function getLatestConversationMessageSnapshot(group = {}) {
+  const latest = normalizeArray(group.messages)
+    .filter((message) => parseTimestamp(message.createdAt))
+    .sort((left, right) => parseTimestamp(right.createdAt) - parseTimestamp(left.createdAt))[0] || null;
+
+  if (!latest) {
+    return null;
+  }
+
+  return {
+    at: latest.createdAt || null,
+    summary: cleanText(latest.content),
+    role: normalizeMessageRole(latest.role),
+  };
+}
+
 function getPersistedCustomerMessageSnapshot(group = {}) {
   const metadata = group.persistedContact?.metadata || {};
   const at = metadata.latestCustomerMessageAt || metadata.lastCustomerMessageAt || null;
@@ -796,6 +812,22 @@ function getPersistedCustomerMessageSnapshot(group = {}) {
   return {
     at,
     summary,
+  };
+}
+
+function getPersistedConversationMessageSnapshot(group = {}) {
+  const metadata = group.persistedContact?.metadata || {};
+  const at = metadata.latestConversationMessageAt || metadata.lastConversationMessageAt || null;
+  const summary = cleanText(metadata.latestConversationMessageSummary || metadata.lastConversationMessageSummary);
+
+  if (!parseTimestamp(at) && !summary) {
+    return null;
+  }
+
+  return {
+    at,
+    summary,
+    role: cleanText(metadata.latestConversationMessageRole || metadata.lastConversationMessageRole),
   };
 }
 
@@ -1018,6 +1050,9 @@ function buildContactSummary(group = {}, options = {}) {
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
   const latestCustomerMessage = getLatestCustomerMessageSnapshot(group) || getPersistedCustomerMessageSnapshot(group);
+  const latestConversationMessage = getLatestConversationMessageSnapshot(group)
+    || getPersistedConversationMessageSnapshot(group)
+    || latestCustomerMessage;
   const latestVisitorMessageActivityAt = latestCustomerMessage?.at || getLatestVisitorMessageActivityAt(group);
   const fallbackActivityAt = timeline.find((entry) => entry.source !== "chat" || entry.label !== "Assistant message")?.at || null;
   const lastActivityAt = latestVisitorMessageActivityAt
@@ -1063,6 +1098,9 @@ function buildContactSummary(group = {}, options = {}) {
     mostRecentActivityAt: lastActivityAt,
     lastCustomerMessageAt: latestCustomerMessage?.at || null,
     latestCustomerMessageSummary: latestCustomerMessage?.summary || "",
+    lastConversationMessageAt: latestConversationMessage?.at || null,
+    latestConversationMessageSummary: latestConversationMessage?.summary || "",
+    latestConversationMessageRole: latestConversationMessage?.role || "",
     sources: [...sourceSet].map(formatSourceLabel),
     flags: flags.map(formatSourceLabel),
     partialIdentity: !normalizeEmail(group.emails[0])
@@ -1734,6 +1772,9 @@ function buildContactPayload(contact = {}, group = {}, options = {}) {
       latestMessageId: contact.latestMessageId || "",
       latestCustomerMessageAt: contact.lastCustomerMessageAt || "",
       latestCustomerMessageSummary: contact.latestCustomerMessageSummary || "",
+      latestConversationMessageAt: contact.lastConversationMessageAt || contact.lastCustomerMessageAt || "",
+      latestConversationMessageSummary: contact.latestConversationMessageSummary || contact.latestCustomerMessageSummary || "",
+      latestConversationMessageRole: contact.latestConversationMessageRole || "",
       related: contact.related || {},
       counts: contact.counts || {},
     },

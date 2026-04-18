@@ -3214,6 +3214,7 @@ function normalizeCustomerLabelForCompare(value = "") {
 
 function isPlaceholderCustomerLabel(value = "") {
   return [
+    "unknown",
     "anonymous visitor",
     "guest visitor",
     "unknown visitor",
@@ -3271,19 +3272,32 @@ function getCustomerEmailLabel(value = "") {
   return match ? match[0].toLowerCase() : "";
 }
 
+function getNamedCustomerIdentity(contact = {}) {
+  const email = getCustomerEmailLabel(contact.email);
+  const phone = trimText(contact.phone);
+
+  return [
+    getValidCustomerLabel(contact.name),
+    getValidCustomerLabel(contact.bestIdentifier),
+  ].find((candidate) => {
+    const normalizedCandidate = trimText(candidate);
+    const candidateEmail = getCustomerEmailLabel(normalizedCandidate);
+    return normalizedCandidate
+      && (!candidateEmail || candidateEmail !== email)
+      && normalizedCandidate !== phone;
+  }) || "";
+}
+
 function getCustomerName(contact = {}) {
-  return getCustomerEmailLabel(contact.email)
+  return getNamedCustomerIdentity(contact)
+    || getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
-    || getValidCustomerLabel(contact.name)
-    || getValidCustomerLabel(contact.bestIdentifier)
     || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
     || "Unknown";
 }
 
 function getCustomerRowIdentifier(contact = {}) {
-  return getCustomerEmailLabel(contact.email)
-    || trimText(contact.phone)
-    || getCustomerName(contact);
+  return getCustomerName(contact);
 }
 
 function getCustomerIdentityLabel(contact = {}) {
@@ -3295,24 +3309,30 @@ function getCustomerIdentityLabel(contact = {}) {
     return "Phone user";
   }
 
+  if (getNamedCustomerIdentity(contact)) {
+    return "Named visitor";
+  }
+
   return "Guest visitor";
 }
 
 function getCustomerIdentifier(contact = {}) {
   return getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
-    || getValidCustomerLabel(contact.bestIdentifier)
-    || getValidCustomerLabel(contact.name)
+    || getNamedCustomerIdentity(contact)
     || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
     || "No direct identifier yet";
 }
 
 function getCustomerLastMessageAt(contact = {}) {
-  return trimText(contact.lastCustomerMessageAt);
+  return trimText(contact.lastConversationMessageAt)
+    || trimText(contact.lastCustomerMessageAt)
+    || trimText(contact.mostRecentActivityAt)
+    || trimText(contact.latestOutcome?.occurredAt);
 }
 
 function hasGuestCustomerActivity(contact = {}) {
-  if (getCustomerEmailLabel(contact.email) || trimText(contact.phone)) {
+  if (getCustomerEmailLabel(contact.email) || trimText(contact.phone) || getNamedCustomerIdentity(contact)) {
     return false;
   }
 
@@ -3337,11 +3357,14 @@ function getCustomerLastActivityLabel(contact = {}) {
     return formatSeenAt(lastCustomerMessageAt);
   }
 
-  return "No customer message yet";
+  return "No conversation time yet";
 }
 
 function isGuestCustomerRow(contact = {}) {
-  return !getCustomerEmailLabel(contact.email) && !trimText(contact.phone) && hasGuestCustomerActivity(contact);
+  return !getCustomerEmailLabel(contact.email)
+    && !trimText(contact.phone)
+    && !getNamedCustomerIdentity(contact)
+    && hasGuestCustomerActivity(contact);
 }
 
 function getCustomerConversationSourceText(contact = {}) {
@@ -3449,13 +3472,23 @@ function getCustomerLatestSummary(contact = {}) {
 
 function getCustomerSecondaryIdentityLine(contact = {}) {
   const email = getCustomerEmailLabel(contact.email);
-  const displayName = getValidCustomerLabel(contact.name) || getValidCustomerLabel(contact.bestIdentifier);
+  const phone = trimText(contact.phone);
+  const displayName = getNamedCustomerIdentity(contact);
+  const rowIdentifier = getCustomerRowIdentifier(contact);
 
-  if (!email || !displayName || getCustomerEmailLabel(displayName) === email) {
-    return "";
+  if (email && rowIdentifier !== email) {
+    return `Email user · ${email}`;
   }
 
-  return displayName;
+  if (phone && rowIdentifier !== phone) {
+    return `Phone user · ${phone}`;
+  }
+
+  if (displayName && rowIdentifier !== displayName) {
+    return `Named visitor · ${displayName}`;
+  }
+
+  return "";
 }
 
 function getCustomerSituationSummary(contact = {}) {
@@ -8293,7 +8326,50 @@ function buildAnalyticsSwot(report = {}) {
   ];
 }
 
-function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyticsSummary(), actionQueue = createEmptyActionQueue(), conversionSummary = {}, outcomeSummary = {}) {
+function buildAnalyticsContactMix(actionQueue = createEmptyActionQueue(), contacts = []) {
+  const contactList = Array.isArray(contacts) ? contacts : [];
+
+  if (contactList.length) {
+    return contactList.reduce((summary, contact) => {
+      const hasEmail = Boolean(getCustomerEmailLabel(contact.email));
+      const hasPhone = Boolean(trimText(contact.phone));
+      const hasName = Boolean(getNamedCustomerIdentity(contact));
+      const identified = hasEmail || hasPhone || hasName;
+
+      summary.total += 1;
+      summary.emailUsers += hasEmail ? 1 : 0;
+      summary.phoneUsers += hasPhone ? 1 : 0;
+      summary.namedUsers += hasName ? 1 : 0;
+      summary.identifiedUsers += identified ? 1 : 0;
+      summary.guestUsers += identified ? 0 : 1;
+      return summary;
+    }, {
+      total: 0,
+      guestUsers: 0,
+      emailUsers: 0,
+      phoneUsers: 0,
+      namedUsers: 0,
+      identifiedUsers: 0,
+    });
+  }
+
+  const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
+  const emailUsers = people.filter((person) => trimText(person.identityType) === "email").length;
+  const phoneUsers = people.filter((person) => trimText(person.identityType) === "phone").length;
+  const namedUsers = people.filter((person) => trimText(person.identityType) === "name").length;
+  const guestUsers = people.filter((person) => ["session", "unknown"].includes(trimText(person.identityType))).length;
+
+  return {
+    total: people.length,
+    guestUsers,
+    emailUsers,
+    phoneUsers,
+    namedUsers,
+    identifiedUsers: emailUsers + phoneUsers + namedUsers,
+  };
+}
+
+function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyticsSummary(), actionQueue = createEmptyActionQueue(), conversionSummary = {}, outcomeSummary = {}, options = {}) {
   const conversationCount = Math.max(
     Number(analyticsSummary.conversationCount || 0),
     Number(analyticsSummary.uniqueVisitorCount || 0),
@@ -8318,11 +8394,12 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
   const pricingCaptures = Number(conversionSummary.pricingCaptures || 0);
   const bookingDirectHandoffs = Number(conversionSummary.bookingDirectHandoffs || 0);
   const estimatedHoursSaved = (autonomousHandledCount * 6) / 60;
-  const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
-  const guestUsers = people.filter((person) => ["session", "unknown", "name"].includes(trimText(person.identityType))).length;
-  const emailUsers = people.filter((person) => trimText(person.identityType) === "email").length;
-  const phoneUsers = people.filter((person) => trimText(person.identityType) === "phone").length;
-  const identifiedUsers = emailUsers + phoneUsers;
+  const contactMix = buildAnalyticsContactMix(actionQueue, options.contacts);
+  const guestUsers = contactMix.guestUsers;
+  const emailUsers = contactMix.emailUsers;
+  const phoneUsers = contactMix.phoneUsers;
+  const namedUsers = contactMix.namedUsers;
+  const identifiedUsers = contactMix.identifiedUsers;
   const weakPenalty = conversationCount > 0 ? (weakAnswerCount / conversationCount) * 2.1 : 0;
   const attentionPenalty = conversationCount > 0 ? (attentionNeeded / conversationCount) * 1.2 : 0;
   const unresolvedPenalty = complaintOpened > 0 ? (unresolvedComplaints / complaintOpened) * 1.1 : 0;
@@ -8338,7 +8415,7 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     highIntentSignals,
     contactsCaptured,
   });
-  const contactMixCopy = actionQueue.peopleSummary?.total
+  const contactMixCopy = contactMix.total
     ? guestUsers > identifiedUsers
       ? "Most customer conversations are still anonymous, which means lead capture is the clearest growth lever."
       : "Vonza is turning a healthy share of conversations into known customer records."
@@ -8373,6 +8450,7 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     guestUsers,
     emailUsers,
     phoneUsers,
+    namedUsers,
     identifiedUsers,
     mostAskedQuestion,
     peakHours: buildAnalyticsPeakHours(signals.userMessages || []),
@@ -10075,7 +10153,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
   `;
 }
 
-function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
+function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
   const signals = analyzeConversationSignals(messages);
   const analyticsSummary = getAnalyticsSummary(actionQueue, agent, messages);
   const conversionSummary = {
@@ -10087,7 +10165,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     ...(actionQueue.outcomeSummary || {}),
   };
   const recentOutcomes = Array.isArray(actionQueue.recentOutcomes) ? actionQueue.recentOutcomes.slice(0, 6) : [];
-  const report = buildAnalyticsReport(signals, analyticsSummary, actionQueue, conversionSummary, outcomeSummary);
+  const report = buildAnalyticsReport(signals, analyticsSummary, actionQueue, conversionSummary, outcomeSummary, {
+    contacts: operatorWorkspace.contacts?.list || [],
+  });
   report.recommendations = buildAnalyticsRecommendations(report);
   report.swot = buildAnalyticsSwot(report);
   report.summarySentence = buildAnalyticsSummarySentence(report);
@@ -11145,7 +11225,7 @@ function renderAssistantShell(
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace)}
-          ${buildAnalyticsPanel(agent, messages, setup, actionQueue)}
+          ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}

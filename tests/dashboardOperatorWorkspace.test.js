@@ -1150,7 +1150,8 @@ test("customers render as a single-column workspace without inactive controls", 
   assert.doesNotMatch(contactsPanel, /data-contact-detail/);
   assert.doesNotMatch(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /customer-status-chip/);
-  assert.match(contactsPanel, /<strong class="contact-row-name">taylor@example\.com<\/strong>/);
+  assert.match(contactsPanel, /<strong class="contact-row-name">Taylor Reed<\/strong>/);
+  assert.match(contactsPanel, /<p class="customer-row-identity">Email user · taylor@example\.com<\/p>/);
   assert.match(contactsPanel, /Visitor asked for pricing/);
   assert.match(contactsPanel, /Last message/);
   assert.doesNotMatch(contactsPanel, /Last active/);
@@ -1414,15 +1415,18 @@ test("customer rows for email users show email, customer question, and persisted
     counts: { messages: 2 },
   });
 
-  const emailIndex = row.indexOf("alex@example.com");
+  const nameIndex = row.indexOf("Alex Harper");
   const questionIndex = row.indexOf("Can you send pricing?");
+  const emailIndex = row.indexOf("alex@example.com");
   const timeIndex = row.indexOf("Last message");
 
+  assert.ok(nameIndex >= 0);
+  assert.ok(questionIndex > nameIndex);
   assert.ok(emailIndex >= 0);
-  assert.ok(questionIndex > emailIndex);
-  assert.ok(timeIndex > questionIndex);
-  assert.match(row, /<strong class="contact-row-name">alex@example\.com<\/strong>\s*<p class="customer-row-summary">Can you send pricing\?<\/p>/);
-  assert.match(row, /<p class="customer-row-identity">Alex Harper<\/p>/);
+  assert.ok(emailIndex > questionIndex);
+  assert.ok(timeIndex > emailIndex);
+  assert.match(row, /<strong class="contact-row-name">Alex Harper<\/strong>\s*<p class="customer-row-summary">Can you send pricing\?<\/p>/);
+  assert.match(row, /<p class="customer-row-identity">Email user · alex@example.com<\/p>/);
   assert.match(row, /data-contact-last-activity="2026-04-14T09:03:55\.000Z"/);
   assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
   assert.doesNotMatch(row, /Last active/);
@@ -1483,8 +1487,8 @@ test("customer rows upgrade guest sessions to identified email state", () => {
     timeline: [],
   });
 
-  assert.match(row, /<strong class="contact-row-name">avery@example\.com<\/strong>/);
-  assert.match(row, /<p class="customer-row-identity">Avery Hart<\/p>/);
+  assert.match(row, /<strong class="contact-row-name">Avery Hart<\/strong>/);
+  assert.match(row, /<p class="customer-row-identity">Email user · avery@example.com<\/p>/);
   assert.doesNotMatch(row, /<strong class="contact-row-name">Guest visitor<\/strong>/);
 });
 
@@ -1513,7 +1517,7 @@ test("guest customer rows show stored customer message summary and last message 
   assert.doesNotMatch(row, /No customer message yet/);
 });
 
-test("customer rows do not fall back to generic activity timestamps", () => {
+test("customer rows show conversation timestamps even without a customer-authored message", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1531,10 +1535,9 @@ test("customer rows do not fall back to generic activity timestamps", () => {
   });
 
   assert.match(row, /<span class="customer-row-meta-label">Last message<\/span>/);
-  assert.match(row, /No customer message yet/);
-  assert.match(row, /data-contact-last-activity=""/);
+  assert.doesNotMatch(row, /No customer message yet/);
+  assert.match(row, /data-contact-last-activity="2026-04-16T12:34:56\.000Z"/);
   assert.doesNotMatch(row, /Last active/);
-  assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
   assert.doesNotMatch(row, /2026-04-15T10:00:00\.000Z/);
 });
 
@@ -1661,6 +1664,61 @@ test("analytics priorities map weak-answer pricing and contact signals to busine
   assert.match(analyticsPanel, /Make contacting you easier/);
   assert.doesNotMatch(analyticsPanel, /Weak answers/);
   assert.doesNotMatch(analyticsPanel, /General business questions/);
+});
+
+test("analytics contact mix uses customer records instead of stale guest-only queue identities", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [
+      { createdAt: "2026-04-04T08:00:00.000Z", role: "user", content: "I need a quote." },
+      { createdAt: "2026-04-04T08:01:00.000Z", role: "assistant", content: "I can help with that." },
+    ],
+    { knowledgeReady: true },
+    {
+      ...harness.createEmptyActionQueue(),
+      people: [
+        { identityType: "session" },
+        { identityType: "session" },
+        { identityType: "session" },
+      ],
+      peopleSummary: {
+        total: 3,
+      },
+    },
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      contacts: {
+        list: [
+          {
+            id: "contact-email",
+            name: "Jordan Lane",
+            email: "jordan@example.com",
+          },
+          {
+            id: "contact-name",
+            name: "Riley Stone",
+          },
+          {
+            id: "contact-guest",
+            name: "Anonymous visitor",
+            bestIdentifier: "Session continuity only",
+          },
+        ],
+      },
+    })
+  );
+
+  assert.match(analyticsPanel, /<span>Guest users<\/span>\s*<strong>1<\/strong>/);
+  assert.match(analyticsPanel, /<span>Identified users<\/span>\s*<strong>2<\/strong>/);
+  assert.match(analyticsPanel, /<span>Email users<\/span>\s*<strong>1<\/strong>/);
+  assert.match(analyticsPanel, /Vonza is turning a healthy share of conversations into known customer records/);
 });
 
 test("sparse-data copilot rendering stays honest and points back to business context setup", () => {

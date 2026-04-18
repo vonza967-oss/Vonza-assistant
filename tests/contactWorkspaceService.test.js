@@ -445,6 +445,33 @@ test("chat customers use persisted visitor message time for last activity", () =
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T12:00:00.000Z");
 });
 
+test("chat contacts keep latest conversation message time even when assistant replied last", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "Can you send pricing?",
+        sessionKey: "session-1",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-2",
+        role: "assistant",
+        content: "I can help with pricing.",
+        sessionKey: "session-1",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].lastConversationMessageAt, "2026-04-14T09:04:20.000Z");
+  assert.equal(result.list[0].latestConversationMessageSummary, "I can help with pricing.");
+  assert.equal(result.list[0].latestConversationMessageRole, "assistant");
+});
+
 test("persisted guest contacts keep the latest customer message snapshot without loaded messages", () => {
   const result = buildContactWorkspaceFromRecords({
     storedContacts: [
