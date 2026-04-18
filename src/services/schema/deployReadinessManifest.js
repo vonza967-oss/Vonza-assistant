@@ -81,9 +81,9 @@ export const STARTUP_SCHEMA_CHECKS = Object.freeze([
     id: "messages",
     label: "message persistence",
     table: MESSAGES_TABLE,
-    migrationIds: Object.freeze(["messages_visitor_identity"]),
+    migrationIds: Object.freeze(["messages_visitor_identity", "message_visitor_identity_fields"]),
     prerequisiteMigrationIds: Object.freeze([]),
-    note: "Startup probes message history with messages.session_key present.",
+    note: "Startup probes message history with messages.session_key and durable visitor identity fields present.",
     assertReady: assertMessagesSchemaReady,
   }),
   Object.freeze({

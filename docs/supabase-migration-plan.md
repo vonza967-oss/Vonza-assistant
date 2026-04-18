@@ -9,6 +9,7 @@
 | `supabase/migrations/20260404000000_initial_schema_base.sql` | `db/schema.sql` foundational snapshot only | Bootstrap baseline for pre-CLI projects. Intentionally excludes later feature tables/columns so subsequent ordered migrations still matter. |
 | `supabase/migrations/20260404000100_owner_access.sql` | `db/owner_access.sql` | Must precede `action_queue_statuses`. |
 | `supabase/migrations/20260404000200_messages_visitor_identity.sql` | `db/messages_visitor_identity.sql` | Startup-critical. |
+| `supabase/migrations/20260404000201_message_visitor_identity_fields.sql` | Incremental follow-up | Startup-critical follow-up for existing production databases where the earlier message migration version was already applied before durable identity fields were added. |
 | `supabase/migrations/20260404000300_install_verification_activation_loop.sql` | `db/install_verification_activation_loop.sql` | Startup-critical. |
 | `supabase/migrations/20260404000400_live_conversion_loop.sql` | `db/live_conversion_loop.sql` | Startup-critical and required before connected operator workspace tables that reference leads. |
 | `supabase/migrations/20260404000500_action_queue_statuses.sql` | `db/action_queue_statuses.sql` | Startup-critical, assumes `owner_access` ran first. |

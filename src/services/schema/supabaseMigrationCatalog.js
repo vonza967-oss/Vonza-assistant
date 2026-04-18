@@ -29,6 +29,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     note: "Adds messages.session_key for startup-safe message persistence and session-aware chat history.",
   }),
   Object.freeze({
+    id: "message_visitor_identity_fields",
+    version: "20260404000201",
+    name: "message_visitor_identity_fields",
+    file: "supabase/migrations/20260404000201_message_visitor_identity_fields.sql",
+    legacySources: Object.freeze([]),
+    tier: "startup-critical",
+    note: "Adds durable visitor identity fields to existing messages tables when the earlier session-key migration was already applied in production.",
+  }),
+  Object.freeze({
     id: "install_verification_activation_loop",
     version: "20260404000300",
     name: "install_verification_activation_loop",
