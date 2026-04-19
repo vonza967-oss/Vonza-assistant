@@ -1194,6 +1194,8 @@ test("customers render as a single-column workspace without inactive controls", 
 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
+  assert.doesNotMatch(contactsPanel, /Your customers will show up here/);
+  assert.doesNotMatch(contactsPanel, /Chat and lead capture records will appear here as customers/);
   assert.match(contactsPanel, /Who contacted you, who needs a reply, and what to do next/);
   assert.match(contactsPanel, /Show customers needing help/);
   assert.doesNotMatch(contactsPanel, /Show filters/);

@@ -873,6 +873,26 @@ function hasUsableContactIdentity(group = {}) {
   );
 }
 
+function hasPersistedChatActivity(group = {}) {
+  const persistedContact = group.persistedContact || null;
+
+  if (!persistedContact) {
+    return false;
+  }
+
+  const sourceKinds = uniqueText([
+    ...normalizeArray(group.sourceKinds),
+    ...normalizeArray(persistedContact.activitySources),
+  ]).map((source) => cleanText(source).toLowerCase());
+
+  return sourceKinds.includes("chat")
+    && Boolean(
+      parseTimestamp(persistedContact.lastActivityAt || group.lastActivityAt)
+      || cleanText(persistedContact.metadata?.latestMessageId)
+      || Number(persistedContact.metadata?.counts?.messages || 0) > 0
+    );
+}
+
 function shouldShowContactGroup(group = {}) {
   if (hasRealCustomerChatMessage(group) || hasInboundThreadMessage(group) || getPersistedCustomerMessageSnapshot(group)) {
     return true;
@@ -884,6 +904,10 @@ function shouldShowContactGroup(group = {}) {
     || group.sourceKinds.length
     || cleanText(persistedContact.lifecycleState)
   )) {
+    return true;
+  }
+
+  if (hasPersistedChatActivity(group)) {
     return true;
   }
 

@@ -749,7 +749,7 @@ test("persisted multi-session guest contact with customer snapshot remains visib
   assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
 });
 
-test("persisted multi-session guest placeholders without customer evidence stay suppressed", () => {
+test("persisted multi-session guest chat contacts stay visible without newer helper fields", () => {
   const result = buildContactWorkspaceFromRecords({
     storedContacts: [
       {
@@ -773,7 +773,11 @@ test("persisted multi-session guest placeholders without customer evidence stay 
     ],
   });
 
-  assert.equal(result.list.length, 0);
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].id, "contact-broad-placeholder");
+  assert.equal(result.list[0].name, "Anonymous visitor");
+  assert.equal(result.list[0].rowKey, "session:placeholder-session-a");
+  assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
 });
 
 test("chat customers use persisted visitor message time for last activity", () => {
