@@ -689,6 +689,93 @@ test("stale broad stored contacts do not force multiple guest sessions into one 
   assert.ok(result.list.every((contact) => contact.id !== "contact-broad"));
 });
 
+test("persisted identified chat contacts remain visible without currently loaded messages", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-stored-identified",
+        displayName: "Stored Buyer",
+        primaryEmail: "stored@example.com",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-stored-identified",
+        identityType: "email",
+        identityValue: "stored@example.com",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].id, "contact-stored-identified");
+  assert.equal(result.list[0].name, "Stored Buyer");
+  assert.equal(result.list[0].email, "stored@example.com");
+});
+
+test("persisted multi-session guest contact with customer snapshot remains visible when messages are outside the load window", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-broad-snapshot",
+        displayName: "Guest visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:03:55.000Z",
+        metadata: {
+          latestCustomerMessageAt: "2026-04-14T09:03:55.000Z",
+          latestCustomerMessageSummary: "Do you offer delivery?",
+        },
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-broad-snapshot",
+        identityType: "session_key",
+        identityValue: "old-session-a",
+      },
+      {
+        contactId: "contact-broad-snapshot",
+        identityType: "session_key",
+        identityValue: "old-session-b",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].id, "contact-broad-snapshot");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Do you offer delivery?");
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+});
+
+test("persisted multi-session guest placeholders without customer evidence stay suppressed", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-broad-placeholder",
+        displayName: "Guest visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-broad-placeholder",
+        identityType: "session_key",
+        identityValue: "placeholder-session-a",
+      },
+      {
+        contactId: "contact-broad-placeholder",
+        identityType: "session_key",
+        identityValue: "placeholder-session-b",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 0);
+});
+
 test("chat customers use persisted visitor message time for last activity", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [

@@ -878,6 +878,15 @@ function shouldShowContactGroup(group = {}) {
     return true;
   }
 
+  const persistedContact = group.persistedContact || null;
+  if (persistedContact && hasUsableContactIdentity(group) && (
+    parseTimestamp(persistedContact.lastActivityAt || group.lastActivityAt)
+    || group.sourceKinds.length
+    || cleanText(persistedContact.lifecycleState)
+  )) {
+    return true;
+  }
+
   const hasNonChatActivity = Boolean(
     group.threads.length
     || group.events.length
@@ -1561,7 +1570,15 @@ export function buildContactWorkspaceFromRecords(options = {}) {
 
     if (storedSessionKeys.length > 1) {
       groups.push(createGroup({
+        id: storedContact.id,
         persistedContact: storedContact,
+        businessId: storedContact.businessId,
+        displayName: storedContact.displayName,
+        sourceKinds: storedContact.activitySources,
+        flags: storedContact.highPriorityFlags,
+        sessionKeys: storedSessionKeys,
+        lastActivityAt: storedContact.lastActivityAt,
+        latestMessageId: cleanText(storedContact.metadata?.latestMessageId),
         suppressedStoredContact: true,
       }));
       return;
@@ -1863,8 +1880,22 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     });
   });
 
+  const messageBackedSessionKeys = new Set(
+    groups
+      .filter((group) => !group.suppressedStoredContact)
+      .flatMap((group) => getGroupChatSessionKeys(group))
+  );
+  const shouldKeepSuppressedStoredContact = (group = {}) => {
+    if (!group.suppressedStoredContact) {
+      return true;
+    }
+
+    const hasSplitMessageRow = group.sessionKeys.some((sessionKey) => messageBackedSessionKeys.has(sessionKey));
+    return !hasSplitMessageRow && shouldShowContactGroup(group);
+  };
+
   const orderedPairs = groups
-    .filter((group) => !group.suppressedStoredContact)
+    .filter(shouldKeepSuppressedStoredContact)
     .filter(shouldShowContactGroup)
     .map((group) => ({
       group,
