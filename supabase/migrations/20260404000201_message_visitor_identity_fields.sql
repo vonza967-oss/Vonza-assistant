@@ -1,6 +1,7 @@
 -- Follow-up for existing production databases where
 -- 20260404000200_messages_visitor_identity.sql already ran before these
--- durable visitor identity fields were added.
+-- durable visitor identity fields were added. Keep this paired with
+-- db/schema.sql so deploy schema gates see the canonical snapshot change.
 
 alter table public.messages
   add column if not exists visitor_identity_mode text,
