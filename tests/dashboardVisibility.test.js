@@ -534,7 +534,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Analytics/);
   assert.match(harness.getRootHtml(), /Your core workspace is ready/i);
-  assert.match(harness.getRootHtml(), /Connected tools are beta/i);
+  assert.match(harness.getRootHtml(), /Connected tools are coming soon/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);

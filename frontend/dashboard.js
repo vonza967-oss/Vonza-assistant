@@ -495,7 +495,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "front_desk_only",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are beta and stay out of the way for now.",
+        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are coming soon and stay out of the way for now.",
       };
   }
 
@@ -504,7 +504,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
-      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations are marked Beta until they are ready.",
+      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Automations, and Calendar are coming soon.",
     };
   }
 
@@ -514,7 +514,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not self-serve yet.",
+        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon.",
       };
     }
 
@@ -522,7 +522,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your core workspace is ready.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not ready to use yet.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are coming soon.",
     };
   }
 
@@ -530,7 +530,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools are beta, so Email, Calendar, and Automations stay clearly marked as not ready yet.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Email, Automations, and Calendar are coming soon.",
   };
 }
 
@@ -581,6 +581,7 @@ function normalizeOperatorWorkspaceContact(contact = {}) {
   const source = normalizeOperatorRecord(contact);
   return {
     ...source,
+    rowKey: trimText(source.rowKey || source.customerKey || source.conversationKey || source.id),
     flags: Array.isArray(source.flags) ? source.flags.filter(Boolean) : [],
     sources: Array.isArray(source.sources) ? source.sources.filter(Boolean) : [],
     timeline: normalizeOperatorArray(source.timeline, normalizeOperatorRecord),
@@ -589,6 +590,10 @@ function normalizeOperatorWorkspaceContact(contact = {}) {
     nextAction: normalizeOperatorRecord(source.nextAction),
     latestOutcome: normalizeOperatorRecord(source.latestOutcome),
   };
+}
+
+function getContactUiKey(contact = {}) {
+  return trimText(contact.rowKey || contact.customerKey || contact.conversationKey || contact.id);
 }
 
 function getAuthHeaders(additionalHeaders = {}) {
@@ -2730,14 +2735,19 @@ function getShellNavIconMarkup(sectionKey = "") {
 }
 
 function buildShellNavButton(item, activeSection) {
-  const isActive = activeSection === item.key;
+  const isLocked = item.locked === true;
+  const isActive = !isLocked && activeSection === item.key;
+  const className = ["shell-nav-button", isActive ? "active" : "", isLocked ? "locked" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return `
     <button
-      class="shell-nav-button ${isActive ? "active" : ""}"
+      class="${className}"
       type="button"
-      data-shell-target="${escapeHtml(item.key)}"
+      ${isLocked ? "" : `data-shell-target="${escapeHtml(item.key)}"`}
       aria-current="${isActive ? "page" : "false"}"
+      ${isLocked ? 'aria-disabled="true" disabled' : ""}
     >
       <span class="shell-nav-icon" aria-hidden="true">${getShellNavIconMarkup(item.key)}</span>
       <span class="shell-nav-label-row">
@@ -2832,6 +2842,11 @@ function buildSidebarShell(
       note: "Business profile, front desk, connected tools, and workspace.",
     },
   ].filter((item) => availableSections.includes(item.key));
+  const connectedToolItems = [
+    { key: "inbox", label: "Email", locked: true },
+    { key: "automations", label: "Automations", locked: true },
+    { key: "calendar", label: "Calendar", locked: true },
+  ];
 
   return `
     <aside class="sidebar-shell" aria-label="Dashboard sidebar">
@@ -2844,7 +2859,7 @@ function buildSidebarShell(
         </div>
       </div>
       ${buildSidebarGroup("Primary", coreItems, activeSection)}
-      ${buildSidebarGroup("Connected Tools", [], activeSection, { note: "(coming soon)" })}
+      ${buildSidebarGroup("Connected Tools", connectedToolItems, activeSection, { note: "(coming soon)" })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
@@ -3553,10 +3568,6 @@ function getCustomerStatusList(contact = {}) {
     pushStatus("lead", "Lead");
   }
 
-  if (contactNeedsReply(contact)) {
-    pushStatus("needs_reply", "Needs reply");
-  }
-
   if (isResolvedContact(contact)) {
     pushStatus("resolved", "Resolved");
   }
@@ -3590,7 +3601,6 @@ function buildCustomerFilterDefinitions(contacts = []) {
 
   return [
     { key: "all", label: "All customers", count: contacts.length },
-    { key: "needs_reply", label: "Needs reply", count: countMatching((contact) => contactNeedsReply(contact)) },
     { key: "complaints", label: "Unhappy", count: countMatching((contact) => isComplaintContact(contact)) },
     { key: "leads", label: "Leads", count: countMatching((contact) => isLeadContact(contact)) },
   ];
@@ -3600,11 +3610,6 @@ function buildCustomerSummaryItems(contacts = []) {
   const countMatching = (predicate) => contacts.filter(predicate).length;
 
   return [
-    {
-      label: "Needs reply",
-      value: countMatching((contact) => contactNeedsReply(contact)),
-      copy: "People waiting on an answer, follow-up, or decision.",
-    },
     {
       label: "Unhappy",
       value: countMatching((contact) => isComplaintContact(contact)),
@@ -3629,6 +3634,7 @@ function buildContactQuickActions(
   { includeDraftFollowUp = true } = {}
 ) {
   const actions = [];
+  const uiKey = getContactUiKey(contact);
   const nextAction = contact.nextAction || {};
   const suggestedSlot = (operatorWorkspace.calendar?.suggestedSlots || [])[0] || null;
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
@@ -3644,8 +3650,8 @@ function buildContactQuickActions(
   if (nextAction.followUpId) {
     if (automationsVisible) {
       actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">Open follow-up draft</button>`);
-    } else if (contact.id) {
-      actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id)}">Open customer</button>`);
+    } else if (uiKey) {
+      actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(uiKey)}">Open customer</button>`);
     }
   } else if ((contact.email || contact.phone) && automationsVisible && includeDraftFollowUp) {
     actions.push(`
@@ -3765,17 +3771,18 @@ function buildContactCountsSummary(contact = {}) {
 
 function buildCustomerChatPanel(contact = {}) {
   const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
+  const uiKey = getContactUiKey(contact);
 
   if (!messages.length) {
     return `
-      <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
+      <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(uiKey)}" hidden>
         <div class="customer-chat-empty">No saved chat messages yet.</div>
       </div>
     `;
   }
 
   return `
-    <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
+    <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(uiKey)}" hidden>
       <div class="customer-chat-list">
         ${messages.map((message) => `
           <div class="customer-chat-message customer-chat-message--${escapeHtml(message.role === "vonza" ? "vonza" : "customer")}">
@@ -3799,13 +3806,15 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
   const canShowChat = chatMessages.length > 0;
+  const uiKey = getContactUiKey(contact);
 
   return `
     <article
       class="contact-row customer-row"
       data-contact-row
       data-contact-card
-      data-contact-id="${escapeHtml(contact.id || "")}"
+      data-contact-id="${escapeHtml(uiKey)}"
+      data-contact-db-id="${escapeHtml(contact.id || "")}"
       data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
       data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
       data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"
@@ -3833,7 +3842,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             class="ghost-button customer-chat-toggle"
             type="button"
             data-toggle-customer-chat
-            data-contact-id="${escapeHtml(contact.id || "")}"
+            data-contact-id="${escapeHtml(uiKey)}"
             aria-expanded="false"
             ${canShowChat ? "" : "disabled"}
           >${canShowChat ? "View chat" : "No chat yet"}</button>
@@ -3850,6 +3859,7 @@ function buildContactDetailPanel(
   operatorWorkspace = createEmptyOperatorWorkspace(),
   selected = false
 ) {
+  const uiKey = getContactUiKey(contact);
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
   const canDraftReply = automationsVisible && Boolean(contact.email || contact.phone);
   const primaryActionMarkup = canDraftReply ? `
@@ -3874,7 +3884,7 @@ function buildContactDetailPanel(
   ` : contact.primaryEventId ? `
     <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">Review calendar action</button>
   ` : `
-    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>Review customer</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(uiKey)}" ${uiKey ? "" : "disabled"}>Review customer</button>
   `;
   const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
     <div class="timeline-list customer-timeline-list">
@@ -3956,7 +3966,8 @@ function buildContactDetailPanel(
       class="contact-detail-panel customer-detail-panel ${selected ? "active" : ""}"
       data-contact-detail
       data-contact-card
-      data-contact-id="${escapeHtml(contact.id || "")}"
+      data-contact-id="${escapeHtml(uiKey)}"
+      data-contact-db-id="${escapeHtml(contact.id || "")}"
       ${selected ? "" : "hidden"}
     >
       <div class="contact-detail-header customer-detail-header">
@@ -4139,7 +4150,7 @@ function buildCopilotProposalList(
         <div class="workspace-panel-header">
           <div>
             <p class="studio-kicker">Proposals</p>
-            <h3 class="workspace-panel-title">Approval-first proposals</h3>
+            <h3 class="workspace-panel-title">Review proposals</h3>
             <p class="workspace-panel-copy">There are no active suggestions right now because the current ones were already handled or dismissed.</p>
           </div>
         </div>
@@ -4152,7 +4163,7 @@ function buildCopilotProposalList(
       <div class="workspace-panel-header">
         <div>
           <p class="studio-kicker">Proposals</p>
-          <h3 class="workspace-panel-title">Approval-first proposals</h3>
+          <h3 class="workspace-panel-title">Review proposals</h3>
           <p class="workspace-panel-copy">Each proposal explains what Vonza recommends, why it matters, what will happen if you apply it, and where the real workflow object will land.</p>
         </div>
         <div class="workspace-badge-row">
@@ -4185,7 +4196,7 @@ function buildCopilotProposalList(
             <div class="workspace-panel-header" style="gap:12px; align-items:flex-start;">
               <div>
                 <p class="analytics-item-title">${escapeHtml(normalizeShellCopy(proposal.title || "Suggestion"))}</p>
-                <p class="analytics-item-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Vonza prepared an approval-first proposal from stable-core data."))}</p>
+                <p class="analytics-item-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Vonza prepared a review-ready proposal from stable-core data."))}</p>
               </div>
               <span class="${getBadgeClass(
                 proposal.state === "blocked"
@@ -4235,7 +4246,7 @@ function buildCopilotProposalList(
                   { label: "Why it matters", value: proposal.why ? normalizeShellCopy(proposal.why) : "No extra rationale stored." },
                   { label: "If applied", value: proposal.whatHappens ? normalizeShellCopy(proposal.whatHappens) : "This proposal will route into the live workflow object after review." },
                   { label: "Target", value: resolvedTarget?.label || resolvedTarget?.section || "Existing workflow" },
-                  { label: "Approval-first note", value: proposal.approvalNote ? normalizeShellCopy(proposal.approvalNote) : "The owner still reviews this before anything changes." },
+                  { label: "Review note", value: proposal.approvalNote ? normalizeShellCopy(proposal.approvalNote) : "The team still reviews this before anything changes." },
                 ])}
                 ${proposal.stateReason ? `
                   <div class="${proposal.state === "blocked" ? "operator-inline-alert" : "placeholder-card"}" style="margin-top:12px;">
@@ -4474,7 +4485,7 @@ function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorksp
         <div class="workspace-panel-header">
           <div>
             <p class="studio-kicker">Proposals</p>
-            <h3 class="workspace-panel-title">Approval-first proposals</h3>
+            <h3 class="workspace-panel-title">Review proposals</h3>
             <p class="workspace-panel-copy">Compact owner-ready proposals stay front and center here.</p>
           </div>
         </div>
@@ -4491,7 +4502,7 @@ function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorksp
       <div class="workspace-panel-header">
         <div>
           <p class="studio-kicker">Proposals</p>
-          <h3 class="workspace-panel-title">Approval-first proposals</h3>
+          <h3 class="workspace-panel-title">Review proposals</h3>
           <p class="workspace-panel-copy">Short summaries first. Extra detail only if you open it.</p>
         </div>
         <div class="workspace-badge-row">
@@ -4519,7 +4530,7 @@ function buildTodayProposalSection(operatorWorkspace = createEmptyOperatorWorksp
               <div class="today-command-card-head">
                 <div>
                   <h4 class="today-command-card-title">${escapeHtml(normalizeShellCopy(proposal.title || "Suggestion"))}</h4>
-                  <p class="today-command-card-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Vonza prepared an approval-first proposal from live workspace data."))}</p>
+                  <p class="today-command-card-copy">${escapeHtml(normalizeShellCopy(proposal.summary || "Vonza prepared a review-ready proposal from live workspace data."))}</p>
                 </div>
                 <span class="${getBadgeClass(
                   proposal.state === "blocked"
@@ -4850,7 +4861,7 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
     ${buildCopilotSummaryCards(operatorWorkspace.copilot || createEmptyOperatorWorkspace().copilot)}
     <div class="overview-grid operator-metric-grid">
       <div class="overview-card">
-        <p class="overview-label">Approval-first work</p>
+        <p class="overview-label">Review work</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"))}</p>
         <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`)}</p>
       </div>
@@ -7026,7 +7037,7 @@ function buildConfigurationStudio(agent, setup) {
               <div class="guidance-list">
                 <div class="guidance-item">Grounded in your website, not in a separate knowledge system.</div>
                 <div class="guidance-item">Answers best when website knowledge is strong and up to date.</div>
-                <div class="guidance-item">Approval-first automations draft work for review instead of silently sending on their own.</div>
+                <div class="guidance-item">Connected tools draft work for review instead of silently sending on their own.</div>
               </div>
             </div>
           </section>
@@ -8205,7 +8216,7 @@ function buildAnalyticsRecommendations(report = {}) {
       recommendation: {
         type: "support_risk_review",
         title: "complaint handling",
-        summary: "Complaint or support recovery still needs a clear owner path.",
+        summary: "Complaint or support recovery still needs a clear next step.",
       },
       metric: `${formatAnalyticsReportNumber(report.unresolvedComplaints)} unresolved complaint${Number(report.unresolvedComplaints) === 1 ? "" : "s"}`,
     });
@@ -9287,7 +9298,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
               <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="ready" ${followUpActionsDisabled || followUpNeedsContact || followUpReadOnly ? "disabled" : ""}>Mark ready</button>
               <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="sent" ${followUpActionsDisabled || followUpNeedsContact || followUpReadOnly ? "disabled" : ""}>Mark sent</button>
               <button class="ghost-button" type="button" data-follow-up-status-action data-next-status="dismissed" ${followUpActionsDisabled || followUpStatus === "sent" ? "disabled" : ""}>Dismiss</button>
-              <span class="action-queue-meta-inline">${escapeHtml(followUpNeedsContact ? "Vonza kept the draft context but blocked sending until contact capture exists." : "This draft stays deterministic and grounded in the captured conversation context.")}</span>
+              <span class="action-queue-meta-inline">${escapeHtml(followUpNeedsContact ? "Vonza kept the draft context but blocked sending until contact capture exists." : "This draft stays grounded in the captured conversation context.")}</span>
             </div>
           </form>
         ` : `<div class="placeholder-card">Vonza will prepare a follow-up workflow for this queue item as soon as the server bridge syncs it.</div>`}
@@ -9365,7 +9376,7 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
             <div class="field">
               <label for="knowledge-fix-guidance-${escapeHtml(item.key || "")}">Drafted guidance to add</label>
               <textarea id="knowledge-fix-guidance-${escapeHtml(item.key || "")}" name="proposed_guidance" ${knowledgeFixActionsDisabled || knowledgeFixReadOnly ? "disabled" : ""}>${escapeHtml(knowledgeFix.proposedGuidance || "")}</textarea>
-              <p class="field-help">${escapeHtml(knowledgeFixStatus === "applied" ? "This fix is already in the assistant guidance. Reopen only by drafting a new fix if the issue comes back." : "Keep the first version tight and deterministic. The safest direct apply target is advanced guidance.")}</p>
+              <p class="field-help">${escapeHtml(knowledgeFixStatus === "applied" ? "This fix is already in the assistant guidance. Reopen only by drafting a new fix if the issue comes back." : "Keep the first version tight. The safest direct apply target is advanced guidance.")}</p>
             </div>
             ${knowledgeFix.lastError ? `<p class="action-queue-copy">${escapeHtml(`Last failure: ${knowledgeFix.lastError}`)}</p>` : ""}
             <div class="action-queue-form-actions">

@@ -224,13 +224,12 @@ test("stored contact fallbacks do not masquerade as a new anonymous visitor iden
     ],
   });
 
-  assert.equal(result.list.length, 2);
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Stored contact");
+  assert.equal(result.list[0].email, "mail@example.com");
   const anonymousLead = result.list.find((contact) => contact.leadId === "lead-1");
 
-  assert.ok(anonymousLead);
-  assert.equal(anonymousLead.email, "");
-  assert.equal(anonymousLead.phone, "");
-  assert.equal(anonymousLead.name, "Anonymous visitor");
+  assert.equal(anonymousLead, undefined);
 });
 
 test("identified widget visitors replace placeholder contact identity", () => {
@@ -438,6 +437,256 @@ test("guest sessions upgrade to one identified customer when email is captured l
   assert.equal(result.list[0].name, "Avery Hart");
   assert.equal(result.list[0].partialIdentity, false);
   assert.equal(result.list[0].latestCustomerMessageSummary, "Do you offer weekend appointments?");
+});
+
+test("separate guest sessions stay separate and keep scoped chat", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-a1",
+        role: "user",
+        content: "Guest A asking about webshop pricing.",
+        sessionKey: "guest-session-a",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-a2",
+        role: "assistant",
+        content: "Pricing depends on the webshop.",
+        sessionKey: "guest-session-a",
+        createdAt: "2026-04-14T09:04:00.000Z",
+      },
+      {
+        id: "message-b1",
+        role: "user",
+        content: "Guest B asking about booking a consultation.",
+        sessionKey: "guest-session-b",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  assert.deepEqual(
+    result.list.map((contact) => contact.rowKey).sort(),
+    ["session:guest-session-a", "session:guest-session-b"]
+  );
+  assert.deepEqual(
+    result.list.find((contact) => contact.rowKey === "session:guest-session-a").chatMessages.map((message) => message.content),
+    ["Guest A asking about webshop pricing.", "Pricing depends on the webshop."]
+  );
+  assert.deepEqual(
+    result.list.find((contact) => contact.rowKey === "session:guest-session-b").chatMessages.map((message) => message.content),
+    ["Guest B asking about booking a consultation."]
+  );
+});
+
+test("assistant-only and metadata-only guest records do not create customer rows", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "assistant-only",
+        role: "assistant",
+        content: "Hello, how can I help?",
+        sessionKey: "assistant-only-session",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-placeholder",
+        visitorSessionKey: "metadata-only-session",
+        captureState: "prompt_ready",
+        captureReason: "Pricing intent",
+        lastSeenAt: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 0);
+});
+
+test("blank and placeholder emails do not collapse unrelated guest visitors", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "I need pricing.",
+        sessionKey: "session-placeholder-a",
+        visitorIdentityMode: "identified",
+        visitorEmail: "guest@example.com",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-2",
+        role: "user",
+        content: "Can I book tomorrow?",
+        sessionKey: "session-placeholder-b",
+        visitorIdentityMode: "identified",
+        visitorEmail: "guest@example.com",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  assert.ok(result.list.every((contact) => contact.email === ""));
+  assert.deepEqual(
+    result.list.map((contact) => contact.rowKey).sort(),
+    ["session:session-placeholder-a", "session:session-placeholder-b"]
+  );
+});
+
+test("business contact email is not promoted to visitor identity", () => {
+  const result = buildContactWorkspaceFromRecords({
+    businessContactEmails: ["team@example.com"],
+    messages: [
+      {
+        id: "message-business-email",
+        role: "user",
+        content: "Can I email team@example.com about pricing?",
+        sessionKey: "session-business-email",
+        visitorIdentityMode: "identified",
+        visitorEmail: "team@example.com",
+        visitorName: "Business Email Visitor",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].email, "");
+  assert.equal(result.list[0].rowKey, "session:session-business-email");
+});
+
+test("identified same-session upgrade keeps guest history without pulling other sessions", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-guest",
+        role: "user",
+        content: "I need a price first.",
+        sessionKey: "session-upgrade-scoped",
+        visitorIdentityMode: "guest",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-other",
+        role: "user",
+        content: "Unrelated guest question.",
+        sessionKey: "session-other-guest",
+        visitorIdentityMode: "guest",
+        createdAt: "2026-04-14T09:04:10.000Z",
+      },
+      {
+        id: "message-identified",
+        role: "user",
+        content: "Continue by email.",
+        sessionKey: "session-upgrade-scoped",
+        visitorIdentityMode: "identified",
+        visitorEmail: "scoped@example.com",
+        visitorName: "Scoped Visitor",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  const identified = result.list.find((contact) => contact.email === "scoped@example.com");
+
+  assert.equal(result.list.length, 2);
+  assert.ok(identified);
+  assert.ok(result.list.find((contact) => contact.rowKey === "session:session-other-guest"));
+  assert.equal(identified.rowKey, "email:scoped@example.com:session:session-upgrade-scoped");
+  assert.deepEqual(identified.chatMessages.map((message) => message.content), [
+    "I need a price first.",
+    "Continue by email.",
+  ]);
+});
+
+test("identified visitors with the same email stay scoped by session", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-a",
+        role: "user",
+        content: "First session pricing question.",
+        sessionKey: "identified-session-a",
+        visitorIdentityMode: "identified",
+        visitorEmail: "same@example.com",
+        visitorName: "Same Visitor",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-b",
+        role: "user",
+        content: "Second session booking question.",
+        sessionKey: "identified-session-b",
+        visitorIdentityMode: "identified",
+        visitorEmail: "same@example.com",
+        visitorName: "Same Visitor",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  assert.deepEqual(
+    result.list.map((contact) => contact.rowKey).sort(),
+    [
+      "email:same@example.com:session:identified-session-a",
+      "email:same@example.com:session:identified-session-b",
+    ]
+  );
+  assert.ok(result.list.every((contact) => contact.chatMessages.length === 1));
+});
+
+test("stale broad stored contacts do not force multiple guest sessions into one row", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-broad",
+        displayName: "Guest visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-broad",
+        identityType: "session_key",
+        identityValue: "stale-session-a",
+      },
+      {
+        contactId: "contact-broad",
+        identityType: "session_key",
+        identityValue: "stale-session-b",
+      },
+    ],
+    messages: [
+      {
+        id: "message-a",
+        role: "user",
+        content: "Guest A question.",
+        sessionKey: "stale-session-a",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-b",
+        role: "user",
+        content: "Guest B question.",
+        sessionKey: "stale-session-b",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  assert.deepEqual(
+    result.list.map((contact) => contact.rowKey).sort(),
+    ["session:stale-session-a", "session:stale-session-b"]
+  );
+  assert.ok(result.list.every((contact) => contact.id !== "contact-broad"));
 });
 
 test("chat customers use persisted visitor message time for last activity", () => {

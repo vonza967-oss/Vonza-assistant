@@ -612,6 +612,15 @@ a.ghost-button:hover {
   box-shadow: none;
 }
 
+.shell-nav-button.locked,
+.shell-nav-button.locked:hover {
+  cursor: not-allowed;
+  opacity: 0.58;
+  background: rgba(255, 255, 255, 0.025);
+  color: rgba(239, 244, 251, 0.62);
+  box-shadow: none;
+}
+
 .shell-nav-label-row {
   display: flex;
   align-items: center;

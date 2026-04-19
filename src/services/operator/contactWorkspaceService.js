@@ -11,6 +11,7 @@ import {
   OPERATOR_TASK_TABLE,
 } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
+import { normalizeVisitorEmail } from "../chat/visitorIdentityService.js";
 import { extractVisitorContactInfo } from "../leads/visitorIdentityService.js";
 
 export const CONTACT_LIFECYCLE_STATES = [
@@ -104,7 +105,8 @@ function nowIso() {
 function normalizeEmail(value) {
   const cleaned = cleanText(value);
   const match = cleaned.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0].toLowerCase() : "";
+  const email = match ? match[0].toLowerCase() : "";
+  return normalizeVisitorEmail(email);
 }
 
 function normalizePhone(value) {
@@ -272,6 +274,7 @@ function createGroup(seed = {}) {
     campaigns: [],
     outcomes: [],
     messages: [],
+    suppressedStoredContact: seed.suppressedStoredContact === true,
     latestMessageId: cleanText(seed.latestMessageId || seed.persistedContact?.metadata?.latestMessageId),
     lastActivityAt: seed.lastActivityAt || seed.persistedContact?.lastActivityAt || null,
   };
@@ -806,6 +809,83 @@ function getLatestCustomerMessageSnapshot(group = {}) {
   return snapshots[0] || null;
 }
 
+function hasRealCustomerChatMessage(group = {}) {
+  return normalizeArray(group.messages).some((message) =>
+    normalizeMessageRole(message.role) === "user"
+    && cleanText(message.content)
+  );
+}
+
+function getGroupChatSessionKeys(group = {}) {
+  return uniqueText(
+    normalizeArray(group.messages)
+      .filter((message) => normalizeMessageRole(message.role) === "user" && cleanText(message.content))
+      .map((message) => cleanText(message.sessionKey))
+      .filter(Boolean)
+  );
+}
+
+function getPrimaryChatSessionKey(group = {}) {
+  const latestCustomerMessage = normalizeArray(group.messages)
+    .filter((message) => normalizeMessageRole(message.role) === "user" && cleanText(message.content))
+    .sort((left, right) => parseTimestamp(right.createdAt) - parseTimestamp(left.createdAt))[0] || null;
+
+  return cleanText(latestCustomerMessage?.sessionKey) || getGroupChatSessionKeys(group)[0] || cleanText(group.sessionKeys[0]);
+}
+
+function hasInboundThreadMessage(group = {}) {
+  return normalizeArray(group.threads).some((thread) =>
+    normalizeArray(thread.messages).some((message) =>
+      cleanText(message.direction) === "inbound"
+      && cleanText(message.bodyPreview || message.bodyText || message.snippet || message.subject)
+    )
+  );
+}
+
+function hasUsableContactIdentity(group = {}) {
+  return Boolean(
+    normalizeEmail(group.emails[0])
+    || normalizePhone(group.phones[0])
+    || normalizePhoneDigits(group.phoneDigits[0])
+    || cleanText(group.personKeys[0])
+    || getPreferredDisplayName(group.displayNames, group)
+  );
+}
+
+function shouldShowContactGroup(group = {}) {
+  if (hasRealCustomerChatMessage(group) || hasInboundThreadMessage(group) || getPersistedCustomerMessageSnapshot(group)) {
+    return true;
+  }
+
+  const hasNonChatActivity = Boolean(
+    group.threads.length
+    || group.events.length
+    || group.followUps.length
+    || group.recipients.length
+    || group.campaigns.length
+    || group.outcomes.length
+    || group.tasks.length
+    || group.sourceKinds.some((sourceKind) => {
+      const source = cleanText(sourceKind);
+      return source && source !== "chat";
+    })
+  );
+
+  if (hasNonChatActivity && hasUsableContactIdentity(group)) {
+    return true;
+  }
+
+  const hasIdentifiedLead = group.leads.some((lead) =>
+    normalizeEmail(lead.contactEmail)
+    || normalizePhone(lead.contactPhone)
+    || normalizePhoneDigits(lead.contactPhoneNormalized)
+    || cleanText(lead.personKey)
+    || cleanText(lead.contactName)
+  );
+
+  return hasIdentifiedLead && hasUsableContactIdentity(group);
+}
+
 function getLatestConversationMessageSnapshot(group = {}) {
   const latest = normalizeArray(group.messages)
     .filter((message) => parseTimestamp(message.createdAt))
@@ -893,6 +973,50 @@ function pickBestIdentifier(group = {}) {
     || normalizeEmail(group.emails[0])
     || normalizePhone(group.phones[0])
     || (group.sessionKeys.length ? "Session continuity only" : "Identity unknown");
+}
+
+function buildCustomerRowKey(group = {}, contact = {}) {
+  const sessionKey = getPrimaryChatSessionKey(group);
+  const email = normalizeEmail(contact.email || group.emails[0]);
+  const phone = normalizePhoneDigits(contact.phone || group.phoneDigits[0]);
+  const personKey = cleanText(contact.personKey || group.personKeys[0]);
+  const threadId = cleanText(group.threads[0]?.id);
+  const eventId = cleanText(group.events[0]?.id);
+  const contactId = cleanText(group.id);
+
+  if (sessionKey && email) {
+    return `email:${email}:session:${sessionKey}`;
+  }
+
+  if (sessionKey) {
+    return `session:${sessionKey}`;
+  }
+
+  if (threadId && email) {
+    return `email:${email}:thread:${threadId}`;
+  }
+
+  if (threadId) {
+    return `thread:${threadId}`;
+  }
+
+  if (email) {
+    return `email:${email}`;
+  }
+
+  if (phone) {
+    return `phone:${phone}`;
+  }
+
+  if (personKey) {
+    return `person:${personKey}`;
+  }
+
+  if (eventId) {
+    return `event:${eventId}`;
+  }
+
+  return contactId ? `contact:${contactId}` : "";
 }
 
 function buildSuggestedLifecycleState(group = {}, now = Date.now()) {
@@ -1165,6 +1289,12 @@ function buildContactSummary(group = {}, options = {}) {
       .filter((task) => ["complaint_queue", "support_follow_up"].includes(cleanText(task.taskType)) && cleanText(task.status) === "open")
       .map((task) => cleanText(task.id)),
   };
+  contact.rowKey = buildCustomerRowKey(group, contact);
+  contact.conversationScope = {
+    sessionKey: getPrimaryChatSessionKey(group),
+    sessionKeys: getGroupChatSessionKeys(group),
+    threadId: cleanText(group.threads[0]?.id),
+  };
   contact.nextAction = buildNextAction(contact, group);
   contact.related = {
     leadIds: uniqueText(group.leads.map((lead) => lead.id)),
@@ -1392,12 +1522,31 @@ export function buildContactWorkspaceFromRecords(options = {}) {
 
   const storedContacts = normalizeArray(options.storedContacts);
   const storedIdentities = normalizeArray(options.storedIdentities);
+  const businessContactEmails = new Set(
+    normalizeArray(options.businessContactEmails).map(normalizeEmail).filter(Boolean)
+  );
+  const normalizeCustomerEmail = (value) => {
+    const email = normalizeEmail(value);
+    return email && !businessContactEmails.has(email) ? email : "";
+  };
 
   storedContacts.forEach((storedContact) => {
-    registerStoredContact(
-      storedContact,
-      storedIdentities.filter((identity) => identity.contactId === storedContact.id)
+    const contactIdentities = storedIdentities.filter((identity) => identity.contactId === storedContact.id);
+    const storedSessionKeys = uniqueText(
+      contactIdentities
+        .filter((identity) => identity.identityType === "session_key")
+        .map((identity) => identity.identityValue)
     );
+
+    if (storedSessionKeys.length > 1) {
+      groups.push(createGroup({
+        persistedContact: storedContact,
+        suppressedStoredContact: true,
+      }));
+      return;
+    }
+
+    registerStoredContact(storedContact, contactIdentities);
   });
 
   const findOrCreateGroup = ({ explicitGroups = [], strongIdentities = [], weakIdentities = [] } = {}) => {
@@ -1417,13 +1566,16 @@ export function buildContactWorkspaceFromRecords(options = {}) {
   };
 
   normalizeArray(options.leads).forEach((lead) => {
+    const hasSessionKey = Boolean(cleanText(lead.visitorSessionKey));
+    const contactEmail = normalizeCustomerEmail(lead.contactEmail);
     const explicitGroups = [
       identityMaps.contact_id.get(cleanText(lead.contactId)),
+      identityMaps.session_key.get(cleanText(lead.visitorSessionKey)),
     ].filter(Boolean);
     const strongIdentities = [
-      { type: "email", value: lead.contactEmail },
-      { type: "phone", value: lead.contactPhoneNormalized || lead.contactPhone },
-      { type: "person_key", value: lead.personKey },
+      { type: "email", value: hasSessionKey ? "" : contactEmail },
+      { type: "phone", value: hasSessionKey ? "" : lead.contactPhoneNormalized || lead.contactPhone },
+      { type: "person_key", value: hasSessionKey ? "" : lead.personKey },
       { type: "lead_id", value: lead.id },
     ].filter((entry) => cleanText(entry.value));
     const weakIdentities = [
@@ -1434,7 +1586,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     addToGroupCollection(group, "leads", lead);
     addIdentityValues(group, {
       displayName: lead.contactName,
-      email: lead.contactEmail,
+      email: contactEmail,
       phone: lead.contactPhone,
       phoneDigits: lead.contactPhoneNormalized,
       personKey: lead.personKey,
@@ -1444,7 +1596,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       latestMessageId: lead.latestMessageId,
       lastActivityAt: lead.lastSeenAt || lead.updatedAt || lead.createdAt,
     });
-    registerIdentity(identityMaps, group, "email", lead.contactEmail);
+    registerIdentity(identityMaps, group, "email", contactEmail);
     registerIdentity(identityMaps, group, "phone", lead.contactPhoneNormalized || lead.contactPhone);
     registerIdentity(identityMaps, group, "person_key", lead.personKey);
     registerIdentity(identityMaps, group, "session_key", lead.visitorSessionKey);
@@ -1466,17 +1618,19 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     .forEach((message) => {
       const sessionKey = message.sessionKey;
       const contactInfo = getWidgetMessageContactInfo(message);
+      const contactEmail = normalizeCustomerEmail(contactInfo.email);
+      const hasSessionKey = Boolean(sessionKey);
       const explicitGroups = [
         identityMaps.message_id.get(cleanText(message.id)),
         sessionKey ? identityMaps.session_key.get(sessionKey) : null,
-        contactInfo.email ? identityMaps.email.get(normalizeEmail(contactInfo.email)) : null,
-        contactInfo.phoneNormalized || contactInfo.phone
+        !hasSessionKey && contactEmail ? identityMaps.email.get(contactEmail) : null,
+        !hasSessionKey && (contactInfo.phoneNormalized || contactInfo.phone)
           ? identityMaps.phone.get(normalizePhoneDigits(contactInfo.phoneNormalized || contactInfo.phone))
           : null,
       ].filter(Boolean);
       const strongIdentities = [
-        { type: "email", value: contactInfo.email },
-        { type: "phone", value: contactInfo.phoneNormalized || contactInfo.phone },
+        { type: "email", value: hasSessionKey ? "" : contactEmail },
+        { type: "phone", value: hasSessionKey ? "" : contactInfo.phoneNormalized || contactInfo.phone },
       ].filter((entry) => cleanText(entry.value));
       const weakIdentities = [
         { type: "session_key", value: sessionKey },
@@ -1491,15 +1645,15 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       addToGroupCollection(group, "messages", message);
       addIdentityValues(group, {
         displayName: contactInfo.name,
-        email: contactInfo.email,
+        email: contactEmail,
         phone: contactInfo.phone,
         phoneDigits: contactInfo.phoneNormalized,
         sessionKeys: [sessionKey],
         sourceKinds: ["chat"],
         latestMessageId: message.id,
-        lastActivityAt: message.createdAt,
+        lastActivityAt: message.role === "user" ? message.createdAt : group.lastActivityAt,
       });
-      registerIdentity(identityMaps, group, "email", contactInfo.email);
+      registerIdentity(identityMaps, group, "email", contactEmail);
       registerIdentity(identityMaps, group, "phone", contactInfo.phoneNormalized || contactInfo.phone);
       registerIdentity(identityMaps, group, "session_key", sessionKey);
       registerIdentity(identityMaps, group, "message_id", message.id);
@@ -1689,10 +1843,13 @@ export function buildContactWorkspaceFromRecords(options = {}) {
   });
 
   const orderedPairs = groups
+    .filter((group) => !group.suppressedStoredContact)
+    .filter(shouldShowContactGroup)
     .map((group) => ({
       group,
       contact: buildContactSummary(group, options),
     }))
+    .filter((pair) => cleanText(pair.contact.rowKey) || cleanText(pair.contact.id))
     .sort((left, right) => parseTimestamp(right.contact.mostRecentActivityAt) - parseTimestamp(left.contact.mostRecentActivityAt));
   const contacts = orderedPairs.map((pair) => pair.contact);
   const orderedGroups = orderedPairs.map((pair) => pair.group);
@@ -1815,6 +1972,8 @@ function buildContactPayload(contact = {}, group = {}, options = {}) {
       latestConversationMessageAt: contact.lastConversationMessageAt || contact.lastCustomerMessageAt || "",
       latestConversationMessageSummary: contact.latestConversationMessageSummary || contact.latestCustomerMessageSummary || "",
       latestConversationMessageRole: contact.latestConversationMessageRole || "",
+      rowKey: contact.rowKey || "",
+      conversationScope: contact.conversationScope || {},
       related: contact.related || {},
       counts: contact.counts || {},
     },
@@ -2050,6 +2209,11 @@ export async function getOperatorContactsWorkspace(
     campaigns,
     followUps,
     outcomes,
+    businessContactEmails: [
+      agent?.contactEmail,
+      agent?.settings?.contactEmail,
+      agent?.publicConfig?.contactEmail,
+    ],
     now: Date.now(),
   });
 
