@@ -98,6 +98,7 @@ create table if not exists public.messages (
   role text not null,
   content text not null,
   session_key text,
+  -- Durable widget visitor identity captured at message write time.
   visitor_identity_mode text,
   visitor_email text,
   visitor_name text,
