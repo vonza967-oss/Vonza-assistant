@@ -816,6 +816,155 @@ test("guest widget conversations create customer contacts from stored messages",
   );
 });
 
+test("production-shaped user message rows without message ids still create customer contacts", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "Can you send package pricing?",
+        session_key: "production-session-1",
+        created_at: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        agent_id: "agent-1",
+        role: "assistant",
+        content: "Pricing depends on the package.",
+        session_key: "production-session-1",
+        created_at: "2026-04-14T09:04:20.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].rowKey, "session:production-session-1");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Can you send package pricing?");
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.deepEqual(
+    result.list[0].chatMessages.map((message) => message.content),
+    ["Can you send package pricing?", "Pricing depends on the package."]
+  );
+});
+
+test("production-shaped identified visitor messages use durable visitor fields without newer helper ids", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "I would like to continue by email.",
+        session_key: "production-identified-session",
+        visitor_email: "identified@example.com",
+        visitor_name: "Identified Visitor",
+        created_at: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Identified Visitor");
+  assert.equal(result.list[0].email, "identified@example.com");
+  assert.equal(result.list[0].rowKey, "email:identified@example.com:session:production-identified-session");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "I would like to continue by email.");
+});
+
+test("production-shaped guest sessions without message ids stay separate and scoped", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "Guest A wants pricing.",
+        session_key: "production-guest-a",
+        created_at: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        agent_id: "agent-1",
+        role: "assistant",
+        content: "Pricing reply for guest A.",
+        session_key: "production-guest-a",
+        created_at: "2026-04-14T09:04:20.000Z",
+      },
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "Guest B wants booking.",
+        session_key: "production-guest-b",
+        created_at: "2026-04-14T09:05:00.000Z",
+      },
+      {
+        agent_id: "agent-1",
+        role: "assistant",
+        content: "Booking reply for guest B.",
+        session_key: "production-guest-b",
+        created_at: "2026-04-14T09:06:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+  assert.deepEqual(
+    result.list.map((contact) => contact.rowKey).sort(),
+    ["session:production-guest-a", "session:production-guest-b"]
+  );
+  assert.deepEqual(
+    result.list.find((contact) => contact.rowKey === "session:production-guest-a").chatMessages.map((message) => message.content),
+    ["Guest A wants pricing.", "Pricing reply for guest A."]
+  );
+  assert.deepEqual(
+    result.list.find((contact) => contact.rowKey === "session:production-guest-b").chatMessages.map((message) => message.content),
+    ["Guest B wants booking.", "Booking reply for guest B."]
+  );
+});
+
+test("production-shaped guest-to-identified same-session upgrade keeps one identified row", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "I need a quote first.",
+        session_key: "production-upgrade-session",
+        created_at: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        agent_id: "agent-1",
+        role: "user",
+        content: "Use my email for the quote.",
+        session_key: "production-upgrade-session",
+        visitor_email: "upgrade@example.com",
+        visitor_name: "Upgrade Visitor",
+        created_at: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].name, "Upgrade Visitor");
+  assert.equal(result.list[0].email, "upgrade@example.com");
+  assert.equal(result.list[0].rowKey, "email:upgrade@example.com:session:production-upgrade-session");
+  assert.deepEqual(result.list[0].chatMessages.map((message) => message.content), [
+    "I need a quote first.",
+    "Use my email for the quote.",
+  ]);
+});
+
+test("production-shaped assistant-only messages without ids stay suppressed", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        agent_id: "agent-1",
+        role: "assistant",
+        content: "Hello, how can I help?",
+        session_key: "production-assistant-only",
+        created_at: "2026-04-14T09:03:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 0);
+});
+
 test("visitor and customer roles count as customer messages for Last message", () => {
   const result = buildContactWorkspaceFromRecords({
     messages: [

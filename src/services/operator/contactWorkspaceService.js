@@ -280,14 +280,35 @@ function createGroup(seed = {}) {
   };
 }
 
-function addToGroupCollection(group, collectionKey, record = {}) {
+function getCollectionRecordKey(collectionKey, record = {}) {
   const recordId = cleanText(record.id);
 
-  if (!recordId) {
+  if (recordId) {
+    return `id:${recordId}`;
+  }
+
+  if (collectionKey === "messages") {
+    const sessionKey = cleanText(record.sessionKey || record.session_key);
+    const role = normalizeMessageRole(record.role);
+    const content = cleanText(record.content);
+    const createdAt = cleanText(record.createdAt || record.created_at);
+
+    if (sessionKey && role && content) {
+      return `message:${sessionKey}:${createdAt}:${role}:${content}`;
+    }
+  }
+
+  return "";
+}
+
+function addToGroupCollection(group, collectionKey, record = {}) {
+  const recordKey = getCollectionRecordKey(collectionKey, record);
+
+  if (!recordKey) {
     return;
   }
 
-  if (!group[collectionKey].find((entry) => cleanText(entry.id) === recordId)) {
+  if (!group[collectionKey].find((entry) => getCollectionRecordKey(collectionKey, entry) === recordKey)) {
     group[collectionKey].push(record);
   }
 }
@@ -1467,7 +1488,7 @@ function getWidgetMessageContactInfo(message = {}) {
   const identityEmail = normalizeEmail(message.visitorEmail || message.visitor_email);
   const identityName = cleanText(message.visitorName || message.visitor_name);
 
-  if (identityMode === "identified" && identityEmail) {
+  if (identityEmail && identityMode !== "guest") {
     return {
       name: identityName,
       email: identityEmail,
@@ -1605,7 +1626,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
 
   const widgetMessages = normalizeArray(options.messages)
     .map(normalizeWidgetMessage)
-    .filter((message) => message.id && message.role && message.content)
+    .filter((message) => message.role && message.content && (message.id || message.sessionKey))
     .sort((left, right) => parseTimestamp(left.createdAt) - parseTimestamp(right.createdAt));
   const visitorSessionKeys = new Set(
     widgetMessages
