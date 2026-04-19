@@ -584,6 +584,7 @@ function normalizeOperatorWorkspaceContact(contact = {}) {
     flags: Array.isArray(source.flags) ? source.flags.filter(Boolean) : [],
     sources: Array.isArray(source.sources) ? source.sources.filter(Boolean) : [],
     timeline: normalizeOperatorArray(source.timeline, normalizeOperatorRecord),
+    chatMessages: normalizeOperatorArray(source.chatMessages, normalizeOperatorRecord),
     counts: normalizeOperatorRecord(source.counts),
     nextAction: normalizeOperatorRecord(source.nextAction),
     latestOutcome: normalizeOperatorRecord(source.latestOutcome),
@@ -2759,14 +2760,15 @@ function buildShellNavButton(item, activeSection) {
   `;
 }
 
-function buildSidebarGroup(title, items, activeSection) {
-  if (!items.length) {
+function buildSidebarGroup(title, items, activeSection, options = {}) {
+  if (!items.length && !options.note) {
     return "";
   }
 
   return `
     <section class="shell-sidebar-group">
       <p class="shell-sidebar-label">${escapeHtml(title)}</p>
+      ${options.note ? `<p class="shell-sidebar-note">${escapeHtml(options.note)}</p>` : ""}
       <div class="shell-sidebar-list">
         ${items.map((item) => buildShellNavButton(item, activeSection)).join("")}
       </div>
@@ -2783,9 +2785,6 @@ function buildSidebarShell(
 ) {
   const availableSections = getAvailableShellSections(operatorWorkspace);
   const installStatus = getDefaultInstallStatus(agent);
-  const connectedSections = availableSections.filter((section) =>
-    ["inbox", "calendar", "automations"].includes(section)
-  );
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
   const workspaceStatus = setup.isReady ? "Ready to use" : "Getting started";
@@ -2829,27 +2828,6 @@ function buildSidebarShell(
     },
   ].filter((item) => availableSections.includes(item.key));
 
-  const connectedItems = [
-    {
-      key: "inbox",
-      label: "Email",
-      note: "Beta. Email is not self-serve yet.",
-      tag: "Beta",
-    },
-    {
-      key: "calendar",
-      label: "Calendar",
-      note: "Beta. Calendar access is not ready yet.",
-      tag: "Beta",
-    },
-    {
-      key: "automations",
-      label: "Automations",
-      note: "Beta. Automated workflows are not available yet.",
-      tag: "Beta",
-    },
-  ].filter((item) => availableSections.includes(item.key));
-
   const utilityItems = [
     {
       key: "install",
@@ -2876,7 +2854,7 @@ function buildSidebarShell(
         </div>
       </div>
       ${buildSidebarGroup("Primary", coreItems, activeSection)}
-      ${connectedSections.length ? buildSidebarGroup("Connected tools", connectedItems, activeSection) : ""}
+      ${buildSidebarGroup("Connected Tools", [], activeSection, { note: "(coming soon)" })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
@@ -3325,10 +3303,7 @@ function getCustomerIdentifier(contact = {}) {
 }
 
 function getCustomerLastMessageAt(contact = {}) {
-  return trimText(contact.lastConversationMessageAt)
-    || trimText(contact.lastCustomerMessageAt)
-    || trimText(contact.mostRecentActivityAt)
-    || trimText(contact.latestOutcome?.occurredAt);
+  return trimText(contact.lastCustomerMessageAt);
 }
 
 function hasGuestCustomerActivity(contact = {}) {
@@ -3357,7 +3332,7 @@ function getCustomerLastActivityLabel(contact = {}) {
     return formatSeenAt(lastCustomerMessageAt);
   }
 
-  return "No conversation time yet";
+  return "No customer message yet";
 }
 
 function isGuestCustomerRow(contact = {}) {
@@ -3798,12 +3773,42 @@ function buildContactCountsSummary(contact = {}) {
   ].join(" · ");
 }
 
+function buildCustomerChatPanel(contact = {}) {
+  const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
+
+  if (!messages.length) {
+    return `
+      <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
+        <div class="customer-chat-empty">No saved chat messages yet.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
+      <div class="customer-chat-list">
+        ${messages.map((message) => `
+          <div class="customer-chat-message customer-chat-message--${escapeHtml(message.role === "vonza" ? "vonza" : "customer")}">
+            <div class="customer-chat-message-meta">
+              <strong>${escapeHtml(message.label === "Vonza" ? "Vonza" : "Customer")}</strong>
+              ${message.createdAt ? `<span>${escapeHtml(formatSeenAt(message.createdAt))}</span>` : ""}
+            </div>
+            <p>${escapeHtml(trimText(message.content) || "No message text saved.")}</p>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
   const rowIdentifier = getCustomerRowIdentifier(contact);
   const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
+  const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
+  const canShowChat = chatMessages.length > 0;
 
   return `
     <article
@@ -3834,8 +3839,17 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
         <div class="customer-row-meta">
           <span class="customer-row-meta-label">Last message</span>
           <strong class="customer-row-meta-value">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
+          <button
+            class="ghost-button customer-chat-toggle"
+            type="button"
+            data-toggle-customer-chat
+            data-contact-id="${escapeHtml(contact.id || "")}"
+            aria-expanded="false"
+            ${canShowChat ? "" : "disabled"}
+          >${canShowChat ? "View chat" : "No chat yet"}</button>
         </div>
       </div>
+      ${buildCustomerChatPanel(contact)}
     </article>
   `;
 }
@@ -12881,6 +12895,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const contactCards = document.querySelectorAll("[data-contact-card]");
   const contactRows = document.querySelectorAll("[data-contact-row]");
   const contactDetails = document.querySelectorAll("[data-contact-detail]");
+  const customerChatToggleButtons = document.querySelectorAll("[data-toggle-customer-chat]");
   const workspaceRecordRows = document.querySelectorAll("[data-record-row]");
   const workspaceRecordDetails = document.querySelectorAll("[data-record-detail]");
   const contactLifecycleForms = document.querySelectorAll("[data-contact-lifecycle-form]");
@@ -13417,6 +13432,31 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       detail.hidden = !isActive;
       detail.classList.toggle("active", isActive);
     });
+  };
+
+  const toggleCustomerChat = (button) => {
+    const contactId = trimText(button.dataset.contactId);
+    const panel = document.querySelector(`[data-customer-chat-panel][data-contact-id="${contactId}"]`);
+    const willOpen = panel?.hidden !== false;
+
+    document.querySelectorAll("[data-customer-chat-panel]").forEach((chatPanel) => {
+      chatPanel.hidden = true;
+    });
+    customerChatToggleButtons.forEach((toggleButton) => {
+      toggleButton.setAttribute("aria-expanded", "false");
+      if (!toggleButton.disabled) {
+        toggleButton.textContent = "View chat";
+      }
+    });
+
+    if (!panel || !willOpen) {
+      return;
+    }
+
+    panel.hidden = false;
+    button.setAttribute("aria-expanded", "true");
+    button.textContent = "Hide chat";
+    selectContact(contactId);
   };
 
   const selectWorkspaceRecord = (kind = "", recordId = "") => {
@@ -14464,6 +14504,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   contactRows.forEach((row) => {
     row.addEventListener("click", () => {
       selectContact(row.dataset.contactId || "");
+    });
+  });
+
+  customerChatToggleButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleCustomerChat(button);
     });
   });
 

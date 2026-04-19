@@ -135,7 +135,11 @@ Your job:
 - purpose-specific behavior: ${purposeInstruction}
 
 Core behavior:
-- Always reply in ${language}
+- Reply in ${language}; this was selected from the customer's latest message unless the customer explicitly asked for another language
+- Reply in the same language as the customer's latest message, unless the customer explicitly asks for another language
+- If the latest customer message is too short or ambiguous, keep using the most recent clearly detected customer language from this conversation
+- Do not choose the response language from the business website language, business profile language, or retrieved context language
+- Do not translate business names, service names, URLs, addresses, emails, or phone numbers
 - Use the latest user message and the recent conversation together
 - Prioritize concrete facts from the content over general advice
 - Prefer specific details from headings, titles, descriptions, clearly stated service sections, and contact details
@@ -197,6 +201,7 @@ Hard rules:
 - If contact details exist, use them directly
 - Never invent or output placeholder contact details such as example.com emails or demo phone numbers
 - If services are clearly listed, name them directly
+- Preserve business names, service names, URLs, addresses, emails, and phone numbers exactly as provided
 - Do not use pushy language like "you should", "you must", or "act now"
 - Prefer phrases like "If you want", "I can help you", or "The next step could be"
 - Do not include raw image URLs, asset paths, or media links in a normal answer unless the user explicitly asks to see images or source assets
@@ -357,7 +362,9 @@ export function getReplyRepairIssues(reply, language) {
 
 export function buildBusinessReplyRepairPrompt(language) {
   return `Rewrite the reply so it sounds like a smart personal advisor.
-- Always reply in ${language}
+- Reply in ${language}; this language was selected from the customer's latest message unless the customer explicitly asked for another language
+- Do not switch language because the business website, business profile, or retrieved context uses another language
+- Do not translate business names, service names, URLs, addresses, emails, or phone numbers
 - Keep the meaning, but make it sound natural, specific, and business-ready
 - Answer the user's latest message directly
 - Use the recent conversation for continuity

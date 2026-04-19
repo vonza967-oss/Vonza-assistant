@@ -133,7 +133,29 @@ function uniqueText(values = []) {
 
 function normalizeMessageRole(value = "") {
   const normalized = cleanText(value).toLowerCase();
-  return normalized === "user" || normalized === "visitor" ? "user" : normalized;
+  return ["user", "visitor", "customer"].includes(normalized) ? "user" : normalized;
+}
+
+function buildChronologicalChatMessages(group = {}) {
+  return normalizeArray(group.messages)
+    .filter((message) =>
+      ["user", "assistant", "vonza"].includes(normalizeMessageRole(message.role))
+      && (message.id || message.content || message.sessionKey)
+    )
+    .sort((left, right) => parseTimestamp(left.createdAt) - parseTimestamp(right.createdAt))
+    .map((message) => {
+      const normalizedRole = normalizeMessageRole(message.role);
+      const isCustomer = normalizedRole === "user";
+
+      return {
+        id: cleanText(message.id),
+        role: isCustomer ? "customer" : "vonza",
+        label: isCustomer ? "Customer" : "Vonza",
+        content: cleanText(message.content),
+        createdAt: message.createdAt || null,
+        sessionKey: cleanText(message.sessionKey),
+      };
+    });
 }
 
 function parseTimestamp(value) {
@@ -1046,6 +1068,7 @@ function buildNextAction(contact = {}, group = {}) {
 
 function buildContactSummary(group = {}, options = {}) {
   const timeline = buildTimelineEntries(group);
+  const chatMessages = buildChronologicalChatMessages(group);
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
@@ -1101,6 +1124,7 @@ function buildContactSummary(group = {}, options = {}) {
     lastConversationMessageAt: latestConversationMessage?.at || null,
     latestConversationMessageSummary: latestConversationMessage?.summary || "",
     latestConversationMessageRole: latestConversationMessage?.role || "",
+    chatMessages,
     sources: [...sourceSet].map(formatSourceLabel),
     flags: flags.map(formatSourceLabel),
     partialIdentity: !normalizeEmail(group.emails[0])

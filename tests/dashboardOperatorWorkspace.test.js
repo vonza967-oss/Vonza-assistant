@@ -1118,7 +1118,22 @@ test("customers render as a single-column workspace without inactive controls", 
             lifecycleState: "active_lead",
             lastCustomerMessageAt: "2026-04-05T09:00:00.000Z",
             mostRecentActivityAt: "2026-04-05T09:00:00.000Z",
+            lastCustomerMessageAt: "2026-04-05T09:00:00.000Z",
             latestCustomerMessageSummary: "Visitor asked for pricing.",
+            chatMessages: [
+              {
+                label: "Customer",
+                role: "customer",
+                content: "Can you tell me the price?",
+                createdAt: "2026-04-05T09:00:00.000Z",
+              },
+              {
+                label: "Vonza",
+                role: "vonza",
+                content: "Pricing depends on the project.",
+                createdAt: "2026-04-05T09:00:05.000Z",
+              },
+            ],
             nextAction: {
               title: "Draft follow-up",
               description: "Pricing question still needs a response.",
@@ -1154,6 +1169,10 @@ test("customers render as a single-column workspace without inactive controls", 
   assert.match(contactsPanel, /<p class="customer-row-identity">Email user · taylor@example\.com<\/p>/);
   assert.match(contactsPanel, /Visitor asked for pricing/);
   assert.match(contactsPanel, /Last message/);
+  assert.match(contactsPanel, /View chat/);
+  assert.match(contactsPanel, /data-customer-chat-panel/);
+  assert.match(contactsPanel, />Customer</);
+  assert.match(contactsPanel, />Vonza</);
   assert.doesNotMatch(contactsPanel, /Last active/);
   assert.doesNotMatch(contactsPanel, />Draft follow-up<\/button>\s*<details class="row-action-menu"/);
 });
@@ -1517,7 +1536,7 @@ test("guest customer rows show stored customer message summary and last message 
   assert.doesNotMatch(row, /No customer message yet/);
 });
 
-test("customer rows show conversation timestamps even without a customer-authored message", () => {
+test("customer rows do not invent Last message timestamps without a customer-authored message", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1535,10 +1554,59 @@ test("customer rows show conversation timestamps even without a customer-authore
   });
 
   assert.match(row, /<span class="customer-row-meta-label">Last message<\/span>/);
-  assert.doesNotMatch(row, /No customer message yet/);
-  assert.match(row, /data-contact-last-activity="2026-04-16T12:34:56\.000Z"/);
+  assert.match(row, /No customer message yet/);
+  assert.match(row, /data-contact-last-activity=""/);
   assert.doesNotMatch(row, /Last active/);
+  assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
   assert.doesNotMatch(row, /2026-04-15T10:00:00\.000Z/);
+});
+
+test("customer row chat expansion markup stays inline and chronological", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-chat",
+    name: "Anonymous visitor",
+    lifecycleState: "active_lead",
+    partialIdentity: true,
+    sources: ["chat"],
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    latestCustomerMessageSummary: "First customer message.",
+    chatMessages: [
+      {
+        label: "Customer",
+        role: "customer",
+        content: "First customer message.",
+        createdAt: "2026-04-16T09:47:46.000Z",
+      },
+      {
+        label: "Vonza",
+        role: "vonza",
+        content: "First Vonza reply.",
+        createdAt: "2026-04-16T09:47:50.000Z",
+      },
+      {
+        label: "Customer",
+        role: "customer",
+        content: "Second customer message.",
+        createdAt: "2026-04-16T09:48:00.000Z",
+      },
+    ],
+  });
+
+  assert.match(row, /data-toggle-customer-chat/);
+  assert.match(row, /aria-expanded="false"/);
+  assert.match(row, /data-customer-chat-panel/);
+  assert.ok(row.indexOf("First customer message.") < row.indexOf("First Vonza reply."));
+  assert.ok(row.indexOf("First Vonza reply.") < row.indexOf("Second customer message."));
+  const chatPanelMarkup = row.slice(
+    row.indexOf('class="customer-chat-panel"'),
+    row.indexOf("</article>", row.indexOf('class="customer-chat-panel"'))
+  );
+  assert.doesNotMatch(chatPanelMarkup, /operator|workflow|queue|copilot|approval|automation/i);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
@@ -1580,8 +1648,11 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
   );
 
   assert.match(sidebar, /Primary/);
-  assert.match(sidebar, /Connected tools/);
-  assert.match(sidebar, /Beta/);
+  assert.match(sidebar, /Connected Tools/);
+  assert.match(sidebar, /\(coming soon\)/);
+  assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
+  assert.doesNotMatch(sidebar, /Calendar[\s\S]{0,80}Beta/);
+  assert.doesNotMatch(sidebar, /Automations[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Optional/);
   assert.match(sidebar, /Utilities/);
   assert.match(sidebar, /Workspace/);

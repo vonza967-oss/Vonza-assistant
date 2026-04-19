@@ -641,6 +641,97 @@ test("chat logging emits metadata without raw conversation or business content",
   assert.match(logged, /messageLength/);
 });
 
+test("chat response language follows customer messages instead of website context", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Magyar szolgáltató",
+        meta_description: "Webshop készítés és karbantartás.",
+        content: "Webshop készítés, keresőoptimalizálás és karbantartás. Email: hello@pelda.hu. Telefon: +36 30 123 4567.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+  const calls = [];
+
+  await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            const systemPrompt = payload.messages.find((message) => message.role === "system")?.content || "";
+            return {
+              choices: [
+                {
+                  message: {
+                    content: systemPrompt.includes("Reply in Hungarian")
+                      ? "Igen, segítek. Miben segíthetek?"
+                      : "Sure, I can help. What would you like next?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      visitor_session_key: "session-language",
+      message: "Yes please, I want a webshop.",
+    },
+  });
+
+  assert.match(calls[0].messages[0].content, /Reply in English/);
+  assert.match(calls[0].messages[0].content, /Do not choose the response language from the business website language/);
+
+  calls.length = 0;
+  await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: "Igen, segítek. Miben segíthetek?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      visitor_session_key: "session-language",
+      message: "ok",
+      history: [
+        {
+          role: "user",
+          content: "Webshopot szeretnék.",
+        },
+      ],
+    },
+  });
+
+  assert.match(calls[0].messages[0].content, /Reply in Hungarian/);
+});
+
 test("/chat persists explicit visitor identity on stored messages", async () => {
   const supabase = createFakeSupabase(buildChatState());
 

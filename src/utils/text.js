@@ -129,19 +129,99 @@ export function buildEffectiveUserText(message, history) {
   return [...recentUserMessages, cleanText(message)].join(" ").trim();
 }
 
-export function detectResponseLanguage(message) {
-  const normalized = message.toLowerCase();
+export function detectExplicitLanguageRequest(message) {
+  const normalized = cleanText(message).toLowerCase();
 
   if (
-    /[áéíóöőúüű]/i.test(normalized) ||
-    /\b(szia|helló|helo|üdv|kell|szeretnék|szeretnek|segits|segíts|weboldal|honlap|webshop|ar|ár|ajanlat|ajánlat|mennyi|mennyibe|kerul|kerül|kerulne|kerülne|reszletesebb|részletesebb|megoldas|megoldás|miben|tudsz|segiteni|segíteni|igazabol|igazából|jobban|hangzik)\b/i.test(
-      normalized
-    )
+    /\b(?:reply|answer|respond|speak|write)\s+(?:to me\s+)?in\s+hungarian\b/i.test(normalized) ||
+    /\b(?:hungarian|magyar)\s+(?:please|pls)\b/i.test(normalized) ||
+    /\bmagyarul\b/i.test(normalized)
   ) {
     return "Hungarian";
   }
 
+  if (
+    /\b(?:reply|answer|respond|speak|write)\s+(?:to me\s+)?in\s+english\b/i.test(normalized) ||
+    /\benglish\s+(?:please|pls)\b/i.test(normalized) ||
+    /\bangolul\b/i.test(normalized)
+  ) {
+    return "English";
+  }
+
+  return "";
+}
+
+export function detectMessageLanguage(message) {
+  const normalized = cleanText(message).toLowerCase();
+
+  if (!normalized) {
+    return {
+      language: "",
+      confidence: "none",
+    };
+  }
+
+  if (
+    /[áéíóöőúüű]/i.test(normalized) ||
+    /\b(szia|helló|helo|üdv|igen|nem|kell|szeretnék|szeretnek|segits|segíts|weboldal|honlap|webshopot|ar|ár|arak|árak|ajanlat|ajánlat|mennyi|mennyibe|kerul|kerül|kerulne|kerülne|reszletesebb|részletesebb|megoldas|megoldás|miben|tudsz|segiteni|segíteni|igazabol|igazából|jobban|hangzik)\b/i.test(
+      normalized
+    )
+  ) {
+    return {
+      language: "Hungarian",
+      confidence: "clear",
+    };
+  }
+
+  if (
+    /\b(yes|yeah|yep|please|thanks|thank|hello|hi|hey|need|want|would|like|website|webshop|shop|price|pricing|cost|quote|service|services|contact|email|phone|book|booking|appointment|help)\b/i.test(
+      normalized
+    )
+  ) {
+    return {
+      language: "English",
+      confidence: "clear",
+    };
+  }
+
+  return {
+    language: "",
+    confidence: "ambiguous",
+  };
+}
+
+export function selectResponseLanguage(message, history = []) {
+  const explicitLanguage = detectExplicitLanguageRequest(message);
+
+  if (explicitLanguage) {
+    return explicitLanguage;
+  }
+
+  const latestLanguage = detectMessageLanguage(message);
+
+  if (latestLanguage.confidence === "clear") {
+    return latestLanguage.language;
+  }
+
+  const recentCustomerMessages = (Array.isArray(history) ? history : [])
+    .filter((entry) => entry?.role === "user")
+    .map((entry) => cleanText(entry.content))
+    .filter(Boolean)
+    .reverse();
+
+  for (const previousMessage of recentCustomerMessages) {
+    const previousLanguage = detectMessageLanguage(previousMessage);
+
+    if (previousLanguage.confidence === "clear") {
+      return previousLanguage.language;
+    }
+  }
+
   return "English";
+}
+
+export function detectResponseLanguage(message) {
+  return selectResponseLanguage(message);
 }
 
 export function isGreetingMessage(message) {

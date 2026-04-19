@@ -544,6 +544,12 @@ a.ghost-button:hover {
   text-transform: uppercase;
 }
 
+.shell-sidebar-note {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .shell-nav-button {
   width: 100%;
   text-align: left;
@@ -3440,7 +3446,7 @@ body {
 
 .customer-row-meta {
   justify-items: end;
-  gap: 4px;
+  gap: 8px;
 }
 
 .customer-row-meta-label {
@@ -3452,6 +3458,66 @@ body {
 .customer-row-meta-value {
   color: white;
   font-size: 14px;
+}
+
+.customer-chat-toggle {
+  min-width: 112px;
+}
+
+.customer-chat-panel {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--surface-border);
+  padding-top: 14px;
+}
+
+.customer-chat-list {
+  display: grid;
+  gap: 10px;
+}
+
+.customer-chat-message {
+  display: grid;
+  gap: 6px;
+  max-width: min(680px, 100%);
+}
+
+.customer-chat-message--vonza {
+  justify-self: end;
+  text-align: right;
+}
+
+.customer-chat-message-meta {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.customer-chat-message--vonza .customer-chat-message-meta {
+  justify-content: flex-end;
+}
+
+.customer-chat-message-meta strong {
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.customer-chat-message p,
+.customer-chat-empty {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.customer-chat-message--vonza p {
+  background: rgba(20, 184, 166, 0.1);
+  border-color: rgba(20, 184, 166, 0.26);
 }
 
 .contact-row-title-line {
@@ -7519,6 +7585,30 @@ body {
 
 .workspace-page[data-shell-section="contacts"] .customer-row-meta-label {
   color: #40516c;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-chat-panel {
+  border-top-color: #dbe3ef;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-chat-message-meta {
+  color: #667792;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-chat-message-meta strong {
+  color: #1f2d44;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-chat-message p,
+.workspace-page[data-shell-section="contacts"] .customer-chat-empty {
+  background: #ffffff;
+  border-color: #dbe3ef;
+  color: #24324a;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-chat-message--vonza p {
+  background: #edf8f6;
+  border-color: #bce3dd;
 }
 
 .workspace-page[data-shell-section="contacts"] .customer-row-statuses {

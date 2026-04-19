@@ -560,6 +560,72 @@ test("guest widget conversations create customer contacts from stored messages",
   assert.ok(result.list[0].sources.includes("chat"));
   assert.equal(result.list[0].latestMessageId, "message-guest-2");
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.deepEqual(
+    result.list[0].chatMessages.map((message) => message.label),
+    ["Customer", "Vonza"]
+  );
+});
+
+test("visitor and customer roles count as customer messages for Last message", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-visitor",
+        role: "visitor",
+        content: "I need pricing.",
+        sessionKey: "session-role",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-assistant",
+        role: "assistant",
+        content: "Pricing depends on the project.",
+        sessionKey: "session-role",
+        createdAt: "2026-04-14T09:04:20.000Z",
+      },
+      {
+        id: "message-customer",
+        role: "customer",
+        content: "Can you send details?",
+        sessionKey: "session-role",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:05:00.000Z");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Can you send details?");
+  assert.deepEqual(
+    result.list[0].chatMessages.map((message) => message.label),
+    ["Customer", "Vonza", "Customer"]
+  );
+});
+
+test("assistant replies do not move the customer Last message timestamp", () => {
+  const result = buildContactWorkspaceFromRecords({
+    messages: [
+      {
+        id: "message-user",
+        role: "user",
+        content: "Can I book a call?",
+        sessionKey: "session-assistant-later",
+        createdAt: "2026-04-14T09:03:55.000Z",
+      },
+      {
+        id: "message-assistant",
+        role: "assistant",
+        content: "Yes, what time works?",
+        sessionKey: "session-assistant-later",
+        createdAt: "2026-04-14T09:08:55.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
+  assert.equal(result.list[0].latestCustomerMessageSummary, "Can I book a call?");
 });
 
 test("guest widget question text is not promoted into the contact identity", () => {

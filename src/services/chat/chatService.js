@@ -36,6 +36,7 @@ import {
   extractEmails,
   isPlaceholderEmail,
   sanitizeChatHistory,
+  selectResponseLanguage,
 } from "../../utils/text.js";
 
 function hasLimitedKnowledge(websiteContent) {
@@ -232,7 +233,7 @@ export async function handleChatRequest({
   });
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const normalizedMessage = cleanText(message || "");
-  const language = detectResponseLanguage(normalizedMessage);
+  const language = selectResponseLanguage(normalizedMessage, history);
   const conversationGuidance = buildConversationGuidance(message, history);
 
   if (!message || !String(message).trim()) {
