@@ -4237,7 +4237,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         ownerUserId,
       })
       : Promise.resolve({ records: [], persistenceAvailable: true }),
-    copilotFeatureEnabled && cleanText(agent.businessId)
+    cleanText(agent.businessId)
       ? getStoredWebsiteContent(supabase, agent.businessId)
       : Promise.resolve(null),
     copilotFeatureEnabled
@@ -4245,12 +4245,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         agentId: agent.id,
       })
       : Promise.resolve([]),
-    copilotFeatureEnabled
-      ? getOperatorBusinessProfile(supabase, {
+    getOperatorBusinessProfile(supabase, {
         agent,
         ownerUserId,
-      })
-      : Promise.resolve(null),
+      }),
     getOperatorActivationState(supabase, {
       agent,
       ownerUserId,

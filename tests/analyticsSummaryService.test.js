@@ -2,9 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildCustomerQuestionSummaries,
   buildAnalyticsSummary,
   createEmptyAnalyticsSummary,
+  summarizeCustomerQuestionIntent,
 } from "../src/services/analytics/analyticsSummaryService.js";
+
+const VAGUE_SUMMARY_PATTERN =
+  /general business questions|customer inquiry|asking questions|business information|service question/i;
 
 test("analytics summary keeps live message, CTA, and contact counts aligned", () => {
   const summary = buildAnalyticsSummary({
@@ -54,6 +59,8 @@ test("analytics summary keeps live message, CTA, and contact counts aligned", ()
   assert.equal(summary.attentionNeeded, 1);
   assert.equal(summary.syncState, "ready");
   assert.match(summary.operatorSignal.copy, /high-intent customer signal/i);
+  assert.ok(summary.customerQuestionSummaries.some((entry) => entry.summary === "Requesting pricing or quote details"));
+  assert.ok(summary.customerQuestionSummaries.some((entry) => entry.summary === "Asking how to contact the business directly"));
 });
 
 test("analytics summary exposes pending sync instead of misleading zeros", () => {
@@ -77,4 +84,42 @@ test("analytics summary exposes pending sync instead of misleading zeros", () =>
   assert.equal(summary.conversationCount, 1);
   assert.equal(summary.syncState, "pending");
   assert.match(summary.recentActivity.description, /syncing/i);
+});
+
+test("customer question summaries avoid vague fallback labels", () => {
+  const summaries = buildCustomerQuestionSummaries([
+    { role: "user", content: "Can you help me choose the right option for my team?", createdAt: "2026-04-03T09:00:00.000Z" },
+    { role: "user", content: "Do you have webshop setup options?", createdAt: "2026-04-03T09:05:00.000Z" },
+    { role: "user", content: "How long does delivery usually take?", createdAt: "2026-04-03T09:10:00.000Z" },
+  ]);
+
+  assert.ok(summaries.length >= 3);
+  assert.ok(summaries.some((entry) => entry.summary === "Trying to understand which service fits their needs"));
+  assert.ok(summaries.some((entry) => entry.summary === "Asking about webshop options and next steps"));
+  assert.ok(summaries.some((entry) => entry.summary === "Looking for delivery timing or service turnaround"));
+
+  for (const entry of summaries) {
+    assert.doesNotMatch(entry.summary, VAGUE_SUMMARY_PATTERN);
+  }
+});
+
+test("customer question summaries do not copy raw chat text", () => {
+  const rawQuestion = "Hey there, can you tell me the exact price for the premium window cleaning package next Thursday morning?";
+  const summary = summarizeCustomerQuestionIntent(rawQuestion);
+
+  assert.equal(summary, "Requesting pricing or quote details");
+  assert.notEqual(summary, rawQuestion);
+  assert.doesNotMatch(summary, /premium window cleaning package next Thursday morning/i);
+  assert.doesNotMatch(summary, VAGUE_SUMMARY_PATTERN);
+});
+
+test("Hungarian customer questions keep useful Hungarian summaries", () => {
+  assert.equal(
+    summarizeCustomerQuestionIntent("Mennyibe kerul a webaruhaz keszitese?"),
+    "Arakat vagy arajanlat reszleteit keri"
+  );
+  assert.equal(
+    summarizeCustomerQuestionIntent("Van szabad idopont jovo hetre?"),
+    "Idopontot vagy elerhetoseget keres"
+  );
 });

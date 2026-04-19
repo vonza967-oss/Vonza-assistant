@@ -1657,8 +1657,6 @@ function getBusinessProfileViewModel(operatorWorkspace = createEmptyOperatorWork
 
 function parseBusinessProfilePayload(form) {
   const formData = new FormData(form);
-  const approvedContactChannels = ["website_chat", "email", "phone", "sms"]
-    .filter((channel) => formData.getAll("approved_contact_channels").includes(channel));
 
   return {
     businessSummary: trimText(formData.get("business_summary")),
@@ -1667,14 +1665,6 @@ function parseBusinessProfilePayload(form) {
     policies: parseStructuredBusinessProfileLines(formData.get("policies"), ["label", "details"]),
     serviceAreas: parseStructuredBusinessProfileLines(formData.get("service_areas"), ["name", "note"]),
     operatingHours: parseStructuredBusinessProfileLines(formData.get("operating_hours"), ["label", "hours"]),
-    approvedContactChannels,
-    approvalPreferences: {
-      followUpDrafts: trimText(formData.get("approval_follow_up_drafts")) || "owner_required",
-      contactNextSteps: trimText(formData.get("approval_contact_next_steps")) || "owner_required",
-      taskRecommendations: trimText(formData.get("approval_task_recommendations")) || "owner_required",
-      outcomeRecommendations: trimText(formData.get("approval_outcome_recommendations")) || "owner_required",
-      profileChanges: trimText(formData.get("approval_profile_changes")) || "owner_required",
-    },
   };
 }
 
@@ -2000,10 +1990,10 @@ function renderErrorState(title, copy) {
 function renderLoadingState() {
   renderTopbarMeta();
   rootEl.innerHTML = `
-    <section class="auth-card">
-      <span class="eyebrow">Loading workspace</span>
-      <h1 class="headline">Loading your Vonza workspace</h1>
-      <p class="auth-copy">We’re restoring your workspace, approvals, and setup context.</p>
+    <section class="dashboard-loading-screen" role="status" aria-live="polite">
+      <div class="dashboard-loading-mark" aria-hidden="true">V</div>
+      <h1>Loading your workspace</h1>
+      <p>Getting your customer service dashboard ready.</p>
     </section>
   `;
 }
@@ -6034,23 +6024,17 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
 function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const profile = getBusinessProfileViewModel(operatorWorkspace);
-  const channelSet = new Set(profile.approvedContactChannels || []);
-  const approvalOptions = [
-    { value: "owner_required", label: "Owner approval required" },
-    { value: "draft_only", label: "Draft only" },
-    { value: "recommend_only", label: "Recommendation only" },
-  ];
 
   return `
     <form data-settings-form data-form-kind="business-context" class="workspace-card-soft settings-form-shell">
       <div class="workspace-panel-header" id="business-context-setup">
         <div>
-          <p class="studio-kicker">Business context</p>
-          <h3 class="workspace-panel-title">Business context setup</h3>
-          <p class="workspace-panel-copy">Give Home and suggestions the real business context they need: what you sell, how pricing works, what policies matter, where you serve, when you operate, and which approval-first paths are allowed.</p>
+          <p class="studio-kicker">Business profile</p>
+          <h3 class="workspace-panel-title">Business profile</h3>
+          <p class="workspace-panel-copy">Keep the core business details Vonza uses to answer customer questions, explain services, and guide visitors toward the right next step.</p>
         </div>
         <div class="workspace-badge-row">
-          <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
+          <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs details" : "Profile ready"}</span>
           <span class="${getBadgeClass(profile.prefill?.available ? "Ready" : "Limited")}">${profile.prefill?.available ? "Safe suggestions loaded" : "No prefill available"}</span>
         </div>
       </div>
@@ -6069,7 +6053,7 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
       <div class="studio-groups" style="margin-top:20px;">
         <section class="studio-group">
           <h3 class="studio-group-title">Core business facts</h3>
-          <p class="studio-group-copy">Keep this concise and business-facing. This is not website copy; it is the working context Vonza should trust when it prepares approval-first proposals.</p>
+          <p class="studio-group-copy">Keep this concise and customer-service focused. This is the working context Vonza should trust when customers ask for help.</p>
           <div class="form-grid">
             <div class="field">
               <label for="business-summary">Business summary</label>
@@ -6110,58 +6094,8 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
           </div>
         </section>
 
-        <section class="studio-group">
-          <h3 class="studio-group-title">Approved owner paths</h3>
-          <p class="studio-group-copy">Suggestions should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
-          <div class="form-grid two-col">
-            <div class="field">
-              <label>Approved contact channels</label>
-              <div class="contact-filter-group" style="margin-top:8px;">
-                ${[
-                  { value: "website_chat", label: "Website chat" },
-                  { value: "email", label: "Email" },
-                  { value: "phone", label: "Phone" },
-                  { value: "sms", label: "SMS / text" },
-                ].map((channel) => `
-                  <label class="pill" style="display:inline-flex;gap:8px;align-items:center;">
-                    <input
-                      type="checkbox"
-                      name="approved_contact_channels"
-                      value="${escapeHtml(channel.value)}"
-                      ${channelSet.has(channel.value) ? "checked" : ""}
-                    >
-                    <span>${escapeHtml(channel.label)}</span>
-                  </label>
-                `).join("")}
-              </div>
-              <p class="field-help">These do not send anything automatically. They define which owner-approved channels Vonza may prepare drafts for.</p>
-            </div>
-            <div class="field">
-              <label>Approval preferences</label>
-              <div class="overview-list">
-                ${[
-                  { name: "approval_follow_up_drafts", label: "Follow-up drafts", value: profile.approvalPreferences.followUpDrafts },
-                  { name: "approval_contact_next_steps", label: "Contact next-step recommendations", value: profile.approvalPreferences.contactNextSteps },
-                  { name: "approval_task_recommendations", label: "Task recommendations", value: profile.approvalPreferences.taskRecommendations },
-                  { name: "approval_outcome_recommendations", label: "Outcome review suggestions", value: profile.approvalPreferences.outcomeRecommendations },
-                  { name: "approval_profile_changes", label: "Profile changes", value: profile.approvalPreferences.profileChanges },
-                ].map((entry) => `
-                  <div class="overview-list-item">
-                    <p class="overview-list-title">${escapeHtml(entry.label)}</p>
-                    <select name="${escapeHtml(entry.name)}">
-                      ${approvalOptions.map((option) => `
-                        <option value="${escapeHtml(option.value)}" ${entry.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
-                      `).join("")}
-                    </select>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          </div>
-        </section>
-
         <div class="studio-save-row">
-          <button class="primary-button" type="submit">Save business context</button>
+          <button class="primary-button" type="submit">Save Business Profile</button>
           <span data-save-state class="save-state">No changes yet.</span>
         </div>
       </div>
@@ -7232,57 +7166,72 @@ function normalizeQuestion(message) {
     .trim();
 }
 
+function includesAnyPattern(text = "", patterns = []) {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function getQuestionSummaryLanguage(text = "") {
+  return includesAnyPattern(text, [
+    /\b(mennyibe|ara|arak|arajanlat|ára|árak|árajánlat|idopont|időpont|foglal|elerheto|elérhető|kapcsolat|telefon|hiv|hív|webaruhaz|webáruház|szallitas|szállítás|szolgaltatas|szolgáltatás|nyitva|vallal|vállal|szabad)\b/i,
+    /[áéíóöőúüű]/i,
+  ])
+    ? "hu"
+    : "en";
+}
+
+function localizeQuestionSummary(language = "en", english = "", hungarian = "") {
+  return language === "hu" ? hungarian : english;
+}
+
+function summarizeCustomerQuestionIntent(message = "") {
+  const text = trimText(String(message || "")).toLowerCase();
+  const language = getQuestionSummaryLanguage(text);
+
+  if (!text) {
+    return localizeQuestionSummary(language, "Trying to clarify the next customer-service step", "A kovetkezo ugyfelszolgalati lepes tisztazasa");
+  }
+
+  if (includesAnyPattern(text, [/\b(contact|reach|call|email|phone|talk to|speak to|get in touch|someone)\b/i, /\b(kapcsolat|telefon|email|e-mail|hiv|hivni|eler|elerni|beszelni)\b/i])) {
+    return localizeQuestionSummary(language, "Asking how to contact the business directly", "Kozvetlen kapcsolatfelveteli lehetoseget keres");
+  }
+
+  if (includesAnyPattern(text, [/\b(price|pricing|cost|quote|estimate|fee|how much|package|plan)\b/i, /\b(ar|arak|ara|arajanlat|mennyibe|koltseg|dij|csomag)\b/i])) {
+    return localizeQuestionSummary(language, "Requesting pricing or quote details", "Arakat vagy arajanlat reszleteit keri");
+  }
+
+  if (includesAnyPattern(text, [/\b(book|booking|appointment|schedule|availability|reserve|consultation|available)\b/i, /\b(idopont|foglal|foglalo|bejelentkez|szabad|elerheto|konzultacio)\b/i])) {
+    return localizeQuestionSummary(language, "Looking for booking or availability", "Idopontot vagy elerhetoseget keres");
+  }
+
+  if (includesAnyPattern(text, [/\b(webshop|online store|ecommerce|e-commerce|cart|checkout|order online|purchase online)\b/i, /\b(webaruhaz|webshop|online rendeles|kosar|rendeles|online vasarlas)\b/i])) {
+    return localizeQuestionSummary(language, "Asking about webshop options and next steps", "Webaruhaz opciokat es kovetkezo lepeseket keres");
+  }
+
+  if (includesAnyPattern(text, [/\b(delivery|shipping|ship|turnaround|lead time|how long|when can|arrival|deliver)\b/i, /\b(szallitas|kiszallitas|mennyi ido|mikor|hatarido|erkezik|atfutas)\b/i])) {
+    return localizeQuestionSummary(language, "Looking for delivery timing or service turnaround", "Szallitasi vagy teljesitesi idot keres");
+  }
+
+  if (includesAnyPattern(text, [/\b(open|hours|opening|closed|holiday|weekend)\b/i, /\b(nyitva|nyitvatartas|zarva|hetvege|unnepnap)\b/i])) {
+    return localizeQuestionSummary(language, "Checking opening hours or customer-service availability", "Nyitvatartast vagy ugyfelszolgalati elerhetoseget ellenoriz");
+  }
+
+  if (includesAnyPattern(text, [/\b(location|address|near|area|serve|service area|where are)\b/i, /\b(cim|helyszin|kozel|terulet|kiszall|hol|varos)\b/i])) {
+    return localizeQuestionSummary(language, "Checking location or service-area coverage", "Helyszint vagy kiszolgalasi teruletet ellenoriz");
+  }
+
+  if (includesAnyPattern(text, [/\b(service|services|offer|provide|help with|do you do|which service|fit my needs|product)\b/i, /\b(szolgaltatas|kinal|vallal|miben tud|melyik szolgaltatas|termek)\b/i])) {
+    return localizeQuestionSummary(language, "Checking whether the business offers a specific service", "Azt ellenorzi, hogy elerheto-e egy konkret szolgaltatas");
+  }
+
+  if (includesAnyPattern(text, [/\b(cancel|refund|warranty|guarantee|return|policy|problem|issue|support)\b/i, /\b(lemondas|visszaterites|garancia|problema|hiba|panasz|segitseg)\b/i])) {
+    return localizeQuestionSummary(language, "Looking for help with a support or policy issue", "Tamogatasra vagy szabalyzati kerdesre keres valaszt");
+  }
+
+  return localizeQuestionSummary(language, "Trying to understand which service fits their needs", "Azt probalja tisztazni, melyik szolgaltatas illik az igenyeihez");
+}
+
 function getQuestionThemeLabel(question, intent = "general") {
-  const normalized = normalizeQuestion(question);
-
-  if (!normalized) {
-    return "";
-  }
-
-  const hasAny = (terms) => terms.some((term) => normalized.includes(term));
-
-  if (hasAny(["contact", "call", "phone", "email", "get in touch", "talk to", "speak to", "someone", "boss", "owner", "manager"])) {
-    return "Asking how to contact the business directly";
-  }
-
-  if (hasAny(["book", "booking", "appointment", "schedule", "reserve", "availability", "available", "slot"])) {
-    return "Looking for booking, availability, or next-step details";
-  }
-
-  if (hasAny(["price", "pricing", "cost", "quote", "estimate", "rate", "fee", "package", "plan", "buy", "purchase"])) {
-    return "Requesting a quote or pricing details";
-  }
-
-  if (hasAny(["hour", "hours", "open", "closed", "opening", "when are you"])) {
-    return "Hours and opening times";
-  }
-
-  if (hasAny(["where", "location", "address", "directions", "near me", "service area"])) {
-    return "Location and service area";
-  }
-
-  if (hasAny(["support", "problem", "issue", "broken", "not working", "refund", "cancel", "complaint", "wrong"])) {
-    return "Needing help with a support issue or complaint";
-  }
-
-  if (hasAny(["service", "services", "offer", "product", "products", "help with", "do you do", "what do you do"])) {
-    return "Trying to understand which service fits their needs";
-  }
-
-  switch (intent) {
-    case "contact":
-      return "Asking how to contact the business directly";
-    case "booking":
-      return "Looking for booking, availability, or next-step details";
-    case "pricing":
-      return "Requesting a quote or pricing details";
-    case "support":
-      return "Needing help with a support issue or complaint";
-    case "services":
-      return "Trying to understand which service fits their needs";
-    default:
-      return "General business questions";
-  }
+  return summarizeCustomerQuestionIntent(question || intent);
 }
 
 function getWeakAnswerThemeLabel(question, intent = "general") {
@@ -7291,20 +7240,19 @@ function getWeakAnswerThemeLabel(question, intent = "general") {
   switch (theme) {
     case "Asking how to contact the business directly":
       return "Customers need a clearer contact path";
-    case "Looking for booking, availability, or next-step details":
+    case "Looking for booking or availability":
       return "Booking guidance needs a stronger next step";
-    case "Requesting a quote or pricing details":
+    case "Requesting pricing or quote details":
       return "Pricing questions need clearer answers";
-    case "Hours and opening times":
+    case "Checking opening hours or customer-service availability":
       return "Hours and availability need clearer answers";
-    case "Location and service area":
+    case "Checking location or service-area coverage":
       return "Location or service-area answers need improvement";
-    case "Needing help with a support issue or complaint":
+    case "Looking for help with a support or policy issue":
       return "Support concerns need stronger guidance";
+    case "Checking whether the business offers a specific service":
     case "Trying to understand which service fits their needs":
       return "Service explanations are too vague";
-    case "General business questions":
-      return "General questions need clearer guidance";
     default:
       return theme ? `${theme} need clearer answers` : "Weak-answer theme needs review";
   }
@@ -7323,7 +7271,7 @@ function getIntentLabel(intent) {
     case "services":
       return "Services";
     default:
-      return "General";
+      return "Customer-service context";
   }
 }
 
@@ -7340,7 +7288,7 @@ function getIntentDescription(intent) {
     case "services":
       return "Visitors are still learning what the business offers.";
     default:
-      return "Questions are broad and exploratory rather than clearly commercial yet.";
+      return "Visitors are trying to clarify the right customer-service next step.";
   }
 }
 
@@ -7557,7 +7505,7 @@ function analyzeConversationSignals(messages) {
   const recentQuestions = [...userMessages]
     .slice(-3)
     .reverse()
-    .map((message) => trimText(message.content || ""))
+    .map((message) => summarizeCustomerQuestionIntent(message.content || ""))
     .filter(Boolean);
   const highValueIntentCount =
     intentCounts.contact + intentCounts.booking + intentCounts.pricing + intentCounts.support;
@@ -7938,6 +7886,7 @@ function createEmptyAnalyticsSummary() {
     weakAnswerCount: 0,
     attentionNeeded: 0,
     lastMessageAt: null,
+    customerQuestionSummaries: [],
     recentActivity: {
       level: "none",
       description: "No live activity yet",
@@ -7979,6 +7928,12 @@ function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {},
       Number(fallbackSummary.weakAnswerCount || 0),
       Number(providedSummary.weakAnswerCount || 0)
     ),
+    customerQuestionSummaries: Array.isArray(providedSummary.customerQuestionSummaries)
+      ? providedSummary.customerQuestionSummaries
+      : fallbackSignals.topQuestions.map((item) => ({
+        summary: item.label,
+        count: item.count,
+      })),
     recentActivity: {
       ...fallbackSummary.recentActivity,
       ...(providedSummary.recentActivity || {}),
@@ -8422,7 +8377,10 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
   const satisfactionScore = conversationCount > 0
     ? clampNumber(4.45 - weakPenalty - attentionPenalty - unresolvedPenalty + outcomeBonus + leadBonus, 1, 5)
     : 0;
-  const mostAskedQuestion = signals.topQuestions?.[0]?.label || "No repeated question yet";
+  const summarizedQuestion = Array.isArray(analyticsSummary.customerQuestionSummaries)
+    ? trimText(analyticsSummary.customerQuestionSummaries[0]?.summary)
+    : "";
+  const mostAskedQuestion = summarizedQuestion || signals.topQuestions?.[0]?.label || "No repeated question yet";
   const bestArea = getAnalyticsBestArea(signals, conversionSummary, outcomeSummary, contactsCaptured);
   const weakAnswerExample = signals.weakAnswerExamples?.[0] || "";
   const improvementArea = getAnalyticsImprovementArea(signals, signals.weakAnswerExamples || [], conversionSummary, outcomeSummary, {
@@ -9868,7 +9826,7 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   if (isInstallSeen(installStatus) && messageCount > 0) {
     const topIntentLabelMap = {
-      general: "general business questions",
+      general: "early customer-service questions that need clearer context",
       services: "services and what the business offers",
       pricing: "pricing and purchase intent",
       contact: "direct contact or lead intent",
@@ -12287,14 +12245,14 @@ async function saveAssistant(event, agent) {
 
     submitButton.disabled = true;
     if (saveState) {
-      saveState.textContent = "Saving business context...";
+      saveState.textContent = "Saving Business Profile...";
       saveState.className = "save-state saving";
       saveState.removeAttribute("title");
     }
-    setStatus("Saving business context...");
+    setStatus("Saving Business Profile...");
 
     try {
-      await fetchJson("/agents/operator/business-profile", {
+      const saveData = await fetchJson("/agents/operator/business-profile", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -12306,18 +12264,22 @@ async function saveAssistant(event, agent) {
         }),
       });
 
-      setStatus("Business context saved.");
+      if (saveData?.ok !== true || !saveData.profile) {
+        throw new Error("Business Profile was not confirmed by the server.");
+      }
+
+      setStatus("Business Profile saved.");
       if (saveState) {
-        saveState.textContent = "Business context saved.";
+        saveState.textContent = "Business Profile saved.";
         saveState.className = "save-state saved";
         saveState.removeAttribute("title");
       }
       await boot();
     } catch (error) {
-      const message = error.message || "We couldn't save that business context just yet.";
+      const message = error.message || "We couldn't save that Business Profile just yet.";
       setStatus(message);
       if (saveState) {
-        saveState.textContent = "Could not save business context.";
+        saveState.textContent = "Could not save Business Profile.";
         saveState.className = "save-state unsaved";
         saveState.title = message;
       }
@@ -12400,6 +12362,10 @@ async function saveAssistant(event, agent) {
       },
       body: JSON.stringify(payload)
     });
+
+    if (updateData?.ok !== true || !updateData.agent) {
+      throw new Error("Front Desk changes were not confirmed by the server.");
+    }
 
     if (websiteChanged) {
       await runKnowledgeImport({
@@ -15151,7 +15117,7 @@ async function boot() {
 
   try {
     renderLoadingState();
-    setStatus("Loading your Vonza workspace...");
+    setStatus("Loading your workspace...");
     await ensureAuthClient();
     renderTopbarMeta();
 

@@ -22,7 +22,7 @@ test("business profile readiness reports missing operator context clearly", () =
     },
   });
 
-  assert.equal(readiness.completedSections, 4);
+  assert.equal(readiness.completedSections, 2);
   assert.equal(readiness.missingCount, 4);
   assert.match(readiness.summary, /Missing: Pricing, Policies, Service areas, Operating hours\./);
 });
@@ -111,6 +111,24 @@ test("business profile upsert persists structured operator context", async () =>
     from(tableName) {
       assert.equal(tableName, "operator_business_profiles");
       return {
+        select() {
+          return {
+            eq() {
+              return {
+                eq() {
+                  return {
+                    async maybeSingle() {
+                      return {
+                        data: null,
+                        error: null,
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        },
         upsert(payload) {
           captured.push(payload);
           return {
@@ -158,5 +176,95 @@ test("business profile upsert persists structured operator context", async () =>
   assert.equal(captured[0].owner_user_id, "owner-1");
   assert.equal(captured[0].services[0].name, "Emergency plumbing");
   assert.equal(result.businessSummary, "Emergency plumbing and water heater installs.");
+  assert.equal(result.approvalPreferences.contactNextSteps, "recommend_only");
+});
+
+test("business profile upsert preserves omitted owner-path fields", async () => {
+  const captured = [];
+  const existingRow = {
+    id: "profile-1",
+    agent_id: "agent-1",
+    business_id: "business-1",
+    owner_user_id: "owner-1",
+    business_summary: "Original summary.",
+    services: [{ name: "Emergency plumbing" }],
+    pricing: [{ label: "Diagnostics", amount: "$149" }],
+    policies: [],
+    service_areas: [],
+    operating_hours: [],
+    approved_contact_channels: ["website_chat", "email"],
+    approval_preferences: {
+      followUpDrafts: "owner_required",
+      contactNextSteps: "recommend_only",
+    },
+    metadata: { source: "existing" },
+    created_at: "2026-04-04T09:00:00.000Z",
+    updated_at: "2026-04-04T09:00:00.000Z",
+  };
+  const supabase = {
+    from(tableName) {
+      assert.equal(tableName, "operator_business_profiles");
+      return {
+        select() {
+          return {
+            eq() {
+              return {
+                eq() {
+                  return {
+                    async maybeSingle() {
+                      return {
+                        data: existingRow,
+                        error: null,
+                      };
+                    },
+                  };
+                },
+              };
+            },
+          };
+        },
+        upsert(payload) {
+          captured.push(payload);
+          return {
+            select() {
+              return {
+                async single() {
+                  return {
+                    data: {
+                      ...existingRow,
+                      ...payload,
+                      id: "profile-1",
+                    },
+                    error: null,
+                  };
+                },
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const result = await upsertOperatorBusinessProfile(supabase, {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+    },
+    ownerUserId: "owner-1",
+    profile: {
+      businessSummary: "Updated customer-service profile.",
+      services: [{ name: "Water heater installs" }],
+    },
+  });
+
+  assert.equal(captured.length, 1);
+  assert.equal(captured[0].business_summary, "Updated customer-service profile.");
+  assert.deepEqual(captured[0].services, [{ name: "Water heater installs" }]);
+  assert.deepEqual(captured[0].pricing, [{ label: "Diagnostics", amount: "$149" }]);
+  assert.deepEqual(captured[0].approved_contact_channels, ["website_chat", "email"]);
+  assert.equal(captured[0].approval_preferences.contactNextSteps, "recommend_only");
+  assert.deepEqual(captured[0].metadata, { source: "existing" });
+  assert.equal(result.businessSummary, "Updated customer-service profile.");
   assert.equal(result.approvalPreferences.contactNextSteps, "recommend_only");
 });

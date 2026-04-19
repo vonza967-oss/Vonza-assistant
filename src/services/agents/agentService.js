@@ -45,6 +45,23 @@ const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "business_hours_note",
   "widget_logo_url",
 ];
+const ROUTING_WIDGET_CONFIG_KEYS = [
+  "bookingUrl",
+  "quoteUrl",
+  "checkoutUrl",
+  "bookingStartUrl",
+  "quoteStartUrl",
+  "bookingSuccessUrl",
+  "quoteSuccessUrl",
+  "checkoutSuccessUrl",
+  "successUrlMatchMode",
+  "manualOutcomeMode",
+  "contactEmail",
+  "contactPhone",
+  "primaryCtaMode",
+  "fallbackCtaMode",
+  "businessHoursNote",
+];
 const LEGACY_WIDGET_CONFIG_SELECT = [
   "id",
   "agent_id",
@@ -149,6 +166,14 @@ function normalizeOptionalUrl(value) {
 
 function buildInvalidDirectUrlError(label) {
   return buildAgentSettingsError(`Enter a valid public https URL for ${label}.`, 400);
+}
+
+function buildRoutingPersistenceUnavailableError(error) {
+  return buildAgentSettingsError(
+    "Front Desk routing settings could not be saved because the server schema is missing routing fields. Apply the direct conversion routing migration and try again.",
+    503,
+    error?.code || "front_desk_routing_persistence_unavailable"
+  );
 }
 
 function normalizeOptionalEmail(value) {
@@ -1122,6 +1147,20 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.quoteUrl || DEFAULT_WIDGET_CONFIG.quoteUrl,
       checkoutUrl:
         widgetConfig?.checkoutUrl || DEFAULT_WIDGET_CONFIG.checkoutUrl,
+      bookingStartUrl:
+        widgetConfig?.bookingStartUrl || DEFAULT_WIDGET_CONFIG.bookingStartUrl,
+      quoteStartUrl:
+        widgetConfig?.quoteStartUrl || DEFAULT_WIDGET_CONFIG.quoteStartUrl,
+      bookingSuccessUrl:
+        widgetConfig?.bookingSuccessUrl || DEFAULT_WIDGET_CONFIG.bookingSuccessUrl,
+      quoteSuccessUrl:
+        widgetConfig?.quoteSuccessUrl || DEFAULT_WIDGET_CONFIG.quoteSuccessUrl,
+      checkoutSuccessUrl:
+        widgetConfig?.checkoutSuccessUrl || DEFAULT_WIDGET_CONFIG.checkoutSuccessUrl,
+      successUrlMatchMode:
+        widgetConfig?.successUrlMatchMode || DEFAULT_WIDGET_CONFIG.successUrlMatchMode,
+      manualOutcomeMode:
+        widgetConfig?.manualOutcomeMode ?? DEFAULT_WIDGET_CONFIG.manualOutcomeMode,
       contactEmail:
         widgetConfig?.contactEmail || DEFAULT_WIDGET_CONFIG.contactEmail,
       contactPhone:
@@ -1265,6 +1304,20 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.quoteUrl || DEFAULT_WIDGET_CONFIG.quoteUrl,
     checkoutUrl:
       widgetConfigsByAgentId.get(row.id)?.checkoutUrl || DEFAULT_WIDGET_CONFIG.checkoutUrl,
+    bookingStartUrl:
+      widgetConfigsByAgentId.get(row.id)?.bookingStartUrl || DEFAULT_WIDGET_CONFIG.bookingStartUrl,
+    quoteStartUrl:
+      widgetConfigsByAgentId.get(row.id)?.quoteStartUrl || DEFAULT_WIDGET_CONFIG.quoteStartUrl,
+    bookingSuccessUrl:
+      widgetConfigsByAgentId.get(row.id)?.bookingSuccessUrl || DEFAULT_WIDGET_CONFIG.bookingSuccessUrl,
+    quoteSuccessUrl:
+      widgetConfigsByAgentId.get(row.id)?.quoteSuccessUrl || DEFAULT_WIDGET_CONFIG.quoteSuccessUrl,
+    checkoutSuccessUrl:
+      widgetConfigsByAgentId.get(row.id)?.checkoutSuccessUrl || DEFAULT_WIDGET_CONFIG.checkoutSuccessUrl,
+    successUrlMatchMode:
+      widgetConfigsByAgentId.get(row.id)?.successUrlMatchMode || DEFAULT_WIDGET_CONFIG.successUrlMatchMode,
+    manualOutcomeMode:
+      widgetConfigsByAgentId.get(row.id)?.manualOutcomeMode ?? DEFAULT_WIDGET_CONFIG.manualOutcomeMode,
     contactEmail:
       widgetConfigsByAgentId.get(row.id)?.contactEmail || DEFAULT_WIDGET_CONFIG.contactEmail,
     contactPhone:
@@ -1342,6 +1395,7 @@ export async function updateAgentSettings(
     businessHoursNote,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
+  const hasSubmittedRoutingField = ROUTING_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
   const normalizedAgentId = cleanText(agentId);
   const providedWebsiteUrl = hasField("websiteUrl") ? cleanText(websiteUrl) : "";
   const normalizedWebsiteUrl = providedWebsiteUrl
@@ -1642,7 +1696,7 @@ export async function updateAgentSettings(
     resolvedWebsiteUrl
   );
 
-  let { error: widgetError } = await supabase
+  let { data: persistedWidgetRow, error: widgetError } = await supabase
     .from(WIDGET_CONFIGS_TABLE)
     .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
       assistantName: nextAssistantName,
@@ -1669,10 +1723,16 @@ export async function updateAgentSettings(
       fallbackCtaMode: nextFallbackCtaMode,
       businessHoursNote: nextBusinessHoursNote,
       allowedDomains: nextAllowedDomainsRaw,
-    }), { onConflict: "agent_id" });
+    }), { onConflict: "agent_id" })
+    .select(WIDGET_CONFIG_SELECT)
+    .single();
 
   if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
-    ({ error: widgetError } = await supabase
+    if (hasSubmittedRoutingField) {
+      throw buildRoutingPersistenceUnavailableError(widgetError);
+    }
+
+    ({ data: persistedWidgetRow, error: widgetError } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
       .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
         assistantName: nextAssistantName,
@@ -1687,7 +1747,9 @@ export async function updateAgentSettings(
       }, {
         includeRoutingFields: false,
         includeWidgetLogoField: false,
-      }), { onConflict: "agent_id" }));
+      }), { onConflict: "agent_id" })
+      .select(LEGACY_WIDGET_CONFIG_SELECT)
+      .single());
   }
 
   if (widgetError) {
@@ -1700,6 +1762,11 @@ export async function updateAgentSettings(
       throw widgetError;
     }
   }
+
+  const savedWidgetConfig = mapWidgetConfigRow(persistedWidgetRow || null);
+  const savedAllowedDomainsRaw = normalizeAllowedDomains(persistedWidgetRow?.allowed_domains, {
+    allowEmpty: true,
+  });
 
   return {
     id: normalizedAgentId,
@@ -1716,28 +1783,28 @@ export async function updateAgentSettings(
       currentUrl: resolvedWebsiteUrl,
       changed: hasField("websiteUrl") && resolvedWebsiteUrl !== currentWebsiteUrl,
     },
-    welcomeMessage: nextWelcomeMessage,
-    buttonLabel: nextButtonLabel,
-    widgetLogoUrl: nextWidgetLogoUrl,
-    primaryColor: nextPrimaryColor,
-    secondaryColor: nextSecondaryColor,
-    bookingUrl: nextBookingUrl,
-    quoteUrl: nextQuoteUrl,
-    checkoutUrl: nextCheckoutUrl,
-    bookingStartUrl: nextBookingStartUrl,
-    quoteStartUrl: nextQuoteStartUrl,
-    bookingSuccessUrl: nextBookingSuccessUrl,
-    quoteSuccessUrl: nextQuoteSuccessUrl,
-    checkoutSuccessUrl: nextCheckoutSuccessUrl,
-    successUrlMatchMode: nextSuccessUrlMatchMode,
-    manualOutcomeMode: nextManualOutcomeMode,
-    contactEmail: nextContactEmail,
-    contactPhone: nextContactPhone,
-    primaryCtaMode: nextPrimaryCtaMode,
-    fallbackCtaMode: nextFallbackCtaMode,
-    businessHoursNote: nextBusinessHoursNote,
-    installId: persistedWidgetConfig.installId || currentWidgetConfig.installId,
-    allowedDomains: resolvedAllowedDomains,
+    welcomeMessage: savedWidgetConfig.welcomeMessage,
+    buttonLabel: savedWidgetConfig.buttonLabel,
+    widgetLogoUrl: savedWidgetConfig.widgetLogoUrl,
+    primaryColor: savedWidgetConfig.primaryColor,
+    secondaryColor: savedWidgetConfig.secondaryColor,
+    bookingUrl: savedWidgetConfig.bookingUrl,
+    quoteUrl: savedWidgetConfig.quoteUrl,
+    checkoutUrl: savedWidgetConfig.checkoutUrl,
+    bookingStartUrl: savedWidgetConfig.bookingStartUrl,
+    quoteStartUrl: savedWidgetConfig.quoteStartUrl,
+    bookingSuccessUrl: savedWidgetConfig.bookingSuccessUrl,
+    quoteSuccessUrl: savedWidgetConfig.quoteSuccessUrl,
+    checkoutSuccessUrl: savedWidgetConfig.checkoutSuccessUrl,
+    successUrlMatchMode: savedWidgetConfig.successUrlMatchMode,
+    manualOutcomeMode: savedWidgetConfig.manualOutcomeMode,
+    contactEmail: savedWidgetConfig.contactEmail,
+    contactPhone: savedWidgetConfig.contactPhone,
+    primaryCtaMode: savedWidgetConfig.primaryCtaMode,
+    fallbackCtaMode: savedWidgetConfig.fallbackCtaMode,
+    businessHoursNote: savedWidgetConfig.businessHoursNote,
+    installId: savedWidgetConfig.installId || persistedWidgetConfig.installId || currentWidgetConfig.installId,
+    allowedDomains: deriveAllowedDomains(savedAllowedDomainsRaw, resolvedWebsiteUrl) || resolvedAllowedDomains,
   };
 }
 

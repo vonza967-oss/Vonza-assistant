@@ -34,8 +34,6 @@ const READINESS_SECTIONS = Object.freeze([
   { key: "policies", label: "Policies" },
   { key: "service_areas", label: "Service areas" },
   { key: "operating_hours", label: "Operating hours" },
-  { key: "approved_contact_channels", label: "Approved contact channels" },
-  { key: "approval_preferences", label: "Approval preferences" },
 ]);
 
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
@@ -425,8 +423,6 @@ export function buildBusinessProfileReadiness(profile = {}) {
     policies: (profile.policies || []).length > 0,
     service_areas: (profile.serviceAreas || []).length > 0,
     operating_hours: (profile.operatingHours || []).length > 0,
-    approved_contact_channels: (profile.approvedContactChannels || []).length > 0,
-    approval_preferences: Object.keys(profile.approvalPreferences || {}).length > 0,
   };
 
   const completedSections = READINESS_SECTIONS.filter((section) => sectionStates[section.key]).length;
@@ -440,8 +436,8 @@ export function buildBusinessProfileReadiness(profile = {}) {
     missingCount: missingSections.length,
     missingSections,
     summary: missingSections.length
-      ? `${completedSections} of ${READINESS_SECTIONS.length} business context areas are filled. Missing: ${missingSections.join(", ")}.`
-      : "All core business context areas are filled for Vonza.",
+      ? `${completedSections} of ${READINESS_SECTIONS.length} business profile areas are filled. Missing: ${missingSections.join(", ")}.`
+      : "All core business profile areas are filled.",
   };
 }
 
@@ -512,22 +508,46 @@ function mapBusinessProfileRow(row = {}, agent = {}) {
   };
 }
 
-function buildUpsertPayload(agent = {}, ownerUserId = "", input = {}) {
+function hasOwn(source = {}, key = "") {
+  return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function buildUpsertPayload(agent = {}, ownerUserId = "", input = {}, existingProfile = {}) {
+  const existing = existingProfile && typeof existingProfile === "object" && !Array.isArray(existingProfile)
+    ? existingProfile
+    : {};
+
   return {
     agent_id: cleanText(agent.id),
     business_id: cleanText(agent.businessId) || null,
     owner_user_id: cleanText(ownerUserId),
-    business_summary: cleanText(input.businessSummary) || null,
-    services: normalizeObjectArray(input.services),
-    pricing: normalizeObjectArray(input.pricing),
-    policies: normalizeObjectArray(input.policies),
-    service_areas: normalizeObjectArray(input.serviceAreas),
-    operating_hours: normalizeObjectArray(input.operatingHours),
-    approved_contact_channels: normalizeTextArray(input.approvedContactChannels),
-    approval_preferences: normalizeApprovalPreferences(input.approvalPreferences),
-    metadata: input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+    business_summary: hasOwn(input, "businessSummary")
+      ? cleanText(input.businessSummary) || null
+      : cleanText(existing.businessSummary) || null,
+    services: hasOwn(input, "services")
+      ? normalizeObjectArray(input.services)
+      : normalizeObjectArray(existing.services),
+    pricing: hasOwn(input, "pricing")
+      ? normalizeObjectArray(input.pricing)
+      : normalizeObjectArray(existing.pricing),
+    policies: hasOwn(input, "policies")
+      ? normalizeObjectArray(input.policies)
+      : normalizeObjectArray(existing.policies),
+    service_areas: hasOwn(input, "serviceAreas")
+      ? normalizeObjectArray(input.serviceAreas)
+      : normalizeObjectArray(existing.serviceAreas),
+    operating_hours: hasOwn(input, "operatingHours")
+      ? normalizeObjectArray(input.operatingHours)
+      : normalizeObjectArray(existing.operatingHours),
+    approved_contact_channels: hasOwn(input, "approvedContactChannels")
+      ? normalizeTextArray(input.approvedContactChannels)
+      : normalizeTextArray(existing.approvedContactChannels),
+    approval_preferences: hasOwn(input, "approvalPreferences")
+      ? normalizeApprovalPreferences(input.approvalPreferences)
+      : normalizeApprovalPreferences(existing.approvalPreferences),
+    metadata: hasOwn(input, "metadata") && input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
       ? input.metadata
-      : {},
+      : (existing.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata) ? existing.metadata : {}),
     updated_at: new Date().toISOString(),
   };
 }
@@ -583,7 +603,11 @@ export async function upsertOperatorBusinessProfile(supabase, { agent, ownerUser
     throw error;
   }
 
-  const payload = buildUpsertPayload(agent, normalizedOwnerUserId, profile);
+  const existingProfile = await getOperatorBusinessProfile(supabase, {
+    agent,
+    ownerUserId: normalizedOwnerUserId,
+  });
+  const payload = buildUpsertPayload(agent, normalizedOwnerUserId, profile, existingProfile);
   const { data, error } = await supabase
     .from(OPERATOR_BUSINESS_PROFILE_TABLE)
     .upsert(payload, { onConflict: "agent_id,owner_user_id" })

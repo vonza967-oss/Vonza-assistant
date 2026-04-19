@@ -408,7 +408,9 @@ test("dashboard shows a visible loading state before workspace data resolves", a
     },
   });
 
-  assert.match(harness.getRootHtml(), /Loading your Vonza workspace/i);
+  assert.match(harness.getRootHtml(), /Loading your workspace/i);
+  assert.match(harness.getRootHtml(), /Getting your customer service dashboard ready\./i);
+  assert.doesNotMatch(harness.getRootHtml(), /approvals/i);
 
   resolveList();
   await harness.settle();
@@ -738,7 +740,7 @@ test("Analytics question labels are specific and not raw customer messages", asy
   );
   assert.equal(
     getQuestionThemeLabel("Can I get a quote for the monthly package?", "pricing"),
-    "Requesting a quote or pricing details"
+    "Requesting pricing or quote details"
   );
   assert.equal(
     getWeakAnswerThemeLabel("Can I get a quote for the monthly package?", "pricing"),

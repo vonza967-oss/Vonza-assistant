@@ -379,6 +379,13 @@ test("agents update route preserves explicit blanks and omits untouched fields",
         website_url: "",
         primary_color: "",
         secondary_color: "",
+        booking_start_url: "https://example.com/book/start",
+        quote_success_url: "https://example.com/quote/thanks",
+        success_url_match_mode: "exact",
+        manual_outcome_mode: true,
+        primary_cta_mode: "quote",
+        fallback_cta_mode: "capture",
+        business_hours_note: "Weekdays, 9-5",
       }),
     });
 
@@ -388,6 +395,13 @@ test("agents update route preserves explicit blanks and omits untouched fields",
     assert.equal(capturedPayload.websiteUrl, "");
     assert.equal(capturedPayload.primaryColor, "");
     assert.equal(capturedPayload.secondaryColor, "");
+    assert.equal(capturedPayload.bookingStartUrl, "https://example.com/book/start");
+    assert.equal(capturedPayload.quoteSuccessUrl, "https://example.com/quote/thanks");
+    assert.equal(capturedPayload.successUrlMatchMode, "exact");
+    assert.equal(capturedPayload.manualOutcomeMode, true);
+    assert.equal(capturedPayload.primaryCtaMode, "quote");
+    assert.equal(capturedPayload.fallbackCtaMode, "capture");
+    assert.equal(capturedPayload.businessHoursNote, "Weekdays, 9-5");
     assert.equal(
       Object.prototype.hasOwnProperty.call(capturedPayload, "tone"),
       true

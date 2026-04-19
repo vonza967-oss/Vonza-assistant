@@ -4,7 +4,7 @@
     {
       key: "business",
       label: "Business profile",
-      note: "Services, pricing, policies, and approval-first context.",
+      note: "Services, pricing, policies, and customer-service context.",
     },
     {
       key: "front_desk",
@@ -92,7 +92,7 @@
         completedSections: 0,
         totalSections: 0,
         missingCount: 0,
-        summary: "Business context readiness will appear here.",
+        summary: "Business profile readiness will appear here.",
       },
       prefill: {
         available: false,
@@ -287,12 +287,6 @@
   function buildBusinessContextSetupPanel(operatorWorkspace, helpers) {
     const { escapeHtml, getBadgeClass, getBusinessProfileViewModel } = helpers;
     const profile = getBusinessProfileViewModel(operatorWorkspace);
-    const channelSet = new Set(profile.approvedContactChannels || []);
-    const approvalOptions = [
-      { value: "owner_required", label: "Owner approval required" },
-      { value: "draft_only", label: "Draft only" },
-      { value: "recommend_only", label: "Recommendation only" },
-    ];
 
     return `
       <form data-settings-form data-form-kind="business-context" class="settings-shell-form settings-shell-form--system">
@@ -300,10 +294,10 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
             <h2 class="settings-shell-page-title">Business profile</h2>
-            <p class="settings-shell-page-copy">Business context setup for Home and Vonza: define what Vonza should trust before it prepares owner-reviewed drafts, recommendations, or next steps.</p>
+            <p class="settings-shell-page-copy">Keep the core business details Vonza uses to answer customer questions, explain services, and guide visitors toward the right next step.</p>
           </div>
           <div class="settings-shell-page-meta">
-            <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs owner review" : "Context ready"}</span>
+            <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs details" : "Profile ready"}</span>
             <span class="${getBadgeClass(profile.prefill?.available ? "Ready" : "Limited")}">${profile.prefill?.available ? "Safe suggestions loaded" : "No prefill available"}</span>
           </div>
         </header>
@@ -312,7 +306,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Setup status</h3>
-              <p class="settings-shell-section-copy">Review what is ready and what still needs owner input before this context should be treated as complete.</p>
+              <p class="settings-shell-section-copy">Review what is ready and what still needs detail before this profile can support customer questions well.</p>
             </div>
           </div>
           <div class="settings-shell-status-list">
@@ -320,7 +314,7 @@
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Readiness</p>
                 <h4 class="settings-shell-status-value">${escapeHtml(`${profile.readiness?.completedSections || 0} / ${profile.readiness?.totalSections || 0} sections ready`)}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(profile.readiness?.summary || "Business context readiness will appear here.")}</p>
+                <p class="settings-shell-status-copy">${escapeHtml(profile.readiness?.summary || "Business profile readiness will appear here.")}</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
@@ -339,7 +333,7 @@
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Core business facts</h3>
-              <p class="settings-shell-section-copy">Keep this concise and owner-facing. This is not website copy; it is the working context Vonza should trust when it prepares owner-reviewed proposals.</p>
+              <p class="settings-shell-section-copy">Keep this concise and customer-service focused. This is the working context Vonza should trust when customers ask for help.</p>
             </div>
           </div>
           <div class="settings-shell-field-stack">
@@ -376,66 +370,9 @@
           </div>
         </section>
 
-        <section class="settings-shell-section">
-          <div class="settings-shell-section-header">
-            <div>
-              <h3 class="settings-shell-section-title">Approved owner paths</h3>
-              <p class="settings-shell-section-copy">Vonza should stay approval-first. Use these settings to spell out which channels and proposal modes are allowed before any real deterministic workflow is used.</p>
-            </div>
-          </div>
-          <div class="settings-shell-field-stack">
-            <div class="field">
-              <label>Approved contact channels</label>
-              <div class="settings-shell-chip-row">
-                ${[
-                  { value: "website_chat", label: "Website chat" },
-                  { value: "email", label: "Email" },
-                  { value: "phone", label: "Phone" },
-                  { value: "sms", label: "SMS / text" },
-                ].map((channel) => `
-                  <label class="settings-shell-chip-option">
-                    <input
-                      type="checkbox"
-                      name="approved_contact_channels"
-                      value="${escapeHtml(channel.value)}"
-                      ${channelSet.has(channel.value) ? "checked" : ""}
-                    >
-                    <span>${escapeHtml(channel.label)}</span>
-                  </label>
-                `).join("")}
-              </div>
-              <p class="field-help">These do not send anything automatically. They define which owner-approved channels Vonza may prepare drafts for.</p>
-            </div>
-            <div class="field">
-              <label>Approval preferences</label>
-              <div class="settings-shell-choice-list">
-                ${[
-                  { name: "approval_follow_up_drafts", label: "Follow-up drafts", value: profile.approvalPreferences.followUpDrafts },
-                  { name: "approval_contact_next_steps", label: "Contact next-step recommendations", value: profile.approvalPreferences.contactNextSteps },
-                  { name: "approval_task_recommendations", label: "Task recommendations", value: profile.approvalPreferences.taskRecommendations },
-                  { name: "approval_outcome_recommendations", label: "Outcome review suggestions", value: profile.approvalPreferences.outcomeRecommendations },
-                  { name: "approval_profile_changes", label: "Profile changes", value: profile.approvalPreferences.profileChanges },
-                ].map((entry) => `
-                  <div class="settings-shell-choice-row">
-                    <div class="settings-shell-choice-main">
-                      <p class="settings-shell-choice-title">${escapeHtml(entry.label)}</p>
-                    </div>
-                    <select name="${escapeHtml(entry.name)}">
-                      ${approvalOptions.map((option) => `
-                        <option value="${escapeHtml(option.value)}" ${entry.value === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
-                      `).join("")}
-                    </select>
-                  </div>
-                `).join("")}
-              </div>
-              <p class="field-help">Use explicit approval modes so Vonza stays review-first even when it has enough context to act.</p>
-            </div>
-          </div>
-        </section>
-
         <div class="settings-shell-sticky-save">
           <span data-save-state class="save-state">No changes yet.</span>
-          <button class="primary-button" type="submit">Save business context</button>
+          <button class="primary-button" type="submit">Save Business Profile</button>
         </div>
       </form>
     `;

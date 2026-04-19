@@ -183,6 +183,41 @@ test("dashboard flag resolver prefers the canonical browser flag and falls back 
   assert.equal(canonicalOffHarness.isOperatorWorkspaceFlagEnabled(), false);
 });
 
+test("dashboard loading screen uses centered customer-service copy", () => {
+  const html = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
+  const css = readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
+  const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(html, /dashboard-loading-screen/);
+  assert.match(html, /Loading your workspace/);
+  assert.match(html, /Getting your customer service dashboard ready\./);
+  assert.doesNotMatch(html, /approvals/i);
+
+  assert.match(script, /Loading your workspace/);
+  assert.match(script, /Getting your customer service dashboard ready\./);
+  assert.doesNotMatch(script.match(/function renderLoadingState\(\)[\s\S]*?\n}/)?.[0] || "", /approvals/i);
+
+  const loadingStyles = css.match(/\.dashboard-loading-screen\s*\{[\s\S]*?\n}/)?.[0] || "";
+  assert.match(loadingStyles, /min-height:\s*min\(680px,\s*calc\(100vh - 150px\)\)/);
+  assert.match(loadingStyles, /align-content:\s*center/);
+  assert.match(loadingStyles, /justify-items:\s*center/);
+  assert.doesNotMatch(loadingStyles, /position:\s*absolute|top:\s*0|left:\s*0/i);
+});
+
+test("settings saves only show success after backend confirmation", () => {
+  const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const saveAssistantSource = script.match(/async function saveAssistant[\s\S]*?\n}\n\nasync function copyInstallCode/)?.[0] || "";
+  const businessProfileParserSource = script.match(/function parseBusinessProfilePayload[\s\S]*?\n}/)?.[0] || "";
+
+  assert.match(saveAssistantSource, /saveData\?\.ok !== true \|\| !saveData\.profile/);
+  assert.match(saveAssistantSource, /Business Profile was not confirmed by the server/);
+  assert.match(saveAssistantSource, /updateData\?\.ok !== true \|\| !updateData\.agent/);
+  assert.match(saveAssistantSource, /Front Desk changes were not confirmed by the server/);
+  assert.match(saveAssistantSource, /Could not save Business Profile/);
+  assert.match(saveAssistantSource, /Could not save changes/);
+  assert.doesNotMatch(businessProfileParserSource, /approvedContactChannels|approvalPreferences|approved_contact|approval_/);
+});
+
 test("dashboard theme defaults to light, persists dark mode, and renders Settings controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -715,8 +750,10 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Beta/);
   assert.doesNotMatch(settings, /Connect Google/);
   assert.match(settings, /Workspace/);
-  assert.match(settings, /Business context setup/);
-  assert.match(settings, /Save business context/);
+  assert.match(settings, /Business profile/);
+  assert.match(settings, /Save Business Profile/);
+  assert.doesNotMatch(settings, /Approved owner path/i);
+  assert.doesNotMatch(settings, /approval_follow_up_drafts/);
   assert.match(settings, /data-settings-nav="desktop"/);
   assert.doesNotMatch(settings, /local-section-nav/);
 });
@@ -1700,12 +1737,34 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
   assert.match(analyticsPanel, /Estimated customer satisfaction/);
-  assert.match(analyticsPanel, /Looking for booking, availability, or next-step details/);
+  assert.match(analyticsPanel, /Looking for booking or availability/);
   assert.match(analyticsPanel, /Asking how to contact the business directly/);
   assert.doesNotMatch(analyticsPanel, /AI-handled/);
   assert.doesNotMatch(analyticsPanel, /answered without needing a team reply/);
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
+});
+
+test("analytics customer-question summaries stay specific without copying chat text", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const rawQuestion = "Hello, can you explain whether your premium webshop setup includes checkout and next steps for launch?";
+  const summary = harness.summarizeCustomerQuestionIntent(rawQuestion);
+  const analytics = harness.analyzeConversationSignals([
+    { role: "user", content: rawQuestion, createdAt: "2026-04-04T08:00:00.000Z" },
+    { role: "assistant", content: "Yes, here is what is included.", createdAt: "2026-04-04T08:01:00.000Z" },
+    { role: "user", content: "How quickly can delivery happen?", createdAt: "2026-04-04T08:02:00.000Z" },
+  ]);
+
+  assert.equal(summary, "Asking about webshop options and next steps");
+  assert.ok(analytics.recentQuestions.includes("Looking for delivery timing or service turnaround"));
+  assert.ok(analytics.topQuestions.some((entry) => entry.label === "Asking about webshop options and next steps"));
+  assert.doesNotMatch(summary, /general business questions|customer inquiry|asking questions|business information|service question/i);
+  assert.doesNotMatch(summary, /premium webshop setup includes checkout/i);
 });
 
 test("analytics priorities map weak-answer pricing and contact signals to business-friendly wording", () => {

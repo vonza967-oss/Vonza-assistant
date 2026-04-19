@@ -216,6 +216,43 @@ a.ghost-button:hover {
   margin-bottom: 16px;
 }
 
+.dashboard-loading-screen {
+  min-height: min(680px, calc(100vh - 150px));
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text);
+}
+
+.dashboard-loading-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.dashboard-loading-screen h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+
+.dashboard-loading-screen p {
+  margin: 0;
+  max-width: 360px;
+  color: var(--muted-strong);
+  line-height: 1.5;
+}
+
 .topbar-meta {
   display: flex;
   align-items: center;

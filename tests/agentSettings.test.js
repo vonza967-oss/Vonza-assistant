@@ -1,13 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { updateAgentSettings } from "../src/services/agents/agentService.js";
+import {
+  getAgentWorkspaceSnapshot,
+  updateAgentSettings,
+} from "../src/services/agents/agentService.js";
 
 function createSupabaseStub(initialState) {
   const state = {
     agents: (initialState.agents || []).map((row) => ({ ...row })),
     businesses: (initialState.businesses || []).map((row) => ({ ...row })),
     widget_configs: (initialState.widget_configs || []).map((row) => ({ ...row })),
+    messages: (initialState.messages || []).map((row) => ({ ...row })),
+    agent_installations: (initialState.agent_installations || []).map((row) => ({ ...row })),
+    agent_widget_events: (initialState.agent_widget_events || []).map((row) => ({ ...row })),
+    widgetRoutingUpsertError: initialState.widgetRoutingUpsertError || null,
   };
 
   class QueryBuilder {
@@ -25,7 +32,25 @@ function createSupabaseStub(initialState) {
     }
 
     eq(column, value) {
-      this.filters.push([column, value]);
+      this.filters.push({ op: "eq", column, value });
+      return this;
+    }
+
+    in(column, values) {
+      this.filters.push({ op: "in", column, value: new Set(values || []) });
+      return this;
+    }
+
+    is(column, value) {
+      this.filters.push({ op: "is", column, value });
+      return this;
+    }
+
+    order() {
+      return this;
+    }
+
+    limit() {
       return this;
     }
 
@@ -54,12 +79,22 @@ function createSupabaseStub(initialState) {
     }
 
     #getRows() {
-      return state[this.table];
+      return state[this.table] || [];
     }
 
     #getMatches() {
       return this.#getRows().filter((row) =>
-        this.filters.every(([column, value]) => row[column] === value)
+        this.filters.every((filter) => {
+          if (filter.op === "in") {
+            return filter.value.has(row[filter.column]);
+          }
+
+          if (filter.op === "is") {
+            return row[filter.column] === filter.value;
+          }
+
+          return row[filter.column] === filter.value;
+        })
       );
     }
 
@@ -97,6 +132,10 @@ function createSupabaseStub(initialState) {
       }
 
       if (this.operation === "upsert") {
+        if (this.table === "widget_configs" && state.widgetRoutingUpsertError) {
+          return { data: null, error: state.widgetRoutingUpsertError };
+        }
+
         const rows = this.#getRows();
         const conflictColumn = this.table === "widget_configs" ? "agent_id" : "id";
         const existingRow = rows.find((row) => row[conflictColumn] === this.values[conflictColumn]);
@@ -615,6 +654,162 @@ test("updateAgentSettings keeps a stable install id while refreshing allowed dom
   assert.equal(result.installId, "11111111-1111-1111-1111-111111111111");
   assert.deepEqual(result.allowedDomains, ["example.com", "shop.example.com"]);
   assert.deepEqual(state.widget_configs[0].allowed_domains, ["example.com", "shop.example.com"]);
+});
+
+test("updateAgentSettings persists and rehydrates Front Desk routing settings", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Example",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+        booking_url: "https://example.com/book",
+        quote_url: "https://example.com/quote",
+        checkout_url: "https://example.com/shop",
+        success_url_match_mode: "starts_with",
+        manual_outcome_mode: false,
+        primary_cta_mode: "booking",
+        fallback_cta_mode: "contact",
+        allowed_domains: ["example.com"],
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    bookingStartUrl: "https://example.com/book/start",
+    quoteStartUrl: "https://example.com/quote/start",
+    bookingSuccessUrl: "https://example.com/book/confirmed",
+    quoteSuccessUrl: "https://example.com/quote/thanks",
+    checkoutSuccessUrl: "https://example.com/shop/complete",
+    successUrlMatchMode: "exact",
+    manualOutcomeMode: true,
+    primaryCtaMode: "quote",
+    fallbackCtaMode: "capture",
+    businessHoursNote: "Monday-Friday, 9-5",
+  });
+
+  assert.equal(result.bookingStartUrl, "https://example.com/book/start");
+  assert.equal(result.quoteStartUrl, "https://example.com/quote/start");
+  assert.equal(result.bookingSuccessUrl, "https://example.com/book/confirmed");
+  assert.equal(result.quoteSuccessUrl, "https://example.com/quote/thanks");
+  assert.equal(result.checkoutSuccessUrl, "https://example.com/shop/complete");
+  assert.equal(result.successUrlMatchMode, "exact");
+  assert.equal(result.manualOutcomeMode, true);
+  assert.equal(result.primaryCtaMode, "quote");
+  assert.equal(result.fallbackCtaMode, "capture");
+  assert.equal(result.businessHoursNote, "Monday-Friday, 9-5");
+
+  const savedRow = state.widget_configs[0];
+  assert.equal(savedRow.booking_start_url, "https://example.com/book/start");
+  assert.equal(savedRow.quote_start_url, "https://example.com/quote/start");
+  assert.equal(savedRow.booking_success_url, "https://example.com/book/confirmed");
+  assert.equal(savedRow.quote_success_url, "https://example.com/quote/thanks");
+  assert.equal(savedRow.checkout_success_url, "https://example.com/shop/complete");
+  assert.equal(savedRow.success_url_match_mode, "exact");
+  assert.equal(savedRow.manual_outcome_mode, true);
+  assert.equal(savedRow.primary_cta_mode, "quote");
+  assert.equal(savedRow.fallback_cta_mode, "capture");
+  assert.equal(savedRow.business_hours_note, "Monday-Friday, 9-5");
+
+  const reloaded = await getAgentWorkspaceSnapshot(supabase, "agent-1");
+  assert.equal(reloaded.bookingStartUrl, "https://example.com/book/start");
+  assert.equal(reloaded.quoteStartUrl, "https://example.com/quote/start");
+  assert.equal(reloaded.bookingSuccessUrl, "https://example.com/book/confirmed");
+  assert.equal(reloaded.quoteSuccessUrl, "https://example.com/quote/thanks");
+  assert.equal(reloaded.checkoutSuccessUrl, "https://example.com/shop/complete");
+  assert.equal(reloaded.successUrlMatchMode, "exact");
+  assert.equal(reloaded.manualOutcomeMode, true);
+  assert.equal(reloaded.primaryCtaMode, "quote");
+  assert.equal(reloaded.fallbackCtaMode, "capture");
+  assert.equal(reloaded.businessHoursNote, "Monday-Friday, 9-5");
+});
+
+test("updateAgentSettings rejects routing saves when routing columns are unavailable", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Example",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+    widgetRoutingUpsertError: {
+      code: "42703",
+      message: "column widget_configs.booking_start_url does not exist",
+    },
+  });
+
+  await assert.rejects(
+    () =>
+      updateAgentSettings(supabase, {
+        agentId: "agent-1",
+        bookingStartUrl: "https://example.com/book/start",
+      }),
+    (error) => {
+      assert.equal(error.statusCode, 503);
+      assert.match(error.message, /routing settings could not be saved/i);
+      return true;
+    }
+  );
+
+  assert.equal(state.widget_configs[0].booking_start_url, undefined);
 });
 
 test("updateAgentSettings preserves omitted fields during partial updates", async () => {
