@@ -1142,16 +1142,29 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /Capture inbound demand, show what needs attention, and prove service results/i);
-        assert.match(marketingHome.text, /service businesses an AI front desk/i);
-        assert.match(marketingHome.text, /secondary connected tools when enabled/i);
+        assert.match(marketingHome.text, /An AI front desk for your customer questions/i);
+        assert.match(marketingHome.text, /answers common questions, captures customer details, and keeps conversations organized/i);
+        assert.match(marketingHome.text, /Start your front desk/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /simple workspace/);
-        assert.match(marketingHome.text, /Home, Customers, Front Desk, and Analytics/i);
+        assert.match(marketingHome.text, /No AI knowledge needed/i);
+        assert.match(marketingHome.text, /Home/i);
+        assert.match(marketingHome.text, /Customers/i);
+        assert.match(marketingHome.text, /Front Desk/i);
+        assert.match(marketingHome.text, /Analytics/i);
+        assert.match(marketingHome.text, /Install/i);
+        assert.match(marketingHome.text, /Email, calendar, and automation connections are planned for later/i);
+        assert.match(marketingHome.text, /Coming soon/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
+        assert.doesNotMatch(marketingHome.text, /operator/i);
+        assert.doesNotMatch(marketingHome.text, /copilot/i);
+        assert.doesNotMatch(marketingHome.text, /approval-first/i);
+        assert.doesNotMatch(marketingHome.text, /workflow/i);
+        assert.doesNotMatch(marketingHome.text, /internal queue/i);
+        assert.doesNotMatch(marketingHome.text, /Outcomes/i);
+        assert.doesNotMatch(marketingHome.text, /Contacts/i);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
@@ -1319,7 +1332,7 @@ test("signed-out marketing header keeps the normal CTA", async () => {
   const harness = createMarketingHarness({ storedSession: null, session: null });
   await harness.settle();
 
-  assert.equal(harness.primaryCta.textContent, "Get started");
+  assert.equal(harness.primaryCta.textContent, "Start your front desk");
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard?from=site");
   assert.equal(harness.authLink.hidden, false);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard?from=site");

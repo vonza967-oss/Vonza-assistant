@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vonza | AI front desk and customer service workspace</title>
-  <meta name="description" content="Vonza gives service businesses an AI front desk that captures and routes inbound demand, a Home daily command page that shows what needs attention next, and Analytics that proves what closed.">
+  <title>Vonza | AI front desk for customer questions</title>
+  <meta name="description" content="Vonza answers common customer questions, captures customer details, and keeps conversations organized so small businesses can respond faster and lose fewer customers.">
+  <link rel="icon" type="image/svg+xml" href="/icon-192.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/marketing.css">
 </head>
 <body>
@@ -19,294 +20,239 @@
       </a>
 
       <nav class="site-nav" aria-label="Primary">
-        <a href="#story">How it works</a>
-        <a href="#command-center">Workspace</a>
-        <a href="#proof">Proof</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#faq">FAQ</a>
+        <a href="#problem">Why Vonza</a>
+        <a href="#product">Product</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#trust">Trust</a>
       </nav>
 
       <div class="header-actions">
         <a id="site-auth-link" class="text-link" data-app-link href="/dashboard?from=site">Sign in</a>
-        <a id="site-primary-cta" class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
+        <a id="site-primary-cta" class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
       </div>
     </header>
 
     <main>
       <section class="hero">
         <div class="hero-copy" data-reveal style="--reveal-delay: 40ms;">
-          <p class="eyebrow">AI front desk and customer service workspace</p>
-          <h1>Capture inbound demand, show what needs attention, and prove service results.</h1>
-          <p class="hero-text">Vonza puts an AI front desk on your website to answer customer questions and route the next step, then gives the owner a simple workspace with Home, Customers, Front Desk, and Analytics. Inbox, Calendar, and Automations stay clearly secondary connected tools when enabled.</p>
+          <p class="eyebrow">AI customer service for busy SMBs</p>
+          <h1>An AI front desk for your customer questions</h1>
+          <p class="hero-text">Vonza answers common questions, captures customer details, and keeps conversations organized so small businesses can respond faster and lose fewer customers.</p>
 
           <div class="hero-actions">
-            <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
-            <a class="button button-secondary" href="#command-center">See the workspace</a>
+            <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
+            <a class="button button-secondary" href="#how-it-works">See how it works</a>
           </div>
 
-          <div class="hero-meta">
-            <span>Capture and route inbound demand</span>
-            <span>Show what needs attention next</span>
-            <span>Prove service results with real context</span>
+          <div class="hero-meta" aria-label="Vonza helps with">
+            <span>Answer customers faster</span>
+            <span>Stay organized</span>
+            <span>No AI knowledge needed</span>
           </div>
         </div>
 
-        <div class="hero-stage" aria-hidden="true" data-reveal style="--reveal-delay: 140ms;">
-          <div class="workspace-frame">
-            <div class="workspace-topbar">
-              <div class="workspace-brand">
-                <span class="workspace-mark">V</span>
-                <div>
-                  <p class="mini-eyebrow">Vonza workspace</p>
-                  <p class="workspace-name">Studio Élan</p>
-                </div>
-              </div>
-              <span class="workspace-badge">Customer service workspace</span>
+        <div class="hero-visual" data-reveal style="--reveal-delay: 140ms;">
+          <img
+            class="hero-photo"
+            src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&amp;fit=crop&amp;w=1200&amp;q=80"
+            alt="Small business team reviewing customer questions together"
+            width="1200"
+            height="900"
+          >
+          <div class="frontdesk-preview" aria-label="Example Vonza front desk conversation">
+            <div class="preview-topbar">
+              <span class="preview-dot"></span>
+              <strong>Vonza Front Desk</strong>
             </div>
-
-            <div class="workspace-tab-row">
-              <span class="workspace-tab active">Home</span>
-              <span class="workspace-tab">Customers</span>
-              <span class="workspace-tab">Front Desk</span>
-              <span class="workspace-tab">Analytics</span>
+            <div class="message-row customer-message">
+              <span>Customer question</span>
+              <p>Do you have appointments this week, and what should I bring?</p>
             </div>
-            <div class="workspace-tab-row workspace-tab-row-secondary">
-              <span class="workspace-tab">Inbox</span>
-              <span class="workspace-tab">Calendar</span>
-              <span class="workspace-tab">Automations</span>
+            <div class="message-row vonza-message">
+              <span>Vonza answer</span>
+              <p>Yes. Here are the usual appointment times, what to bring, and the best next step if you want a booking or callback.</p>
             </div>
-
-            <div class="workspace-body">
-              <section class="workspace-card workspace-card-main">
-                <p class="card-label">Home</p>
-                <h2>Daily command page</h2>
-                <p>Home organizes the day into three clear lanes so the owner can see what happened, why it matters, and what to do next without jumping across tools.</p>
-
-                <div class="today-preview">
-                  <article class="today-preview-section">
-                    <div class="today-preview-head">
-                      <strong>Needs Attention</strong>
-                      <span>2 items</span>
-                    </div>
-                    <p class="today-preview-copy">A quote follow-up still has no confirmed next step after this morning’s appointment.</p>
-                    <p class="today-preview-meta">Why it matters: ready demand can go stale if nobody closes the loop.</p>
-                    <p class="today-preview-action">Next: open the contact and review the draft.</p>
-                  </article>
-                  <article class="today-preview-section">
-                    <div class="today-preview-head">
-                      <strong>Daily Schedule</strong>
-                      <span>3 appointments</span>
-                    </div>
-                    <p class="today-preview-copy">The next appointment is linked to an active lead and one attendee still needs contact linking.</p>
-                    <p class="today-preview-meta">Why it matters: schedule context keeps Home grounded in the real day.</p>
-                    <p class="today-preview-action">Next: open Calendar before the next appointment starts.</p>
-                  </article>
-                  <article class="today-preview-section">
-                    <div class="today-preview-head">
-                      <strong>Ready / Waiting</strong>
-                      <span>1 approval</span>
-                    </div>
-                    <p class="today-preview-copy">One approval-first follow-up is prepared, and the latest booking is already counted in Analytics.</p>
-                    <p class="today-preview-meta">Why it matters: work stays safe until the owner approves it, and proof stays visible.</p>
-                    <p class="today-preview-action">Next: clear the waiting draft, then review the latest outcome.</p>
-                  </article>
-                </div>
-              </section>
-
-              <aside class="workspace-card workspace-card-side">
-                <p class="card-label">What Vonza does</p>
-                <div class="detail-row">
-                  <span>Capture and route</span>
-                  <strong>Answer questions and move visitors to booking, quote, callback, or checkout</strong>
-                </div>
-                <div class="detail-row">
-                  <span>Show what needs attention</span>
-                  <strong>Turn calendar, customers, and approvals into a clear next action</strong>
-                </div>
-                <div class="detail-row">
-                  <span>Prove service results</span>
-                  <strong>Keep bookings, quote requests, follow-ups, and complaint recovery tied back to real proof</strong>
-                </div>
-
-                <div class="widget-preview">
-                  <p class="card-label">Front desk moment</p>
-                  <div class="widget-panel">
-                    <div class="widget-bubble">Can I get a quote for this week?</div>
-                    <div class="widget-bubble widget-bubble-strong">Yes. I can answer from your website, route you to the right quote path, capture details if needed, and make sure the owner sees what needs attention next.</div>
-                  </div>
-                </div>
-              </aside>
+            <div class="summary-strip">
+              <strong>Saved for you</strong>
+              <span>Booking request, contact details, and a clear conversation summary.</span>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="proof-band" aria-label="Product framing">
-        <div data-reveal style="--reveal-delay: 40ms;">
-          <strong>Capture and route inbound demand</strong>
-          <span>The front desk answers questions, routes ready visitors, and captures clean follow-up details when direct routing is not possible.</span>
+      <section id="problem" class="section problem-section">
+        <div class="section-intro" data-reveal>
+          <p class="eyebrow">The everyday problem</p>
+          <h2>Customers ask when you are already busy.</h2>
+          <p class="section-copy">Small business owners answer the same questions again and again. When a website visitor cannot get a clear answer quickly, they may leave before you ever know they were ready to buy.</p>
         </div>
-        <div data-reveal style="--reveal-delay: 120ms;">
-          <strong>Show the owner what needs attention</strong>
-          <span>Home, Customers, and Calendar context become a simple workspace that explains what happened and the next action to take.</span>
-        </div>
-        <div data-reveal style="--reveal-delay: 200ms;">
-          <strong>Prove service results without hand-wavy attribution</strong>
-          <span>Analytics keeps the proof loop concrete, so bookings, quote requests, follow-up replies, and recovery work stay tied to real customer context.</span>
+
+        <div class="problem-list" aria-label="Customer service problems">
+          <article data-reveal style="--reveal-delay: 40ms;">
+            <span>01</span>
+            <h3>Repeated questions take time</h3>
+            <p>Hours, prices, services, availability, contact details, and next steps keep coming up.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 100ms;">
+            <span>02</span>
+            <h3>Fast replies are hard</h3>
+            <p>Owners, teams, and front-desk staff are often serving customers in person.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 160ms;">
+            <span>03</span>
+            <h3>Missed replies cost customers</h3>
+            <p>A simple unanswered question can become a lost booking, quote request, or sale.</p>
+          </article>
         </div>
       </section>
 
-      <section id="story" class="section section-journey">
+      <section class="section solution-section">
+        <div class="solution-grid">
+          <div class="section-intro" data-reveal>
+            <p class="eyebrow">The simple answer</p>
+            <h2>Vonza turns website visitors into organized customer conversations.</h2>
+            <p class="section-copy">It answers normal customer questions, guides visitors to the next helpful step, collects name and email when appropriate, and shows what customers keep asking about.</p>
+          </div>
+
+          <div class="solution-panel" data-reveal style="--reveal-delay: 120ms;" aria-label="Vonza customer conversation summary">
+            <div class="panel-line">
+              <span>Question</span>
+              <strong>Can I get a quote for next week?</strong>
+            </div>
+            <div class="panel-line">
+              <span>Vonza response</span>
+              <strong>Answered service basics and asked for the details needed for a quote request.</strong>
+            </div>
+            <div class="panel-line">
+              <span>Owner view</span>
+              <strong>Customer details and summary are ready in the dashboard.</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="product" class="section product-section">
+        <div class="section-intro" data-reveal>
+          <p class="eyebrow">Product areas</p>
+          <h2>A clean customer service workspace, not a complicated system.</h2>
+        </div>
+
+        <div class="product-grid">
+          <article class="product-item product-item-large" data-reveal style="--reveal-delay: 40ms;">
+            <p class="item-label">Front Desk</p>
+            <h3>Answer customer questions on your website</h3>
+            <p>Handles common questions about services, pricing, hours, availability, contact details, and next steps.</p>
+          </article>
+          <article class="product-item" data-reveal style="--reveal-delay: 90ms;">
+            <p class="item-label">Customers</p>
+            <h3>See who contacted you and what they asked</h3>
+            <p>Keep guest and identified visitors organized with clear conversation summaries.</p>
+          </article>
+          <article class="product-item" data-reveal style="--reveal-delay: 140ms;">
+            <p class="item-label">Home</p>
+            <h3>Know what needs attention today</h3>
+            <p>See simple priorities that help improve customer service.</p>
+          </article>
+          <article class="product-item" data-reveal style="--reveal-delay: 190ms;">
+            <p class="item-label">Analytics</p>
+            <h3>Understand what customers keep asking</h3>
+            <p>Spot unclear answers and common requests.</p>
+          </article>
+          <article class="product-item" data-reveal style="--reveal-delay: 240ms;">
+            <p class="item-label">Install</p>
+            <h3>Add Vonza to your website</h3>
+            <p>Simple setup without AI knowledge.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="section steps-section">
         <div class="section-intro" data-reveal>
           <p class="eyebrow">How it works</p>
-          <h2>One product story, three concrete jobs.</h2>
+          <h2>Three steps from setup to better service.</h2>
         </div>
 
-        <div class="journey-rail">
-          <article class="journey-item" data-reveal style="--reveal-delay: 40ms;">
-            <span class="journey-number">01</span>
-            <div>
-              <h3>Capture and route inbound demand</h3>
-              <p>Vonza learns from the website, answers customer questions, routes booking or quote intent, and captures clean lead details when direct routing is not available.</p>
-            </div>
+        <div class="steps">
+          <article class="step" data-reveal style="--reveal-delay: 40ms;">
+            <span>1</span>
+            <h3>Add Vonza to your website.</h3>
+            <p>Set up the front desk with your website knowledge and install it on your site.</p>
           </article>
-          <article class="journey-item" data-reveal style="--reveal-delay: 120ms;">
-            <span class="journey-number">02</span>
-            <div>
-              <h3>Show the owner what needs attention</h3>
-              <p>Home turns schedule, customer follow-up work, and approvals into a clear operating readout instead of a pile of lists and disconnected tools.</p>
-            </div>
+          <article class="step" data-reveal style="--reveal-delay: 110ms;">
+            <span>2</span>
+            <h3>Vonza answers customer questions.</h3>
+            <p>Visitors get clear answers about your business, services, and next steps.</p>
           </article>
-          <article class="journey-item" data-reveal style="--reveal-delay: 200ms;">
-            <span class="journey-number">03</span>
-            <div>
-              <h3>Prove the loop closed</h3>
-              <p>Analytics keeps the proof visible so the owner can see which customers moved forward, which follow-ups closed the loop, and where the front desk is producing real business value.</p>
-            </div>
+          <article class="step" data-reveal style="--reveal-delay: 180ms;">
+            <span>3</span>
+            <h3>You see customers, summaries, and insights.</h3>
+            <p>Everything lands in one simple dashboard for follow-up and service improvement.</p>
           </article>
         </div>
       </section>
 
-      <section id="command-center" class="section section-workspace">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">Inside the workspace</p>
-          <h2>The core workspace is opinionated on purpose.</h2>
-          <p class="section-copy">The primary navigation stays focused on Home, Customers, Front Desk, and Analytics. Inbox, Calendar, and Automations can exist when connected, but they stay clearly secondary to the core operating loop.</p>
-        </div>
-
-        <div class="workspace-columns">
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 40ms;">
-            <h3>Home</h3>
-            <p>The customer service workspace for Needs Attention, Daily Schedule, and Ready / Waiting.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 100ms;">
-            <h3>Customers</h3>
-            <p>Every person record pulls together chat, lead capture, follow-up, and the next owner action in one timeline.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 160ms;">
-            <h3>Front Desk</h3>
-            <p>Configure identity, routing, knowledge, preview, and install for the customer-facing system that feeds the rest of the workspace.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 220ms;">
-            <h3>Analytics</h3>
-            <p>Keep proof concrete with conservative attribution back to the contact path, route, follow-up, or recovery flow that actually closed.</p>
-          </article>
-        </div>
-
-        <div class="workspace-secondary-note" data-reveal style="--reveal-delay: 260ms;">
-          <strong>Connected tools stay secondary</strong>
-          <span>Inbox, Calendar, and Automations can deepen the workflow when Google is connected, but they should never blur the core story of front desk, customer service workspace, and Analytics.</span>
-        </div>
-      </section>
-
-      <section id="proof" class="section section-workspace">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">Proof loop</p>
-          <h2>Analytics turns activity into proof.</h2>
-          <p class="section-copy">Vonza does not stop at conversations or drafts. It keeps the owner focused on whether the front desk created a booking, quote request, follow-up reply, or complaint recovery that can actually be explained.</p>
-        </div>
-
-        <div class="workspace-columns">
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 40ms;">
-            <h3>Front-desk proof</h3>
-            <p>See whether visitors moved from question to route to click to real next step instead of just reading chat volume.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 100ms;">
-            <h3>Contact proof</h3>
-            <p>Understand which people progressed, which ones are still waiting, and which high-value paths still have no confirmed result.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 160ms;">
-            <h3>Follow-up proof</h3>
-            <p>Track which owner-approved follow-ups actually led to replies, bookings, or recovered opportunities.</p>
-          </article>
-          <article class="workspace-summary" data-reveal style="--reveal-delay: 220ms;">
-            <h3>Owner proof</h3>
-            <p>Keep the customer-service loop honest by showing what still needs review and what has already been confirmed.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="pricing" class="section section-pricing">
-        <div class="pricing-panel">
-          <div class="pricing-copy" data-reveal>
-            <p class="eyebrow">Pricing</p>
-            <h2>One paid workspace for the front desk and the owner operating loop.</h2>
-            <p>Vonza keeps the decision simple: one secure checkout, one paid workspace, and one place to run Home, Customers, Front Desk, and Analytics.</p>
-            <ul class="pricing-points">
-              <li>AI front desk that captures and routes inbound demand</li>
-              <li>Home daily command page with clear attention and schedule structure</li>
-              <li>Customers, Front Desk, and Analytics in the same workspace</li>
-              <li>Website-grounded setup, preview, and install</li>
-              <li>Optional connected Inbox, Calendar, and Automations tools</li>
-            </ul>
+      <section id="trust" class="section handoff-section">
+        <div class="handoff-panel" data-reveal>
+          <div>
+            <p class="eyebrow">Human help stays clear</p>
+            <h2>Some requests need your attention. Vonza helps you see them clearly.</h2>
           </div>
-
-          <div class="pricing-action" data-reveal style="--reveal-delay: 120ms;">
-            <p class="pricing-title">What happens after payment</p>
-            <p>You land in the workspace, connect your website, import knowledge, preview the front desk, install it on the site, and then use Home, Customers, Front Desk, and Analytics to confirm the first real customer path. Google connection is optional later.</p>
-            <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
-          </div>
+          <p>Vonza answers normal questions itself. If a customer asks for a quote, booking, callback, contact, or human help, Vonza helps capture the request so your team can respond. Complaints are handled calmly first, with the context saved for review.</p>
         </div>
       </section>
 
-      <section id="faq" class="section section-faq">
+      <section class="section benefits-section">
         <div class="section-intro" data-reveal>
-          <p class="eyebrow">FAQ</p>
-          <h2>The important questions, answered directly.</h2>
+          <p class="eyebrow">Why SMBs use it</p>
+          <h2>Better service without adding a complicated tool.</h2>
         </div>
 
-        <div class="faq-list">
-          <details class="faq-item" data-reveal style="--reveal-delay: 40ms;">
-            <summary>What does Vonza do beyond website chat?</summary>
-            <p>Vonza starts with the website front desk, but the paid workspace adds Home, Customers, Front Desk, and Analytics so the owner can operate from one place. Inbox, Calendar, and Automations are optional connected tools for customers who want that deeper workflow.</p>
-          </details>
-          <details class="faq-item" data-reveal style="--reveal-delay: 90ms;">
-            <summary>Does Vonza support Gmail and Google Calendar?</summary>
-            <p>Yes, as optional connected tools when Google is connected and enabled on the deployment. Vonza can sync Gmail and Google Calendar for review, drafts, scheduling context, and approval-first actions. If Google is not connected, the core front-desk workflow still works safely.</p>
-          </details>
-          <details class="faq-item" data-reveal style="--reveal-delay: 140ms;">
-            <summary>Does Vonza send replies or automations autonomously?</summary>
-            <p>No. Vonza is approval-first. It can draft replies, follow-ups, campaigns, and some calendar actions, but the owner still reviews and approves sends or changes.</p>
-          </details>
-          <details class="faq-item" data-reveal style="--reveal-delay: 190ms;">
-            <summary>How does Analytics track results?</summary>
-            <p>Vonza tracks count-and-proof results it can conservatively tie back to real routing, follow-up, campaign, booking, quote, checkout, or complaint-recovery paths. It does not claim full revenue attribution unless the proof path exists.</p>
-          </details>
-          <details class="faq-item" data-reveal style="--reveal-delay: 240ms;">
-            <summary>What setup is required?</summary>
-            <p>At minimum, add your website, tune the front desk, import knowledge, and install the snippet. Then run a real test conversation and confirm the lead, contact, and outcome path. Connect Google later if you want the optional connected tools.</p>
-          </details>
+        <div class="benefit-grid">
+          <article data-reveal style="--reveal-delay: 40ms;">
+            <h3>Save time</h3>
+            <p>Let common questions get answered before they become another interruption.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 80ms;">
+            <h3>Reply faster</h3>
+            <p>Help customers get clear answers, even when you are busy.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 120ms;">
+            <h3>Reduce missed customers</h3>
+            <p>Capture useful details when someone wants a quote, booking, callback, or contact.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 160ms;">
+            <h3>Improve satisfaction</h3>
+            <p>Give visitors a calmer first response and a clearer next step.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 200ms;">
+            <h3>Learn what customers need</h3>
+            <p>See common questions and places where service information could be clearer.</p>
+          </article>
+          <article data-reveal style="--reveal-delay: 240ms;">
+            <h3>Set up without AI knowledge</h3>
+            <p>Vonza focuses on your website front desk and customer conversations.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section connected-section">
+        <div class="connected-note" data-reveal>
+          <p class="eyebrow">Planned connections</p>
+          <h2>Email, calendar, and automation connections are planned for later.</h2>
+          <p>Today, Vonza focuses on your website front desk and customer conversations.</p>
+          <span>Coming soon</span>
         </div>
       </section>
 
       <section class="final-callout" data-reveal>
         <div>
-          <p class="eyebrow">Ready to start?</p>
-          <h2>Open the app, launch the front desk, and run the customer service workspace in one place.</h2>
+          <p class="eyebrow">Ready to answer faster?</p>
+          <h2>Start your AI front desk.</h2>
+          <p>Give customers clear answers, keep conversations organized, and see what needs attention next.</p>
         </div>
         <div class="final-callout-actions">
-          <a class="button button-primary" data-app-link href="/dashboard?from=site">Get started</a>
-          <a class="button button-secondary" href="/widget">Preview widget</a>
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
+          <a class="button button-secondary" href="#product">View product areas</a>
         </div>
       </section>
     </main>
@@ -314,13 +260,13 @@
     <footer class="site-footer" data-reveal>
       <div>
         <p class="footer-brand">Vonza</p>
-        <p class="footer-copy">An AI front desk for service businesses with a simple workspace for what needs attention next.</p>
+        <p class="footer-copy">Your AI front desk for customer questions.</p>
       </div>
       <div class="footer-links">
         <a href="/">Home</a>
         <a data-app-link href="/dashboard?from=site">App</a>
-        <a href="/widget">Preview</a>
-        <a href="#faq">FAQ</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#trust">Trust</a>
       </div>
     </footer>
   </div>

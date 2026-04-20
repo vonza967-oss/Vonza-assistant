@@ -74,7 +74,7 @@
     });
 
     if (primaryCta) {
-      primaryCta.textContent = isSignedIn ? "My Account" : "Get started";
+      primaryCta.textContent = isSignedIn ? "My Account" : "Start your front desk";
       primaryCta.setAttribute("href", href);
     }
 
