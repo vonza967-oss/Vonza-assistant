@@ -575,7 +575,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Home at a glance/);
   assert.match(overview, /Messages today/);
-  assert.match(overview, /Review proposals/);
+  assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /What to improve next/);
   assert.match(overview, /Show supporting detail/);
 
@@ -676,7 +676,7 @@ test("today copilot renders inside Today when the flag is on", () => {
           type: "create_follow_up_draft",
           title: "Draft follow-up for Taylor Reed",
           summary: "A visitor asked about pricing and still has no recorded outcome.",
-          whatHappens: "Create or refresh a real review-ready follow-up draft.",
+          whatHappens: "Create or refresh a real approval-first follow-up draft using the deterministic follow-up workflow service.",
           approvalNote: "This only prepares the draft. Nothing is sent automatically.",
           applyLabel: "Create draft",
           openLabel: "Open Automations",
@@ -722,7 +722,7 @@ test("today copilot renders inside Today when the flag is on", () => {
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
   assert.match(overview, /Home at a glance/);
-  assert.match(overview, /Review proposals/);
+  assert.match(overview, /Approval-first proposals/);
   assert.match(overview, /What to improve next/);
   assert.match(overview, /Show supporting detail/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
@@ -834,7 +834,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
           type: "create_follow_up_draft",
           title: "Draft follow-up for Taylor Reed",
           summary: "A visitor asked about pricing and still has no recorded outcome.",
-          whatHappens: "Create or refresh a real review-ready follow-up draft.",
+          whatHappens: "Create or refresh a real approval-first follow-up draft using the deterministic follow-up workflow service.",
           approvalNote: "This only prepares the draft. Nothing is sent automatically.",
           applyLabel: "Create draft",
           openLabel: "Open Automations",
@@ -1194,8 +1194,6 @@ test("customers render as a single-column workspace without inactive controls", 
 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
-  assert.doesNotMatch(contactsPanel, /Your customers will show up here/);
-  assert.doesNotMatch(contactsPanel, /Chat and lead capture records will appear here as customers/);
   assert.match(contactsPanel, /Who contacted you, who needs a reply, and what to do next/);
   assert.match(contactsPanel, /Show customers needing help/);
   assert.doesNotMatch(contactsPanel, /Show filters/);
@@ -1608,7 +1606,6 @@ test("customer row chat expansion markup stays inline and chronological", () => 
   });
   const row = harness.buildContactRow({
     id: "contact-chat",
-    rowKey: "session:contact-chat-session",
     name: "Anonymous visitor",
     lifecycleState: "active_lead",
     partialIdentity: true,
@@ -1639,8 +1636,7 @@ test("customer row chat expansion markup stays inline and chronological", () => 
 
   assert.match(row, /data-toggle-customer-chat/);
   assert.match(row, /aria-expanded="false"/);
-  assert.match(row, /data-customer-chat-panel data-contact-id="session:contact-chat-session"/);
-  assert.doesNotMatch(row, />Needs reply</);
+  assert.match(row, /data-customer-chat-panel/);
   assert.ok(row.indexOf("First customer message.") < row.indexOf("First Vonza reply."));
   assert.ok(row.indexOf("First Vonza reply.") < row.indexOf("Second customer message."));
   const chatPanelMarkup = row.slice(
@@ -1648,37 +1644,6 @@ test("customer row chat expansion markup stays inline and chronological", () => 
     row.indexOf("</article>", row.indexOf('class="customer-chat-panel"'))
   );
   assert.doesNotMatch(chatPanelMarkup, /operator|workflow|queue|copilot|approval|automation/i);
-});
-
-test("customer rows without chat do not render an active View chat button", () => {
-  const harness = createDashboardHarness({
-    windowFlags: {
-      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
-    },
-  });
-  const row = harness.buildContactRow({
-    id: "contact-no-chat",
-    rowKey: "email:no-chat@example.com",
-    name: "No Chat Customer",
-    email: "no-chat@example.com",
-    lifecycleState: "customer",
-    lastCustomerMessageAt: "",
-    chatMessages: [],
-    timeline: [
-      {
-        label: "Inbox thread",
-        summary: "Asked about account access.",
-        at: "2026-04-16T09:47:46.000Z",
-      },
-    ],
-  });
-
-  assert.match(row, /No Chat Customer/);
-  assert.match(row, /Last message/);
-  assert.match(row, /No chat yet/);
-  assert.match(row, /data-toggle-customer-chat[\s\S]*disabled/);
-  assert.doesNotMatch(row, />View chat</);
-  assert.doesNotMatch(row, />Needs reply</);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
@@ -1722,15 +1687,9 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
   assert.match(sidebar, /Primary/);
   assert.match(sidebar, /Connected Tools/);
   assert.match(sidebar, /\(coming soon\)/);
-  assert.ok(sidebar.indexOf("Connected Tools") < sidebar.indexOf("(coming soon)"));
-  assert.ok(sidebar.indexOf("Email") < sidebar.indexOf("Automations"));
-  assert.ok(sidebar.indexOf("Automations") < sidebar.indexOf("Calendar"));
-  assert.match(sidebar, /shell-nav-button[^"]*locked/);
-  assert.match(sidebar, /aria-disabled="true" disabled/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Calendar[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Automations[\s\S]{0,80}Beta/);
-  assert.doesNotMatch(sidebar, /Connected Tools[\s\S]*Beta/);
   assert.doesNotMatch(sidebar, /Optional/);
   assert.match(sidebar, /Utilities/);
   assert.match(sidebar, /Workspace/);

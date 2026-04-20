@@ -1245,7 +1245,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Home at a glance/);
         assert.match(dashboardScript.text, /Messages today/);
         assert.match(dashboardScript.text, /Your AI customer service snapshot for today|Home at a glance/);
-        assert.match(dashboardScript.text, /Review proposals/);
+        assert.match(dashboardScript.text, /Approval-first proposals/);
         assert.match(dashboardScript.text, /What to improve next/);
         assert.match(dashboardScript.text, /These are the changes most likely to improve customer satisfaction and save time/);
         assert.match(dashboardScript.text, /Show supporting detail/);
