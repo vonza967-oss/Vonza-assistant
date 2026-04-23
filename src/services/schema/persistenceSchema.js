@@ -127,6 +127,15 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationColumns: ["session_key", "visitor_identity_mode", "visitor_email", "visitor_name"],
   },
+  user_dashboard_preferences: {
+    requiredColumns: [
+      "owner_user_id",
+      "dashboard_language",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.dashboard_language_preferences],
+  },
   agent_action_queue_statuses: {
     requiredColumns: [
       "id",

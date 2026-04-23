@@ -106,6 +106,11 @@ import {
   PRODUCT_HELP_UNAVAILABLE_MESSAGE,
   answerVonzaProductHelp,
 } from "../services/support/productHelpService.js";
+import {
+  getDashboardPreferences,
+  normalizeDashboardLanguage,
+  saveDashboardLanguagePreference,
+} from "../services/dashboard/dashboardPreferenceService.js";
 import { cleanText } from "../utils/text.js";
 
 function expandGroupedFollowUpItems(queue = {}) {
@@ -253,6 +258,10 @@ export function createAgentRouter(deps = {}) {
     deps.findTodayCopilotProposal || findTodayCopilotProposal;
   const answerVonzaProductHelpImpl =
     deps.answerVonzaProductHelp || answerVonzaProductHelp;
+  const getDashboardPreferencesImpl =
+    deps.getDashboardPreferences || getDashboardPreferences;
+  const saveDashboardLanguagePreferenceImpl =
+    deps.saveDashboardLanguagePreference || saveDashboardLanguagePreference;
   const getAdminToken = (req) => {
     const bearerToken =
       typeof req.headers.authorization === "string" &&
@@ -513,6 +522,41 @@ export function createAgentRouter(deps = {}) {
         statusCode: err?.statusCode || 500,
         message: err?.message || "Something went wrong",
       });
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/dashboard/preferences", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const result = await getDashboardPreferencesImpl(supabase, {
+        ownerUserId: user.id,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/dashboard/preferences", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const result = await saveDashboardLanguagePreferenceImpl(supabase, {
+        ownerUserId: user.id,
+        dashboardLanguage: req.body.dashboard_language || req.body.dashboardLanguage,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
       });
@@ -1075,6 +1119,7 @@ export function createAgentRouter(deps = {}) {
           actionQueue: hydratedQueue,
           widgetMetrics: agentProfile?.widgetMetrics || {},
           installStatus: agentProfile?.installStatus || {},
+          dashboardLanguage: normalizeDashboardLanguage(req.query.dashboard_language || req.query.dashboardLanguage),
         }),
       });
     } catch (err) {

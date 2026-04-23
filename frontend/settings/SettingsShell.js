@@ -23,6 +23,19 @@
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
+  const DEFAULT_TRANSLATIONS = Object.freeze({
+    "language.settingsTitle": "Dashboard language",
+    "language.settingsCopy": "Choose the language used by the logged-in dashboard.",
+    "language.noChanges": "No changes yet.",
+    "language.save": "Save language",
+    "nav.utilities": "Utilities",
+    "settings.title": "Settings",
+    "settings.copy": "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
+    "settings.theme": "Theme",
+    "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
+    "settings.light": "Light",
+    "settings.dark": "Dark",
+  });
   const WIDGET_PURPOSE_OPTIONS = Object.freeze([
     {
       value: "guidance",
@@ -61,6 +74,10 @@
 
   function defaultGetBadgeClass() {
     return "pill";
+  }
+
+  function defaultTranslate(key) {
+    return DEFAULT_TRANSLATIONS[key] || key;
   }
 
   function defaultBuildPageHeader({ eyebrow = "", title = "", copy = "" } = {}) {
@@ -216,6 +233,18 @@
         typeof options.getDefaultInstallStatus === "function"
           ? options.getDefaultInstallStatus
           : defaultInstallStatus,
+      t: typeof options.t === "function" ? options.t : defaultTranslate,
+      getDashboardLanguage:
+        typeof options.getDashboardLanguage === "function"
+          ? options.getDashboardLanguage
+          : () => "en",
+      getSupportedDashboardLanguages:
+        typeof options.getSupportedDashboardLanguages === "function"
+          ? options.getSupportedDashboardLanguages
+          : () => [
+            { code: "en", nativeLabel: "English" },
+            { code: "hu", nativeLabel: "Magyar" },
+          ],
     };
   }
 
@@ -242,11 +271,11 @@
   }
 
   function buildDesktopSettingsNav(activeSettingsSection, helpers) {
-    const { escapeHtml } = helpers;
+    const { escapeHtml, t } = helpers;
 
     return `
       <div class="settings-shell-nav-group" data-settings-nav="desktop">
-        <p class="settings-shell-nav-heading">Settings</p>
+        <p class="settings-shell-nav-heading">${escapeHtml(t("settings.title"))}</p>
         <div class="settings-shell-nav">
           ${SETTINGS_SECTION_DETAILS.map((section) => `
             <button
@@ -263,12 +292,12 @@
   }
 
   function buildMobileSettingsNav(activeSettingsSection, helpers) {
-    const { escapeHtml } = helpers;
+    const { escapeHtml, t } = helpers;
     const activeSection = getSectionByKey(activeSettingsSection);
 
     return `
       <div class="settings-shell-mobile-bar" data-settings-nav="mobile">
-        <label class="settings-shell-mobile-label" for="settings-shell-section-select">Settings section</label>
+        <label class="settings-shell-mobile-label" for="settings-shell-section-select">${escapeHtml(t("settings.title"))}</label>
         <select
           id="settings-shell-section-select"
           class="settings-shell-mobile-select"
@@ -786,13 +815,23 @@
   }
 
   function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace, helpers) {
-    const { escapeHtml, getDefaultInstallStatus, getWorkspaceMode, normalizeAccessStatus } = helpers;
+    const {
+      escapeHtml,
+      getDashboardLanguage,
+      getDefaultInstallStatus,
+      getSupportedDashboardLanguages,
+      getWorkspaceMode,
+      normalizeAccessStatus,
+      t,
+    } = helpers;
     const installStatus = getDefaultInstallStatus(agent);
     const workspaceMode = getWorkspaceMode(operatorWorkspace);
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
       ? "dark"
       : "light";
+    const dashboardLanguage = getDashboardLanguage();
+    const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
     return `
       <div class="settings-shell-form">
@@ -838,17 +877,40 @@
           </div>
         </section>
 
+        <form class="settings-shell-section" data-dashboard-language-form>
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">${escapeHtml(t("language.settingsTitle"))}</h3>
+              <p class="settings-shell-section-copy">${escapeHtml(t("language.settingsCopy"))}</p>
+            </div>
+          </div>
+          <div class="settings-shell-field-stack">
+            <div class="field">
+              <label for="dashboard-language-select">${escapeHtml(t("language.settingsTitle"))}</label>
+              <select id="dashboard-language-select" name="dashboard_language">
+                ${supportedDashboardLanguages.map((language) => `
+                  <option value="${escapeHtml(language.code)}" ${dashboardLanguage === language.code ? "selected" : ""}>${escapeHtml(language.nativeLabel || language.label)}</option>
+                `).join("")}
+              </select>
+            </div>
+          </div>
+          <div class="settings-shell-sticky-save">
+            <span data-save-state class="save-state">${escapeHtml(t("language.noChanges"))}</span>
+            <button class="primary-button" type="submit">${escapeHtml(t("language.save"))}</button>
+          </div>
+        </form>
+
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Theme</h3>
-              <p class="settings-shell-section-copy">Choose how the dashboard looks in this browser. Light is the default.</p>
+              <h3 class="settings-shell-section-title">${escapeHtml(t("settings.theme"))}</h3>
+              <p class="settings-shell-section-copy">${escapeHtml(t("settings.themeCopy"))}</p>
             </div>
           </div>
           <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
             ${[
-              { value: "light", label: "Light", copy: "Default dashboard theme." },
-              { value: "dark", label: "Dark", copy: "Lower-light dashboard theme for the app shell." },
+              { value: "light", label: t("settings.light"), copy: "Default dashboard theme." },
+              { value: "dark", label: t("settings.dark"), copy: "Lower-light dashboard theme for the app shell." },
             ].map((theme) => `
               <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
                 <input
@@ -915,9 +977,9 @@
     return `
       <section class="workspace-page settings-shell-root" data-shell-section="settings" hidden>
         ${helpers.buildPageHeader({
-          eyebrow: "Utilities",
-          title: "Settings",
-          copy: "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
+          eyebrow: helpers.t("nav.utilities"),
+          title: helpers.t("settings.title"),
+          copy: helpers.t("settings.copy"),
         })}
         <div class="workspace-page-body settings-shell-layout">
           <aside class="settings-shell-sidebar">

@@ -39,68 +39,74 @@ function localizeQuestionSummary(language = "en", english = "", hungarian = "") 
   return language === "hu" ? hungarian : english;
 }
 
-export function summarizeCustomerQuestionIntent(message = "") {
+function normalizeDashboardSummaryLanguage(value) {
+  const normalized = cleanText(value).toLowerCase();
+  return ["en", "hu"].includes(normalized) ? normalized : "";
+}
+
+export function summarizeCustomerQuestionIntent(message = "", options = {}) {
   const text = cleanText(message).toLowerCase();
-  const language = getQuestionLanguage(text);
+  const language = normalizeDashboardSummaryLanguage(options.dashboardLanguage || options.language)
+    || getQuestionLanguage(text);
 
   if (!text) {
     return localizeQuestionSummary(
       language,
       "Trying to clarify the next customer-service step",
-      "A kovetkezo ugyfelszolgalati lepes tisztazasa"
+      "A következő ügyfélszolgálati lépést próbálja tisztázni"
     );
   }
 
   if (includesAny(text, [/\b(contact|reach|call|email|phone|talk to|speak to|get in touch|someone)\b/i, /\b(kapcsolat|telefon|email|e-mail|hiv|hivni|eler|elerni|beszelni)\b/i])) {
-    return localizeQuestionSummary(language, "Asking how to contact the business directly", "Kozvetlen kapcsolatfelveteli lehetoseget keres");
+    return localizeQuestionSummary(language, "Asking how to contact the business directly", "Közvetlen kapcsolatfelvételi lehetőséget keres");
   }
 
   if (includesAny(text, [/\b(price|pricing|cost|quote|estimate|fee|how much|package|plan)\b/i, /\b(ar|arak|ara|arajanlat|mennyibe|koltseg|dij|csomag)\b/i])) {
-    return localizeQuestionSummary(language, "Requesting pricing or quote details", "Arakat vagy arajanlat reszleteit keri");
+    return localizeQuestionSummary(language, "Requesting pricing or quote details", "Árakat vagy árajánlat részleteit kéri");
   }
 
   if (includesAny(text, [/\b(book|booking|appointment|schedule|availability|reserve|consultation|available)\b/i, /\b(idopont|foglal|foglalo|bejelentkez|szabad|elerheto|konzultacio)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for booking or availability", "Idopontot vagy elerhetoseget keres");
+    return localizeQuestionSummary(language, "Looking for booking or availability", "Időpontot vagy elérhetőséget keres");
   }
 
   if (includesAny(text, [/\b(webshop|online store|ecommerce|e-commerce|cart|checkout|order online|purchase online)\b/i, /\b(webaruhaz|webshop|online rendeles|kosar|rendeles|online vasarlas)\b/i])) {
-    return localizeQuestionSummary(language, "Asking about webshop options and next steps", "Webaruhaz opciokat es kovetkezo lepeseket keres");
+    return localizeQuestionSummary(language, "Asking about webshop options and next steps", "Webáruház lehetőségekről és következő lépésekről érdeklődik");
   }
 
   if (includesAny(text, [/\b(delivery|shipping|ship|turnaround|lead time|how long|when can|arrival|deliver)\b/i, /\b(szallitas|kiszallitas|mennyi ido|mikor|hatarido|erkezik|atfutas)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for delivery timing or service turnaround", "Szallitasi vagy teljesitesi idot keres");
+    return localizeQuestionSummary(language, "Looking for delivery timing or service turnaround", "Szállítási vagy teljesítési időt keres");
   }
 
   if (includesAny(text, [/\b(open|hours|opening|closed|holiday|weekend)\b/i, /\b(nyitva|nyitvatartas|zarva|hetvege|unnepnap)\b/i])) {
-    return localizeQuestionSummary(language, "Checking opening hours or customer-service availability", "Nyitvatartast vagy ugyfelszolgalati elerhetoseget ellenoriz");
+    return localizeQuestionSummary(language, "Checking opening hours or customer-service availability", "Nyitvatartást vagy ügyfélszolgálati elérhetőséget ellenőriz");
   }
 
   if (includesAny(text, [/\b(location|address|near|area|serve|service area|where are)\b/i, /\b(cim|helyszin|kozel|terulet|kiszall|hol|varos)\b/i])) {
-    return localizeQuestionSummary(language, "Checking location or service-area coverage", "Helyszint vagy kiszolgalasi teruletet ellenoriz");
+    return localizeQuestionSummary(language, "Checking location or service-area coverage", "Helyszínt vagy kiszolgálási területet ellenőriz");
   }
 
   if (includesAny(text, [/\b(service|services|offer|provide|help with|do you do|which service|fit my needs|product)\b/i, /\b(szolgaltatas|kinal|vallal|miben tud|melyik szolgaltatas|termek)\b/i])) {
-    return localizeQuestionSummary(language, "Checking whether the business offers a specific service", "Azt ellenorzi, hogy elerheto-e egy konkret szolgaltatas");
+    return localizeQuestionSummary(language, "Checking whether the business offers a specific service", "Azt ellenőrzi, hogy elérhető-e egy konkrét szolgáltatás");
   }
 
   if (includesAny(text, [/\b(cancel|refund|warranty|guarantee|return|policy|problem|issue|support)\b/i, /\b(lemondas|visszaterites|garancia|problema|hiba|panasz|segitseg)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for help with a support or policy issue", "Tamogatasra vagy szabalyzati kerdesre keres valaszt");
+    return localizeQuestionSummary(language, "Looking for help with a support or policy issue", "Támogatásra vagy szabályzati kérdésre keres választ");
   }
 
   return localizeQuestionSummary(
     language,
     "Trying to understand which service fits their needs",
-    "Azt probalja tisztazni, melyik szolgaltatas illik az igenyeihez"
+    "Azt próbálja tisztázni, melyik szolgáltatás illik az igényeihez"
   );
 }
 
-export function buildCustomerQuestionSummaries(messages = [], limit = 6) {
+export function buildCustomerQuestionSummaries(messages = [], limit = 6, options = {}) {
   const grouped = new Map();
 
   normalizeMessages(messages)
     .filter((message) => message.role === "user" && message.content)
     .forEach((message) => {
-      const summary = summarizeCustomerQuestionIntent(message.content);
+      const summary = summarizeCustomerQuestionIntent(message.content, options);
       const existing = grouped.get(summary) || {
         summary,
         count: 0,
@@ -268,6 +274,7 @@ export function buildAnalyticsSummary({
   widgetMetrics = {},
   installStatus = {},
   diagnosticsMessage = "",
+  dashboardLanguage = "",
 } = {}) {
   const summary = createEmptyAnalyticsSummary();
   const normalizedMessages = normalizeMessages(messages);
@@ -312,7 +319,9 @@ export function buildAnalyticsSummary({
     weakAnswerCount,
     attentionNeeded: Number(actionQueue.summary?.attentionNeeded || 0),
     lastMessageAt,
-    customerQuestionSummaries: buildCustomerQuestionSummaries(normalizedMessages),
+    customerQuestionSummaries: buildCustomerQuestionSummaries(normalizedMessages, 6, {
+      dashboardLanguage,
+    }),
     recentActivity: buildRecentActivity({
       totalMessages,
       visitorQuestions,

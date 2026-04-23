@@ -118,6 +118,18 @@ create index if not exists messages_agent_id_visitor_email_created_at_idx
   on public.messages (agent_id, visitor_email, created_at desc)
   where visitor_email is not null;
 
+create table if not exists public.user_dashboard_preferences (
+  owner_user_id uuid primary key,
+  dashboard_language text not null default 'en',
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  constraint user_dashboard_preferences_dashboard_language_check
+    check (dashboard_language in ('en', 'hu'))
+);
+
+alter table public.user_dashboard_preferences
+  enable row level security;
+
 create table if not exists public.agent_action_queue_statuses (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid references public.agents (id) on delete cascade,

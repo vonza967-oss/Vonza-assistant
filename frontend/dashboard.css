@@ -239,6 +239,71 @@ a.ghost-button:hover {
   font-weight: 800;
 }
 
+.dashboard-language-screen {
+  min-height: min(680px, calc(100vh - 150px));
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: 48px 16px;
+}
+
+.dashboard-language-card {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--card-strong);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-language-card h1 {
+  margin: 6px 0 8px;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.dashboard-language-card p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.6;
+}
+
+.dashboard-language-options {
+  display: grid;
+  gap: 10px;
+}
+
+.dashboard-language-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-language-option.active {
+  border-color: rgba(20, 184, 166, 0.72);
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.dashboard-language-option input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+.dashboard-language-error {
+  color: var(--danger) !important;
+}
+
 .dashboard-loading-screen h1 {
   margin: 0;
   font-size: 1.5rem;

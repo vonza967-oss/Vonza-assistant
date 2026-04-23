@@ -154,6 +154,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds optional widget logo image persistence for customer-facing widget header branding.",
   }),
+  Object.freeze({
+    id: "dashboard_language_preferences",
+    version: "20260422000000",
+    name: "dashboard_language_preferences",
+    file: "supabase/migrations/20260422000000_dashboard_language_preferences.sql",
+    legacySources: Object.freeze(["db/dashboard_language_preferences.sql"]),
+    tier: "feature-gated",
+    note: "Adds owner-level dashboard language preference storage for the logged-in app. The dashboard can fall back to cached English/Hungarian preferences if this table is not present yet.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

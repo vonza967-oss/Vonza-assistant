@@ -14,6 +14,11 @@
         theme = window.localStorage?.getItem("vonza_dashboard_theme") === "dark" ? "dark" : "light";
       } catch {}
       document.documentElement.dataset.dashboardTheme = theme;
+      try {
+        const language = window.localStorage?.getItem("vonza_dashboard_language") === "hu" ? "hu" : "en";
+        document.documentElement.dataset.dashboardLanguage = language;
+        document.documentElement.lang = language;
+      } catch {}
     })();
   </script>
   <link rel="stylesheet" href="/dashboard.css">
@@ -32,14 +37,24 @@
     <div id="dashboard-root">
       <section class="dashboard-loading-screen" role="status" aria-live="polite">
         <div class="dashboard-loading-mark" aria-hidden="true">V</div>
-        <h1>Loading your workspace</h1>
-        <p>Getting your customer service dashboard ready.</p>
+        <h1 data-loading-title>Loading your workspace</h1>
+        <p data-loading-copy>Getting your customer service dashboard ready.</p>
       </section>
     </div>
   </main>
 
   <script src="/public-config.js"></script>
   <script src="/supabase-auth.js"></script>
+  <script src="/i18n/dashboardI18n.js"></script>
+  <script>
+    (() => {
+      const i18n = window.VonzaDashboardI18n;
+      if (!i18n) return;
+      const language = i18n.getCachedLanguage();
+      document.querySelector("[data-loading-title]").textContent = i18n.t("app.loading.title", {}, language);
+      document.querySelector("[data-loading-copy]").textContent = i18n.t("app.loading.copy", {}, language);
+    })();
+  </script>
   <script src="/settings/SettingsShell.js"></script>
   <script src="/dashboard.js"></script>
 </body>

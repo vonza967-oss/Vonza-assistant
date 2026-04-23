@@ -116,10 +116,28 @@ test("customer question summaries do not copy raw chat text", () => {
 test("Hungarian customer questions keep useful Hungarian summaries", () => {
   assert.equal(
     summarizeCustomerQuestionIntent("Mennyibe kerul a webaruhaz keszitese?"),
-    "Arakat vagy arajanlat reszleteit keri"
+    "Árakat vagy árajánlat részleteit kéri"
   );
   assert.equal(
     summarizeCustomerQuestionIntent("Van szabad idopont jovo hetre?"),
-    "Idopontot vagy elerhetoseget keres"
+    "Időpontot vagy elérhetőséget keres"
   );
+});
+
+test("dashboard language controls dashboard-facing analytics summaries", () => {
+  const english = buildAnalyticsSummary({
+    dashboardLanguage: "en",
+    messages: [
+      { role: "user", content: "Mennyibe kerul a webaruhaz keszitese?", createdAt: "2026-04-03T09:00:00.000Z" },
+    ],
+  });
+  const hungarian = buildAnalyticsSummary({
+    dashboardLanguage: "hu",
+    messages: [
+      { role: "user", content: "How much does the webshop setup cost?", createdAt: "2026-04-03T09:00:00.000Z" },
+    ],
+  });
+
+  assert.equal(english.customerQuestionSummaries[0].summary, "Requesting pricing or quote details");
+  assert.equal(hungarian.customerQuestionSummaries[0].summary, "Árakat vagy árajánlat részleteit kéri");
 });

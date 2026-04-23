@@ -13,6 +13,7 @@ const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
+const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
@@ -111,6 +112,115 @@ const DASHBOARD_CAPABILITY_MAP = {
   analytics: "outcomes",
   install: "widget_install",
 };
+const DASHBOARD_ENGLISH_FALLBACKS = {
+  "app.loading.title": "Loading your workspace",
+  "app.loading.copy": "Getting your customer service dashboard ready.",
+  "language.title": "Choose your dashboard language",
+  "language.subtitle": "You can change this later in Settings.",
+  "language.continue": "Continue",
+  "language.saving": "Saving language...",
+  "language.error": "Could not save your dashboard language. Please try again.",
+  "language.settingsTitle": "Dashboard language",
+  "language.settingsCopy": "Choose the language used by the logged-in dashboard.",
+  "language.settingsSaved": "Dashboard language saved.",
+  "language.settingsError": "Could not save dashboard language.",
+  "language.noChanges": "No changes yet.",
+  "language.unsaved": "Unsaved changes",
+  "language.save": "Save language",
+  "nav.home": "Home",
+  "nav.customers": "Customers",
+  "nav.frontDesk": "Front Desk",
+  "nav.analytics": "Analytics",
+  "nav.install": "Install",
+  "nav.settings": "Settings",
+  "nav.connectedTools": "Connected Tools",
+  "nav.comingSoon": "coming soon",
+  "nav.email": "Email",
+  "nav.automations": "Automations",
+  "nav.calendar": "Calendar",
+  "nav.primary": "Primary",
+  "nav.utilities": "Utilities",
+  "common.lastMessage": "Last message",
+  "common.viewChat": "View chat",
+  "common.hideChat": "Hide chat",
+  "common.noChatYet": "No chat yet",
+  "common.guestVisitor": "Guest visitor",
+  "common.customer": "Customer",
+  "common.vonza": "Vonza",
+  "common.noCustomerMessage": "No customer message yet",
+  "common.noSavedChat": "No saved chat messages yet.",
+  "common.noMessageText": "No message text saved.",
+  "common.notInstalled": "Not installed yet",
+  "home.title": "Home",
+  "home.copy": "Your AI customer service snapshot for today",
+  "home.dailySnapshot": "Daily snapshot",
+  "home.ready": "Home is ready. As soon as customers start using Vonza today, this page will highlight what matters first.",
+  "home.summary": "So far today, Vonza handled {conversations}, guided {customers} to a next step or recorded outcome, and flagged {issues} that still need attention.",
+  "home.conversationsToday": "Conversations today",
+  "home.guidedNextStep": "Guided to next step",
+  "home.openIssues": "Open issues",
+  "home.customerSatisfaction": "Customer satisfaction",
+  "home.aiPriorities": "AI priorities",
+  "home.improveNext": "What to improve next",
+  "home.improveCopy": "These are the changes most likely to improve customer satisfaction and save time.",
+  "home.recentWins": "Recent wins",
+  "home.savedCustomers": "Saved customers and good moments",
+  "home.serviceQuality": "Service quality",
+  "home.improveService": "Improve service",
+  "customers.title": "Customers",
+  "customers.subtitle": "Who contacted you, who needs a reply, and what to do next.",
+  "customers.focus": "Focus first on unhappy customers, unanswered questions, and warm leads.",
+  "customers.showNeedsHelp": "Show customers needing help",
+  "customers.listCopy": "The people who need a reply, decision, or follow-up.",
+  "customers.emptyTitle": "Your customers will show up here",
+  "customers.emptyCopy": "Chat and lead capture records will appear here as customers.",
+  "customers.emptyCopyConnected": "Leads, bookings, inbox threads, and follow-ups will appear here as customer records.",
+  "customers.all": "All customers",
+  "customers.needsReply": "Needs reply",
+  "customers.unhappy": "Unhappy",
+  "customers.leads": "Leads",
+  "customers.returning": "Returning",
+  "analytics.title": "Analytics",
+  "analytics.copy": "A simple customer-service performance report for your business.",
+  "analytics.serviceReport": "Service report",
+  "analytics.helping": "Is Vonza helping customer service?",
+  "analytics.totalConversations": "Total conversations",
+  "analytics.leadsCaptured": "Leads captured",
+  "analytics.complaintsHandled": "Complaints handled",
+  "analytics.estimatedSatisfaction": "Estimated customer satisfaction",
+  "analytics.estimatedHoursSaved": "Estimated hours saved",
+  "analytics.trends": "Trends",
+  "analytics.trendsTitle": "Customer conversations and successful actions",
+  "analytics.topInsights": "Top insights",
+  "analytics.standsOut": "What stands out right now",
+  "analytics.mostAsked": "Most asked question",
+  "analytics.peakHours": "Peak hours",
+  "analytics.doesBestAt": "Vonza does best at",
+  "analytics.needsImprovement": "Needs improvement",
+  "analytics.contactSummary": "Contact summary",
+  "analytics.talkingTo": "Who Vonza is talking to",
+  "analytics.guestUsers": "Guest users",
+  "analytics.identifiedUsers": "Identified users",
+  "analytics.emailUsers": "Email users",
+  "analytics.customerQuestions": "Customer questions",
+  "analytics.questionsAndWeakAnswers": "Top questions and weak answers",
+  "analytics.topQuestions": "Top questions",
+  "analytics.weakAreas": "Weak-answer areas",
+  "install.title": "Install",
+  "install.copyCode": "Copy code",
+  "install.publish": "Publish it",
+  "install.verify": "Verify and watch for live traffic",
+  "install.copyInstallCode": "Copy install code",
+  "install.copyInstructions": "Copy instructions",
+  "install.verifyInstallation": "Verify installation",
+  "install.testFrontDesk": "Test front desk",
+  "settings.title": "Settings",
+  "settings.copy": "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
+  "settings.theme": "Theme",
+  "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
+  "settings.light": "Light",
+  "settings.dark": "Dark",
+};
 const DEFAULT_LAUNCH_PROFILE = {
   mode: "public_cohort_v1",
   product: {
@@ -163,6 +273,8 @@ let dashboardHelpState = null;
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
+let dashboardLanguage = window.VonzaDashboardI18n?.getCachedLanguage?.() || "en";
+let dashboardLanguageLoadFailed = false;
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -1066,6 +1178,66 @@ function getClientId() {
 
 function normalizeDashboardTheme(value = "") {
   return trimText(value).toLowerCase() === "dark" ? "dark" : "light";
+}
+
+function normalizeDashboardLanguage(value = "") {
+  return window.VonzaDashboardI18n?.normalizeLanguage?.(value) || "en";
+}
+
+function getDashboardLanguage() {
+  return normalizeDashboardLanguage(dashboardLanguage);
+}
+
+function hasCachedDashboardLanguage() {
+  try {
+    const rawValue = window.localStorage.getItem(DASHBOARD_LANGUAGE_STORAGE_KEY);
+    return ["en", "hu"].includes(trimText(rawValue).toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function t(key, params = {}) {
+  if (window.VonzaDashboardI18n?.t) {
+    return window.VonzaDashboardI18n.t(key, params, getDashboardLanguage());
+  }
+
+  const template = DASHBOARD_ENGLISH_FALLBACKS[key] || key;
+  return String(template).replace(/\{(\w+)\}/g, (_match, name) => (
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : `{${name}}`
+  ));
+}
+
+function tn(key, count, params = {}) {
+  return t(key, { ...params, count });
+}
+
+function applyDashboardLanguage(language = getDashboardLanguage()) {
+  dashboardLanguage = normalizeDashboardLanguage(language);
+
+  if (document.documentElement) {
+    document.documentElement.lang = dashboardLanguage === "hu" ? "hu" : "en";
+  }
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardLanguage = dashboardLanguage;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardLanguage = dashboardLanguage;
+  }
+
+  return dashboardLanguage;
+}
+
+function cacheDashboardLanguage(language) {
+  const normalizedLanguage = applyDashboardLanguage(language);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_LANGUAGE_STORAGE_KEY, normalizedLanguage);
+  } catch {}
+
+  return normalizedLanguage;
 }
 
 function getDashboardTheme() {
@@ -1989,13 +2161,79 @@ function renderErrorState(title, copy) {
 
 function renderLoadingState() {
   renderTopbarMeta();
+  applyDashboardLanguage();
   rootEl.innerHTML = `
     <section class="dashboard-loading-screen" role="status" aria-live="polite">
       <div class="dashboard-loading-mark" aria-hidden="true">V</div>
-      <h1>Loading your workspace</h1>
-      <p>Getting your customer service dashboard ready.</p>
+      <h1>${escapeHtml(t("app.loading.title"))}</h1>
+      <p>${escapeHtml(t("app.loading.copy"))}</p>
     </section>
   `;
+}
+
+function renderDashboardLanguageChooser(errorMessage = "") {
+  renderTopbarMeta();
+  const currentLanguage = getDashboardLanguage();
+  const languages = window.VonzaDashboardI18n?.SUPPORTED_LANGUAGES || [
+    { code: "en", nativeLabel: "English" },
+    { code: "hu", nativeLabel: "Magyar" },
+  ];
+
+  rootEl.innerHTML = `
+    <section class="dashboard-language-screen">
+      <form class="dashboard-language-card" data-dashboard-language-first-run>
+        <div>
+          <p class="studio-kicker">Vonza</p>
+          <h1>${escapeHtml(t("language.title"))}</h1>
+          <p>${escapeHtml(t("language.subtitle"))}</p>
+        </div>
+        <div class="dashboard-language-options" role="radiogroup" aria-label="${escapeHtml(t("language.title"))}">
+          ${languages.map((language) => `
+            <label class="dashboard-language-option ${currentLanguage === language.code ? "active" : ""}">
+              <input
+                type="radio"
+                name="dashboard_language"
+                value="${escapeHtml(language.code)}"
+                ${currentLanguage === language.code ? "checked" : ""}
+              >
+              <span>${escapeHtml(language.nativeLabel || language.label)}</span>
+            </label>
+          `).join("")}
+        </div>
+        ${errorMessage ? `<p class="dashboard-language-error">${escapeHtml(errorMessage)}</p>` : ""}
+        <button class="primary-button" type="submit">${escapeHtml(t("language.continue"))}</button>
+      </form>
+    </section>
+  `;
+
+  const form = rootEl.querySelector("[data-dashboard-language-first-run]");
+  const submitButton = form?.querySelector('button[type="submit"]');
+
+  rootEl.querySelectorAll('input[name="dashboard_language"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      applyDashboardLanguage(input.value);
+      renderDashboardLanguageChooser();
+    });
+  });
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const selectedLanguage = normalizeDashboardLanguage(formData.get("dashboard_language"));
+
+    submitButton.disabled = true;
+    submitButton.textContent = t("language.saving");
+    setStatus(t("language.saving"));
+
+    try {
+      await saveDashboardLanguage(selectedLanguage);
+      setStatus(t("language.settingsSaved"));
+      await boot();
+    } catch (error) {
+      setStatus(error.message || t("language.error"));
+      renderDashboardLanguageChooser(error.message || t("language.error"));
+    }
+  });
 }
 
 async function confirmPaymentReturn() {
@@ -2794,26 +3032,26 @@ function buildSidebarShell(
   const coreItems = [
     {
       key: "overview",
-      label: "Home",
+      label: t("nav.home"),
       note: "Your clearest next steps, recent wins, and what needs attention.",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
-      label: "Customers",
+      label: t("nav.customers"),
       note: "People, follow-ups, and the latest customer progress.",
       badge: contactsAttention > 0 ? String(contactsAttention) : "",
       badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "customize",
-      label: "Front Desk",
+      label: t("nav.frontDesk"),
       note: "Preview the customer experience and launch readiness.",
     },
     {
       key: "analytics",
-      label: "Analytics",
+      label: t("nav.analytics"),
       note: "Signals, proof, weak spots, and business results.",
     },
   ].filter((item) => availableSections.includes(item.key));
@@ -2821,14 +3059,14 @@ function buildSidebarShell(
   const utilityItems = [
     {
       key: "install",
-      label: "Install",
+      label: t("nav.install"),
       note: "Go live on the website and verify the embed.",
       badge: isInstallSeen(installStatus) ? "" : "Go live",
       badgeTone: installTone,
     },
     {
       key: "settings",
-      label: "Settings",
+      label: t("nav.settings"),
       note: "Business profile, front desk, connected tools, and workspace.",
     },
   ].filter((item) => availableSections.includes(item.key));
@@ -2843,8 +3081,8 @@ function buildSidebarShell(
           <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add your website to personalize the Front Desk")}</p>
         </div>
       </div>
-      ${buildSidebarGroup("Primary", coreItems, activeSection)}
-      ${buildSidebarGroup("Connected Tools", [], activeSection, { note: "(coming soon)" })}
+      ${buildSidebarGroup(t("nav.primary"), coreItems, activeSection)}
+      ${buildSidebarGroup(t("nav.connectedTools"), [], activeSection, { note: `(${t("nav.comingSoon")})` })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
@@ -2857,10 +3095,10 @@ function buildSidebarShell(
           </div>
           <div class="sidebar-status-item">
             <span class="sidebar-status-label">Install</span>
-            <strong>${escapeHtml(installStatus.label || "Not installed yet")}</strong>
+            <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
           </div>
         </div>
-        ${buildSidebarGroup("Utilities", utilityItems, activeSection)}
+        ${buildSidebarGroup(t("nav.utilities"), utilityItems, activeSection)}
       </div>
     </aside>
   `;
@@ -3260,7 +3498,7 @@ function getCustomerName(contact = {}) {
   return getNamedCustomerIdentity(contact)
     || getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
-    || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
+    || (hasGuestCustomerActivity(contact) ? t("common.guestVisitor") : "")
     || "Unknown";
 }
 
@@ -3281,14 +3519,14 @@ function getCustomerIdentityLabel(contact = {}) {
     return "Named visitor";
   }
 
-  return "Guest visitor";
+  return t("common.guestVisitor");
 }
 
 function getCustomerIdentifier(contact = {}) {
   return getCustomerEmailLabel(contact.email)
     || trimText(contact.phone)
     || getNamedCustomerIdentity(contact)
-    || (hasGuestCustomerActivity(contact) ? "Guest visitor" : "")
+    || (hasGuestCustomerActivity(contact) ? t("common.guestVisitor") : "")
     || "No direct identifier yet";
 }
 
@@ -3322,7 +3560,7 @@ function getCustomerLastActivityLabel(contact = {}) {
     return formatSeenAt(lastCustomerMessageAt);
   }
 
-  return "No customer message yet";
+  return t("common.noCustomerMessage");
 }
 
 function isGuestCustomerRow(contact = {}) {
@@ -3589,10 +3827,10 @@ function buildCustomerFilterDefinitions(contacts = []) {
   const countMatching = (predicate) => contacts.filter(predicate).length;
 
   return [
-    { key: "all", label: "All customers", count: contacts.length },
-    { key: "needs_reply", label: "Needs reply", count: countMatching((contact) => contactNeedsReply(contact)) },
-    { key: "complaints", label: "Unhappy", count: countMatching((contact) => isComplaintContact(contact)) },
-    { key: "leads", label: "Leads", count: countMatching((contact) => isLeadContact(contact)) },
+    { key: "all", label: t("customers.all"), count: contacts.length },
+    { key: "needs_reply", label: t("customers.needsReply"), count: countMatching((contact) => contactNeedsReply(contact)) },
+    { key: "complaints", label: t("customers.unhappy"), count: countMatching((contact) => isComplaintContact(contact)) },
+    { key: "leads", label: t("customers.leads"), count: countMatching((contact) => isLeadContact(contact)) },
   ];
 }
 
@@ -3601,22 +3839,22 @@ function buildCustomerSummaryItems(contacts = []) {
 
   return [
     {
-      label: "Needs reply",
+      label: t("customers.needsReply"),
       value: countMatching((contact) => contactNeedsReply(contact)),
       copy: "People waiting on an answer, follow-up, or decision.",
     },
     {
-      label: "Unhappy",
+      label: t("customers.unhappy"),
       value: countMatching((contact) => isComplaintContact(contact)),
       copy: "Unhappy or at-risk conversations that should not sit idle.",
     },
     {
-      label: "Leads",
+      label: t("customers.leads"),
       value: countMatching((contact) => isLeadContact(contact)),
       copy: "People showing buying intent or asking for next-step details.",
     },
     {
-      label: "Returning",
+      label: t("customers.returning"),
       value: countMatching((contact) => isReturningContact(contact)),
       copy: "Existing relationships where prior context should shape the next reply.",
     },
@@ -3769,7 +4007,7 @@ function buildCustomerChatPanel(contact = {}) {
   if (!messages.length) {
     return `
       <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
-        <div class="customer-chat-empty">No saved chat messages yet.</div>
+        <div class="customer-chat-empty">${escapeHtml(t("common.noSavedChat"))}</div>
       </div>
     `;
   }
@@ -3780,10 +4018,10 @@ function buildCustomerChatPanel(contact = {}) {
         ${messages.map((message) => `
           <div class="customer-chat-message customer-chat-message--${escapeHtml(message.role === "vonza" ? "vonza" : "customer")}">
             <div class="customer-chat-message-meta">
-              <strong>${escapeHtml(message.label === "Vonza" ? "Vonza" : "Customer")}</strong>
+              <strong>${escapeHtml(message.label === "Vonza" ? t("common.vonza") : t("common.customer"))}</strong>
               ${message.createdAt ? `<span>${escapeHtml(formatSeenAt(message.createdAt))}</span>` : ""}
             </div>
-            <p>${escapeHtml(trimText(message.content) || "No message text saved.")}</p>
+            <p>${escapeHtml(trimText(message.content) || t("common.noMessageText"))}</p>
           </div>
         `).join("")}
       </div>
@@ -3827,7 +4065,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
           </div>
         </div>
         <div class="customer-row-meta">
-          <span class="customer-row-meta-label">Last message</span>
+          <span class="customer-row-meta-label">${escapeHtml(t("common.lastMessage"))}</span>
           <strong class="customer-row-meta-value">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
           <button
             class="ghost-button customer-chat-toggle"
@@ -3836,7 +4074,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             data-contact-id="${escapeHtml(contact.id || "")}"
             aria-expanded="false"
             ${canShowChat ? "" : "disabled"}
-          >${canShowChat ? "View chat" : "No chat yet"}</button>
+          >${canShowChat ? t("common.viewChat") : t("common.noChatYet")}</button>
         </div>
       </div>
       ${buildCustomerChatPanel(contact)}
@@ -4037,14 +4275,14 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const peopleWorkspaceMarkup = `
     <div class="customers-page-topbar">
       <div class="customers-page-copy">
-        <h2 class="customers-page-title">Customers</h2>
-        <p class="customers-page-subtitle">Who contacted you, who needs a reply, and what to do next.</p>
+        <h2 class="customers-page-title">${escapeHtml(t("customers.title"))}</h2>
+        <p class="customers-page-subtitle">${escapeHtml(t("customers.subtitle"))}</p>
       </div>
     </div>
     ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
     <section class="customer-focus-banner">
-      <p class="workspace-panel-title">Focus first on unhappy customers, unanswered questions, and warm leads.</p>
-      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">Show customers needing help</button>
+      <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
+      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">${escapeHtml(t("customers.showNeedsHelp"))}</button>
     </section>
     <div class="customer-filter-strip" data-customer-filter-strip>
       ${customerFilters.map((filter, index) => `
@@ -4058,7 +4296,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         <div class="contacts-list-header">
           <div>
             <h3 class="flat-section-title">Customers</h3>
-            <p class="workspace-panel-copy">The people who need a reply, decision, or follow-up.</p>
+            <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
           </div>
         </div>
         <div class="contacts-list" data-contact-filter-results>
@@ -4074,10 +4312,10 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         <div class="workspace-section-stack">
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Some contact history is still loading: ${contactsHealth.loadError}`)}</p></div>` : ""}
           ${!contacts.length ? buildOperatorEmptyState({
-            title: "Your customers will show up here",
+            title: t("customers.emptyTitle"),
             copy: operatorWorkspace.status?.googleConnected
-              ? "Leads, bookings, inbox threads, and follow-ups will appear here as customer records."
-              : "Chat and lead capture records will appear here as customers.",
+              ? t("customers.emptyCopyConnected")
+              : t("customers.emptyCopy"),
           }) : peopleWorkspaceMarkup}
         </div>
       </div>
@@ -5782,17 +6020,21 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
   const primaryHomeAction = priorityCards[0]?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
   const summarySentence = conversationsToday || customersHelpedToday || openIssueCount
-    ? `So far today, Vonza handled ${countLabel(conversationsToday, "conversation")}, guided ${countLabel(customersHelpedToday, "customer")} to a next step or recorded outcome, and flagged ${countLabel(openIssueCount, "issue")} that still need attention.`
-    : "Home is ready. As soon as customers start using Vonza today, this page will highlight what matters first.";
+    ? t("home.summary", {
+      conversations: countLabel(conversationsToday, "conversation"),
+      customers: countLabel(customersHelpedToday, "customer"),
+      issues: countLabel(openIssueCount, "issue"),
+    })
+    : t("home.ready");
   const dailyStats = [
     {
-      label: "Conversations today",
+      label: t("home.conversationsToday"),
       value: String(conversationsToday),
       copy: conversationsToday > 0 ? "Live customer messages handled today." : "No conversations recorded yet today.",
       tone: "neutral",
     },
     {
-      label: "Guided to next step",
+      label: t("home.guidedNextStep"),
       value: String(customersHelpedToday),
       copy: customersHelpedToday > 0
         ? "Unique customers with a booking, follow-up, or recorded outcome today."
@@ -5800,13 +6042,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "positive",
     },
     {
-      label: "Open issues",
+      label: t("home.openIssues"),
       value: String(openIssueCount),
       copy: openIssueCount > 0 ? "Complaints or service issues still needing attention." : "No active service issue signal is standing out.",
       tone: openIssueCount > 0 ? "attention" : "positive",
     },
     {
-      label: "Customer satisfaction",
+      label: t("home.customerSatisfaction"),
       value: serviceHealth.label,
       copy: serviceHealth.copy,
       tone: serviceHealth.tone,
@@ -5926,14 +6168,14 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   return `
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
-        title: "Home",
-        copy: "Your AI customer service snapshot for today",
+        title: t("home.title"),
+        copy: t("home.copy"),
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack home-surface">
           <section class="home-daily-banner">
             <div class="home-daily-banner-copy">
-              <p class="home-daily-banner-kicker">Daily snapshot</p>
+              <p class="home-daily-banner-kicker">${escapeHtml(t("home.dailySnapshot"))}</p>
               <h2 class="home-daily-banner-title">${escapeHtml(summarySentence)}</h2>
             </div>
             <div class="home-daily-banner-actions">
@@ -5955,9 +6197,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             <section class="workspace-card-soft home-priority-panel">
               <div class="workspace-panel-header">
                 <div>
-                  <p class="studio-kicker">AI priorities</p>
-                  <h3 class="workspace-panel-title">What to improve next</h3>
-                  <p class="workspace-panel-copy">These are the changes most likely to improve customer satisfaction and save time.</p>
+                  <p class="studio-kicker">${escapeHtml(t("home.aiPriorities"))}</p>
+                  <h3 class="workspace-panel-title">${escapeHtml(t("home.improveNext"))}</h3>
+                  <p class="workspace-panel-copy">${escapeHtml(t("home.improveCopy"))}</p>
                 </div>
               </div>
               <div class="home-priority-list">
@@ -5980,8 +6222,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <section class="workspace-card-soft home-mini-panel">
                 <div class="workspace-panel-header">
                   <div>
-                    <p class="studio-kicker">Recent wins</p>
-                    <h3 class="workspace-panel-title">Saved customers and good moments</h3>
+                    <p class="studio-kicker">${escapeHtml(t("home.recentWins"))}</p>
+                    <h3 class="workspace-panel-title">${escapeHtml(t("home.savedCustomers"))}</h3>
                     <p class="workspace-panel-copy">Small proof that Vonza is helping today without making you dig through analytics.</p>
                   </div>
                 </div>
@@ -6004,8 +6246,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <section class="workspace-card-soft home-improve-panel">
                 <div class="workspace-panel-header">
                   <div>
-                    <p class="studio-kicker">Service quality</p>
-                    <h3 class="workspace-panel-title">Improve service</h3>
+                    <p class="studio-kicker">${escapeHtml(t("home.serviceQuality"))}</p>
+                    <h3 class="workspace-panel-title">${escapeHtml(t("home.improveService"))}</h3>
                     <p class="workspace-panel-copy">${escapeHtml(improvementRecommendation.title)}</p>
                   </div>
                 </div>
@@ -6493,6 +6735,12 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
     getWorkspaceMode,
     normalizeAccessStatus,
     getDefaultInstallStatus,
+    t,
+    getDashboardLanguage,
+    getSupportedDashboardLanguages: () => window.VonzaDashboardI18n?.SUPPORTED_LANGUAGES || [
+      { code: "en", nativeLabel: "English" },
+      { code: "hu", nativeLabel: "Magyar" },
+    ],
   });
 }
 
@@ -6753,20 +7001,20 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
 function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const actionsMarkup = [
-    `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>Copy install code</button>`,
-    `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>Verify installation</button>`,
+    `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>`,
+    `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
   ].join("");
 
   return `
     <section class="workspace-page" data-shell-section="install" hidden>
       ${buildPageHeader({
-        eyebrow: "Utilities",
-        title: "Install",
+        eyebrow: t("nav.utilities"),
+        title: t("install.title"),
         copy: "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.",
         badges: [
           { label: setup.isReady ? "Front desk ready for launch" : "Front desk still needs setup", tone: setup.isReady ? "Ready" : "Limited" },
           {
-            label: installStatus.label || "Not installed yet",
+            label: installStatus.label || t("common.notInstalled"),
             tone: isInstallSeen(installStatus)
               ? "Ready"
               : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
@@ -7185,49 +7433,49 @@ function localizeQuestionSummary(language = "en", english = "", hungarian = "") 
 
 function summarizeCustomerQuestionIntent(message = "") {
   const text = trimText(String(message || "")).toLowerCase();
-  const language = getQuestionSummaryLanguage(text);
+  const language = getDashboardLanguage() || getQuestionSummaryLanguage(text);
 
   if (!text) {
-    return localizeQuestionSummary(language, "Trying to clarify the next customer-service step", "A kovetkezo ugyfelszolgalati lepes tisztazasa");
+    return localizeQuestionSummary(language, "Trying to clarify the next customer-service step", "A következő ügyfélszolgálati lépést próbálja tisztázni");
   }
 
   if (includesAnyPattern(text, [/\b(contact|reach|call|email|phone|talk to|speak to|get in touch|someone)\b/i, /\b(kapcsolat|telefon|email|e-mail|hiv|hivni|eler|elerni|beszelni)\b/i])) {
-    return localizeQuestionSummary(language, "Asking how to contact the business directly", "Kozvetlen kapcsolatfelveteli lehetoseget keres");
+    return localizeQuestionSummary(language, "Asking how to contact the business directly", "Közvetlen kapcsolatfelvételi lehetőséget keres");
   }
 
   if (includesAnyPattern(text, [/\b(price|pricing|cost|quote|estimate|fee|how much|package|plan)\b/i, /\b(ar|arak|ara|arajanlat|mennyibe|koltseg|dij|csomag)\b/i])) {
-    return localizeQuestionSummary(language, "Requesting pricing or quote details", "Arakat vagy arajanlat reszleteit keri");
+    return localizeQuestionSummary(language, "Requesting pricing or quote details", "Árakat vagy árajánlat részleteit kéri");
   }
 
   if (includesAnyPattern(text, [/\b(book|booking|appointment|schedule|availability|reserve|consultation|available)\b/i, /\b(idopont|foglal|foglalo|bejelentkez|szabad|elerheto|konzultacio)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for booking or availability", "Idopontot vagy elerhetoseget keres");
+    return localizeQuestionSummary(language, "Looking for booking or availability", "Időpontot vagy elérhetőséget keres");
   }
 
   if (includesAnyPattern(text, [/\b(webshop|online store|ecommerce|e-commerce|cart|checkout|order online|purchase online)\b/i, /\b(webaruhaz|webshop|online rendeles|kosar|rendeles|online vasarlas)\b/i])) {
-    return localizeQuestionSummary(language, "Asking about webshop options and next steps", "Webaruhaz opciokat es kovetkezo lepeseket keres");
+    return localizeQuestionSummary(language, "Asking about webshop options and next steps", "Webáruház lehetőségekről és következő lépésekről érdeklődik");
   }
 
   if (includesAnyPattern(text, [/\b(delivery|shipping|ship|turnaround|lead time|how long|when can|arrival|deliver)\b/i, /\b(szallitas|kiszallitas|mennyi ido|mikor|hatarido|erkezik|atfutas)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for delivery timing or service turnaround", "Szallitasi vagy teljesitesi idot keres");
+    return localizeQuestionSummary(language, "Looking for delivery timing or service turnaround", "Szállítási vagy teljesítési időt keres");
   }
 
   if (includesAnyPattern(text, [/\b(open|hours|opening|closed|holiday|weekend)\b/i, /\b(nyitva|nyitvatartas|zarva|hetvege|unnepnap)\b/i])) {
-    return localizeQuestionSummary(language, "Checking opening hours or customer-service availability", "Nyitvatartast vagy ugyfelszolgalati elerhetoseget ellenoriz");
+    return localizeQuestionSummary(language, "Checking opening hours or customer-service availability", "Nyitvatartást vagy ügyfélszolgálati elérhetőséget ellenőriz");
   }
 
   if (includesAnyPattern(text, [/\b(location|address|near|area|serve|service area|where are)\b/i, /\b(cim|helyszin|kozel|terulet|kiszall|hol|varos)\b/i])) {
-    return localizeQuestionSummary(language, "Checking location or service-area coverage", "Helyszint vagy kiszolgalasi teruletet ellenoriz");
+    return localizeQuestionSummary(language, "Checking location or service-area coverage", "Helyszínt vagy kiszolgálási területet ellenőriz");
   }
 
   if (includesAnyPattern(text, [/\b(service|services|offer|provide|help with|do you do|which service|fit my needs|product)\b/i, /\b(szolgaltatas|kinal|vallal|miben tud|melyik szolgaltatas|termek)\b/i])) {
-    return localizeQuestionSummary(language, "Checking whether the business offers a specific service", "Azt ellenorzi, hogy elerheto-e egy konkret szolgaltatas");
+    return localizeQuestionSummary(language, "Checking whether the business offers a specific service", "Azt ellenőrzi, hogy elérhető-e egy konkrét szolgáltatás");
   }
 
   if (includesAnyPattern(text, [/\b(cancel|refund|warranty|guarantee|return|policy|problem|issue|support)\b/i, /\b(lemondas|visszaterites|garancia|problema|hiba|panasz|segitseg)\b/i])) {
-    return localizeQuestionSummary(language, "Looking for help with a support or policy issue", "Tamogatasra vagy szabalyzati kerdesre keres valaszt");
+    return localizeQuestionSummary(language, "Looking for help with a support or policy issue", "Támogatásra vagy szabályzati kérdésre keres választ");
   }
 
-  return localizeQuestionSummary(language, "Trying to understand which service fits their needs", "Azt probalja tisztazni, melyik szolgaltatas illik az igenyeihez");
+  return localizeQuestionSummary(language, "Trying to understand which service fits their needs", "Azt próbálja tisztázni, melyik szolgáltatás illik az igényeihez");
 }
 
 function getQuestionThemeLabel(question, intent = "general") {
@@ -10158,16 +10406,16 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   return `
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
-        title: "Analytics",
-        copy: "A simple customer-service performance report for your business.",
+        title: t("analytics.title"),
+        copy: t("analytics.copy"),
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
           ${syncPendingMarkup}
           <section class="workspace-card-soft analytics-report-overview">
             <div>
-              <p class="analytics-report-kicker">Service report</p>
-              <h2 class="analytics-report-title">Is Vonza helping customer service?</h2>
+              <p class="analytics-report-kicker">${escapeHtml(t("analytics.serviceReport"))}</p>
+              <h2 class="analytics-report-title">${escapeHtml(t("analytics.helping"))}</h2>
               <p class="analytics-report-copy">${escapeHtml(report.summarySentence)}</p>
             </div>
             <div class="analytics-report-overview-pills">
@@ -10179,7 +10427,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           <section class="analytics-report-metric-grid">
             ${[
               {
-                label: "Total conversations",
+                label: t("analytics.totalConversations"),
                 value: formatAnalyticsReportNumber(report.conversationCount),
                 note: analyticsSummary.syncState === "pending"
                   ? "Refreshing from live usage"
@@ -10187,7 +10435,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.conversationCount > 0 ? "positive" : "neutral",
               },
               {
-                label: "Leads captured",
+                label: t("analytics.leadsCaptured"),
                 value: formatAnalyticsReportNumber(report.contactsCaptured),
                 note: report.highIntentSignals > report.contactsCaptured
                   ? `${formatAnalyticsReportNumber(report.highIntentSignals - report.contactsCaptured)} warm chats still anonymous`
@@ -10195,7 +10443,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.contactsCaptured > 0 ? "positive" : "neutral",
               },
               {
-                label: "Complaints handled",
+                label: t("analytics.complaintsHandled"),
                 value: formatAnalyticsReportNumber(report.complaintsHandled),
                 note: report.complaintOpened > 0
                   ? `${formatAnalyticsReportNumber(report.unresolvedComplaints)} unresolved of ${formatAnalyticsReportNumber(report.complaintOpened)} recorded`
@@ -10203,7 +10451,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
               },
               {
-                label: "Estimated customer satisfaction",
+                label: t("analytics.estimatedSatisfaction"),
                 value: report.conversationCount > 0 ? formatAnalyticsReportScore(report.satisfactionScore) : "Early",
                 note: report.conversationCount > 0
                   ? report.satisfactionScore >= 4.3
@@ -10215,7 +10463,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 tone: report.satisfactionScore >= 4.3 ? "positive" : report.satisfactionScore >= 3.7 ? "watch" : "risk",
               },
               {
-                label: "Estimated hours saved",
+                label: t("analytics.estimatedHoursSaved"),
                 value: formatAnalyticsReportHours(report.estimatedHoursSaved),
                 note: "Estimated from customer questions Vonza handled itself",
                 tone: report.estimatedHoursSaved > 0 ? "positive" : "neutral",
@@ -10232,8 +10480,8 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             <section class="workspace-card-soft analytics-report-primary">
               <div class="flat-section-header">
                 <div>
-                  <p class="overview-label">Trends</p>
-                  <h3 class="flat-section-title">Customer conversations and successful actions</h3>
+                  <p class="overview-label">${escapeHtml(t("analytics.trends"))}</p>
+                  <h3 class="flat-section-title">${escapeHtml(t("analytics.trendsTitle"))}</h3>
                   <p class="analytics-report-section-copy">See whether support demand and completed next steps are moving in the right direction.</p>
                 </div>
               </div>
@@ -10243,16 +10491,16 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <section class="workspace-card-soft">
                 <div class="flat-section-header">
                   <div>
-                    <p class="overview-label">Top insights</p>
-                    <h3 class="flat-section-title">What stands out right now</h3>
+                    <p class="overview-label">${escapeHtml(t("analytics.topInsights"))}</p>
+                    <h3 class="flat-section-title">${escapeHtml(t("analytics.standsOut"))}</h3>
                   </div>
                 </div>
                 <div class="analytics-report-insights">
                   ${[
-                    { label: "Most asked question", value: report.mostAskedQuestion, tone: "conversations" },
-                    { label: "Peak hours", value: report.peakHours, tone: "actions" },
-                    { label: "Vonza does best at", value: report.bestArea, tone: "positive" },
-                    { label: "Needs improvement", value: report.improvementArea, tone: "risk" },
+                    { label: t("analytics.mostAsked"), value: report.mostAskedQuestion, tone: "conversations" },
+                    { label: t("analytics.peakHours"), value: report.peakHours, tone: "actions" },
+                    { label: t("analytics.doesBestAt"), value: report.bestArea, tone: "positive" },
+                    { label: t("analytics.needsImprovement"), value: report.improvementArea, tone: "risk" },
                   ].map((item) => `
                     <div class="analytics-report-insight">
                       <span class="analytics-report-insight-dot tone-${item.tone}"></span>
@@ -10267,21 +10515,21 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <section class="workspace-card-soft">
                 <div class="flat-section-header">
                   <div>
-                    <p class="overview-label">Contact summary</p>
-                    <h3 class="flat-section-title">Who Vonza is talking to</h3>
+                    <p class="overview-label">${escapeHtml(t("analytics.contactSummary"))}</p>
+                    <h3 class="flat-section-title">${escapeHtml(t("analytics.talkingTo"))}</h3>
                   </div>
                 </div>
                 <div class="analytics-report-contact-grid">
                   <div class="analytics-report-contact-card">
-                    <span>Guest users</span>
+                    <span>${escapeHtml(t("analytics.guestUsers"))}</span>
                     <strong>${escapeHtml(formatAnalyticsReportNumber(report.guestUsers))}</strong>
                   </div>
                   <div class="analytics-report-contact-card">
-                    <span>Identified users</span>
+                    <span>${escapeHtml(t("analytics.identifiedUsers"))}</span>
                     <strong>${escapeHtml(formatAnalyticsReportNumber(report.identifiedUsers))}</strong>
                   </div>
                   <div class="analytics-report-contact-card">
-                    <span>Email users</span>
+                    <span>${escapeHtml(t("analytics.emailUsers"))}</span>
                     <strong>${escapeHtml(formatAnalyticsReportNumber(report.emailUsers))}</strong>
                   </div>
                 </div>
@@ -10292,9 +10540,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           <section class="workspace-card-soft">
             <div class="flat-section-header">
               <div>
-                <p class="overview-label">Improve next</p>
-                <h3 class="flat-section-title">What to improve next</h3>
-                <p class="analytics-report-section-copy">These are the changes most likely to improve customer satisfaction and save time.</p>
+                <p class="overview-label">${escapeHtml(t("home.improveNext"))}</p>
+                <h3 class="flat-section-title">${escapeHtml(t("home.improveNext"))}</h3>
+                <p class="analytics-report-section-copy">${escapeHtml(t("home.improveCopy"))}</p>
               </div>
             </div>
             <div class="analytics-report-recommendations">
@@ -10312,14 +10560,14 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           <section class="workspace-card-soft">
             <div class="flat-section-header">
               <div>
-                <p class="overview-label">Customer questions</p>
-                <h3 class="flat-section-title">Top questions and weak answers</h3>
+                <p class="overview-label">${escapeHtml(t("analytics.customerQuestions"))}</p>
+                <h3 class="flat-section-title">${escapeHtml(t("analytics.questionsAndWeakAnswers"))}</h3>
                 <p class="analytics-report-section-copy">Use this to improve the answers customers see most often.</p>
               </div>
             </div>
             <div class="analytics-report-swot-grid">
               <article class="analytics-report-swot-item tone-neutral">
-                <span>Top questions</span>
+                <span>${escapeHtml(t("analytics.topQuestions"))}</span>
                 ${topQuestionItems.length ? `
                   <div class="analytics-question-list">
                     ${topQuestionItems.map((item) => `
@@ -10329,7 +10577,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 ` : `<p>No repeated customer question is standing out yet.</p>`}
               </article>
               <article class="analytics-report-swot-item tone-${weakAnswerItems.length ? "risk" : "positive"}">
-                <span>Weak-answer areas</span>
+                <span>${escapeHtml(t("analytics.weakAreas"))}</span>
                 ${weakAnswerItems.length ? `
                   <div class="analytics-question-list">
                     ${weakAnswerItems.map((item) => `<p>${escapeHtml(item)}</p>`).join("")}
@@ -11341,7 +11589,7 @@ function buildInstallSection(agent, options = {}) {
       <div class="install-step">
         <div class="install-step-number">1</div>
         <div>
-          <p class="install-step-title">Copy code</p>
+          <p class="install-step-title">${escapeHtml(t("install.copyCode"))}</p>
           <p class="install-step-copy">Use the stable head snippet with your install id so Vonza can verify the right site.</p>
         </div>
         <div class="step-check ${progress.codeCopied ? "done" : ""}">${progress.codeCopied ? "Done" : "Pending"}</div>
@@ -11349,7 +11597,7 @@ function buildInstallSection(agent, options = {}) {
       <div class="install-step">
         <div class="install-step-number">2</div>
         <div>
-          <p class="install-step-title">Publish it</p>
+          <p class="install-step-title">${escapeHtml(t("install.publish"))}</p>
           <p class="install-step-copy">Paste it into the live site head, theme layout, or global custom code area.</p>
         </div>
         <div class="step-check ${publishDone ? "done" : ""}">${publishDone ? "Detected" : "Pending"}</div>
@@ -11357,17 +11605,17 @@ function buildInstallSection(agent, options = {}) {
       <div class="install-step">
         <div class="install-step-number">3</div>
         <div>
-          <p class="install-step-title">Verify and watch for live traffic</p>
+          <p class="install-step-title">${escapeHtml(t("install.verify"))}</p>
           <p class="install-step-copy">Run the server check, then wait for the widget to ping back from a real page load.</p>
         </div>
         <div class="step-check ${verifyDone ? "done" : ""}">${verifyDone ? "Ready" : "Pending"}</div>
       </div>
     </div>
     <div class="install-cta-row">
-      <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy install code</button>
-      <button class="ghost-button" data-action="copy-install-instructions" ${hasInstall ? "" : "disabled"}>Copy instructions</button>
-      <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>Verify installation</button>
-      <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test front desk</a>
+      <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>
+      <button class="ghost-button" data-action="copy-install-instructions" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstructions"))}</button>
+      <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
+      <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(t("install.testFrontDesk"))}</a>
     </div>
     <p class="install-help">${hasInstall ? "Keep it simple: place the script in the live site head. Vonza will verify the snippet server-side and mark the install live once a real page load pings back." : "Install will be available as soon as your front desk has a live install id."}</p>
     <details class="code-toggle">
@@ -11517,6 +11765,30 @@ async function loadAgents() {
   };
 }
 
+async function loadDashboardPreferences() {
+  return fetchJson("/dashboard/preferences");
+}
+
+async function saveDashboardLanguage(language) {
+  const normalizedLanguage = normalizeDashboardLanguage(language);
+  const data = await fetchJson("/dashboard/preferences", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      dashboard_language: normalizedLanguage,
+    }),
+  });
+
+  if (data?.ok !== true || normalizeDashboardLanguage(data.dashboardLanguage) !== normalizedLanguage) {
+    throw new Error(t("language.error"));
+  }
+
+  cacheDashboardLanguage(normalizedLanguage);
+  return normalizedLanguage;
+}
+
 async function loadAgentMessages(agentId) {
   const url = new URL("/agents/messages", window.location.origin);
   url.searchParams.set("agent_id", agentId);
@@ -11537,6 +11809,7 @@ async function loadActionQueue(agentId) {
   const url = new URL("/agents/action-queue", window.location.origin);
   url.searchParams.set("agent_id", agentId);
   url.searchParams.set("client_id", getClientId());
+  url.searchParams.set("dashboard_language", getDashboardLanguage());
   const data = await fetchJson(url.toString());
   return {
     items: Array.isArray(data.items) ? data.items : [],
@@ -12893,6 +13166,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
+  const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
   const helpCloseButtons = document.querySelectorAll("[data-help-close]");
@@ -13411,7 +13685,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     customerChatToggleButtons.forEach((toggleButton) => {
       toggleButton.setAttribute("aria-expanded", "false");
       if (!toggleButton.disabled) {
-        toggleButton.textContent = "View chat";
+        toggleButton.textContent = t("common.viewChat");
       }
     });
 
@@ -13421,7 +13695,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
     panel.hidden = false;
     button.setAttribute("aria-expanded", "true");
-    button.textContent = "Hide chat";
+    button.textContent = t("common.hideChat");
     selectContact(contactId);
   };
 
@@ -14074,6 +14348,57 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       const savedTheme = saveDashboardTheme(input.value);
       setStatus(savedTheme === "dark" ? "Dashboard theme set to dark." : "Dashboard theme set to light.");
+    });
+  });
+
+  dashboardLanguageForms.forEach((form) => {
+    const saveState = form.querySelector("[data-save-state]");
+    const select = form.querySelector('select[name="dashboard_language"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const initialLanguage = normalizeDashboardLanguage(select?.value);
+
+    form.addEventListener("change", () => {
+      if (!saveState || !select) {
+        return;
+      }
+
+      const hasChanged = normalizeDashboardLanguage(select.value) !== initialLanguage;
+      saveState.textContent = hasChanged ? t("language.unsaved") : t("language.noChanges");
+      saveState.className = hasChanged ? "save-state unsaved" : "save-state";
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const nextLanguage = normalizeDashboardLanguage(select?.value);
+
+      submitButton.disabled = true;
+      if (saveState) {
+        saveState.textContent = t("language.saving");
+        saveState.className = "save-state saving";
+        saveState.removeAttribute("title");
+      }
+      setStatus(t("language.saving"));
+
+      try {
+        await saveDashboardLanguage(nextLanguage);
+        setStatus(t("language.settingsSaved"));
+        if (saveState) {
+          saveState.textContent = t("language.settingsSaved");
+          saveState.className = "save-state saved";
+          saveState.removeAttribute("title");
+        }
+        renderWorkspaceFromState();
+      } catch (error) {
+        const message = error.message || t("language.settingsError");
+        setStatus(message);
+        if (saveState) {
+          saveState.textContent = t("language.settingsError");
+          saveState.className = "save-state unsaved";
+          saveState.title = message;
+        }
+      } finally {
+        submitButton.disabled = false;
+      }
     });
   });
 
@@ -15077,6 +15402,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
 // Dashboard bootstrapping
 async function boot() {
+  applyDashboardLanguage();
   trackProductEvent("dashboard_arrived", {
     onceKey: "dashboard_arrived",
     metadata: {
@@ -15198,6 +15524,32 @@ async function boot() {
       );
       renderAccessLocked(agent);
       return;
+    }
+
+    try {
+      const preferences = await loadDashboardPreferences();
+      dashboardLanguageLoadFailed = false;
+
+      if (preferences.persistenceAvailable === false) {
+        dashboardLanguageLoadFailed = true;
+        if (!hasCachedDashboardLanguage()) {
+          applyDashboardLanguage("en");
+        }
+        setStatus(t("language.settingsError"));
+      } else if (preferences.dashboardLanguage) {
+        cacheDashboardLanguage(preferences.dashboardLanguage);
+      } else if (preferences.persistenceAvailable === true && !hasCachedDashboardLanguage()) {
+        renderDashboardLanguageChooser();
+        return;
+      } else {
+        applyDashboardLanguage(getDashboardLanguage());
+      }
+    } catch (error) {
+      dashboardLanguageLoadFailed = true;
+      if (!hasCachedDashboardLanguage()) {
+        applyDashboardLanguage("en");
+      }
+      setStatus(t("language.settingsError"));
     }
 
     const [messagesResult, actionQueueResult, operatorResult] = await Promise.allSettled([

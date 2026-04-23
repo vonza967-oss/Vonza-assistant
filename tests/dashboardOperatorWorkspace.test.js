@@ -52,6 +52,7 @@ function createFakeElement(id) {
 }
 
 function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
+  const i18nScript = readFileSync(path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js"), "utf8");
   const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
@@ -154,6 +155,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   };
   context.globalThis = context;
 
+  vm.runInNewContext(i18nScript, context, { filename: "frontend/i18n/dashboardI18n.js" });
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
@@ -241,6 +243,84 @@ test("dashboard theme defaults to light, persists dark mode, and renders Setting
   assert.match(settingsPanel, /Theme/);
   assert.match(settingsPanel, /data-dashboard-theme-choice/);
   assert.match(settingsPanel, /value="dark"[\s\S]*checked/);
+});
+
+test("first-time dashboard language chooser renders and translation fallback is safe", () => {
+  const harness = createDashboardHarness();
+
+  assert.equal(harness.t("nav.home"), "Home");
+  assert.equal(harness.t("missing.translation.key"), "missing.translation.key");
+
+  harness.renderDashboardLanguageChooser();
+  const chooser = harness.document.getElementById("dashboard-root").innerHTML;
+
+  assert.match(chooser, /Choose your dashboard language/);
+  assert.match(chooser, /English/);
+  assert.match(chooser, /Magyar/);
+  assert.match(chooser, /Continue/);
+});
+
+test("Hungarian dashboard language translates navigation, customer labels, settings, and analytics labels", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  harness.cacheDashboardLanguage("hu");
+
+  const agent = {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza",
+    installStatus: { state: "not_installed", label: "Not installed yet" },
+  };
+  const setup = harness.inferSetup({
+    ...agent,
+    websiteUrl: "https://example.com",
+    publicAgentKey: "agent-key",
+    welcomeMessage: "Hello",
+    tone: "friendly",
+    knowledge: { state: "ready" },
+  });
+  const workspace = harness.createEmptyOperatorWorkspace();
+  workspace.contacts.list = [
+    {
+      id: "contact-1",
+      partialIdentity: true,
+      sources: ["chat"],
+      chatMessages: [
+        { role: "customer", label: "Customer", content: "Hello", createdAt: "2026-04-03T09:00:00.000Z" },
+        { role: "vonza", label: "Vonza", content: "Hi", createdAt: "2026-04-03T09:00:05.000Z" },
+      ],
+    },
+  ];
+
+  const sidebar = harness.buildSidebarShell(agent, setup, harness.createEmptyActionQueue(), workspace, "overview");
+  const contacts = harness.buildContactsPanel(agent, workspace);
+  const settings = harness.buildSettingsPanel(agent, setup, workspace);
+  const analytics = harness.buildAnalyticsPanel(agent, [], setup, harness.createEmptyActionQueue(), workspace);
+
+  assert.match(sidebar, /Kezdőlap/);
+  assert.match(sidebar, /Ügyfelek/);
+  assert.match(sidebar, /Elemzések/);
+  assert.match(sidebar, /Beállítások/);
+  assert.match(contacts, /Utolsó üzenet/);
+  assert.match(contacts, /Chat megnyitása/);
+  assert.match(contacts, /Vendég látogató/);
+  assert.match(contacts, /Ügyfél/);
+  assert.match(contacts, /Vonza/);
+  assert.match(settings, /Irányítópult nyelve/);
+  assert.match(analytics, /Becsült ügyfél-elégedettség/);
+});
+
+test("dashboard language preference requests stay separate from widget reply language", () => {
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const chatPrompt = readFileSync(path.join(repoRoot, "src", "services", "chat", "prompting.js"), "utf8");
+
+  assert.match(dashboardScript, /vonza_dashboard_language/);
+  assert.match(dashboardScript, /\/dashboard\/preferences/);
+  assert.doesNotMatch(chatPrompt, /dashboard_language|vonza_dashboard_language/);
+  assert.match(chatPrompt, /same language as the customer's latest message/);
 });
 
 test("home AI priorities translate raw signals into practical business recommendations", () => {
