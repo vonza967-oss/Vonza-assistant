@@ -234,6 +234,14 @@
           ? options.getDefaultInstallStatus
           : defaultInstallStatus,
       t: typeof options.t === "function" ? options.t : defaultTranslate,
+      translateDashboardText:
+        typeof options.translateDashboardText === "function"
+          ? options.translateDashboardText
+          : (value) => String(value ?? ""),
+      localizeDashboardHtml:
+        typeof options.localizeDashboardHtml === "function"
+          ? options.localizeDashboardHtml
+          : (html) => String(html ?? ""),
       getDashboardLanguage:
         typeof options.getDashboardLanguage === "function"
           ? options.getDashboardLanguage
@@ -271,7 +279,7 @@
   }
 
   function buildDesktopSettingsNav(activeSettingsSection, helpers) {
-    const { escapeHtml, t } = helpers;
+    const { escapeHtml, t, translateDashboardText } = helpers;
 
     return `
       <div class="settings-shell-nav-group" data-settings-nav="desktop">
@@ -283,8 +291,8 @@
               type="button"
               data-settings-target="${escapeHtml(section.key)}"
               aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
-              title="${escapeHtml(section.note)}"
-            >${escapeHtml(section.label)}</button>
+              title="${escapeHtml(translateDashboardText(section.note))}"
+            >${escapeHtml(translateDashboardText(section.label))}</button>
           `).join("")}
         </div>
       </div>
@@ -292,7 +300,7 @@
   }
 
   function buildMobileSettingsNav(activeSettingsSection, helpers) {
-    const { escapeHtml, t } = helpers;
+    const { escapeHtml, t, translateDashboardText } = helpers;
     const activeSection = getSectionByKey(activeSettingsSection);
 
     return `
@@ -305,10 +313,10 @@
           aria-label="Settings section"
         >
           ${SETTINGS_SECTION_DETAILS.map((section) => `
-            <option value="${escapeHtml(section.key)}" ${activeSettingsSection === section.key ? "selected" : ""}>${escapeHtml(section.label)}</option>
+            <option value="${escapeHtml(section.key)}" ${activeSettingsSection === section.key ? "selected" : ""}>${escapeHtml(translateDashboardText(section.label))}</option>
           `).join("")}
         </select>
-        <p class="settings-shell-mobile-copy" data-settings-mobile-note>${escapeHtml(activeSection.note)}</p>
+        <p class="settings-shell-mobile-copy" data-settings-mobile-note>${escapeHtml(translateDashboardText(activeSection.note))}</p>
       </div>
     `;
   }
@@ -974,7 +982,7 @@
     const operatorWorkspace = options.operatorWorkspace || emptyWorkspace;
     const activeSettingsSection = getActiveSettingsSection();
 
-    return `
+    const html = `
       <section class="workspace-page settings-shell-root" data-shell-section="settings" hidden>
         ${helpers.buildPageHeader({
           eyebrow: helpers.t("nav.utilities"),
@@ -1005,6 +1013,7 @@
         </div>
       </section>
     `;
+    return helpers.localizeDashboardHtml(html);
   }
 
   function bindSettingsShellEvents(options = {}) {
@@ -1052,7 +1061,8 @@
       });
 
       if (mobileNote) {
-        mobileNote.textContent = getSectionByKey(normalizedSection).note;
+        const helpers = getHelpers(options);
+        mobileNote.textContent = helpers.translateDashboardText(getSectionByKey(normalizedSection).note);
       }
 
       return normalizedSection;

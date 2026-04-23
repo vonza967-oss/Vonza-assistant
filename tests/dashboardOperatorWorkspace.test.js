@@ -313,6 +313,229 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
   assert.match(analytics, /Becsült ügyfél-elégedettség/);
 });
 
+const HUNGARIAN_DASHBOARD_ENGLISH_LEAKS = [
+  "Business profile",
+  "Setup status",
+  "Core business facts",
+  "Before you go live",
+  "Open Home",
+  "Open Analytics",
+  "Needs reply",
+  "No chat yet",
+  "Review open needs",
+  "Mostly healthy",
+  "Improve service answers",
+  "Move Vonza from preview into the live website",
+  "Medium lost-customer risk",
+];
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function assertNoHungarianDashboardEnglishLeaks(html, label) {
+  for (const phrase of HUNGARIAN_DASHBOARD_ENGLISH_LEAKS) {
+    assert.doesNotMatch(
+      html,
+      new RegExp(escapeRegExp(phrase)),
+      `${label} still contains English dashboard UI phrase: ${phrase}`
+    );
+  }
+}
+
+function createHungarianCompletenessFixture(harness) {
+  const agent = {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza",
+    websiteUrl: "https://example.com",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    welcomeMessage: "Hello",
+    tone: "friendly",
+    purpose: "support",
+    installStatus: {
+      state: "not_installed",
+      label: "Not installed yet",
+      allowedDomains: [],
+    },
+  };
+  const setup = harness.inferSetup({
+    ...agent,
+    knowledge: { state: "ready" },
+  });
+  const workspace = harness.createEmptyOperatorWorkspace();
+  workspace.contacts.list = [
+    {
+      id: "contact-1",
+      partialIdentity: true,
+      sources: ["chat"],
+      lifecycleState: "needs_reply",
+      nextAction: {
+        description: "This contact does not have a higher-priority owner next step right now.",
+      },
+      chatMessages: [],
+      latestCustomerMessageSummary: "",
+      timeline: [],
+    },
+  ];
+  workspace.contacts.summary = {
+    ...workspace.contacts.summary,
+    contactsNeedingAttention: 1,
+    leadsWithoutNextStep: 1,
+  };
+  workspace.today = {
+    ...workspace.today,
+    messagesToday: 25,
+    contactsDealtToday: 22,
+    needsAttentionCount: 1,
+    contactsNeedingAttention: 1,
+  };
+  workspace.businessProfile.readiness = {
+    completedSections: 1,
+    totalSections: 4,
+    missingCount: 3,
+    summary: "Business profile readiness will appear here.",
+  };
+
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    items: [
+      {
+        key: "queue-1",
+        type: "contact",
+        actionType: "unanswered_question",
+        status: "new",
+        label: "Open customer question",
+        whyFlagged: "A customer still needs a clear reply.",
+      },
+      {
+        key: "queue-2",
+        type: "knowledge_fix",
+        actionType: "knowledge_fix",
+        status: "new",
+        weakAnswer: true,
+        label: "Weak service answer",
+        whyFlagged: "Improve service answers",
+      },
+    ],
+    summary: {
+      ...harness.createEmptyActionQueue().summary,
+      total: 2,
+      attentionNeeded: 2,
+    },
+    conversionSummary: {
+      ...harness.createEmptyActionQueue().conversionSummary,
+      highIntentConversations: 4,
+      contactsCaptured: 1,
+    },
+    analyticsSummary: {
+      ...harness.createEmptyActionQueue().analyticsSummary,
+      conversationCount: 25,
+      totalMessages: 50,
+      visitorQuestions: 25,
+      highIntentSignals: 4,
+      contactsCaptured: 1,
+      weakAnswerCount: 1,
+      attentionNeeded: 2,
+      customerQuestionSummaries: [
+        { summary: "Árakat vagy árajánlat részleteit kéri", count: 2 },
+      ],
+    },
+  };
+
+  return { agent, setup, workspace, actionQueue };
+}
+
+test("Hungarian dashboard completeness covers Home, Customers, Front Desk, Analytics, Install, and Settings leak phrases", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_TODAY_COPILOT_V1_ENABLED: true,
+    },
+  });
+  harness.cacheDashboardLanguage("hu");
+  const { agent, setup, workspace, actionQueue } = createHungarianCompletenessFixture(harness);
+
+  const pages = {
+    Home: harness.buildOverviewPanel(
+      agent,
+      [
+        { role: "user", content: "How much does setup cost?", createdAt: "2026-04-03T09:00:00.000Z" },
+        { role: "assistant", content: "I am not sure.", createdAt: "2026-04-03T09:00:05.000Z" },
+      ],
+      setup,
+      actionQueue,
+      workspace
+    ),
+    Customers: harness.buildContactsPanel(agent, workspace),
+    "Front Desk": harness.buildFrontDeskPanel(agent, setup, workspace),
+    Analytics: harness.buildAnalyticsPanel(
+      agent,
+      [
+        { role: "user", content: "How much does setup cost?", createdAt: "2026-04-03T09:00:00.000Z" },
+        { role: "assistant", content: "I am not sure.", createdAt: "2026-04-03T09:00:05.000Z" },
+      ],
+      setup,
+      actionQueue,
+      workspace
+    ),
+    Install: harness.buildInstallPanel(agent, setup, workspace),
+    Settings: harness.buildSettingsPanel(agent, setup, workspace),
+  };
+
+  for (const [label, html] of Object.entries(pages)) {
+    assertNoHungarianDashboardEnglishLeaks(html, label);
+  }
+
+  assert.match(pages.Home, /Nyitott igények áttekintése|Szolgáltatásválaszok javítása/);
+  assert.match(pages.Analytics, /A Vonza \d+ \/ 25 beszélgetést kezelt/);
+  assert.match(pages.Install, /Élesítés előtt/);
+  assert.match(pages.Settings, /Vállalkozási profil/);
+});
+
+test("English dashboard still renders the supported dashboard UI in English", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  harness.cacheDashboardLanguage("en");
+  const { agent, setup, workspace, actionQueue } = createHungarianCompletenessFixture(harness);
+  const settings = harness.buildSettingsPanel(agent, setup, workspace);
+  const install = harness.buildInstallPanel(agent, setup, workspace);
+  const analytics = harness.buildAnalyticsPanel(agent, [], setup, actionQueue, workspace);
+
+  assert.match(settings, /Business profile/);
+  assert.match(settings, /Setup status/);
+  assert.match(install, /Before you go live/);
+  assert.match(analytics, /lost-customer risk/);
+  assert.equal(harness.t("settings.title"), "Settings");
+});
+
+test("Hungarian supported dashboard keys do not fall back to key names or English for core screens", () => {
+  const harness = createDashboardHarness();
+  harness.cacheDashboardLanguage("hu");
+
+  const expected = new Map([
+    ["nav.home", "Kezdőlap"],
+    ["nav.customers", "Ügyfelek"],
+    ["nav.frontDesk", "Front Desk"],
+    ["nav.analytics", "Elemzések"],
+    ["nav.install", "Telepítés"],
+    ["nav.settings", "Beállítások"],
+    ["language.settingsTitle", "Irányítópult nyelve"],
+    ["settings.theme", "Téma"],
+    ["install.copyInstallCode", "Telepítőkód másolása"],
+    ["customers.needsReply", "Válaszra vár"],
+  ]);
+
+  for (const [key, value] of expected.entries()) {
+    assert.equal(harness.t(key), value);
+    assert.notEqual(harness.t(key), key);
+  }
+});
+
 test("dashboard language preference requests stay separate from widget reply language", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const chatPrompt = readFileSync(path.join(repoRoot, "src", "services", "chat", "prompting.js"), "utf8");

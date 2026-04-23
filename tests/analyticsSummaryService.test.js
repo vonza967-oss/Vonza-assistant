@@ -141,3 +141,29 @@ test("dashboard language controls dashboard-facing analytics summaries", () => {
   assert.equal(english.customerQuestionSummaries[0].summary, "Requesting pricing or quote details");
   assert.equal(hungarian.customerQuestionSummaries[0].summary, "Árakat vagy árajánlat részleteit kéri");
 });
+
+test("dashboard language localizes generated analytics activity and operator signals", () => {
+  const summary = buildAnalyticsSummary({
+    dashboardLanguage: "hu",
+    messages: [
+      { role: "user", content: "How much does setup cost?", createdAt: new Date().toISOString() },
+      { role: "assistant", content: "I can help with pricing.", createdAt: new Date().toISOString() },
+    ],
+    actionQueue: {
+      conversionSummary: {
+        highIntentConversations: 1,
+      },
+      items: [
+        { key: "weak-1", weakAnswer: true },
+      ],
+    },
+    widgetMetrics: {
+      conversationsSinceInstall: 1,
+    },
+  });
+
+  assert.match(summary.recentActivity.description, /Aktív|Friss/);
+  assert.match(summary.recentActivity.copy, /látogatói kérdés|mentett üzenet/);
+  assert.equal(summary.operatorSignal.title, "Erős ügyfélszándék-jelzés");
+  assert.doesNotMatch(summary.operatorSignal.copy, /high-intent customer signal/);
+});

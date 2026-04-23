@@ -498,7 +498,7 @@ function normalizeShellCopy(value = "") {
     return "";
   }
 
-  return text
+  const normalized = text
     .replace(/\bOpen Outcomes\b/g, "Open Analytics")
     .replace(/\bToday, Contacts, and Outcomes\b/g, "Home, Customers, and Analytics")
     .replace(/\bToday, Customize, and Outcomes\b/g, "Home, Front Desk, and Analytics")
@@ -509,6 +509,8 @@ function normalizeShellCopy(value = "") {
     .replace(/\bCopilot\b/g, "Vonza")
     .replace(/\bapproval-first\b/gi, "review-before-send")
     .replace(/\bread-only\b/gi, "view-only");
+
+  return translateDashboardText(normalized);
 }
 
 function resolveVisibleShellTarget(
@@ -1206,6 +1208,258 @@ function t(key, params = {}) {
   return String(template).replace(/\{(\w+)\}/g, (_match, name) => (
     Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : `{${name}}`
   ));
+}
+
+const DASHBOARD_HU_PHRASES = Object.freeze({
+  "Business profile, front desk, connected tools, and workspace.": "Vállalkozási profil, Front Desk, kapcsolt eszközök és munkaterület.",
+  "Your clearest next steps, recent wins, and what needs attention.": "A legfontosabb következő lépések, friss sikerek és figyelmet igénylő ügyek.",
+  "People, follow-ups, and the latest customer progress.": "Ügyfelek, utánkövetések és legfrissebb ügyfélfolyamatok.",
+  "Preview the customer experience and launch readiness.": "Ügyfélélmény előnézete és indulási készenlét.",
+  "Signals, proof, weak spots, and business results.": "Jelzések, bizonyítékok, gyenge pontok és üzleti eredmények.",
+  "Go live on the website and verify the embed.": "Élesítés a weboldalon és a beágyazás ellenőrzése.",
+  "Ready to use": "Használatra kész",
+  "Getting started": "Kezdés alatt",
+  "Website learned": "Weboldal betanítva",
+  "Website learning": "Weboldal betanítása folyamatban",
+  "Add website details": "Weboldaladatok hozzáadása",
+  "Workspace": "Munkaterület",
+  "Knowledge": "Tudásanyag",
+  "Install": "Telepítés",
+  "Go live": "Élesítés",
+  "Needs attention": "Figyelmet igényel",
+  "Pending": "Függőben",
+  "Limited": "Korlátozott",
+  "Ready": "Kész",
+  "Mixed": "Vegyes",
+  "Mostly healthy": "Többnyire rendben",
+  "Healthy": "Rendben",
+  "No signal yet": "Még nincs jelzés",
+  "Early": "Korai",
+  "Complaint": "Panasz",
+  "Lead": "Érdeklődő",
+  "Needs reply": "Válaszra vár",
+  "Resolved": "Megoldva",
+  "Returning": "Visszatérő",
+  "People waiting on an answer, follow-up, or decision.": "Válaszra, utánkövetésre vagy döntésre váró emberek.",
+  "Unhappy or complaint-risk conversations.": "Elégedetlen vagy panasz-kockázatú beszélgetések.",
+  "Warm contacts without a clear next step.": "Meleg érdeklődők egyértelmű következő lépés nélkül.",
+  "Returning customers with recent activity.": "Visszatérő ügyfelek friss aktivitással.",
+  "Open Home": "Kezdőlap megnyitása",
+  "Open Customers": "Ügyfelek megnyitása",
+  "Open customer": "Ügyfél megnyitása",
+  "Open Analytics": "Elemzések megnyitása",
+  "Open install": "Telepítés megnyitása",
+  "Open settings": "Beállítások megnyitása",
+  "Test preview first": "Előbb teszteld az előnézetet",
+  "Review open needs": "Nyitott igények áttekintése",
+  "Improve service answers": "Szolgáltatásválaszok javítása",
+  "Copy install code": "Telepítőkód másolása",
+  "Check install": "Telepítés ellenőrzése",
+  "Business profile": "Vállalkozási profil",
+  "Setup status": "Beállítás állapota",
+  "Core business facts": "Alapvető vállalkozási adatok",
+  "Before you go live": "Élesítés előtt",
+  "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.": "Vidd át a Vonzát az előnézetből az éles weboldalra világos telepítési úttal, ellenőrzéssel és őszinte állapotjelzéssel.",
+  "Front desk ready for launch": "A Front Desk készen áll az élesítésre",
+  "Front desk still needs setup": "A Front Desk még beállítást igényel",
+  "Preview confidence": "Előnézeti biztonság",
+  "Website knowledge": "Weboldali tudás",
+  "Allowed domains": "Engedélyezett domainek",
+  "After install is detected": "A telepítés észlelése után",
+  "Home and Analytics become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.": "A Kezdőlap és az Elemzések megbízhatóbbá válnak, amint az éles oldalbetöltések, ügyfélkérdések és valódi konverziós utak ugyanabba a rendszerbe érkeznek.",
+  "Open conversations still need a customer reply.": "A nyitott beszélgetésekhez még ügyfélválasz kell.",
+  "Customers reached an unclear service answer.": "Az ügyfelek nem elég egyértelmű szolgáltatásválaszt kaptak.",
+  "Complaint or support recovery still needs a clear owner path.": "A panasz- vagy támogatási helyreállításhoz még egyértelmű tulajdonosi út kell.",
+  "Visitors asked about price, cost, or packages without a clear pricing next step.": "A látogatók árakról, költségekről vagy csomagokról kérdeztek egyértelmű árazási következő lépés nélkül.",
+  "Warm visitors did not all become identified contacts.": "Nem minden érdeklődő látogatóból lett azonosított kapcsolat.",
+  "Visitors asked about booking or availability without a clear booking path.": "A látogatók foglalásról vagy elérhetőségről kérdeztek egyértelmű foglalási út nélkül.",
+  "Improve complaint handling": "Panaszkezelés javítása",
+  "Frustrated customers need a fast, clear recovery path to protect trust.": "A frusztrált ügyfeleknek gyors, világos helyreállítási út kell a bizalom megőrzéséhez.",
+  "Review the complaint, confirm the owner follow-up, and add guidance for similar cases.": "Nézd át a panaszt, erősítsd meg a tulajdonosi utánkövetést, és adj iránymutatást hasonló esetekre.",
+  "Review complaint handling": "Panaszkezelés áttekintése",
+  "Give open customer questions a clear next step": "Adj egyértelmű következő lépést a nyitott ügyfélkérdéseknek",
+  "Unanswered needs create friction when the customer is ready for an answer, booking, contact, or decision.": "A megválaszolatlan igények súrlódást okoznak, amikor az ügyfél válaszra, foglalásra, kapcsolatfelvételre vagy döntésre kész.",
+  "Review the open conversations and confirm the answer, owner follow-up, or next-step path each customer needs.": "Nézd át a nyitott beszélgetéseket, és erősítsd meg az ügyfeleknek szükséges választ, tulajdonosi utánkövetést vagy következő lépést.",
+  "Clarify pricing guidance": "Árazási útmutatás pontosítása",
+  "Pricing questions usually come from visitors who are close to deciding.": "Az árazási kérdések általában döntéshez közeli látogatóktól érkeznek.",
+  "Add clearer pricing ranges, quote guidance, or what details are needed for an estimate.": "Adj világosabb ársávokat, ajánlatkérési útmutatást vagy becsléshez szükséges részleteket.",
+  "Clarify pricing": "Árazás pontosítása",
+  "Strengthen quote or booking guidance": "Ajánlatkérési vagy foglalási út javítása",
+  "Booking or quote intent should move quickly to a clear next step.": "A foglalási vagy ajánlatkérési szándéknak gyorsan egyértelmű következő lépéshez kell jutnia.",
+  "Make the booking, callback, or quote request path obvious and easy to complete.": "Tedd egyértelművé és könnyen elvégezhetővé a foglalási, visszahívási vagy ajánlatkérési utat.",
+  "Improve booking path": "Foglalási út javítása",
+  "Make contacting you easier": "Tedd könnyebbé a kapcsolatfelvételt",
+  "Interested visitors can drop off if the best way to reach you is unclear.": "Az érdeklődő látogatók lemorzsolódhatnak, ha nem világos, hogyan érhetnek el.",
+  "Show the best contact route and ask for the details your team needs to follow up.": "Mutasd meg a legjobb kapcsolatfelvételi utat, és kérd be az utánkövetéshez szükséges adatokat.",
+  "Improve contact path": "Kapcsolatfelvételi út javítása",
+  "Make service answers clearer": "Tedd világosabbá a szolgáltatásválaszokat",
+  "Customers need to understand what you offer before they can choose the right service.": "Az ügyfeleknek érteniük kell, mit kínálsz, mielőtt a megfelelő szolgáltatást választják.",
+  "Add clearer service descriptions, examples, or FAQ answers where the front desk was unsure.": "Adj világosabb szolgáltatásleírásokat, példákat vagy GYIK-válaszokat ott, ahol a Front Desk bizonytalan volt.",
+  "No urgent improvements right now": "Most nincs sürgős javítanivaló",
+  "Service quality": "Szolgáltatás minősége",
+  "Improve service": "Szolgáltatás javítása",
+  "Dashboard language": "Irányítópult nyelve",
+  "Theme": "Téma",
+  "Connected tools": "Kapcsolt eszközök",
+  "Current workspace status": "Munkaterület aktuális állapota",
+  "Workspace boundaries": "Munkaterület határai",
+  "Save Business Profile": "Vállalkozási profil mentése",
+  "Save Front Desk": "Front Desk mentése",
+  "No changes yet.": "Nincs módosítás.",
+  "No prefill available": "Nincs előtöltés",
+  "Profile ready": "Profil kész",
+  "Needs details": "Részletek szükségesek",
+  "Safe suggestions loaded": "Biztonságos javaslatok betöltve",
+  "Readiness": "Készenlét",
+  "Prefill review": "Előtöltés áttekintése",
+  "Business summary": "Vállalkozási összefoglaló",
+  "Services": "Szolgáltatások",
+  "Pricing": "Árazás",
+  "Policies": "Szabályzatok",
+  "Service areas / locations": "Kiszolgálási területek / helyszínek",
+  "Operating hours": "Nyitvatartás",
+  "Widget purpose": "Widget célja",
+  "Identity and welcome": "Identitás és üdvözlés",
+  "Routing defaults": "Alapértelmezett útvonalak",
+  "Outcome routing and tracking": "Eredményútvonalak és mérés",
+  "Website knowledge and brand": "Weboldali tudás és márka",
+  "Current live readout": "Aktuális élő összefoglaló",
+  "Assistant name": "Asszisztens neve",
+  "Conversation tone": "Beszélgetési hangnem",
+  "Launcher text": "Indítógomb szövege",
+  "Website URL": "Weboldal URL",
+  "Welcome message": "Üdvözlő üzenet",
+  "Contact email": "Kapcsolati email",
+  "Contact phone": "Kapcsolati telefon",
+  "Availability note": "Elérhetőségi megjegyzés",
+  "Booking URL": "Foglalási URL",
+  "Quote URL": "Ajánlatkérési URL",
+  "Checkout URL": "Fizetési URL",
+  "Widget logo": "Widget logó",
+  "Primary color": "Elsődleges szín",
+  "Secondary color": "Másodlagos szín",
+  "Website detail": "Weboldal részletei",
+  "Front Desk behavior": "Front Desk működés",
+  "Business context": "Vállalkozási kontextus",
+  "Review progress": "Áttekintési állapot",
+  "Live customer messages handled today.": "Ma kezelt élő ügyfélüzenetek.",
+  "No conversations recorded yet today.": "Ma még nincs rögzített beszélgetés.",
+  "Unique customers with a booking, follow-up, or recorded outcome today.": "Mai egyedi ügyfelek foglalással, utánkövetéssel vagy rögzített eredménnyel.",
+  "No customer has a booking, follow-up, or recorded outcome yet today.": "Ma még nincs ügyfélhez kötött foglalás, utánkövetés vagy rögzített eredmény.",
+  "Complaints or service issues still needing attention.": "Figyelmet igénylő panaszok vagy szolgáltatási ügyek.",
+  "No active service issue signal is standing out.": "Nem látszik aktív szolgáltatási problémajelzés.",
+  "Small proof that Vonza is helping today without making you dig through analytics.": "Rövid bizonyíték arra, hogy a Vonza ma is segít, elemzések böngészése nélkül.",
+  "A booking, follow-up, or recorded outcome was tied to a customer today.": "Ma foglalás, utánkövetés vagy rögzített eredmény kapcsolódott ügyfélhez.",
+  "Daily": "Napi",
+  "Give open customer needs a clear next step": "Adj egyértelmű következő lépést a nyitott ügyféligényeknek",
+  "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.": "A nyitott igények súrlódást okoznak, amikor az ügyfél válaszra, foglalási útra, kapcsolatfelvételre vagy tulajdonosi döntésre vár.",
+  "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.": "Nézd át az érintett ügyfeleket, és erősítsd meg a szükséges választ, átadást vagy következő lépést.",
+  "Review pricing questions": "Árazási kérdések áttekintése",
+  "Clarify pricing answers and the quote next step": "Pontosítsd az árazási válaszokat és az ajánlatkérési következő lépést",
+  "Customers asking about pricing need a more useful answer: what affects cost, what range to expect, or what to do next for a quote.": "Az árazásról kérdező ügyfelek hasznosabb választ igényelnek: mi befolyásolja a költséget, milyen ársáv várható, vagy mi a következő lépés ajánlatkéréshez.",
+  "Pricing questions need clearer answers": "Az árazási kérdésekhez világosabb válaszok kellenek",
+  "Hours and availability need clearer answers": "A nyitvatartási és elérhetőségi válaszok legyenek világosabbak",
+  "Location or service-area answers need improvement": "A helyszín- vagy kiszolgálási terület-válaszok javítást igényelnek",
+  "Support concerns need stronger guidance": "A támogatási ügyekhez erősebb útmutatás kell",
+  "Service explanations are too vague": "A szolgáltatásmagyarázatok túl általánosak",
+  "Weak-answer theme needs review": "A gyenge válasz témája áttekintést igényel",
+  "closing complaint and support conversations faster": "panasz- és támogatási beszélgetések gyorsabb lezárása",
+  "turning pricing questions into confident next steps": "árazási kérdések magabiztos következő lépésekké alakítása",
+  "capturing more contact details from warm visitors": "több kapcsolatadat rögzítése meleg látogatóktól",
+  "building more live conversation volume": "több élő beszélgetési adat gyűjtése",
+  "turning warm conversations into leads": "meleg beszélgetések érdeklődőkké alakítása",
+  "There is some conversation history, but not enough recent live usage to show a stronger trend yet.": "Van beszélgetési előzmény, de még nincs elég friss élő használat erősebb trendhez.",
+  "Live customer traffic will appear here.": "Itt jelenik meg az élő ügyfélforgalom.",
+  "Lead capture is keeping pace with demand": "Az érdeklődőrögzítés lépést tart az igénnyel",
+  "No complaint risk recorded yet": "Még nincs rögzített panasz-kockázat",
+  "Estimated from strong service-quality signals": "Erős szolgáltatásminőségi jelzések alapján becsülve",
+  "Estimated as good, with room to tighten answers": "Jónak becsülve, némi válaszpontosítási lehetőséggel",
+  "Estimated friction risk from current service signals": "Súrlódási kockázat a jelenlegi szolgáltatási jelzések alapján",
+  "Waiting for enough live service signal to estimate": "Becsléshez elegendő élő szolgáltatási jelzésre vár",
+  "Estimated from customer questions Vonza handled itself": "A Vonza által önállóan kezelt ügyfélkérdések alapján becsülve",
+  "See whether support demand and completed next steps are moving in the right direction.": "Nézd meg, jó irányba halad-e a támogatási igény és a lezárt következő lépések száma.",
+  "Conversations": "Beszélgetések",
+  "Successful actions": "Sikeres műveletek",
+  "Most customer conversations are still anonymous, which means lead capture is the clearest growth lever.": "A legtöbb ügyfélbeszélgetés még anonim, ezért az érdeklődőrögzítés a legegyértelműbb növekedési kar.",
+  "Vonza is turning a healthy share of conversations into known customer records.": "A Vonza a beszélgetések egészséges arányát ismert ügyfélrekorddá alakítja.",
+  "Contact identity will become more useful as more live conversations arrive.": "Az ügyfélazonosság egyre hasznosabb lesz, ahogy több élő beszélgetés érkezik.",
+  "Use this to improve the answers customers see most often.": "Ezzel javíthatod az ügyfelek által leggyakrabban látott válaszokat.",
+  "Customer question theme": "Ügyfélkérdés-téma",
+  "No repeated customer question is standing out yet.": "Még nem emelkedik ki ismétlődő ügyfélkérdés.",
+  "No weak-answer pattern is standing out in the current sample.": "A jelenlegi mintában nem látszik gyenge válaszminta.",
+});
+
+const DASHBOARD_HU_REGEX_PHRASES = Object.freeze([
+  [/\b(\d+) open conversations?\b/g, "$1 nyitott beszélgetés"],
+  [/\b(\d+) answers? to improve\b/g, "$1 javítandó válasz"],
+  [/\b(\d+) unresolved complaints?\b/g, "$1 megoldatlan panasz"],
+  [/\b(\d+) pricing questions?\b/g, "$1 árazási kérdés"],
+  [/\b(\d+) warm conversations? without contact details\b/g, "$1 meleg beszélgetés kapcsolatadat nélkül"],
+  [/\b(\d+) warm chats still anonymous\b/g, "$1 meleg chat még anonim"],
+  [/\b(\d+) booking questions?\b/g, "$1 foglalási kérdés"],
+  [/\b(\d+) lost-customer risk\b/g, "$1 elvesző ügyfél kockázata"],
+  [/\bHigh lost-customer risk\b/g, "Magas elvesző-ügyfél kockázat"],
+  [/\bMedium lost-customer risk\b/g, "Közepes elvesző-ügyfél kockázat"],
+  [/\bLow lost-customer risk\b/g, "Alacsony elvesző-ügyfél kockázat"],
+  [/\b(\d+) warm conversations\b/g, "$1 meleg beszélgetés"],
+  [/\b(\d+) needing review\b/g, "$1 áttekintést igényel"],
+  [/\b(\d+) answer still need work\b/g, "$1 válasz még javítást igényel"],
+  [/\b(\d+) customers reached a next step\b/g, "$1 ügyfél jutott következő lépéshez"],
+  [/\b(\d+) conversations\b/g, "$1 beszélgetés"],
+  [/\b(\d+) successful actions\b/g, "$1 sikeres művelet"],
+  [/\b(.+?) need clearer answers\b/g, "$1 témához világosabb válaszok kellenek"],
+  [/\b(\d+) \/ (\d+) sections ready\b/g, "$1 / $2 szakasz kész"],
+  [/\b(\d+) suggested fields loaded\b/g, "$1 javasolt mező betöltve"],
+  [/\b(\d+) fields were safely prefilled for review before save\./g, "$1 mező biztonságosan előtöltve mentés előtti áttekintésre."],
+  [/\b(\d+) pages? imported\b/g, "$1 oldal importálva"],
+  [/\b(\d+) areas? could use a quick review before the Front Desk feels fully grounded\./g, "$1 terület gyors áttekintést igényel, hogy a Front Desk teljesen megalapozott legyen."],
+]);
+
+function translateDashboardText(value = "") {
+  let text = String(value ?? "");
+
+  if (getDashboardLanguage() !== "hu" || !text) {
+    return text;
+  }
+
+  text = DASHBOARD_HU_PHRASES[text] || text;
+  DASHBOARD_HU_REGEX_PHRASES.forEach(([pattern, replacement]) => {
+    text = text.replace(pattern, replacement);
+  });
+
+  return text;
+}
+
+function localizeDashboardHtml(html = "") {
+  if (getDashboardLanguage() !== "hu" || !html) {
+    return html;
+  }
+
+  const protectedValues = [];
+  const protect = (match) => {
+    const token = `__VONZA_I18N_PROTECTED_${protectedValues.length}__`;
+    protectedValues.push(match);
+    return token;
+  };
+
+  let output = String(html)
+    .replace(/<textarea\b[\s\S]*?<\/textarea>/gi, protect)
+    .replace(/\b(value|href|src|placeholder)="[^"]*"/gi, protect);
+
+  Object.entries(DASHBOARD_HU_PHRASES)
+    .sort((left, right) => right[0].length - left[0].length)
+    .forEach(([english, hungarian]) => {
+      output = output.split(english).join(hungarian);
+    });
+  DASHBOARD_HU_REGEX_PHRASES.forEach(([pattern, replacement]) => {
+    output = output.replace(pattern, replacement);
+  });
+
+  protectedValues.forEach((value, index) => {
+    output = output.replace(`__VONZA_I18N_PROTECTED_${index}__`, value);
+  });
+
+  return output;
 }
 
 function tn(key, count, params = {}) {
@@ -3784,27 +4038,27 @@ function getCustomerStatusList(contact = {}) {
   };
 
   if (isComplaintContact(contact)) {
-    pushStatus("complaint", "Complaint");
+    pushStatus("complaint", translateDashboardText("Complaint"));
   }
 
   if (isLeadContact(contact)) {
-    pushStatus("lead", "Lead");
+    pushStatus("lead", translateDashboardText("Lead"));
   }
 
   if (contactNeedsReply(contact)) {
-    pushStatus("needs_reply", "Needs reply");
+    pushStatus("needs_reply", t("customers.needsReply"));
   }
 
   if (isResolvedContact(contact)) {
-    pushStatus("resolved", "Resolved");
+    pushStatus("resolved", translateDashboardText("Resolved"));
   }
 
   if (isReturningContact(contact)) {
-    pushStatus("returning", "Returning");
+    pushStatus("returning", translateDashboardText("Returning"));
   }
 
   if (!statuses.length) {
-    pushStatus("resolved", "Resolved");
+    pushStatus("resolved", translateDashboardText("Resolved"));
   }
 
   return statuses;
@@ -3841,7 +4095,7 @@ function buildCustomerSummaryItems(contacts = []) {
     {
       label: t("customers.needsReply"),
       value: countMatching((contact) => contactNeedsReply(contact)),
-      copy: "People waiting on an answer, follow-up, or decision.",
+      copy: translateDashboardText("People waiting on an answer, follow-up, or decision."),
     },
     {
       label: t("customers.unhappy"),
@@ -5153,7 +5407,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
   }
 
   const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-card-soft operator-home-card">
       <div class="workspace-panel-header">
         <div>
@@ -5171,7 +5425,7 @@ function buildOperatorOverviewSection(agent, operatorWorkspace = createEmptyOper
       ${buildTodayRecommendationsSection(operatorWorkspace)}
       ${buildTodaySupportingDetailSection(operatorWorkspace)}
     </section>
-  `;
+  `);
 }
 
 function isAppointmentReviewQueueItem(item = {}) {
@@ -5845,7 +6099,21 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       trimText(candidate?.id || `${candidate?.title || "review"}-${candidateIndex}`) === key
     )) === index;
   });
-  const countLabel = (value, singular, plural = `${singular}s`) => `${value} ${value === 1 ? singular : plural}`;
+  const countLabel = (value, singular, plural = `${singular}s`) => {
+    if (getDashboardLanguage() === "hu") {
+      const hungarianUnits = {
+        answer: "válasz",
+        conversation: "beszélgetés",
+        customer: "ügyfél",
+        "customer issue": "ügyfélügy",
+        issue: "ügy",
+        "open issue": "nyitott ügy",
+      };
+      return `${value} ${hungarianUnits[singular] || singular}`;
+    }
+
+    return `${value} ${value === 1 ? singular : plural}`;
+  };
   const renderHomeAction = (action = null, {
     primary = false,
     labelOverride = "",
@@ -6165,7 +6433,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     };
   })();
 
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
       ${buildPageHeader({
         title: t("home.title"),
@@ -6261,7 +6529,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         </div>
       </div>
     </section>
-  `;
+  `);
 }
 
 function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -6736,6 +7004,8 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
     normalizeAccessStatus,
     getDefaultInstallStatus,
     t,
+    translateDashboardText,
+    localizeDashboardHtml,
     getDashboardLanguage,
     getSupportedDashboardLanguages: () => window.VonzaDashboardI18n?.SUPPORTED_LANGUAGES || [
       { code: "en", nativeLabel: "English" },
@@ -6807,7 +7077,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
     <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
   `;
 
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="customize" hidden>
       ${buildPageHeader({
         eyebrow: "Core workflow",
@@ -6995,7 +7265,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         </section>
       </div>
     </section>
-  `;
+  `);
 }
 
 function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -7005,7 +7275,7 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
     `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
   ].join("");
 
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="install" hidden>
       ${buildPageHeader({
         eyebrow: t("nav.utilities"),
@@ -7059,7 +7329,7 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
         </div>
       </div>
     </section>
-  `;
+  `);
 }
 
 function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -8390,6 +8660,10 @@ function getAnalyticsImprovementArea(signals = {}, weakAnswerExamples = [], conv
   const unresolvedComplaints = Math.max(0, Number(outcomeSummary.complaintOpened || 0) - Number(outcomeSummary.complaintResolved || 0));
 
   if (weakAnswerExamples.length) {
+    if (getDashboardLanguage() === "hu") {
+      return translateDashboardText(trimText(weakAnswerExamples[0]).replace(/\.$/, ""));
+    }
+
     return trimText(weakAnswerExamples[0]).replace(/\.$/, "").toLowerCase();
   }
 
@@ -8409,6 +8683,20 @@ function getAnalyticsImprovementArea(signals = {}, weakAnswerExamples = [], conv
 }
 
 function buildAnalyticsSummarySentence(report = {}) {
+  if (getDashboardLanguage() === "hu") {
+    if (report.conversationCount <= 0) {
+      return "A Vonza készen áll, de még nincs elég élő forgalom az ügyfélszolgálati teljesítmény megítéléséhez.";
+    }
+
+    const satisfactionReadout = report.satisfactionScore >= 4.3
+      ? "az ügyfél-elégedettség erősnek látszik"
+      : report.satisfactionScore >= 3.7
+        ? "az ügyfél-elégedettség stabil, néhány javítandó résszel"
+        : "az ügyfél-elégedettség figyelmet igényel";
+
+    return `A Vonza ${formatAnalyticsReportNumber(report.autonomousHandledCount)} / ${formatAnalyticsReportNumber(report.conversationCount)} beszélgetést kezelt csapatválasz nélkül, ${satisfactionReadout}, és a legnagyobb lemorzsolódási kockázat: ${translateDashboardText(report.improvementArea)}.`;
+  }
+
   if (report.conversationCount <= 0) {
     return "Vonza is ready, but there is not enough live traffic yet to judge customer service performance.";
   }
@@ -8496,10 +8784,10 @@ function buildAnalyticsRecommendations(report = {}) {
     const priorityCopy = getBusinessPriorityCopy(candidate.recommendation);
 
     return {
-      title: priorityCopy.title,
+      title: translateDashboardText(priorityCopy.title),
       tone: priorityCopy.tone,
-      metric: candidate.metric,
-      copy: `${priorityCopy.why} ${priorityCopy.change}`,
+      metric: translateDashboardText(candidate.metric),
+      copy: translateDashboardText(`${priorityCopy.why} ${priorityCopy.change}`),
     };
   });
 }
@@ -10254,7 +10542,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
     return "";
   };
 
-  return `
+  return localizeDashboardHtml(`
     <section class="overview-shell">
       <section class="overview-hero">
         <span class="eyebrow">${isInstallSeen(overview.installStatus) ? "Live front desk" : "Home"}</span>
@@ -10370,7 +10658,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         </section>
       </div>
     </section>
-  `;
+  `);
 }
 
 function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -10403,7 +10691,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
     : "";
 
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="analytics" hidden>
       ${buildPageHeader({
         title: t("analytics.title"),
@@ -10593,7 +10881,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
         </div>
       </div>
     </section>
-  `;
+  `);
 }
 
 function getThreadDraft(thread = {}) {

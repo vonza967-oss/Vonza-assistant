@@ -133,6 +133,14 @@ function buildDefaultRecentActivity() {
   };
 }
 
+function localizeAnalyticsSummaryText(language, english, hungarian) {
+  return language === "hu" ? hungarian : english;
+}
+
+function pluralSuffix(count) {
+  return count === 1 ? "" : "s";
+}
+
 function buildDefaultOperatorSignal() {
   return {
     title: "No service signal yet",
@@ -172,6 +180,7 @@ function buildRecentActivity({
   widgetMetrics = {},
   installStatus = {},
   syncState,
+  language = "en",
 }) {
   const base = buildDefaultRecentActivity();
 
@@ -179,8 +188,12 @@ function buildRecentActivity({
     return {
       ...base,
       level: "pending",
-      description: "Syncing recent live activity",
-      copy: "Widget activity was detected before the stored conversation read model caught up.",
+      description: localizeAnalyticsSummaryText(language, "Syncing recent live activity", "Friss élő aktivitás szinkronizálása"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        "Widget activity was detected before the stored conversation read model caught up.",
+        "Widget aktivitást észleltünk, mielőtt a mentett beszélgetési nézet teljesen frissült."
+      ),
       lastActivityAt: widgetMetrics.lastConversationAt || installStatus.lastSeenAt || null,
     };
   }
@@ -190,13 +203,23 @@ function buildRecentActivity({
       return {
         ...base,
         level: "waiting",
-        description: "Live install detected, waiting for first stored conversation",
-        copy: "Open the live site and send a real test question to confirm chat persistence and analytics end to end.",
+        description: localizeAnalyticsSummaryText(language, "Live install detected, waiting for first stored conversation", "Élő telepítés észlelve, várakozás az első mentett beszélgetésre"),
+        copy: localizeAnalyticsSummaryText(
+          language,
+          "Open the live site and send a real test question to confirm chat persistence and analytics end to end.",
+          "Nyisd meg az élő oldalt, és küldj valódi tesztkérdést, hogy a chatmentés és az elemzés végig ellenőrizhető legyen."
+        ),
         lastActivityAt: installStatus.lastSeenAt || null,
       };
     }
 
-    return base;
+    return language === "hu"
+      ? {
+        ...base,
+        description: "Még nincs élő aktivitás",
+        copy: "Még nincs mentett élő beszélgetés.",
+      }
+      : base;
   }
 
   const hoursSinceLastMessage = lastMessageAt
@@ -206,8 +229,12 @@ function buildRecentActivity({
   if (hoursSinceLastMessage !== null && hoursSinceLastMessage <= 24 && visitorQuestions >= 3) {
     return {
       level: "active",
-      description: "Active in the last day",
-      copy: `${visitorQuestions} visitor question${visitorQuestions === 1 ? "" : "s"} and ${totalMessages} total stored message${totalMessages === 1 ? "" : "s"} are already in the read model.`,
+      description: localizeAnalyticsSummaryText(language, "Active in the last day", "Aktív az elmúlt napban"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        `${visitorQuestions} visitor question${pluralSuffix(visitorQuestions)} and ${totalMessages} total stored message${pluralSuffix(totalMessages)} are already in the read model.`,
+        `${visitorQuestions} látogatói kérdés és ${totalMessages} mentett üzenet már szerepel az áttekintésben.`
+      ),
       lastActivityAt: lastMessageAt,
     };
   }
@@ -215,16 +242,24 @@ function buildRecentActivity({
   if (hoursSinceLastMessage !== null && hoursSinceLastMessage <= 72) {
     return {
       level: "recent",
-      description: "Recent live usage",
-      copy: `${visitorQuestions} visitor question${visitorQuestions === 1 ? "" : "s"} and ${totalMessages} total stored message${totalMessages === 1 ? "" : "s"} have been captured recently.`,
+      description: localizeAnalyticsSummaryText(language, "Recent live usage", "Friss élő használat"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        `${visitorQuestions} visitor question${pluralSuffix(visitorQuestions)} and ${totalMessages} total stored message${pluralSuffix(totalMessages)} have been captured recently.`,
+        `${visitorQuestions} látogatói kérdés és ${totalMessages} mentett üzenet érkezett nemrég.`
+      ),
       lastActivityAt: lastMessageAt,
     };
   }
 
   return {
     level: "historical",
-    description: "Earlier stored activity",
-    copy: `${totalMessages} stored message${totalMessages === 1 ? "" : "s"} are available from earlier live usage.`,
+    description: localizeAnalyticsSummaryText(language, "Earlier stored activity", "Korábbi mentett aktivitás"),
+    copy: localizeAnalyticsSummaryText(
+      language,
+      `${totalMessages} stored message${pluralSuffix(totalMessages)} are available from earlier live usage.`,
+      `${totalMessages} mentett üzenet érhető el korábbi élő használatból.`
+    ),
     lastActivityAt: lastMessageAt,
   };
 }
@@ -234,38 +269,78 @@ function buildOperatorSignal({
   weakAnswerCount,
   widgetMetrics = {},
   installStatus = {},
+  language = "en",
 }) {
   const base = buildDefaultOperatorSignal();
 
   if (highIntentSignals > 0) {
     return {
-      title: "High-intent service signal",
-      copy: `${highIntentSignals} high-intent customer signal${highIntentSignals === 1 ? "" : "s"} have already appeared.`,
+      title: localizeAnalyticsSummaryText(language, "High-intent service signal", "Erős ügyfélszándék-jelzés"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        `${highIntentSignals} high-intent customer signal${pluralSuffix(highIntentSignals)} have already appeared.`,
+        `${highIntentSignals} erős ügyfélszándék-jelzés már megjelent.`
+      ),
       subtle: weakAnswerCount > 0
-        ? `${weakAnswerCount} conversation${weakAnswerCount === 1 ? "" : "s"} still need a stronger answer path.`
-        : `${Number(widgetMetrics.conversationsSinceInstall || 0)} conversation${Number(widgetMetrics.conversationsSinceInstall || 0) === 1 ? "" : "s"} started since install.`,
+        ? localizeAnalyticsSummaryText(
+          language,
+          `${weakAnswerCount} conversation${pluralSuffix(weakAnswerCount)} still need a stronger answer path.`,
+          `${weakAnswerCount} beszélgetéshez még erősebb válaszút kell.`
+        )
+        : localizeAnalyticsSummaryText(
+          language,
+          `${Number(widgetMetrics.conversationsSinceInstall || 0)} conversation${pluralSuffix(Number(widgetMetrics.conversationsSinceInstall || 0))} started since install.`,
+          `${Number(widgetMetrics.conversationsSinceInstall || 0)} beszélgetés indult a telepítés óta.`
+        ),
     };
   }
 
   if (Number(widgetMetrics.conversationsSinceInstall || 0) === 0 && ["seen_recently", "seen_stale", "installed_unseen"].includes(cleanText(installStatus.state))) {
     return {
-      title: "No conversation signal yet",
-      copy: "0 conversations since install. Run a live test flow to confirm visitors can reach the assistant.",
+      title: localizeAnalyticsSummaryText(language, "No conversation signal yet", "Még nincs beszélgetési jelzés"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        "0 conversations since install. Run a live test flow to confirm visitors can reach the assistant.",
+        "0 beszélgetés indult a telepítés óta. Futtass élő tesztfolyamatot, hogy a látogatók elérik-e az asszisztenst."
+      ),
       subtle: weakAnswerCount > 0
-        ? `${weakAnswerCount} conversation${weakAnswerCount === 1 ? "" : "s"} already showed a weak-answer signal.`
-        : "Once real conversations arrive, Vonza will surface customer-service signals here.",
+        ? localizeAnalyticsSummaryText(
+          language,
+          `${weakAnswerCount} conversation${pluralSuffix(weakAnswerCount)} already showed a weak-answer signal.`,
+          `${weakAnswerCount} beszélgetés már gyenge válaszra utaló jelzést mutatott.`
+        )
+        : localizeAnalyticsSummaryText(
+          language,
+          "Once real conversations arrive, Vonza will surface customer-service signals here.",
+          "Amint valódi beszélgetések érkeznek, a Vonza itt mutatja az ügyfélszolgálati jelzéseket."
+        ),
     };
   }
 
   if (weakAnswerCount > 0) {
     return {
-      title: "Answer quality signal",
-      copy: `${weakAnswerCount} conversation${weakAnswerCount === 1 ? "" : "s"} may need a stronger answer path.`,
-      subtle: "Review the weak-answer conversations before similar visitors hit the same gap again.",
+      title: localizeAnalyticsSummaryText(language, "Answer quality signal", "Válaszminőségi jelzés"),
+      copy: localizeAnalyticsSummaryText(
+        language,
+        `${weakAnswerCount} conversation${pluralSuffix(weakAnswerCount)} may need a stronger answer path.`,
+        `${weakAnswerCount} beszélgetéshez erősebb válaszút kellhet.`
+      ),
+      subtle: localizeAnalyticsSummaryText(
+        language,
+        "Review the weak-answer conversations before similar visitors hit the same gap again.",
+        "Nézd át a gyenge válaszú beszélgetéseket, mielőtt hasonló látogatók ugyanabba a hiányba futnak."
+      ),
     };
   }
 
-  return base;
+  return language === "hu"
+    ? {
+      ...base,
+      title: "Még nincs szolgáltatási jelzés",
+      copy: "Még nincs erős érdeklődői, foglalási, árazási vagy támogatási jelzés.",
+      subtle: "Még nincs gyenge válaszra utaló jelzés.",
+    }
+    : base;
 }
 
 export function buildAnalyticsSummary({
@@ -300,6 +375,7 @@ export function buildAnalyticsSummary({
     && Number(widgetMetrics.conversationsSinceInstall || 0) > 0
       ? "pending"
       : "ready";
+  const language = normalizeDashboardSummaryLanguage(dashboardLanguage) || "en";
 
   return {
     ...summary,
@@ -329,12 +405,14 @@ export function buildAnalyticsSummary({
       widgetMetrics,
       installStatus,
       syncState,
+      language,
     }),
     operatorSignal: buildOperatorSignal({
       highIntentSignals,
       weakAnswerCount,
       widgetMetrics,
       installStatus,
+      language,
     }),
   };
 }
