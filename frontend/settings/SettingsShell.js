@@ -552,7 +552,7 @@
             </div>
             <div class="field">
               <label for="assistant-business-hours-note">Availability note</label>
-              <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.">${escapeHtml(agent.businessHoursNote || "")}</textarea>
+              <textarea id="assistant-business-hours-note" name="business_hours_note" placeholder="${escapeHtml(helpers.translateDashboardText("Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm."))}">${escapeHtml(agent.businessHoursNote || "")}</textarea>
               <p class="field-help">Optional. This appears in the handoff card so the next step feels concrete and trustworthy.</p>
             </div>
           </div>
@@ -917,8 +917,8 @@
           </div>
           <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
             ${[
-              { value: "light", label: t("settings.light"), copy: "Default dashboard theme." },
-              { value: "dark", label: t("settings.dark"), copy: "Lower-light dashboard theme for the app shell." },
+              { value: "light", label: t("settings.light"), copy: helpers.translateDashboardText("Default dashboard theme.") },
+              { value: "dark", label: t("settings.dark"), copy: helpers.translateDashboardText("Lower-light dashboard theme for the app shell.") },
             ].map((theme) => `
               <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
                 <input
@@ -935,7 +935,7 @@
               </label>
             `).join("")}
           </div>
-          <p class="settings-shell-section-copy">Saved as a dashboard preference on this device.</p>
+          <p class="settings-shell-section-copy">${escapeHtml(helpers.translateDashboardText("Saved as a dashboard preference on this device."))}</p>
         </section>
 
         <section class="settings-shell-section">

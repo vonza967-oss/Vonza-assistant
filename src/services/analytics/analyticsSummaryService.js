@@ -124,32 +124,32 @@ export function buildCustomerQuestionSummaries(messages = [], limit = 6, options
     .slice(0, limit);
 }
 
-function buildDefaultRecentActivity() {
-  return {
-    level: "none",
-    description: "No live activity yet",
-    copy: "No live conversations have been stored yet.",
-    lastActivityAt: null,
-  };
-}
-
 function localizeAnalyticsSummaryText(language, english, hungarian) {
   return language === "hu" ? hungarian : english;
+}
+
+function buildDefaultRecentActivity(language = "en") {
+  return {
+    level: "none",
+    description: localizeAnalyticsSummaryText(language, "No live activity yet", "Még nincs élő aktivitás"),
+    copy: localizeAnalyticsSummaryText(language, "No live conversations have been stored yet.", "Még nincs mentett élő beszélgetés."),
+    lastActivityAt: null,
+  };
 }
 
 function pluralSuffix(count) {
   return count === 1 ? "" : "s";
 }
 
-function buildDefaultOperatorSignal() {
+function buildDefaultOperatorSignal(language = "en") {
   return {
-    title: "No service signal yet",
-    copy: "There is not a strong lead, booking, pricing, or support signal yet.",
-    subtle: "No weak-answer signal has been detected yet.",
+    title: localizeAnalyticsSummaryText(language, "No service signal yet", "Még nincs szolgáltatási jelzés"),
+    copy: localizeAnalyticsSummaryText(language, "There is not a strong lead, booking, pricing, or support signal yet.", "Még nincs erős érdeklődői, foglalási, árazási vagy támogatási jelzés."),
+    subtle: localizeAnalyticsSummaryText(language, "No weak-answer signal has been detected yet.", "Még nincs észlelt gyenge válaszjelzés."),
   };
 }
 
-export function createEmptyAnalyticsSummary() {
+export function createEmptyAnalyticsSummary(language = "en") {
   return {
     ready: true,
     syncState: "ready",
@@ -168,8 +168,8 @@ export function createEmptyAnalyticsSummary() {
     attentionNeeded: 0,
     lastMessageAt: null,
     customerQuestionSummaries: [],
-    recentActivity: buildDefaultRecentActivity(),
-    operatorSignal: buildDefaultOperatorSignal(),
+    recentActivity: buildDefaultRecentActivity(language),
+    operatorSignal: buildDefaultOperatorSignal(language),
   };
 }
 
@@ -182,7 +182,7 @@ function buildRecentActivity({
   syncState,
   language = "en",
 }) {
-  const base = buildDefaultRecentActivity();
+  const base = buildDefaultRecentActivity(language);
 
   if (syncState === "pending") {
     return {
@@ -351,7 +351,8 @@ export function buildAnalyticsSummary({
   diagnosticsMessage = "",
   dashboardLanguage = "",
 } = {}) {
-  const summary = createEmptyAnalyticsSummary();
+  const language = normalizeDashboardSummaryLanguage(dashboardLanguage) || "en";
+  const summary = createEmptyAnalyticsSummary(language);
   const normalizedMessages = normalizeMessages(messages);
   const queueItems = Array.isArray(actionQueue.items) ? actionQueue.items : [];
   const conversionSummary = {
@@ -375,8 +376,6 @@ export function buildAnalyticsSummary({
     && Number(widgetMetrics.conversationsSinceInstall || 0) > 0
       ? "pending"
       : "ready";
-  const language = normalizeDashboardSummaryLanguage(dashboardLanguage) || "en";
-
   return {
     ...summary,
     ready: !diagnosticsMessage,

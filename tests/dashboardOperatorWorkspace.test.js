@@ -260,6 +260,19 @@ test("first-time dashboard language chooser renders and translation fallback is 
   assert.match(chooser, /Continue/);
 });
 
+test("Hungarian loading state stays fully Hungarian", () => {
+  const harness = createDashboardHarness();
+  harness.cacheDashboardLanguage("hu");
+
+  harness.renderLoadingState();
+  const loading = harness.document.getElementById("dashboard-root").innerHTML;
+
+  assert.match(loading, /Munkaterület betöltése/);
+  assert.match(loading, /Előkészítjük az ügyfélszolgálati irányítópultot\./);
+  assert.doesNotMatch(loading, /Loading your workspace/);
+  assert.doesNotMatch(loading, /Getting your customer service dashboard ready\./);
+});
+
 test("Hungarian dashboard language translates navigation, customer labels, settings, and analytics labels", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -327,6 +340,14 @@ const HUNGARIAN_DASHBOARD_ENGLISH_LEAKS = [
   "Improve service answers",
   "Move Vonza from preview into the live website",
   "Medium lost-customer risk",
+  "Current day",
+  "Home at a glance",
+  "Approval-first proposals",
+  "Messages today",
+  "Guided customers",
+  "Results today",
+  "Why this recommendation",
+  "Review context",
 ];
 
 function escapeRegExp(value) {
@@ -536,6 +557,44 @@ test("Hungarian supported dashboard keys do not fall back to key names or Englis
   }
 });
 
+test("Hungarian core dashboard screens surface missing translation keys through the shared registry", () => {
+  const harness = createDashboardHarness();
+  const hasTranslation = harness.window.VonzaDashboardI18n?.hasTranslation;
+
+  assert.equal(typeof hasTranslation, "function");
+
+  const requiredKeys = [
+    "app.loading.title",
+    "app.loading.copy",
+    "nav.home",
+    "nav.customers",
+    "nav.frontDesk",
+    "nav.analytics",
+    "nav.install",
+    "nav.settings",
+    "home.title",
+    "home.aiPriorities",
+    "customers.title",
+    "customers.needsReply",
+    "analytics.title",
+    "analytics.estimatedSatisfaction",
+    "install.title",
+    "install.copyInstallCode",
+    "install.verifyInstallation",
+    "settings.title",
+    "settings.theme",
+    "language.settingsTitle",
+  ];
+
+  for (const key of requiredKeys) {
+    assert.equal(
+      hasTranslation(key, "hu"),
+      true,
+      `Missing Hungarian dashboard translation key: ${key}`
+    );
+  }
+});
+
 test("dashboard language preference requests stay separate from widget reply language", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const chatPrompt = readFileSync(path.join(repoRoot, "src", "services", "chat", "prompting.js"), "utf8");
@@ -660,6 +719,110 @@ test("home AI priorities translate raw signals into practical business recommend
     },
   }));
   assert.match(emptyState, /No urgent improvements right now/);
+});
+
+test("Hungarian operator home overview stays Hungarian for suggestions, context, and supporting detail", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_TODAY_COPILOT_V1_ENABLED: true,
+    },
+  });
+  harness.cacheDashboardLanguage("hu");
+
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConnected: false,
+      migrationRequired: false,
+    },
+    summary: {
+      followUpsNeedingApproval: 1,
+    },
+    today: {
+      campaignsAwaitingApproval: 2,
+      highValueWithoutOutcome: 3,
+      overdueHighValueContacts: 1,
+      complaintRiskContacts: 2,
+      campaignReplies: 4,
+      campaignConversions: 1,
+      contactsWithProgression: 5,
+      lifecycleCounts: {
+        customer: 2,
+        qualified: 1,
+        activeLead: 2,
+      },
+      recentSuccessfulOutcomes: [],
+    },
+    businessProfile: {
+      readiness: {
+        totalSections: 6,
+        completedSections: 2,
+        missingCount: 4,
+        missingSections: ["Services", "Pricing", "Policies", "Operating hours"],
+        summary: "2 of 6 business profile areas are filled. Missing: Services, Pricing, Policies, Operating hours.",
+      },
+      prefill: {
+        available: true,
+        fieldCount: 4,
+        sourceSummary:
+          "Suggestions are based on imported website knowledge plus current assistant contact settings. Nothing is saved until the owner reviews and submits.",
+      },
+    },
+    copilot: {
+      enabled: true,
+      featureEnabled: true,
+      readOnly: true,
+      draftOnly: true,
+      headline: "Vonza is ready.",
+      summary: "Vonza is summarizing your current workspace only.",
+      fallback: {
+        title: "Vonza needs a little more context",
+        description: "There is not enough live workspace data yet for strong recommendations.",
+        guidance: [
+          "Fill the business context foundation next: Services, Pricing, Policies, Operating hours.",
+        ],
+      },
+      context: {
+        warnings: [
+          "messages is temporarily unavailable. The rest of the dashboard is still usable.",
+        ],
+        businessProfile: {
+          readiness: {
+            totalSections: 6,
+            completedSections: 2,
+            missingCount: 4,
+            missingSections: ["Services", "Pricing", "Policies", "Operating hours"],
+            summary: "2 of 6 business profile areas are filled. Missing: Services, Pricing, Policies, Operating hours.",
+          },
+        },
+      },
+      summaryCards: [],
+      proposals: [],
+      proposalSummary: {},
+    },
+  });
+
+  const overview = harness.buildOperatorOverviewSection({}, workspace);
+
+  assert.doesNotMatch(overview, /Home suggestions/);
+  assert.doesNotMatch(overview, /View-only summaries and draft suggestions/);
+  assert.doesNotMatch(overview, /Vonza is ready\./);
+  assert.doesNotMatch(overview, /View only/);
+  assert.doesNotMatch(overview, /Review first/);
+  assert.doesNotMatch(overview, /Daily Schedule/);
+  assert.doesNotMatch(overview, /Appointments Needing Follow-up/);
+  assert.doesNotMatch(overview, /Show supporting detail/);
+  assert.doesNotMatch(overview, /temporarily unavailable/);
+  assert.doesNotMatch(overview, /business profile areas are filled/);
+  assert.doesNotMatch(overview, /Suggestions are based on imported website knowledge/);
+
+  assert.match(overview, /Kezdőlap javaslatai/);
+  assert.match(overview, /Csak megtekintés/);
+  assert.match(overview, /Mai időbeosztás/);
+  assert.match(overview, /Kiegészítő részletek megjelenítése/);
+  assert.match(overview, /vállalkozási profil terület kitöltve/);
 });
 
 test("home overview AI priorities use business-facing wording and a calm empty state", () => {

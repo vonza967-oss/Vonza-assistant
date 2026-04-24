@@ -263,8 +263,13 @@
   global.VonzaDashboardI18n = Object.freeze({
     STORAGE_KEY,
     SUPPORTED_LANGUAGES,
+    TRANSLATIONS: translations,
     normalizeLanguage,
     getCachedLanguage,
     t,
+    hasTranslation(key, language = getCachedLanguage()) {
+      const normalizedLanguage = normalizeLanguage(language);
+      return Object.prototype.hasOwnProperty.call(translations[normalizedLanguage] || {}, key);
+    },
   });
 })(window);

@@ -1190,6 +1190,44 @@ function getDashboardLanguage() {
   return normalizeDashboardLanguage(dashboardLanguage);
 }
 
+function isHungarianDashboard() {
+  return getDashboardLanguage() === "hu";
+}
+
+function localizeDashboardCopy(english = "", hungarian = "") {
+  return isHungarianDashboard() ? hungarian : english;
+}
+
+const DASHBOARD_HU_COUNT_UNITS = Object.freeze({
+  answer: "válasz",
+  contact: "ügyfél",
+  conversation: "beszélgetés",
+  conversion: "konverzió",
+  customer: "ügyfél",
+  "customer issue": "ügyfélügy",
+  "campaign approval": "kampányjóváhagyás",
+  "campaign reply": "kampányválasz",
+  "complaint-risk contact": "panaszkockázatos kapcsolat",
+  "high-value contact": "magas értékű kapcsolat",
+  issue: "ügy",
+  item: "tétel",
+  lead: "érdeklődő",
+  "open issue": "nyitott ügy",
+  reply: "válasz",
+  "follow-up": "utánkövetés",
+});
+
+function getDashboardHungarianCountUnit(label = "") {
+  const normalized = trimText(label).toLowerCase();
+  return DASHBOARD_HU_COUNT_UNITS[normalized] || trimText(label);
+}
+
+function formatDashboardCountLabel(count, singular, plural = `${singular}s`, hungarian = singular) {
+  return isHungarianDashboard()
+    ? `${count} ${trimText(hungarian) === trimText(singular) ? getDashboardHungarianCountUnit(singular) : hungarian}`
+    : `${count} ${count === 1 ? singular : plural}`;
+}
+
 function hasCachedDashboardLanguage() {
   try {
     const rawValue = window.localStorage.getItem(DASHBOARD_LANGUAGE_STORAGE_KEY);
@@ -1223,6 +1261,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Website learning": "Weboldal betanítása folyamatban",
   "Add website details": "Weboldaladatok hozzáadása",
   "Workspace": "Munkaterület",
+  "Home": "Kezdőlap",
   "Knowledge": "Tudásanyag",
   "Install": "Telepítés",
   "Go live": "Élesítés",
@@ -1296,10 +1335,98 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Customers need to understand what you offer before they can choose the right service.": "Az ügyfeleknek érteniük kell, mit kínálsz, mielőtt a megfelelő szolgáltatást választják.",
   "Add clearer service descriptions, examples, or FAQ answers where the front desk was unsure.": "Adj világosabb szolgáltatásleírásokat, példákat vagy GYIK-válaszokat ott, ahol a Front Desk bizonytalan volt.",
   "No urgent improvements right now": "Most nincs sürgős javítanivaló",
+  "AI priorities": "AI prioritások",
+  "What to improve next": "Mit érdemes javítani",
+  "These are the changes most likely to improve customer satisfaction and save time.": "Ezek a módosítások javíthatják leginkább az ügyfélélményt és időt takaríthatnak meg.",
+  "Suggestions": "Javaslatok",
+  "Home suggestions": "Kezdőlap javaslatai",
+  "View-only summaries and draft suggestions built from your live workspace. Vonza does not silently act on your behalf.": "Csak megtekinthető összefoglalók és piszkozat-javaslatok az élő munkaterületedből. A Vonza nem cselekszik a háttérben a jóváhagyásod nélkül.",
+  "View only": "Csak megtekintés",
+  "Review first": "Előbb nézd át",
+  "Mixed mode": "Vegyes mód",
+  "Home headline": "Kezdőlapi fő üzenet",
+  "Vonza is ready.": "A Vonza készen áll.",
+  "Vonza is summarizing your current workspace only.": "A Vonza most csak az aktuális munkaterületedet foglalja össze.",
+  "Business context progress will appear here.": "Itt jelenik meg az üzleti kontextus előrehaladása.",
+  "Core business context is ready for suggestions.": "Az alap üzleti kontextus készen áll a javaslatokhoz.",
+  "Open business context": "Üzleti kontextus megnyitása",
+  "Vonza needs a little more context": "A Vonzának még egy kis kontextusra van szüksége",
+  "There is not enough live workspace data yet for strong recommendations.": "Még nincs elég élő munkaterületi adat az erős javaslatokhoz.",
+  "Current day": "Mai nap",
+  "Home at a glance": "Kezdőlap röviden",
+  "Only live current-day signals stay visible here.": "Itt csak a mai élő jelzések maradnak szem előtt.",
+  "Messages today": "Mai üzenetek",
+  "Current-day front desk volume only.": "Csak a mai Front Desk forgalom.",
+  "Guided customers": "Továbbvezetett ügyfelek",
+  "Results today": "Mai eredmények",
+  "Recorded results from today only.": "Csak a ma rögzített eredmények.",
+  "Items that still need a decision or review.": "Tételek, amelyek még döntést vagy áttekintést igényelnek.",
+  "Proposals": "Javaslatok",
+  "Approval-first proposals": "Jóváhagyás előtti javaslatok",
+  "Compact owner-ready proposals stay front and center here.": "A rövid, tulajdonosnak szóló javaslatok itt maradnak elöl.",
+  "Short summaries first. Extra detail only if you open it.": "Először a rövid összefoglalók jelennek meg. A részletek csak megnyitás után látszanak.",
+  "No active proposals are waiting right now.": "Jelenleg nincs függő aktív javaslat.",
+  "Review context": "Kontextus áttekintése",
+  "Why this recommendation": "Miért ez a javaslat",
+  "Home is the daily command page: current-day signals, compact proposals, and the clearest recommendations only.": "A Kezdőlap a napi irányító oldal: csak a mai jelzéseket, a rövid javaslatokat és a legfontosabb ajánlásokat mutatja.",
+  "Connected tools beta": "Kapcsolt eszközök béta",
+  "Workspace still syncing": "A munkaterület még szinkronizál",
+  "Workspace ready": "A munkaterület készen áll",
+  "Calendar is beta": "A naptár béta",
+  "Calendar-heavy detail is not ready yet, so Home keeps this area informational for now.": "A naptárhoz kötődő részletes nézet még nincs kész, ezért a Kezdőlap ezt most csak tájékoztató jelleggel mutatja.",
+  "Daily Schedule": "Mai időbeosztás",
+  "Remaining schedule context and appointment detail.": "A hátralévő időbeosztás és időpont-részletek.",
+  "No more appointments are on today’s schedule": "Mára nincs több időpont a naptárban",
+  "Calendar beta": "Naptár béta",
+  "Vonza will keep today’s remaining schedule here.": "A Vonza itt tartja szem előtt a mai hátralévő időbeosztást.",
+  "Schedule context is not ready to use from the dashboard yet.": "Az időbeosztás kontextusa még nem használható az irányítópultból.",
+  "Open context": "Kontextus megnyitása",
+  "Follow-up": "Utánkövetés",
+  "Appointments Needing Follow-up": "Utánkövetést igénylő időpontok",
+  "Recent appointments that still need a clear next step.": "Friss időpontok, amelyekhez még egyértelmű következő lépés kell.",
+  "No recent appointment follow-up is standing out": "Nem látszik friss kiemelt időpont-utánkövetés",
+  "When an appointment ends without a clear next step, Vonza will surface it here.": "Ha egy időpont világos következő lépés nélkül zárul, a Vonza itt emeli ki.",
+  "Review follow-up": "Utánkövetés áttekintése",
+  "Linking": "Kapcsolás",
+  "Appointments Not Linked to a Contact": "Kapcsolathoz nem kötött időpontok",
+  "Calendar linking detail moved out of the default Home view.": "A naptárkapcsolási részletek kikerültek az alapértelmezett Kezdőlap nézetből.",
+  "No appointment currently needs attendee linking": "Jelenleg nincs olyan időpont, amely résztvevő-kapcsolást igényelne",
+  "Vonza will show unlinked attendees here when that context matters.": "A Vonza itt mutatja a nem kapcsolt résztvevőket, amikor ennek jelentősége van.",
+  "Review attendee": "Résztvevő áttekintése",
+  "Approval-first work": "Jóváhagyás előtti munka",
+  "Outcome gaps": "Eredményhiányok",
+  "Campaign replies": "Kampányválaszok",
+  "Lifecycle progression": "Életciklus előrehaladás",
+  "Proof": "Bizonyíték",
+  "Recent successful outcomes": "Legutóbbi sikeres eredmények",
+  "Outcome history stays available here without dominating Home.": "Az eredménytörténet itt elérhető marad anélkül, hogy eluralná a Kezdőlapot.",
+  "Cross-channel result": "Csatornákon átívelő eredmény",
+  "As soon as Vonza can prove bookings, quote requests, complaint resolutions, campaign replies, or follow-up results, they will appear here with source context.": "Amint a Vonza bizonyítani tud foglalásokat, ajánlatkéréseket, panaszmegoldásokat, kampányválaszokat vagy utánkövetési eredményeket, azok itt jelennek meg forráskontextussal.",
+  "Show supporting detail": "Kiegészítő részletek megjelenítése",
+  "Calendar, contacts, proof, and operational context": "Naptár, ügyfelek, bizonyítékok és működési kontextus",
+  "Home card": "Kezdőlapi kártya",
+  "Vonza will show the next useful context here.": "A Vonza itt mutatja a következő hasznos kontextust.",
+  "Calendar appointment": "Naptárbejegyzés",
+  "Linked": "Kapcsolva",
+  "Needs a look": "Átnézést igényel",
+  "Vonza highlighted this calendar item for review.": "A Vonza áttekintésre emelte ki ezt a naptárbejegyzést.",
+  "Timing and context": "Időzítés és kontextus",
+  "Context": "Kontextus",
+  "Context is still loading.": "A kontextus még töltődik.",
+  "Workflow status": "Folyamat állapota",
+  "Linked to a contact": "Kapcsolathoz kötve",
+  "Still needs linking or review": "Még kapcsolást vagy áttekintést igényel",
+  "Suggestions are based on imported website knowledge plus current assistant contact settings. Nothing is saved until the owner reviews and submits.": "A javaslatok az importált weboldaltudásra és a jelenlegi asszisztens-kapcsolati beállításokra épülnek. Semmi sem kerül mentésre, amíg a tulajdonos át nem nézi és el nem küldi.",
+  "The rest of the dashboard is still usable.": "Az irányítópult többi része továbbra is használható.",
+  "messages": "üzenetek",
   "Service quality": "Szolgáltatás minősége",
   "Improve service": "Szolgáltatás javítása",
   "Dashboard language": "Irányítópult nyelve",
   "Theme": "Téma",
+  "Default dashboard theme.": "Alapértelmezett irányítópult téma.",
+  "Lower-light dashboard theme for the app shell.": "Sötétebb irányítópult téma az alkalmazás felületéhez.",
+  "Saved as a dashboard preference on this device.": "Irányítópult-beállításként mentve ezen az eszközön.",
+  "Open Mon-Fri, 9am-5pm. Same-day callbacks usually happen before 4pm.": "Nyitva H-P, 9:00-17:00. Az aznapi visszahívások általában 16:00 előtt történnek.",
   "Connected tools": "Kapcsolt eszközök",
   "Current workspace status": "Munkaterület aktuális állapota",
   "Workspace boundaries": "Munkaterület határai",
@@ -1387,6 +1514,212 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Customer question theme": "Ügyfélkérdés-téma",
   "No repeated customer question is standing out yet.": "Még nem emelkedik ki ismétlődő ügyfélkérdés.",
   "No weak-answer pattern is standing out in the current sample.": "A jelenlegi mintában nem látszik gyenge válaszminta.",
+  "View details": "Részletek megnyitása",
+  "Nothing here yet": "Itt még nincs tartalom",
+  "Vonza will fill this area as soon as there is something useful to show.": "A Vonza feltölti ezt a részt, amint hasznos tartalom érkezik ide.",
+  "Actions": "Műveletek",
+  "Overview": "Áttekintés",
+  "Preview": "Előnézet",
+  "Website / Context": "Weboldal / Kontextus",
+  "Install / Launch": "Telepítés / Élesítés",
+  "Add your website to personalize the Front Desk": "Add meg a weboldaladat, hogy személyre szabhasd a Front Desket",
+  "No recent conversation summary yet.": "Még nincs összefoglaló a legutóbbi beszélgetésről.",
+  "Needed help with a support issue": "Támogatási ügyben kért segítséget",
+  "Asked about pricing and next steps": "Árazásról és következő lépésekről kérdezett",
+  "Asked about pricing or quote details": "Árazásról vagy ajánlatkérés részleteiről kérdezett",
+  "Needed help with booking or availability": "Foglalással vagy elérhetőséggel kapcsolatban kért segítséget",
+  "Asked which service fits their needs": "Azt kérdezte, melyik szolgáltatás illik az igényeihez",
+  "Wanted to contact the business": "Kapcsolatba akart lépni a vállalkozással",
+  "Asked about hours or service area": "Nyitvatartásról vagy kiszolgálási területről kérdezett",
+  "Started a new chat with the business": "Új beszélgetést indított a vállalkozással",
+  "Asked for help choosing a next step": "Segítséget kért a következő lépés kiválasztásához",
+  "Email user": "Emailes felhasználó",
+  "Phone user": "Telefonos felhasználó",
+  "Named visitor": "Azonosított látogató",
+  "No current situation has been captured yet.": "Még nincs rögzítve aktuális helyzet.",
+  "Risk is elevated. This customer may lose trust if the issue stays unanswered.": "Emelkedett a kockázat. Ez az ügyfél elveszítheti a bizalmát, ha az ügy megválaszolatlan marad.",
+  "Lead intent is present, but momentum could fade if nobody replies soon.": "Az érdeklődési szándék látszik, de a lendület gyorsan elfogyhat, ha senki nem válaszol hamar.",
+  "The conversation is still open and likely needs a team reply or follow-up.": "A beszélgetés még nyitott, és valószínűleg csapatválaszra vagy utánkövetésre van szükség.",
+  "The latest interaction looks settled right now with no urgent action standing out.": "A legutóbbi interakció most rendezettnek tűnik, és nem látszik sürgős teendő.",
+  "This looks like a returning relationship, so continuity matters more than a generic reply.": "Ez visszatérő kapcsolatnak látszik, ezért a folytonosság fontosabb, mint egy általános válasz.",
+  "No strong risk signal is standing out yet.": "Még nem látszik erős kockázati jelzés.",
+  "Send a calm reply, confirm the issue, and give one clear next step.": "Küldj nyugodt választ, erősítsd meg a problémát, és adj egy világos következő lépést.",
+  "Answer the open question and guide this person toward a quote, booking, or decision.": "Válaszold meg a nyitott kérdést, és vezesd ezt az ügyfelet ajánlatkérés, foglalás vagy döntés felé.",
+  "Reconnect with context from the last interaction and confirm the next step.": "Kapcsolódj vissza az előző interakció kontextusával, és erősítsd meg a következő lépést.",
+  "Review the latest interaction and decide whether a follow-up is still needed.": "Nézd át a legutóbbi interakciót, és döntsd el, kell-e még utánkövetés.",
+  "Apologize clearly, confirm the issue, and offer one specific next step with timing.": "Kérj világosan bocsánatot, erősítsd meg a problémát, és adj egy konkrét következő lépést időzítéssel.",
+  "Thank them for reaching out, answer the open question, and suggest the clearest next step.": "Köszönd meg a megkeresést, válaszold meg a nyitott kérdést, és javasold a legvilágosabb következő lépést.",
+  "Acknowledge the latest message, answer the main question, and confirm what happens next.": "Ismerd el a legutóbbi üzenetet, válaszold meg a fő kérdést, és erősítsd meg, mi történik ezután.",
+  "Reference the previous interaction, check whether they still need help, and keep the reply warm and brief.": "Hivatkozz az előző interakcióra, ellenőrizd, hogy még szükségük van-e segítségre, és tartsd a választ meleg hangvételűnek és rövidnek.",
+  "Unhappy or at-risk conversations that should not sit idle.": "Elégedetlen vagy kockázatos beszélgetések, amelyeket nem szabad magukra hagyni.",
+  "People showing buying intent or asking for next-step details.": "Vásárlási szándékot mutató emberek vagy akik a következő lépés részleteire kérdeznek rá.",
+  "Existing relationships where prior context should shape the next reply.": "Meglévő kapcsolatok, ahol az előző kontextusnak kell meghatároznia a következő választ.",
+  "Open related conversation": "Kapcsolódó beszélgetés megnyitása",
+  "Open inbox thread": "Email-szál megnyitása",
+  "Open follow-up draft": "Utánkövetési piszkozat megnyitása",
+  "Draft follow-up": "Utánkövetés piszkozat",
+  "Review calendar action": "Naptárművelet áttekintése",
+  "Schedule call": "Hívás ütemezése",
+  "Open calendar": "Naptár megnyitása",
+  "Draft campaign": "Kampánypiszkozat készítése",
+  "Mark complaint resolved": "Panasz megoldottnak jelölése",
+  "Escalate": "Eszkalálás",
+  "Reply idea": "Válaszötlet",
+  "Identifier": "Azonosító",
+  "Previous interactions": "Korábbi interakciók",
+  "Latest outcome": "Legutóbbi eredmény",
+  "No recorded result yet": "Még nincs rögzített eredmény",
+  "No recent outcome has been recorded.": "Nem lett rögzítve friss eredmény.",
+  "Customer type": "Ügyféltípus",
+  "Outcome mark": "Eredményjelölés",
+  "Note": "Megjegyzés",
+  "booked": "lefoglalva",
+  "quote requested": "ajánlatkérés érkezett",
+  "quote accepted": "ajánlat elfogadva",
+  "follow-up successful": "utánkövetés sikeres",
+  "complaint resolved": "panasz megoldva",
+  "no outcome / manual note": "nincs eredmény / kézi megjegyzés",
+  "Record outcome": "Eredmény rögzítése",
+  "Current situation": "Jelenlegi helyzet",
+  "Next best step": "Legjobb következő lépés",
+  "Needs a follow-up": "Utánkövetést igényel",
+  "At-risk relationships": "Kockázatos kapcsolatok",
+  "No clear next step": "Nincs világos következő lépés",
+  "Customers to check in with": "Ügyfelek, akikkel érdemes egyeztetni",
+  "People who would benefit from a reply, a follow-up, or a next step.": "Olyan emberek, akiknek hasznos lenne egy válasz, utánkövetés vagy következő lépés.",
+  "Customers or leads where support context should stay front and center.": "Ügyfelek vagy érdeklődők, akiknél a támogatási kontextusnak kell fókuszban maradnia.",
+  "Interested people who still need a follow-up, booking, or quote path.": "Érdeklődők, akiknek még utánkövetésre, foglalási vagy ajánlatkérési útra van szükségük.",
+  "Customers who could benefit from another touchpoint before momentum fades.": "Ügyfelek, akiknek hasznos lehet még egy érintkezési pont, mielőtt elillan a lendület.",
+  "People records where Vonza can already point to a real result.": "Olyan ügyfélrekordok, ahol a Vonza már valódi eredményt tud felmutatni.",
+  "Qualified or active leads that still need a real outcome, not just activity.": "Minősített vagy aktív érdeklődők, akiknek még valódi eredményre van szükségük, nem csak aktivitásra.",
+  "Sparse record": "Hiányos rekord",
+  "Overview": "Áttekintés",
+  "What stays out of the way": "Mi marad háttérben",
+  "Deeper configuration lives in Settings. Front Desk stays focused on readiness, preview, website grounding, and the path to launch.": "A részletesebb beállítások a Beállításokban vannak. A Front Desk az előkészítésre, az előnézetre, a weboldali megalapozásra és az élesítés útjára koncentrál.",
+  "Try front desk": "Front Desk kipróbálása",
+  "Open Front Desk settings": "Front Desk beállítások megnyitása",
+  "Test the customer experience before you launch it.": "Teszteld az ügyfélélményt, mielőtt élesítenéd.",
+  "Ask realistic questions, check the next step, and make sure the next step feels helpful and on-brand.": "Tegyél fel valósághű kérdéseket, ellenőrizd a következő lépést, és győződj meg róla, hogy hasznosnak és márkához illőnek hat.",
+  "Open full preview": "Teljes előnézet megnyitása",
+  "Reset conversation": "Beszélgetés visszaállítása",
+  "Refresh website details": "Weboldal részleteinek frissítése",
+  "Website connected": "Weboldal kapcsolódva",
+  "Website detail loaded": "Weboldal részletei betöltve",
+  "More website detail would help": "Több weboldalrészlet segítene",
+  "Website detail not loaded yet": "A weboldal részletei még nincsenek betöltve",
+  "You can already test the Front Desk here. A fresh website import should make answers feel more complete before you go live.": "A Front Desket itt már most tesztelheted. Egy friss weboldalimport még teljesebbé teheti a válaszokat az élesítés előtt.",
+  "No website URL": "Nincs megadott weboldal URL",
+  "Prompt starters": "Indító kérdések",
+  "Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.": "Használj néhány valósághű ügyfélkérdést, hogy lásd, mennyire megalapozott a Front Desk, és a megfelelő következő lépést ajánlja-e.",
+  "What services do you offer?": "Milyen szolgáltatásokat kínáltok?",
+  "Can I book with you?": "Tudok nálatok foglalni?",
+  "Can I get a quote?": "Kérhetek ajánlatot?",
+  "How can I contact you?": "Hogyan tudlak elérni benneteket?",
+  "Embedded preview": "Beágyazott előnézet",
+  "This is the in-workspace version of the Front Desk, so you can test it without leaving the page.": "Ez a Front Desk munkaterületen belüli változata, így az oldal elhagyása nélkül tesztelheted.",
+  "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.": "Vidd át a Vonzát az előnézetből az éles weboldalra világos telepítési úttal, ellenőrzéssel és őszinte állapotjelzéssel.",
+  "Preview is available, so you can test the customer-facing flow before launch.": "Az előnézet elérhető, így az ügyféloldali folyamatot élesítés előtt tesztelheted.",
+  "Preview will appear as soon as the front desk has a public key.": "Az előnézet megjelenik, amint a Front Desk kap egy nyilvános kulcsot.",
+  "No domains saved yet.": "Még nincs mentett domain.",
+  "Refreshing from live usage": "Frissítés élő használatból",
+  "warm chats still anonymous": "meleg chat még anonim",
+  "No complaint risk recorded yet": "Még nincs rögzített panasz-kockázat",
+  "Top customer question themes": "Leggyakoribb ügyfélkérdés-témák",
+  "These are the strongest recurring questions or themes showing up in real visitor usage.": "Ezek a legerősebb visszatérő kérdések vagy témák, amelyek valódi látogatói használatban jelennek meg.",
+  "Vonza will show grouped customer question themes here as soon as real usage comes in.": "A Vonza itt csoportosítva mutatja az ügyfélkérdés-témákat, amint megérkezik a valódi használat.",
+  "Owner attention now": "Tulajdonosi figyelmet igényel",
+  "These are the flagged conversations that still need an owner decision, follow-up, or final resolution.": "Ezek azok a jelölt beszélgetések, amelyek még tulajdonosi döntést, utánkövetést vagy végső lezárást igényelnek.",
+  "Intent signals": "Szándékjelzések",
+  "A fast read on the kinds of conversations visitors are trying to have with the business.": "Gyors áttekintés arról, milyen beszélgetéseket próbálnak kezdeményezni a látogatók a vállalkozással.",
+  "Outcome proof": "Eredménybizonyíték",
+  "This is where Vonza stops looking like activity tracking and starts proving business impact.": "Itt válik a Vonza egyszerű aktivitáskövetésből valódi üzleti hatás bizonyítékává.",
+  "What to do next": "Mi legyen a következő lépés",
+  "No weak-answer signal yet. Once customers ask questions that Vonza struggles to answer, they will show up here instead of being hidden behind a fake success state.": "Még nincs gyenge válaszjelzés. Amint az ügyfelek olyan kérdéseket tesznek fel, amelyekre a Vonza nehezen válaszol, itt jelennek meg a mesterséges sikerállapot helyett.",
+  "No queue items need owner attention right now. Resolved items and dismissed items stay out of the way here.": "Jelenleg nincs olyan tétel a sorban, amely tulajdonosi figyelmet igényelne. A lezárt és elvetett tételek itt nem zavarják a munkát.",
+  "No real customer question themes yet. Once the assistant is live and visitors start using it, Vonza will group the strongest recurring questions here.": "Még nincs valódi ügyfélkérdés-téma. Amint az asszisztens élesben működik és a látogatók használni kezdik, a Vonza itt csoportosítja a legerősebb visszatérő kérdéseket.",
+  "This question ended in a weak or uncertain answer and is a good candidate for improvement.": "Ez a kérdés gyenge vagy bizonytalan válasszal zárult, ezért jó jelölt a javításra.",
+  "This is the current high-intent to route to click to outcome chain.": "Ez a jelenlegi magas szándék -> útvonal -> kattintás -> eredmény lánc.",
+  "No outcome-linked pages yet. As soon as Vonza confirms real business results, the strongest pages will show here.": "Még nincs eredményhez kötött oldal. Amint a Vonza valódi üzleti eredményeket erősít meg, itt jelennek meg a legerősebb oldalak.",
+  "Keep the Front Desk focused on value, clarity, and launch readiness.": "Tartsd a Front Desket az értékre, az egyértelműségre és az élesítési készenlétre fókuszálva.",
+  "This overview keeps the essentials in view: what already looks strong, what is worth improving, and where to go next.": "Ez az áttekintés szem előtt tartja a lényeget: mi működik már jól, min érdemes javítani, és merre tovább.",
+  "Looking good": "Jól áll",
+  "Ground the Front Desk in what your business actually does.": "Alapozd a Front Desket arra, amit a vállalkozásod valóban csinál.",
+  "Keep website detail, business context, and behavior summary together so the Front Desk sounds trustworthy before it goes live.": "Tartsd együtt a weboldal részleteit, az üzleti kontextust és a működési összefoglalót, hogy a Front Desk megbízhatónak hasson az élesítés előtt.",
+  "Review business context": "Üzleti kontextus áttekintése",
+  "Edit Front Desk behavior": "Front Desk működés szerkesztése",
+  "Website": "Weboldal",
+  "No website configured": "Nincs megadott weboldal",
+  "Pages learned": "Betanított oldalak",
+  "No pages imported yet": "Még nincs importált oldal",
+  "Customer impact": "Ügyfélhatás",
+  "The Front Desk is ready to answer with solid business context.": "A Front Desk készen áll, hogy stabil üzleti kontextussal válaszoljon.",
+  "The Front Desk can already help, and another import should make answers stronger.": "A Front Desk már most is tud segíteni, és egy újabb import tovább erősítheti a válaszokat.",
+  "Import your site to give the Front Desk more specific business detail.": "Importáld az oldaladat, hogy a Front Desk pontosabb üzleti részleteket kapjon.",
+  "Launcher": "Indítógomb",
+  "Purpose": "Cél",
+  "Primary route": "Elsődleges útvonal",
+  "Advanced guidance": "Speciális útmutatás",
+  "Added": "Hozzáadva",
+  "Not added yet": "Még nincs hozzáadva",
+  "Business grounding": "Üzleti megalapozás",
+  "Run a real preview conversation": "Futtass egy valódi előnézeti beszélgetést",
+  "Needs setup": "Beállítás szükséges",
+  "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd az Előnézetet annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
+  "Finish the Front Desk setup first so Vonza can generate a live preview for testing.": "Előbb fejezd be a Front Desk beállítását, hogy a Vonza élő előnézetet tudjon generálni a teszteléshez.",
+  "Move into the install flow": "Lépj tovább a telepítési folyamatba",
+  "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong.": "Az alapbeállítás már elég erős ahhoz, hogy átadd a Telepítésnek, ahol a kódrészlet, az ellenőrzés és az élő domain részletei vannak a helyükön.",
+  "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.": "Előbb pontosítsd a Front Desk működését és megalapozását, majd használd a Telepítést a végső közzétételi úthoz.",
+  "Why Install still lives separately": "Miért marad külön a Telepítés",
+  "Front Desk owns the launch handoff, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.": "A Front Desk kezeli az élesítés átadását, míg a kódrészlet, az ellenőrzés és a domainellenőrzések a Telepítés nézetben maradnak, ahol könnyebb őket kezelni.",
+  "Use the stable head snippet with your install id so Vonza can verify the right site.": "Használd a stabil head-kódrészletet a telepítési azonosítóddal, hogy a Vonza a megfelelő oldalt tudja ellenőrizni.",
+  "Paste it into the live site head, theme layout, or global custom code area.": "Illeszd be az éles oldal head részébe, a sablon elrendezésébe vagy a globális egyéni kód területre.",
+  "Run the server check, then wait for the widget to ping back from a real page load.": "Futtasd a szerverellenőrzést, majd várd meg, hogy a widget visszajelezzen egy valódi oldalbetöltésből.",
+  "Done": "Kész",
+  "Detected": "Észlelve",
+  "View code": "Kód megtekintése",
+  "Keep it simple: place the script in the live site head. Vonza will verify the snippet server-side and mark the install live once a real page load pings back.": "Tartsd egyszerűen: helyezd a szkriptet az éles oldal head részébe. A Vonza szerveroldalon ellenőrzi a kódrészletet, és élőnek jelöli a telepítést, amint egy valódi oldalbetöltés visszajelez.",
+  "Install will be available as soon as your front desk has a live install id.": "A Telepítés elérhetővé válik, amint a Front Desk élő telepítési azonosítót kap.",
+  "This becomes the final step once your front desk feels ready to go live.": "Ez lesz az utolsó lépés, amikor a Front Desk készen áll az élesítésre.",
+  "Questions and weak answers": "Kérdések és gyenge válaszok",
+  "What stands out right now": "Mi emelkedik ki most",
+  "turning pricing questions into confident next steps": "az árazási kérdések magabiztos következő lépésekké alakítása",
+  "answering first questions without extra owner effort": "az első kérdések megválaszolása extra tulajdonosi munka nélkül",
+  "handling service questions calmly": "a szolgáltatási kérdések nyugodt kezelése",
+  "Strength": "Erősség",
+  "Weakness": "Gyengeség",
+  "Opportunity": "Lehetőség",
+  "Threat": "Kockázat",
+  "Dashboard sidebar": "Irányítópult oldalsáv",
+  "Open navigation": "Navigáció megnyitása",
+  "Menu": "Menü",
+  "View timeline": "Idővonal megnyitása",
+  "Recent": "Nemrég",
+  "Activity": "Aktivitás",
+  "No additional note stored for this interaction.": "Ehhez az interakcióhoz nincs további tárolt megjegyzés.",
+  "Send AI draft": "AI piszkozat küldése",
+  "Open conversation": "Beszélgetés megnyitása",
+  "Review customer": "Ügyfél áttekintése",
+  "Mark resolved": "Megoldottnak jelölés",
+  "friendly": "barátságos",
+  "professional": "professzionális",
+  "sales": "értékesítési",
+  "support": "támogatási",
+  "contact": "kapcsolatfelvétel",
+  "booking": "foglalás",
+  "quote": "ajánlatkérés",
+  "checkout": "fizetés",
+  "capture": "adatbekérés",
+  "chat": "chat",
+  "path prefix": "útvonal előtag",
+  "exact": "pontos egyezés",
+  "automatic only": "csak automatikus",
+  "allow owner mark fallback": "tulajdonosi jelölési tartalék engedélyezése",
+  "New": "Új",
+  "Active Lead": "Aktív érdeklődő",
+  "Qualified": "Minősített",
+  "Support Issue": "Támogatási ügy",
+  "Complaint Risk": "Panaszkockázat",
+  "Dormant": "Inaktív",
 });
 
 const DASHBOARD_HU_REGEX_PHRASES = Object.freeze([
@@ -1411,9 +1744,44 @@ const DASHBOARD_HU_REGEX_PHRASES = Object.freeze([
   [/\b(\d+) \/ (\d+) sections ready\b/g, "$1 / $2 szakasz kész"],
   [/\b(\d+) suggested fields loaded\b/g, "$1 javasolt mező betöltve"],
   [/\b(\d+) fields were safely prefilled for review before save\./g, "$1 mező biztonságosan előtöltve mentés előtti áttekintésre."],
+  [/\b(\d+) of (\d+) business profile areas are filled\. Missing: ([^.]+)\./g, (_match, completed, total, missingSections) => `${completed} / ${total} vállalkozási profil terület kitöltve. Hiányzik: ${translateBusinessProfileSectionList(missingSections)}.`],
+  [/\bAll core business profile areas are filled\./g, "Az összes alapvető vállalkozási profil terület ki van töltve."],
+  [/\b(\d+) areas? could use more business detail\./g, "$1 területhez több üzleti részlet kell."],
+  [/\b([^.<]+?) is temporarily unavailable\. The rest of the dashboard is still usable\./g, (_match, label) => `${translateDashboardText(label)} átmenetileg nem érhető el. Az irányítópult többi része továbbra is használható.`],
+  [/\b(\d+) fields have safe suggestions ready for review\./g, "$1 mezőhöz biztonságos javaslat áll készen áttekintésre."],
   [/\b(\d+) pages? imported\b/g, "$1 oldal importálva"],
   [/\b(\d+) areas? could use a quick review before the Front Desk feels fully grounded\./g, "$1 terület gyors áttekintést igényel, hogy a Front Desk teljesen megalapozott legyen."],
+  [/\b(\d+) leads\b/g, "$1 érdeklődő"],
+  [/\b(\d+) inbox\b/g, "$1 email-szál"],
+  [/\b(\d+) calendar\b/g, "$1 naptárbejegyzés"],
+  [/\b(\d+) follow-ups\b/g, "$1 utánkövetés"],
+  [/\b(\d+) outcomes\b/g, "$1 eredmény"],
+  [/\b(\d+) interactions?\b/g, "$1 interakció"],
+  [/\b(\d+) open conversation(?:s)?\b/g, "$1 nyitott beszélgetés"],
+  [/\b(\d+) confirmed business outcomes?\b/g, "$1 megerősített üzleti eredmény"],
+  [/\b(\d+) attributed outcomes?\b/g, "$1 hozzárendelt eredmény"],
+  [/\b(\d+) pricing conversations?\b/g, "$1 árazási beszélgetés"],
+  [/\b(\d+) mentions?\b/g, "$1 említés"],
+  [/\b(\d+) active\b/g, "$1 aktív"],
+  [/\b(\d+) customers?\b/g, "$1 ügyfél"],
+  [/\b(\d+) campaign approvals?\b/g, "$1 kampányjóváhagyás"],
+  [/\b(\d+) follow-ups?\b/g, "$1 utánkövetés"],
+  [/\b(\d+) follow-ups? and (\d+) campaign approvals? are waiting for review\./g, "$1 utánkövetés és $2 kampányjóváhagyás áttekintésre vár."],
+  [/\b(\d+) high-value contacts? still need a real result and (\d+) complaint-risk contacts? remain in play\./g, "$1 magas értékű kapcsolatnak még valódi eredményre van szüksége, és $2 panaszkockázatos kapcsolat továbbra is aktív."],
+  [/\b(\d+) conversions? have been tied back to campaign work so far\./g, "$1 konverzió kapcsolódott eddig kampánymunkához."],
+  [/\b(\d+) customers · (\d+) qualified · (\d+) active leads\b/g, "$1 ügyfél · $2 minősített · $3 aktív érdeklődő"],
 ]);
+
+function translateBusinessProfileSectionList(value = "") {
+  return String(value || "")
+    .split(/\s*,\s*/)
+    .map((section) => {
+      const normalized = trimText(section);
+      return DASHBOARD_HU_PHRASES[normalized] || normalized;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
 
 function translateDashboardText(value = "") {
   let text = String(value ?? "");
@@ -1869,7 +2237,7 @@ function setActiveTodayQueueSelection(queueKey = "") {
   window.localStorage.setItem(DASHBOARD_TODAY_QUEUE_SELECTION_KEY, queueKey);
 }
 function setStatus(message) {
-  statusBanner.textContent = message || "";
+  statusBanner.textContent = translateDashboardText(message || "");
 }
 
 function buildScript(agent) {
@@ -2965,13 +3333,13 @@ function buildPageHeader({
   return `
     <header class="page-header">
       <div class="page-header-copy">
-        ${eyebrow ? `<p class="page-eyebrow">${escapeHtml(eyebrow)}</p>` : ""}
-        <h1 class="page-title">${escapeHtml(title)}</h1>
-        ${copy ? `<p class="page-copy">${escapeHtml(copy)}</p>` : ""}
+        ${eyebrow ? `<p class="page-eyebrow">${escapeHtml(translateDashboardText(eyebrow))}</p>` : ""}
+        <h1 class="page-title">${escapeHtml(translateDashboardText(title))}</h1>
+        ${copy ? `<p class="page-copy">${escapeHtml(translateDashboardText(copy))}</p>` : ""}
         ${badges.length ? `
           <div class="page-badge-row">
             ${badges.map((badge) => `
-              <span class="${getBadgeClass(badge.tone || "Pending")}">${escapeHtml(badge.label || "")}</span>
+              <span class="${getBadgeClass(badge.tone || "Pending")}">${escapeHtml(translateDashboardText(badge.label || ""))}</span>
             `).join("")}
           </div>
         ` : ""}
@@ -3012,9 +3380,9 @@ function buildSummaryStrip(items = []) {
     <div class="summary-strip">
       ${visibleItems.map((item) => `
         <article class="summary-strip-item">
-          <p class="summary-strip-label">${escapeHtml(item.label)}</p>
+          <p class="summary-strip-label">${escapeHtml(translateDashboardText(item.label))}</p>
           <p class="summary-strip-value">${escapeHtml(String(item.value))}</p>
-          ${item.copy ? `<p class="summary-strip-copy">${escapeHtml(item.copy)}</p>` : ""}
+          ${item.copy ? `<p class="summary-strip-copy">${escapeHtml(translateDashboardText(item.copy))}</p>` : ""}
         </article>
       `).join("")}
     </div>
@@ -3032,9 +3400,9 @@ function buildDisclosureDetailRows(rows = [], { className = "disclosure-detail-l
     <div class="${className}">
       ${visibleRows.map((row) => `
         <div class="disclosure-detail-row">
-          ${row.label ? `<span class="disclosure-detail-label">${escapeHtml(row.label)}</span>` : ""}
+          ${row.label ? `<span class="disclosure-detail-label">${escapeHtml(translateDashboardText(row.label))}</span>` : ""}
           ${row.value !== undefined && row.value !== null && row.value !== "" ? `<strong class="disclosure-detail-value">${escapeHtml(row.value)}</strong>` : ""}
-          ${row.copy ? `<p class="disclosure-detail-copy">${escapeHtml(row.copy)}</p>` : ""}
+          ${row.copy ? `<p class="disclosure-detail-copy">${escapeHtml(translateDashboardText(row.copy))}</p>` : ""}
         </div>
       `).join("")}
     </div>
@@ -3057,8 +3425,8 @@ function buildDisclosureBlock({
   return `
     <details class="${disclosureClassName}" ${open ? "open" : ""}>
       <summary class="disclosure-toggle">
-        <span class="disclosure-toggle-label">${escapeHtml(label)}</span>
-        ${summary ? `<span class="disclosure-toggle-summary">${escapeHtml(summary)}</span>` : ""}
+        <span class="disclosure-toggle-label">${escapeHtml(translateDashboardText(label))}</span>
+        ${summary ? `<span class="disclosure-toggle-summary">${escapeHtml(translateDashboardText(summary))}</span>` : ""}
       </summary>
       <div class="disclosure-panel">
         ${contentMarkup}
@@ -3081,7 +3449,7 @@ function buildLocalSectionNav(items = [], { attribute = "data-local-target", act
           class="local-section-button ${item.key === activeKey ? "active" : ""}"
           type="button"
           ${attribute}="${escapeHtml(item.key)}"
-        >${escapeHtml(item.label)}</button>
+        >${escapeHtml(translateDashboardText(item.label))}</button>
       `).join("")}
     </div>
   `;
@@ -3233,11 +3601,11 @@ function buildShellNavButton(item, activeSection) {
     >
       <span class="shell-nav-icon" aria-hidden="true">${getShellNavIconMarkup(item.key)}</span>
       <span class="shell-nav-label-row">
-        <span class="shell-nav-label">${escapeHtml(item.label)}</span>
-        ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(item.tag)}</span>` : ""}
-        ${item.badge ? `<span class="${getBadgeClass(item.badgeTone || "Pending")}">${escapeHtml(item.badge)}</span>` : ""}
+        <span class="shell-nav-label">${escapeHtml(translateDashboardText(item.label))}</span>
+        ${item.tag ? `<span class="pill shell-nav-tag">${escapeHtml(translateDashboardText(item.tag))}</span>` : ""}
+        ${item.badge ? `<span class="${getBadgeClass(item.badgeTone || "Pending")}">${escapeHtml(translateDashboardText(item.badge))}</span>` : ""}
       </span>
-      ${item.note ? `<span class="shell-nav-note">${escapeHtml(item.note)}</span>` : ""}
+      ${item.note ? `<span class="shell-nav-note">${escapeHtml(translateDashboardText(item.note))}</span>` : ""}
     </button>
   `;
 }
@@ -3249,8 +3617,8 @@ function buildSidebarGroup(title, items, activeSection, options = {}) {
 
   return `
     <section class="shell-sidebar-group">
-      <p class="shell-sidebar-label">${escapeHtml(title)}</p>
-      ${options.note ? `<p class="shell-sidebar-note">${escapeHtml(options.note)}</p>` : ""}
+      <p class="shell-sidebar-label">${escapeHtml(translateDashboardText(title))}</p>
+      ${options.note ? `<p class="shell-sidebar-note">${escapeHtml(translateDashboardText(options.note))}</p>` : ""}
       <div class="shell-sidebar-list">
         ${items.map((item) => buildShellNavButton(item, activeSection)).join("")}
       </div>
@@ -3326,13 +3694,13 @@ function buildSidebarShell(
   ].filter((item) => availableSections.includes(item.key));
 
   return `
-    <aside class="sidebar-shell" aria-label="Dashboard sidebar">
+    <aside class="sidebar-shell" aria-label="${escapeHtml(translateDashboardText("Dashboard sidebar"))}">
       <div class="sidebar-identity">
         <div class="sidebar-identity-mark">V</div>
         <div class="sidebar-identity-copy">
           <p class="sidebar-eyebrow">Vonza</p>
           <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Workspace")}</h2>
-          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || "Add your website to personalize the Front Desk")}</p>
+          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
         </div>
       </div>
       ${buildSidebarGroup(t("nav.primary"), coreItems, activeSection)}
@@ -3340,15 +3708,15 @@ function buildSidebarShell(
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Workspace</span>
-            <strong>${escapeHtml(workspaceStatus)}</strong>
+            <span class="sidebar-status-label">${escapeHtml(translateDashboardText("Workspace"))}</span>
+            <strong>${escapeHtml(translateDashboardText(workspaceStatus))}</strong>
           </div>
           <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Knowledge</span>
-            <strong>${escapeHtml(knowledgeStatus)}</strong>
+            <span class="sidebar-status-label">${escapeHtml(translateDashboardText("Knowledge"))}</span>
+            <strong>${escapeHtml(translateDashboardText(knowledgeStatus))}</strong>
           </div>
           <div class="sidebar-status-item">
-            <span class="sidebar-status-label">Install</span>
+            <span class="sidebar-status-label">${escapeHtml(translateDashboardText("Install"))}</span>
             <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
           </div>
         </div>
@@ -3376,7 +3744,7 @@ function formatDateTimeLocalValue(value) {
 
 function formatOperatorCount(value, singular, plural = `${singular}s`) {
   const count = Number(value || 0);
-  return `${count} ${count === 1 ? singular : plural}`;
+  return formatDashboardCountLabel(count, singular, plural, getDashboardHungarianCountUnit(singular));
 }
 
 function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -3484,8 +3852,8 @@ function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWor
 function buildOperatorEmptyState({ title, copy, actionMarkup = "" } = {}) {
   return `
     <div class="operator-empty-state">
-      <p class="operator-empty-title">${escapeHtml(title || "Nothing here yet")}</p>
-      <p class="operator-empty-copy">${escapeHtml(copy || "Vonza will fill this area as soon as there is something useful to show.")}</p>
+      <p class="operator-empty-title">${escapeHtml(translateDashboardText(title || "Nothing here yet"))}</p>
+      <p class="operator-empty-copy">${escapeHtml(translateDashboardText(copy || "Vonza will fill this area as soon as there is something useful to show."))}</p>
       ${actionMarkup ? `<div class="inline-actions">${actionMarkup}</div>` : ""}
     </div>
   `;
@@ -3498,7 +3866,7 @@ function buildRowActionMenu(label = "Actions", contentMarkup = "") {
 
   return `
     <details class="row-action-menu">
-      <summary class="row-action-menu-trigger">${escapeHtml(label)}</summary>
+      <summary class="row-action-menu-trigger">${escapeHtml(translateDashboardText(label))}</summary>
       <div class="row-action-menu-panel">
         ${contentMarkup}
       </div>
@@ -3508,7 +3876,8 @@ function buildRowActionMenu(label = "Actions", contentMarkup = "") {
 
 function formatContactLifecycleLabel(value = "") {
   const normalized = trimText(value).replaceAll("_", " ");
-  return normalized ? normalized.replace(/\b\w/g, (match) => match.toUpperCase()) : "New";
+  const english = normalized ? normalized.replace(/\b\w/g, (match) => match.toUpperCase()) : "New";
+  return translateDashboardText(english);
 }
 
 function buildContactSources(contact = {}) {
@@ -3857,40 +4226,40 @@ function getGuestConversationRowSummary(contact = {}) {
   ].join(" ").toLowerCase();
 
   if (!signalText) {
-    return "No recent conversation summary yet.";
+    return localizeDashboardCopy("No recent conversation summary yet.", "Még nincs összefoglaló a legutóbbi beszélgetésről.");
   }
 
   if (/\b(?:complaint|frustrat|refund|cancel|issue|problem|support|upset|angry|unhappy)\b/.test(signalText)) {
-    return "Needed help with a support issue";
+    return localizeDashboardCopy("Needed help with a support issue", "Támogatási ügyben kért segítséget");
   }
 
   if (/\b(?:price|pricing|cost|quote|estimate|package|rate|buy|purchase|checkout)\b/.test(signalText)) {
     return /\b(?:book|booking|appointment|schedule|availability|next step|contact|call|email)\b/.test(signalText)
-      ? "Asked about pricing and next steps"
-      : "Asked about pricing or quote details";
+      ? localizeDashboardCopy("Asked about pricing and next steps", "Árazásról és következő lépésekről kérdezett")
+      : localizeDashboardCopy("Asked about pricing or quote details", "Árazásról vagy ajánlatkérés részleteiről kérdezett");
   }
 
   if (/\b(?:book|booking|appointment|appointments|schedule|scheduling|availability|available|reserve|reservation|consultation|calendar)\b/.test(signalText)) {
-    return "Needed help with booking or availability";
+    return localizeDashboardCopy("Needed help with booking or availability", "Foglalással vagy elérhetőséggel kapcsolatban kért segítséget");
   }
 
   if (/\b(?:which|fit|best|recommend|choose|service|services|offer|offers|available|need|looking for)\b/.test(signalText)) {
-    return "Asked which service fits their needs";
+    return localizeDashboardCopy("Asked which service fits their needs", "Azt kérdezte, melyik szolgáltatás illik az igényeihez");
   }
 
   if (/\b(?:contact|call|email|phone|reach|message|talk|speak|get in touch)\b/.test(signalText)) {
-    return "Wanted to contact the business";
+    return localizeDashboardCopy("Wanted to contact the business", "Kapcsolatba akart lépni a vállalkozással");
   }
 
   if (/\b(?:hour|hours|open|location|where|area|near|weekend)\b/.test(signalText)) {
-    return "Asked about hours or service area";
+    return localizeDashboardCopy("Asked about hours or service area", "Nyitvatartásról vagy kiszolgálási területről kérdezett");
   }
 
   if (/\b(?:hi|hey|hello)\b/.test(signalText) && sourceText.split(/\s+/).filter(Boolean).length <= 4) {
-    return "Started a new chat with the business";
+    return localizeDashboardCopy("Started a new chat with the business", "Új beszélgetést indított a vállalkozással");
   }
 
-  return "Asked for help choosing a next step";
+  return localizeDashboardCopy("Asked for help choosing a next step", "Segítséget kért a következő lépés kiválasztásához");
 }
 
 function getCustomerLatestSummary(contact = {}) {
@@ -3924,7 +4293,7 @@ function getCustomerLatestSummary(contact = {}) {
     || messageLikeName
     || trimText(contact.nextAction?.description)
     || trimText(contact.latestOutcome?.label)
-    || "No recent message summary yet.";
+    || localizeDashboardCopy("No recent conversation summary yet.", "Még nincs összefoglaló a legutóbbi beszélgetésről.");
 }
 
 function getCustomerSecondaryIdentityLine(contact = {}) {
@@ -3934,15 +4303,15 @@ function getCustomerSecondaryIdentityLine(contact = {}) {
   const rowIdentifier = getCustomerRowIdentifier(contact);
 
   if (email && rowIdentifier !== email) {
-    return `Email user · ${email}`;
+    return `${localizeDashboardCopy("Email user", "Emailes felhasználó")} · ${email}`;
   }
 
   if (phone && rowIdentifier !== phone) {
-    return `Phone user · ${phone}`;
+    return `${localizeDashboardCopy("Phone user", "Telefonos felhasználó")} · ${phone}`;
   }
 
   if (displayName && rowIdentifier !== displayName) {
-    return `Named visitor · ${displayName}`;
+    return `${localizeDashboardCopy("Named visitor", "Azonosított látogató")} · ${displayName}`;
   }
 
   return "";
@@ -3954,31 +4323,46 @@ function getCustomerSituationSummary(contact = {}) {
   return trimText(contact.nextAction?.description)
     || trimText(recentTimelineEntry.summary)
     || trimText(contact.latestOutcome?.label)
-    || "No current situation has been captured yet.";
+    || localizeDashboardCopy("No current situation has been captured yet.", "Még nincs rögzítve aktuális helyzet.");
 }
 
 function getCustomerRiskSummary(contact = {}) {
   if (isComplaintContact(contact)) {
-    return "Risk is elevated. This customer may lose trust if the issue stays unanswered.";
+    return localizeDashboardCopy(
+      "Risk is elevated. This customer may lose trust if the issue stays unanswered.",
+      "Emelkedett a kockázat. Ez az ügyfél elveszítheti a bizalmát, ha az ügy megválaszolatlan marad."
+    );
   }
 
   if (isLeadContact(contact) && contactNeedsReply(contact)) {
-    return "Lead intent is present, but momentum could fade if nobody replies soon.";
+    return localizeDashboardCopy(
+      "Lead intent is present, but momentum could fade if nobody replies soon.",
+      "Az érdeklődési szándék látszik, de a lendület gyorsan elfogyhat, ha senki nem válaszol hamar."
+    );
   }
 
   if (contactNeedsReply(contact)) {
-    return "The conversation is still open and likely needs a team reply or follow-up.";
+    return localizeDashboardCopy(
+      "The conversation is still open and likely needs a team reply or follow-up.",
+      "A beszélgetés még nyitott, és valószínűleg csapatválaszra vagy utánkövetésre van szükség."
+    );
   }
 
   if (isResolvedContact(contact)) {
-    return "The latest interaction looks settled right now with no urgent action standing out.";
+    return localizeDashboardCopy(
+      "The latest interaction looks settled right now with no urgent action standing out.",
+      "A legutóbbi interakció most rendezettnek tűnik, és nem látszik sürgős teendő."
+    );
   }
 
   if (isReturningContact(contact)) {
-    return "This looks like a returning relationship, so continuity matters more than a generic reply.";
+    return localizeDashboardCopy(
+      "This looks like a returning relationship, so continuity matters more than a generic reply.",
+      "Ez visszatérő kapcsolatnak látszik, ezért a folytonosság fontosabb, mint egy általános válasz."
+    );
   }
 
-  return "No strong risk signal is standing out yet.";
+  return localizeDashboardCopy("No strong risk signal is standing out yet.", "Még nem látszik erős kockázati jelzés.");
 }
 
 function getCustomerSuggestedAction(contact = {}) {
@@ -3988,12 +4372,24 @@ function getCustomerSuggestedAction(contact = {}) {
   return (!isGenericCustomerNoActionCopy(nextActionDescription) ? nextActionDescription : "")
     || (!isGenericCustomerNoActionTitle(nextActionTitle) ? nextActionTitle : "")
     || (isComplaintContact(contact)
-      ? "Send a calm reply, confirm the issue, and give one clear next step."
+      ? localizeDashboardCopy(
+        "Send a calm reply, confirm the issue, and give one clear next step.",
+        "Küldj nyugodt választ, erősítsd meg a problémát, és adj egy világos következő lépést."
+      )
       : isLeadContact(contact)
-        ? "Answer the open question and guide this person toward a quote, booking, or decision."
+        ? localizeDashboardCopy(
+          "Answer the open question and guide this person toward a quote, booking, or decision.",
+          "Válaszold meg a nyitott kérdést, és vezesd ezt az ügyfelet ajánlatkérés, foglalás vagy döntés felé."
+        )
         : isReturningContact(contact)
-          ? "Reconnect with context from the last interaction and confirm the next step."
-          : "Review the latest interaction and decide whether a follow-up is still needed.");
+          ? localizeDashboardCopy(
+            "Reconnect with context from the last interaction and confirm the next step.",
+            "Kapcsolódj vissza az előző interakció kontextusával, és erősítsd meg a következő lépést."
+          )
+          : localizeDashboardCopy(
+            "Review the latest interaction and decide whether a follow-up is still needed.",
+            "Nézd át a legutóbbi interakciót, és döntsd el, kell-e még utánkövetés."
+          ));
 }
 
 function isGenericCustomerNoActionCopy(value = "") {
@@ -4011,19 +4407,31 @@ function isGenericCustomerNoActionTitle(value = "") {
 
 function getCustomerDraftPreview(contact = {}) {
   if (isComplaintContact(contact)) {
-    return "Apologize clearly, confirm the issue, and offer one specific next step with timing.";
+    return localizeDashboardCopy(
+      "Apologize clearly, confirm the issue, and offer one specific next step with timing.",
+      "Kérj világosan bocsánatot, erősítsd meg a problémát, és adj egy konkrét következő lépést időzítéssel."
+    );
   }
 
   if (isLeadContact(contact)) {
-    return "Thank them for reaching out, answer the open question, and suggest the clearest next step.";
+    return localizeDashboardCopy(
+      "Thank them for reaching out, answer the open question, and suggest the clearest next step.",
+      "Köszönd meg a megkeresést, válaszold meg a nyitott kérdést, és javasold a legvilágosabb következő lépést."
+    );
   }
 
   if (contactNeedsReply(contact)) {
-    return "Acknowledge the latest message, answer the main question, and confirm what happens next.";
+    return localizeDashboardCopy(
+      "Acknowledge the latest message, answer the main question, and confirm what happens next.",
+      "Ismerd el a legutóbbi üzenetet, válaszold meg a fő kérdést, és erősítsd meg, mi történik ezután."
+    );
   }
 
   if (isReturningContact(contact)) {
-    return "Reference the previous interaction, check whether they still need help, and keep the reply warm and brief.";
+    return localizeDashboardCopy(
+      "Reference the previous interaction, check whether they still need help, and keep the reply warm and brief.",
+      "Hivatkozz az előző interakcióra, ellenőrizd, hogy még szükségük van-e segítségre, és tartsd a választ meleg hangvételűnek és rövidnek."
+    );
   }
 
   return "";
@@ -4100,17 +4508,26 @@ function buildCustomerSummaryItems(contacts = []) {
     {
       label: t("customers.unhappy"),
       value: countMatching((contact) => isComplaintContact(contact)),
-      copy: "Unhappy or at-risk conversations that should not sit idle.",
+      copy: localizeDashboardCopy(
+        "Unhappy or at-risk conversations that should not sit idle.",
+        "Elégedetlen vagy kockázatos beszélgetések, amelyeket nem szabad magukra hagyni."
+      ),
     },
     {
       label: t("customers.leads"),
       value: countMatching((contact) => isLeadContact(contact)),
-      copy: "People showing buying intent or asking for next-step details.",
+      copy: localizeDashboardCopy(
+        "People showing buying intent or asking for next-step details.",
+        "Vásárlási szándékot mutató emberek vagy akik a következő lépés részleteire kérdeznek rá."
+      ),
     },
     {
       label: t("customers.returning"),
       value: countMatching((contact) => isReturningContact(contact)),
-      copy: "Existing relationships where prior context should shape the next reply.",
+      copy: localizeDashboardCopy(
+        "Existing relationships where prior context should shape the next reply.",
+        "Meglévő kapcsolatok, ahol az előző kontextusnak kell meghatároznia a következő választ."
+      ),
     },
   ];
 }
@@ -4126,16 +4543,16 @@ function buildContactQuickActions(
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
 
   if (contact.latestMessageId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open related conversation</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Open related conversation", "Kapcsolódó beszélgetés megnyitása"))}</button>`);
   }
 
   if (contact.primaryThreadId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">Open inbox thread</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>`);
   }
 
   if (nextAction.followUpId) {
     if (automationsVisible) {
-      actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">Open follow-up draft</button>`);
+      actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">${escapeHtml(localizeDashboardCopy("Open follow-up draft", "Utánkövetési piszkozat megnyitása"))}</button>`);
     } else if (contact.id) {
       actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id)}">Open customer</button>`);
     }
@@ -4152,12 +4569,12 @@ function buildContactQuickActions(
         data-person-key="${escapeHtml(contact.personKey || "")}"
         data-lead-id="${escapeHtml(contact.leadId || "")}"
         data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      >Draft follow-up</button>
+      >${escapeHtml(localizeDashboardCopy("Draft follow-up", "Utánkövetés piszkozat"))}</button>
     `);
   }
 
   if (nextAction.eventId || contact.primaryEventId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(nextAction.eventId || contact.primaryEventId)}">Review calendar action</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(nextAction.eventId || contact.primaryEventId)}">${escapeHtml(localizeDashboardCopy("Review calendar action", "Naptárművelet áttekintése"))}</button>`);
   } else if ((contact.email || contact.phone) && suggestedSlot?.startAt && suggestedSlot?.endAt) {
     actions.push(`
       <button
@@ -4171,10 +4588,10 @@ function buildContactQuickActions(
         data-lead-id="${escapeHtml(contact.leadId || "")}"
         data-slot-start="${escapeHtml(suggestedSlot.startAt || "")}"
         data-slot-end="${escapeHtml(suggestedSlot.endAt || "")}"
-      >Schedule call</button>
+      >${escapeHtml(localizeDashboardCopy("Schedule call", "Hívás ütemezése"))}</button>
     `);
   } else {
-    actions.push(`<button class="ghost-button" type="button" data-shell-target="calendar">Open calendar</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-shell-target="calendar">${escapeHtml(localizeDashboardCopy("Open calendar", "Naptár megnyitása"))}</button>`);
   }
 
   if (contact.email && automationsVisible) {
@@ -4189,13 +4606,13 @@ function buildContactQuickActions(
         data-person-key="${escapeHtml(contact.personKey || "")}"
         data-lead-id="${escapeHtml(contact.leadId || "")}"
         data-goal="${escapeHtml(nextAction.recommendedGoal || getRecommendedCampaignGoal(contact))}"
-      >Draft campaign</button>
+      >${escapeHtml(localizeDashboardCopy("Draft campaign", "Kampánypiszkozat készítése"))}</button>
     `);
   }
 
   if (Array.isArray(contact.complaintTaskIds) && contact.complaintTaskIds.length) {
-    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="resolved">Mark complaint resolved</button>`);
-    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="escalated">Escalate</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="resolved">${escapeHtml(localizeDashboardCopy("Mark complaint resolved", "Panasz megoldottnak jelölése"))}</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="escalated">${escapeHtml(localizeDashboardCopy("Escalate", "Eszkalálás"))}</button>`);
   }
 
   return actions.join("");
@@ -4207,34 +4624,34 @@ function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWork
   return `
     <div class="overview-grid operator-metric-grid operator-people-grid">
       <div class="overview-card">
-        <p class="overview-label">Needs a follow-up</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Needs a follow-up", "Utánkövetést igényel"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsNeedingAttention, "contact"))}</p>
-        <p class="overview-card-copy">People who would benefit from a reply, a follow-up, or a next step.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("People who would benefit from a reply, a follow-up, or a next step.", "Olyan emberek, akiknek hasznos lenne egy válasz, utánkövetés vagy következő lépés."))}</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">At-risk relationships</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("At-risk relationships", "Kockázatos kapcsolatok"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.complaintRiskContacts, "contact"))}</p>
-        <p class="overview-card-copy">Customers or leads where support context should stay front and center.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Customers or leads where support context should stay front and center.", "Ügyfelek vagy érdeklődők, akiknél a támogatási kontextusnak kell fókuszban maradnia."))}</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">No clear next step</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("No clear next step", "Nincs világos következő lépés"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.leadsWithoutNextStep, "lead"))}</p>
-        <p class="overview-card-copy">Interested people who still need a follow-up, booking, or quote path.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Interested people who still need a follow-up, booking, or quote path.", "Érdeklődők, akiknek még utánkövetésre, foglalási vagy ajánlatkérési útra van szükségük."))}</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Customers to check in with</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Customers to check in with", "Ügyfelek, akikkel érdemes egyeztetni"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.customersAwaitingFollowUp, "customer"))}</p>
-        <p class="overview-card-copy">Customers who could benefit from another touchpoint before momentum fades.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Customers who could benefit from another touchpoint before momentum fades.", "Ügyfelek, akiknek hasznos lehet még egy érintkezési pont, mielőtt elillan a lendület."))}</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">Customers with wins</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Customers with wins", "Eredményt hozó ügyfelek"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsWithOutcomes, "contact"))}</p>
-        <p class="overview-card-copy">People records where Vonza can already point to a real result.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("People records where Vonza can already point to a real result.", "Olyan ügyfélrekordok, ahol a Vonza már valódi eredményt tud felmutatni."))}</p>
       </div>
       <div class="overview-card">
-        <p class="overview-label">High-value still open</p>
+        <p class="overview-label">${escapeHtml(localizeDashboardCopy("High-value still open", "Magas érték még nyitott"))}</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.highValueWithoutOutcome, "contact"))}</p>
-        <p class="overview-card-copy">Qualified or active leads that still need a real outcome, not just activity.</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Qualified or active leads that still need a real outcome, not just activity.", "Minősített vagy aktív érdeklődők, akiknek még valódi eredményre van szükségük, nem csak aktivitásra."))}</p>
       </div>
     </div>
   `;
@@ -4242,16 +4659,16 @@ function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWork
 
 function buildContactSourceSummary(contact = {}) {
   const sources = buildContactSources(contact);
-  return sources.length ? sources.join(" · ") : "Sparse record";
+  return sources.length ? sources.join(" · ") : localizeDashboardCopy("Sparse record", "Hiányos rekord");
 }
 
 function buildContactCountsSummary(contact = {}) {
   return [
-    `${contact.counts?.leads || 0} leads`,
-    `${contact.counts?.inboxThreads || 0} inbox`,
-    `${contact.counts?.calendarEvents || 0} calendar`,
-    `${contact.counts?.followUps || 0} follow-ups`,
-    `${contact.counts?.outcomes || 0} outcomes`,
+    formatDashboardCountLabel(contact.counts?.leads || 0, "lead", "leads", "érdeklődő"),
+    formatDashboardCountLabel(contact.counts?.inboxThreads || 0, "inbox thread", "inbox threads", "email-szál"),
+    formatDashboardCountLabel(contact.counts?.calendarEvents || 0, "calendar event", "calendar events", "naptárbejegyzés"),
+    formatDashboardCountLabel(contact.counts?.followUps || 0, "follow-up", "follow-ups", "utánkövetés"),
+    formatDashboardCountLabel(contact.counts?.outcomes || 0, "outcome", "outcomes", "eredmény"),
   ].join(" · ");
 }
 
@@ -4358,85 +4775,87 @@ function buildContactDetailPanel(
       data-lead-id="${escapeHtml(contact.leadId || "")}"
       data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
       ${contact.email || contact.phone ? "" : "disabled"}
-    >Send AI draft</button>
+    >${escapeHtml(localizeDashboardCopy("Send AI draft", "AI piszkozat küldése"))}</button>
   ` : contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">Open conversation</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Open conversation", "Beszélgetés megnyitása"))}</button>
   ` : contact.primaryThreadId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">Open inbox thread</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>
   ` : contact.primaryEventId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">Review calendar action</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">${escapeHtml(localizeDashboardCopy("Review calendar action", "Naptárművelet áttekintése"))}</button>
   ` : `
-    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>Review customer</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review customer", "Ügyfél áttekintése"))}</button>
   `;
   const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
     <div class="timeline-list customer-timeline-list">
       ${contact.timeline.slice(0, 5).map((entry) => `
         <div class="timeline-row">
           <div>
-            <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : entry.label || "Recent")}</strong>
-            <span>${escapeHtml(trimText(entry.label || entry.source || "Activity"))}</span>
+            <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : translateDashboardText(entry.label || "Recent"))}</strong>
+            <span>${escapeHtml(translateDashboardText(trimText(entry.label || entry.source || "Activity")))}</span>
           </div>
-          <p class="customer-timeline-copy">${escapeHtml(trimText(entry.summary) || "No additional note stored for this interaction.")}</p>
+          <p class="customer-timeline-copy">${escapeHtml(trimText(entry.summary) || localizeDashboardCopy("No additional note stored for this interaction.", "Nincs további megjegyzés eltárolva ehhez az interakcióhoz."))}</p>
         </div>
       `).join("")}
     </div>
-  ` : `<div class="placeholder-card">No timeline details are stored yet.</div>`;
+  ` : `<div class="placeholder-card">${escapeHtml(localizeDashboardCopy("No timeline details are stored yet.", "Még nincs eltárolt idővonal-részlet."))}</div>`;
   const detailDisclosureMarkup = buildDisclosureBlock({
-    label: "View timeline",
+    label: localizeDashboardCopy("View timeline", "Idővonal megnyitása"),
     summary: `${contact.timeline?.length || 0} interaction${contact.timeline?.length === 1 ? "" : "s"}`,
     className: "customer-detail-disclosure",
     contentMarkup: `
         <div class="customer-detail-disclosure-section">
         ${canDraftReply ? `
           <div class="customer-draft-card">
-            <span class="detail-kv-label">Reply idea</span>
+            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Reply idea", "Válaszötlet"))}</span>
             <strong>${escapeHtml(getCustomerDraftPreview(contact))}</strong>
           </div>
         ` : ""}
       </div>
       ${buildDisclosureDetailRows([
-        { label: "Customer", value: getCustomerName(contact), copy: getCustomerIdentityLabel(contact) },
-        { label: "Identifier", value: getCustomerIdentifier(contact), copy: buildContactSourceSummary(contact) },
-        { label: "Previous interactions", value: buildContactCountsSummary(contact) },
+        { label: localizeDashboardCopy("Customer", "Ügyfél"), value: getCustomerName(contact), copy: getCustomerIdentityLabel(contact) },
+        { label: localizeDashboardCopy("Identifier", "Azonosító"), value: getCustomerIdentifier(contact), copy: buildContactSourceSummary(contact) },
+        { label: localizeDashboardCopy("Previous interactions", "Korábbi interakciók"), value: buildContactCountsSummary(contact) },
         {
-          label: "Latest outcome",
-          value: trimText(contact.latestOutcome?.label) || "No recorded result yet",
-          copy: contact.latestOutcome?.occurredAt ? `Updated ${formatSeenAt(contact.latestOutcome.occurredAt)}` : "No recent outcome has been recorded.",
+          label: localizeDashboardCopy("Latest outcome", "Legutóbbi eredmény"),
+          value: trimText(contact.latestOutcome?.label) || localizeDashboardCopy("No recorded result yet", "Még nincs rögzített eredmény"),
+          copy: contact.latestOutcome?.occurredAt
+            ? `${localizeDashboardCopy("Updated", "Frissítve")} ${formatSeenAt(contact.latestOutcome.occurredAt)}`
+            : localizeDashboardCopy("No recent outcome has been recorded.", "Nem lett rögzítve friss eredmény."),
         },
       ])}
       ${timelineMarkup}
       <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
-        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">Customer type</label>
+        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Customer type", "Ügyféltípus"))}</label>
         <div class="detail-inline-form-row">
           <select id="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}" name="lifecycle_state">
             ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
               <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
             `).join("")}
           </select>
-          <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>Save</button>
+          <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>${escapeHtml(t("common.save"))}</button>
         </div>
       </form>
       ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
         <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
           <div class="form-grid two-col">
             <div class="field">
-              <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">Outcome mark</label>
+              <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Outcome mark", "Eredményjelölés"))}</label>
               <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                <option value="booking_confirmed">booked</option>
-                <option value="quote_requested">quote requested</option>
-                <option value="quote_accepted">quote accepted</option>
-                <option value="follow_up_replied">follow-up successful</option>
-                <option value="complaint_resolved">complaint resolved</option>
-                <option value="manual_outcome_marked">no outcome / manual note</option>
+                <option value="booking_confirmed">${escapeHtml(localizeDashboardCopy("booked", "lefoglalva"))}</option>
+                <option value="quote_requested">${escapeHtml(localizeDashboardCopy("quote requested", "ajánlatkérés érkezett"))}</option>
+                <option value="quote_accepted">${escapeHtml(localizeDashboardCopy("quote accepted", "ajánlat elfogadva"))}</option>
+                <option value="follow_up_replied">${escapeHtml(localizeDashboardCopy("follow-up successful", "utánkövetés sikeres"))}</option>
+                <option value="complaint_resolved">${escapeHtml(localizeDashboardCopy("complaint resolved", "panasz megoldva"))}</option>
+                <option value="manual_outcome_marked">${escapeHtml(localizeDashboardCopy("no outcome / manual note", "nincs eredmény / kézi megjegyzés"))}</option>
               </select>
             </div>
             <div class="field">
-              <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">Note</label>
+              <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Note", "Megjegyzés"))}</label>
               <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
             </div>
           </div>
           <div class="action-queue-form-actions">
-            <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>Record outcome</button>
+            <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Record outcome", "Eredmény rögzítése"))}</button>
           </div>
         </form>
       ` : ""}
@@ -4457,7 +4876,7 @@ function buildContactDetailPanel(
           <p class="contact-detail-copy">${escapeHtml([
             getCustomerIdentityLabel(contact),
             getPrimaryCustomerStatus(contact).label,
-            `Last message ${getCustomerLastActivityLabel(contact)}`,
+            `${t("common.lastMessage")} ${getCustomerLastActivityLabel(contact)}`,
           ].join(" · "))}</p>
           <div class="action-queue-badges customer-status-row">
             ${buildCustomerStatusMarkup(contact, 2)}
@@ -4466,11 +4885,11 @@ function buildContactDetailPanel(
       </div>
       <div class="contact-detail-summary-grid customer-detail-summary-grid">
         <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">Current situation</span>
+          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Current situation", "Jelenlegi helyzet"))}</span>
           <strong>${escapeHtml(getCustomerSituationSummary(contact))}</strong>
         </div>
         <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">Next best step</span>
+          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Next best step", "Legjobb következő lépés"))}</span>
           <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
         </div>
       </div>
@@ -4482,7 +4901,7 @@ function buildContactDetailPanel(
           data-contact-quick-status="customer"
           data-contact-id="${escapeHtml(contact.id || "")}"
           ${contact.id ? "" : "disabled"}
-        >Mark resolved</button>
+        >${escapeHtml(localizeDashboardCopy("Mark resolved", "Megoldottnak jelölés"))}</button>
       </div>
       <div class="customer-risk-note">${escapeHtml(getCustomerRiskSummary(contact))}</div>
       ${detailDisclosureMarkup}
@@ -4919,7 +5338,10 @@ function buildTodaySummaryStats(operatorWorkspace = createEmptyOperatorWorkspace
     {
       label: "Guided customers",
       value: String(today.contactsDealtToday || 0),
-      copy: "Unique customers tied to a booking, follow-up, or recorded outcome today.",
+      copy: localizeDashboardCopy(
+        "Unique customers tied to a booking, follow-up, or recorded outcome today.",
+        "Ma foglaláshoz, utánkövetéshez vagy rögzített eredményhez kapcsolt egyedi ügyfelek."
+      ),
     },
     {
       label: "Results today",
@@ -5159,7 +5581,10 @@ function buildTodayRecommendationsSection(operatorWorkspace = createEmptyOperato
         </div>
       ` : `
         <div class="today-command-empty">
-          <p>No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</p>
+          <p>${escapeHtml(localizeDashboardCopy(
+            "No urgent improvements right now. Keep watching new questions and update weak answers as they appear.",
+            "Most nincs sürgős javítanivaló. Továbbra is figyeld az új kérdéseket, és frissítsd a gyenge válaszokat, amikor megjelennek."
+          ))}</p>
         </div>
       `}
     </section>
@@ -5175,14 +5600,14 @@ function formatCalendarInsightContext(item = {}) {
   const timeLabel = item.startAt
     ? [
       formatSeenAt(item.startAt),
-      item.endAt ? `to ${formatSeenAt(item.endAt)}` : "",
+      item.endAt ? localizeDashboardCopy(`to ${formatSeenAt(item.endAt)}`, `- ${formatSeenAt(item.endAt)}`) : "",
     ].filter(Boolean).join(" ")
     : "";
 
   return [
     timeLabel,
-    attendeeLabel ? `Context: ${attendeeLabel}` : "",
-    trimText(item.status).replaceAll("_", " "),
+    attendeeLabel ? `${translateDashboardText("Context")}: ${attendeeLabel}` : "",
+    translateDashboardText(trimText(item.status).replaceAll("_", " ")),
   ].filter(Boolean).join(" · ");
 }
 
@@ -5344,22 +5769,34 @@ function buildTodaySupportingDetailSection(operatorWorkspace = createEmptyOperat
       <div class="overview-card">
         <p class="overview-label">Approval-first work</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(summary.followUpsNeedingApproval + today.campaignsAwaitingApproval, "item"))}</p>
-        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`)}</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy(
+          `${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} and ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} are waiting for review.`,
+          `${formatOperatorCount(summary.followUpsNeedingApproval, "follow-up")} és ${formatOperatorCount(today.campaignsAwaitingApproval, "campaign approval", "campaign approvals")} áttekintésre vár.`
+        ))}</p>
       </div>
       <div class="overview-card">
         <p class="overview-label">Outcome gaps</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(today.highValueWithoutOutcome, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} still need a real result and ${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} remain in play.`)}</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy(
+          `${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} still need a real result and ${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} remain in play.`,
+          `${formatOperatorCount(today.overdueHighValueContacts, "high-value contact")} még valódi eredményt igényel, és ${formatOperatorCount(today.complaintRiskContacts, "complaint-risk contact")} továbbra is aktív.`
+        ))}</p>
       </div>
       <div class="overview-card">
         <p class="overview-label">Campaign replies</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(today.campaignReplies, "reply"))}</p>
-        <p class="overview-card-copy">${escapeHtml(`${formatOperatorCount(today.campaignConversions, "conversion")} have been tied back to campaign work so far.`)}</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy(
+          `${formatOperatorCount(today.campaignConversions, "conversion")} have been tied back to campaign work so far.`,
+          `${formatOperatorCount(today.campaignConversions, "conversion")} kapcsolódott eddig kampánymunkához.`
+        ))}</p>
       </div>
       <div class="overview-card">
         <p class="overview-label">Lifecycle progression</p>
         <p class="overview-value">${escapeHtml(formatOperatorCount(today.contactsWithProgression, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(`${today.lifecycleCounts.customer || 0} customers · ${today.lifecycleCounts.qualified || 0} qualified · ${today.lifecycleCounts.activeLead || 0} active leads`)}</p>
+        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy(
+          `${today.lifecycleCounts.customer || 0} customers · ${today.lifecycleCounts.qualified || 0} qualified · ${today.lifecycleCounts.activeLead || 0} active leads`,
+          `${today.lifecycleCounts.customer || 0} ügyfél · ${today.lifecycleCounts.qualified || 0} minősített · ${today.lifecycleCounts.activeLead || 0} aktív érdeklődő`
+        ))}</p>
       </div>
     </div>
     <section class="workspace-card-soft today-support-card">
@@ -11036,7 +11473,7 @@ function buildEmailPreviewCategorySummary(items = []) {
 }
 
 function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
-  return `
+  return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="${escapeHtml(sectionKey)}" hidden>
       ${buildPageHeader({
         eyebrow: "Connected tools",
@@ -11052,7 +11489,7 @@ function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
         </section>
       </div>
     </section>
-  `;
+  `);
 }
 
 function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -11617,9 +12054,9 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
       : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`,
   ].filter(Boolean).join("");
 
-  return `
+  return localizeDashboardHtml(`
     <div class="workspace-context-bar">
-      <button class="shell-menu-button" type="button" data-shell-menu-toggle aria-label="Open navigation">Menu</button>
+      <button class="shell-menu-button" type="button" data-shell-menu-toggle aria-label="${escapeHtml(translateDashboardText("Open navigation"))}">${escapeHtml(translateDashboardText("Menu"))}</button>
       <div class="workspace-context-copy">
         <p class="workspace-context-eyebrow">${escapeHtml(workspaceMode.eyebrow)}</p>
         <p class="workspace-context-title">${escapeHtml(workspaceMode.title)}</p>
@@ -11633,7 +12070,7 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
         ${secondaryActions}
       </div>
     </div>
-  `;
+  `);
 }
 
 function buildDashboardHelpMessageMarkup(message = {}) {
@@ -12403,6 +12840,7 @@ async function loadOperatorWorkspace(agentId, options = {}) {
   url.searchParams.set("agent_id", agentId);
   url.searchParams.set("client_id", getClientId());
   url.searchParams.set("force_sync", options.forceSync === true ? "true" : "false");
+  url.searchParams.set("dashboard_language", getDashboardLanguage());
   const data = await fetchJson(url.toString());
   return normalizeOperatorWorkspace(data);
 }
