@@ -4673,6 +4673,10 @@ function buildContactCountsSummary(contact = {}) {
 }
 
 function buildCustomerChatPanel(contact = {}) {
+  if (isGuestCustomerRow(contact)) {
+    return "";
+  }
+
   const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
 
   if (!messages.length) {
@@ -4707,7 +4711,8 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
-  const canShowChat = chatMessages.length > 0;
+  const guestRow = isGuestCustomerRow(contact);
+  const canShowChat = !guestRow && chatMessages.length > 0;
 
   return `
     <article
@@ -4715,6 +4720,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       data-contact-row
       data-contact-card
       data-contact-id="${escapeHtml(contact.id || "")}"
+      data-customer-row-key="${escapeHtml(contact.customerRowKey || "")}"
       data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
       data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
       data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"

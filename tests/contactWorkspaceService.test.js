@@ -313,6 +313,7 @@ test("identified widget visitors upgrade same-session guest contacts without a c
   assert.equal(result.list[0].name, "Avery Hart");
   assert.equal(result.list[0].email, "avery@example.com");
   assert.equal(result.list[0].bestIdentifier, "Avery Hart");
+  assert.equal(result.list[0].customerRowKey, "avery@example.com");
   assert.equal(result.list[0].partialIdentity, false);
 });
 
@@ -351,6 +352,7 @@ test("stored email identities hydrate customer primary identifiers", () => {
 
   assert.equal(result.list.length, 1);
   assert.equal(result.list[0].email, "visitor@example.com");
+  assert.equal(result.list[0].customerRowKey, "visitor@example.com");
   assert.equal(result.list[0].name, "visitor@example.com");
   assert.equal(result.list[0].bestIdentifier, "visitor@example.com");
   assert.equal(result.list[0].latestCustomerMessageSummary, "Do you have weekend hours?");
@@ -435,6 +437,7 @@ test("guest sessions upgrade to one identified customer when email is captured l
 
   assert.equal(result.list.length, 1);
   assert.equal(result.list[0].email, "avery@example.com");
+  assert.equal(result.list[0].customerRowKey, "avery@example.com");
   assert.equal(result.list[0].name, "Avery Hart");
   assert.equal(result.list[0].partialIdentity, false);
   assert.equal(result.list[0].latestCustomerMessageSummary, "Do you offer weekend appointments?");
@@ -561,10 +564,7 @@ test("guest widget conversations create customer contacts from stored messages",
   assert.equal(result.list[0].latestMessageId, "message-guest-2");
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
   assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:03:55.000Z");
-  assert.deepEqual(
-    result.list[0].chatMessages.map((message) => message.label),
-    ["Customer", "Vonza"]
-  );
+  assert.deepEqual(result.list[0].chatMessages, []);
 });
 
 test("visitor and customer roles count as customer messages for Last message", () => {
@@ -575,6 +575,8 @@ test("visitor and customer roles count as customer messages for Last message", (
         role: "visitor",
         content: "I need pricing.",
         sessionKey: "session-role",
+        visitorIdentityMode: "identified",
+        visitorEmail: "role@example.com",
         createdAt: "2026-04-14T09:03:55.000Z",
       },
       {
@@ -582,6 +584,8 @@ test("visitor and customer roles count as customer messages for Last message", (
         role: "assistant",
         content: "Pricing depends on the project.",
         sessionKey: "session-role",
+        visitorIdentityMode: "identified",
+        visitorEmail: "role@example.com",
         createdAt: "2026-04-14T09:04:20.000Z",
       },
       {
@@ -589,12 +593,15 @@ test("visitor and customer roles count as customer messages for Last message", (
         role: "customer",
         content: "Can you send details?",
         sessionKey: "session-role",
+        visitorIdentityMode: "identified",
+        visitorEmail: "role@example.com",
         createdAt: "2026-04-14T09:05:00.000Z",
       },
     ],
   });
 
   assert.equal(result.list.length, 1);
+  assert.equal(result.list[0].email, "role@example.com");
   assert.equal(result.list[0].lastCustomerMessageAt, "2026-04-14T09:05:00.000Z");
   assert.equal(result.list[0].latestCustomerMessageSummary, "Can you send details?");
   assert.deepEqual(
@@ -674,7 +681,7 @@ test("guest widget question text is not promoted into the contact identity", () 
   assert.equal(result.list[0].latestCustomerMessageSummary, "hey, what services do you offer");
 });
 
-test("identified widget conversations create customer contacts from stored messages", () => {
+test("message-only email mentions stay guest-scoped until visitor identity is durably captured", () => {
   const result = buildContactWorkspaceFromRecords({
     messages: [
       {
@@ -696,9 +703,143 @@ test("identified widget conversations create customer contacts from stored messa
 
   assert.equal(result.list.length, 1);
   assert.equal(result.list[0].name, "mate");
-  assert.equal(result.list[0].email, "bobitamate@hotmail.com");
+  assert.equal(result.list[0].email, "");
+  assert.equal(result.list[0].customerRowKey, "identified-session-1");
+  assert.deepEqual(result.list[0].chatMessages, []);
   assert.equal(result.list[0].mostRecentActivityAt, "2026-04-14T09:03:55.000Z");
   assert.notEqual(result.list[0].mostRecentActivityAt, "2026-04-14T09:04:20.000Z");
+});
+
+test("identified rows dedupe by exact normalized visitor email and keep chat scoped to that email only", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-mixed",
+        displayName: "Anonymous visitor",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    leads: [
+      {
+        id: "lead-milu-1",
+        contactId: "contact-mixed",
+        visitorSessionKey: "session-milu-a",
+        contactName: "Milu",
+        contactEmail: "Milu@Example.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        lastSeenAt: "2026-04-14T09:05:00.000Z",
+      },
+      {
+        id: "lead-milu-2",
+        visitorSessionKey: "session-milu-b",
+        contactName: "Milu",
+        contactEmail: "milu@example.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        lastSeenAt: "2026-04-14T09:06:00.000Z",
+      },
+      {
+        id: "lead-other",
+        contactId: "contact-mixed",
+        visitorSessionKey: "session-other",
+        contactName: "Kai",
+        contactEmail: "kai@example.com",
+        captureState: "captured",
+        captureReason: "Visitor continued with email.",
+        lastSeenAt: "2026-04-14T09:07:00.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: "message-milu-guest",
+        role: "user",
+        content: "I started as a guest first.",
+        sessionKey: "session-milu-a",
+        createdAt: "2026-04-14T09:00:30.000Z",
+      },
+      {
+        id: "message-milu-user-1",
+        role: "user",
+        content: "Can you send pricing?",
+        sessionKey: "session-milu-a",
+        visitorIdentityMode: "identified",
+        visitorEmail: "Milu@Example.com",
+        visitorName: "Milu",
+        createdAt: "2026-04-14T09:01:00.000Z",
+      },
+      {
+        id: "message-milu-assistant-1",
+        role: "assistant",
+        content: "Absolutely, I can help with pricing.",
+        sessionKey: "session-milu-a",
+        visitorIdentityMode: "identified",
+        visitorEmail: "milu@example.com",
+        visitorName: "Milu",
+        createdAt: "2026-04-14T09:01:30.000Z",
+      },
+      {
+        id: "message-milu-user-2",
+        role: "user",
+        content: "Do you also have weekend slots?",
+        sessionKey: "session-milu-b",
+        visitorIdentityMode: "identified",
+        visitorEmail: "milu@example.com",
+        visitorName: "Milu",
+        createdAt: "2026-04-14T09:02:00.000Z",
+      },
+      {
+        id: "message-other-user",
+        role: "user",
+        content: "I need support.",
+        sessionKey: "session-other",
+        visitorIdentityMode: "identified",
+        visitorEmail: "kai@example.com",
+        visitorName: "Kai",
+        createdAt: "2026-04-14T09:03:00.000Z",
+      },
+      {
+        id: "message-other-assistant",
+        role: "assistant",
+        content: "I can help with support.",
+        sessionKey: "session-other",
+        visitorIdentityMode: "identified",
+        visitorEmail: "kai@example.com",
+        visitorName: "Kai",
+        createdAt: "2026-04-14T09:03:30.000Z",
+      },
+      {
+        id: "message-null-email",
+        role: "assistant",
+        content: "This assistant reply had no durable email.",
+        sessionKey: "session-milu-a",
+        createdAt: "2026-04-14T09:04:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.filter((contact) => contact.email === "milu@example.com").length, 1);
+  assert.equal(result.list.filter((contact) => contact.email === "kai@example.com").length, 1);
+
+  const milu = result.list.find((contact) => contact.email === "milu@example.com");
+  const kai = result.list.find((contact) => contact.email === "kai@example.com");
+
+  assert.ok(milu);
+  assert.ok(kai);
+  assert.equal(milu.customerRowKey, "milu@example.com");
+  assert.equal(kai.customerRowKey, "kai@example.com");
+  assert.deepEqual(
+    milu.chatMessages.map((message) => message.id),
+    ["message-milu-user-1", "message-milu-assistant-1", "message-milu-user-2"]
+  );
+  assert.deepEqual(
+    kai.chatMessages.map((message) => message.id),
+    ["message-other-user", "message-other-assistant"]
+  );
+  assert.ok(!milu.chatMessages.some((message) => message.id === "message-milu-guest"));
+  assert.ok(!milu.chatMessages.some((message) => message.id === "message-null-email"));
+  assert.ok(!milu.chatMessages.some((message) => message.id.startsWith("message-other")));
 });
 
 test("chat customer timestamps do not drift to render time", () => {

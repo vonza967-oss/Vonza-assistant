@@ -298,8 +298,15 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
   const workspace = harness.createEmptyOperatorWorkspace();
   workspace.contacts.list = [
     {
-      id: "contact-1",
+      id: "contact-guest",
       partialIdentity: true,
+      sources: ["chat"],
+      chatMessages: [],
+    },
+    {
+      id: "contact-identified",
+      name: "Alex Harper",
+      email: "alex@example.com",
       sources: ["chat"],
       chatMessages: [
         { role: "customer", label: "Customer", content: "Hello", createdAt: "2026-04-03T09:00:00.000Z" },
@@ -2072,9 +2079,9 @@ test("customer row chat expansion markup stays inline and chronological", () => 
   });
   const row = harness.buildContactRow({
     id: "contact-chat",
-    name: "Anonymous visitor",
+    name: "Taylor Reed",
+    email: "taylor@example.com",
     lifecycleState: "active_lead",
-    partialIdentity: true,
     sources: ["chat"],
     lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
     latestCustomerMessageSummary: "First customer message.",
@@ -2110,6 +2117,42 @@ test("customer row chat expansion markup stays inline and chronological", () => 
     row.indexOf("</article>", row.indexOf('class="customer-chat-panel"'))
   );
   assert.doesNotMatch(chatPanelMarkup, /operator|workflow|queue|copilot|approval|automation/i);
+});
+
+test("guest customer rows stay summary-only even if chat messages are present in data", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-guest-chat",
+    name: "Anonymous visitor",
+    lifecycleState: "active_lead",
+    partialIdentity: true,
+    sources: ["chat"],
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    latestCustomerMessageSummary: "First customer message.",
+    chatMessages: [
+      {
+        label: "Customer",
+        role: "customer",
+        content: "First customer message.",
+        createdAt: "2026-04-16T09:47:46.000Z",
+      },
+      {
+        label: "Vonza",
+        role: "vonza",
+        content: "First Vonza reply.",
+        createdAt: "2026-04-16T09:47:50.000Z",
+      },
+    ],
+  });
+
+  assert.match(row, /data-toggle-customer-chat/);
+  assert.match(row, /disabled/);
+  assert.match(row, /No chat yet/);
+  assert.doesNotMatch(row, /data-customer-chat-panel/);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
