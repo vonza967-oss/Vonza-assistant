@@ -6,11 +6,10 @@ import { listWidgetEventSummaryByAgentIds } from "../analytics/widgetTelemetrySe
 import { normalizeOutcomeSettings, normalizeSuccessUrlMatchMode } from "../conversion/conversionOutcomeService.js";
 import {
   deriveAllowedDomains,
-  getWidgetInstallContextByInstallId,
-  isOriginAllowed,
   listInstallStatusByAgentIds,
-  logWidgetInitFailure,
   normalizeAllowedDomains,
+  requireAllowedAgentOrigin,
+  requireAllowedInstallOrigin,
 } from "../install/installPresenceService.js";
 import {
   DEFAULT_AGENT_NAME,
@@ -866,26 +865,15 @@ export async function getWidgetBootstrap(supabase, options = {}) {
   let context = null;
 
   if (installId) {
-    const installContext = await getWidgetInstallContextByInstallId(supabase, installId);
+    const installContext = await requireAllowedInstallOrigin(supabase, {
+      installId,
+      origin: requestedOrigin,
+      pageUrl,
+    });
 
     if (!installContext?.agent || !installContext.business) {
       const error = new Error("Install not found");
       error.statusCode = 404;
-      throw error;
-    }
-
-    if (requestedOrigin && !isOriginAllowed(requestedOrigin, installContext.allowedDomains)) {
-      logWidgetInitFailure({
-        reason: "domain_blocked",
-        installId,
-        origin: requestedOrigin,
-        pageUrl,
-        allowedDomains: installContext.allowedDomains,
-        message: "Origin is not on the install allowlist.",
-      });
-      const error = new Error("This website origin is not allowed for the current install.");
-      error.statusCode = 403;
-      error.code = "domain_blocked";
       throw error;
     }
 
@@ -901,7 +889,18 @@ export async function getWidgetBootstrap(supabase, options = {}) {
       allowedDomains: installContext.allowedDomains,
     };
   } else {
-    context = await resolveAgentContext(supabase, options);
+    const resolvedContext = await resolveAgentContext(supabase, options);
+    const publicOriginContext = await requireAllowedAgentOrigin(supabase, {
+      agentId: resolvedContext.agent.id,
+      installId: resolvedContext.widgetConfig.installId,
+      origin: requestedOrigin,
+      pageUrl,
+    });
+
+    context = {
+      ...resolvedContext,
+      allowedDomains: publicOriginContext.allowedDomains,
+    };
   }
 
   return {

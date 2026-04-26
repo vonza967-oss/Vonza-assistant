@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { createChatRouter } from "../src/routes/chatRoutes.js";
 import { createAgentRouter } from "../src/routes/agentRoutes.js";
+import { createPublicRouter } from "../src/routes/publicRoutes.js";
 import { handleChatRequest } from "../src/services/chat/chatService.js";
 import {
   listAgents,
@@ -405,7 +406,7 @@ test("client_id-only listing only returns pre-claim onboarding assistants", asyn
   assert.deepEqual(result.agents.map((agent) => agent.id), ["preclaim-agent"]);
 });
 
-test("/chat rejects disallowed origins when install_id is present", async () => {
+test("/chat rejects disallowed origins across install_id, agent_id, and agent_key", async () => {
   const supabase = createFakeSupabase(buildChatState());
   let openAiCalled = false;
   const app = express();
@@ -424,24 +425,47 @@ test("/chat rejects disallowed origins when install_id is present", async () => 
     }),
   }));
   const server = await startServer(app);
+  const resolutionCases = [
+    {
+      label: "install_id",
+      body: {
+        install_id: "install-1",
+      },
+    },
+    {
+      label: "agent_id",
+      body: {
+        agent_id: "agent-1",
+      },
+    },
+    {
+      label: "agent_key",
+      body: {
+        agent_key: "agent-key",
+      },
+    },
+  ];
 
   try {
-    const response = await postJson(server.baseUrl, "/chat", {
-      install_id: "install-1",
-      origin: "https://evil.example",
-      page_url: "https://evil.example/page",
-      message: "What does this cost?",
-    });
+    for (const entry of resolutionCases) {
+      const response = await postJson(server.baseUrl, "/chat", {
+        ...entry.body,
+        origin: "https://evil.example",
+        page_url: "https://evil.example/page",
+        message: "What does this cost?",
+      });
 
-    assert.equal(response.status, 403);
-    assert.match(response.json.error, /origin is not allowed/i);
+      assert.equal(response.status, 403, `${entry.label} blocks an unapproved origin`);
+      assert.match(response.json.error, /origin is not allowed/i);
+    }
+
     assert.equal(openAiCalled, false);
   } finally {
     await server.close();
   }
 });
 
-test("/chat/capture rejects disallowed origins when install_id is present", async () => {
+test("/chat/capture rejects disallowed origins when agent_key is present without install_id", async () => {
   const supabase = createFakeSupabase(buildChatState());
   const app = express();
   app.use(express.json());
@@ -452,7 +476,7 @@ test("/chat/capture rejects disallowed origins when install_id is present", asyn
 
   try {
     const response = await postJson(server.baseUrl, "/chat/capture", {
-      install_id: "install-1",
+      agent_key: "agent-key",
       origin: "https://evil.example",
       page_url: "https://evil.example/page",
       action: "decline",
@@ -546,6 +570,21 @@ test("admin APIs reject query-string tokens and accept header tokens", async () 
       await server.close();
     }
   });
+});
+
+test("/admin is not publicly reachable as a normal route", async () => {
+  const app = express();
+  app.use(createPublicRouter({ rootDir: repoRoot }));
+  const server = await startServer(app);
+
+  try {
+    const response = await getJson(server.baseUrl, "/admin");
+
+    assert.equal(response.status, 404);
+    assert.equal(response.json.error, "Not found");
+  } finally {
+    await server.close();
+  }
 });
 
 test("/chat with only an unknown agent_id fails consistently instead of falling into business validation", async () => {

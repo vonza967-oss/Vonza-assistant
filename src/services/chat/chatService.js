@@ -1,5 +1,6 @@
 import { resolveAgentContext } from "../agents/agentService.js";
 import {
+  requireAllowedAgentOrigin,
   requireAllowedInstallOrigin,
 } from "../install/installPresenceService.js";
 import {
@@ -113,13 +114,22 @@ async function resolveWidgetConversationContext(supabase, options = {}) {
     });
   }
 
-  return resolveAgentContext(supabase, {
+  const resolvedContext = await resolveAgentContext(supabase, {
     agentId: options.agentId,
     agentKey: options.agentKey,
     businessId: options.businessId,
     websiteUrl: options.websiteUrl,
     businessName: options.businessName,
   });
+
+  await requireAllowedAgentOrigin(supabase, {
+    agentId: resolvedContext.agent.id,
+    installId: resolvedContext.widgetConfig.installId,
+    origin: options.origin,
+    pageUrl,
+  });
+
+  return resolvedContext;
 }
 
 function logChatMetadata(eventName, payload = {}) {

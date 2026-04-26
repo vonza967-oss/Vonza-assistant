@@ -103,7 +103,7 @@ window.VONZA_LAUNCH_PROFILE = ${JSON.stringify(launchProfile)};
   });
 
   router.get("/admin", (_req, res) => {
-    res.sendFile(path.join(rootDir, "admin.html"));
+    res.status(404).json({ error: "Not found" });
   });
 
   router.get("/manifest.json", (_req, res) => {

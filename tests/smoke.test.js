@@ -1203,9 +1203,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.equal(marketingScript.status, 200);
 
         const adminPage = await getText(server.baseUrl, "/admin");
-        assert.equal(adminPage.status, 200);
-        assert.match(adminPage.text, /x-admin-token/);
-        assert.doesNotMatch(adminPage.text, /access-status\?token/);
+        assert.equal(adminPage.status, 404);
+        assert.doesNotMatch(adminPage.text, /x-admin-token/);
       } finally {
         await server.close();
       }

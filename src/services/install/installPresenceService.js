@@ -124,6 +124,38 @@ export function isOriginAllowed(origin, allowedDomains = []) {
   return normalizedAllowedDomains.includes(normalizedOriginHost);
 }
 
+function assertAllowedOriginForContext(context, options = {}) {
+  const origin = cleanText(options.origin);
+  const pageUrl = cleanText(options.pageUrl);
+  const installId = cleanText(options.installId || context?.widgetConfigRow?.install_id || "");
+  const originRequiredMessage = cleanText(options.originRequiredMessage)
+    || "origin is required for public widget requests.";
+  const blockedMessage = cleanText(options.blockedMessage)
+    || "Origin is not allowed for this install.";
+
+  if (!origin) {
+    const error = new Error(originRequiredMessage);
+    error.statusCode = 400;
+    error.code = "origin_required";
+    throw error;
+  }
+
+  if (!isOriginAllowed(origin, context?.allowedDomains)) {
+    logWidgetInitFailure({
+      reason: "domain_blocked",
+      installId,
+      origin,
+      pageUrl,
+      allowedDomains: context?.allowedDomains || [],
+      message: "Origin is not on the install allowlist.",
+    });
+    const error = new Error(blockedMessage);
+    error.statusCode = 403;
+    error.code = "domain_blocked";
+    throw error;
+  }
+}
+
 function getRecentThresholdMs() {
   return INSTALL_STATUS_STALE_HOURS * 60 * 60 * 1000;
 }
@@ -465,8 +497,6 @@ export async function getWidgetInstallContextByInstallId(supabase, installId) {
 
 export async function requireAllowedInstallOrigin(supabase, options = {}) {
   const installId = cleanText(options.installId);
-  const origin = cleanText(options.origin);
-  const pageUrl = cleanText(options.pageUrl);
   const context = await getWidgetInstallContextByInstallId(supabase, installId);
 
   if (!context) {
@@ -475,27 +505,13 @@ export async function requireAllowedInstallOrigin(supabase, options = {}) {
     throw error;
   }
 
-  if (!origin) {
-    const error = new Error("origin is required for installed widget requests.");
-    error.statusCode = 400;
-    error.code = "origin_required";
-    throw error;
-  }
-
-  if (!isOriginAllowed(origin, context.allowedDomains)) {
-    logWidgetInitFailure({
-      reason: "domain_blocked",
-      installId,
-      origin,
-      pageUrl,
-      allowedDomains: context.allowedDomains,
-      message: "Origin is not on the install allowlist.",
-    });
-    const error = new Error("Origin is not allowed for this install.");
-    error.statusCode = 403;
-    error.code = "domain_blocked";
-    throw error;
-  }
+  assertAllowedOriginForContext(context, {
+    installId,
+    origin: options.origin,
+    pageUrl: options.pageUrl,
+    originRequiredMessage: "origin is required for installed widget requests.",
+    blockedMessage: "Origin is not allowed for this install.",
+  });
 
   return context;
 }
@@ -514,6 +530,26 @@ export async function getWidgetInstallContextByAgentId(supabase, agentId) {
     widgetConfigRow,
     allowedDomains: deriveAllowedDomains(widgetConfigRow?.allowed_domains, context.business?.website_url || ""),
   };
+}
+
+export async function requireAllowedAgentOrigin(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const context = await getWidgetInstallContextByAgentId(supabase, agentId);
+
+  if (!context?.agent || context.agent.is_active === false) {
+    const error = new Error("Agent not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  assertAllowedOriginForContext(context, {
+    installId: options.installId,
+    origin: options.origin,
+    pageUrl: options.pageUrl,
+    blockedMessage: "Origin is not allowed for this install.",
+  });
+
+  return context;
 }
 
 export async function updateInstallVerificationState(supabase, agentId, payload = {}) {

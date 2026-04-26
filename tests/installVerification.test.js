@@ -195,27 +195,56 @@ function createInstallState() {
   });
 }
 
-test("widget bootstrap only initializes on allowed domains", async () => {
-  const supabase = createInstallState();
-
-  const allowed = await getWidgetBootstrap(supabase, {
-    installId: "11111111-1111-1111-1111-111111111111",
-    origin: "https://www.example.com",
-    pageUrl: "https://www.example.com/pricing",
-  });
-
-  assert.equal(allowed.install.installId, "11111111-1111-1111-1111-111111111111");
-  assert.equal(allowed.agent.publicAgentKey, "agent-key");
-
-  await assert.rejects(
-    () =>
-      getWidgetBootstrap(supabase, {
+test("widget bootstrap enforces allowlists across install_id, website_url, agent_id, and agent_key", async () => {
+  const resolutionCases = [
+    {
+      label: "install_id",
+      options: {
         installId: "11111111-1111-1111-1111-111111111111",
-        origin: "https://bad.example.net",
-        pageUrl: "https://bad.example.net",
-      }),
-    (error) => error.statusCode === 403
-  );
+      },
+    },
+    {
+      label: "website_url",
+      options: {
+        websiteUrl: "https://example.com",
+      },
+    },
+    {
+      label: "agent_id",
+      options: {
+        agentId: "agent-1",
+      },
+    },
+    {
+      label: "agent_key",
+      options: {
+        agentKey: "agent-key",
+      },
+    },
+  ];
+
+  for (const entry of resolutionCases) {
+    const supabase = createInstallState();
+    const allowed = await getWidgetBootstrap(supabase, {
+      ...entry.options,
+      origin: "https://www.example.com",
+      pageUrl: "https://www.example.com/pricing",
+    });
+
+    assert.equal(allowed.install.installId, "11111111-1111-1111-1111-111111111111", `${entry.label} preserves install context`);
+    assert.equal(allowed.agent.publicAgentKey, "agent-key", `${entry.label} preserves agent context`);
+
+    await assert.rejects(
+      () =>
+        getWidgetBootstrap(supabase, {
+          ...entry.options,
+          origin: "https://bad.example.net",
+          pageUrl: "https://bad.example.net",
+        }),
+      (error) => error.statusCode === 403,
+      `${entry.label} rejects an unapproved origin`
+    );
+  }
 });
 
 test("install ping sets last seen state and fields", async () => {
