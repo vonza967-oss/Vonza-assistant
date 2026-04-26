@@ -4131,15 +4131,15 @@ function getCustomerRowIdentifier(contact = {}) {
 
 function getCustomerIdentityLabel(contact = {}) {
   if (getCustomerEmailLabel(contact.email)) {
-    return "Email user";
+    return translateDashboardText("Email user");
   }
 
   if (trimText(contact.phone)) {
-    return "Phone user";
+    return translateDashboardText("Phone user");
   }
 
   if (getNamedCustomerIdentity(contact)) {
-    return "Named visitor";
+    return translateDashboardText("Named visitor");
   }
 
   return t("common.guestVisitor");
@@ -4150,7 +4150,7 @@ function getCustomerIdentifier(contact = {}) {
     || trimText(contact.phone)
     || getNamedCustomerIdentity(contact)
     || (hasGuestCustomerActivity(contact) ? t("common.guestVisitor") : "")
-    || "No direct identifier yet";
+    || localizeDashboardCopy("No direct identifier yet", "Még nincs közvetlen azonosító");
 }
 
 function getCustomerLastMessageAt(contact = {}) {
@@ -4474,6 +4474,7 @@ function getCustomerStatusList(contact = {}) {
 
 function buildCustomerStatusMarkup(contact = {}, limit = 2) {
   return getCustomerStatusList(contact)
+    .filter((status) => status.key !== "needs_reply")
     .slice(0, limit)
     .map((status) => `
       <span class="customer-status-chip customer-status-chip--${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>
@@ -4482,7 +4483,10 @@ function buildCustomerStatusMarkup(contact = {}, limit = 2) {
 }
 
 function getPrimaryCustomerStatus(contact = {}) {
-  return getCustomerStatusList(contact)[0] || { key: "resolved", label: "Resolved" };
+  const statuses = getCustomerStatusList(contact);
+  return statuses.find((status) => status.key !== "needs_reply")
+    || statuses[0]
+    || { key: "resolved", label: translateDashboardText("Resolved") };
 }
 
 function buildCustomerFilterDefinitions(contacts = []) {
@@ -4738,7 +4742,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             </div>
           </div>
           <div class="customer-row-statuses">
-            <span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>
+            ${primaryStatus ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
           </div>
         </div>
         <div class="customer-row-meta">
@@ -4765,6 +4769,7 @@ function buildContactDetailPanel(
   operatorWorkspace = createEmptyOperatorWorkspace(),
   selected = false
 ) {
+  const primaryStatus = getPrimaryCustomerStatus(contact);
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
   const canDraftReply = automationsVisible && Boolean(contact.email || contact.phone);
   const primaryActionMarkup = canDraftReply ? `
@@ -4881,9 +4886,9 @@ function buildContactDetailPanel(
           <h2 class="contact-detail-title">${escapeHtml(getCustomerRowIdentifier(contact))}</h2>
           <p class="contact-detail-copy">${escapeHtml([
             getCustomerIdentityLabel(contact),
-            getPrimaryCustomerStatus(contact).label,
+            primaryStatus?.label || "",
             `${t("common.lastMessage")} ${getCustomerLastActivityLabel(contact)}`,
-          ].join(" · "))}</p>
+          ].filter(Boolean).join(" · "))}</p>
           <div class="action-queue-badges customer-status-row">
             ${buildCustomerStatusMarkup(contact, 2)}
           </div>
@@ -4974,7 +4979,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
       <section class="contacts-list-shell">
         <div class="contacts-list-header">
           <div>
-            <h3 class="flat-section-title">Customers</h3>
+            <h3 class="flat-section-title">${escapeHtml(t("customers.title"))}</h3>
             <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
           </div>
         </div>
@@ -4989,7 +4994,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
     <section class="workspace-page" data-shell-section="contacts" hidden>
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
-          ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(`Some contact history is still loading: ${contactsHealth.loadError}`)}</p></div>` : ""}
+          ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
           ${!contacts.length ? buildOperatorEmptyState({
             title: t("customers.emptyTitle"),
             copy: operatorWorkspace.status?.googleConnected
@@ -7307,50 +7312,65 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
     <div class="settings-panel-stack">
       <section class="workspace-card-soft">
         <div class="settings-section-intro">
-          <p class="studio-kicker">Connected tools</p>
+          <p class="studio-kicker">${escapeHtml(t("nav.connectedTools"))}</p>
           <div class="settings-title-row">
-            <h2 class="settings-section-title">Connected Tools</h2>
-            <span class="settings-title-badge">Coming soon</span>
+            <h2 class="settings-section-title">${escapeHtml(t("nav.connectedTools"))}</h2>
+            <span class="settings-title-badge">${escapeHtml(t("nav.comingSoon"))}</span>
           </div>
-          <p class="settings-section-copy">Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
+          <p class="settings-section-copy">${escapeHtml(localizeDashboardCopy(
+            "Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.",
+            "Az Email, a Naptár és az Automatizálások még nem önkiszolgáló módon érhetők el, ezért ez a rész egyelőre csak tájékoztató jellegű."
+          ))}</p>
         </div>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
-            <p class="overview-label">Google workspace</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
-            <p class="settings-summary-copy">Google connection is not available in this dashboard yet. The core workspace works without it.</p>
+            <p class="overview-label">${escapeHtml(localizeDashboardCopy("Google workspace", "Google munkaterület"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(t("nav.comingSoon"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy(
+              "Google connection is not available in this dashboard yet. The core workspace works without it.",
+              "A Google-kapcsolat még nem érhető el ebben az irányítópultban. Az alap munkaterület nélküle is működik."
+            ))}</p>
           </article>
           <article class="settings-summary-card">
-            <p class="overview-label">Calendar mode</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
-            <p class="settings-summary-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
+            <p class="overview-label">${escapeHtml(localizeDashboardCopy("Calendar mode", "Naptár mód"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(t("nav.comingSoon"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy(
+              "Schedule context will stay unavailable until the connected tools release is ready.",
+              "Az időbeosztás kontextusa addig nem lesz elérhető, amíg a kapcsolt eszközök kiadása el nem készül."
+            ))}</p>
           </article>
           <article class="settings-summary-card">
-            <p class="overview-label">Email mode</p>
-            <h3 class="settings-summary-title">Coming soon</h3>
-            <p class="settings-summary-copy">Inbox review is not usable yet, so the dashboard does not present connect or sync actions.</p>
+            <p class="overview-label">${escapeHtml(localizeDashboardCopy("Email mode", "Email mód"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(t("nav.comingSoon"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy(
+              "Inbox review is not usable yet, so the dashboard does not present connect or sync actions.",
+              "Az email-áttekintés még nem használható, ezért az irányítópult egyelőre nem mutat kapcsolódási vagy szinkronizálási műveleteket."
+            ))}</p>
           </article>
         </div>
       </section>
 
       <section class="workspace-card-soft">
-        <h3 class="studio-group-title">Planned tools</h3>
-        <p class="studio-group-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
+        <h3 class="studio-group-title">${escapeHtml(localizeDashboardCopy("Planned tools", "Tervezett eszközök"))}</h3>
+        <p class="studio-group-copy">${escapeHtml(localizeDashboardCopy(
+          "These connected tools are planned, but they should not look usable before the product is ready.",
+          "Ezek a kapcsolt eszközök tervben vannak, de nem szabad használhatónak látszaniuk, amíg a termék nincs kész."
+        ))}</p>
         <div class="settings-summary-grid">
           <article class="settings-summary-card">
-            <p class="overview-label">Email</p>
-            <h3 class="settings-summary-title">Inbox connection</h3>
-            <p class="settings-summary-copy">Email review is not self-serve yet.</p>
+            <p class="overview-label">${escapeHtml(t("nav.email"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(localizeDashboardCopy("Inbox connection", "Email-kapcsolat"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy("Email review is not self-serve yet.", "Az email-áttekintés még nem önkiszolgáló."))}</p>
           </article>
           <article class="settings-summary-card">
-            <p class="overview-label">Calendar</p>
-            <h3 class="settings-summary-title">Schedule context</h3>
-            <p class="settings-summary-copy">Calendar access is not ready yet.</p>
+            <p class="overview-label">${escapeHtml(t("nav.calendar"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(localizeDashboardCopy("Schedule context", "Időbeosztás kontextus"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy("Calendar access is not ready yet.", "A naptárhozzáférés még nincs kész."))}</p>
           </article>
           <article class="settings-summary-card">
-            <p class="overview-label">Automations</p>
-            <h3 class="settings-summary-title">Workflow support</h3>
-            <p class="settings-summary-copy">Automations are not available yet.</p>
+            <p class="overview-label">${escapeHtml(t("nav.automations"))}</p>
+            <h3 class="settings-summary-title">${escapeHtml(localizeDashboardCopy("Workflow support", "Folyamattámogatás"))}</h3>
+            <p class="settings-summary-copy">${escapeHtml(localizeDashboardCopy("Automations are not available yet.", "Az automatizálások még nem érhetők el."))}</p>
           </article>
         </div>
       </section>
@@ -14389,7 +14409,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     if (resultsShell && visibleCount === 0) {
       const empty = document.createElement("div");
       empty.className = "placeholder-card contact-filter-empty";
-      empty.textContent = "No customers match this filter yet.";
+      empty.textContent = localizeDashboardCopy(
+        "No customers match this filter yet.",
+        "Még nincs olyan ügyfél, aki megfelel ennek a szűrőnek."
+      );
       resultsShell.parentElement?.appendChild(empty);
     }
   };

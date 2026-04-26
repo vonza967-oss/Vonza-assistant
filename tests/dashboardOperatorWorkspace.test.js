@@ -307,11 +307,28 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
       id: "contact-identified",
       name: "Alex Harper",
       email: "alex@example.com",
+      lifecycleState: "active_lead",
+      nextAction: {
+        key: "schedule_call",
+        title: "Schedule call",
+        description: "A clear reply is still needed.",
+      },
       sources: ["chat"],
       chatMessages: [
         { role: "customer", label: "Customer", content: "Hello", createdAt: "2026-04-03T09:00:00.000Z" },
         { role: "vonza", label: "Vonza", content: "Hi", createdAt: "2026-04-03T09:00:05.000Z" },
       ],
+    },
+    {
+      id: "contact-no-chat",
+      name: "Pat Minimal",
+      email: "pat@example.com",
+      nextAction: {
+        title: "Review open question",
+        description: "A reply is still needed.",
+      },
+      sources: ["chat"],
+      chatMessages: [],
     },
   ];
 
@@ -319,18 +336,27 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
   const contacts = harness.buildContactsPanel(agent, workspace);
   const settings = harness.buildSettingsPanel(agent, setup, workspace);
   const analytics = harness.buildAnalyticsPanel(agent, [], setup, harness.createEmptyActionQueue(), workspace);
+  const connectedTools = harness.buildConnectedToolsSettingsPanel(agent, workspace);
 
   assert.match(sidebar, /Kezdőlap/);
   assert.match(sidebar, /Ügyfelek/);
   assert.match(sidebar, /Elemzések/);
   assert.match(sidebar, /Beállítások/);
+  assert.match(contacts, /Ügyfelek/);
   assert.match(contacts, /Utolsó üzenet/);
   assert.match(contacts, /Chat megnyitása/);
+  assert.match(contacts, /Még nincs chat/);
   assert.match(contacts, /Vendég látogató/);
+  assert.match(contacts, /Válaszra vár/);
+  assert.match(contacts, /Érdeklődő/);
   assert.match(contacts, /Ügyfél/);
   assert.match(contacts, /Vonza/);
+  assert.match(contacts, /Még nincs ügyfélüzenet/);
   assert.match(settings, /Irányítópult nyelve/);
   assert.match(analytics, /Becsült ügyfél-elégedettség/);
+  assert.match(connectedTools, /Kapcsolt eszközök/);
+  assert.match(connectedTools, /hamarosan/);
+  assert.equal(harness.t("common.hideChat"), "Chat elrejtése");
 });
 
 const HUNGARIAN_DASHBOARD_ENGLISH_LEAKS = [
@@ -2153,6 +2179,42 @@ test("guest customer rows stay summary-only even if chat messages are present in
   assert.match(row, /disabled/);
   assert.match(row, /No chat yet/);
   assert.doesNotMatch(row, /data-customer-chat-panel/);
+});
+
+test("contacts panel still renders rows when a contact only has the needs-reply state", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const contactsPanel = harness.buildContactsPanel(
+    {},
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      contacts: {
+        list: [
+          {
+            id: "contact-needs-reply-only",
+            name: "Pat Minimal",
+            email: "pat@example.com",
+            nextAction: {
+              title: "Review open question",
+              description: "A reply is still needed.",
+            },
+            sources: ["chat"],
+            chatMessages: [],
+          },
+        ],
+      },
+    })
+  );
+
+  assert.match(contactsPanel, /contacts-workspace/);
+  assert.match(contactsPanel, /Pat Minimal/);
+  assert.match(contactsPanel, /Needs reply/);
+  assert.doesNotMatch(contactsPanel, /Your customers will show up here/);
 });
 
 test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {

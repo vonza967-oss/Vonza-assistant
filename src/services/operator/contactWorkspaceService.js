@@ -132,7 +132,6 @@ function getLeadVisitorEmail(lead = {}) {
     return "";
   }
 
-  const captureState = cleanText(lead.captureState || lead.capture_state).toLowerCase();
   const captureTrigger = cleanText(lead.captureTrigger || lead.capture_trigger).toLowerCase();
   const identityMode = normalizeVisitorIdentityMode(
     lead.captureMetadata?.visitorIdentityMode || lead.capture_metadata?.visitorIdentityMode
@@ -152,7 +151,7 @@ function getLeadVisitorEmail(lead = {}) {
     return email;
   }
 
-  return ["captured", "partial_contact"].includes(captureState) ? email : "";
+  return "";
 }
 
 function normalizePhone(value) {
@@ -270,6 +269,80 @@ function mapStoredIdentityRow(row = {}) {
   };
 }
 
+function uniquePersistedContacts(contacts = []) {
+  const seen = new Set();
+
+  return normalizeArray(contacts).filter((contact) => {
+    if (!contact || typeof contact !== "object") {
+      return false;
+    }
+
+    const contactId = cleanText(contact.id);
+    const dedupeKey = contactId || JSON.stringify({
+      displayName: cleanText(contact.displayName),
+      primaryEmail: normalizeEmail(contact.primaryEmail),
+      lastActivityAt: contact.lastActivityAt || null,
+      updatedAt: contact.updatedAt || null,
+    });
+
+    if (!dedupeKey || seen.has(dedupeKey)) {
+      return false;
+    }
+
+    seen.add(dedupeKey);
+    return true;
+  });
+}
+
+function getPersistedContactRecencyScore(contact = {}) {
+  const metadata = contact.metadata && typeof contact.metadata === "object" ? contact.metadata : {};
+
+  return getMostRecentTimestamp([
+    metadata.latestCustomerMessageAt,
+    metadata.lastCustomerMessageAt,
+    metadata.latestConversationMessageAt,
+    metadata.lastConversationMessageAt,
+    contact.lastActivityAt,
+    contact.updatedAt,
+    contact.createdAt,
+  ]);
+}
+
+function pickPreferredPersistedContact(contacts = [], preferredId = "") {
+  const normalizedPreferredId = cleanText(preferredId);
+  const candidates = uniquePersistedContacts(contacts);
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  return candidates
+    .slice()
+    .sort((left, right) => {
+      const preferredDiff =
+        Number(cleanText(right.id) === normalizedPreferredId) - Number(cleanText(left.id) === normalizedPreferredId);
+
+      if (preferredDiff) {
+        return preferredDiff;
+      }
+
+      const ownerDiff =
+        Number(cleanText(right.lifecycleStateSource) === "owner") - Number(cleanText(left.lifecycleStateSource) === "owner");
+
+      if (ownerDiff) {
+        return ownerDiff;
+      }
+
+      return getPersistedContactRecencyScore(right) - getPersistedContactRecencyScore(left);
+    })[0];
+}
+
+function getGroupPersistedContacts(group = {}) {
+  return uniquePersistedContacts(
+    normalizeArray(group.persistedContacts).concat(group.persistedContact ? [group.persistedContact] : [])
+  );
+}
+
 function createIdentityMaps() {
   return {
     contact_id: new Map(),
@@ -288,9 +361,14 @@ function createIdentityMaps() {
 }
 
 function createGroup(seed = {}) {
+  const persistedContacts = uniquePersistedContacts(
+    normalizeArray(seed.persistedContacts).concat(seed.persistedContact ? [seed.persistedContact] : [])
+  );
+
   return {
     id: cleanText(seed.id),
-    persistedContact: seed.persistedContact || null,
+    persistedContact: pickPreferredPersistedContact(persistedContacts, seed.id) || null,
+    persistedContacts,
     businessId: cleanText(seed.businessId || seed.persistedContact?.businessId),
     displayNames: uniqueText([
       cleanText(seed.displayName),
@@ -443,9 +521,10 @@ function mergeGroups(primary, secondary, identityMaps, groups) {
     primary.id = secondary.id;
   }
 
-  if (!primary.persistedContact && secondary.persistedContact) {
-    primary.persistedContact = secondary.persistedContact;
-  }
+  primary.persistedContacts = uniquePersistedContacts(
+    getGroupPersistedContacts(primary).concat(getGroupPersistedContacts(secondary))
+  );
+  primary.persistedContact = pickPreferredPersistedContact(primary.persistedContacts, primary.id);
 
   Object.entries(identityMaps).forEach(([identityType, identityMap]) => {
     identityMap.forEach((group, key) => {
@@ -962,35 +1041,63 @@ function getLatestConversationMessageSnapshot(group = {}, options = {}) {
   };
 }
 
-function getPersistedCustomerMessageSnapshot(group = {}) {
-  const metadata = group.persistedContact?.metadata || {};
-  const at = metadata.latestCustomerMessageAt || metadata.lastCustomerMessageAt || null;
-  const summary = cleanText(metadata.latestCustomerMessageSummary || metadata.lastCustomerMessageSummary);
+function pickLatestSnapshot(snapshots = []) {
+  const candidates = normalizeArray(snapshots)
+    .map((snapshot) => ({
+      at: snapshot?.at || null,
+      summary: cleanText(snapshot?.summary),
+      role: cleanText(snapshot?.role),
+    }))
+    .filter((snapshot) => parseTimestamp(snapshot.at) || snapshot.summary || snapshot.role);
 
-  if (!parseTimestamp(at) && !summary) {
+  if (!candidates.length) {
     return null;
   }
 
-  return {
-    at,
-    summary,
-  };
+  return candidates
+    .slice()
+    .sort((left, right) => {
+      const timeDiff = parseTimestamp(right.at) - parseTimestamp(left.at);
+
+      if (timeDiff) {
+        return timeDiff;
+      }
+
+      const summaryDiff = Number(Boolean(right.summary)) - Number(Boolean(left.summary));
+
+      if (summaryDiff) {
+        return summaryDiff;
+      }
+
+      return Number(Boolean(right.role)) - Number(Boolean(left.role));
+    })[0];
+}
+
+function getPersistedCustomerMessageSnapshot(group = {}) {
+  return pickLatestSnapshot(
+    getGroupPersistedContacts(group).map((persistedContact) => {
+      const metadata = persistedContact?.metadata || {};
+
+      return {
+        at: metadata.latestCustomerMessageAt || metadata.lastCustomerMessageAt || null,
+        summary: cleanText(metadata.latestCustomerMessageSummary || metadata.lastCustomerMessageSummary),
+      };
+    })
+  );
 }
 
 function getPersistedConversationMessageSnapshot(group = {}) {
-  const metadata = group.persistedContact?.metadata || {};
-  const at = metadata.latestConversationMessageAt || metadata.lastConversationMessageAt || null;
-  const summary = cleanText(metadata.latestConversationMessageSummary || metadata.lastConversationMessageSummary);
+  return pickLatestSnapshot(
+    getGroupPersistedContacts(group).map((persistedContact) => {
+      const metadata = persistedContact?.metadata || {};
 
-  if (!parseTimestamp(at) && !summary) {
-    return null;
-  }
-
-  return {
-    at,
-    summary,
-    role: cleanText(metadata.latestConversationMessageRole || metadata.lastConversationMessageRole),
-  };
+      return {
+        at: metadata.latestConversationMessageAt || metadata.lastConversationMessageAt || null,
+        summary: cleanText(metadata.latestConversationMessageSummary || metadata.lastConversationMessageSummary),
+        role: cleanText(metadata.latestConversationMessageRole || metadata.lastConversationMessageRole),
+      };
+    })
+  );
 }
 
 function pickDisplayName(group = {}) {
@@ -1217,14 +1324,19 @@ function buildContactSummary(group = {}, options = {}) {
   const latestOutcome = group.outcomes
     .slice()
     .sort((left, right) => parseTimestamp(right.occurredAt || right.createdAt) - parseTimestamp(left.occurredAt || left.createdAt))[0] || null;
-  const latestCustomerMessage = getLatestCustomerMessageSnapshot(group, {
-    visitorEmail: identifiedVisitorEmail,
-  }) || getPersistedCustomerMessageSnapshot(group);
-  const latestConversationMessage = getLatestConversationMessageSnapshot(group, {
-    visitorEmail: identifiedVisitorEmail,
-  })
-    || getPersistedConversationMessageSnapshot(group)
-    || latestCustomerMessage;
+  const latestCustomerMessage = pickLatestSnapshot([
+    getLatestCustomerMessageSnapshot(group, {
+      visitorEmail: identifiedVisitorEmail,
+    }),
+    getPersistedCustomerMessageSnapshot(group),
+  ]);
+  const latestConversationMessage = pickLatestSnapshot([
+    getLatestConversationMessageSnapshot(group, {
+      visitorEmail: identifiedVisitorEmail,
+    }),
+    getPersistedConversationMessageSnapshot(group),
+    latestCustomerMessage,
+  ]);
   const latestVisitorMessageActivityAt = latestCustomerMessage?.at || getLatestVisitorMessageActivityAt(group, {
     visitorEmail: identifiedVisitorEmail,
   });
@@ -1517,6 +1629,85 @@ function getWidgetMessageContactInfo(message = {}) {
   return getCompactMessageIdentity(message.content);
 }
 
+function getGroupIdentifiedVisitorEmails(group = {}) {
+  return [...new Set(normalizeArray(group.visitorEmails).map(normalizeVisitorEmail).filter(Boolean))];
+}
+
+function getGroupNormalizedEmails(group = {}) {
+  return [...new Set(normalizeArray(group.emails).map(normalizeEmail).filter(Boolean))];
+}
+
+function canMergeIntoIdentifiedEmailGroup(group = {}, identifiedEmail = "") {
+  const normalizedIdentifiedEmail = normalizeVisitorEmail(identifiedEmail);
+
+  if (!normalizedIdentifiedEmail) {
+    return false;
+  }
+
+  const identifiedEmails = getGroupIdentifiedVisitorEmails(group);
+
+  if (identifiedEmails.length) {
+    return identifiedEmails.includes(normalizedIdentifiedEmail);
+  }
+
+  const emails = getGroupNormalizedEmails(group);
+
+  if (!emails.includes(normalizedIdentifiedEmail)) {
+    return false;
+  }
+
+  return emails.length === 1 || normalizeEmail(group.persistedContact?.primaryEmail) === normalizedIdentifiedEmail;
+}
+
+function mergeDuplicateIdentifiedGroups(groups = [], identityMaps = {}) {
+  const identifiedGroupsByEmail = new Map();
+
+  [...groups].forEach((group) => {
+    if (!groups.includes(group)) {
+      return;
+    }
+
+    const identifiedEmails = getGroupIdentifiedVisitorEmails(group);
+
+    identifiedEmails.forEach((identifiedEmail) => {
+      const existing = identifiedGroupsByEmail.get(identifiedEmail);
+
+      if (existing && existing !== group && groups.includes(existing)) {
+        const merged = mergeGroups(existing, group, identityMaps, groups);
+        identifiedGroupsByEmail.set(identifiedEmail, merged);
+        return;
+      }
+
+      identifiedGroupsByEmail.set(identifiedEmail, group);
+    });
+  });
+
+  [...groups].forEach((group) => {
+    if (!groups.includes(group)) {
+      return;
+    }
+
+    const matchingEmail = getGroupNormalizedEmails(group).find((email) => identifiedGroupsByEmail.has(email));
+
+    if (!matchingEmail) {
+      return;
+    }
+
+    const canonicalGroup = identifiedGroupsByEmail.get(matchingEmail);
+
+    if (!canonicalGroup || canonicalGroup === group || !groups.includes(canonicalGroup)) {
+      return;
+    }
+
+    if (!canMergeIntoIdentifiedEmailGroup(group, matchingEmail)) {
+      return;
+    }
+
+    const merged = mergeGroups(canonicalGroup, group, identityMaps, groups);
+    identifiedGroupsByEmail.set(matchingEmail, merged);
+  });
+}
+
 export function buildContactWorkspaceFromRecords(options = {}) {
   const groups = [];
   const identityMaps = createIdentityMaps();
@@ -1645,12 +1836,14 @@ export function buildContactWorkspaceFromRecords(options = {}) {
         identityMaps.message_id.get(cleanText(message.id)),
         sessionKey ? identityMaps.session_key.get(sessionKey) : null,
         visitorEmail ? identityMaps.visitor_email.get(visitorEmail) : null,
+        visitorEmail ? identityMaps.email.get(visitorEmail) : null,
         contactInfo.phoneNormalized || contactInfo.phone
           ? identityMaps.phone.get(normalizePhoneDigits(contactInfo.phoneNormalized || contactInfo.phone))
           : null,
       ].filter(Boolean);
       const strongIdentities = [
         { type: "visitor_email", value: visitorEmail },
+        { type: "email", value: visitorEmail },
         { type: "phone", value: contactInfo.phoneNormalized || contactInfo.phone },
       ].filter((entry) => cleanText(entry.value));
       const weakIdentities = [
@@ -1865,23 +2058,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
     });
   });
 
-  const mergedVisitorEmailGroups = new Map();
-  [...groups].forEach((group) => {
-    const visitorEmail = normalizeVisitorEmail(group.visitorEmails[0]);
-
-    if (!visitorEmail) {
-      return;
-    }
-
-    const existing = mergedVisitorEmailGroups.get(visitorEmail);
-
-    if (existing && existing !== group) {
-      mergeGroups(existing, group, identityMaps, groups);
-      return;
-    }
-
-    mergedVisitorEmailGroups.set(visitorEmail, group);
-  });
+  mergeDuplicateIdentifiedGroups(groups, identityMaps);
 
   const orderedPairs = groups
     .map((group) => ({

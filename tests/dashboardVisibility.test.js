@@ -763,7 +763,7 @@ test("Connected Tools heading shows Coming soon as the main state", async () => 
     harness.getGlobal("createEmptyOperatorWorkspace")()
   );
 
-  assert.match(markup, /<h2 class="settings-section-title">Connected Tools<\/h2>\s*<span class="settings-title-badge">Coming soon<\/span>/);
+  assert.match(markup, /<h2 class="settings-section-title">Connected Tools<\/h2>\s*<span class="settings-title-badge">coming soon<\/span>/);
   assert.doesNotMatch(markup, /<span class="badge pending">Beta<\/span>/);
 });
 

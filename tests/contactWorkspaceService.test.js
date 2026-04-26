@@ -842,6 +842,115 @@ test("identified rows dedupe by exact normalized visitor email and keep chat sco
   assert.ok(!milu.chatMessages.some((message) => message.id.startsWith("message-other")));
 });
 
+test("identified widget messages collapse stored same-email duplicates into one visible row and keep the best merged state", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-stale",
+        displayName: "Anonymous visitor",
+        primaryEmail: "Alex@example.com",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:07:00.000Z",
+        metadata: {
+          latestCustomerMessageAt: "2026-04-14T09:07:00.000Z",
+          latestCustomerMessageSummary: "Can you also do weekends?",
+        },
+      },
+      {
+        id: "contact-older",
+        displayName: "Alex",
+        primaryEmail: "alex@example.com",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: "message-alex-user",
+        role: "user",
+        content: "Can you send pricing?",
+        sessionKey: "session-alex",
+        visitorIdentityMode: "identified",
+        visitorEmail: "alex@example.com",
+        visitorName: "Alex",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+      {
+        id: "message-alex-assistant",
+        role: "assistant",
+        content: "Absolutely.",
+        sessionKey: "session-alex",
+        visitorIdentityMode: "identified",
+        visitorEmail: "alex@example.com",
+        visitorName: "Alex",
+        createdAt: "2026-04-14T09:06:00.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.filter((contact) => contact.email === "alex@example.com").length, 1);
+
+  const alex = result.list.find((contact) => contact.email === "alex@example.com");
+
+  assert.ok(alex);
+  assert.equal(alex.customerRowKey, "alex@example.com");
+  assert.equal(alex.chatMessages.length, 2);
+  assert.deepEqual(
+    alex.chatMessages.map((message) => message.id),
+    ["message-alex-user", "message-alex-assistant"]
+  );
+  assert.equal(alex.lastCustomerMessageAt, "2026-04-14T09:07:00.000Z");
+  assert.equal(alex.latestCustomerMessageSummary, "Can you also do weekends?");
+});
+
+test("guest rows stay separate from identified contacts without durable visitor email evidence", () => {
+  const result = buildContactWorkspaceFromRecords({
+    storedContacts: [
+      {
+        id: "contact-identified",
+        displayName: "Casey North",
+        primaryEmail: "casey@example.com",
+        activitySources: ["chat"],
+        lastActivityAt: "2026-04-14T09:00:00.000Z",
+      },
+    ],
+    storedIdentities: [
+      {
+        contactId: "contact-identified",
+        identityType: "email",
+        identityValue: "casey@example.com",
+      },
+    ],
+    messages: [
+      {
+        id: "message-guest-user",
+        role: "user",
+        content: "My email is casey@example.com, but I only started a guest chat.",
+        sessionKey: "guest-session-2",
+        createdAt: "2026-04-14T09:05:00.000Z",
+      },
+      {
+        id: "message-guest-assistant",
+        role: "assistant",
+        content: "Thanks for reaching out.",
+        sessionKey: "guest-session-2",
+        createdAt: "2026-04-14T09:05:30.000Z",
+      },
+    ],
+  });
+
+  assert.equal(result.list.length, 2);
+
+  const identified = result.list.find((contact) => contact.email === "casey@example.com");
+  const guest = result.list.find((contact) => contact.partialIdentity === true);
+
+  assert.ok(identified);
+  assert.ok(guest);
+  assert.equal(guest.email, "");
+  assert.equal(guest.customerRowKey, "guest-session-2");
+  assert.deepEqual(guest.chatMessages, []);
+});
+
 test("chat customer timestamps do not drift to render time", () => {
   const realDateNow = Date.now;
   Date.now = () => new Date("2026-04-20T18:30:00.000Z").getTime();
