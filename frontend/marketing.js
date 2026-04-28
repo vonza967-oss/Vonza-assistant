@@ -12,8 +12,22 @@
     );
   }
 
-  function getAppHref(isSignedIn) {
-    return isSignedIn ? "/dashboard" : "/dashboard?from=site";
+  function getAppHref(isSignedIn, planKey = "") {
+    const params = new URLSearchParams();
+
+    if (!isSignedIn) {
+      params.set("from", "site");
+    }
+
+    if (trimText(planKey)) {
+      params.set("plan", trimText(planKey).toLowerCase());
+    }
+
+    return params.toString() ? `/dashboard?${params.toString()}` : "/dashboard";
+  }
+
+  function trimText(value) {
+    return String(value || "").trim();
   }
 
   function getAuthStorageKey() {
@@ -67,20 +81,20 @@
 
   function syncMarketingCtas(session) {
     const isSignedIn = Boolean(session?.user);
-    const href = getAppHref(isSignedIn);
 
     appLinks.forEach((link) => {
-      link.setAttribute("href", href);
+      const planKey = trimText(link.dataset?.planKey);
+      link.setAttribute("href", getAppHref(isSignedIn, planKey));
     });
 
     if (primaryCta) {
       primaryCta.textContent = isSignedIn ? "My Account" : "Start your front desk";
-      primaryCta.setAttribute("href", href);
+      primaryCta.setAttribute("href", getAppHref(isSignedIn));
     }
 
     if (authLink) {
       authLink.hidden = isSignedIn;
-      authLink.setAttribute("href", href);
+      authLink.setAttribute("href", getAppHref(isSignedIn));
       authLink.textContent = "Sign in";
     }
   }

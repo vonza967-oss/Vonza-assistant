@@ -432,6 +432,21 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
+test("access-locked checkout view renders Starter, Growth, and Pro plan choices", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent({ accessStatus: "pending" })],
+    search: "?from=site&plan=pro",
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Simple monthly plans/);
+  assert.match(harness.getRootHtml(), /Starter/);
+  assert.match(harness.getRootHtml(), /Growth/);
+  assert.match(harness.getRootHtml(), /Pro/);
+  assert.match(harness.getRootHtml(), /Continue with Pro/);
+  assert.doesNotMatch(harness.getRootHtml(), /token|api[- ]?spend|model cost/i);
+});
+
 test("workspace settings keep legal pages reachable from the logged-in app", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],
@@ -572,6 +587,56 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
     harness.fetchCalls.some((call) => call.pathname === "/agents/operator-workspace"),
     false
   );
+});
+
+test("workspace settings show current plan, usage progress, and upgrade actions", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: {
+            billing: {
+              planKey: "growth",
+              displayName: "Growth",
+              monthlyPriceLabel: "$50/month",
+              currentPeriodStart: "2026-04-01T00:00:00.000Z",
+              currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+              subscriptionStatus: "active",
+              hasActiveSubscription: true,
+              usage: {
+                percentUsed: 82,
+                tone: "warning",
+                statusLabel: "Approaching the monthly capacity",
+                ownerMessage:
+                  "This workspace has used about 80% of its included monthly AI capacity. It is a good time to plan an upgrade if traffic is rising.",
+                isCapped: false,
+              },
+              upgradeOptions: [
+                {
+                  planKey: "pro",
+                  displayName: "Pro",
+                  monthlyPriceLabel: "$100/month",
+                  checkoutLabel: "Start with Pro",
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Billing and monthly usage/);
+  assert.match(harness.getRootHtml(), /Growth · \$50\/month/);
+  assert.match(harness.getRootHtml(), /82% used/);
+  assert.match(harness.getRootHtml(), /Approaching the monthly capacity/);
+  assert.match(harness.getRootHtml(), /data-billing-plan-key="pro"/);
+  assert.match(harness.getRootHtml(), /Subscription status: active\./);
 });
 
 test("missing Google env shows a visible non-breaking operator fallback state", async () => {

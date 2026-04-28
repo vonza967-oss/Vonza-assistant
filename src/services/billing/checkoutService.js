@@ -1,14 +1,50 @@
 import Stripe from "stripe";
 
 import {
+  getBillingPlan,
+  getStripePriceIdForPlan,
+  normalizeBillingPlanKey,
+  findBillingPlanByPriceId,
+} from "../../config/billingPlans.js";
+import {
   getPublicAppUrl,
-  getStripePriceId,
   getStripeSecretKey,
   getStripeWebhookSecret,
 } from "../../config/env.js";
 import { cleanText } from "../../utils/text.js";
+import { buildBillingSyncPayload } from "./billingUsageService.js";
+
+const STRIPE_API_VERSION = "2026-02-25.clover";
 
 let stripeClient = null;
+
+function buildMissingStripePriceError(planKey) {
+  const plan = getBillingPlan(planKey);
+  const error = new Error(`${plan.stripePriceEnvKey} is not configured.`);
+  error.statusCode = 500;
+  return error;
+}
+
+function getConfiguredPlanPrice(planKey) {
+  const plan = getBillingPlan(planKey);
+  const priceId = getStripePriceIdForPlan(plan.key);
+
+  if (!priceId) {
+    throw buildMissingStripePriceError(plan.key);
+  }
+
+  return {
+    plan,
+    priceId,
+  };
+}
+
+function toIsoStringFromUnixSeconds(value) {
+  const seconds = Number(value || 0);
+  return Number.isFinite(seconds) && seconds > 0
+    ? new Date(seconds * 1000).toISOString()
+    : null;
+}
 
 function getStripeClient() {
   if (stripeClient) {
@@ -23,46 +59,57 @@ function getStripeClient() {
     throw error;
   }
 
-  stripeClient = new Stripe(secretKey);
+  stripeClient = new Stripe(secretKey, {
+    apiVersion: STRIPE_API_VERSION,
+  });
   return stripeClient;
 }
 
-async function sessionIncludesConfiguredPrice(session, options = {}) {
+async function resolvePurchasedPlan(session, options = {}) {
   const normalizedSessionId = cleanText(session?.id);
-  const expectedPriceId = cleanText(options.expectedPriceId || getStripePriceId());
   const stripe = options.stripe || getStripeClient();
 
-  if (!expectedPriceId) {
-    const error = new Error("STRIPE_PRICE_ID is not configured.");
-    error.statusCode = 500;
-    throw error;
-  }
-
   if (!normalizedSessionId) {
-    return false;
+    return null;
   }
 
   const lineItems = await stripe.checkout.sessions.listLineItems(normalizedSessionId, {
     limit: 20,
   });
-
-  return Boolean((lineItems?.data || []).some((item) => {
+  const matchingItem = (lineItems?.data || []).find((item) => {
     const priceId = cleanText(item?.price?.id || item?.price);
-    return priceId === expectedPriceId;
-  }));
-}
+    return Boolean(findBillingPlanByPriceId(priceId));
+  });
 
-export async function createHostedCheckoutSession({ user, email }) {
-  const priceId = getStripePriceId();
-
-  if (!priceId) {
-    const error = new Error("STRIPE_PRICE_ID is not configured.");
-    error.statusCode = 500;
-    throw error;
+  if (!matchingItem) {
+    return null;
   }
 
+  const priceId = cleanText(matchingItem?.price?.id || matchingItem?.price);
+  const plan = findBillingPlanByPriceId(priceId);
+
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    plan,
+    priceId,
+  };
+}
+
+async function retrieveStripeSubscription(subscriptionId, stripe = getStripeClient()) {
+  const normalizedSubscriptionId = cleanText(subscriptionId);
+  return normalizedSubscriptionId
+    ? stripe.subscriptions.retrieve(normalizedSubscriptionId)
+    : null;
+}
+
+export async function createHostedCheckoutSession({ user, email, planKey }, options = {}) {
+  const normalizedPlanKey = normalizeBillingPlanKey(planKey);
+  const { plan, priceId } = getConfiguredPlanPrice(normalizedPlanKey);
   const appUrl = getPublicAppUrl();
-  const stripe = getStripeClient();
+  const stripe = options.stripe || getStripeClient();
   const ownerUserId = cleanText(user?.id);
   const customerEmail = cleanText(email || user?.email);
 
@@ -73,25 +120,34 @@ export async function createHostedCheckoutSession({ user, email }) {
   }
 
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: "subscription",
     line_items: [
       {
         price: priceId,
         quantity: 1,
       },
     ],
-    success_url: `${appUrl}/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/dashboard?payment=cancel`,
+    success_url:
+      `${appUrl}/dashboard?payment=success&plan=${encodeURIComponent(plan.key)}&session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:
+      `${appUrl}/dashboard?payment=cancel&plan=${encodeURIComponent(plan.key)}`,
     customer_email: customerEmail || undefined,
     metadata: {
       owner_user_id: ownerUserId,
+      plan_key: plan.key,
+    },
+    subscription_data: {
+      metadata: {
+        owner_user_id: ownerUserId,
+        plan_key: plan.key,
+      },
     },
   });
 
   return session;
 }
 
-export async function verifySuccessfulCheckout({ sessionId, ownerUserId }, options = {}) {
+export async function verifySuccessfulCheckout({ sessionId, ownerUserId, planKey }, options = {}) {
   const normalizedSessionId = cleanText(sessionId);
   const normalizedOwnerUserId = cleanText(ownerUserId);
 
@@ -128,18 +184,28 @@ export async function verifySuccessfulCheckout({ sessionId, ownerUserId }, optio
     throw error;
   }
 
-  const hasExpectedPrice = await sessionIncludesConfiguredPrice(session, {
-    stripe,
-    expectedPriceId: options.expectedPriceId,
-  });
+  const purchasedPlan = await resolvePurchasedPlan(session, { stripe });
 
-  if (!hasExpectedPrice) {
-    const error = new Error("This checkout session does not match the configured Vonza access price.");
+  if (!purchasedPlan) {
+    const error = new Error("This checkout session does not match a configured Vonza monthly plan.");
     error.statusCode = 403;
     throw error;
   }
 
-  return session;
+  if (
+    planKey
+    && normalizeBillingPlanKey(planKey) !== normalizeBillingPlanKey(purchasedPlan.plan.key)
+  ) {
+    const error = new Error("This checkout session does not match the selected Vonza plan.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return {
+    ...session,
+    vonzaPlanKey: purchasedPlan.plan.key,
+    vonzaPriceId: purchasedPlan.priceId,
+  };
 }
 
 export function constructStripeWebhookEvent({ payload, signature }) {
@@ -161,7 +227,7 @@ export function constructStripeWebhookEvent({ payload, signature }) {
   return stripe.webhooks.constructEvent(payload, signature, webhookSecret);
 }
 
-export async function getPaidOwnerIdFromCheckoutSession(session, options = {}) {
+export async function getPaidCheckoutDetailsFromSession(session, options = {}) {
   if (!session || session.payment_status !== "paid") {
     return null;
   }
@@ -172,16 +238,154 @@ export async function getPaidOwnerIdFromCheckoutSession(session, options = {}) {
     return null;
   }
 
-  const hasExpectedPrice = await sessionIncludesConfiguredPrice(session, {
+  const purchasedPlan = await resolvePurchasedPlan(session, {
     stripe: options.stripe,
-    expectedPriceId: options.expectedPriceId,
   });
 
-  return hasExpectedPrice ? ownerUserId : null;
+  if (!purchasedPlan) {
+    return null;
+  }
+
+  return {
+    ownerUserId,
+    planKey: purchasedPlan.plan.key,
+    priceId: purchasedPlan.priceId,
+    checkoutSessionId: cleanText(session.id),
+    stripeCustomerId: cleanText(session.customer),
+    stripeSubscriptionId: cleanText(session.subscription),
+  };
+}
+
+export async function buildBillingSyncPayloadFromCheckoutSession(session, options = {}) {
+  const stripe = options.stripe || getStripeClient();
+  const paidDetails = await getPaidCheckoutDetailsFromSession(session, { stripe });
+
+  if (!paidDetails) {
+    return null;
+  }
+
+  const subscription = await retrieveStripeSubscription(
+    paidDetails.stripeSubscriptionId,
+    stripe
+  );
+  const primaryItem = subscription?.items?.data?.[0] || null;
+  const priceId = cleanText(primaryItem?.price?.id || paidDetails.priceId);
+  const productId = cleanText(primaryItem?.price?.product);
+  const resolvedPlan = findBillingPlanByPriceId(priceId) || getBillingPlan(paidDetails.planKey);
+
+  return buildBillingSyncPayload({
+    ownerUserId: paidDetails.ownerUserId,
+    planKey: resolvedPlan.key,
+    billingInterval: resolvedPlan.billingInterval,
+    stripeCustomerId: cleanText(subscription?.customer || paidDetails.stripeCustomerId),
+    stripeSubscriptionId: cleanText(subscription?.id || paidDetails.stripeSubscriptionId),
+    stripePriceId: priceId,
+    stripeProductId: productId,
+    lastCheckoutSessionId: paidDetails.checkoutSessionId,
+    subscriptionStatus: cleanText(subscription?.status || "active"),
+    currentPeriodStart: toIsoStringFromUnixSeconds(subscription?.current_period_start),
+    currentPeriodEnd: toIsoStringFromUnixSeconds(subscription?.current_period_end),
+    cancelAtPeriodEnd: subscription?.cancel_at_period_end === true,
+    canceledAt: toIsoStringFromUnixSeconds(subscription?.canceled_at),
+  });
+}
+
+export async function buildBillingSyncPayloadFromSubscription(subscription, options = {}) {
+  const normalizedSubscriptionId = cleanText(subscription?.id);
+
+  if (!normalizedSubscriptionId) {
+    return null;
+  }
+
+  const primaryItem = subscription?.items?.data?.[0] || null;
+  const priceId = cleanText(primaryItem?.price?.id);
+  const resolvedPlan = findBillingPlanByPriceId(priceId)
+    || getBillingPlan(subscription?.metadata?.plan_key);
+  const ownerUserId = cleanText(
+    options.ownerUserId
+    || subscription?.metadata?.owner_user_id
+  );
+
+  if (!ownerUserId) {
+    return null;
+  }
+
+  return buildBillingSyncPayload({
+    ownerUserId,
+    planKey: resolvedPlan.key,
+    billingInterval: resolvedPlan.billingInterval,
+    stripeCustomerId: cleanText(subscription?.customer),
+    stripeSubscriptionId: normalizedSubscriptionId,
+    stripePriceId: priceId,
+    stripeProductId: cleanText(primaryItem?.price?.product),
+    lastCheckoutSessionId: cleanText(options.lastCheckoutSessionId),
+    subscriptionStatus: cleanText(subscription?.status || "pending"),
+    currentPeriodStart: toIsoStringFromUnixSeconds(subscription?.current_period_start),
+    currentPeriodEnd: toIsoStringFromUnixSeconds(subscription?.current_period_end),
+    cancelAtPeriodEnd: subscription?.cancel_at_period_end === true,
+    canceledAt: toIsoStringFromUnixSeconds(subscription?.canceled_at),
+  });
+}
+
+export async function changeStripeSubscriptionPlan(options = {}) {
+  const normalizedSubscriptionId = cleanText(options.subscriptionId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const normalizedPlanKey = normalizeBillingPlanKey(options.planKey);
+
+  if (!normalizedSubscriptionId) {
+    const error = new Error("An active Stripe subscription is required before changing plans.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const { plan, priceId } = getConfiguredPlanPrice(normalizedPlanKey);
+  const stripe = options.stripe || getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(normalizedSubscriptionId);
+  const subscriptionItem = subscription?.items?.data?.[0] || null;
+
+  if (!subscriptionItem?.id) {
+    const error = new Error("Stripe could not find the subscription item for this workspace.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  if (cleanText(subscriptionItem.price?.id) === priceId) {
+    return {
+      changed: false,
+      planKey: plan.key,
+      subscription,
+    };
+  }
+
+  const updatedSubscription = await stripe.subscriptions.update(normalizedSubscriptionId, {
+    items: [
+      {
+        id: subscriptionItem.id,
+        price: priceId,
+      },
+    ],
+    proration_behavior: "create_prorations",
+    metadata: {
+      ...(subscription?.metadata || {}),
+      owner_user_id: normalizedOwnerUserId,
+      plan_key: plan.key,
+    },
+  });
+
+  return {
+    changed: true,
+    planKey: plan.key,
+    subscription: updatedSubscription,
+  };
+}
+
+export async function getPaidOwnerIdFromCheckoutSession(session, options = {}) {
+  const details = await getPaidCheckoutDetailsFromSession(session, options);
+  return details?.ownerUserId || null;
 }
 
 export function isStripeConfigError(error) {
-  return /STRIPE_(SECRET_KEY|PRICE_ID|WEBHOOK_SECRET) is not configured/i.test(
+  return /STRIPE_(SECRET_KEY|PRICE_ID(?:_[A-Z_]+)?|WEBHOOK_SECRET) is not configured/i.test(
     cleanText(error?.message)
   );
 }
@@ -198,5 +402,5 @@ export function getStripeCheckoutConfigurationErrorMessage(error) {
     return "";
   }
 
-  return "Stripe checkout is using a price that is below Stripe's minimum allowed amount for the configured currency. Update STRIPE_PRICE_ID to a valid Stripe price in the same account and mode, then retry checkout.";
+  return "Stripe checkout is using a price that is below Stripe's minimum allowed amount for the configured currency. Update STRIPE_PRICE_ID_STARTER_MONTHLY, STRIPE_PRICE_ID_GROWTH_MONTHLY, or STRIPE_PRICE_ID_PRO_MONTHLY to valid Stripe prices in the same account and mode, then retry checkout.";
 }

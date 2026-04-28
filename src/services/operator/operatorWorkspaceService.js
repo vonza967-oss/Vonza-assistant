@@ -3,6 +3,11 @@ import { randomBytes } from "node:crypto";
 import axios from "axios";
 
 import {
+  DEFAULT_BILLING_PLAN_KEY,
+  formatUsdPriceFromCents,
+  getBillingPlan,
+} from "../../config/billingPlans.js";
+import {
   getGoogleClientId,
   getGoogleClientSecret,
   getGoogleOAuthRedirectUri,
@@ -31,6 +36,7 @@ import {
   updateActionQueueStatus,
 } from "../analytics/actionQueueService.js";
 import { listWidgetRoutingEventsByAgentId } from "../analytics/widgetTelemetryService.js";
+import { getOwnerBillingSnapshot } from "../billing/billingUsageService.js";
 import { listAgentMessages } from "../chat/messageService.js";
 import { listFollowUpWorkflows } from "../followup/followUpService.js";
 import { listKnowledgeFixWorkflows } from "../knowledge/knowledgeFixService.js";
@@ -362,6 +368,7 @@ function getDefaultOperatorContextOptions() {
 }
 
 export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
+  const defaultBillingPlan = getBillingPlan(DEFAULT_BILLING_PLAN_KEY);
   const capabilities = {
     featureEnabled: false,
     googleAvailable: false,
@@ -461,6 +468,32 @@ export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
       tasks: [],
       campaigns: [],
       followUps: [],
+    },
+    billing: {
+      planKey: defaultBillingPlan.key,
+      displayName: defaultBillingPlan.displayName,
+      monthlyPriceCents: defaultBillingPlan.monthlyPriceCents,
+      monthlyPriceUsd: defaultBillingPlan.monthlyPriceUsd,
+      monthlyPriceLabel: `${formatUsdPriceFromCents(defaultBillingPlan.monthlyPriceCents)}/month`,
+      billingInterval: defaultBillingPlan.billingInterval,
+      includedAiBudgetCents: defaultBillingPlan.includedAiBudgetCents,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      subscriptionStatus: "pending",
+      hasActiveSubscription: false,
+      usage: {
+        usedCents: 0,
+        includedCents: defaultBillingPlan.includedAiBudgetCents,
+        remainingCents: defaultBillingPlan.includedAiBudgetCents,
+        percentUsed: 0,
+        warningState: "normal",
+        warningThreshold: 0,
+        tone: "ok",
+        statusLabel: "Within the included monthly capacity",
+        ownerMessage: "Monthly AI usage is comfortably within the included capacity.",
+        isCapped: false,
+      },
+      upgradeOptions: [],
     },
     copilot: createEmptyTodayCopilotState({
       featureEnabled: false,
@@ -4199,6 +4232,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     leadCapturesResult,
     outcomesResult,
     proposalStatesResult,
+    billingResult,
   ] = await Promise.allSettled([
     listConnectedAccountsInternal(supabase, {
       agentId: agent.id,
@@ -4268,6 +4302,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         ownerUserId,
       })
       : Promise.resolve({ records: [], persistenceAvailable: true }),
+    getOwnerBillingSnapshot(supabase, {
+      ownerUserId,
+      accessStatus: agent.accessStatus,
+    }),
   ]);
 
   const accounts = getSettledValue(accountsResult, []);
@@ -4311,6 +4349,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     getSettledErrorMessage(leadCapturesResult),
     getSettledErrorMessage(outcomesResult),
     getSettledErrorMessage(proposalStatesResult),
+    getSettledErrorMessage(billingResult),
     getSettledErrorMessage(threadMessagesResult[0]),
   ].filter(Boolean);
   const googleConnected = accounts.some((account) => account.status === "connected");
@@ -4503,6 +4542,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     records: [],
     persistenceAvailable: true,
   });
+  const billing = getSettledValue(
+    billingResult,
+    createEmptyOperatorWorkspaceSnapshot().billing
+  );
   const copilot = hydrateTodayCopilotProposals({
     ...buildTodayCopilotSnapshot({
     featureEnabled: copilotFeatureEnabled,
@@ -4599,6 +4642,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       campaigns,
       followUps: followUpResult.records || [],
     },
+    billing,
     businessProfile,
     outcomes: {
       summary: conversionOutcomeResult.summary || null,

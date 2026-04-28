@@ -584,6 +584,115 @@
   line-height: 1.45;
 }
 
+.settings-shell-section-title--compact {
+  font-size: 1rem;
+}
+
+.settings-shell-billing-progress {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.settings-shell-billing-progress-bar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e6edf7;
+}
+
+.settings-shell-billing-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2f67e3, #5ca2ff);
+}
+
+.settings-shell-billing-progress-bar--warning span {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.settings-shell-billing-progress-bar--danger span {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.settings-shell-billing-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #5f6f89;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-shell-billing-notice {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid #d6dfed;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #334963;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.settings-shell-billing-notice--warning {
+  border-color: #f3d28b;
+  background: #fff8e6;
+  color: #8a5b00;
+}
+
+.settings-shell-billing-notice--danger {
+  border-color: #efb5b5;
+  background: #fff1f1;
+  color: #9b1c1c;
+}
+
+.settings-shell-billing-upgrade-stack {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.settings-shell-billing-upgrade-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.settings-shell-billing-plan-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid #c7d3e3;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f2d44;
+}
+
+.settings-shell-billing-plan-card:hover {
+  border-color: #2f67e3;
+  background: #eef4ff;
+}
+
+.settings-shell-billing-plan-card strong {
+  color: #1f2d44;
+  font-size: 15px;
+}
+
+.settings-shell-billing-plan-card span {
+  color: #1f4fbf;
+  font-weight: 700;
+}
+
+.settings-shell-billing-plan-card small {
+  color: #5f6f89;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 html[data-dashboard-theme="dark"] .settings-shell-sidebar,
 html[data-dashboard-theme="dark"] .settings-shell-mobile-bar,
 html[data-dashboard-theme="dark"] .settings-shell-page-header,
@@ -659,6 +768,55 @@ html[data-dashboard-theme="dark"] .settings-shell-theme-option strong {
 }
 
 html[data-dashboard-theme="dark"] .settings-shell-theme-option small {
+  color: #c6d0df;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-progress-bar {
+  background: #202634;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-progress-meta {
+  color: #c6d0df;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-notice {
+  border-color: #343c4d;
+  background: #1b202b;
+  color: #e7ecf5;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-notice--warning {
+  border-color: #6a4d14;
+  background: #33270f;
+  color: #f5d48a;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-notice--danger {
+  border-color: #6b2f2f;
+  background: #311819;
+  color: #f2b4b4;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-plan-card {
+  border-color: #343c4d;
+  background: #1b202b;
+  color: #f4f6fb;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-plan-card:hover {
+  border-color: #34d399;
+  background: #18342d;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-plan-card strong {
+  color: #f4f6fb;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-plan-card span {
+  color: #9ee8d3;
+}
+
+html[data-dashboard-theme="dark"] .settings-shell-billing-plan-card small {
   color: #c6d0df;
 }
 

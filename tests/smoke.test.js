@@ -58,7 +58,9 @@ function createTestApp(agentDeps = {}) {
   app.use(cors());
   app.use("/stripe/webhook", express.raw({ type: "application/json" }));
   app.use(express.json());
-  app.use(express.static(path.join(repoRoot, "frontend")));
+  app.use(express.static(path.join(repoRoot, "frontend"), {
+    index: false,
+  }));
   app.use(createPublicRouter({ rootDir: repoRoot }));
   app.use(createAgentRouter(agentDeps));
   app.use(createBusinessRouter());
@@ -67,14 +69,29 @@ function createTestApp(agentDeps = {}) {
 
 function createFakeElement(id, options = {}) {
   const attributes = new Map(Object.entries(options.attributes || {}));
+  const dataset = Object.fromEntries(
+    Object.entries(options.attributes || {})
+      .filter(([name]) => name.startsWith("data-"))
+      .map(([name, value]) => [
+        name
+          .slice(5)
+          .replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase()),
+        String(value),
+      ])
+  );
 
   return {
     id,
     hidden: false,
     textContent: options.textContent || "",
-    dataset: {},
+    dataset,
     setAttribute(name, value) {
       attributes.set(name, String(value));
+      if (name.startsWith("data-")) {
+        this.dataset[name
+          .slice(5)
+          .replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase())] = String(value);
+      }
     },
     getAttribute(name) {
       return attributes.has(name) ? attributes.get(name) : null;
@@ -108,6 +125,30 @@ function createMarketingHarness(options = {}) {
       "data-app-link": "",
     },
   });
+  const pricingStarterLink = createFakeElement("pricing-starter-link", {
+    textContent: "Start with Starter",
+    attributes: {
+      href: "/dashboard?from=site&plan=starter",
+      "data-app-link": "",
+      "data-plan-key": "starter",
+    },
+  });
+  const pricingGrowthLink = createFakeElement("pricing-growth-link", {
+    textContent: "Start with Growth",
+    attributes: {
+      href: "/dashboard?from=site&plan=growth",
+      "data-app-link": "",
+      "data-plan-key": "growth",
+    },
+  });
+  const pricingProLink = createFakeElement("pricing-pro-link", {
+    textContent: "Start with Pro",
+    attributes: {
+      href: "/dashboard?from=site&plan=pro",
+      "data-app-link": "",
+      "data-plan-key": "pro",
+    },
+  });
   let authChangeHandler = null;
 
   if (storedSession) {
@@ -118,11 +159,21 @@ function createMarketingHarness(options = {}) {
     getElementById(id) {
       if (id === "site-auth-link") return authLink;
       if (id === "site-primary-cta") return primaryCta;
+      if (id === "pricing-starter-link") return pricingStarterLink;
+      if (id === "pricing-growth-link") return pricingGrowthLink;
+      if (id === "pricing-pro-link") return pricingProLink;
       return null;
     },
     querySelectorAll(selector) {
       if (selector === "[data-app-link]") {
-        return [authLink, primaryCta, footerAppLink];
+        return [
+          authLink,
+          primaryCta,
+          footerAppLink,
+          pricingStarterLink,
+          pricingGrowthLink,
+          pricingProLink,
+        ];
       }
       return [];
     },
@@ -170,6 +221,7 @@ function createMarketingHarness(options = {}) {
     document,
     console,
     URL,
+    URLSearchParams,
     globalThis: null,
   };
   context.globalThis = context;
@@ -184,6 +236,9 @@ function createMarketingHarness(options = {}) {
     authLink,
     primaryCta,
     footerAppLink,
+    pricingStarterLink,
+    pricingGrowthLink,
+    pricingProLink,
     triggerAuthChange(event, nextSession) {
       authChangeHandler?.(event, nextSession);
     },
@@ -1007,6 +1062,32 @@ function createAgentTestDeps(state) {
       state.accessStatus = accessStatus;
       return { ok: true };
     },
+    getOwnerBillingRecord: async (_supabase, { ownerUserId }) => {
+      const billing = state.billingRecord || null;
+      return billing?.ownerUserId === ownerUserId ? { ...billing } : null;
+    },
+    syncOwnerBillingState: async (_supabase, payload = {}) => {
+      const record = {
+        ownerUserId: payload.ownerUserId || "owner-1",
+        planKey: payload.planKey || "starter",
+        accessStatus: payload.accessStatus || "active",
+        subscriptionStatus: payload.subscriptionStatus || "active",
+      };
+      state.billingRecord = record;
+      state.accessStatus = record.accessStatus;
+      return { ...record };
+    },
+    simulateOwnerBillingActivation: async (_supabase, { ownerUserId, planKey } = {}) => {
+      const record = {
+        ownerUserId: ownerUserId || "owner-1",
+        planKey: planKey || "starter",
+        accessStatus: "active",
+        subscriptionStatus: "active",
+      };
+      state.billingRecord = record;
+      state.accessStatus = "active";
+      return { ...record };
+    },
     updateAgentSettings: async (_supabase, payload) => ({
       id: payload.agentId,
       assistantName: payload.assistantName,
@@ -1068,7 +1149,9 @@ async function runStartupSmoke() {
         OPENAI_API_KEY: "",
         ADMIN_TOKEN: "",
         STRIPE_SECRET_KEY: "",
-        STRIPE_PRICE_ID: "",
+        STRIPE_PRICE_ID_STARTER_MONTHLY: "",
+        STRIPE_PRICE_ID_GROWTH_MONTHLY: "",
+        STRIPE_PRICE_ID_PRO_MONTHLY: "",
         STRIPE_WEBHOOK_SECRET: "",
         DEV_FAKE_BILLING: "true",
       },
@@ -1149,6 +1232,17 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
+        assert.match(marketingHome.text, /Simple monthly plans/i);
+        assert.match(marketingHome.text, /Choose the monthly capacity that fits your customer traffic/i);
+        assert.match(marketingHome.text, /Starter/);
+        assert.match(marketingHome.text, /Growth/);
+        assert.match(marketingHome.text, /Pro/);
+        assert.match(marketingHome.text, /\$20\/month/);
+        assert.match(marketingHome.text, /\$50\/month/);
+        assert.match(marketingHome.text, /\$100\/month/);
+        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=starter"/);
+        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=growth"/);
+        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=pro"/);
         assert.match(marketingHome.text, /No AI knowledge needed/i);
         assert.match(marketingHome.text, /Home/i);
         assert.match(marketingHome.text, /Customers/i);
@@ -1165,6 +1259,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.doesNotMatch(marketingHome.text, /internal queue/i);
         assert.doesNotMatch(marketingHome.text, /Outcomes/i);
         assert.doesNotMatch(marketingHome.text, /Contacts/i);
+        assert.doesNotMatch(marketingHome.text, /token usage|api spend|model cost|crm|automation platform/i);
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
@@ -1201,6 +1296,13 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);
+
+        const publicConfig = await getText(server.baseUrl, "/public-config.js");
+        assert.equal(publicConfig.status, 200);
+        assert.match(publicConfig.text, /window\.VONZA_BILLING_PLANS/);
+        assert.match(publicConfig.text, /"starter"/);
+        assert.match(publicConfig.text, /"growth"/);
+        assert.match(publicConfig.text, /"pro"/);
 
         const adminPage = await getText(server.baseUrl, "/admin");
         assert.equal(adminPage.status, 404);
@@ -1416,6 +1518,9 @@ test("signed-out marketing header keeps the normal CTA", async () => {
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard?from=site");
   assert.equal(harness.authLink.hidden, false);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard?from=site");
+  assert.equal(harness.pricingStarterLink.getAttribute("href"), "/dashboard?from=site&plan=starter");
+  assert.equal(harness.pricingGrowthLink.getAttribute("href"), "/dashboard?from=site&plan=growth");
+  assert.equal(harness.pricingProLink.getAttribute("href"), "/dashboard?from=site&plan=pro");
 });
 
 test("signed-in marketing header hydrates My Account immediately from stored auth state", async () => {
@@ -1434,6 +1539,9 @@ test("signed-in marketing header hydrates My Account immediately from stored aut
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard");
   assert.equal(harness.authLink.hidden, true);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard");
+  assert.equal(harness.pricingStarterLink.getAttribute("href"), "/dashboard?plan=starter");
+  assert.equal(harness.pricingGrowthLink.getAttribute("href"), "/dashboard?plan=growth");
+  assert.equal(harness.pricingProLink.getAttribute("href"), "/dashboard?plan=pro");
 });
 
 test("setup doctor is only available in local dev mode and never exposes values", { concurrency: false }, async () => {
@@ -1445,7 +1553,9 @@ test("setup doctor is only available in local dev mode and never exposes values"
     OPENAI_API_KEY: "sensitive-openai-value",
     ADMIN_TOKEN: "sensitive-admin-value",
     STRIPE_SECRET_KEY: "sensitive-stripe-key",
-    STRIPE_PRICE_ID: "price_123",
+    STRIPE_PRICE_ID_STARTER_MONTHLY: "price_starter_123",
+    STRIPE_PRICE_ID_GROWTH_MONTHLY: "price_growth_123",
+    STRIPE_PRICE_ID_PRO_MONTHLY: "price_pro_123",
     STRIPE_WEBHOOK_SECRET: "whsec_sensitive",
     DEV_FAKE_BILLING: "true",
     NODE_ENV: "development",
@@ -3178,7 +3288,7 @@ test("checkout creation returns a clear config error when the Stripe price is be
         assert.equal(checkout.status, 500);
         assert.match(
           checkout.json.error,
-          /update STRIPE_PRICE_ID to a valid Stripe price in the same account and mode/i
+          /update STRIPE_PRICE_ID_STARTER_MONTHLY, STRIPE_PRICE_ID_GROWTH_MONTHLY, or STRIPE_PRICE_ID_PRO_MONTHLY to valid Stripe prices in the same account and mode/i
         );
       } finally {
         await server.close();
@@ -3281,107 +3391,114 @@ test("protected scrape route is no longer public", { concurrency: false }, async
   );
 });
 
-test("Stripe billing verification only accepts the configured Vonza price", { concurrency: false }, async () => {
-  const matchingStripe = {
-    checkout: {
-      sessions: {
-        retrieve: async (sessionId) => ({
-          id: sessionId,
-          payment_status: "paid",
-          metadata: {
-            owner_user_id: "owner-1",
-          },
-        }),
-        listLineItems: async () => ({
-          data: [
-            {
-              price: {
-                id: "price_vonza",
-              },
-            },
-          ],
-        }),
-      },
-    },
-  };
-
-  const wrongPriceStripe = {
-    checkout: {
-      sessions: {
-        retrieve: async (sessionId) => ({
-          id: sessionId,
-          payment_status: "paid",
-          metadata: {
-            owner_user_id: "owner-1",
-          },
-        }),
-        listLineItems: async () => ({
-          data: [
-            {
-              price: {
-                id: "price_other",
-              },
-            },
-          ],
-        }),
-      },
-    },
-  };
-
-  const verified = await verifySuccessfulCheckout(
+test("Stripe billing verification only accepts the configured Vonza monthly plan", { concurrency: false }, async () => {
+  await withEnv(
     {
-      sessionId: "cs_test_ok",
-      ownerUserId: "owner-1",
+      STRIPE_PRICE_ID_STARTER_MONTHLY: "price_starter_123",
+      STRIPE_PRICE_ID_GROWTH_MONTHLY: "price_growth_123",
+      STRIPE_PRICE_ID_PRO_MONTHLY: "price_pro_123",
     },
-    {
-      stripe: matchingStripe,
-      expectedPriceId: "price_vonza",
-    }
-  );
-  assert.equal(verified.id, "cs_test_ok");
+    async () => {
+      const matchingStripe = {
+        checkout: {
+          sessions: {
+            retrieve: async (sessionId) => ({
+              id: sessionId,
+              payment_status: "paid",
+              metadata: {
+                owner_user_id: "owner-1",
+              },
+            }),
+            listLineItems: async () => ({
+              data: [
+                {
+                  price: {
+                    id: "price_growth_123",
+                  },
+                },
+              ],
+            }),
+          },
+        },
+      };
 
-  await assert.rejects(
-    () =>
-      verifySuccessfulCheckout(
+      const wrongPriceStripe = {
+        checkout: {
+          sessions: {
+            retrieve: async (sessionId) => ({
+              id: sessionId,
+              payment_status: "paid",
+              metadata: {
+                owner_user_id: "owner-1",
+              },
+            }),
+            listLineItems: async () => ({
+              data: [
+                {
+                  price: {
+                    id: "price_other",
+                  },
+                },
+              ],
+            }),
+          },
+        },
+      };
+
+      const verified = await verifySuccessfulCheckout(
         {
-          sessionId: "cs_test_wrong",
+          sessionId: "cs_test_ok",
           ownerUserId: "owner-1",
         },
         {
-          stripe: wrongPriceStripe,
-          expectedPriceId: "price_vonza",
+          stripe: matchingStripe,
         }
-      ),
-    /configured Vonza access price/
-  );
+      );
+      assert.equal(verified.id, "cs_test_ok");
+      assert.equal(verified.vonzaPlanKey, "growth");
+      assert.equal(verified.vonzaPriceId, "price_growth_123");
 
-  const paidOwner = await getPaidOwnerIdFromCheckoutSession(
-    {
-      id: "cs_test_paid",
-      payment_status: "paid",
-      metadata: {
-        owner_user_id: "owner-1",
-      },
-    },
-    {
-      stripe: matchingStripe,
-      expectedPriceId: "price_vonza",
+      await assert.rejects(
+        () =>
+          verifySuccessfulCheckout(
+            {
+              sessionId: "cs_test_wrong",
+              ownerUserId: "owner-1",
+            },
+            {
+              stripe: wrongPriceStripe,
+            }
+          ),
+        /configured Vonza monthly plan/
+      );
+
+      const paidOwner = await getPaidOwnerIdFromCheckoutSession(
+        {
+          id: "cs_test_paid",
+          payment_status: "paid",
+          metadata: {
+            owner_user_id: "owner-1",
+          },
+        },
+        {
+          stripe: matchingStripe,
+        }
+      );
+      assert.equal(paidOwner, "owner-1");
+
+      const rejectedOwner = await getPaidOwnerIdFromCheckoutSession(
+        {
+          id: "cs_test_rejected",
+          payment_status: "paid",
+          metadata: {
+            owner_user_id: "owner-1",
+          },
+        },
+        {
+          stripe: wrongPriceStripe,
+        }
+      );
+      assert.equal(rejectedOwner, null);
     }
   );
-  assert.equal(paidOwner, "owner-1");
-
-  const rejectedOwner = await getPaidOwnerIdFromCheckoutSession(
-    {
-      id: "cs_test_rejected",
-      payment_status: "paid",
-      metadata: {
-        owner_user_id: "owner-1",
-      },
-    },
-    {
-      stripe: wrongPriceStripe,
-      expectedPriceId: "price_vonza",
-    }
-  );
-  assert.equal(rejectedOwner, null);
 });

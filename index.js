@@ -24,7 +24,9 @@ function logCriticalEnvWarnings() {
   const criticalKeys = [
     "PUBLIC_APP_URL",
     "STRIPE_SECRET_KEY",
-    "STRIPE_PRICE_ID",
+    "STRIPE_PRICE_ID_STARTER_MONTHLY",
+    "STRIPE_PRICE_ID_GROWTH_MONTHLY",
+    "STRIPE_PRICE_ID_PRO_MONTHLY",
     "STRIPE_WEBHOOK_SECRET",
     "SUPABASE_URL",
     "SUPABASE_ANON_KEY",

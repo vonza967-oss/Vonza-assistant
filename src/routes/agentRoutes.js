@@ -16,7 +16,6 @@ import {
   requirePreClaimAgentAccess,
   resolveAgentContext,
   updateAgentAccessStatus,
-  updateOwnedAccessStatus,
   updateAgentSettings,
 } from "../services/agents/agentService.js";
 import {
@@ -58,14 +57,21 @@ import {
   listLeadCaptures,
 } from "../services/leads/liveLeadCaptureService.js";
 import {
+  buildBillingSyncPayloadFromCheckoutSession,
+  buildBillingSyncPayloadFromSubscription,
+  changeStripeSubscriptionPlan,
   createHostedCheckoutSession,
   constructStripeWebhookEvent,
   getStripeCheckoutConfigurationErrorMessage,
-  getPaidOwnerIdFromCheckoutSession,
   isStripeConfigError,
   isStripeCheckoutMinimumAmountError,
   verifySuccessfulCheckout,
 } from "../services/billing/checkoutService.js";
+import {
+  getOwnerBillingRecord,
+  simulateOwnerBillingActivation,
+  syncOwnerBillingState,
+} from "../services/billing/billingUsageService.js";
 import { isLocalDevBillingRequestAllowed } from "../config/env.js";
 import {
   extractBusinessWebsiteContent,
@@ -210,12 +216,19 @@ export function createAgentRouter(deps = {}) {
   const getAgentWorkspaceSnapshotImpl = deps.getAgentWorkspaceSnapshot || getAgentWorkspaceSnapshot;
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
   const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
-  const updateOwnedAccessStatusImpl = deps.updateOwnedAccessStatus || updateOwnedAccessStatus;
+  const getOwnerBillingRecordImpl = deps.getOwnerBillingRecord || getOwnerBillingRecord;
+  const simulateOwnerBillingActivationImpl =
+    deps.simulateOwnerBillingActivation || simulateOwnerBillingActivation;
+  const syncOwnerBillingStateImpl = deps.syncOwnerBillingState || syncOwnerBillingState;
   const createHostedCheckoutSessionImpl =
     deps.createHostedCheckoutSession || createHostedCheckoutSession;
+  const buildBillingSyncPayloadFromCheckoutSessionImpl =
+    deps.buildBillingSyncPayloadFromCheckoutSession || buildBillingSyncPayloadFromCheckoutSession;
+  const buildBillingSyncPayloadFromSubscriptionImpl =
+    deps.buildBillingSyncPayloadFromSubscription || buildBillingSyncPayloadFromSubscription;
+  const changeStripeSubscriptionPlanImpl =
+    deps.changeStripeSubscriptionPlan || changeStripeSubscriptionPlan;
   const constructStripeWebhookEventImpl = deps.constructStripeWebhookEvent || constructStripeWebhookEvent;
-  const getPaidOwnerIdFromCheckoutSessionImpl =
-    deps.getPaidOwnerIdFromCheckoutSession || getPaidOwnerIdFromCheckoutSession;
   const getOperatorWorkspaceSnapshotImpl =
     deps.getOperatorWorkspaceSnapshot || getOperatorWorkspaceSnapshot;
   const createGoogleConnectionStartImpl =
@@ -307,19 +320,27 @@ export function createAgentRouter(deps = {}) {
 
   router.post("/stripe/webhook", async (req, res) => {
     try {
+      const supabase = getSupabase();
       const event = constructStripeWebhookEventImpl({
         payload: req.body,
         signature: req.headers["stripe-signature"],
       });
 
       if (event.type === "checkout.session.completed") {
-        const ownerUserId = await getPaidOwnerIdFromCheckoutSessionImpl(event.data?.object);
+        const billingPayload = await buildBillingSyncPayloadFromCheckoutSessionImpl(
+          event.data?.object
+        );
 
-        if (ownerUserId) {
-          await updateOwnedAccessStatusImpl(getSupabase(), {
-            ownerUserId,
-            accessStatus: "active",
-          });
+        if (billingPayload) {
+          await syncOwnerBillingStateImpl(supabase, billingPayload);
+        }
+      } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+        const billingPayload = await buildBillingSyncPayloadFromSubscriptionImpl(
+          event.data?.object
+        );
+
+        if (billingPayload) {
+          await syncOwnerBillingStateImpl(supabase, billingPayload);
         }
       }
 
@@ -1997,6 +2018,7 @@ export function createAgentRouter(deps = {}) {
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
       const action = req.body.action || "create";
+      const planKey = req.body.plan_key || req.body.planKey;
 
       if (action === "simulate") {
         if (!isLocalDevBillingRequestAllowed(req)) {
@@ -2006,9 +2028,9 @@ export function createAgentRouter(deps = {}) {
           return;
         }
 
-        await updateOwnedAccessStatusImpl(supabase, {
+        await simulateOwnerBillingActivationImpl(supabase, {
           ownerUserId: user.id,
-          accessStatus: "active",
+          planKey,
         });
 
         res.json({
@@ -2023,12 +2045,19 @@ export function createAgentRouter(deps = {}) {
         const session = await verifySuccessfulCheckout({
           sessionId: req.body.session_id || req.body.sessionId,
           ownerUserId: user.id,
+          planKey,
         });
+        const billingPayload = await buildBillingSyncPayloadFromCheckoutSessionImpl(session);
+
+        if (billingPayload) {
+          await syncOwnerBillingStateImpl(supabase, billingPayload);
+        }
 
         res.json({
           ok: true,
           payment_status: session.payment_status,
           session_id: session.id,
+          plan_key: session.vonzaPlanKey || "",
         });
         return;
       }
@@ -2056,6 +2085,7 @@ export function createAgentRouter(deps = {}) {
       const session = await createHostedCheckoutSessionImpl({
         user,
         email: req.body.email,
+        planKey,
       });
 
       res.json({
@@ -2078,6 +2108,75 @@ export function createAgentRouter(deps = {}) {
           ? "Your sign-in session expired. Please sign in again to open checkout."
           : isStripeConfigError(err)
           ? "Stripe checkout is not configured yet. Please check the Stripe environment settings."
+          : configurationErrorMessage || err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/billing/change-plan", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const nextPlanKey = req.body.plan_key || req.body.planKey;
+      const existingBilling = await getOwnerBillingRecordImpl(supabase, {
+        ownerUserId: user.id,
+      });
+
+      if (!existingBilling?.stripeSubscriptionId) {
+        const session = await createHostedCheckoutSessionImpl({
+          user,
+          email: req.body.email || user.email,
+          planKey: nextPlanKey,
+        });
+
+        res.json({
+          ok: true,
+          redirect_url: session.url,
+          redirect_mode: "checkout",
+        });
+        return;
+      }
+
+      const result = await changeStripeSubscriptionPlanImpl({
+        ownerUserId: user.id,
+        subscriptionId: existingBilling.stripeSubscriptionId,
+        planKey: nextPlanKey,
+      });
+      const billingPayload = await buildBillingSyncPayloadFromSubscriptionImpl(
+        result.subscription,
+        {
+          ownerUserId: user.id,
+        }
+      );
+
+      if (!billingPayload) {
+        const error = new Error("The updated subscription could not be matched to a Vonza plan.");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      const billing = await syncOwnerBillingStateImpl(supabase, billingPayload);
+
+      res.json({
+        ok: true,
+        changed: result.changed,
+        billing,
+      });
+    } catch (err) {
+      if (isStripeConfigError(err) || isStripeCheckoutMinimumAmountError(err)) {
+        console.warn("[stripe plan change] Stripe configuration error:", err.message);
+      } else {
+        console.error(err);
+      }
+
+      const configurationErrorMessage = getStripeCheckoutConfigurationErrorMessage(err);
+      const isCheckoutAuthError = err.statusCode === 401;
+
+      res.status(err.statusCode || 500).json({
+        error: isCheckoutAuthError
+          ? "Your sign-in session expired. Please sign in again to change plans."
+          : isStripeConfigError(err)
+          ? "Stripe billing is not configured yet. Please check the Stripe environment settings."
           : configurationErrorMessage || err.message || "Something went wrong",
       });
     }

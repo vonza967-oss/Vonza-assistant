@@ -163,6 +163,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-level dashboard language preference storage for the logged-in app. The dashboard can fall back to cached English/Hungarian preferences if this table is not present yet.",
   }),
+  Object.freeze({
+    id: "billing_plans_ai_usage",
+    version: "20260428000000",
+    name: "billing_plans_ai_usage",
+    file: "supabase/migrations/20260428000000_billing_plans_ai_usage.sql",
+    legacySources: Object.freeze(["db/billing_plans_ai_usage.sql"]),
+    tier: "startup-critical",
+    note: "Adds owner billing plan state plus per-period AI usage ledger storage for subscription enforcement, warnings, and monthly capacity caps.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

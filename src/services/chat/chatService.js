@@ -24,6 +24,10 @@ import {
   applyLeadCaptureAction,
   processLiveChatLeadCapture,
 } from "../leads/liveLeadCaptureService.js";
+import {
+  getOwnerBillingSnapshot,
+  recordEstimatedUsage,
+} from "../billing/billingUsageService.js";
 import { evaluateLiveConversionRouting } from "../conversion/liveConversionRoutingService.js";
 import { listRecentWidgetEvents } from "../analytics/widgetTelemetryService.js";
 import {
@@ -144,6 +148,49 @@ function buildMissingVerifiedContactReply(language) {
   return "I don’t see a verified contact email or phone number from the website or the live setup, so I don’t want to guess. If you want, I can still help you figure out what to ask once the right contact route is confirmed. What are you trying to reach them about?";
 }
 
+function buildAiCapacityReachedReply(language) {
+  if (language === "Hungarian") {
+    return "Ebben a hónapban elértük az AI kapacitást. Ha szeretnéd, add meg az elérhetőségeidet, és a vállalkozás közvetlenül folytathatja innen.";
+  }
+
+  return "We've reached this month's AI capacity. If you'd like, please leave your details and the business can continue from here.";
+}
+
+function buildAiCapacityCapturePrompt(language) {
+  if (language === "Hungarian") {
+    return "Add meg a legjobb email címedet vagy telefonszámodat, és a vállalkozás innen tudja folytatni.";
+  }
+
+  return "Share your best email address or phone number and the business can continue from here.";
+}
+
+function buildCappedLeadCaptureFallback(leadCapture, language) {
+  const normalizedLeadCapture = leadCapture && typeof leadCapture === "object"
+    ? { ...leadCapture }
+    : {};
+  const currentState = cleanText(normalizedLeadCapture.state).toLowerCase();
+
+  if (currentState === "captured") {
+    return {
+      ...normalizedLeadCapture,
+      shouldPrompt: false,
+      message: "",
+    };
+  }
+
+  return {
+    ...normalizedLeadCapture,
+    state: currentState || "prompt_ready",
+    shouldPrompt: true,
+    prompt: {
+      body: buildAiCapacityCapturePrompt(language),
+    },
+    reason: "ai_capacity_reached",
+    trigger: "ai_capacity_reached",
+    message: "",
+  };
+}
+
 async function buildChatResponse({
   supabase,
   agent,
@@ -157,13 +204,14 @@ async function buildChatResponse({
   visitorIdentity = null,
   storeUserMessage = true,
   userMessageCreatedAt = null,
+  storeMessages = storeAgentMessages,
 }) {
   const entries = [
     storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
     { role: "assistant", content: reply },
   ].filter(Boolean);
 
-  await storeAgentMessages(supabase, agent.id, entries, {
+  await storeMessages(supabase, agent.id, entries, {
     sessionKey,
     visitorIdentity,
   });
@@ -187,7 +235,24 @@ export async function handleChatRequest({
   supabase,
   openai,
   body,
-}) {
+}, deps = {}) {
+  const resolveWidgetConversationContextImpl =
+    deps.resolveWidgetConversationContext || resolveWidgetConversationContext;
+  const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
+  const assertMessagesSchemaReadyImpl = deps.assertMessagesSchemaReady || assertMessagesSchemaReady;
+  const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
+  const processLiveChatLeadCaptureImpl =
+    deps.processLiveChatLeadCapture || processLiveChatLeadCapture;
+  const buildChatResponseImpl = deps.buildChatResponse || buildChatResponse;
+  const buildBusinessContextForChatImpl =
+    deps.buildBusinessContextForChat || buildBusinessContextForChat;
+  const buildChatSystemPromptImpl = deps.buildChatSystemPrompt || buildChatSystemPrompt;
+  const generateAssistantReplyImpl = deps.generateAssistantReply || generateAssistantReply;
+  const listRecentWidgetEventsImpl = deps.listRecentWidgetEvents || listRecentWidgetEvents;
+  const evaluateLiveConversionRoutingImpl =
+    deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
+  const recordEstimatedUsageImpl = deps.recordEstimatedUsage || recordEstimatedUsage;
+  const storeMessagesImpl = deps.storeAgentMessages || storeAgentMessages;
   const message = body.message;
   const agentId = body.agent_id || body.agentId;
   const agentKey = body.agent_key || body.agentKey;
@@ -223,7 +288,7 @@ export async function handleChatRequest({
     throw error;
   }
 
-  const { agent, business, widgetConfig } = await resolveWidgetConversationContext(supabase, {
+  const { agent, business, widgetConfig } = await resolveWidgetConversationContextImpl(supabase, {
     installId,
     agentId,
     agentKey,
@@ -234,8 +299,45 @@ export async function handleChatRequest({
     businessName: body.name,
   });
 
-  const websiteContent = await getStoredWebsiteContent(supabase, business.id);
-  await assertMessagesSchemaReady(supabase, { phase: "request" });
+  const websiteContent = await getStoredWebsiteContentImpl(supabase, business.id);
+  await assertMessagesSchemaReadyImpl(supabase, { phase: "request" });
+  const billingSnapshot = cleanText(agent.ownerUserId)
+    ? await getOwnerBillingSnapshotImpl(supabase, {
+      ownerUserId: agent.ownerUserId,
+      accessStatus: agent.accessStatus,
+    })
+    : null;
+
+  if (billingSnapshot?.usage?.isCapped) {
+    const userMessageCreatedAt = new Date().toISOString();
+    const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
+      agent,
+      business,
+      widgetConfig,
+      sessionKey,
+      installId,
+      pageUrl,
+      origin,
+      userMessage: message,
+      messageCreatedAt: userMessageCreatedAt,
+      language,
+      visitorIdentity,
+    });
+
+    return buildChatResponseImpl({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: message,
+      reply: buildAiCapacityReachedReply(language),
+      sessionKey,
+      leadCapture: buildCappedLeadCaptureFallback(leadCapture, language),
+      visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: storeMessagesImpl,
+    });
+  }
 
   if (!websiteContent) {
     const fallbackReply =
@@ -243,7 +345,7 @@ export async function handleChatRequest({
         ? "Ehhez még nincs betöltött weboldal-tartalom, ezért nem tudok biztos választ adni a weboldal alapján. Kérlek próbáld újra később, vagy kérd meg az adminisztrátort, hogy futtassa a tartalom importálását."
         : "I don't have website content for this assistant yet, so I can't answer that from the site. Please try again later or ask an admin to run the content import.";
 
-    return buildChatResponse({
+    return buildChatResponseImpl({
       supabase,
       agent,
       businessId: business.id,
@@ -252,11 +354,12 @@ export async function handleChatRequest({
       reply: fallbackReply,
       sessionKey,
       visitorIdentity,
+      storeMessages: storeMessagesImpl,
     });
   }
 
   if (hasLimitedKnowledge(websiteContent)) {
-    return buildChatResponse({
+    return buildChatResponseImpl({
       supabase,
       agent,
       businessId: websiteContent.businessId,
@@ -273,10 +376,11 @@ export async function handleChatRequest({
       ),
       sessionKey,
       visitorIdentity,
+      storeMessages: storeMessagesImpl,
     });
   }
 
-  const businessContext = buildBusinessContextForChat(
+  const businessContext = buildBusinessContextForChatImpl(
     websiteContent,
     effectiveUserText,
     {
@@ -295,7 +399,7 @@ export async function handleChatRequest({
     businessContextLength: businessContext.length,
   });
 
-  const systemPrompt = buildChatSystemPrompt(language, agent);
+  const systemPrompt = buildChatSystemPromptImpl(language, agent);
   const openaiClient = typeof openai === "function" ? openai() : openai;
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,
@@ -304,44 +408,66 @@ export async function handleChatRequest({
     history,
     visitorIdentity,
   });
-  let finalReply = await generateAssistantReply({
-    openai: openaiClient,
-    userMessage: message,
-    history,
-    systemPrompt,
-    referenceBlocks: [
-      {
-        label: "Business reference",
-        content: businessContext,
+  const usageEntries = [];
+  let finalReply = "";
+
+  try {
+    finalReply = await generateAssistantReplyImpl({
+      openai: openaiClient,
+      userMessage: message,
+      history,
+      systemPrompt,
+      referenceBlocks: [
+        {
+          label: "Business reference",
+          content: businessContext,
+        },
+      ],
+      conversationGuidance,
+      model: "gpt-4o-mini",
+      temperature: 0.85,
+      presencePenalty: 0.3,
+      frequencyPenalty: 0.35,
+      postProcess: stripRawAssetUrls,
+      repair: {
+        getIssues: (reply) => {
+          const issues = getReplyRepairIssues(reply, language);
+          logChatMetadata("reply_repair_checked", {
+            agentId: agent.id,
+            businessId: business.id,
+            installId,
+            sessionKey,
+            origin,
+            pageUrl,
+            messageLength: normalizedMessage.length,
+            historyCount: history.length,
+            replyLength: cleanText(reply).length,
+            repairIssueCount: issues.length,
+          });
+          return issues;
+        },
+        buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
+        temperature: 0.5,
       },
-    ],
-    conversationGuidance,
-    model: "gpt-4o-mini",
-    temperature: 0.85,
-    presencePenalty: 0.3,
-    frequencyPenalty: 0.35,
-    postProcess: stripRawAssetUrls,
-    repair: {
-      getIssues: (reply) => {
-        const issues = getReplyRepairIssues(reply, language);
-        logChatMetadata("reply_repair_checked", {
+      onUsage(entry) {
+        usageEntries.push(entry);
+      },
+    });
+  } finally {
+    if (usageEntries.length && billingSnapshot && cleanText(agent.ownerUserId)) {
+      try {
+        await recordEstimatedUsageImpl(supabase, {
+          ownerUserId: agent.ownerUserId,
           agentId: agent.id,
           businessId: business.id,
-          installId,
-          sessionKey,
-          origin,
-          pageUrl,
-          messageLength: normalizedMessage.length,
-          historyCount: history.length,
-          replyLength: cleanText(reply).length,
-          repairIssueCount: issues.length,
+          billingSnapshot,
+          entries: usageEntries,
         });
-        return issues;
-      },
-      buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
-      temperature: 0.5,
-    },
-  });
+      } catch (usageError) {
+        console.warn("[billing] Failed to record AI usage:", usageError?.message || usageError);
+      }
+    }
+  }
 
   if (replyContainsUnsafePlaceholderEmail(finalReply, trustedReplyEmails)) {
     console.warn("[chat] Replacing placeholder contact reply with grounded fallback.", {
@@ -353,7 +479,7 @@ export async function handleChatRequest({
   }
 
   const userMessageCreatedAt = new Date().toISOString();
-  const leadCapture = await processLiveChatLeadCapture(supabase, {
+  const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
     agent,
     business,
     widgetConfig,
@@ -366,12 +492,12 @@ export async function handleChatRequest({
     language,
     visitorIdentity,
   });
-  const recentWidgetEvents = await listRecentWidgetEvents(supabase, {
+  const recentWidgetEvents = await listRecentWidgetEventsImpl(supabase, {
     agentId: agent.id,
     installId: installId || widgetConfig.installId,
     sessionId: sessionKey,
   });
-  const directRouting = evaluateLiveConversionRouting({
+  const directRouting = evaluateLiveConversionRoutingImpl({
     widgetConfig,
     userMessage: message,
     sessionKey,
@@ -401,7 +527,7 @@ export async function handleChatRequest({
     routingMode: directRouting?.mode,
   });
 
-  return buildChatResponse({
+  return buildChatResponseImpl({
     supabase,
     agent,
     businessId: websiteContent.businessId,
@@ -413,6 +539,7 @@ export async function handleChatRequest({
     directRouting,
     visitorIdentity,
     userMessageCreatedAt,
+    storeMessages: storeMessagesImpl,
   });
 }
 

@@ -413,6 +413,99 @@ function getLaunchProfile() {
   };
 }
 
+function getBillingPlans() {
+  const source = Array.isArray(window.VONZA_BILLING_PLANS) ? window.VONZA_BILLING_PLANS : [];
+
+  if (source.length) {
+    return source;
+  }
+
+  return [
+    {
+      key: "starter",
+      displayName: "Starter",
+      monthlyPriceCents: 2000,
+      monthlyPriceUsd: 20,
+      monthlyPriceLabel: "$20/month",
+      checkoutLabel: "Start with Starter",
+      marketing: {
+        audience: "For lighter website traffic",
+        summary: "A simple way to get Vonza live on your site",
+      },
+    },
+    {
+      key: "growth",
+      displayName: "Growth",
+      monthlyPriceCents: 5000,
+      monthlyPriceUsd: 50,
+      monthlyPriceLabel: "$50/month",
+      checkoutLabel: "Start with Growth",
+      recommended: true,
+      marketing: {
+        audience: "For regular customer questions",
+        summary: "Best for most small businesses",
+      },
+    },
+    {
+      key: "pro",
+      displayName: "Pro",
+      monthlyPriceCents: 10000,
+      monthlyPriceUsd: 100,
+      monthlyPriceLabel: "$100/month",
+      checkoutLabel: "Start with Pro",
+      marketing: {
+        audience: "For busier websites",
+        summary: "More room for higher monthly customer volume",
+      },
+    },
+  ];
+}
+
+function normalizeBillingPlanKey(value, fallback = "growth") {
+  const normalized = trimText(value).toLowerCase();
+  const plans = getBillingPlans();
+  return plans.some((plan) => plan.key === normalized) ? normalized : fallback;
+}
+
+function getBillingPlan(planKey) {
+  const normalizedPlanKey = normalizeBillingPlanKey(planKey);
+  return getBillingPlans().find((plan) => plan.key === normalizedPlanKey) || getBillingPlans()[0];
+}
+
+function getSelectedBillingPlanKey() {
+  const params = new URLSearchParams(window.location.search);
+  return normalizeBillingPlanKey(params.get("plan"));
+}
+
+function replaceBillingPlanInUrl(planKey) {
+  const normalizedPlanKey = normalizeBillingPlanKey(planKey);
+  const url = new URL(window.location.href);
+  url.searchParams.set("plan", normalizedPlanKey);
+  window.history.replaceState({}, "", url.toString());
+}
+
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0))}%`;
+}
+
+function formatBillingDate(value) {
+  if (!trimText(value)) {
+    return "Not available yet";
+  }
+
+  const timestamp = new Date(value).getTime();
+
+  if (!Number.isFinite(timestamp)) {
+    return "Not available yet";
+  }
+
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function getCapabilityState(capabilityKey) {
   const matrix = getLaunchProfile().matrix || {};
   const capability = matrix[capabilityKey];
@@ -973,9 +1066,14 @@ function getAuthFeedbackMarkup() {
 function getAuthRedirectUrl() {
   const redirectUrl = new URL("/dashboard", window.location.origin);
   const arrival = getArrivalContext();
+  const selectedPlanKey = getSelectedBillingPlanKey();
 
   if (arrival.from) {
     redirectUrl.searchParams.set("from", arrival.from);
+  }
+
+  if (selectedPlanKey) {
+    redirectUrl.searchParams.set("plan", selectedPlanKey);
   }
 
   return redirectUrl.toString();
@@ -2660,10 +2758,31 @@ function renderAccessLocked(agent) {
   renderTopbarMeta();
   const access = getAccessCopy(agent);
   const accessStatus = normalizeAccessStatus(agent?.accessStatus);
-  const unlockLabel = accessStatus === "suspended" ? "Restore access" : "Unlock Vonza";
+  const selectedPlan = getBillingPlan(getSelectedBillingPlanKey());
+  const unlockLabel = accessStatus === "suspended"
+    ? `Restore access with ${selectedPlan.displayName}`
+    : `Continue with ${selectedPlan.displayName}`;
   const showDevTools = isDevFakeBillingEnabled();
   const hasAssistant = Boolean(agent?.id);
   const arrival = getArrivalContext();
+  const pricingCardsMarkup = getBillingPlans()
+    .map((plan) => `
+      <button
+        type="button"
+        class="plan-option-card ${plan.key === selectedPlan.key ? "active" : ""}"
+        data-plan-select="${escapeHtml(plan.key)}"
+        aria-pressed="${plan.key === selectedPlan.key ? "true" : "false"}"
+      >
+        <span class="plan-option-name-row">
+          <strong>${escapeHtml(plan.displayName)}</strong>
+          ${plan.recommended ? '<span class="plan-option-badge">Most popular</span>' : ""}
+        </span>
+        <span class="plan-option-price">${escapeHtml(plan.monthlyPriceLabel)}</span>
+        <span class="plan-option-audience">${escapeHtml(trimText(plan.marketing?.audience) || "Monthly plan")}</span>
+        <span class="plan-option-copy">${escapeHtml(trimText(plan.marketing?.summary) || "Simple monthly capacity.")}</span>
+      </button>
+    `)
+    .join("");
   const handoffMarkup = !hasAssistant && arrival.showHandoff
     ? `
       <section class="handoff-card">
@@ -2716,18 +2835,21 @@ function renderAccessLocked(agent) {
 
       <div class="pricing-card">
         <div>
-          <p class="overview-label">Vonza access</p>
-          <h2 class="pricing-title">One front-desk workspace</h2>
-          <p class="pricing-copy">Unlock the stable launch core in one place: AI front desk, Home, Customers, Front Desk, outcomes, website import, and install.</p>
+          <p class="overview-label">Simple monthly plans</p>
+          <h2 class="pricing-title">${escapeHtml(selectedPlan.displayName)} · ${escapeHtml(selectedPlan.monthlyPriceLabel)}</h2>
+          <p class="pricing-copy">All plans include the same Vonza experience. The difference is how much monthly AI usage is included.</p>
+          <div class="plan-options-grid">
+            ${pricingCardsMarkup}
+          </div>
           <div class="pricing-bullets">
             <div class="pill">AI front desk and routing</div>
             <div class="pill">Home, Customers, and Analytics</div>
             <div class="pill">Website import and install</div>
-            <div class="pill">Connected tools beta</div>
+            <div class="pill">${escapeHtml(trimText(selectedPlan.marketing?.audience) || "Monthly AI usage included")}</div>
           </div>
         </div>
         <div class="pricing-actions">
-          <button id="unlock-vonza-button" class="primary-button" type="button">${unlockLabel}</button>
+          <button id="unlock-vonza-button" class="primary-button" type="button" data-selected-plan="${escapeHtml(selectedPlan.key)}">${escapeHtml(unlockLabel)}</button>
           ${showDevTools ? '<button id="simulate-unlock-button" class="ghost-button" type="button">Simulate unlock (dev only)</button>' : ""}
           ${showDevTools ? '<button id="setup-doctor-button" class="ghost-button" type="button">Check local setup</button>' : ""}
           <button id="locked-signout-button" class="ghost-button" type="button">Sign out</button>
@@ -2747,6 +2869,9 @@ function renderAccessLocked(agent) {
   document.getElementById("unlock-vonza-button")?.addEventListener("click", async () => {
     try {
       setStatus("Opening secure checkout...");
+      const checkoutPlanKey = normalizeBillingPlanKey(
+        document.getElementById("unlock-vonza-button")?.dataset?.selectedPlan
+      );
       const result = await fetchJson("/create-checkout-session", {
         method: "POST",
         headers: {
@@ -2754,6 +2879,7 @@ function renderAccessLocked(agent) {
         },
         body: JSON.stringify({
           email: authUser?.email || null,
+          plan_key: checkoutPlanKey,
         }),
       });
 
@@ -2770,6 +2896,9 @@ function renderAccessLocked(agent) {
   document.getElementById("simulate-unlock-button")?.addEventListener("click", async () => {
     try {
       setStatus("Dev billing simulation is activating access...");
+      const checkoutPlanKey = normalizeBillingPlanKey(
+        document.getElementById("unlock-vonza-button")?.dataset?.selectedPlan
+      );
       await fetchJson("/create-checkout-session", {
         method: "POST",
         headers: {
@@ -2777,6 +2906,7 @@ function renderAccessLocked(agent) {
         },
         body: JSON.stringify({
           action: "simulate",
+          plan_key: checkoutPlanKey,
         }),
       });
       setStatus("Dev simulation complete. Opening your workspace...");
@@ -2827,6 +2957,39 @@ function renderAccessLocked(agent) {
     setAuthFeedback(null, "");
     setStatus("Signed out.");
     await boot();
+  });
+
+  document.querySelectorAll("[data-plan-select]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextPlanKey = normalizeBillingPlanKey(button.dataset.planSelect);
+      const nextPlan = getBillingPlan(nextPlanKey);
+      replaceBillingPlanInUrl(nextPlanKey);
+
+      document.querySelectorAll("[data-plan-select]").forEach((candidate) => {
+        const isActive = normalizeBillingPlanKey(candidate.dataset.planSelect) === nextPlanKey;
+        candidate.classList.toggle("active", isActive);
+        candidate.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+
+      const unlockButton = document.getElementById("unlock-vonza-button");
+      const titleEl = document.querySelector(".pricing-title");
+      const lastPill = document.querySelector(".pricing-bullets .pill:last-child");
+
+      if (unlockButton) {
+        unlockButton.dataset.selectedPlan = nextPlanKey;
+        unlockButton.textContent = accessStatus === "suspended"
+          ? `Restore access with ${nextPlan.displayName}`
+          : `Continue with ${nextPlan.displayName}`;
+      }
+
+      if (titleEl) {
+        titleEl.textContent = `${nextPlan.displayName} · ${nextPlan.monthlyPriceLabel}`;
+      }
+
+      if (lastPill) {
+        lastPill.textContent = trimText(nextPlan.marketing?.audience) || "Monthly AI usage included";
+      }
+    });
   });
 }
 
@@ -8867,6 +9030,32 @@ function createEmptyOperatorWorkspace() {
       campaigns: [],
       followUps: [],
     },
+    billing: {
+      planKey: "growth",
+      displayName: "Growth",
+      monthlyPriceCents: 5000,
+      monthlyPriceUsd: 50,
+      monthlyPriceLabel: "$50/month",
+      billingInterval: "month",
+      includedAiBudgetCents: 3000,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      subscriptionStatus: "pending",
+      hasActiveSubscription: false,
+      usage: {
+        usedCents: 0,
+        includedCents: 3000,
+        remainingCents: 3000,
+        percentUsed: 0,
+        warningState: "normal",
+        warningThreshold: 0,
+        tone: "ok",
+        statusLabel: "Within the included monthly capacity",
+        ownerMessage: "Monthly AI usage is comfortably within the included capacity.",
+        isCapped: false,
+      },
+      upgradeOptions: [],
+    },
     outcomes: {
       summary: null,
       recentOutcomes: [],
@@ -12689,6 +12878,7 @@ function normalizeOperatorWorkspace(data = null) {
   const inbox = normalizeOperatorRecord(source.inbox, emptyWorkspace.inbox);
   const calendar = normalizeOperatorRecord(source.calendar, emptyWorkspace.calendar);
   const automations = normalizeOperatorRecord(source.automations, emptyWorkspace.automations);
+  const billing = normalizeOperatorRecord(source.billing, emptyWorkspace.billing);
   const outcomes = normalizeOperatorRecord(source.outcomes, emptyWorkspace.outcomes);
   const contacts = normalizeOperatorRecord(source.contacts, emptyWorkspace.contacts);
   const copilot = normalizeOperatorRecord(source.copilot, emptyWorkspace.copilot);
@@ -12795,6 +12985,15 @@ function normalizeOperatorWorkspace(data = null) {
       tasks: normalizeOperatorArray(automations.tasks, normalizeOperatorRecord),
       campaigns: normalizeOperatorArray(automations.campaigns, normalizeOperatorRecord),
       followUps: normalizeOperatorArray(automations.followUps, normalizeOperatorRecord),
+    },
+    billing: {
+      ...emptyWorkspace.billing,
+      ...billing,
+      usage: {
+        ...emptyWorkspace.billing.usage,
+        ...normalizeOperatorRecord(billing.usage, emptyWorkspace.billing.usage),
+      },
+      upgradeOptions: normalizeOperatorArray(billing.upgradeOptions, normalizeOperatorRecord),
     },
     outcomes: {
       ...emptyWorkspace.outcomes,
@@ -13987,6 +14186,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
+  const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
   const helpCloseButtons = document.querySelectorAll("[data-help-close]");
@@ -15221,6 +15421,62 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         }
       } finally {
         submitButton.disabled = false;
+      }
+    });
+  });
+
+  const setBillingPlanButtonsDisabled = (disabled) => {
+    billingChangeButtons.forEach((button) => {
+      button.disabled = disabled;
+    });
+  };
+
+  billingChangeButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!agent?.id) {
+        setStatus("This workspace needs a saved assistant before changing plans.");
+        return;
+      }
+
+      const nextPlanKey = normalizeBillingPlanKey(button.dataset.billingPlanKey);
+      const nextPlan = getBillingPlan(nextPlanKey);
+      setBillingPlanButtonsDisabled(true);
+      setStatus(`Opening the ${nextPlan.displayName} plan update...`);
+
+      try {
+        const result = await fetchJson("/billing/change-plan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            agent_id: agent.id,
+            plan_key: nextPlanKey,
+          }),
+        });
+
+        if (result?.redirect_url) {
+          window.location.assign(result.redirect_url);
+          return;
+        }
+
+        if (result?.billing) {
+          workspaceState.operatorWorkspace = normalizeOperatorWorkspace({
+            ...(workspaceState.operatorWorkspace || createEmptyOperatorWorkspace()),
+            billing: result.billing,
+          });
+        }
+
+        setStatus(
+          result?.changed === false
+            ? `${nextPlan.displayName} is already the current plan.`
+            : `Workspace plan updated to ${nextPlan.displayName}.`
+        );
+        renderWorkspaceFromState();
+      } catch (error) {
+        setStatus(error.message || "We couldn't update the workspace plan right now.");
+      } finally {
+        setBillingPlanButtonsDisabled(false);
       }
     });
   });

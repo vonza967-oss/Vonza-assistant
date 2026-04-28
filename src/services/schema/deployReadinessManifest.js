@@ -5,11 +5,14 @@ import {
   KNOWLEDGE_FIX_WORKFLOW_TABLE,
   LEAD_CAPTURE_TABLE,
   MESSAGES_TABLE,
+  OWNER_AI_USAGE_LEDGER_TABLE,
+  OWNER_BILLING_ACCOUNT_TABLE,
 } from "../../config/constants.js";
 import { assertWidgetTelemetrySchemaReady } from "../analytics/widgetTelemetryService.js";
 import { assertActionQueueSchemaReady } from "../analytics/actionQueueService.js";
 import { assertMessagesSchemaReady } from "../chat/messageService.js";
 import { assertConversionOutcomeSchemaReady } from "../conversion/conversionOutcomeService.js";
+import { assertBillingSchemaReady } from "../billing/billingUsageService.js";
 import { assertFollowUpWorkflowSchemaReady } from "../followup/followUpService.js";
 import { assertInstallSchemaReady } from "../install/installPresenceService.js";
 import { assertKnowledgeFixWorkflowSchemaReady } from "../knowledge/knowledgeFixService.js";
@@ -148,6 +151,15 @@ export const STARTUP_SCHEMA_CHECKS = Object.freeze([
     prerequisiteMigrationIds: Object.freeze([]),
     note: "Startup expects conversion outcome storage to exist before boot.",
     assertReady: assertConversionOutcomeSchemaReady,
+  }),
+  Object.freeze({
+    id: "billing_usage",
+    label: "billing and AI usage",
+    table: `${OWNER_BILLING_ACCOUNT_TABLE} + ${OWNER_AI_USAGE_LEDGER_TABLE}`,
+    migrationIds: Object.freeze(["billing_plans_ai_usage"]),
+    prerequisiteMigrationIds: Object.freeze([]),
+    note: "Startup expects billing plan state and AI usage ledger storage before monthly capacity enforcement can run.",
+    assertReady: assertBillingSchemaReady,
   }),
 ]);
 

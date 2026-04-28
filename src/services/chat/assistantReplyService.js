@@ -27,6 +27,7 @@ async function rewriteAssistantReply({
   issues = [],
   systemPrompt,
   postProcess = null,
+  onUsage = null,
 }) {
   const rewrite = await openai.chat.completions.create({
     model,
@@ -47,6 +48,19 @@ async function rewriteAssistantReply({
       },
     ],
   });
+  const usage = rewrite?.usage || {};
+
+  if (typeof onUsage === "function") {
+    onUsage({
+      usageSource: "chat_reply",
+      phase: "rewrite",
+      model,
+      promptTokens: Number(usage.prompt_tokens || 0) || 0,
+      completionTokens: Number(usage.completion_tokens || 0) || 0,
+      cachedPromptTokens: Number(usage.prompt_tokens_details?.cached_tokens || 0) || 0,
+      occurredAt: new Date().toISOString(),
+    });
+  }
 
   const rewrittenReply = normalizeAssistantReply(
     rewrite.choices?.[0]?.message?.content || ""
@@ -70,6 +84,7 @@ export async function generateAssistantReply({
   frequencyPenalty = 0,
   postProcess = null,
   repair = {},
+  onUsage = null,
 }) {
   if (!openai?.chat?.completions?.create) {
     const error = new Error("OpenAI chat completions are unavailable.");
@@ -103,6 +118,19 @@ export async function generateAssistantReply({
       },
     ],
   });
+  const usage = completion?.usage || {};
+
+  if (typeof onUsage === "function") {
+    onUsage({
+      usageSource: "chat_reply",
+      phase: "primary",
+      model,
+      promptTokens: Number(usage.prompt_tokens || 0) || 0,
+      completionTokens: Number(usage.completion_tokens || 0) || 0,
+      cachedPromptTokens: Number(usage.prompt_tokens_details?.cached_tokens || 0) || 0,
+      occurredAt: new Date().toISOString(),
+    });
+  }
 
   let reply = normalizeAssistantReply(
     completion.choices?.[0]?.message?.content || ""
@@ -131,6 +159,7 @@ export async function generateAssistantReply({
         issues,
         systemPrompt: rewritePrompt,
         postProcess,
+        onUsage,
       });
     }
   }

@@ -102,6 +102,7 @@
     return {
       status: {},
       connectedAccounts: [],
+      billing: defaultBillingSnapshot(),
       businessProfile: {
         readiness: {},
         prefill: {},
@@ -166,6 +167,55 @@
     return {
       label: "Not installed yet",
     };
+  }
+
+  function defaultBillingSnapshot() {
+    return {
+      planKey: "growth",
+      displayName: "Growth",
+      monthlyPriceCents: 5000,
+      monthlyPriceUsd: 50,
+      monthlyPriceLabel: "$50/month",
+      billingInterval: "month",
+      includedAiBudgetCents: 3000,
+      currentPeriodStart: null,
+      currentPeriodEnd: null,
+      subscriptionStatus: "pending",
+      hasActiveSubscription: false,
+      usage: {
+        usedCents: 0,
+        includedCents: 3000,
+        remainingCents: 3000,
+        percentUsed: 0,
+        warningState: "normal",
+        warningThreshold: 0,
+        tone: "ok",
+        statusLabel: "Within the included monthly capacity",
+        ownerMessage: "Monthly AI usage is comfortably within the included capacity.",
+        isCapped: false,
+      },
+      upgradeOptions: [],
+    };
+  }
+
+  function formatBillingPercent(value) {
+    const percent = Math.max(0, Math.min(100, Number(value || 0) || 0));
+    return `${Math.round(percent)}%`;
+  }
+
+  function formatBillingDate(value) {
+    const timestamp = new Date(value || "").getTime();
+
+    if (!Number.isFinite(timestamp)) {
+      return "Not available yet";
+    }
+
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
   }
 
   function normalizeWidgetPurpose(value) {
@@ -851,6 +901,14 @@
     const installStatus = getDefaultInstallStatus(agent);
     const workspaceMode = getWorkspaceMode(operatorWorkspace);
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
+    const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
+    const billingUsage = billing.usage || defaultBillingSnapshot().usage;
+    const usagePercentLabel = formatBillingPercent(billingUsage.percentUsed);
+    const billingPeriodLabel = billing.currentPeriodStart && billing.currentPeriodEnd
+      ? `${formatBillingDate(billing.currentPeriodStart)} - ${formatBillingDate(billing.currentPeriodEnd)}`
+      : "Current monthly period begins after activation.";
+    const billingNoticeTone = defaultTrimText(billingUsage.tone).toLowerCase() || "ok";
+    const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
     const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
       ? "dark"
       : "light";
@@ -899,6 +957,81 @@
                   : "Finish the front-desk basics before treating install as complete.")}</p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="settings-shell-section">
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">Billing and monthly usage</h3>
+              <p class="settings-shell-section-copy">All plans include the same Vonza experience. The plan difference is the monthly AI capacity included with the workspace.</p>
+            </div>
+          </div>
+          <div class="settings-shell-status-list">
+            <div class="settings-shell-status-row">
+              <div class="settings-shell-status-main">
+                <p class="settings-shell-status-label">Current plan</p>
+                <h4 class="settings-shell-status-value">${escapeHtml(`${billing.displayName || "Growth"} · ${billing.monthlyPriceLabel || "$50/month"}`)}</h4>
+                <p class="settings-shell-status-copy">${escapeHtml(billing.hasActiveSubscription
+                  ? "Hosted monthly subscription with upgrade-anytime capacity."
+                  : "This workspace is ready for a hosted monthly subscription plan.")}</p>
+              </div>
+            </div>
+            <div class="settings-shell-status-row">
+              <div class="settings-shell-status-main">
+                <p class="settings-shell-status-label">Current billing period</p>
+                <h4 class="settings-shell-status-value">${escapeHtml(billingPeriodLabel)}</h4>
+                <p class="settings-shell-status-copy">${escapeHtml(defaultTrimText(billing.subscriptionStatus)
+                  ? `Subscription status: ${billing.subscriptionStatus}.`
+                  : "Subscription status will appear here after checkout.")}</p>
+              </div>
+            </div>
+            <div class="settings-shell-status-row">
+              <div class="settings-shell-status-main">
+                <p class="settings-shell-status-label">Monthly usage progress</p>
+                <h4 class="settings-shell-status-value">${escapeHtml(`${usagePercentLabel} used`)}</h4>
+                <p class="settings-shell-status-copy">${escapeHtml(billingUsage.statusLabel || "Monthly capacity status will appear here.")}</p>
+                <div class="settings-shell-billing-progress" aria-label="Monthly usage progress">
+                  <div class="settings-shell-billing-progress-bar settings-shell-billing-progress-bar--${escapeHtml(billingNoticeTone)}">
+                    <span style="width:${escapeHtml(usagePercentLabel)}"></span>
+                  </div>
+                  <div class="settings-shell-billing-progress-meta">
+                    <span>${escapeHtml(usagePercentLabel)} of this month's included capacity</span>
+                    <span>${escapeHtml(billingUsage.isCapped ? "Visitor replies are now in safe fallback mode." : "Customer-facing usage is still available.")}</span>
+                  </div>
+                </div>
+                <div class="settings-shell-billing-notice settings-shell-billing-notice--${escapeHtml(billingNoticeTone)}">
+                  ${escapeHtml(billingUsage.ownerMessage || "Monthly AI usage status will appear here.")}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="settings-shell-billing-upgrade-stack">
+            <div>
+              <h4 class="settings-shell-section-title settings-shell-section-title--compact">Plan options</h4>
+              <p class="settings-shell-section-copy">Use secure hosted checkout or a Stripe-backed plan change to move up before traffic hits the cap.</p>
+            </div>
+            ${upgradeOptions.length
+              ? `
+                <div class="settings-shell-billing-upgrade-grid">
+                  ${upgradeOptions.map((plan) => `
+                    <button
+                      type="button"
+                      class="settings-shell-billing-plan-card"
+                      data-billing-plan-key="${escapeHtml(plan.planKey)}"
+                    >
+                      <strong>${escapeHtml(plan.displayName)}</strong>
+                      <span>${escapeHtml(plan.monthlyPriceLabel || `${plan.monthlyPriceUsd}/month`)}</span>
+                      <small>${escapeHtml(plan.checkoutLabel || `Move to ${plan.displayName}`)}</small>
+                    </button>
+                  `).join("")}
+                </div>
+              `
+              : `
+                <div class="settings-shell-billing-notice settings-shell-billing-notice--ok">
+                  You are already on the highest monthly capacity plan available in this pass.
+                </div>
+              `}
           </div>
         </section>
 
@@ -966,7 +1099,7 @@
             <div class="settings-shell-key-value-row">
               <div class="settings-shell-key-value-main">
                 <p class="settings-shell-key-value-label">Billing management</p>
-                <p class="settings-shell-key-value-copy">Billing still lives in hosted checkout and access activation flow. There is no fake billing settings form here.</p>
+                <p class="settings-shell-key-value-copy">Plan changes stay tied to secure hosted checkout and Stripe-backed subscription updates. This pass still avoids a fake in-app billing center.</p>
               </div>
             </div>
             <div class="settings-shell-key-value-row">

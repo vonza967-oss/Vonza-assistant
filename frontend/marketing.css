@@ -547,6 +547,117 @@ button:hover {
   background: #ffffff;
 }
 
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.pricing-plan {
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 28px 24px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.pricing-plan-featured {
+  border-color: rgba(15, 122, 92, 0.34);
+  box-shadow: var(--shadow-md);
+}
+
+.pricing-plan-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pricing-plan-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.pricing-plan-header h3 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.pricing-plan-audience,
+.pricing-plan-summary,
+.pricing-plan-detail {
+  margin: 0;
+}
+
+.pricing-plan-audience {
+  margin-top: 8px;
+  color: var(--brand-deep);
+  font-weight: 700;
+}
+
+.pricing-plan-price {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  text-align: right;
+}
+
+.pricing-plan-price strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.pricing-plan-price span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pricing-plan-summary {
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.pricing-plan-detail {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.pricing-plan-features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.pricing-plan-features li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+
+.pricing-plan-features li::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .connected-note {
   position: relative;
   padding: 30px;
@@ -660,6 +771,7 @@ button:hover {
   .solution-grid,
   .product-grid,
   .steps,
+  .pricing-grid,
   .handoff-panel,
   .benefit-grid,
   .final-callout,
@@ -746,12 +858,22 @@ button:hover {
   .problem-list article,
   .product-item,
   .step,
+  .pricing-plan,
   .benefit-grid article,
   .handoff-panel,
   .connected-note,
   .final-callout,
   .site-footer {
     padding: 18px;
+  }
+
+  .pricing-plan-header {
+    flex-direction: column;
+  }
+
+  .pricing-plan-price {
+    justify-items: start;
+    text-align: left;
   }
 }
 
