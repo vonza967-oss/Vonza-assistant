@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
+const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
   const store = new Map();
@@ -41,6 +42,7 @@ function createDashboardHarness({
   customFetch = null,
   operatorWorkspaceFlag = true,
 } = {}) {
+  const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -329,6 +331,7 @@ function createDashboardHarness({
   context.globalThis = context;
   window.fetch = fetchImpl;
 
+  vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -429,6 +432,20 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
+test("workspace settings keep legal pages reachable from the logged-in app", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Legal and trust/);
+  assert.match(harness.getRootHtml(), /These public pages cover the website, app, widget, and hosted checkout legal surface/);
+  assert.match(harness.getRootHtml(), /href="\/aszf"/);
+  assert.match(harness.getRootHtml(), /href="\/impresszum"/);
+  assert.match(harness.getRootHtml(), /href="\/adatkezelesi-tajekoztato"/);
+  assert.match(harness.getRootHtml(), /href="\/cookie-tajekoztato"/);
+});
+
 test("auth bootstrap failures render a visible error state instead of a blank shell", async () => {
   const harness = createDashboardHarness({
     getSessionError: new Error("Malformed session payload"),
@@ -497,6 +514,19 @@ test("null auth user session renders the auth shell without fetching dashboard d
     harness.fetchCalls.some((call) => call.pathname === "/agents/list"),
     false
   );
+});
+
+test("signed-out auth shell shows legal links and signup acknowledgement", async () => {
+  const harness = createDashboardHarness({
+    session: null,
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /Creating an account means you acknowledge the ÁSZF and the Adatkezelési tájékoztató/);
+  assert.match(harness.getRootHtml(), /href="\/aszf"/);
+  assert.match(harness.getRootHtml(), /href="\/impresszum"/);
+  assert.match(harness.getRootHtml(), /href="\/adatkezelesi-tajekoztato"/);
+  assert.match(harness.getRootHtml(), /href="\/cookie-tajekoztato"/);
 });
 
 test("one failed sub-request keeps the dashboard visible and surfaces an explicit warning", async () => {

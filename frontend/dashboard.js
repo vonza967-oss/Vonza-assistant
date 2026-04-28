@@ -15,6 +15,12 @@ const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selecti
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
+const LEGAL_DOC_PATHS = Object.freeze({
+  terms: "/aszf",
+  imprint: "/impresszum",
+  privacy: "/adatkezelesi-tajekoztato",
+  cookies: "/cookie-tajekoztato",
+});
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
 const LAUNCH_STEPS = [
@@ -1196,6 +1202,66 @@ function isHungarianDashboard() {
 
 function localizeDashboardCopy(english = "", hungarian = "") {
   return isHungarianDashboard() ? hungarian : english;
+}
+
+function buildLegalLinksMarkup({ includeImprint = true, openInNewTab = false, className = "app-legal-links" } = {}) {
+  const links = [
+    { href: LEGAL_DOC_PATHS.terms, label: "ÁSZF" },
+    { href: LEGAL_DOC_PATHS.privacy, label: "Adatkezelési tájékoztató" },
+    { href: LEGAL_DOC_PATHS.cookies, label: "Cookie tájékoztató" },
+  ];
+
+  if (includeImprint) {
+    links.push({ href: LEGAL_DOC_PATHS.imprint, label: "Impresszum" });
+  }
+
+  const targetAttrs = openInNewTab ? ' target="_blank" rel="noreferrer"' : "";
+
+  return `
+    <div class="${escapeHtml(className)}">
+      ${links.map((link) => `<a href="${escapeHtml(link.href)}"${targetAttrs}>${escapeHtml(link.label)}</a>`).join("")}
+    </div>
+  `;
+}
+
+function buildAuthLegalBlock(mode) {
+  const acknowledgement = mode === AUTH_VIEW_MODES.SIGN_UP
+    ? localizeDashboardCopy(
+      "Creating an account means you acknowledge the ÁSZF and the Adatkezelési tájékoztató.",
+      "A fiók létrehozásával kijelented, hogy megismerted az ÁSZF-et és az Adatkezelési tájékoztatót."
+    )
+    : "";
+  const intro = localizeDashboardCopy(
+    "Legal and company information for the website, app, widget, and hosted checkout:",
+    "A website, az app, a widget és a hosted checkout jogi és cégadatai:"
+  );
+
+  return `
+    <div class="auth-legal app-legal-card">
+      ${acknowledgement ? `<p class="auth-acknowledgement">${escapeHtml(acknowledgement)}</p>` : ""}
+      <p class="app-legal-copy">${escapeHtml(intro)}</p>
+      ${buildLegalLinksMarkup({ includeImprint: true, openInNewTab: true })}
+    </div>
+  `;
+}
+
+function buildAppLegalSurfaceMarkup(context = "workspace") {
+  const copy = context === "billing"
+    ? localizeDashboardCopy(
+      "Hosted checkout, account access, the public website, and the widget are covered by these public legal pages.",
+      "A hosted checkoutot, az account-hozzáférést, a publikus oldalt és a widgetet ezek a nyilvános jogi oldalak fedik le."
+    )
+    : localizeDashboardCopy(
+      "These public pages keep the website, app, widget, and hosted checkout legal surface reachable from inside the workspace.",
+      "Ezek a nyilvános oldalak a workspace-ből is elérhetővé teszik a website, az app, a widget és a hosted checkout jogi felületét."
+    );
+
+  return `
+    <div class="app-legal-card">
+      <p class="app-legal-copy">${escapeHtml(copy)}</p>
+      ${buildLegalLinksMarkup({ includeImprint: true, openInNewTab: true })}
+    </div>
+  `;
 }
 
 const DASHBOARD_HU_COUNT_UNITS = Object.freeze({
@@ -2669,6 +2735,7 @@ function renderAccessLocked(agent) {
       </div>
       ${detailsMarkup}
       <p class="auth-note">Once payment completes successfully, Vonza unlocks your account and brings you straight into the public launch workspace.</p>
+      ${buildAppLegalSurfaceMarkup("billing")}
       ${showDevTools ? '<div id="setup-doctor-results" class="auth-note" style="margin-top:16px;"></div>' : ""}
     </section>
   `;
@@ -2931,6 +2998,7 @@ function renderAuthEntry() {
         </div>
         ${renderAuthSecondaryLinks(mode)}
       </form>
+      ${buildAuthLegalBlock(mode)}
     </section>
   `;
 

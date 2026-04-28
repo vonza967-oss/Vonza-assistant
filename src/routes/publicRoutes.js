@@ -11,6 +11,7 @@ import {
   isLocalDevBillingRequestAllowed,
 } from "../config/env.js";
 import { getPublicLaunchProfile } from "../config/publicLaunch.js";
+import { renderLegalPage } from "../config/legalContent.js";
 
 const SETUP_DOCTOR_KEYS = [
   "PUBLIC_APP_URL",
@@ -54,6 +55,42 @@ export function createPublicRouter({ rootDir }) {
 
   router.get("/dashboard", (_req, res) => {
     res.sendFile(path.join(rootDir, "dashboard.html"));
+  });
+
+  router.get("/aszf", (_req, res) => {
+    res.type("html");
+    res.send(renderLegalPage("terms"));
+  });
+
+  router.get("/impresszum", (_req, res) => {
+    res.type("html");
+    res.send(renderLegalPage("imprint"));
+  });
+
+  router.get("/adatkezelesi-tajekoztato", (_req, res) => {
+    res.type("html");
+    res.send(renderLegalPage("privacy"));
+  });
+
+  router.get("/cookie-tajekoztato", (_req, res) => {
+    res.type("html");
+    res.send(renderLegalPage("cookies"));
+  });
+
+  router.get("/terms", (_req, res) => {
+    res.redirect(302, "/aszf");
+  });
+
+  router.get("/privacy", (_req, res) => {
+    res.redirect(302, "/adatkezelesi-tajekoztato");
+  });
+
+  router.get("/cookies", (_req, res) => {
+    res.redirect(302, "/cookie-tajekoztato");
+  });
+
+  router.get("/imprint", (_req, res) => {
+    res.redirect(302, "/impresszum");
   });
 
   router.get("/public-config.js", (req, res) => {

@@ -317,6 +317,21 @@ h1 {
   gap: 10px;
 }
 
+.identity-legal {
+  margin: -2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.identity-legal a {
+  color: var(--text-soft);
+}
+
+.identity-legal a:hover {
+  color: #ffffff;
+}
+
 .identity-summary {
   display: inline-flex;
   align-items: center;

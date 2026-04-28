@@ -495,6 +495,46 @@ a.ghost-button:hover {
   line-height: 1.6;
 }
 
+.app-legal-card {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 1px solid rgba(153, 246, 228, 0.16);
+  background: rgba(12, 19, 34, 0.54);
+  border-radius: 16px;
+}
+
+.auth-acknowledgement,
+.app-legal-copy {
+  margin: 0;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.auth-acknowledgement {
+  margin-bottom: 10px;
+  color: #dffcf3;
+}
+
+.app-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 12px;
+}
+
+.app-legal-links a {
+  color: #99f6e4;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.app-legal-links a:hover {
+  color: #ccfbf1;
+}
+
 .handoff-card {
   padding: 24px 28px;
   margin-bottom: 22px;

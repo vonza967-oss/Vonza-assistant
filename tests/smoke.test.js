@@ -1212,6 +1212,81 @@ test("marketing homepage and app routes load without broken handoff paths", { co
   );
 });
 
+test("public legal pages, aliases, and legal links are exposed without placeholder business data", { concurrency: false }, async () => {
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key-present",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(createTestApp());
+
+      try {
+        const legalPages = [
+          {
+            path: "/aszf",
+            title: /<title>ÁSZF \| Vonza<\/title>/,
+          },
+          {
+            path: "/impresszum",
+            title: /<title>Impresszum \| Vonza<\/title>/,
+          },
+          {
+            path: "/adatkezelesi-tajekoztato",
+            title: /<title>Adatkezelési tájékoztató \| Vonza<\/title>/,
+          },
+          {
+            path: "/cookie-tajekoztato",
+            title: /<title>Cookie tájékoztató \| Vonza<\/title>/,
+          },
+        ];
+
+        for (const page of legalPages) {
+          const response = await getText(server.baseUrl, page.path);
+          assert.equal(response.status, 200, `${page.path} should load`);
+          assert.match(response.text, page.title);
+          assert.match(response.text, /Nyilvános tényalap/);
+          assert.doesNotMatch(response.text, /(mail@example\.com|support@example\.com|info@example\.com|1234 Example|TODO|TBD|Lorem ipsum)/i);
+        }
+
+        const aliasTargets = [
+          ["/terms", "/aszf"],
+          ["/privacy", "/adatkezelesi-tajekoztato"],
+          ["/cookies", "/cookie-tajekoztato"],
+          ["/imprint", "/impresszum"],
+        ];
+
+        for (const [aliasPath, targetPath] of aliasTargets) {
+          const response = await fetch(`${server.baseUrl}${aliasPath}`, { redirect: "manual" });
+          assert.equal(response.status, 302, `${aliasPath} should redirect`);
+          assert.equal(response.headers.get("location"), targetPath);
+        }
+
+        const marketingHome = await getText(server.baseUrl, "/");
+        assert.match(marketingHome.text, /href="\/aszf"/);
+        assert.match(marketingHome.text, /href="\/impresszum"/);
+        assert.match(marketingHome.text, /href="\/adatkezelesi-tajekoztato"/);
+        assert.match(marketingHome.text, /href="\/cookie-tajekoztato"/);
+
+        const widget = await getText(server.baseUrl, "/widget");
+        assert.match(widget.text, /Before you continue, you can review how Vonza handles/);
+        assert.match(widget.text, /href="\/adatkezelesi-tajekoztato"/);
+        assert.match(widget.text, /href="\/aszf"/);
+        assert.match(widget.text, /href="\/cookie-tajekoztato"/);
+
+        const dashboard = await getText(server.baseUrl, "/dashboard");
+        assert.equal(dashboard.status, 200);
+        assert.match(dashboard.text, /dashboard-root/);
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
 test("dashboard bundle exposes password auth entry, purchase-first handoff, and paid workspace tabs", { concurrency: false }, async () => {
   await withEnv(
     {
@@ -1235,6 +1310,12 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Send reset link/);
         assert.match(dashboardScript.text, /Use email link instead/);
         assert.match(dashboardScript.text, /Choose your new password/);
+        assert.match(dashboardScript.text, /Creating an account means you acknowledge the ÁSZF/);
+        assert.match(dashboardScript.text, /Legal and company information for the website, app, widget, and hosted checkout/);
+        assert.match(dashboardScript.text, /\/aszf/);
+        assert.match(dashboardScript.text, /\/impresszum/);
+        assert.match(dashboardScript.text, /\/adatkezelesi-tajekoztato/);
+        assert.match(dashboardScript.text, /\/cookie-tajekoztato/);
         assert.match(dashboardScript.text, /signInWithPassword/);
         assert.match(dashboardScript.text, /signUp\(/);
         assert.match(dashboardScript.text, /resetPasswordForEmail/);

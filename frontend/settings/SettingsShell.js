@@ -36,6 +36,12 @@
     "settings.light": "Light",
     "settings.dark": "Dark",
   });
+  const LEGAL_LINKS = Object.freeze([
+    { href: "/aszf", label: "ÁSZF" },
+    { href: "/impresszum", label: "Impresszum" },
+    { href: "/adatkezelesi-tajekoztato", label: "Adatkezelési tájékoztató" },
+    { href: "/cookie-tajekoztato", label: "Cookie tájékoztató" },
+  ]);
   const WIDGET_PURPOSE_OPTIONS = Object.freeze([
     {
       value: "guidance",
@@ -258,6 +264,16 @@
 
   function getSectionByKey(sectionKey) {
     return SETTINGS_SECTION_DETAILS.find((section) => section.key === sectionKey) || SETTINGS_SECTION_DETAILS[0];
+  }
+
+  function buildLegalLinksMarkup() {
+    return `
+      <div class="app-legal-links">
+        ${LEGAL_LINKS.map((link) => `
+          <a href="${defaultEscapeHtml(link.href)}" target="_blank" rel="noreferrer">${defaultEscapeHtml(link.label)}</a>
+        `).join("")}
+      </div>
+    `;
   }
 
   function getActiveSettingsSection() {
@@ -840,6 +856,7 @@
       : "light";
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
+    const isHungarian = dashboardLanguage === "hu";
 
     return `
       <div class="settings-shell-form">
@@ -968,6 +985,23 @@
           <div class="inline-actions">
             <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
             <button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>
+          </div>
+        </section>
+
+        <section class="settings-shell-section">
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">${escapeHtml(isHungarian ? "Jogi és bizalmi felület" : "Legal and trust")}</h3>
+              <p class="settings-shell-section-copy">${escapeHtml(isHungarian
+                ? "Ezek a nyilvános oldalak a website, az app, a widget és a hosted checkout jogi felületét fedik le."
+                : "These public pages cover the website, app, widget, and hosted checkout legal surface.")}</p>
+            </div>
+          </div>
+          <div class="app-legal-card">
+            <p class="app-legal-copy">${escapeHtml(isHungarian
+              ? "A repositoryben biztosan igazolható működési tények és a még hiányzó kötelező cégadatok is ezeken az oldalakon vannak egyben jelezve."
+              : "These pages keep repo-confirmed facts and any still-missing required company details visible in one place.")}</p>
+            ${buildLegalLinksMarkup()}
           </div>
         </section>
       </div>
