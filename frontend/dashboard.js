@@ -1003,13 +1003,27 @@ function getAuthCallbackIssue() {
 
   return {
     kind: expired ? "expired_link" : "invalid_link",
-    headline: expired ? "That email link has expired." : "That email link could not be used.",
+    headline: expired
+      ? authCopy("That email link has expired.", "Az emailes linked lejárt.")
+      : authCopy("That email link could not be used.", "Ezt az emailes linket nem lehetett használni."),
     status: expired
-      ? "That email link expired. Send a new magic link or sign in another way."
-      : "That email link could not be used. Send a new magic link or sign in another way.",
+      ? authCopy(
+        "That email link expired. Send a new magic link or sign in another way.",
+        "Az emailes linked lejárt. Kérj új magic linket, vagy jelentkezz be más módon."
+      )
+      : authCopy(
+        "That email link could not be used. Send a new magic link or sign in another way.",
+        "Ezt az emailes linket nem lehetett használni. Kérj új magic linket, vagy jelentkezz be más módon."
+      ),
     feedback: expired
-      ? "Email links only work for a short time and can be used once. Enter your email to send a fresh magic link, sign in with your password, or reset your password."
-      : "This email link is no longer valid. Enter your email to send a fresh magic link, sign in with your password, or reset your password.",
+      ? authCopy(
+        "Email links only work for a short time and can be used once. Enter your email to send a fresh magic link, sign in with your password, or reset your password.",
+        "Az emailes linkek csak rövid ideig érvényesek, és egyszer használhatók. Add meg az email címedet új magic link küldéséhez, jelentkezz be a jelszavaddal, vagy állítsd vissza a jelszavad."
+      )
+      : authCopy(
+        "This email link is no longer valid. Enter your email to send a fresh magic link, sign in with your password, or reset your password.",
+        "Ez az emailes link már nem érvényes. Add meg az email címedet új magic link küldéséhez, jelentkezz be a jelszavaddal, vagy állítsd vissza a jelszavad."
+      ),
   };
 }
 
@@ -1079,52 +1093,98 @@ function getAuthRedirectUrl() {
   return redirectUrl.toString();
 }
 
+function authCopy(english = "", hungarian = "") {
+  return localizeDashboardCopy(english, hungarian);
+}
+
 function getAuthModeConfig(mode, arrival) {
   if (mode === AUTH_VIEW_MODES.MAGIC && authCallbackIssue) {
     return {
-      eyebrow: authCallbackIssue.kind === "expired_link" ? "Email link expired" : "Email link issue",
+      eyebrow: authCallbackIssue.kind === "expired_link"
+        ? authCopy("Email link expired", "Az emailes linked lejárt")
+        : authCopy("Email link issue", "Probléma van az emailes linkkel"),
       headline: authCallbackIssue.headline,
-      copy: "No worries. Vonza can send a fresh email link, or you can use password sign-in instead.",
-      submitLabel: "Send new magic link",
-      note: "Use the newest email from Vonza. Older links may stop working after a newer one is sent.",
+      copy: authCopy(
+        "No worries. Vonza can send a fresh email link, or you can use password sign-in instead.",
+        "Semmi gond. A Vonza tud új emailes linket küldeni, vagy beléphetsz jelszóval is."
+      ),
+      submitLabel: authCopy("Send new magic link", "Új magic link küldése"),
+      note: authCopy(
+        "Use the newest email from Vonza. Older links may stop working after a newer one is sent.",
+        "Mindig a legfrissebb Vonza emailt használd. A korábbi linkek leállhatnak, ha újabbat kérsz."
+      ),
     };
   }
 
   const configs = {
     [AUTH_VIEW_MODES.SIGN_UP]: {
-      eyebrow: arrival.arrivedFromSite ? "Step 1 of 3" : "Create your Vonza account",
-      headline: "Create your Vonza account",
-      copy: "Use email and password to open your Vonza account, then continue straight into the app flow where checkout and workspace setup already live.",
-      submitLabel: "Create account",
-      note: "You can sign back in with the same email and password whenever you return.",
+      eyebrow: arrival.arrivedFromSite
+        ? authCopy("Step 1 of 3", "1 / 3. lépés")
+        : authCopy("Create your Vonza account", "Hozd létre a Vonza fiókodat"),
+      headline: authCopy("Create your Vonza account", "Hozd létre a Vonza fiókodat"),
+      copy: authCopy(
+        "Use email and password to open your Vonza account, then continue straight into the app flow where checkout and workspace setup already live.",
+        "Emaillel és jelszóval nyisd meg a Vonza fiókodat, majd menj tovább közvetlenül az appba, ahol a checkout és a munkaterület beállítása már egy helyen vár."
+      ),
+      submitLabel: authCopy("Create account", "Fiók létrehozása"),
+      note: authCopy(
+        "You can sign back in with the same email and password whenever you return.",
+        "Később ugyanazzal az email címmel és jelszóval tudsz visszajelentkezni."
+      ),
     },
     [AUTH_VIEW_MODES.SIGN_IN]: {
-      eyebrow: arrival.arrivedFromSite ? "Step 1 of 3" : "Sign in to Vonza",
-      headline: "Sign in to continue into Vonza",
-      copy: "Use your email and password to return to Vonza. After sign-in, unpaid accounts go to checkout and paid accounts go straight into the workspace.",
-      submitLabel: "Sign in",
-      note: "Use the same email and password you created for this workspace.",
+      eyebrow: arrival.arrivedFromSite
+        ? authCopy("Step 1 of 3", "1 / 3. lépés")
+        : authCopy("Sign in to Vonza", "Jelentkezz be a Vonzába"),
+      headline: authCopy("Sign in to continue into Vonza", "Jelentkezz be a Vonzába"),
+      copy: authCopy(
+        "Use your email and password to return to Vonza. After sign-in, unpaid accounts go to checkout and paid accounts go straight into the workspace.",
+        "Az email címeddel és jelszavaddal térj vissza a Vonzába. Bejelentkezés után a még nem fizetett fiókok a checkoutba mennek, az aktívak pedig egyből a munkaterületre."
+      ),
+      submitLabel: authCopy("Sign in", "Bejelentkezés"),
+      note: authCopy(
+        "Use the same email and password you created for this workspace.",
+        "Ugyanazt az email címet és jelszót használd, amivel ezt a munkaterületet létrehoztad."
+      ),
     },
     [AUTH_VIEW_MODES.RESET]: {
-      eyebrow: "Reset your password",
-      headline: "Send a password reset email",
-      copy: "Enter your account email and we’ll send a reset link that brings you back into Vonza so you can choose a new password cleanly.",
-      submitLabel: "Send reset link",
-      note: "The reset link opens a secure password update flow inside Vonza.",
+      eyebrow: authCopy("Reset your password", "Jelszó visszaállítása"),
+      headline: authCopy("Send a password reset email", "Jelszó-visszaállító email küldése"),
+      copy: authCopy(
+        "Enter your account email and we’ll send a reset link that brings you back into Vonza so you can choose a new password cleanly.",
+        "Add meg a fiókod email címét, és küldünk egy visszaállító linket, ami visszahoz a Vonzába, hogy biztonságosan új jelszót választhass."
+      ),
+      submitLabel: authCopy("Send reset link", "Visszaállító link küldése"),
+      note: authCopy(
+        "The reset link opens a secure password update flow inside Vonza.",
+        "A visszaállító link a Vonza biztonságos jelszófrissítő folyamatát nyitja meg."
+      ),
     },
     [AUTH_VIEW_MODES.MAGIC]: {
-      eyebrow: "Email link fallback",
-      headline: "Use a magic link instead",
-      copy: "If you do not want to use your password right now, Vonza can still send a one-time email link as a secondary sign-in option.",
-      submitLabel: "Send magic link",
-      note: "This keeps the old auth path available without making it the main flow.",
+      eyebrow: authCopy("Email link fallback", "Emailes link tartalék belépéshez"),
+      headline: authCopy("Use a magic link instead", "Használj inkább magic linket"),
+      copy: authCopy(
+        "If you do not want to use your password right now, Vonza can still send a one-time email link as a secondary sign-in option.",
+        "Ha most nem szeretnél jelszót használni, a Vonza tud egyszer használatos emailes linket is küldeni másodlagos belépési lehetőségként."
+      ),
+      submitLabel: authCopy("Send magic link", "Magic link küldése"),
+      note: authCopy(
+        "This keeps the old auth path available without making it the main flow.",
+        "Így a korábbi belépési útvonal elérhető marad anélkül, hogy ez lenne az alapértelmezett."
+      ),
     },
     [AUTH_VIEW_MODES.UPDATE_PASSWORD]: {
-      eyebrow: "Secure password update",
-      headline: "Choose your new password",
-      copy: "Set a new password for your Vonza account, then we’ll bring you back into the app immediately.",
-      submitLabel: "Update password",
-      note: "Use a strong password you can return with later.",
+      eyebrow: authCopy("Secure password update", "Biztonságos jelszófrissítés"),
+      headline: authCopy("Choose your new password", "Válassz új jelszót"),
+      copy: authCopy(
+        "Set a new password for your Vonza account, then we’ll bring you back into the app immediately.",
+        "Adj meg új jelszót a Vonza fiókodhoz, és azonnal visszaviszünk az appba."
+      ),
+      submitLabel: authCopy("Update password", "Jelszó frissítése"),
+      note: authCopy(
+        "Use a strong password you can return with later.",
+        "Adj meg erős jelszót, amivel később is biztonságosan vissza tudsz térni."
+      ),
     },
   };
 
@@ -1135,12 +1195,12 @@ function renderAuthFields(mode) {
   if (mode === AUTH_VIEW_MODES.UPDATE_PASSWORD) {
     return `
       <div class="field">
-        <label for="auth-password">New password</label>
-        <input id="auth-password" name="password" type="password" placeholder="Create a strong password" autocomplete="new-password">
+        <label for="auth-password">${escapeHtml(authCopy("New password", "Új jelszó"))}</label>
+        <input id="auth-password" name="password" type="password" placeholder="${escapeHtml(authCopy("Create a strong password", "Adj meg erős jelszót"))}" autocomplete="new-password">
       </div>
       <div class="field">
-        <label for="auth-password-confirm">Confirm new password</label>
-        <input id="auth-password-confirm" name="confirm_password" type="password" placeholder="Repeat your new password" autocomplete="new-password">
+        <label for="auth-password-confirm">${escapeHtml(authCopy("Confirm new password", "Új jelszó megerősítése"))}</label>
+        <input id="auth-password-confirm" name="confirm_password" type="password" placeholder="${escapeHtml(authCopy("Repeat your new password", "Ismételd meg az új jelszavad"))}" autocomplete="new-password">
       </div>
     `;
   }
@@ -1150,19 +1210,19 @@ function renderAuthFields(mode) {
 
   return `
     <div class="field">
-      <label for="auth-email">Email address</label>
+      <label for="auth-email">${escapeHtml(authCopy("Email address", "Email cím"))}</label>
       <input id="auth-email" name="email" type="email" placeholder="you@yourbusiness.com" autocomplete="email">
     </div>
     ${needsPassword ? `
       <div class="field">
-        <label for="auth-password">Password</label>
-        <input id="auth-password" name="password" type="password" placeholder="${mode === AUTH_VIEW_MODES.SIGN_UP ? "Create a password" : "Enter your password"}" autocomplete="${mode === AUTH_VIEW_MODES.SIGN_UP ? "new-password" : "current-password"}">
+        <label for="auth-password">${escapeHtml(authCopy("Password", "Jelszó"))}</label>
+        <input id="auth-password" name="password" type="password" placeholder="${escapeHtml(mode === AUTH_VIEW_MODES.SIGN_UP ? authCopy("Create a password", "Adj meg egy jelszót") : authCopy("Enter your password", "Add meg a jelszavad"))}" autocomplete="${mode === AUTH_VIEW_MODES.SIGN_UP ? "new-password" : "current-password"}">
       </div>
     ` : ""}
     ${needsConfirmation ? `
       <div class="field">
-        <label for="auth-password-confirm">Confirm password</label>
-        <input id="auth-password-confirm" name="confirm_password" type="password" placeholder="Repeat your password" autocomplete="new-password">
+        <label for="auth-password-confirm">${escapeHtml(authCopy("Confirm password", "Jelszó megerősítése"))}</label>
+        <input id="auth-password-confirm" name="confirm_password" type="password" placeholder="${escapeHtml(authCopy("Repeat your password", "Ismételd meg a jelszavad"))}" autocomplete="new-password">
       </div>
     ` : ""}
   `;
@@ -1176,8 +1236,8 @@ function renderAuthSecondaryLinks(mode) {
   if (mode === AUTH_VIEW_MODES.SIGN_UP) {
     return `
       <div class="auth-links-row">
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Already have an account? Sign in</button>
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">Use email link instead</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">${escapeHtml(authCopy("Already have an account? Sign in", "Már van fiókod? Jelentkezz be"))}</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">${escapeHtml(authCopy("Use email link instead", "Használj inkább emailes linket"))}</button>
       </div>
     `;
   }
@@ -1185,8 +1245,8 @@ function renderAuthSecondaryLinks(mode) {
   if (mode === AUTH_VIEW_MODES.SIGN_IN) {
     return `
       <div class="auth-links-row">
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.RESET}">Forgot password?</button>
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">Use email link instead</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.RESET}">${escapeHtml(authCopy("Forgot password?", "Elfelejtetted a jelszavad?"))}</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">${escapeHtml(authCopy("Use email link instead", "Használj inkább emailes linket"))}</button>
       </div>
     `;
   }
@@ -1194,16 +1254,16 @@ function renderAuthSecondaryLinks(mode) {
   if (mode === AUTH_VIEW_MODES.MAGIC) {
     return `
       <div class="auth-links-row">
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Sign in with password</button>
-        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.RESET}">Reset password instead</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">${escapeHtml(authCopy("Sign in with password", "Bejelentkezés jelszóval"))}</button>
+        <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.RESET}">${escapeHtml(authCopy("Reset password instead", "Jelszó visszaállítása"))}</button>
       </div>
     `;
   }
 
   return `
     <div class="auth-links-row">
-      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Back to password sign in</button>
-      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">Use email link instead</button>
+      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">${escapeHtml(authCopy("Back to password sign in", "Vissza a jelszavas bejelentkezéshez"))}</button>
+      <button class="auth-text-button" type="button" data-auth-mode="${AUTH_VIEW_MODES.MAGIC}">${escapeHtml(authCopy("Use email link instead", "Használj inkább emailes linket"))}</button>
     </div>
   `;
 }
@@ -3147,9 +3207,9 @@ function renderAuthEntry() {
       <h1 class="headline">${escapeHtml(config.headline)}</h1>
       <p class="auth-copy">${escapeHtml(config.copy)}</p>
       ${showModeTabs ? `
-        <div class="auth-mode-tabs" role="tablist" aria-label="Account access modes">
-          <button class="auth-mode-tab ${mode === AUTH_VIEW_MODES.SIGN_UP ? "active" : ""}" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_UP}">Create account</button>
-          <button class="auth-mode-tab ${mode === AUTH_VIEW_MODES.SIGN_IN ? "active" : ""}" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">Sign in</button>
+        <div class="auth-mode-tabs" role="tablist" aria-label="${escapeHtml(authCopy("Account access modes", "Fiók-hozzáférési módok"))}">
+          <button class="auth-mode-tab ${mode === AUTH_VIEW_MODES.SIGN_UP ? "active" : ""}" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_UP}">${escapeHtml(authCopy("Create account", "Fiók létrehozása"))}</button>
+          <button class="auth-mode-tab ${mode === AUTH_VIEW_MODES.SIGN_IN ? "active" : ""}" type="button" data-auth-mode="${AUTH_VIEW_MODES.SIGN_IN}">${escapeHtml(authCopy("Sign in", "Bejelentkezés"))}</button>
         </div>
       ` : ""}
       ${getAuthFeedbackMarkup()}
@@ -3181,7 +3241,7 @@ function renderAuthEntry() {
     event.preventDefault();
 
     if (!authClient) {
-      setStatus("Supabase Auth is not configured yet.");
+      setStatus(authCopy("Supabase Auth is not configured yet.", "A Supabase Auth még nincs beállítva."));
       return;
     }
 
@@ -3193,21 +3253,29 @@ function renderAuthEntry() {
     const submitButton = document.getElementById("auth-submit");
 
     if (mode !== AUTH_VIEW_MODES.UPDATE_PASSWORD && !email) {
-      setStatus("Enter your email first.");
+      setStatus(authCopy("Enter your email first.", "Először add meg az email címedet."));
       return;
     }
 
     if ((mode === AUTH_VIEW_MODES.SIGN_IN || mode === AUTH_VIEW_MODES.SIGN_UP || mode === AUTH_VIEW_MODES.UPDATE_PASSWORD) && password.length < 8) {
-      setAuthFeedback("error", "Use a password with at least 8 characters.");
+      const message = authCopy(
+        "Use a password with at least 8 characters.",
+        "Használj legalább 8 karakteres jelszót."
+      );
+      setAuthFeedback("error", message);
       renderAuthEntry();
-      setStatus("Use a password with at least 8 characters.");
+      setStatus(message);
       return;
     }
 
     if ((mode === AUTH_VIEW_MODES.SIGN_UP || mode === AUTH_VIEW_MODES.UPDATE_PASSWORD) && password !== confirmPassword) {
-      setAuthFeedback("error", "Your password confirmation does not match.");
+      const message = authCopy(
+        "Your password confirmation does not match.",
+        "A két jelszó nem egyezik."
+      );
+      setAuthFeedback("error", message);
       renderAuthEntry();
-      setStatus("Your password confirmation does not match.");
+      setStatus(message);
       return;
     }
 
@@ -3216,7 +3284,7 @@ function renderAuthEntry() {
 
     try {
       if (mode === AUTH_VIEW_MODES.SIGN_UP) {
-        setStatus("Creating your account...");
+        setStatus(authCopy("Creating your account...", "Fiók létrehozása..."));
         const { data, error } = await authClient.auth.signUp({
           email,
           password,
@@ -3232,20 +3300,29 @@ function renderAuthEntry() {
         if (data?.session?.user) {
           authSession = data.session;
           authUser = data.session.user;
-          setStatus("Account created. Opening your Vonza app...");
+          setStatus(authCopy(
+            "Account created. Opening your Vonza app...",
+            "A fiók elkészült. Megnyitjuk a Vonza appot..."
+          ));
           await boot();
           return;
         }
 
         authViewMode = AUTH_VIEW_MODES.SIGN_IN;
-        setAuthFeedback("success", "Account created. Check your email to confirm your address, then sign in with your password.");
+        setAuthFeedback("success", authCopy(
+          "Account created. Check your email to confirm your address, then sign in with your password.",
+          "A fiók elkészült. Ellenőrizd az emailedet a címed megerősítéséhez, majd jelentkezz be a jelszavaddal."
+        ));
         renderAuthEntry();
-        setStatus("Check your email to confirm your account.");
+        setStatus(authCopy(
+          "Check your email to confirm your account.",
+          "Nézd meg az emailedet a fiókod megerősítéséhez."
+        ));
         return;
       }
 
       if (mode === AUTH_VIEW_MODES.SIGN_IN) {
-        setStatus("Signing you in...");
+        setStatus(authCopy("Signing you in...", "Bejelentkeztetünk..."));
         const { data, error } = await authClient.auth.signInWithPassword({
           email,
           password,
@@ -3257,13 +3334,16 @@ function renderAuthEntry() {
 
         authSession = data.session || null;
         authUser = data.user || data.session?.user || null;
-        setStatus("Signed in. Opening your Vonza app...");
+        setStatus(authCopy(
+          "Signed in. Opening your Vonza app...",
+          "Sikeres bejelentkezés. Megnyitjuk a Vonza appot..."
+        ));
         await boot();
         return;
       }
 
       if (mode === AUTH_VIEW_MODES.RESET) {
-        setStatus("Sending your reset link...");
+        setStatus(authCopy("Sending your reset link...", "Küldjük a visszaállító linket..."));
         const { error } = await authClient.auth.resetPasswordForEmail(email, {
           redirectTo: getAuthRedirectUrl(),
         });
@@ -3272,14 +3352,20 @@ function renderAuthEntry() {
           throw error;
         }
 
-        setAuthFeedback("success", "Password reset email sent. Use the link in your inbox to choose a new password.");
+        setAuthFeedback("success", authCopy(
+          "Password reset email sent. Use the link in your inbox to choose a new password.",
+          "Elküldtük a jelszó-visszaállító emailt. Az emailedben lévő linkkel választhatsz új jelszót."
+        ));
         renderAuthEntry();
-        setStatus("Password reset email sent.");
+        setStatus(authCopy(
+          "Password reset email sent.",
+          "A jelszó-visszaállító email elküldve."
+        ));
         return;
       }
 
       if (mode === AUTH_VIEW_MODES.MAGIC) {
-        setStatus("Sending your magic link...");
+        setStatus(authCopy("Sending your magic link...", "Küldjük a magic linket..."));
         const { error } = await authClient.auth.signInWithOtp({
           email,
           options: {
@@ -3291,15 +3377,18 @@ function renderAuthEntry() {
           throw error;
         }
 
-        setAuthFeedback("success", "Magic link sent. Open the email from this device to continue into Vonza.");
+        setAuthFeedback("success", authCopy(
+          "Magic link sent. Open the email from this device to continue into Vonza.",
+          "A magic linket elküldtük. Nyisd meg erről az eszközről az emailt, és lépj tovább a Vonzába."
+        ));
         authCallbackIssue = null;
         renderAuthEntry();
-        setStatus("Magic link sent.");
+        setStatus(authCopy("Magic link sent.", "A magic link elküldve."));
         return;
       }
 
       if (mode === AUTH_VIEW_MODES.UPDATE_PASSWORD) {
-        setStatus("Updating your password...");
+        setStatus(authCopy("Updating your password...", "Frissítjük a jelszavadat..."));
         const { error } = await authClient.auth.updateUser({
           password,
         });
@@ -3310,13 +3399,20 @@ function renderAuthEntry() {
 
         clearAuthFlowStateFromUrl();
         setAuthFeedback(null, "");
-        setStatus("Password updated. Opening your Vonza app...");
+        setStatus(authCopy(
+          "Password updated. Opening your Vonza app...",
+          "A jelszó frissült. Megnyitjuk a Vonza appot..."
+        ));
         await boot();
       }
     } catch (error) {
-      setAuthFeedback("error", error.message || "We could not complete authentication just yet.");
+      const fallbackMessage = authCopy(
+        "We could not complete authentication just yet.",
+        "Az azonosítást most nem tudtuk befejezni."
+      );
+      setAuthFeedback("error", error.message || fallbackMessage);
       renderAuthEntry();
-      setStatus(error.message || "We could not complete authentication just yet.");
+      setStatus(error.message || fallbackMessage);
     } finally {
       submitButton.disabled = false;
     }
@@ -16490,7 +16586,7 @@ async function boot() {
   });
 
   if (!hasAuthConfig()) {
-    setStatus("Supabase Auth is not configured yet.");
+    setStatus(authCopy("Supabase Auth is not configured yet.", "A Supabase Auth még nincs beállítva."));
     renderAuthEntry();
     return;
   }
@@ -16522,7 +16618,7 @@ async function boot() {
 
   try {
     renderLoadingState();
-    setStatus("Loading your workspace...");
+    setStatus(authCopy("Loading your workspace...", "Betöltjük a munkaterületedet..."));
     await ensureAuthClient();
     renderTopbarMeta();
 

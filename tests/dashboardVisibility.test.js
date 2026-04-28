@@ -544,6 +544,36 @@ test("signed-out auth shell shows legal links and signup acknowledgement", async
   assert.match(harness.getRootHtml(), /href="\/cookie-tajekoztato"/);
 });
 
+test("signed-out auth shell honors Hungarian dashboard language across auth copy and controls", async () => {
+  const harness = createDashboardHarness({
+    session: null,
+  });
+  await harness.settle();
+
+  harness.getGlobal("window").VonzaDashboardI18n = {
+    normalizeLanguage(value) {
+      return String(value || "").trim().toLowerCase() === "hu" ? "hu" : "en";
+    },
+  };
+  harness.getGlobal("window").localStorage.setItem("vonza_dashboard_language", "hu");
+  harness.getGlobal("applyDashboardLanguage")("hu");
+  harness.getGlobal("renderAuthEntry")();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /Hozd létre a Vonza fiókodat/);
+  assert.match(html, /Fiók létrehozása/);
+  assert.match(html, /Bejelentkezés/);
+  assert.match(html, /Email cím/);
+  assert.match(html, /Jelszó/);
+  assert.match(html, /Jelszó megerősítése/);
+  assert.match(html, /Használj inkább emailes linket/);
+  assert.doesNotMatch(
+    html,
+    /Create your Vonza account|Create account|Sign in to continue into Vonza|Sign in|Email address|Password|Confirm password/
+  );
+});
+
 test("one failed sub-request keeps the dashboard visible and surfaces an explicit warning", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],
