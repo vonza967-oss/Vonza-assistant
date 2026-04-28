@@ -124,7 +124,7 @@ export function isOriginAllowed(origin, allowedDomains = []) {
   return normalizedAllowedDomains.includes(normalizedOriginHost);
 }
 
-function assertAllowedOriginForContext(context, options = {}) {
+export function requireAllowedOriginForWidgetContext(context, options = {}) {
   const origin = cleanText(options.origin);
   const pageUrl = cleanText(options.pageUrl);
   const installId = cleanText(options.installId || context?.widgetConfigRow?.install_id || "");
@@ -505,7 +505,7 @@ export async function requireAllowedInstallOrigin(supabase, options = {}) {
     throw error;
   }
 
-  assertAllowedOriginForContext(context, {
+  requireAllowedOriginForWidgetContext(context, {
     installId,
     origin: options.origin,
     pageUrl: options.pageUrl,
@@ -542,7 +542,7 @@ export async function requireAllowedAgentOrigin(supabase, options = {}) {
     throw error;
   }
 
-  assertAllowedOriginForContext(context, {
+  requireAllowedOriginForWidgetContext(context, {
     installId: options.installId,
     origin: options.origin,
     pageUrl: options.pageUrl,

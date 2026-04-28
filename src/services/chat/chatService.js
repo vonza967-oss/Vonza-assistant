@@ -1,8 +1,4 @@
-import { resolveAgentContext } from "../agents/agentService.js";
-import {
-  requireAllowedAgentOrigin,
-  requireAllowedInstallOrigin,
-} from "../install/installPresenceService.js";
+import { resolveAllowedPublicWidgetContext } from "../agents/agentService.js";
 import {
   getStoredWebsiteContent,
   hasVisualIntent,
@@ -96,40 +92,7 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
 }
 
 async function resolveWidgetConversationContext(supabase, options = {}) {
-  const installId = cleanText(options.installId);
-  const pageUrl = cleanText(options.pageUrl);
-
-  if (installId) {
-    const installContext = await requireAllowedInstallOrigin(supabase, {
-      installId,
-      origin: options.origin,
-      pageUrl,
-    });
-
-    return resolveAgentContext(supabase, {
-      agentId: installContext.agent.id,
-      businessId: installContext.business.id,
-      websiteUrl: installContext.business.website_url,
-      businessName: installContext.business.name,
-    });
-  }
-
-  const resolvedContext = await resolveAgentContext(supabase, {
-    agentId: options.agentId,
-    agentKey: options.agentKey,
-    businessId: options.businessId,
-    websiteUrl: options.websiteUrl,
-    businessName: options.businessName,
-  });
-
-  await requireAllowedAgentOrigin(supabase, {
-    agentId: resolvedContext.agent.id,
-    installId: resolvedContext.widgetConfig.installId,
-    origin: options.origin,
-    pageUrl,
-  });
-
-  return resolvedContext;
+  return resolveAllowedPublicWidgetContext(supabase, options);
 }
 
 function logChatMetadata(eventName, payload = {}) {
@@ -252,9 +215,9 @@ export async function handleChatRequest({
     throw error;
   }
 
-  if (!installId && !agentId && !agentKey && !businessId) {
+  if (!installId && !agentId && !agentKey && !businessId && !websiteUrl) {
     const error = new Error(
-      "install_id, agent_id, agent_key, or business_id is required."
+      "install_id, agent_id, agent_key, website_url, or business_id is required."
     );
     error.statusCode = 400;
     throw error;
@@ -475,8 +438,8 @@ export async function handleLeadCaptureRequest({
     visitor_name: body.visitor_name || body.visitorName,
   });
 
-  if (!installId && !agentKey && !businessId && !agentId) {
-    const error = new Error("install_id, agent_id, agent_key, or business_id is required.");
+  if (!installId && !agentKey && !businessId && !agentId && !websiteUrl) {
+    const error = new Error("install_id, agent_id, agent_key, website_url, or business_id is required.");
     error.statusCode = 400;
     throw error;
   }

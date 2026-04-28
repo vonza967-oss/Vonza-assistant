@@ -8,8 +8,8 @@ import {
   deriveAllowedDomains,
   listInstallStatusByAgentIds,
   normalizeAllowedDomains,
-  requireAllowedAgentOrigin,
   requireAllowedInstallOrigin,
+  requireAllowedOriginForWidgetContext,
 } from "../install/installPresenceService.js";
 import {
   DEFAULT_AGENT_NAME,
@@ -148,6 +148,10 @@ function buildAgentSettingsError(message, statusCode = 500, code = "") {
     error.code = code;
   }
   return error;
+}
+
+function buildPublicWidgetNotFoundError(message = "Public widget install not found.") {
+  return buildAgentSettingsError(message, 404, "public_widget_not_found");
 }
 
 function normalizeOptionalUrl(value) {
@@ -668,6 +672,26 @@ async function findDefaultAgentForBusiness(supabase, businessId, options = {}) {
   return mapAgentRow(data?.[0] || null);
 }
 
+async function listActiveAgentsForBusiness(supabase, businessId) {
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .select(
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+    )
+    .eq("business_id", businessId)
+    .eq("is_active", true);
+
+  if (error) {
+    if (isMissingRelationError(error, AGENTS_TABLE)) {
+      return [];
+    }
+    console.error(error);
+    throw error;
+  }
+
+  return (data || []).map((row) => mapAgentRow(row));
+}
+
 async function claimAgentOwnershipById(supabase, agentId, ownerUserId) {
   const normalizedOwnerUserId = cleanText(ownerUserId);
 
@@ -858,11 +882,75 @@ export async function resolveAgentContext(supabase, options = {}) {
   }
 }
 
-export async function getWidgetBootstrap(supabase, options = {}) {
+async function resolveExistingPublicWidgetContext(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const agentKey = cleanText(options.agentKey);
+  const businessId = cleanText(options.businessId);
+  const websiteUrl = cleanText(options.websiteUrl);
+  let agent = null;
+  let business = null;
+  let widgetConfigRow = null;
+
+  if (agentId) {
+    agent = await findAgentById(supabase, agentId);
+
+    if (!agent) {
+      const error = new Error("Agent not found");
+      error.statusCode = 404;
+      throw error;
+    }
+  }
+
+  if (!agent && agentKey) {
+    agent = await findAgentByKey(supabase, agentKey);
+
+    if (!agent && !businessId && !websiteUrl) {
+      throw buildPublicWidgetNotFoundError("Agent not found");
+    }
+  }
+
+  if (agent) {
+    business = await findBusinessByIdentifier(supabase, agent.businessId);
+    widgetConfigRow = await getWidgetConfigRowForAgent(supabase, agent.id);
+  } else {
+    business = await findBusinessByIdentifier(supabase, businessId || websiteUrl);
+
+    if (!business) {
+      throw buildPublicWidgetNotFoundError();
+    }
+
+    const candidateAgents = await listActiveAgentsForBusiness(supabase, business.id);
+
+    for (const candidateAgent of candidateAgents) {
+      const candidateWidgetConfigRow = await getWidgetConfigRowForAgent(supabase, candidateAgent.id);
+
+      if (!candidateWidgetConfigRow) {
+        continue;
+      }
+
+      agent = candidateAgent;
+      widgetConfigRow = candidateWidgetConfigRow;
+      break;
+    }
+  }
+
+  if (!agent || !business || !widgetConfigRow) {
+    throw buildPublicWidgetNotFoundError();
+  }
+
+  return {
+    agent,
+    business,
+    widgetConfigRow,
+    widgetConfig: mapWidgetConfigRow(widgetConfigRow),
+    allowedDomains: deriveAllowedDomains(widgetConfigRow.allowed_domains, business.website_url || ""),
+  };
+}
+
+export async function resolveAllowedPublicWidgetContext(supabase, options = {}) {
   const installId = cleanText(options.installId);
   const requestedOrigin = cleanText(options.origin);
   const pageUrl = cleanText(options.pageUrl);
-  let context = null;
 
   if (installId) {
     const installContext = await requireAllowedInstallOrigin(supabase, {
@@ -871,37 +959,30 @@ export async function getWidgetBootstrap(supabase, options = {}) {
       pageUrl,
     });
 
-    if (!installContext?.agent || !installContext.business) {
-      const error = new Error("Install not found");
-      error.statusCode = 404;
-      throw error;
-    }
-
-    context = {
-      agent: {
-        id: installContext.agent.id,
-        publicAgentKey: installContext.agent.public_agent_key || "",
-        name: installContext.agent.name || DEFAULT_AGENT_NAME,
-        purpose: normalizeWidgetPurpose(installContext.agent.purpose || DEFAULT_PURPOSE),
-      },
+    return {
+      agent: mapAgentRow(installContext.agent),
       business: installContext.business,
+      widgetConfigRow: installContext.widgetConfigRow,
       widgetConfig: mapWidgetConfigRow(installContext.widgetConfigRow),
       allowedDomains: installContext.allowedDomains,
     };
-  } else {
-    const resolvedContext = await resolveAgentContext(supabase, options);
-    const publicOriginContext = await requireAllowedAgentOrigin(supabase, {
-      agentId: resolvedContext.agent.id,
-      installId: resolvedContext.widgetConfig.installId,
-      origin: requestedOrigin,
-      pageUrl,
-    });
-
-    context = {
-      ...resolvedContext,
-      allowedDomains: publicOriginContext.allowedDomains,
-    };
   }
+
+  const context = await resolveExistingPublicWidgetContext(supabase, options);
+
+  requireAllowedOriginForWidgetContext(context, {
+    installId: context.widgetConfig.installId,
+    origin: requestedOrigin,
+    pageUrl,
+    blockedMessage: "Origin is not allowed for this install.",
+  });
+
+  return context;
+}
+
+export async function getWidgetBootstrap(supabase, options = {}) {
+  const installId = cleanText(options.installId);
+  const context = await resolveAllowedPublicWidgetContext(supabase, options);
 
   return {
     agent: context.agent,

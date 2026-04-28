@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import http from "node:http";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -406,7 +406,7 @@ test("client_id-only listing only returns pre-claim onboarding assistants", asyn
   assert.deepEqual(result.agents.map((agent) => agent.id), ["preclaim-agent"]);
 });
 
-test("/chat rejects disallowed origins across install_id, agent_id, and agent_key", async () => {
+test("/chat rejects disallowed origins across install_id, website_url, agent_id, and agent_key", async () => {
   const supabase = createFakeSupabase(buildChatState());
   let openAiCalled = false;
   const app = express();
@@ -430,6 +430,12 @@ test("/chat rejects disallowed origins across install_id, agent_id, and agent_ke
       label: "install_id",
       body: {
         install_id: "install-1",
+      },
+    },
+    {
+      label: "website_url",
+      body: {
+        website_url: "https://allowed.example",
       },
     },
     {
@@ -465,7 +471,75 @@ test("/chat rejects disallowed origins across install_id, agent_id, and agent_ke
   }
 });
 
-test("/chat/capture rejects disallowed origins when agent_key is present without install_id", async () => {
+test("/chat allows approved origins across install_id, website_url, agent_id, and agent_key", async () => {
+  const supabase = createFakeSupabase(buildChatState());
+  let openAiCalls = 0;
+  const app = express();
+  app.use(express.json());
+  app.use(createChatRouter({
+    getSupabaseClient: () => supabase,
+    getOpenAIClient: () => ({
+      chat: {
+        completions: {
+          create: async () => {
+            openAiCalls += 1;
+            return { choices: [{ message: { content: "Approved path works." } }] };
+          },
+        },
+      },
+    }),
+  }));
+  const server = await startServer(app);
+  const resolutionCases = [
+    {
+      label: "install_id",
+      body: {
+        install_id: "install-1",
+      },
+    },
+    {
+      label: "website_url",
+      body: {
+        website_url: "https://allowed.example",
+      },
+    },
+    {
+      label: "agent_id",
+      body: {
+        agent_id: "agent-1",
+      },
+    },
+    {
+      label: "agent_key",
+      body: {
+        agent_key: "agent-key",
+      },
+    },
+  ];
+
+  try {
+    for (const entry of resolutionCases) {
+      const response = await postJson(server.baseUrl, "/chat", {
+        ...entry.body,
+        origin: "https://allowed.example",
+        page_url: "https://allowed.example/pricing",
+        message: "Hello there",
+      });
+
+      assert.equal(response.status, 200, `${entry.label} allows the approved origin`);
+      assert.equal(response.json.agentId, "agent-1");
+      assert.equal(response.json.agentKey, "agent-key");
+      assert.equal(response.json.businessId, "business-1");
+      assert.equal(response.json.reply, "Approved path works.");
+    }
+
+    assert.ok(openAiCalls >= resolutionCases.length);
+  } finally {
+    await server.close();
+  }
+});
+
+test("/chat/capture rejects disallowed origins across install_id, website_url, agent_id, and agent_key", async () => {
   const supabase = createFakeSupabase(buildChatState());
   const app = express();
   app.use(express.json());
@@ -473,18 +547,46 @@ test("/chat/capture rejects disallowed origins when agent_key is present without
     getSupabaseClient: () => supabase,
   }));
   const server = await startServer(app);
+  const resolutionCases = [
+    {
+      label: "install_id",
+      body: {
+        install_id: "install-1",
+      },
+    },
+    {
+      label: "website_url",
+      body: {
+        website_url: "https://allowed.example",
+      },
+    },
+    {
+      label: "agent_id",
+      body: {
+        agent_id: "agent-1",
+      },
+    },
+    {
+      label: "agent_key",
+      body: {
+        agent_key: "agent-key",
+      },
+    },
+  ];
 
   try {
-    const response = await postJson(server.baseUrl, "/chat/capture", {
-      agent_key: "agent-key",
-      origin: "https://evil.example",
-      page_url: "https://evil.example/page",
-      action: "decline",
-      reference_message: "What does this cost?",
-    });
+    for (const entry of resolutionCases) {
+      const response = await postJson(server.baseUrl, "/chat/capture", {
+        ...entry.body,
+        origin: "https://evil.example",
+        page_url: "https://evil.example/page",
+        action: "decline",
+        reference_message: "What does this cost?",
+      });
 
-    assert.equal(response.status, 403);
-    assert.match(response.json.error, /origin is not allowed/i);
+      assert.equal(response.status, 403, `${entry.label} blocks an unapproved origin`);
+      assert.match(response.json.error, /origin is not allowed/i);
+    }
   } finally {
     await server.close();
   }
@@ -890,14 +992,8 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   assert.doesNotMatch(script, /replyHash/);
 });
 
-test("admin rendering escapes dynamic data and avoids query-string token APIs", () => {
-  const admin = readFileSync(path.join(repoRoot, "admin.html"), "utf8");
-
-  assert.match(admin, /function escapeHtml/);
-  assert.match(admin, /x-admin-token/);
-  assert.match(admin, /replaceState/);
-  assert.doesNotMatch(admin, /access-status\?token/);
-  assert.doesNotMatch(admin, /admin-list[\s\S]{0,120}searchParams\.set\("token"/);
+test("legacy public admin page source is removed", () => {
+  assert.equal(existsSync(path.join(repoRoot, "admin.html")), false);
 });
 
 test("dashboard preview starter prompts do not force-reset a loaded iframe", () => {
