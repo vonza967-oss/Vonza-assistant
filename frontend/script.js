@@ -39,14 +39,21 @@ const EMBED_FINGERPRINT =
   window.VonzaWidgetConfig?.fingerprint ||
   "";
 
-const DEFAULT_WIDGET_CONFIG = {
-  assistantName: "Vonza AI",
+const LEGACY_WIDGET_DEFAULTS = {
   welcomeMessage: "How may I be of your service today?",
-  buttonLabel: "Chat with Vonza",
   launcherText: "YOUR PERSONAL ASSISTANT",
-  widgetLogoUrl: "",
   primaryColor: "#10a37f",
   secondaryColor: "#0c7f75",
+};
+
+const DEFAULT_WIDGET_CONFIG = {
+  assistantName: "Vonza AI",
+  welcomeMessage: "Hi! How can we help today?",
+  buttonLabel: "Chat with Vonza",
+  launcherText: "AI front desk for your website",
+  widgetLogoUrl: "",
+  primaryColor: "#5b61ff",
+  secondaryColor: "#7c4dff",
   themeMode: "dark",
 };
 
@@ -102,6 +109,10 @@ function getVisitorSessionKey() {
 
 function trimText(value) {
   return String(value || "").trim();
+}
+
+function normalizeHexColor(value) {
+  return trimText(value).toLowerCase();
 }
 
 function normalizeEmail(value) {
@@ -211,6 +222,41 @@ function hasAssistantConfig() {
   return Boolean(INSTALL_ID || resolvedAgentId || resolvedAgentKey || resolvedBusinessId || WEBSITE_URL);
 }
 
+function normalizeWidgetConfig(input = {}) {
+  const next = {
+    ...DEFAULT_WIDGET_CONFIG,
+    ...input,
+  };
+  const primaryColor = normalizeHexColor(next.primaryColor);
+  const secondaryColor = normalizeHexColor(next.secondaryColor);
+  const hasLegacyColors =
+    primaryColor === normalizeHexColor(LEGACY_WIDGET_DEFAULTS.primaryColor)
+    && secondaryColor === normalizeHexColor(LEGACY_WIDGET_DEFAULTS.secondaryColor);
+
+  if (hasLegacyColors || (!primaryColor && !secondaryColor)) {
+    next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
+    next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
+  } else {
+    if (!primaryColor) {
+      next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
+    }
+
+    if (!secondaryColor) {
+      next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
+    }
+  }
+
+  if (!trimText(next.welcomeMessage) || trimText(next.welcomeMessage) === LEGACY_WIDGET_DEFAULTS.welcomeMessage) {
+    next.welcomeMessage = DEFAULT_WIDGET_CONFIG.welcomeMessage;
+  }
+
+  if (!trimText(next.launcherText) || trimText(next.launcherText) === LEGACY_WIDGET_DEFAULTS.launcherText) {
+    next.launcherText = DEFAULT_WIDGET_CONFIG.launcherText;
+  }
+
+  return next;
+}
+
 function getPageOrigin() {
   return trimText(PAGE_ORIGIN || window.location.origin);
 }
@@ -267,7 +313,7 @@ function updateComposerAvailability() {
 
   input.disabled = !identityReady;
   button.disabled = !identityReady;
-  input.placeholder = identityReady ? "Type here" : "Choose guest or email first";
+  input.placeholder = identityReady ? "Type your question..." : "Choose email or guest to start";
   inputArea.classList.toggle("is-locked", !identityReady);
 }
 
@@ -319,9 +365,9 @@ function continueIntoChat(identity, options = {}) {
   }
 
   if (normalized.mode === "identified") {
-    setComposerStatus(`Using ${normalized.email} so the business can follow up cleanly if needed.`);
+    setComposerStatus(`Using ${normalized.email} so the business can follow up if needed.`);
   } else {
-    setComposerStatus("Continuing as a guest. You can ask anything about the business.");
+    setComposerStatus("You're chatting as a guest. Ask anything about the business.");
   }
 
   if (options.track !== false) {
@@ -854,37 +900,66 @@ function setComposerStatus(message) {
   }
 }
 
+function applyBrandMark(markElement, logoElement, textElement, customLogoUrl, fallbackCharacter) {
+  if (!markElement || !logoElement || !textElement) {
+    return;
+  }
+
+  textElement.textContent = fallbackCharacter;
+
+  if (customLogoUrl) {
+    logoElement.src = customLogoUrl;
+    logoElement.hidden = false;
+    markElement.classList.add("has-custom-logo");
+    return;
+  }
+
+  logoElement.removeAttribute("src");
+  logoElement.hidden = true;
+  markElement.classList.remove("has-custom-logo");
+}
+
 function applyWidgetConfig(config = {}) {
-  widgetConfig = {
-    ...DEFAULT_WIDGET_CONFIG,
-    ...config,
-  };
+  widgetConfig = normalizeWidgetConfig(config);
 
   const brandMark = document.querySelector(".brand-mark");
+  const welcomeBrandMark = document.querySelector(".welcome-brand-mark");
   const brandLogo = document.getElementById("brand-mark-logo");
+  const welcomeBrandLogo = document.getElementById("welcome-brand-logo");
   const customLogoUrl = trimText(widgetConfig.widgetLogoUrl);
+  const assistantMark = getAssistantMark(widgetConfig.assistantName);
+  const sendButton = document.getElementById("send-button");
+  const poweredBy = document.getElementById("powered-by");
 
   document.title = widgetConfig.assistantName;
   document.documentElement.style.setProperty("--brand-primary", widgetConfig.primaryColor);
   document.documentElement.style.setProperty("--brand-secondary", widgetConfig.secondaryColor);
   document.getElementById("assistant-name").textContent = widgetConfig.assistantName;
+  document.getElementById("welcome-assistant-name").textContent = widgetConfig.assistantName;
   document.getElementById("launcher-text").textContent = widgetConfig.launcherText;
   document.getElementById("welcome-message").textContent = widgetConfig.welcomeMessage;
-  document.getElementById("intro-avatar").textContent = getAssistantMark();
-  document.getElementById("brand-mark-v").textContent = getAssistantMark();
-  if (brandLogo && brandMark) {
-    if (customLogoUrl) {
-      brandLogo.src = customLogoUrl;
-      brandLogo.hidden = false;
-      brandMark.classList.add("has-custom-logo");
-    } else {
-      brandLogo.removeAttribute("src");
-      brandLogo.hidden = true;
-      brandMark.classList.remove("has-custom-logo");
-    }
+  document.getElementById("intro-avatar").textContent = assistantMark;
+  applyBrandMark(
+    brandMark,
+    brandLogo,
+    document.getElementById("brand-mark-v"),
+    customLogoUrl,
+    assistantMark
+  );
+  applyBrandMark(
+    welcomeBrandMark,
+    welcomeBrandLogo,
+    document.getElementById("welcome-brand-v"),
+    customLogoUrl,
+    assistantMark
+  );
+  if (sendButton) {
+    sendButton.setAttribute("aria-label", `Send a message to ${widgetConfig.assistantName}`);
+    sendButton.setAttribute("title", `Send a message to ${widgetConfig.assistantName}`);
   }
-  document.getElementById("send-button").textContent = widgetConfig.buttonLabel;
-  document.getElementById("powered-by").textContent = `Powered by ${widgetConfig.assistantName}`;
+  if (poweredBy) {
+    poweredBy.textContent = "We're here to help | Powered by Vonza";
+  }
   if (hasChosenVisitorIdentity()) {
     continueIntoChat(visitorIdentity, {
       persist: false,
@@ -939,7 +1014,7 @@ async function loadWidgetBootstrap() {
         capture: false,
       });
     } else {
-      setComposerStatus("Choose how to continue, then start chatting with the current website knowledge.");
+      setComposerStatus("Choose how to continue, then start chatting.");
     }
     await detectConversionOutcomesOnLoad();
   } catch (error) {
@@ -1012,7 +1087,7 @@ async function sendMessage() {
   input.value = "";
   button.disabled = true;
   input.disabled = true;
-  setComposerStatus(`${widgetConfig.assistantName} is preparing a grounded answer...`);
+  setComposerStatus(`${widgetConfig.assistantName} is preparing a reply...`);
 
   const loading = appendMessage(chat, "bot", "", { typing: true });
 
@@ -1125,12 +1200,12 @@ document.getElementById("identity-guest-button")?.addEventListener("click", () =
 document.getElementById("identity-email-button")?.addEventListener("click", () => {
   document.getElementById("identity-email-form")?.removeAttribute("hidden");
   document.getElementById("identity-name")?.focus();
-  setComposerStatus("Add an email so the business can keep this conversation connected.");
+  setComposerStatus("Add your email to keep this conversation connected.");
 });
 
 document.getElementById("identity-email-cancel")?.addEventListener("click", () => {
   document.getElementById("identity-email-form")?.setAttribute("hidden", "");
-  setComposerStatus("Choose how to continue, then start chatting.");
+  setComposerStatus("Choose email or guest, then start chatting.");
 });
 
 document.getElementById("identity-email-form")?.addEventListener("submit", (event) => {
@@ -1183,7 +1258,10 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
     capture: options.capture === true,
   }),
   getVisitorIdentity: () => ({ ...visitorIdentity }),
+  hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
+  isWelcomePanelHidden: () => hasHiddenWelcomePanel,
   normalizeVisitorIdentityState,
+  sendMessage: () => sendMessage(),
 };
 
 if ("serviceWorker" in navigator && !EMBEDDED_MODE) {

@@ -27,6 +27,7 @@ function createStorage() {
 
 function createFakeElement(id = "") {
   const listeners = new Map();
+  const classes = new Set();
 
   return {
     id,
@@ -36,13 +37,39 @@ function createFakeElement(id = "") {
     textContent: "",
     innerHTML: "",
     dataset: {},
+    children: [],
     style: {
       setProperty() {},
     },
     classList: {
-      add() {},
-      remove() {},
-      toggle() {},
+      add(...tokens) {
+        tokens.forEach((token) => classes.add(token));
+      },
+      remove(...tokens) {
+        tokens.forEach((token) => classes.delete(token));
+      },
+      toggle(token, force) {
+        if (force === true) {
+          classes.add(token);
+          return true;
+        }
+
+        if (force === false) {
+          classes.delete(token);
+          return false;
+        }
+
+        if (classes.has(token)) {
+          classes.delete(token);
+          return false;
+        }
+
+        classes.add(token);
+        return true;
+      },
+      contains(token) {
+        return classes.has(token);
+      },
     },
     addEventListener(type, handler) {
       listeners.set(type, handler);
@@ -55,7 +82,13 @@ function createFakeElement(id = "") {
       });
     },
     focus() {},
-    appendChild() {},
+    appendChild(child) {
+      this.children.push(child);
+      return child;
+    },
+    remove() {
+      this.removed = true;
+    },
     setAttribute(name, value) {
       this[name] = value === "" ? true : value;
     },
@@ -69,7 +102,7 @@ function createFakeElement(id = "") {
   };
 }
 
-function createWidgetHarness({ customFetch = null } = {}) {
+function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = {}) {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -103,12 +136,15 @@ function createWidgetHarness({ customFetch = null } = {}) {
     "send-button",
     "composer-status",
     "assistant-name",
+    "welcome-assistant-name",
     "launcher-text",
     "welcome-message",
     "intro-avatar",
     "brand-mark",
     "brand-mark-logo",
     "brand-mark-v",
+    "welcome-brand-logo",
+    "welcome-brand-v",
     "powered-by",
     "chat",
   ].forEach((id) => getElement(id));
@@ -133,6 +169,10 @@ function createWidgetHarness({ customFetch = null } = {}) {
 
       if (selector === ".brand-mark") {
         return getElement("brand-mark");
+      }
+
+      if (selector === ".welcome-brand-mark") {
+        return getElement("welcome-brand-mark");
       }
 
       if (selector === 'meta[name="apple-mobile-web-app-title"]') {
@@ -182,7 +222,7 @@ function createWidgetHarness({ customFetch = null } = {}) {
           return "uuid-1";
         },
       },
-      VonzaWidgetConfig: {},
+      VonzaWidgetConfig: widgetRuntimeConfig,
       addEventListener() {},
     },
     globalThis: null,
@@ -230,6 +270,7 @@ test("widget can continue as guest and build a guest payload", async () => {
   assert.equal(input.disabled, true);
   assert.equal(identityPanel.hidden, false);
   assert.equal(welcomeContent.hidden, true);
+  assert.equal(harness.hooks.hasChosenVisitorIdentity(), false);
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
     mode: "",
     email: "",
@@ -353,7 +394,9 @@ test("widget does not infer identity from an email without explicit mode", () =>
 test("widget renders custom header logo and falls back safely when unset", () => {
   const harness = createWidgetHarness();
   const logo = harness.elements.get("brand-mark-logo");
+  const welcomeLogo = harness.elements.get("welcome-brand-logo");
   const mark = harness.elements.get("brand-mark-v");
+  const welcomeMark = harness.elements.get("welcome-brand-v");
 
   harness.hooks.applyWidgetConfig({
     assistantName: "Acme Desk",
@@ -361,8 +404,11 @@ test("widget renders custom header logo and falls back safely when unset", () =>
   });
 
   assert.equal(logo.hidden, false);
+  assert.equal(welcomeLogo.hidden, false);
   assert.equal(logo.src, "data:image/png;base64,iVBORw0KGgo=");
+  assert.equal(welcomeLogo.src, "data:image/png;base64,iVBORw0KGgo=");
   assert.equal(mark.textContent, "A");
+  assert.equal(welcomeMark.textContent, "A");
 
   harness.hooks.applyWidgetConfig({
     assistantName: "Fallback Desk",
@@ -370,6 +416,107 @@ test("widget renders custom header logo and falls back safely when unset", () =>
   });
 
   assert.equal(logo.hidden, true);
+  assert.equal(welcomeLogo.hidden, true);
   assert.equal(logo.src, undefined);
+  assert.equal(welcomeLogo.src, undefined);
   assert.equal(mark.textContent, "F");
+  assert.equal(welcomeMark.textContent, "F");
+});
+
+test("widget modernizes legacy welcome defaults without auto-selecting a visitor mode", () => {
+  const harness = createWidgetHarness();
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Vonza Assistant",
+    welcomeMessage: "How may I be of your service today?",
+    launcherText: "YOUR PERSONAL ASSISTANT",
+    primaryColor: "#10a37f",
+    secondaryColor: "#0c7f75",
+  });
+
+  assert.equal(harness.elements.get("launcher-text").textContent, "AI front desk for your website");
+  assert.equal(harness.elements.get("welcome-message").textContent, "Hi! How can we help today?");
+  assert.equal(harness.elements.get("welcome-assistant-name").textContent, "Vonza Assistant");
+  assert.equal(harness.hooks.hasChosenVisitorIdentity(), false);
+});
+
+test("widget send flow keeps identity payloads and hides the welcome panel after the first message", async () => {
+  const harness = createWidgetHarness({
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              widgetConfig: {
+                assistantName: "Vonza Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We can help with that.",
+              visitorIdentity: {
+                mode: "guest",
+                email: "",
+                name: "",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+    widgetRuntimeConfig: {
+      websiteUrl: "https://example.com",
+    },
+  });
+  const input = harness.elements.get("input");
+  const welcomePanel = harness.elements.get("welcome-panel");
+
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  input.value = "What services do you offer?";
+  await harness.hooks.sendMessage();
+
+  const chatCall = harness.fetchCalls.find((call) => call.input === "/chat");
+  assert.ok(chatCall);
+  const payload = JSON.parse(chatCall.options.body);
+  assert.equal(payload.message, "What services do you offer?");
+  assert.equal(payload.visitor_identity_mode, "guest");
+  assert.equal(payload.visitor_email, "");
+  assert.equal(harness.hooks.isWelcomePanelHidden(), true);
+  assert.equal(welcomePanel.classList.contains("is-hidden"), true);
+});
+
+test("widget source keeps the welcome choices visible, omits attach and emoji controls, and preserves mobile rules", () => {
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
+  const style = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
+  const embed = readFileSync(path.join(repoRoot, "embed.js"), "utf8");
+
+  assert.match(widget, /Continue with email/);
+  assert.match(widget, /Continue as guest/);
+  assert.match(widget, /adatkezelesi-tajekoztato/);
+  assert.doesNotMatch(widget, /type="file"/);
+  assert.doesNotMatch(widget, /emoji/i);
+  assert.doesNotMatch(widget, /paperclip/i);
+  assert.match(style, /@media \(max-width: 720px\)/);
+  assert.match(style, /@media \(max-width: 420px\)/);
+  assert.match(embed, /launcher-presence/);
+  assert.match(embed, /launcher\.addEventListener\("click", openModal\)/);
+  assert.match(embed, /closeButton\.addEventListener\("click", closeModal\)/);
+  assert.match(embed, /event\.key === "Escape"/);
 });

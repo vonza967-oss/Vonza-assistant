@@ -4,7 +4,7 @@
   <title id="page-title">Vonza AI</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#5b61ff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Vonza AI" id="apple-app-title">
@@ -32,33 +32,67 @@
             <img class="brand-mark-logo" id="brand-mark-logo" alt="" hidden>
             <span class="brand-mark-v" id="brand-mark-v">V</span>
           </div>
-          <div>
-            <p class="eyebrow" id="launcher-text">YOUR PERSONAL ASSISTANT</p>
+          <div class="brand-copy">
+            <p class="eyebrow" id="launcher-text">AI front desk for your website</p>
             <h1 id="assistant-name">Vonza AI</h1>
+            <p class="status-pill">
+              <span class="status-dot"></span>
+              Typically replies instantly
+            </p>
           </div>
-        </div>
-        <div class="status-pill">
-          <span class="status-dot"></span>
-          Online
         </div>
       </header>
 
       <section id="chat" class="chat-feed">
         <section class="welcome-panel" id="welcome-panel">
           <section id="identity-choice-panel" class="identity-choice-panel">
-            <div class="welcome-badge">Customer help</div>
-            <h2 class="welcome-title">How would you like to continue?</h2>
-            <p class="welcome-copy">Using your email helps the business follow up and personalize support. You can still keep it quick and continue as a guest.</p>
-            <div class="identity-choice-actions">
-              <button id="identity-guest-button" class="ghost-button identity-choice-button" type="button">Continue as guest</button>
-              <button id="identity-email-button" class="identity-choice-button" type="button">Continue with email</button>
+            <div class="welcome-brand">
+              <div class="welcome-brand-mark" aria-hidden="true">
+                <img class="welcome-brand-logo" id="welcome-brand-logo" alt="" hidden>
+                <span class="welcome-brand-v" id="welcome-brand-v">V</span>
+              </div>
+              <div class="welcome-brand-copy">
+                <p class="welcome-brand-name" id="welcome-assistant-name">Vonza AI</p>
+                <p class="welcome-brand-subtitle">AI front desk for your website</p>
+              </div>
             </div>
-            <p class="identity-legal">
-              Before you continue, you can review how Vonza handles
-              <a href="/adatkezelesi-tajekoztato" target="_blank" rel="noreferrer">your data</a>,
-              <a href="/aszf" target="_blank" rel="noreferrer">the terms</a>,
-              and <a href="/cookie-tajekoztato" target="_blank" rel="noreferrer">cookies</a>.
-            </p>
+            <div class="welcome-badge">Quick answers</div>
+            <h2 class="welcome-title">Hi! How can we help today?</h2>
+            <p class="welcome-copy">Ask a question and get a clear answer. Choose how you'd like to continue.</p>
+            <div class="identity-choice-actions">
+              <button id="identity-email-button" class="identity-choice-button identity-choice-button-primary" type="button">
+                <span class="identity-choice-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5v-9Zm2.04-.5 5.12 4.02a1.35 1.35 0 0 0 1.67 0L17.96 7H6.04Zm11.96 1.27-4.29 3.37a3.35 3.35 0 0 1-4.12 0L5.3 8.27V16.5c0 .66.54 1.2 1.2 1.2h11c.66 0 1.2-.54 1.2-1.2V8.27Z"></path>
+                  </svg>
+                </span>
+                <span class="identity-choice-content">
+                  <span class="identity-choice-title">Continue with email</span>
+                  <span class="identity-choice-copy">We'll send the conversation to your inbox.</span>
+                </span>
+                <span class="identity-choice-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06L13.44 12 9.47 8.03a.75.75 0 0 1 0-1.06Z"></path>
+                  </svg>
+                </span>
+              </button>
+              <button id="identity-guest-button" class="identity-choice-button identity-choice-button-secondary" type="button">
+                <span class="identity-choice-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M12 4.75a3.75 3.75 0 1 1 0 7.5 3.75 3.75 0 0 1 0-7.5Zm0 9c-3.71 0-6.75 2.5-6.75 5.5 0 .41.34.75.75.75h12a.75.75 0 0 0 .75-.75c0-3-3.04-5.5-6.75-5.5Zm0-7.5a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Zm0 9c2.6 0 4.77 1.47 5.18 3.25H6.82c.41-1.78 2.58-3.25 5.18-3.25Z"></path>
+                  </svg>
+                </span>
+                <span class="identity-choice-content">
+                  <span class="identity-choice-title">Continue as guest</span>
+                  <span class="identity-choice-copy">Ask questions anonymously.</span>
+                </span>
+                <span class="identity-choice-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                    <path d="M9.47 6.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1 0 1.06l-4.5 4.5a.75.75 0 1 1-1.06-1.06L13.44 12 9.47 8.03a.75.75 0 0 1 0-1.06Z"></path>
+                  </svg>
+                </span>
+              </button>
+            </div>
             <form id="identity-email-form" class="identity-email-form" hidden>
               <div class="identity-email-grid">
                 <div class="identity-email-field">
@@ -78,23 +112,32 @@
           </section>
 
           <section id="welcome-content" hidden>
-            <div class="welcome-badge">Customer help</div>
+            <div class="welcome-badge">Start here</div>
             <div id="identity-summary" class="identity-summary" hidden></div>
             <h2 class="welcome-title">Ask a question and get a clear answer.</h2>
-            <p class="welcome-copy">Vonza can explain services, pricing, booking options, contact details, and the next step without making you wait.</p>
+            <p class="welcome-copy">Vonza can help with services, pricing, booking, contact details, and the next step without making you wait.</p>
             <div class="starter-prompts" id="starter-prompts">
-              <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">What services do you offer?</button>
-              <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">How much does it cost?</button>
-              <button class="starter-chip" type="button" data-starter-prompt="How can I contact you?">How can I contact you?</button>
-              <button class="starter-chip" type="button" data-starter-prompt="Tell me about your business">Tell me about your business</button>
+              <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">Services</button>
+              <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">Pricing</button>
+              <button class="starter-chip" type="button" data-starter-prompt="How can I book a call?">Book a call</button>
+              <button class="starter-chip" type="button" data-starter-prompt="What are your opening hours?">Opening hours</button>
             </div>
           </section>
+          <div class="welcome-footer">
+            <p class="identity-trust">We respect your privacy.</p>
+            <p class="identity-legal">
+              Before you continue, you can review how Vonza handles
+              <a href="/adatkezelesi-tajekoztato" target="_blank" rel="noreferrer">your data</a>,
+              <a href="/aszf" target="_blank" rel="noreferrer">the terms</a>,
+              and <a href="/cookie-tajekoztato" target="_blank" rel="noreferrer">cookies</a>.
+            </p>
+          </div>
         </section>
         <div class="message bot intro" id="intro-message" hidden>
           <div class="avatar" id="intro-avatar">V</div>
           <div class="bubble">
             <p class="message-label">Assistant</p>
-            <p id="welcome-message">How may I be of your service today?</p>
+            <p id="welcome-message">Hi! How can we help today?</p>
           </div>
         </div>
       </section>
@@ -103,12 +146,17 @@
 
       <div class="composer-shell">
         <div class="input-area">
-          <input id="input" placeholder="Type here" />
-          <button id="send-button" onclick="sendMessage()">Send</button>
+          <input id="input" placeholder="Type your question..." autocomplete="off" />
+          <button id="send-button" class="send-button" type="button" onclick="sendMessage()" aria-label="Send message">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M20.72 4.46a1 1 0 0 0-1.04-.16L4.37 10.72a1 1 0 0 0 .08 1.87l6.03 2.17 2.18 6.02a1 1 0 0 0 .9.66h.06a1 1 0 0 0 .92-.77L20.9 5.35a1 1 0 0 0-.18-.89Zm-7.17 13.01-1.43-3.97a1 1 0 0 0-.6-.6L7.55 11.47l10.48-4.4-4.48 10.4Z"></path>
+            </svg>
+            <span class="sr-only">Send message</span>
+          </button>
         </div>
-        <p class="composer-hint" id="composer-hint">Press Enter to send. Answers use this business's latest details.</p>
+        <p class="composer-hint" id="composer-hint">Press Enter to send. The assistant replies using the business's latest details.</p>
         <p class="composer-status" id="composer-status">Ask about services, pricing, booking, quotes, contact details, or the next step.</p>
-        <p class="powered-by" id="powered-by">Powered by Vonza AI</p>
+        <p class="powered-by" id="powered-by">We're here to help | Powered by Vonza</p>
       </div>
     </main>
   </div>

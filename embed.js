@@ -2,11 +2,15 @@
   const GLOBAL_FLAG = "__VonzaAssistantWidgetLoaded__";
   const ROOT_ID = "vonza-widget-root";
   const LOG_PREFIX = "[Vonza widget]";
+  const LEGACY_WIDGET_DEFAULTS = {
+    primaryColor: "#10a37f",
+    secondaryColor: "#0c7f75",
+  };
   const DEFAULT_WIDGET_CONFIG = {
     assistantName: "Vonza AI",
     buttonLabel: "Chat with Vonza",
-    primaryColor: "#10a37f",
-    secondaryColor: "#0c7f75",
+    primaryColor: "#5b61ff",
+    secondaryColor: "#7c4dff",
   };
 
   if (window[GLOBAL_FLAG] || document.getElementById(ROOT_ID)) {
@@ -91,6 +95,41 @@
 
   function cleanBaseUrl(value) {
     return String(value || "").replace(/\/$/, "");
+  }
+
+  function cleanText(value) {
+    return String(value || "").trim();
+  }
+
+  function normalizeHexColor(value) {
+    return cleanText(value).toLowerCase();
+  }
+
+  function normalizeVisualConfig(input = {}) {
+    const next = {
+      ...DEFAULT_WIDGET_CONFIG,
+      ...input,
+    };
+    const primaryColor = normalizeHexColor(next.primaryColor);
+    const secondaryColor = normalizeHexColor(next.secondaryColor);
+    const hasLegacyColors =
+      primaryColor === normalizeHexColor(LEGACY_WIDGET_DEFAULTS.primaryColor)
+      && secondaryColor === normalizeHexColor(LEGACY_WIDGET_DEFAULTS.secondaryColor);
+
+    if (hasLegacyColors || (!primaryColor && !secondaryColor)) {
+      next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
+      next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
+    } else {
+      if (!primaryColor) {
+        next.primaryColor = DEFAULT_WIDGET_CONFIG.primaryColor;
+      }
+
+      if (!secondaryColor) {
+        next.secondaryColor = DEFAULT_WIDGET_CONFIG.secondaryColor;
+      }
+    }
+
+    return next;
   }
 
   function buildWidgetUrl(baseUrl, config) {
@@ -215,7 +254,7 @@
     return data;
   }
 
-  function createTemplate(buttonLabel, visualConfig = DEFAULT_WIDGET_CONFIG) {
+  function createTemplate(visualConfig = DEFAULT_WIDGET_CONFIG) {
     return `
       <style>
         :host {
@@ -236,82 +275,97 @@
 
         .launcher {
           position: relative;
-          overflow: visible;
-          width: 60px;
-          height: 60px;
+          width: 62px;
+          height: 62px;
           border: none;
-          border-radius: 999px;
+          border-radius: 22px;
           display: grid;
           place-items: center;
           cursor: pointer;
-          color: #ede9fe;
+          overflow: visible;
+          color: #4350dc;
           background:
-            radial-gradient(circle at 28% 24%, rgba(192, 132, 252, 0.12), transparent 34%),
-            linear-gradient(145deg, var(--widget-primary, ${visualConfig.primaryColor}) 0%, var(--widget-secondary, ${visualConfig.secondaryColor}) 72%, #25163b 100%);
+            radial-gradient(circle at 28% 24%, rgba(255, 255, 255, 0.24), transparent 32%),
+            linear-gradient(135deg, var(--widget-primary, ${visualConfig.primaryColor}) 0%, var(--widget-secondary, ${visualConfig.secondaryColor}) 100%);
           box-shadow:
-            0 14px 30px rgba(6, 4, 17, 0.34),
-            0 0 18px color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 16%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            0 18px 36px rgba(67, 71, 178, 0.24),
+            0 10px 18px rgba(58, 69, 136, 0.16),
+            inset 0 1px 0 rgba(255, 255, 255, 0.24);
           transition:
             transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
             box-shadow 220ms ease;
         }
 
-        .launcher::after {
+        .launcher::before {
           content: "";
           position: absolute;
-          inset: -12px;
-          border-radius: 50%;
-          background: conic-gradient(
-            from 0deg,
-            transparent,
-            color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 50%, transparent),
-            transparent
-          );
-          filter: blur(12px);
-          opacity: 0.35;
-          animation: orbitSpin 10s linear infinite;
+          inset: -10px;
+          border-radius: 28px;
+          background: radial-gradient(circle, color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 22%, transparent), transparent 72%);
+          opacity: 0.75;
+          transform: scale(0.92);
+          animation: ring 2.8s infinite ease-out;
           pointer-events: none;
         }
 
         .launcher:hover {
-          transform: translateY(-1px) scale(1.05);
+          transform: translateY(-1px) scale(1.04);
           box-shadow:
-            0 18px 36px rgba(6, 4, 17, 0.38),
-            0 0 24px color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 22%, transparent),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-        }
-
-        .launcher::before {
-          content: "";
-          position: absolute;
-          inset: -8px;
-          border-radius: 999px;
-          background: radial-gradient(circle, color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 16%, transparent), transparent 70%);
-          opacity: 0.55;
-          transform: scale(0.92);
-          animation: ring 2.6s infinite ease-out;
-          pointer-events: none;
+            0 22px 40px rgba(67, 71, 178, 0.28),
+            0 12px 24px rgba(58, 69, 136, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.28);
         }
 
         .launcher-badge {
-          width: 100%;
-          height: 100%;
-          border-radius: 999px;
+          position: relative;
+          width: 42px;
+          height: 42px;
+          border-radius: 16px;
           display: grid;
           place-items: center;
-          font-size: 22px;
-          font-weight: 500;
-          letter-spacing: 0.08em;
-          color: transparent;
-          background: linear-gradient(180deg, #c4b5fd 0%, #ede9fe 58%, #faf5ff 100%);
-          background-clip: text;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          text-shadow:
-            0 0 10px rgba(196, 181, 253, 0.18),
-            0 0 18px color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 18%, transparent);
-          filter: drop-shadow(0 0 6px color-mix(in srgb, var(--widget-primary, ${visualConfig.primaryColor}) 18%, transparent));
+          background: rgba(255, 255, 255, 0.96);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.8),
+            0 8px 18px rgba(68, 80, 132, 0.14);
+        }
+
+        .launcher-face {
+          position: relative;
+          width: 22px;
+          height: 16px;
+          border-bottom: 3px solid currentColor;
+          border-radius: 0 0 13px 13px;
+        }
+
+        .launcher-face::before,
+        .launcher-face::after {
+          content: "";
+          position: absolute;
+          top: 2px;
+          width: 4px;
+          height: 4px;
+          border-radius: 999px;
+          background: currentColor;
+        }
+
+        .launcher-face::before {
+          left: 4px;
+        }
+
+        .launcher-face::after {
+          right: 4px;
+        }
+
+        .launcher-presence {
+          position: absolute;
+          top: 5px;
+          right: 5px;
+          width: 14px;
+          height: 14px;
+          border-radius: 999px;
+          background: #3dbb68;
+          border: 2px solid rgba(255, 255, 255, 0.96);
+          box-shadow: 0 0 0 4px rgba(61, 187, 104, 0.18);
         }
 
         .launcher-badge.is-opening {
@@ -320,18 +374,18 @@
 
         .launcher-label {
           position: absolute;
-          right: 72px;
+          right: 78px;
           top: 50%;
           transform: translateY(-50%) translateX(10px);
           padding: 10px 14px;
           border-radius: 999px;
           white-space: nowrap;
-          color: #e8edf9;
-          background: rgba(8, 13, 25, 0.86);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 0 20px 40px rgba(4, 10, 20, 0.28);
+          color: #1c2642;
+          background: rgba(255, 255, 255, 0.96);
+          border: 1px solid rgba(94, 110, 152, 0.12);
+          box-shadow: 0 18px 36px rgba(80, 96, 150, 0.16);
           font-size: 12px;
-          font-weight: 700;
+          font-weight: 800;
           letter-spacing: 0.02em;
           opacity: 0;
           pointer-events: none;
@@ -352,8 +406,8 @@
           align-items: flex-end;
           justify-content: flex-end;
           padding: 18px;
-          background: rgba(4, 10, 20, 0.28);
-          backdrop-filter: blur(6px);
+          background: rgba(12, 18, 40, 0.12);
+          backdrop-filter: blur(8px);
           opacity: 0;
           pointer-events: none;
           transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -366,17 +420,17 @@
 
         .panel {
           position: relative;
-          width: min(392px, calc(100vw - 24px));
-          height: min(680px, calc(100vh - 24px));
-          border-radius: 26px;
+          width: min(408px, calc(100vw - 24px));
+          height: min(724px, calc(100vh - 24px));
+          border-radius: 30px;
           overflow: hidden;
           box-shadow:
-            0 32px 96px rgba(0, 0, 0, 0.42),
-            0 10px 24px rgba(4, 10, 20, 0.28);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+            0 34px 96px rgba(43, 56, 95, 0.2),
+            0 14px 28px rgba(60, 74, 128, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.78);
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0)),
-            #09101d;
+            linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0)),
+            #f6f8ff;
           transform: translateY(10px) scale(0.95);
           opacity: 0;
           transition:
@@ -393,7 +447,7 @@
           content: "";
           position: absolute;
           inset: 0;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 16%);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 18%);
           pointer-events: none;
           z-index: 1;
         }
@@ -403,7 +457,7 @@
           height: 100%;
           border: none;
           display: block;
-          background: #09101d;
+          background: #ffffff;
         }
 
         .status-layer {
@@ -416,10 +470,11 @@
           gap: 14px;
           padding: 28px;
           text-align: center;
-          color: #e8edf9;
+          color: #1c2642;
           background:
-            linear-gradient(180deg, rgba(9, 14, 28, 0.94), rgba(9, 14, 28, 0.88)),
-            radial-gradient(circle at top left, rgba(16, 163, 127, 0.12), transparent 34%);
+            radial-gradient(circle at top left, rgba(124, 77, 255, 0.08), transparent 34%),
+            radial-gradient(circle at top right, rgba(91, 97, 255, 0.1), transparent 30%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 255, 0.96));
           z-index: 2;
           transition: opacity 180ms ease;
         }
@@ -433,21 +488,21 @@
           width: 34px;
           height: 34px;
           border-radius: 999px;
-          border: 3px solid rgba(255, 255, 255, 0.16);
+          border: 3px solid rgba(91, 97, 255, 0.14);
           border-top-color: var(--widget-primary, ${visualConfig.primaryColor});
           animation: spin 850ms linear infinite;
         }
 
         .status-title {
           font-size: 15px;
-          font-weight: 700;
+          font-weight: 800;
           line-height: 1.4;
         }
 
         .status-copy {
           font-size: 13px;
           line-height: 1.5;
-          color: rgba(232, 237, 249, 0.74);
+          color: rgba(85, 97, 127, 0.84);
         }
 
         .status-actions {
@@ -459,35 +514,37 @@
 
         .status-button {
           border: none;
-          border-radius: 999px;
+          border-radius: 16px;
           padding: 10px 14px;
           background: linear-gradient(135deg, var(--widget-primary, ${visualConfig.primaryColor}), var(--widget-secondary, ${visualConfig.secondaryColor}));
           color: #ffffff;
           font: inherit;
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 800;
           cursor: pointer;
-          box-shadow: 0 12px 24px rgba(16, 163, 127, 0.2);
+          box-shadow: 0 12px 24px rgba(91, 97, 255, 0.18);
         }
 
         .status-button.secondary {
-          background: rgba(255, 255, 255, 0.08);
+          background: #ffffff;
+          color: #1c2642;
+          border: 1px solid rgba(94, 110, 152, 0.14);
           box-shadow: none;
         }
 
         .close {
           position: absolute;
-          top: 12px;
-          right: 12px;
-          width: 34px;
-          height: 34px;
+          top: 14px;
+          right: 14px;
+          width: 36px;
+          height: 36px;
           border: none;
           border-radius: 999px;
           display: grid;
           place-items: center;
-          color: #f5f7fb;
-          background: rgba(8, 13, 25, 0.68);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           font: inherit;
           font-size: 18px;
           line-height: 1;
@@ -500,21 +557,21 @@
 
         .close:hover {
           transform: scale(1.04);
-          background: rgba(14, 22, 40, 0.92);
+          background: rgba(255, 255, 255, 0.24);
         }
 
         @keyframes ring {
           0% {
-            opacity: 0.5;
+            opacity: 0.72;
             transform: scale(0.92);
           }
           70% {
             opacity: 0;
-            transform: scale(1.2);
+            transform: scale(1.18);
           }
           100% {
             opacity: 0;
-            transform: scale(1.2);
+            transform: scale(1.18);
           }
         }
 
@@ -524,30 +581,18 @@
           }
         }
 
-        @keyframes orbitSpin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
         @keyframes launcherLogoPulse {
           0% {
-            transform: translateY(10px) scale(0.95);
+            transform: scale(0.92);
             opacity: 0;
-            filter: drop-shadow(0 0 3px rgba(147, 51, 234, 0.12));
           }
           55% {
-            transform: translateY(0) scale(1.04);
+            transform: scale(1.06);
             opacity: 1;
-            filter: drop-shadow(0 0 12px rgba(196, 181, 253, 0.22));
           }
           100% {
-            transform: translateY(0) scale(1);
+            transform: scale(1);
             opacity: 1;
-            filter: drop-shadow(0 0 6px rgba(147, 51, 234, 0.16));
           }
         }
 
@@ -558,14 +603,13 @@
           }
 
           .launcher {
-            width: 56px;
-            height: 56px;
+            width: 58px;
+            height: 58px;
           }
 
           .launcher-badge {
-            width: 34px;
-            height: 34px;
-            font-size: 16px;
+            width: 38px;
+            height: 38px;
           }
 
           .launcher-label {
@@ -603,17 +647,20 @@
         }
       </style>
       <div class="widget-shell">
-        <button class="launcher" type="button" aria-label="${buttonLabel}" title="${buttonLabel}">
-          <span class="launcher-badge">V</span>
+        <button class="launcher" type="button" aria-label="${visualConfig.buttonLabel}" title="${visualConfig.buttonLabel}">
+          <span class="launcher-badge">
+            <span class="launcher-face"></span>
+          </span>
+          <span class="launcher-presence"></span>
         </button>
-        <div class="launcher-label">${buttonLabel}</div>
+        <div class="launcher-label">${visualConfig.buttonLabel}</div>
         <div class="modal" data-open="false" aria-hidden="true">
           <div class="panel" role="dialog" aria-modal="true" aria-label="Vonza assistant">
             <button class="close" type="button" aria-label="Close">&times;</button>
             <div class="status-layer">
-            <div class="status-spinner"></div>
-              <div class="status-title">Preparing your assistant</div>
-              <div class="status-copy">${visualConfig.assistantName} is loading with the current website-based setup.</div>
+              <div class="status-spinner"></div>
+              <div class="status-title">Opening chat</div>
+              <div class="status-copy">This will just take a moment.</div>
               <div class="status-actions" hidden>
                 <button class="status-button" type="button" data-action="retry">Retry</button>
                 <button class="status-button secondary" type="button" data-action="close">Close</button>
@@ -679,7 +726,7 @@
     }
 
     const installId = bootstrapData?.install?.installId || config.installId || "";
-    const visualConfig = {
+    const visualConfig = normalizeVisualConfig({
       ...DEFAULT_WIDGET_CONFIG,
       ...(bootstrapData?.widgetConfig || {}),
       buttonLabel:
@@ -694,7 +741,7 @@
         config.secondaryColor ||
         bootstrapData?.widgetConfig?.secondaryColor ||
         DEFAULT_WIDGET_CONFIG.secondaryColor,
-    };
+    });
     const runtimeConfig = {
       ...config,
       installId,
@@ -709,7 +756,7 @@
     window[GLOBAL_FLAG] = true;
 
     const shadowRoot = host.attachShadow({ mode: "open" });
-    shadowRoot.innerHTML = createTemplate(visualConfig.buttonLabel, visualConfig);
+    shadowRoot.innerHTML = createTemplate(visualConfig);
     host.style.setProperty("--widget-primary", visualConfig.primaryColor);
     host.style.setProperty("--widget-secondary", visualConfig.secondaryColor);
 
@@ -735,7 +782,7 @@
     launcher.setAttribute("aria-label", visualConfig.buttonLabel);
     launcher.setAttribute("title", visualConfig.buttonLabel);
     launcherLabel.textContent = visualConfig.buttonLabel;
-    statusCopy.textContent = `The widget is connecting to ${visualConfig.assistantName}.`;
+    statusCopy.textContent = `We're getting ${visualConfig.assistantName} ready.`;
     panel.setAttribute("aria-label", visualConfig.assistantName);
     iframe.setAttribute("title", visualConfig.assistantName);
 
@@ -793,14 +840,14 @@
     function showLoadingState() {
       statusLayer.hidden = false;
       statusActions.hidden = true;
-      statusTitle.textContent = "Loading assistant";
-      statusCopy.textContent = "The widget is connecting to Vonza.";
+      statusTitle.textContent = "Opening chat";
+      statusCopy.textContent = "This will just take a moment.";
     }
 
     function showErrorState() {
       statusLayer.hidden = false;
       statusActions.hidden = false;
-      statusTitle.textContent = "Assistant unavailable";
+      statusTitle.textContent = "Chat unavailable";
       statusCopy.textContent =
         "The widget could not load right now. Please try again in a moment.";
       logger.error("Widget iframe did not finish loading in time.");

@@ -1276,7 +1276,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         const widget = await getText(server.baseUrl, "/widget");
         assert.equal(widget.status, 200);
         assert.match(widget.text, /chat-container/);
-        assert.match(widget.text, /Powered by Vonza AI/);
+        assert.match(widget.text, /Powered by Vonza/);
 
         const authScript = await getText(server.baseUrl, "/supabase-auth.js");
         assert.equal(authScript.status, 200);
@@ -1482,7 +1482,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
 
         const widgetPreview = await getText(server.baseUrl, "/widget");
         assert.equal(widgetPreview.status, 200);
-        assert.match(widgetPreview.text, /Customer help/i);
+        assert.match(widgetPreview.text, /Quick answers/i);
         assert.match(widgetPreview.text, /Ask a question and get a clear answer/i);
         assert.doesNotMatch(widgetPreview.text, /operator workspace/i);
 
