@@ -1239,12 +1239,18 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Widget purpose/);
   assert.match(settings, /Widget logo/);
   assert.match(settings, /Upload the icon\/logo shown at the top of your widget/);
+  assert.match(settings, /Website knowledge and widget logo/);
   assert.match(settings, /What should your widget mainly help visitors do/);
   assert.match(settings, /Guidance/);
   assert.match(settings, /Support/);
   assert.match(settings, /Make a decision/);
   assert.match(settings, /Lead capture \/ contact/);
   assert.match(settings, /Booking \/ next step guidance/);
+  assert.doesNotMatch(settings, /Primary color/);
+  assert.doesNotMatch(settings, /Secondary color/);
+  assert.doesNotMatch(settings, /assistant-primary-color/);
+  assert.doesNotMatch(settings, /assistant-secondary-color/);
+  assert.doesNotMatch(settings, /studio-swatch/i);
   assert.match(settings, /Connected tools/);
   assert.match(settings, /Beta/);
   assert.doesNotMatch(settings, /Connect Google/);

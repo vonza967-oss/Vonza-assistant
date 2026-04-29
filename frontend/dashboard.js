@@ -13930,7 +13930,7 @@ function updateStudioSummary(
   const brandWidgetAvatar = document.getElementById("brand-widget-avatar");
   const brandLauncher = document.getElementById("brand-launcher");
 
-  if (!form || !nameEl || !copyEl || !toneEl || !buttonEl || !primarySwatch || !secondarySwatch) {
+  if (!form || !nameEl || !copyEl || !toneEl || !buttonEl) {
     return;
   }
 
@@ -13958,8 +13958,13 @@ function updateStudioSummary(
   if (purposeEl) {
     purposeEl.textContent = purpose.label;
   }
-  primarySwatch.style.setProperty("--swatch-color", primaryColor);
-  secondarySwatch.style.setProperty("--swatch-color", secondaryColor);
+  if (primarySwatch) {
+    primarySwatch.style.setProperty("--swatch-color", primaryColor);
+  }
+
+  if (secondarySwatch) {
+    secondarySwatch.style.setProperty("--swatch-color", secondaryColor);
+  }
 
   if (brandWidgetTitle) {
     brandWidgetTitle.textContent = assistantName;

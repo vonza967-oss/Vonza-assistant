@@ -692,8 +692,8 @@
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Website knowledge and brand</h3>
-              <p class="settings-shell-section-copy">Keep the front desk aligned with the brand your customers already know, and rerun import when the website changes.</p>
+              <h3 class="settings-shell-section-title">Website knowledge and widget logo</h3>
+              <p class="settings-shell-section-copy">Keep the front desk aligned with the website your customers already know, and upload the logo that should appear in the widget header.</p>
             </div>
           </div>
           <div class="settings-shell-field-stack">
@@ -708,14 +708,6 @@
                   <p class="field-help">Upload the icon/logo shown at the top of your widget. Use a small square PNG, JPG, WebP, or GIF.</p>
                 </div>
               </div>
-            </div>
-            <div class="field">
-              <label for="assistant-primary-color">Primary color</label>
-              <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
-            </div>
-            <div class="field">
-              <label for="assistant-secondary-color">Secondary color</label>
-              <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
             </div>
           </div>
           <div class="settings-shell-status-list">
@@ -768,10 +760,6 @@
             <div class="studio-summary-badge-row">
               <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
               <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
-            </div>
-            <div class="studio-swatch-row">
-              <div id="studio-swatch-primary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.primaryColor || "#14b8a6")}">Primary</div>
-              <div id="studio-swatch-secondary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.secondaryColor || "#0f766e")}">Secondary</div>
             </div>
             <div class="settings-shell-key-value-list">
               <div class="settings-shell-key-value-row">

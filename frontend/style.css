@@ -262,7 +262,7 @@ h1 {
 
 .welcome-panel {
   display: grid;
-  gap: 18px;
+  gap: 14px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.94);
@@ -274,11 +274,10 @@ h1 {
   display: none;
 }
 
-.identity-choice-panel,
-#welcome-content {
+.identity-choice-panel {
   display: grid;
-  gap: 14px;
-  padding: 22px 22px 0;
+  gap: 12px;
+  padding: 20px 20px 0;
 }
 
 .welcome-brand {
@@ -346,8 +345,8 @@ h1 {
   gap: 14px;
   align-items: center;
   width: 100%;
-  min-height: 78px;
-  padding: 16px 18px;
+  min-height: 72px;
+  padding: 15px 17px;
   border: 1px solid var(--border-soft);
   border-radius: 20px;
   background: #ffffff;
@@ -472,8 +471,8 @@ input:focus {
 
 .welcome-footer {
   display: grid;
-  gap: 8px;
-  padding: 0 22px 20px;
+  gap: 6px;
+  padding: 0 20px 18px;
 }
 
 .identity-trust {
@@ -497,49 +496,6 @@ input:focus {
 
 .identity-legal a:hover {
   color: var(--brand-secondary);
-}
-
-.identity-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: fit-content;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: var(--bg-soft);
-  border: 1px solid rgba(94, 110, 152, 0.14);
-  color: var(--text-soft);
-  font-size: 0.82rem;
-  line-height: 1.45;
-}
-
-.identity-summary strong {
-  color: var(--brand-ink);
-  font-size: 0.76rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.starter-prompts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.starter-chip {
-  padding: 11px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(94, 110, 152, 0.14);
-  background: #ffffff;
-  color: var(--text-main);
-  font-size: 0.85rem;
-  font-weight: 700;
-  box-shadow: none;
-}
-
-.starter-chip:hover {
-  background: var(--bg-soft);
-  box-shadow: none;
 }
 
 .message {
@@ -817,8 +773,7 @@ button:disabled {
 }
 
 button:focus-visible,
-input:focus-visible,
-.starter-chip:focus-visible {
+input:focus-visible {
   outline: 3px solid rgba(91, 97, 255, 0.2);
   outline-offset: 2px;
 }
@@ -912,7 +867,6 @@ input:focus-visible,
   }
 
   .identity-choice-panel,
-  #welcome-content,
   .welcome-footer {
     padding-left: 18px;
     padding-right: 18px;

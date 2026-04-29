@@ -59,7 +59,6 @@ const DEFAULT_WIDGET_CONFIG = {
 
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
-let hasHiddenWelcomePanel = false;
 let resolvedAgentId = AGENT_ID;
 let resolvedAgentKey = AGENT_KEY;
 let resolvedBusinessId = BUSINESS_ID;
@@ -277,40 +276,30 @@ function getIdentityEmailForm() {
   return document.getElementById("identity-email-form");
 }
 
-function getWelcomeContent() {
-  return document.getElementById("welcome-content");
+function getWelcomePanel() {
+  return document.getElementById("welcome-panel");
 }
 
 function getIntroMessage() {
   return document.getElementById("intro-message");
 }
 
-function getIdentitySummaryText(identity = visitorIdentity) {
-  const normalized = normalizeVisitorIdentityState(identity);
-
-  if (normalized.mode === "identified") {
-    return normalized.name
-      ? `${normalized.name} · ${normalized.email}`
-      : normalized.email;
-  }
-
-  if (normalized.mode === "guest") {
-    return "Continuing without email";
-  }
-
-  return "";
+function getComposerShell() {
+  return document.getElementById("composer-shell");
 }
 
 function updateComposerAvailability() {
+  const composerShell = getComposerShell();
   const input = document.getElementById("input");
   const button = document.getElementById("send-button");
   const inputArea = document.querySelector(".input-area");
   const identityReady = hasChosenVisitorIdentity();
 
-  if (!input || !button || !inputArea) {
+  if (!composerShell || !input || !button || !inputArea) {
     return;
   }
 
+  composerShell.hidden = !identityReady;
   input.disabled = !identityReady;
   button.disabled = !identityReady;
   input.placeholder = identityReady ? "Type your question..." : "Choose email or guest to start";
@@ -318,30 +307,27 @@ function updateComposerAvailability() {
 }
 
 function renderVisitorIdentityGate() {
+  const welcomePanel = getWelcomePanel();
   const identityPanel = getIdentityChoicePanel();
-  const welcomeContent = getWelcomeContent();
+  const emailForm = getIdentityEmailForm();
   const introMessage = getIntroMessage();
-  const summary = document.getElementById("identity-summary");
   const normalized = normalizeVisitorIdentityState(visitorIdentity);
   const identityReady = Boolean(normalized.mode);
 
-  if (identityPanel) {
-    identityPanel.hidden = identityReady;
+  if (welcomePanel) {
+    welcomePanel.classList.toggle("is-hidden", identityReady);
   }
 
-  if (welcomeContent) {
-    welcomeContent.hidden = !identityReady;
+  if (identityPanel) {
+    identityPanel.hidden = false;
   }
 
   if (introMessage) {
     introMessage.hidden = !identityReady;
   }
 
-  if (summary) {
-    summary.hidden = !identityReady;
-    summary.innerHTML = identityReady
-      ? `<strong>${escapeHtml(normalized.mode === "identified" ? "Email" : "Guest")}</strong> ${escapeHtml(getIdentitySummaryText(normalized))}`
-      : "";
+  if (emailForm && identityReady) {
+    emailForm.setAttribute("hidden", "");
   }
 
   updateComposerAvailability();
@@ -883,15 +869,6 @@ async function detectConversionOutcomesOnLoad() {
   }
 }
 
-function hideWelcomePanel() {
-  if (hasHiddenWelcomePanel) {
-    return;
-  }
-
-  document.getElementById("welcome-panel")?.classList.add("is-hidden");
-  hasHiddenWelcomePanel = true;
-}
-
 function setComposerStatus(message) {
   const statusEl = document.getElementById("composer-status");
 
@@ -960,6 +937,7 @@ function applyWidgetConfig(config = {}) {
   if (poweredBy) {
     poweredBy.textContent = "We're here to help | Powered by Vonza";
   }
+
   if (hasChosenVisitorIdentity()) {
     continueIntoChat(visitorIdentity, {
       persist: false,
@@ -1065,8 +1043,6 @@ async function sendMessage() {
     setComposerStatus("Choose guest or email before sending your first message.");
     return;
   }
-
-  hideWelcomePanel();
 
   if (!hasAssistantConfig()) {
     console.error(
@@ -1180,17 +1156,6 @@ async function sendMessage() {
   }
 }
 
-function sendStarterPrompt(prompt) {
-  const input = document.getElementById("input");
-
-  if (!input || !trimText(prompt)) {
-    return;
-  }
-
-  input.value = prompt;
-  sendMessage();
-}
-
 document.getElementById("identity-guest-button")?.addEventListener("click", () => {
   continueIntoChat({
     mode: "guest",
@@ -1235,12 +1200,6 @@ document.getElementById("input").addEventListener("keydown", (event) => {
   }
 });
 
-document.querySelectorAll("[data-starter-prompt]").forEach((button) => {
-  button.addEventListener("click", () => {
-    sendStarterPrompt(button.dataset.starterPrompt || "");
-  });
-});
-
 if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
 }
@@ -1259,7 +1218,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   }),
   getVisitorIdentity: () => ({ ...visitorIdentity }),
   hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
-  isWelcomePanelHidden: () => hasHiddenWelcomePanel,
+  isWelcomePanelHidden: () => getWelcomePanel()?.classList.contains("is-hidden") === true,
   normalizeVisitorIdentityState,
   sendMessage: () => sendMessage(),
 };

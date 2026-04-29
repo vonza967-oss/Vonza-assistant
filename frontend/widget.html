@@ -111,18 +111,6 @@
             </form>
           </section>
 
-          <section id="welcome-content" hidden>
-            <div class="welcome-badge">Start here</div>
-            <div id="identity-summary" class="identity-summary" hidden></div>
-            <h2 class="welcome-title">Ask a question and get a clear answer.</h2>
-            <p class="welcome-copy">Vonza can help with services, pricing, booking, contact details, and the next step without making you wait.</p>
-            <div class="starter-prompts" id="starter-prompts">
-              <button class="starter-chip" type="button" data-starter-prompt="What services do you offer?">Services</button>
-              <button class="starter-chip" type="button" data-starter-prompt="How much does it cost?">Pricing</button>
-              <button class="starter-chip" type="button" data-starter-prompt="How can I book a call?">Book a call</button>
-              <button class="starter-chip" type="button" data-starter-prompt="What are your opening hours?">Opening hours</button>
-            </div>
-          </section>
           <div class="welcome-footer">
             <p class="identity-trust">We respect your privacy.</p>
             <p class="identity-legal">
@@ -144,7 +132,7 @@
 
       <section id="direct-routing-slot" class="lead-capture-slot" hidden></section>
 
-      <div class="composer-shell">
+      <div class="composer-shell" id="composer-shell" hidden>
         <div class="input-area">
           <input id="input" placeholder="Type your question..." autocomplete="off" />
           <button id="send-button" class="send-button" type="button" onclick="sendMessage()" aria-label="Send message">

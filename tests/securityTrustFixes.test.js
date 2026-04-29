@@ -976,8 +976,9 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   assert.match(script, /function renderLeadCapture/);
   assert.match(script, /function renderVisitorIdentityGate/);
   assert.match(script, /function persistVisitorIdentityChoice/);
-  assert.match(script, /identityPanel\.hidden = identityReady/);
-  assert.match(script, /welcomeContent\.hidden = !identityReady/);
+  assert.match(script, /welcomePanel\.classList\.toggle\("is-hidden", identityReady\)/);
+  assert.match(script, /composerShell\.hidden = !identityReady/);
+  assert.match(script, /introMessage\.hidden = !identityReady/);
   assert.doesNotMatch(script, /data-lead-capture-submit/);
   assert.match(script, /appendMessage\(chat, "bot"/);
   assert.match(script, /action: normalized\.mode === "guest" \? "choose_guest" : "submit"/);
