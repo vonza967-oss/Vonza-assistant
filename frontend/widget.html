@@ -43,7 +43,7 @@
         </div>
       </header>
 
-      <section id="chat" class="chat-feed">
+      <section id="entry-state" class="chat-feed widget-phase widget-phase-entry">
         <section class="welcome-panel" id="welcome-panel">
           <section id="identity-choice-panel" class="identity-choice-panel">
             <div class="welcome-brand">
@@ -121,31 +121,36 @@
             </p>
           </div>
         </section>
-        <div class="message bot intro" id="intro-message" hidden>
-          <div class="avatar" id="intro-avatar">V</div>
-          <div class="bubble">
-            <p class="message-label">Assistant</p>
-            <p id="welcome-message">Hi! How can we help today?</p>
-          </div>
-        </div>
       </section>
 
-      <section id="direct-routing-slot" class="lead-capture-slot" hidden></section>
+      <section id="chat-state" class="widget-phase widget-phase-chat" hidden>
+        <section id="chat" class="chat-feed chat-thread">
+          <div class="message bot intro" id="intro-message" hidden>
+            <div class="avatar" id="intro-avatar">V</div>
+            <div class="bubble">
+              <p class="message-label">Assistant</p>
+              <p id="welcome-message">Hi! How can we help today?</p>
+            </div>
+          </div>
+        </section>
 
-      <div class="composer-shell" id="composer-shell" hidden>
-        <div class="input-area">
-          <input id="input" placeholder="Type your question..." autocomplete="off" />
-          <button id="send-button" class="send-button" type="button" onclick="sendMessage()" aria-label="Send message">
-            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-              <path d="M20.72 4.46a1 1 0 0 0-1.04-.16L4.37 10.72a1 1 0 0 0 .08 1.87l6.03 2.17 2.18 6.02a1 1 0 0 0 .9.66h.06a1 1 0 0 0 .92-.77L20.9 5.35a1 1 0 0 0-.18-.89Zm-7.17 13.01-1.43-3.97a1 1 0 0 0-.6-.6L7.55 11.47l10.48-4.4-4.48 10.4Z"></path>
-            </svg>
-            <span class="sr-only">Send message</span>
-          </button>
+        <section id="direct-routing-slot" class="lead-capture-slot" hidden></section>
+
+        <div class="composer-shell" id="composer-shell" hidden>
+          <div class="input-area">
+            <input id="input" placeholder="Type your question..." autocomplete="off" />
+            <button id="send-button" class="send-button" type="button" onclick="sendMessage()" aria-label="Send message">
+              <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                <path d="M20.72 4.46a1 1 0 0 0-1.04-.16L4.37 10.72a1 1 0 0 0 .08 1.87l6.03 2.17 2.18 6.02a1 1 0 0 0 .9.66h.06a1 1 0 0 0 .92-.77L20.9 5.35a1 1 0 0 0-.18-.89Zm-7.17 13.01-1.43-3.97a1 1 0 0 0-.6-.6L7.55 11.47l10.48-4.4-4.48 10.4Z"></path>
+              </svg>
+              <span class="sr-only">Send message</span>
+            </button>
+          </div>
+          <p class="composer-hint" id="composer-hint">Press Enter to send. The assistant replies using the business's latest details.</p>
+          <p class="composer-status" id="composer-status">Ask about services, pricing, booking, quotes, contact details, or the next step.</p>
+          <p class="powered-by" id="powered-by">We're here to help | Powered by Vonza</p>
         </div>
-        <p class="composer-hint" id="composer-hint">Press Enter to send. The assistant replies using the business's latest details.</p>
-        <p class="composer-status" id="composer-status">Ask about services, pricing, booking, quotes, contact details, or the next step.</p>
-        <p class="powered-by" id="powered-by">We're here to help | Powered by Vonza</p>
-      </div>
+      </section>
     </main>
   </div>
 

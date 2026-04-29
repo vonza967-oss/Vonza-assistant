@@ -974,11 +974,15 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
 
   assert.match(script, /function renderLeadCapture/);
-  assert.match(script, /function renderVisitorIdentityGate/);
+  assert.match(script, /function renderWidgetPhase/);
+  assert.match(script, /function syncWidgetPhaseWithIdentity/);
   assert.match(script, /function persistVisitorIdentityChoice/);
-  assert.match(script, /welcomePanel\.classList\.toggle\("is-hidden", identityReady\)/);
-  assert.match(script, /composerShell\.hidden = !identityReady/);
-  assert.match(script, /introMessage\.hidden = !identityReady/);
+  assert.match(script, /widgetPhase = getWidgetPhaseForIdentity\(identity\)/);
+  assert.match(script, /entryState\.hidden = chatReady/);
+  assert.match(script, /chatState\.hidden = !chatReady/);
+  assert.match(script, /welcomePanel\.hidden = chatReady/);
+  assert.match(script, /composerShell\.hidden = !chatReady/);
+  assert.match(script, /introMessage\.hidden = !chatReady/);
   assert.doesNotMatch(script, /data-lead-capture-submit/);
   assert.match(script, /appendMessage\(chat, "bot"/);
   assert.match(script, /action: normalized\.mode === "guest" \? "choose_guest" : "submit"/);

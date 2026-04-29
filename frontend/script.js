@@ -57,6 +57,11 @@ const DEFAULT_WIDGET_CONFIG = {
   themeMode: "dark",
 };
 
+const WIDGET_PHASES = Object.freeze({
+  ENTRY: "entry",
+  CHAT: "chat",
+});
+
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
 let resolvedAgentId = AGENT_ID;
@@ -74,6 +79,7 @@ const sentTelemetryKeys = new Set();
 const leadCapturePromptShownKeys = new Set();
 const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
+let widgetPhase = WIDGET_PHASES.ENTRY;
 
 function getWidgetStorageScope() {
   return (
@@ -276,6 +282,14 @@ function getIdentityEmailForm() {
   return document.getElementById("identity-email-form");
 }
 
+function getEntryState() {
+  return document.getElementById("entry-state");
+}
+
+function getChatState() {
+  return document.getElementById("chat-state");
+}
+
 function getWelcomePanel() {
   return document.getElementById("welcome-panel");
 }
@@ -293,44 +307,71 @@ function updateComposerAvailability() {
   const input = document.getElementById("input");
   const button = document.getElementById("send-button");
   const inputArea = document.querySelector(".input-area");
-  const identityReady = hasChosenVisitorIdentity();
+  const chatReady = widgetPhase === WIDGET_PHASES.CHAT;
 
   if (!composerShell || !input || !button || !inputArea) {
     return;
   }
 
-  composerShell.hidden = !identityReady;
-  input.disabled = !identityReady;
-  button.disabled = !identityReady;
-  input.placeholder = identityReady ? "Type your question..." : "Choose email or guest to start";
-  inputArea.classList.toggle("is-locked", !identityReady);
+  composerShell.hidden = !chatReady;
+  input.disabled = !chatReady;
+  button.disabled = !chatReady;
+  input.placeholder = "Type your question...";
+  inputArea.classList.toggle("is-locked", !chatReady);
 }
 
-function renderVisitorIdentityGate() {
+function normalizeWidgetPhase(value) {
+  return value === WIDGET_PHASES.CHAT ? WIDGET_PHASES.CHAT : WIDGET_PHASES.ENTRY;
+}
+
+function getWidgetPhaseForIdentity(identity = visitorIdentity) {
+  return normalizeVisitorIdentityState(identity).mode
+    ? WIDGET_PHASES.CHAT
+    : WIDGET_PHASES.ENTRY;
+}
+
+function renderWidgetPhase() {
+  widgetPhase = normalizeWidgetPhase(widgetPhase);
+
+  const entryState = getEntryState();
+  const chatState = getChatState();
   const welcomePanel = getWelcomePanel();
   const identityPanel = getIdentityChoicePanel();
   const emailForm = getIdentityEmailForm();
   const introMessage = getIntroMessage();
-  const normalized = normalizeVisitorIdentityState(visitorIdentity);
-  const identityReady = Boolean(normalized.mode);
+  const chatReady = widgetPhase === WIDGET_PHASES.CHAT;
+
+  if (entryState) {
+    entryState.hidden = chatReady;
+  }
+
+  if (chatState) {
+    chatState.hidden = !chatReady;
+  }
 
   if (welcomePanel) {
-    welcomePanel.classList.toggle("is-hidden", identityReady);
+    welcomePanel.hidden = chatReady;
   }
 
   if (identityPanel) {
-    identityPanel.hidden = false;
+    identityPanel.hidden = chatReady;
   }
 
   if (introMessage) {
-    introMessage.hidden = !identityReady;
+    introMessage.hidden = !chatReady;
   }
 
-  if (emailForm && identityReady) {
+  if (emailForm && chatReady) {
     emailForm.setAttribute("hidden", "");
   }
 
   updateComposerAvailability();
+}
+
+function syncWidgetPhaseWithIdentity(identity = visitorIdentity) {
+  widgetPhase = getWidgetPhaseForIdentity(identity);
+  renderWidgetPhase();
+  return widgetPhase;
 }
 
 function setVisitorIdentityState(identity, options = {}) {
@@ -339,7 +380,7 @@ function setVisitorIdentityState(identity, options = {}) {
     ? normalized
     : saveVisitorIdentity(normalized);
 
-  renderVisitorIdentityGate();
+  syncWidgetPhaseWithIdentity(visitorIdentity);
   return visitorIdentity;
 }
 
@@ -412,7 +453,7 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
     liveLeadCapture = data.leadCapture || liveLeadCapture;
     if (data.visitorIdentity) {
       visitorIdentity = normalizeVisitorIdentityState(data.visitorIdentity);
-      renderVisitorIdentityGate();
+      syncWidgetPhaseWithIdentity(visitorIdentity);
     }
 
     return liveLeadCapture;
@@ -950,7 +991,7 @@ function applyWidgetConfig(config = {}) {
   document
     .querySelector('meta[name="apple-mobile-web-app-title"]')
     ?.setAttribute("content", widgetConfig.assistantName);
-  renderVisitorIdentityGate();
+  syncWidgetPhaseWithIdentity(visitorIdentity);
 }
 
 async function loadWidgetBootstrap() {
@@ -1039,7 +1080,7 @@ async function sendMessage() {
   if (!message) return;
 
   if (!hasChosenVisitorIdentity()) {
-    renderVisitorIdentityGate();
+    renderWidgetPhase();
     setComposerStatus("Choose guest or email before sending your first message.");
     return;
   }
@@ -1114,7 +1155,7 @@ async function sendMessage() {
     resolvedAgentKey = trimText(data.agentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
     visitorIdentity = normalizeVisitorIdentityState(data.visitorIdentity || visitorIdentity);
-    renderVisitorIdentityGate();
+    syncWidgetPhaseWithIdentity(visitorIdentity);
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
     liveLeadCapture = data.leadCapture || null;
@@ -1205,7 +1246,7 @@ if (EMBEDDED_MODE) {
 }
 
 visitorIdentity = loadStoredVisitorIdentity();
-renderVisitorIdentityGate();
+syncWidgetPhaseWithIdentity(visitorIdentity);
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 loadWidgetBootstrap();
 
@@ -1217,8 +1258,9 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
     capture: options.capture === true,
   }),
   getVisitorIdentity: () => ({ ...visitorIdentity }),
+  getWidgetPhase: () => widgetPhase,
   hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
-  isWelcomePanelHidden: () => getWelcomePanel()?.classList.contains("is-hidden") === true,
+  isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
   sendMessage: () => sendMessage(),
 };

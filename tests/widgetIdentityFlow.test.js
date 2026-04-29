@@ -119,6 +119,8 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
   const inputArea = createFakeElement("input-area");
 
   [
+    "entry-state",
+    "chat-state",
     "identity-choice-panel",
     "identity-email-form",
     "identity-name",
@@ -267,12 +269,17 @@ test("widget can continue as guest and build a guest payload", async () => {
   const introMessage = harness.elements.get("intro-message");
   const welcomePanel = harness.elements.get("welcome-panel");
   const composerShell = harness.elements.get("composer-shell");
+  const entryState = harness.elements.get("entry-state");
+  const chatState = harness.elements.get("chat-state");
 
   assert.equal(input.disabled, true);
+  assert.equal(harness.hooks.getWidgetPhase(), "entry");
+  assert.equal(entryState.hidden, false);
+  assert.equal(chatState.hidden, true);
   assert.equal(identityPanel.hidden, false);
+  assert.equal(welcomePanel.hidden, false);
   assert.equal(introMessage.hidden, true);
   assert.equal(composerShell.hidden, true);
-  assert.equal(welcomePanel.classList.contains("is-hidden"), false);
   assert.equal(harness.hooks.hasChosenVisitorIdentity(), false);
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
     mode: "",
@@ -287,9 +294,12 @@ test("widget can continue as guest and build a guest payload", async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(input.disabled, false);
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
+  assert.equal(entryState.hidden, true);
+  assert.equal(chatState.hidden, false);
   assert.equal(introMessage.hidden, false);
   assert.equal(composerShell.hidden, false);
-  assert.equal(welcomePanel.classList.contains("is-hidden"), true);
+  assert.equal(welcomePanel.hidden, true);
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
     mode: "guest",
     email: "",
@@ -314,10 +324,19 @@ test("widget can continue as guest and build a guest payload", async () => {
   assert.equal(payload.email, "");
 });
 
-test("widget keeps the active chat thread and composer hidden until identity is chosen", () => {
+test("fresh widget renders only the entry phase before identity is chosen", () => {
   const harness = createWidgetHarness();
 
-  assert.equal(harness.elements.get("welcome-panel").classList.contains("is-hidden"), false);
+  assert.equal(harness.hooks.getWidgetPhase(), "entry");
+  assert.equal(harness.elements.get("entry-state").hidden, false);
+  assert.equal(harness.elements.get("chat-state").hidden, true);
+  assert.equal(harness.elements.get("welcome-panel").hidden, false);
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
+});
+
+test("fresh widget does not render the chat intro or composer before identity is chosen", () => {
+  const harness = createWidgetHarness();
+
   assert.equal(harness.elements.get("intro-message").hidden, true);
   assert.equal(harness.elements.get("composer-shell").hidden, true);
   assert.equal(harness.elements.get("input").disabled, true);
@@ -348,7 +367,10 @@ test("widget can continue with email and build identified chat payloads", () => 
     visitor_email: "visitor@example.com",
     visitor_name: "Avery Hart",
   });
-  assert.equal(harness.elements.get("welcome-panel").classList.contains("is-hidden"), true);
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
+  assert.equal(harness.elements.get("entry-state").hidden, true);
+  assert.equal(harness.elements.get("chat-state").hidden, false);
+  assert.equal(harness.elements.get("welcome-panel").hidden, true);
   assert.equal(harness.elements.get("intro-message").hidden, false);
   assert.equal(harness.elements.get("composer-shell").hidden, false);
   assert.equal(harness.elements.get("input").disabled, false);
@@ -508,6 +530,7 @@ test("widget send flow keeps identity payloads and stays in the chat state after
 
   harness.hooks.continueIntoChat({ mode: "guest" });
   assert.equal(harness.hooks.isWelcomePanelHidden(), true);
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
   input.value = "What services do you offer?";
   await harness.hooks.sendMessage();
 
@@ -518,10 +541,10 @@ test("widget send flow keeps identity payloads and stays in the chat state after
   assert.equal(payload.visitor_identity_mode, "guest");
   assert.equal(payload.visitor_email, "");
   assert.equal(harness.hooks.isWelcomePanelHidden(), true);
-  assert.equal(welcomePanel.classList.contains("is-hidden"), true);
+  assert.equal(welcomePanel.hidden, true);
 });
 
-test("widget source keeps the welcome choices visible, hides the composer before identity, omits attach and emoji controls, and preserves mobile rules", () => {
+test("widget source separates entry and chat phases, hides the composer before identity, omits attach and emoji controls, and preserves mobile rules", () => {
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const style = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
   const embed = readFileSync(path.join(repoRoot, "embed.js"), "utf8");
@@ -529,10 +552,14 @@ test("widget source keeps the welcome choices visible, hides the composer before
   assert.match(widget, /Continue with email/);
   assert.match(widget, /Continue as guest/);
   assert.match(widget, /adatkezelesi-tajekoztato/);
+  assert.match(widget, /id="entry-state"/);
+  assert.match(widget, /id="chat-state" class="widget-phase widget-phase-chat" hidden/);
   assert.match(widget, /<div class="composer-shell" id="composer-shell" hidden>/);
   assert.doesNotMatch(widget, /type="file"/);
   assert.doesNotMatch(widget, /emoji/i);
   assert.doesNotMatch(widget, /paperclip/i);
+  assert.match(style, /\[hidden\]\s*\{\s*display:\s*none !important;/);
+  assert.match(style, /\.widget-phase-chat/);
   assert.match(style, /@media \(max-width: 720px\)/);
   assert.match(style, /@media \(max-width: 420px\)/);
   assert.match(embed, /launcher-presence/);
