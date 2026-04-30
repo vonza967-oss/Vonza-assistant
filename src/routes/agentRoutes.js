@@ -8,6 +8,7 @@ import {
   createAgentForBusinessName,
   deleteAgent,
   getAgentWorkspaceSnapshot,
+  getEffectiveOwnerWorkspaceAccessStatus,
   getWidgetBootstrap,
   listAllAgents,
   listAgents,
@@ -214,6 +215,8 @@ export function createAgentRouter(deps = {}) {
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
   const getAgentWorkspaceSnapshotImpl = deps.getAgentWorkspaceSnapshot || getAgentWorkspaceSnapshot;
+  const getEffectiveOwnerWorkspaceAccessStatusImpl =
+    deps.getEffectiveOwnerWorkspaceAccessStatus || getEffectiveOwnerWorkspaceAccessStatus;
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
   const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
   const getOwnerBillingRecordImpl = deps.getOwnerBillingRecord || getOwnerBillingRecord;
@@ -633,7 +636,10 @@ export function createAgentRouter(deps = {}) {
         agent_id: result.agent.id,
         agent_key: result.agent.publicAgentKey,
         business_id: result.business.id,
-        access_status: result.agent.accessStatus,
+        access_status: getEffectiveOwnerWorkspaceAccessStatusImpl(result.agent.accessStatus, {
+          ownerUserId: user?.id || "",
+          agentOwnerUserId: result.agent.ownerUserId || user?.id || "",
+        }),
       });
     } catch (err) {
       console.error(err);

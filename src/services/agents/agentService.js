@@ -19,6 +19,7 @@ import {
   DEFAULT_WIDGET_CONFIG,
 } from "./agentDefaults.js";
 import { normalizeWidgetPurpose } from "./widgetPurpose.js";
+import { isTempInstantWorkspaceAccessEnabled } from "../../config/env.js";
 
 const AGENTS_TABLE = "agents";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
@@ -119,6 +120,29 @@ function normalizeAccessStatus(value) {
   return ["pending", "active", "suspended"].includes(normalized)
     ? normalized
     : DEFAULT_ACCESS_STATUS;
+}
+
+function resolveEffectiveAccessStatus(accessStatus, options = {}) {
+  const normalizedAccessStatus = normalizeAccessStatus(accessStatus);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const normalizedAgentOwnerUserId = cleanText(options.agentOwnerUserId);
+
+  // Temporary testing mode: let signed-in owners enter the workspace without payment
+  // while keeping the underlying Stripe plan definitions and stored billing state intact.
+  if (
+    isTempInstantWorkspaceAccessEnabled()
+    && normalizedOwnerUserId
+    && normalizedAgentOwnerUserId
+    && normalizedOwnerUserId === normalizedAgentOwnerUserId
+  ) {
+    return "active";
+  }
+
+  return normalizedAccessStatus;
+}
+
+export function getEffectiveOwnerWorkspaceAccessStatus(accessStatus, options = {}) {
+  return resolveEffectiveAccessStatus(accessStatus, options);
 }
 
 function isMissingRelationError(error, relationName) {
@@ -1260,9 +1284,19 @@ export async function listAgents(supabase, options = {}) {
     };
   });
 
+  const effectiveAgents = normalizedOwnerUserId
+    ? agents.map((agent) => ({
+      ...agent,
+      accessStatus: resolveEffectiveAccessStatus(agent.accessStatus, {
+        ownerUserId: normalizedOwnerUserId,
+        agentOwnerUserId: agent.ownerUserId,
+      }),
+    }))
+    : agents;
+
   let bridgeAgent = null;
 
-  if (includeBridgeAgent && normalizedOwnerUserId && normalizedClientId && !agents.length) {
+  if (includeBridgeAgent && normalizedOwnerUserId && normalizedClientId && !effectiveAgents.length) {
     bridgeAgent = await findClaimableAgentByClientId(supabase, {
       clientId: normalizedClientId,
       ownerUserId: normalizedOwnerUserId,
@@ -1270,7 +1304,7 @@ export async function listAgents(supabase, options = {}) {
   }
 
   return {
-    agents,
+    agents: effectiveAgents,
     bridgeAgent,
   };
 }
@@ -1419,7 +1453,12 @@ export async function listAllAgents(supabase) {
 }
 
 export async function getAgentWorkspaceSnapshot(supabase, agentId) {
-  const normalizedAgentId = cleanText(agentId);
+  const normalizedAgentId = cleanText(
+    typeof agentId === "object" && agentId !== null ? agentId.agentId : agentId
+  );
+  const normalizedOwnerUserId = cleanText(
+    typeof agentId === "object" && agentId !== null ? agentId.ownerUserId : ""
+  );
 
   if (!normalizedAgentId) {
     const error = new Error("agent_id is required");
@@ -1436,7 +1475,17 @@ export async function getAgentWorkspaceSnapshot(supabase, agentId) {
     throw error;
   }
 
-  return agent;
+  if (!normalizedOwnerUserId) {
+    return agent;
+  }
+
+  return {
+    ...agent,
+    accessStatus: resolveEffectiveAccessStatus(agent.accessStatus, {
+      ownerUserId: normalizedOwnerUserId,
+      agentOwnerUserId: agent.ownerUserId,
+    }),
+  };
 }
 
 export async function updateAgentSettings(
@@ -2071,14 +2120,21 @@ export async function requirePreClaimAgentAccess(supabase, options = {}) {
 
 export async function requireActiveAgentAccess(supabase, options = {}) {
   const agent = await requireAgentAccess(supabase, options);
+  const effectiveAccessStatus = resolveEffectiveAccessStatus(agent.accessStatus, {
+    ownerUserId: options.ownerUserId,
+    agentOwnerUserId: agent.ownerUserId,
+  });
 
-  if (normalizeAccessStatus(agent.accessStatus) !== "active") {
+  if (effectiveAccessStatus !== "active") {
     const error = new Error("Access is not active yet.");
     error.statusCode = 403;
     throw error;
   }
 
-  return agent;
+  return {
+    ...agent,
+    accessStatus: effectiveAccessStatus,
+  };
 }
 
 export async function updateAgentAccessStatus(supabase, options = {}) {

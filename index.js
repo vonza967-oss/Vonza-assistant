@@ -10,6 +10,7 @@ import {
   getPublicAppUrl,
   isDevFakeBillingEnabled,
   isOperatorWorkspaceV1Enabled,
+  isTempInstantWorkspaceAccessEnabled,
   listMissingGoogleOperatorEnvVars,
 } from "./src/config/env.js";
 import {
@@ -60,6 +61,10 @@ function logCriticalEnvWarnings() {
 
   if (isDevFakeBillingEnabled()) {
     console.warn("[startup] DEV_FAKE_BILLING is enabled. Local billing simulation is active.");
+  }
+
+  if (isTempInstantWorkspaceAccessEnabled()) {
+    console.warn("[startup] TEMP_INSTANT_WORKSPACE_ACCESS is enabled. Signed-in users will bypass paid workspace gating for testing.");
   }
 
   console.log(`[startup] Build: version=${getAppVersion()} sha=${getBuildSha() || "local-dev"}`);

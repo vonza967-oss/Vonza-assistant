@@ -100,6 +100,10 @@ export function isDevFakeBillingEnabled() {
   return String(process.env.DEV_FAKE_BILLING || "").trim().toLowerCase() === "true";
 }
 
+export function isTempInstantWorkspaceAccessEnabled() {
+  return normalizeBooleanEnv(process.env.TEMP_INSTANT_WORKSPACE_ACCESS, false);
+}
+
 function isLocalHostname(hostname) {
   const normalized = String(hostname || "")
     .trim()

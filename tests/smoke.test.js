@@ -379,6 +379,11 @@ function createAgentTestDeps(state) {
     return `conversion-outcome-${conversionOutcomeCounter}`;
   };
 
+  const getEffectiveAccessStatus = () =>
+    String(process.env.TEMP_INSTANT_WORKSPACE_ACCESS || "").trim().toLowerCase() === "true"
+      ? "active"
+      : state.accessStatus;
+
   const dedupeActionKeys = (values = []) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
   const buildKnowledgeFixIssueKey = (item) => {
     const normalized = String(item.question || item.snippet || item.key || "")
@@ -766,7 +771,7 @@ function createAgentTestDeps(state) {
           businessId: "business-1",
           clientId: clientId || "client-1",
           ownerUserId,
-          accessStatus: state.accessStatus,
+          accessStatus: getEffectiveAccessStatus(),
           publicAgentKey: "agent-key",
           name: businessName,
         },
@@ -793,7 +798,7 @@ function createAgentTestDeps(state) {
             knowledge: {
               state: state.knowledgeState || "ready",
             },
-            accessStatus: state.accessStatus,
+            accessStatus: getEffectiveAccessStatus(),
           },
         ],
         bridgeAgent: null,
@@ -801,7 +806,7 @@ function createAgentTestDeps(state) {
     },
     requireActiveAgentAccess: async (_supabase, options) => {
       assert.equal(options.ownerUserId, "owner-1", "active-access checks should run in owner context");
-      if (state.accessStatus !== "active") {
+      if (getEffectiveAccessStatus() !== "active") {
         const error = new Error("Forbidden");
         error.statusCode = 403;
         throw error;
@@ -809,14 +814,14 @@ function createAgentTestDeps(state) {
 
       return {
         id: options.agentId || "agent-1",
-        accessStatus: state.accessStatus,
+        accessStatus: getEffectiveAccessStatus(),
       };
     },
     requireAgentAccess: async (_supabase, options) => {
       if (options.clientId && options.clientId === "client-1") {
         return {
           id: options.agentId || "agent-1",
-          accessStatus: state.accessStatus,
+          accessStatus: getEffectiveAccessStatus(),
         };
       }
 
@@ -3215,6 +3220,48 @@ test("first-time owner assistant creation stays allowed before payment and retur
         assert.equal(created.json.agent_id, "agent-1");
         assert.equal(created.json.agent_key, "agent-key");
         assert.equal(created.json.access_status, "pending");
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
+test("temporary instant workspace access lets signed-in owners open the workspace without payment", { concurrency: false }, async () => {
+  const state = { accessStatus: "pending" };
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "https://app.example.com",
+      DEV_FAKE_BILLING: "false",
+      TEMP_INSTANT_WORKSPACE_ACCESS: "true",
+      NODE_ENV: "production",
+    },
+    async () => {
+      const server = await startServer(createTestApp(createAgentTestDeps(state)));
+      try {
+        const ownedList = await getJson(server.baseUrl, "/agents/list");
+        assert.equal(ownedList.status, 200);
+        assert.equal(ownedList.json.agents[0].accessStatus, "active");
+
+        const workspaceMessages = await getJson(server.baseUrl, "/agents/messages?agent_id=agent-1");
+        assert.equal(workspaceMessages.status, 200);
+        assert.equal(workspaceMessages.json.messages.length, 1);
+
+        const created = await getJson(server.baseUrl, "/agents/create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: "client-1",
+            business_name: "Vonza Studio",
+            website_url: "https://example.com",
+            assistant_name: "Vonza Studio",
+          }),
+        });
+        assert.equal(created.status, 200);
+        assert.equal(created.json.access_status, "active");
       } finally {
         await server.close();
       }
