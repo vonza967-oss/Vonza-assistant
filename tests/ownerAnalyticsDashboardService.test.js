@@ -19,6 +19,7 @@ test("owner analytics dashboard aggregates conversations, leads, conversions, mi
         createdAt: "2026-05-10T08:00:00.000Z",
       },
       {
+        id: "msg-a1",
         role: "assistant",
         content: "Fixed pricing is not listed publicly.",
         sessionKey: "s1",
@@ -65,6 +66,25 @@ test("owner analytics dashboard aggregates conversations, leads, conversions, mi
         statusLabel: "Within the included monthly capacity",
       },
     },
+    feedback: {
+      records: [
+        {
+          id: "feedback-1",
+          sessionKey: "s1",
+          assistantMessageKey: "msg-a1",
+          rating: "not_helpful",
+          createdAt: "2026-05-10T08:01:00.000Z",
+        },
+        {
+          id: "feedback-2",
+          sessionKey: "s2",
+          assistantMessageKey: "msg-a2",
+          rating: "helpful",
+          createdAt: "2026-05-10T09:01:00.000Z",
+        },
+      ],
+      persistenceAvailable: true,
+    },
   });
 
   assert.equal(dashboard.metrics.totalConversations, 2);
@@ -74,6 +94,12 @@ test("owner analytics dashboard aggregates conversations, leads, conversions, mi
   assert.equal(dashboard.metrics.missedQuestionCount, 1);
   assert.equal(dashboard.agent.vertical, "web_studio");
   assert.equal(dashboard.aiUsage.percentUsed, 25);
+  assert.equal(dashboard.customerSatisfaction.totalFeedback, 2);
+  assert.equal(dashboard.customerSatisfaction.notHelpful, 1);
+  assert.equal(dashboard.customerSatisfaction.negativeRate, 50);
+  assert.match(dashboard.customerSatisfaction.unhappyAnswers[0].question, /website cost/i);
+  assert.ok(dashboard.customerSatisfaction.recoveryActions.some((action) => action.type === "fix_knowledge"));
+  assert.ok(dashboard.notifications.some((notification) => notification.type === "unhappy_customers"));
   assert.ok(dashboard.topVisitorQuestions.length >= 1);
   assert.match(dashboard.missedQuestions[0].question, /website cost/i);
 });

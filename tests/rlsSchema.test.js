@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 
 const schemaSql = readFileSync("db/schema.sql", "utf8");
 const rlsMigrationSql = readFileSync("supabase/migrations/20260510001000_rls_hardening.sql", "utf8");
+const visitorReplyFeedbackMigrationSql = readFileSync(
+  "supabase/migrations/20260510002000_visitor_reply_feedback.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -25,18 +30,24 @@ test("canonical schema enables RLS on every public app table", () => {
   assert.deepEqual(missing, []);
 });
 
-test("RLS hardening migration covers every public app table", () => {
-  const missing = listPublicTables(schemaSql).filter((tableName) => !hasRlsEnabled(rlsMigrationSql, tableName));
+test("migration sequence covers every public app table with RLS", () => {
+  const missing = listPublicTables(schemaSql).filter((tableName) => !hasRlsEnabled(postRlsMigrationSql, tableName));
 
   assert.deepEqual(missing, []);
 });
 
+test("RLS hardening migration does not reference feedback table before it exists", () => {
+  assert.doesNotMatch(rlsMigrationSql, /agent_visitor_reply_feedback/i);
+  assert.match(visitorReplyFeedbackMigrationSql, /create table if not exists public\.agent_visitor_reply_feedback/i);
+  assert.match(visitorReplyFeedbackMigrationSql, /alter table public\.agent_visitor_reply_feedback enable row level security/i);
+});
+
 test("direct browser preference policies are owner scoped and authenticated only", () => {
-  assert.match(rlsMigrationSql, /on public\.user_dashboard_preferences\s+for select\s+to authenticated/i);
-  assert.match(rlsMigrationSql, /on public\.user_dashboard_preferences\s+for insert\s+to authenticated/i);
-  assert.match(rlsMigrationSql, /on public\.user_dashboard_preferences\s+for update\s+to authenticated/i);
-  assert.match(rlsMigrationSql, /\(select auth\.uid\(\)\) = owner_user_id/i);
-  assert.doesNotMatch(rlsMigrationSql, /to anon/i);
+  assert.match(postRlsMigrationSql, /on public\.user_dashboard_preferences\s+for select\s+to authenticated/i);
+  assert.match(postRlsMigrationSql, /on public\.user_dashboard_preferences\s+for insert\s+to authenticated/i);
+  assert.match(postRlsMigrationSql, /on public\.user_dashboard_preferences\s+for update\s+to authenticated/i);
+  assert.match(postRlsMigrationSql, /\(select auth\.uid\(\)\) = owner_user_id/i);
+  assert.doesNotMatch(postRlsMigrationSql, /to anon/i);
 });
 
 test("critical owner and customer tables have authenticated owner-scoped policies", () => {
@@ -54,14 +65,14 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_visitor_reply_feedback",
   ].forEach((tableName) => {
     assert.match(
-      rlsMigrationSql,
+      postRlsMigrationSql,
       new RegExp(`on public\\.${tableName}[\\s\\S]+?to authenticated`, "i"),
       `${tableName} should have an authenticated owner policy`
     );
   });
 
-  assert.match(rlsMigrationSql, /agents\.owner_user_id = \(select auth\.uid\(\)\)/i);
-  assert.match(rlsMigrationSql, /owner_user_id = \(select auth\.uid\(\)\)/i);
-  assert.doesNotMatch(rlsMigrationSql, /agent_visitor_reply_feedback[\s\S]+?for insert\s+to anon/i);
-  assert.doesNotMatch(rlsMigrationSql, /messages[\s\S]+?for select\s+to anon/i);
+  assert.match(postRlsMigrationSql, /agents\.owner_user_id = \(select auth\.uid\(\)\)/i);
+  assert.match(postRlsMigrationSql, /owner_user_id = \(select auth\.uid\(\)\)/i);
+  assert.doesNotMatch(postRlsMigrationSql, /agent_visitor_reply_feedback[\s\S]+?for insert\s+to anon/i);
+  assert.doesNotMatch(postRlsMigrationSql, /messages[\s\S]+?for select\s+to anon/i);
 });

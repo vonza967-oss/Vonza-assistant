@@ -2391,6 +2391,85 @@ test("analytics page now renders as a service report instead of stacked equal-we
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
 });
 
+test("analytics surfaces feedback recovery and owner-visible notifications", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    ownerAnalyticsDashboard: {
+      ok: true,
+      metrics: {
+        totalConversations: 2,
+      },
+      customerSatisfaction: {
+        totalFeedback: 2,
+        helpful: 1,
+        notHelpful: 1,
+        negativeRate: 50,
+        unhappyAnswers: [
+          {
+            question: "How much does the website package cost?",
+            recommendedAction: "Fix knowledge or reply to the customer before similar questions repeat.",
+          },
+        ],
+        recoveryActions: [
+          {
+            type: "fix_knowledge",
+            label: "Fix knowledge",
+            count: 1,
+            copy: "Negative reply feedback lines up with knowledge-fix work in the queue.",
+          },
+        ],
+        persistenceAvailable: true,
+      },
+      notifications: [
+        {
+          type: "unhappy_customers",
+          title: "Unhappy answer feedback",
+          copy: "1 answer marked not helpful needs review.",
+        },
+      ],
+    },
+  };
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [],
+    { knowledgeReady: true },
+    actionQueue
+  );
+
+  assert.match(analyticsPanel, /Feedback recovery loop/);
+  assert.match(analyticsPanel, /Unhappy answer feedback/);
+  assert.match(analyticsPanel, /How much does the website package cost/);
+  assert.match(analyticsPanel, /Fix knowledge/);
+  assert.match(analyticsPanel, /50% negative/);
+});
+
+test("install section shows live confirmation and customer-loop next step", () => {
+  const harness = createDashboardHarness();
+  const markup = harness.buildInstallSection({
+    id: "agent-1",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    installStatus: {
+      state: "seen_recently",
+      label: "Seen recently",
+      host: "example.com",
+      allowedDomains: ["example.com"],
+      lastSeenAt: "2026-05-10T08:00:00.000Z",
+    },
+  });
+
+  assert.match(markup, /You are live/);
+  assert.match(markup, /test one customer question/);
+  assert.match(markup, /weak answers, leads, and follow-up needs/);
+  assert.match(markup, /Verify installation/);
+});
+
 test("analytics customer-question summaries stay specific without copying chat text", () => {
   const harness = createDashboardHarness({
     windowFlags: {

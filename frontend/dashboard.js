@@ -1944,6 +1944,9 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Use the stable head snippet with your install id so Vonza can verify the right site.": "Használd a stabil head-kódrészletet a telepítési azonosítóddal, hogy a Vonza a megfelelő oldalt tudja ellenőrizni.",
   "Paste it into the live site head, theme layout, or global custom code area.": "Illeszd be az éles oldal head részébe, a sablon elrendezésébe vagy a globális egyéni kód területre.",
   "Run the server check, then wait for the widget to ping back from a real page load.": "Futtasd a szerverellenőrzést, majd várd meg, hogy a widget visszajelezzen egy valódi oldalbetöltésből.",
+  "You are live.": "Élesben vagy.",
+  "Snippet verified.": "Kódrészlet ellenőrizve.",
+  "Setup path: copy the code, publish it in the live site head, run verification, then test the front desk as a customer.": "Beállítási út: másold ki a kódot, tedd közzé az éles oldal head részében, futtasd az ellenőrzést, majd teszteld a Front Desket ügyfélként.",
   "Done": "Kész",
   "Detected": "Észlelve",
   "View code": "Kód megtekintése",
@@ -1951,6 +1954,16 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Install will be available as soon as your front desk has a live install id.": "A Telepítés elérhetővé válik, amint a Front Desk élő telepítési azonosítót kap.",
   "This becomes the final step once your front desk feels ready to go live.": "Ez lesz az utolsó lépés, amikor a Front Desk készen áll az élesítésre.",
   "Questions and weak answers": "Kérdések és gyenge válaszok",
+  "Customer satisfaction": "Ügyfél-elégedettség",
+  "Feedback recovery loop": "Visszajelzés-helyreállítási kör",
+  "Helpful and not-helpful reply feedback is mapped into answer fixes, customer replies, and owner-visible notices.": "A hasznos és nem hasznos válaszvisszajelzések válaszjavításokká, ügyfélválaszokká és tulajdonosnak látható jelzésekké alakulnak.",
+  "Owner notifications": "Tulajdonosi értesítések",
+  "Unhappy answers": "Elégedetlen válaszok",
+  "Next recovery actions": "Következő helyreállítási lépések",
+  "No unhappy customers, high-intent leads, or unanswered-question notices are active right now.": "Jelenleg nincs aktív elégedetlen ügyfél, erős érdeklődő vagy megválaszolatlan kérdés jelzés.",
+  "No not-helpful reply feedback has been recorded yet.": "Még nincs rögzített nem hasznos válaszvisszajelzés.",
+  "Once visitors rate answers, Vonza will point owners toward fix-knowledge or reply-to-customer work.": "Amint a látogatók értékelik a válaszokat, a Vonza tudásjavításra vagy ügyfélválaszra irányítja a tulajdonost.",
+  "Reply feedback analytics are waiting for the feedback migration on this workspace.": "A válaszvisszajelzés-elemzés a visszajelzési migrációra vár ebben a munkaterületben.",
   "What stands out right now": "Mi emelkedik ki most",
   "turning pricing questions into confident next steps": "az árazási kérdések magabiztos következő lépésekké alakítása",
   "answering first questions without extra owner effort": "az első kérdések megválaszolása extra tulajdonosi munka nélkül",
@@ -9470,6 +9483,17 @@ function createEmptyOwnerAnalyticsDashboard() {
     },
     topVisitorQuestions: [],
     missedQuestions: [],
+    customerSatisfaction: {
+      totalFeedback: 0,
+      helpful: 0,
+      notHelpful: 0,
+      negativeRate: 0,
+      unhappyAnswers: [],
+      weakTopics: [],
+      recoveryActions: [],
+      persistenceAvailable: true,
+    },
+    notifications: [],
     aiUsage: null,
   };
 }
@@ -9482,6 +9506,9 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
   const emptyDashboard = createEmptyOwnerAnalyticsDashboard();
   const metrics = data.metrics && typeof data.metrics === "object" ? data.metrics : {};
   const aiUsage = data.aiUsage && typeof data.aiUsage === "object" ? data.aiUsage : null;
+  const customerSatisfaction = data.customerSatisfaction && typeof data.customerSatisfaction === "object"
+    ? data.customerSatisfaction
+    : {};
 
   return {
     ...emptyDashboard,
@@ -9499,6 +9526,27 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
       : [],
     missedQuestions: Array.isArray(data.missedQuestions)
       ? data.missedQuestions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.question || item.summary))
+      : [],
+    customerSatisfaction: {
+      ...emptyDashboard.customerSatisfaction,
+      ...customerSatisfaction,
+      totalFeedback: Number(customerSatisfaction.totalFeedback || 0),
+      helpful: Number(customerSatisfaction.helpful || 0),
+      notHelpful: Number(customerSatisfaction.notHelpful || 0),
+      negativeRate: Number(customerSatisfaction.negativeRate || 0),
+      unhappyAnswers: Array.isArray(customerSatisfaction.unhappyAnswers)
+        ? customerSatisfaction.unhappyAnswers.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.question || item.reply))
+        : [],
+      weakTopics: Array.isArray(customerSatisfaction.weakTopics)
+        ? customerSatisfaction.weakTopics.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.summary || item.question))
+        : [],
+      recoveryActions: Array.isArray(customerSatisfaction.recoveryActions)
+        ? customerSatisfaction.recoveryActions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.label || item.type))
+        : [],
+      persistenceAvailable: customerSatisfaction.persistenceAvailable !== false,
+    },
+    notifications: Array.isArray(data.notifications)
+      ? data.notifications.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.title || item.copy))
       : [],
     aiUsage: aiUsage
       ? {
@@ -9524,9 +9572,10 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
 
   const hasMetricData = Object.values(dashboard.metrics || {}).some((value) => Number(value || 0) > 0);
   const hasQuestionData = dashboard.topVisitorQuestions.length > 0 || dashboard.missedQuestions.length > 0;
+  const hasSatisfactionData = Number(dashboard.customerSatisfaction?.totalFeedback || 0) > 0 || dashboard.notifications.length > 0;
   const hasAiUsage = dashboard.aiUsage && trimText(dashboard.aiUsage.statusLabel || dashboard.aiUsage.planName || dashboard.aiUsage.planKey);
 
-  return dashboard.ok || hasMetricData || hasQuestionData || hasAiUsage ? dashboard : null;
+  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasAiUsage ? dashboard : null;
 }
 
 function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {}, messages = []) {
@@ -11831,6 +11880,16 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     : Array.isArray(signals.weakAnswerExamples) && signals.weakAnswerExamples.length
     ? signals.weakAnswerExamples.slice(0, 4)
     : [];
+  const customerSatisfaction = ownerAnalyticsDashboard?.customerSatisfaction || createEmptyOwnerAnalyticsDashboard().customerSatisfaction;
+  const satisfactionNotifications = Array.isArray(ownerAnalyticsDashboard?.notifications)
+    ? ownerAnalyticsDashboard.notifications.slice(0, 4)
+    : [];
+  const unhappyAnswers = Array.isArray(customerSatisfaction.unhappyAnswers)
+    ? customerSatisfaction.unhappyAnswers.slice(0, 4)
+    : [];
+  const recoveryActions = Array.isArray(customerSatisfaction.recoveryActions)
+    ? customerSatisfaction.recoveryActions.slice(0, 3)
+    : [];
   const aiUsage = ownerAnalyticsDashboard?.aiUsage || null;
   const hasAiUsage = aiUsage && (
     Number(aiUsage.includedCents || 0) > 0
@@ -11857,6 +11916,52 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   const syncPendingMarkup = analyticsSummary.syncState === "pending"
     ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
     : "";
+  const customerSatisfactionMarkup = `
+    <section class="workspace-card-soft analytics-report-section">
+      <div class="flat-section-header">
+        <div>
+          <p class="overview-label">Customer satisfaction</p>
+          <h3 class="flat-section-title">Feedback recovery loop</h3>
+          <p class="analytics-report-section-copy">Helpful and not-helpful reply feedback is mapped into answer fixes, customer replies, and owner-visible notices.</p>
+        </div>
+        <div class="analytics-report-overview-pills">
+          <span class="pill">${escapeHtml(`${customerSatisfaction.helpful || 0} helpful`)}</span>
+          <span class="pill">${escapeHtml(`${customerSatisfaction.notHelpful || 0} not helpful`)}</span>
+          <span class="pill">${escapeHtml(`${formatAnalyticsReportDecimalPercent(customerSatisfaction.negativeRate || 0)} negative`)}</span>
+        </div>
+      </div>
+      ${customerSatisfaction.persistenceAvailable === false ? `<div class="placeholder-card">Reply feedback analytics are waiting for the feedback migration on this workspace.</div>` : ""}
+      <div class="analytics-report-grid">
+        <article class="analytics-report-card">
+          <span>Owner notifications</span>
+          ${satisfactionNotifications.length ? satisfactionNotifications.map((item) => `
+            <div class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(item.title || "Workspace notice")}</p>
+              <p class="overview-list-copy">${escapeHtml(item.copy || "")}</p>
+            </div>
+          `).join("") : `<div class="placeholder-card">No unhappy customers, high-intent leads, or unanswered-question notices are active right now.</div>`}
+        </article>
+        <article class="analytics-report-card">
+          <span>Unhappy answers</span>
+          ${unhappyAnswers.length ? unhappyAnswers.map((item) => `
+            <div class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(item.question || "Visitor marked an answer not helpful.")}</p>
+              <p class="overview-list-copy">${escapeHtml(item.recommendedAction || "Review the answer and decide whether this needs a knowledge fix or customer reply.")}</p>
+            </div>
+          `).join("") : `<div class="placeholder-card">No not-helpful reply feedback has been recorded yet.</div>`}
+        </article>
+        <article class="analytics-report-card">
+          <span>Next recovery actions</span>
+          ${recoveryActions.length ? recoveryActions.map((item) => `
+            <div class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(item.label || "Review feedback")}${Number(item.count || 0) ? ` · ${escapeHtml(String(item.count))}` : ""}</p>
+              <p class="overview-list-copy">${escapeHtml(item.copy || "")}</p>
+            </div>
+          `).join("") : `<div class="placeholder-card">Once visitors rate answers, Vonza will point owners toward fix-knowledge or reply-to-customer work.</div>`}
+        </article>
+      </div>
+    </section>
+  `;
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="analytics" hidden>
@@ -11879,6 +11984,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
             </div>
           </section>
+          ${customerSatisfactionMarkup}
           <section class="analytics-report-metric-grid">
             ${[
               {
@@ -13031,6 +13137,11 @@ function buildInstallSection(agent, options = {}) {
             : "Not installed yet. Paste the head snippet onto the live site, then run verification.";
   const publishDone = isInstallDetected(installStatus) || progress.installed;
   const verifyDone = isInstallSeen(installStatus) || installStatus.state === "installed_unseen";
+  const liveConfirmationMarkup = isInstallSeen(installStatus)
+    ? `<div class="placeholder-card">You are live. Vonza has received a real widget ping from ${escapeHtml(installStatus.host || "your website")}; next, test one customer question and watch Home for weak answers, leads, and follow-up needs.</div>`
+    : installStatus.state === "installed_unseen"
+      ? `<div class="placeholder-card">Snippet verified. Open the live site once with the widget visible so Vonza can receive its first real page-load ping.</div>`
+      : `<div class="placeholder-card">Setup path: copy the code, publish it in the live site head, run verification, then test the front desk as a customer.</div>`;
   const recentSeenMarkup = installStatus.lastSeenUrl
     ? `<p class="install-help">Last seen page: ${escapeHtml(installStatus.lastSeenUrl)}</p>`
     : "";
@@ -13045,6 +13156,7 @@ function buildInstallSection(agent, options = {}) {
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
     <p class="section-copy">${escapeHtml(installStatus.label)}</p>
     <p class="install-help">${escapeHtml(statusCopy)}</p>
+    ${liveConfirmationMarkup}
     ${allowedDomains.length ? `<p class="install-help">Allowed domains: ${escapeHtml(allowedDomains.join(", "))}</p>` : ""}
     ${recentSeenMarkup}
     ${verificationMarkup}

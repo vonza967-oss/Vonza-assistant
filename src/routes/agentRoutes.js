@@ -1194,7 +1194,7 @@ export function createAgentRouter(deps = {}) {
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
       const ownerUserId = user?.id || cleanText(req.query.owner_user_id || req.query.ownerUserId) || agent.ownerUserId || "";
 
-      const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses] = await Promise.all([
+      const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses, feedback] = await Promise.all([
         listAgentMessagesImpl(supabase, agentId),
         listLeadCapturesImpl(supabase, {
           agentId,
@@ -1214,6 +1214,18 @@ export function createAgentRouter(deps = {}) {
           agentId,
           ownerUserId,
         }).catch(() => []),
+        listVisitorReplyFeedbackForOwnerImpl(supabase, {
+          agentId,
+          ownerUserId,
+        }).catch(() => ({
+          records: [],
+          summary: {
+            total: 0,
+            helpful: 0,
+            notHelpful: 0,
+          },
+          persistenceAvailable: false,
+        })),
       ]);
 
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
@@ -1229,6 +1241,7 @@ export function createAgentRouter(deps = {}) {
         widgetMetrics: agent.widgetMetrics || {},
         billingSnapshot,
         actionQueue,
+        feedback,
       }));
     } catch (err) {
       console.error(err);

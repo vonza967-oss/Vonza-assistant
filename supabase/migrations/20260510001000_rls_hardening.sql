@@ -11,7 +11,6 @@ alter table public.agent_knowledge_fix_workflows enable row level security;
 alter table public.product_events enable row level security;
 alter table public.agent_installations enable row level security;
 alter table public.agent_widget_events enable row level security;
-alter table public.agent_visitor_reply_feedback enable row level security;
 alter table public.agent_conversion_outcomes enable row level security;
 alter table public.google_oauth_states enable row level security;
 alter table public.google_connected_accounts enable row level security;
@@ -156,21 +155,6 @@ create policy "Owners can read installations for their agents."
       select 1
       from public.agents
       where agents.id = agent_installations.agent_id
-        and agents.owner_user_id = (select auth.uid())
-    )
-  );
-
-drop policy if exists "Owners can read reply feedback for their agents." on public.agent_visitor_reply_feedback;
-create policy "Owners can read reply feedback for their agents."
-  on public.agent_visitor_reply_feedback
-  for select
-  to authenticated
-  using (
-    (select auth.uid()) is not null
-    and exists (
-      select 1
-      from public.agents
-      where agents.id = agent_visitor_reply_feedback.agent_id
         and agents.owner_user_id = (select auth.uid())
     )
   );
