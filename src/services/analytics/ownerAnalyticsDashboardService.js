@@ -193,6 +193,126 @@ function buildCustomerSatisfaction({
   };
 }
 
+function mapKnowledgeFixStatus(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  switch (normalized) {
+    case "draft":
+      return "new";
+    case "ready":
+    case "failed":
+      return "reviewing";
+    case "applied":
+      return "approved_fixed";
+    case "dismissed":
+      return "dismissed";
+    default:
+      return "new";
+  }
+}
+
+function buildKnowledgeImprovementItemFromQueue(item = {}) {
+  const knowledgeFix = item.knowledgeFix && typeof item.knowledgeFix === "object"
+    ? item.knowledgeFix
+    : null;
+  const evidence = knowledgeFix?.evidence && typeof knowledgeFix.evidence === "object"
+    ? knowledgeFix.evidence
+    : {};
+  const actionType = cleanText(item.actionType || item.type).toLowerCase();
+
+  if (!knowledgeFix && !["knowledge_gap", "unanswered_question", "weak_answer"].includes(actionType)) {
+    return null;
+  }
+
+  const question = cleanText(evidence.question || item.question || item.snippet);
+  const currentResponse = cleanText(evidence.currentResponse || item.reply);
+  const issueSummary = cleanText(knowledgeFix?.issueSummary || item.whyFlagged);
+  const proposedGuidance = cleanText(knowledgeFix?.proposedGuidance || item.suggestedAction);
+
+  return {
+    id: cleanText(knowledgeFix?.id || item.key),
+    actionKey: cleanText(item.key),
+    knowledgeFixId: cleanText(knowledgeFix?.id),
+    source: knowledgeFix ? "knowledge_fix_workflow" : "action_queue",
+    status: mapKnowledgeFixStatus(knowledgeFix?.status || item.status),
+    workflowStatus: cleanText(knowledgeFix?.status || item.status),
+    question: question || "A weak or unanswered customer question needs review.",
+    safeSummary: question || cleanText(item.label) || "Customer question summary is not available yet.",
+    reason: issueSummary || "Vonza surfaced this because the answer looked weak, repeated, or unresolved.",
+    currentGap: currentResponse || cleanText(knowledgeFix?.evidence?.conversationExcerpt) || "No current answer was captured for this item.",
+    suggestedFix: proposedGuidance || "Review the conversation and add grounded guidance from verified business knowledge.",
+    occurrenceCount: Math.max(Number(knowledgeFix?.occurrenceCount || item.count || 1), 1),
+    targetLabel: cleanText(knowledgeFix?.targetLabel) || "Advanced guidance / system prompt",
+    lastSeenAt: item.lastSeenAt || evidence.lastSeenAt || null,
+  };
+}
+
+function buildKnowledgeImprovementItemFromFeedback(item = {}) {
+  const question = cleanText(item.question);
+
+  return {
+    id: cleanText(item.feedbackId || `${item.sessionKey}:${item.assistantMessageKey}`),
+    actionKey: "",
+    knowledgeFixId: "",
+    source: "visitor_feedback",
+    status: "new",
+    workflowStatus: "feedback",
+    question: question || "Visitor marked an answer not helpful.",
+    safeSummary: question || "Visitor marked an answer not helpful.",
+    reason: "A visitor explicitly marked this answer not helpful.",
+    currentGap: cleanText(item.reply) || "The exact assistant answer was not available in stored messages.",
+    suggestedFix: cleanText(item.recommendedAction) || "Review the answer and decide whether it needs a grounded knowledge fix.",
+    occurrenceCount: 1,
+    targetLabel: "Owner review",
+    lastSeenAt: item.createdAt || null,
+  };
+}
+
+function buildKnowledgeImprovementCenter({ customerSatisfaction = {}, actionQueue = null } = {}) {
+  const queueItems = Array.isArray(actionQueue?.items) ? actionQueue.items : [];
+  const fromQueue = queueItems
+    .map((item) => buildKnowledgeImprovementItemFromQueue(item))
+    .filter(Boolean);
+  const seenKeys = new Set(
+    fromQueue.flatMap((item) => [
+      item.actionKey,
+      item.question.toLowerCase(),
+      item.knowledgeFixId,
+    ].filter(Boolean))
+  );
+  const fromFeedback = (Array.isArray(customerSatisfaction.unhappyAnswers) ? customerSatisfaction.unhappyAnswers : [])
+    .map((item) => buildKnowledgeImprovementItemFromFeedback(item))
+    .filter((item) => {
+      const questionKey = item.question.toLowerCase();
+      return !seenKeys.has(questionKey);
+    });
+  const items = [...fromQueue, ...fromFeedback]
+    .sort((left, right) => {
+      const statusRank = {
+        reviewing: 0,
+        new: 1,
+        approved_fixed: 2,
+        dismissed: 3,
+      };
+      return (statusRank[left.status] ?? 9) - (statusRank[right.status] ?? 9);
+    })
+    .slice(0, 12);
+
+  return {
+    title: "Knowledge Improvement",
+    copy: items.length
+      ? "Weak, repeated, and not-helpful answers are ready for owner review and grounded guidance."
+      : "No weak-answer pattern is active yet. Once visitors mark answers not helpful or Vonza detects unanswered questions, the improvement queue will appear here.",
+    total: items.length,
+    openCount: items.filter((item) => ["new", "reviewing"].includes(item.status)).length,
+    approvedFixedCount: items.filter((item) => item.status === "approved_fixed").length,
+    dismissedCount: items.filter((item) => item.status === "dismissed").length,
+    guardrail:
+      "Approved guidance is added as scoped assistant guidance. It must not override safety rules, contact verification, or the rule to avoid inventing business facts.",
+    items,
+  };
+}
+
 function buildOwnerNotifications(customerSatisfaction = {}, actionQueue = null) {
   const notifications = [];
   const queueItems = Array.isArray(actionQueue?.items) ? actionQueue.items : [];
@@ -277,6 +397,10 @@ export function buildOwnerAnalyticsDashboard({
     actionQueue: fallbackActionQueue,
   });
   customerSatisfaction.persistenceAvailable = feedback?.persistenceAvailable !== false;
+  const knowledgeImprovement = buildKnowledgeImprovementCenter({
+    customerSatisfaction,
+    actionQueue: fallbackActionQueue,
+  });
   const notifications = buildOwnerNotifications(customerSatisfaction, fallbackActionQueue);
   const capturedLeads = countCapturedLeads(leadCaptures);
   const outcomeSummary = conversionOutcomes.summary || {};
@@ -321,6 +445,7 @@ export function buildOwnerAnalyticsDashboard({
     topVisitorQuestions: buildCustomerQuestionSummaries(normalizedMessages, 8),
     missedQuestions: findMissedQuestions(normalizedMessages),
     customerSatisfaction,
+    knowledgeImprovement,
     notifications,
     leadCapture: {
       records: Array.isArray(leadCaptures.records) ? leadCaptures.records : [],

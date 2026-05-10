@@ -305,6 +305,48 @@ test("dismissed knowledge fixes preserve history, survive reload, and stay scope
   );
 });
 
+test("owner can update, mark reviewing, and dismiss a knowledge fix draft", async () => {
+  const { ...supabase } = createSupabaseStub();
+
+  const synced = await syncKnowledgeFixWorkflows(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queueItems: [buildQueueItem()],
+    agentProfile: {
+      systemPrompt: "Stay grounded in the website.",
+      websiteUrl: "https://example.com",
+      knowledge: { state: "ready" },
+    },
+    websiteContent: {
+      content: "Title: Example\nBody:\nSaturday hours are not published.",
+    },
+  });
+
+  const workflow = synced.records[0];
+  const reviewing = await updateKnowledgeFixWorkflow(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    knowledgeFixId: workflow.id,
+    status: "ready",
+    proposedGuidance: "Say Saturday hours are not published, then offer the verified contact path.",
+  });
+
+  assert.equal(reviewing.knowledgeFix.status, "ready");
+  assert.equal(reviewing.knowledgeFix.draftEditedManually, true);
+  assert.match(reviewing.knowledgeFix.proposedGuidance, /verified contact path/i);
+  assert.equal(reviewing.queueSync.status, "reviewed");
+
+  const dismissed = await updateKnowledgeFixWorkflow(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    knowledgeFixId: workflow.id,
+    status: "dismissed",
+  });
+
+  assert.equal(dismissed.knowledgeFix.status, "dismissed");
+  assert.equal(dismissed.queueSync.status, "dismissed");
+});
+
 test("applyKnowledgeFixToSystemPrompt updates one managed block instead of duplicating it", () => {
   const workflow = {
     dedupeKey: "knowledge_gap:hours-saturday",
@@ -319,6 +361,8 @@ test("applyKnowledgeFixToSystemPrompt updates one managed block instead of dupli
   });
 
   assert.match(first, /VONZA_KNOWLEDGE_FIX knowledge_gap:hours-saturday/);
+  assert.match(first, /does not override safety rules, contact verification/i);
+  assert.match(first, /avoid inventing prices, policies, availability, services/i);
   assert.equal((second.match(/VONZA_KNOWLEDGE_FIX knowledge_gap:hours-saturday/g) || []).length, 1);
   assert.match(second, /Use the clearest website detail first/);
 });

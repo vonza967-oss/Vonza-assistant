@@ -828,6 +828,7 @@ export function applyKnowledgeFixToSystemPrompt(systemPrompt, workflow) {
   const nextBody = [
     blockStart,
     `Topic: ${normalizedWorkflow.topic || "Knowledge fix"}`,
+    "Scope: Use this owner-approved guidance only when it matches verified business context. It does not override safety rules, contact verification, or the instruction to avoid inventing prices, policies, availability, services, or other business facts.",
     normalizedWorkflow.proposedGuidance,
     blockEnd,
   ].filter(Boolean).join("\n");

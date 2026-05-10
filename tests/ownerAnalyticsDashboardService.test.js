@@ -85,6 +85,30 @@ test("owner analytics dashboard aggregates conversations, leads, conversions, mi
       ],
       persistenceAvailable: true,
     },
+    actionQueue: {
+      items: [
+        {
+          key: "conversation:msg-a1",
+          actionType: "knowledge_gap",
+          question: "How much does a website cost?",
+          reply: "Fixed pricing is not listed publicly.",
+          whyFlagged: "Visitor marked the answer not helpful.",
+          knowledgeFixSupported: true,
+          knowledgeFix: {
+            id: "knowledge-fix-1",
+            status: "draft",
+            targetLabel: "Advanced guidance / system prompt",
+            issueSummary: "The answer did not give a clear quote path.",
+            proposedGuidance: "If exact pricing is not listed, say that and direct visitors to the quote path.",
+            occurrenceCount: 1,
+            evidence: {
+              question: "How much does a website cost?",
+              currentResponse: "Fixed pricing is not listed publicly.",
+            },
+          },
+        },
+      ],
+    },
   });
 
   assert.equal(dashboard.metrics.totalConversations, 2);
@@ -99,7 +123,36 @@ test("owner analytics dashboard aggregates conversations, leads, conversions, mi
   assert.equal(dashboard.customerSatisfaction.negativeRate, 50);
   assert.match(dashboard.customerSatisfaction.unhappyAnswers[0].question, /website cost/i);
   assert.ok(dashboard.customerSatisfaction.recoveryActions.some((action) => action.type === "fix_knowledge"));
+  assert.equal(dashboard.knowledgeImprovement.total, 1);
+  assert.equal(dashboard.knowledgeImprovement.openCount, 1);
+  assert.equal(dashboard.knowledgeImprovement.items[0].status, "new");
+  assert.equal(dashboard.knowledgeImprovement.items[0].knowledgeFixId, "knowledge-fix-1");
+  assert.match(dashboard.knowledgeImprovement.items[0].suggestedFix, /quote path/i);
+  assert.match(dashboard.knowledgeImprovement.guardrail, /avoid inventing business facts/i);
   assert.ok(dashboard.notifications.some((notification) => notification.type === "unhappy_customers"));
   assert.ok(dashboard.topVisitorQuestions.length >= 1);
   assert.match(dashboard.missedQuestions[0].question, /website cost/i);
+});
+
+test("owner analytics dashboard keeps sparse knowledge improvement state honest", () => {
+  const dashboard = buildOwnerAnalyticsDashboard({
+    agent: {
+      id: "agent-1",
+      name: "Front Desk",
+    },
+    messages: [],
+    feedback: {
+      records: [],
+      persistenceAvailable: true,
+    },
+    actionQueue: {
+      items: [],
+      summary: {},
+    },
+  });
+
+  assert.equal(dashboard.knowledgeImprovement.total, 0);
+  assert.equal(dashboard.knowledgeImprovement.openCount, 0);
+  assert.deepEqual(dashboard.knowledgeImprovement.items, []);
+  assert.match(dashboard.knowledgeImprovement.copy, /No weak-answer pattern is active yet/i);
 });

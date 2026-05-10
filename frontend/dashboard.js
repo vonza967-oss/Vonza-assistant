@@ -286,7 +286,7 @@ const DEFAULT_LAUNCH_PROFILE = {
     automations: { state: FEATURE_STATE_BETA, label: "Automations" },
     advanced_guidance: { state: FEATURE_STATE_HIDDEN, label: "Advanced guidance" },
     manual_outcome_marks: { state: FEATURE_STATE_HIDDEN, label: "Fallback outcome marks" },
-    knowledge_fix_workflows: { state: FEATURE_STATE_HIDDEN, label: "Knowledge-fix workflows" },
+    knowledge_fix_workflows: { state: FEATURE_STATE_STABLE, label: "Knowledge Improvement" },
   },
 };
 const AUTH_VIEW_MODES = {
@@ -8295,7 +8295,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   `);
 }
 
-function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), messages = [], actionQueue = createEmptyActionQueue()) {
   const installStatus = getDefaultInstallStatus(agent);
   const actionsMarkup = [
     `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>`,
@@ -8325,7 +8325,12 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
       })}
       <div class="workspace-page-body install-page-layout">
         <section class="workspace-card-soft install-page-main">
-          ${buildInstallSection(agent, { upcoming: !setup.isReady })}
+          ${buildInstallSection(agent, {
+            upcoming: !setup.isReady,
+            messages,
+            actionQueue,
+            setup,
+          })}
         </section>
         <div class="frontdesk-side-stack">
           <section class="workspace-card-soft">
@@ -9493,6 +9498,16 @@ function createEmptyOwnerAnalyticsDashboard() {
       recoveryActions: [],
       persistenceAvailable: true,
     },
+    knowledgeImprovement: {
+      title: "Knowledge Improvement",
+      copy: "No weak-answer pattern is active yet.",
+      total: 0,
+      openCount: 0,
+      approvedFixedCount: 0,
+      dismissedCount: 0,
+      guardrail: "Approved guidance must stay grounded in verified business facts.",
+      items: [],
+    },
     notifications: [],
     aiUsage: null,
   };
@@ -9508,6 +9523,9 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
   const aiUsage = data.aiUsage && typeof data.aiUsage === "object" ? data.aiUsage : null;
   const customerSatisfaction = data.customerSatisfaction && typeof data.customerSatisfaction === "object"
     ? data.customerSatisfaction
+    : {};
+  const knowledgeImprovement = data.knowledgeImprovement && typeof data.knowledgeImprovement === "object"
+    ? data.knowledgeImprovement
     : {};
 
   return {
@@ -9545,6 +9563,17 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
         : [],
       persistenceAvailable: customerSatisfaction.persistenceAvailable !== false,
     },
+    knowledgeImprovement: {
+      ...emptyDashboard.knowledgeImprovement,
+      ...knowledgeImprovement,
+      total: Number(knowledgeImprovement.total || 0),
+      openCount: Number(knowledgeImprovement.openCount || 0),
+      approvedFixedCount: Number(knowledgeImprovement.approvedFixedCount || 0),
+      dismissedCount: Number(knowledgeImprovement.dismissedCount || 0),
+      items: Array.isArray(knowledgeImprovement.items)
+        ? knowledgeImprovement.items.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.question || item.safeSummary || item.reason))
+        : [],
+    },
     notifications: Array.isArray(data.notifications)
       ? data.notifications.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.title || item.copy))
       : [],
@@ -9573,9 +9602,10 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
   const hasMetricData = Object.values(dashboard.metrics || {}).some((value) => Number(value || 0) > 0);
   const hasQuestionData = dashboard.topVisitorQuestions.length > 0 || dashboard.missedQuestions.length > 0;
   const hasSatisfactionData = Number(dashboard.customerSatisfaction?.totalFeedback || 0) > 0 || dashboard.notifications.length > 0;
+  const hasKnowledgeImprovementData = Number(dashboard.knowledgeImprovement?.total || 0) > 0;
   const hasAiUsage = dashboard.aiUsage && trimText(dashboard.aiUsage.statusLabel || dashboard.aiUsage.planName || dashboard.aiUsage.planKey);
 
-  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasAiUsage ? dashboard : null;
+  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage ? dashboard : null;
 }
 
 function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {}, messages = []) {
@@ -10489,12 +10519,15 @@ function getKnowledgeFixStatusLabel(value) {
   const normalized = trimText(value).toLowerCase();
 
   switch (normalized) {
+    case "new":
     case "draft":
-      return "Draft";
+      return "New";
+    case "reviewing":
     case "ready":
-      return "Ready";
+      return "Reviewing";
+    case "approved_fixed":
     case "applied":
-      return "Applied";
+      return "Approved/fixed";
     case "dismissed":
       return "Dismissed";
     case "failed":
@@ -10507,7 +10540,7 @@ function getKnowledgeFixStatusLabel(value) {
 function getKnowledgeFixStatusBadgeClass(value) {
   const normalized = trimText(value).toLowerCase();
 
-  if (normalized === "applied") {
+  if (normalized === "applied" || normalized === "approved_fixed") {
     return "badge success";
   }
 
@@ -10515,7 +10548,7 @@ function getKnowledgeFixStatusBadgeClass(value) {
     return "pill";
   }
 
-  if (normalized === "ready") {
+  if (normalized === "ready" || normalized === "reviewing") {
     return "badge warning";
   }
 
@@ -11326,6 +11359,96 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
   `;
 }
 
+function buildKnowledgeImprovementCenterMarkup(actionQueue = createEmptyActionQueue()) {
+  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue) || createEmptyOwnerAnalyticsDashboard();
+  const improvement = ownerAnalyticsDashboard.knowledgeImprovement || createEmptyOwnerAnalyticsDashboard().knowledgeImprovement;
+  const queueItems = Array.isArray(actionQueue.items) ? actionQueue.items : [];
+  const queueByFixId = new Map();
+  const queueByActionKey = new Map();
+
+  queueItems.forEach((item) => {
+    if (item.knowledgeFix?.id) {
+      queueByFixId.set(item.knowledgeFix.id, item);
+    }
+    if (item.key) {
+      queueByActionKey.set(item.key, item);
+    }
+  });
+
+  const items = Array.isArray(improvement.items) ? improvement.items.slice(0, 8) : [];
+  const itemMarkup = items.map((item) => {
+    const relatedQueueItem = queueByFixId.get(item.knowledgeFixId) || queueByActionKey.get(item.actionKey) || null;
+    const knowledgeFix = relatedQueueItem?.knowledgeFix || null;
+    const knowledgeFixStatus = trimText(knowledgeFix?.status).toLowerCase();
+    const readOnly = knowledgeFixStatus === "applied" || knowledgeFixStatus === "dismissed";
+    const canEdit = Boolean(knowledgeFix?.id) && actionQueue.knowledgeFixWorkflowAvailable !== false && !readOnly;
+    const formId = escapeHtml(knowledgeFix?.id || item.id || item.actionKey || "");
+
+    return `
+      <article class="knowledge-improvement-item">
+        <div class="action-queue-item-top">
+          <div class="action-queue-headline">
+            <div class="action-queue-badges">
+              <span class="${getKnowledgeFixStatusBadgeClass(knowledgeFix?.status || item.status)}">${escapeHtml(getKnowledgeFixStatusLabel(knowledgeFix?.status || item.status))}</span>
+              <span class="pill">${escapeHtml(`${item.occurrenceCount || 1} conversation${Number(item.occurrenceCount || 1) === 1 ? "" : "s"}`)}</span>
+              <span class="pill">${escapeHtml(item.targetLabel || "Advanced guidance")}</span>
+            </div>
+            <h4 class="action-queue-title">${escapeHtml(item.safeSummary || item.question || "Knowledge improvement")}</h4>
+            <p class="action-queue-copy">${escapeHtml(item.reason || "Vonza flagged this for owner review.")}</p>
+          </div>
+        </div>
+        <div class="action-queue-handoff-summary">
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Customer question</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.question || "No stored question available.")}</strong>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Current answer gap</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.currentGap || "No current answer gap captured yet.")}</strong>
+          </div>
+        </div>
+        ${knowledgeFix ? `
+          <form class="action-queue-knowledge-fix-form" data-knowledge-fix-form data-knowledge-fix-id="${formId}" data-action-key="${escapeHtml(relatedQueueItem?.key || item.actionKey || "")}">
+            <div class="field">
+              <label for="knowledge-center-guidance-${formId}">Owner-approved guidance</label>
+              <textarea id="knowledge-center-guidance-${formId}" name="proposed_guidance" ${canEdit ? "" : "disabled"}>${escapeHtml(knowledgeFix.proposedGuidance || item.suggestedFix || "")}</textarea>
+              <p class="field-help">${escapeHtml(readOnly ? "This item is closed. If the issue comes back, Vonza will create a fresh improvement item." : "Keep guidance factual and scoped to what the business has verified. Do not add guessed prices, policies, availability, or services.")}</p>
+            </div>
+            <div class="action-queue-form-actions">
+              <button class="primary-button" type="submit" ${canEdit ? "" : "disabled"}>Save guidance</button>
+              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="ready" ${canEdit ? "" : "disabled"}>Mark reviewing</button>
+              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="applied" ${canEdit && trimText(knowledgeFix.proposedGuidance || item.suggestedFix) ? "" : "disabled"}>Approve fix</button>
+              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="dismissed" ${knowledgeFixStatus === "applied" ? "disabled" : ""}>Dismiss</button>
+            </div>
+          </form>
+        ` : `
+          <div class="placeholder-card">This item came from reply feedback before a knowledge-fix draft was prepared. Review the related Home queue once the next sync creates editable guidance.</div>
+        `}
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="workspace-card-soft knowledge-improvement-center" data-knowledge-improvement-center>
+      <div class="flat-section-header">
+        <div>
+          <p class="overview-label">Knowledge Improvement</p>
+          <h3 class="flat-section-title">Close the weak-answer loop</h3>
+          <p class="analytics-report-section-copy">${escapeHtml(improvement.copy || "Weak, repeated, and not-helpful answers will appear here for owner review.")}</p>
+        </div>
+        <div class="analytics-report-overview-pills">
+          <span class="pill">${escapeHtml(`${improvement.openCount || 0} open`)}</span>
+          <span class="pill">${escapeHtml(`${improvement.approvedFixedCount || 0} approved/fixed`)}</span>
+          <span class="pill">${escapeHtml(`${improvement.dismissedCount || 0} dismissed`)}</span>
+        </div>
+      </div>
+      <div class="placeholder-card">${escapeHtml(improvement.guardrail || "Approved guidance must stay grounded in verified business facts.")}</div>
+      ${actionQueue.knowledgeFixWorkflowMigrationRequired === true ? `<div class="placeholder-card">Knowledge Improvement is visible, but editing is read-only until this workspace finishes its migration.</div>` : ""}
+      ${items.length ? `<div class="knowledge-improvement-list">${itemMarkup}</div>` : `<div class="placeholder-card">No weak or repeated answer pattern is active yet. After real visitor feedback or unanswered questions appear, this area will show the question, the gap, and a grounded draft fix.</div>`}
+    </section>
+  `;
+}
+
 function buildOverviewState(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const installStatus = getDefaultInstallStatus(agent);
   const signals = analyzeConversationSignals(messages);
@@ -11984,6 +12107,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
             </div>
           </section>
+          ${buildKnowledgeImprovementCenterMarkup(actionQueue)}
           ${customerSatisfactionMarkup}
           <section class="analytics-report-metric-grid">
             ${[
@@ -13019,7 +13143,7 @@ function renderAssistantShell(
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
-          ${buildInstallPanel(agent, setup, operatorWorkspace)}
+          ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
           ${buildSettingsPanel(agent, setup, operatorWorkspace)}
         </div>
       </div>
@@ -13117,13 +13241,24 @@ function buildPreviewSection(agent, setup) {
 }
 
 function buildInstallSection(agent, options = {}) {
-  const { upcoming = false } = options;
+  const {
+    upcoming = false,
+    messages = [],
+    actionQueue = createEmptyActionQueue(),
+    setup = {},
+  } = options;
   const hasInstall = Boolean(trimText(agent.installId));
   const progress = getInstallProgress(agent.id);
   const script = hasInstall ? buildScript(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
+  const normalizedMessages = Array.isArray(messages) ? messages : [];
+  const hasUserMessage = normalizedMessages.some((message) => trimText(message.role).toLowerCase() === "user");
+  const hasAssistantMessage = normalizedMessages.some((message) => trimText(message.role).toLowerCase() === "assistant");
+  const firstTestConversationDone = hasUserMessage && hasAssistantMessage;
+  const widgetConfigured = Boolean(trimText(agent.assistantName || agent.name) && trimText(agent.welcomeMessage) && trimText(agent.buttonLabel));
+  const knowledgeImported = setup.knowledgeReady === true || ["ready", "limited"].includes(trimText(agent.knowledge?.state).toLowerCase());
   const statusCopy = installStatus.state === "seen_recently"
     ? `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`
     : installStatus.state === "seen_stale"
@@ -13137,6 +13272,79 @@ function buildInstallSection(agent, options = {}) {
             : "Not installed yet. Paste the head snippet onto the live site, then run verification.";
   const publishDone = isInstallDetected(installStatus) || progress.installed;
   const verifyDone = isInstallSeen(installStatus) || installStatus.state === "installed_unseen";
+  const checklist = [
+    {
+      title: "Assistant created",
+      copy: trimText(agent.publicAgentKey) ? "The customer-facing assistant exists and has a preview key." : "Finish setup so Vonza can create the assistant preview.",
+      done: Boolean(trimText(agent.id || agent.publicAgentKey)),
+      doneLabel: "Ready",
+    },
+    {
+      title: "Website knowledge imported",
+      copy: knowledgeImported ? setup.knowledgeDescription || "Website knowledge is available." : "Import website knowledge before launch so answers stay grounded.",
+      done: knowledgeImported,
+      doneLabel: "Imported",
+    },
+    {
+      title: "Widget configured",
+      copy: widgetConfigured ? "Assistant name, welcome message, and launcher text are set." : "Set the visible assistant name, welcome message, and launcher text.",
+      done: widgetConfigured,
+      doneLabel: "Configured",
+    },
+    {
+      title: "Install snippet available",
+      copy: hasInstall ? "The current install snippet is ready to copy." : "Vonza will show the snippet once the assistant has an install id.",
+      done: hasInstall,
+      doneLabel: "Available",
+    },
+    {
+      title: "Widget detected / verified",
+      copy: verifyDone ? installStatus.label || "The live install has been detected." : "Run verification after publishing the snippet.",
+      done: verifyDone,
+      doneLabel: isInstallSeen(installStatus) ? "Live" : "Verified",
+    },
+    {
+      title: "First test conversation complete",
+      copy: firstTestConversationDone ? "A stored visitor and assistant exchange exists." : "Ask one sample question in preview or on the live widget after install.",
+      done: firstTestConversationDone,
+      doneLabel: "Complete",
+    },
+  ];
+  const nextBestStep = !hasInstall
+    ? {
+      title: "Next best step: finish assistant setup",
+      copy: "Complete the Front Desk setup so Vonza can generate the install snippet.",
+      action: `<button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>`,
+    }
+    : !publishDone
+      ? {
+        title: "Next best step: publish the snippet",
+        copy: "Copy the install code and paste it into the live site head or global custom code area.",
+        action: `<button class="primary-button" type="button" data-action="copy-install">Copy install code</button>`,
+      }
+      : !verifyDone
+        ? {
+          title: "Next best step: verify install",
+          copy: "Run the server-side verification so the dashboard can confirm the snippet on the expected website.",
+          action: `<button class="primary-button" type="button" data-action="verify-install">Verify installation</button>`,
+        }
+        : !firstTestConversationDone
+          ? {
+            title: "Next best step: ask a sample question",
+            copy: "Open the widget and ask a realistic customer question so Home and Analytics have the first conversation to review.",
+            action: `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Test widget</a>`,
+          }
+          : Number(actionQueue.summary?.attentionNeeded || 0) > 0
+            ? {
+              title: "Next best step: review first customer conversations",
+              copy: "Home already has conversations needing owner attention. Review them before adding more setup changes.",
+              action: `<button class="ghost-button" type="button" data-shell-target="overview">Open Home</button>`,
+            }
+            : {
+              title: "Next best step: improve knowledge if answers get weak",
+              copy: "Install is live. Watch Analytics for weak-answer feedback and use Knowledge Improvement when a repeated gap appears.",
+              action: `<button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>`,
+            };
   const liveConfirmationMarkup = isInstallSeen(installStatus)
     ? `<div class="placeholder-card">You are live. Vonza has received a real widget ping from ${escapeHtml(installStatus.host || "your website")}; next, test one customer question and watch Home for weak answers, leads, and follow-up needs.</div>`
     : installStatus.state === "installed_unseen"
@@ -13161,9 +13369,26 @@ function buildInstallSection(agent, options = {}) {
     ${recentSeenMarkup}
     ${verificationMarkup}
     ${mismatchMarkup}
-    <div class="install-steps">
+    <div class="install-next-step">
+      <p class="install-next-step-title">${escapeHtml(nextBestStep.title)}</p>
+      <p class="install-next-step-copy">${escapeHtml(nextBestStep.copy)}</p>
+      <div class="install-cta-row">${nextBestStep.action}</div>
+    </div>
+    <div class="install-checklist" aria-label="Setup checklist">
+      ${checklist.map((item, index) => `
+        <div class="install-step">
+          <div class="install-step-number">${index + 1}</div>
+          <div>
+            <p class="install-step-title">${escapeHtml(item.title)}</p>
+            <p class="install-step-copy">${escapeHtml(item.copy)}</p>
+          </div>
+          <div class="step-check ${item.done ? "done" : ""}">${escapeHtml(item.done ? item.doneLabel : "Pending")}</div>
+        </div>
+      `).join("")}
+    </div>
+    <div class="install-steps" aria-label="Install actions">
       <div class="install-step">
-        <div class="install-step-number">1</div>
+        <div class="install-step-number">A</div>
         <div>
           <p class="install-step-title">${escapeHtml(t("install.copyCode"))}</p>
           <p class="install-step-copy">Use the stable head snippet with your install id so Vonza can verify the right site.</p>
@@ -13171,7 +13396,7 @@ function buildInstallSection(agent, options = {}) {
         <div class="step-check ${progress.codeCopied ? "done" : ""}">${progress.codeCopied ? "Done" : "Pending"}</div>
       </div>
       <div class="install-step">
-        <div class="install-step-number">2</div>
+        <div class="install-step-number">B</div>
         <div>
           <p class="install-step-title">${escapeHtml(t("install.publish"))}</p>
           <p class="install-step-copy">Paste it into the live site head, theme layout, or global custom code area.</p>
@@ -13179,7 +13404,7 @@ function buildInstallSection(agent, options = {}) {
         <div class="step-check ${publishDone ? "done" : ""}">${publishDone ? "Detected" : "Pending"}</div>
       </div>
       <div class="install-step">
-        <div class="install-step-number">3</div>
+        <div class="install-step-number">C</div>
         <div>
           <p class="install-step-title">${escapeHtml(t("install.verify"))}</p>
           <p class="install-step-copy">Run the server check, then wait for the widget to ping back from a real page load.</p>

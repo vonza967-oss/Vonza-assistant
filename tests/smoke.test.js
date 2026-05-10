@@ -1480,9 +1480,17 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Owner follow-up state/);
         assert.match(dashboardScript.text, /Conversation summary/);
         assert.match(dashboardScript.text, /Visitor thread/);
+        assert.match(dashboardScript.text, /Knowledge Improvement/);
+        assert.match(dashboardScript.text, /Close the weak-answer loop/);
+        assert.match(dashboardScript.text, /Owner-approved guidance/);
+        assert.match(dashboardScript.text, /Approved\/fixed/);
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open follow-up note/);
         assert.match(dashboardScript.text, /Save follow-up note/);
+        assert.match(dashboardScript.text, /Setup checklist/);
+        assert.match(dashboardScript.text, /You are live/);
+        assert.match(dashboardScript.text, /First test conversation complete/);
+        assert.match(dashboardScript.text, /Next best step: ask a sample question/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");

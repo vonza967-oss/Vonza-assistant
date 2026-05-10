@@ -6013,6 +6013,57 @@ body {
   align-items: center;
 }
 
+.install-checklist,
+.knowledge-improvement-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.install-next-step {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 12px;
+  background: rgba(20, 184, 166, 0.08);
+}
+
+.install-next-step-title {
+  margin: 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.install-next-step-copy {
+  margin: 6px 0 0;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.workspace-pages .install-next-step-title {
+  color: var(--dashboard-ink);
+}
+
+.workspace-pages .install-next-step-copy {
+  color: var(--dashboard-muted);
+}
+
+.knowledge-improvement-center {
+  display: grid;
+  gap: 14px;
+}
+
+.knowledge-improvement-item {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
 .install-help {
   margin-top: 14px;
   color: var(--soft);
@@ -10646,6 +10697,7 @@ textarea::placeholder {
 .frontdesk-preview-guide,
 .frontdesk-preview-frame-shell,
 .install-step,
+.knowledge-improvement-item,
 .overview-list-item,
 .analytics-item,
 .results-list-item,
