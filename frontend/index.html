@@ -3,277 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vonza | AI front desk for customer questions</title>
-  <meta name="description" content="Vonza answers common customer questions, captures customer details, and keeps conversations organized so small businesses can respond faster and lose fewer customers.">
+  <title><!-- VONZA_MARKETING_TITLE --></title>
+  <meta name="description" content="<!-- VONZA_MARKETING_DESCRIPTION -->">
   <link rel="icon" type="image/svg+xml" href="/icon-192.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/marketing.css">
 </head>
-<body>
-  <div class="page-shell">
+<body data-marketing-page="<!-- VONZA_MARKETING_PAGE_KEY -->">
+  <div class="site-shell">
     <header class="site-header">
       <a class="brand" href="/" aria-label="Vonza home">
         <span class="brand-mark">V</span>
         <span class="brand-text">Vonza</span>
       </a>
 
-      <nav class="site-nav" aria-label="Primary">
-        <a href="#problem">Why Vonza</a>
-        <a href="#product">Product</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#trust">Trust</a>
+      <button class="site-menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" data-site-menu-toggle>
+        <span></span>
+        <span></span>
+      </button>
+
+      <nav class="site-nav" aria-label="Primary" data-site-nav>
+        <a href="/features" data-nav-page="features">Features</a>
+        <a href="/product" data-nav-page="product">Product</a>
+        <a href="/pricing" data-nav-page="pricing">Pricing</a>
+        <a href="/about" data-nav-page="about">About</a>
       </nav>
 
       <div class="header-actions">
         <a id="site-auth-link" class="text-link" data-app-link href="/dashboard?from=site">Sign in</a>
-        <a id="site-primary-cta" class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
+        <a id="site-primary-cta" class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
       </div>
     </header>
 
     <main>
-      <section class="hero">
-        <div class="hero-copy" data-reveal style="--reveal-delay: 40ms;">
-          <p class="eyebrow">AI customer service for busy SMBs</p>
-          <h1>An AI front desk for your customer questions</h1>
-          <p class="hero-text">Vonza answers common questions, captures customer details, and keeps conversations organized so small businesses can respond faster and lose fewer customers.</p>
-
-          <div class="hero-actions">
-            <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
-            <a class="button button-secondary" href="#how-it-works">See how it works</a>
-          </div>
-
-          <div class="hero-meta" aria-label="Vonza helps with">
-            <span>Answer customers faster</span>
-            <span>Stay organized</span>
-            <span>No AI knowledge needed</span>
-          </div>
-        </div>
-
-        <div class="hero-visual" data-reveal style="--reveal-delay: 140ms;">
-          <img
-            class="hero-photo"
-            src="https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&amp;fit=crop&amp;w=1200&amp;q=80"
-            alt="Small business team reviewing customer questions together"
-            width="1200"
-            height="900"
-          >
-          <div class="frontdesk-preview" aria-label="Example Vonza front desk conversation">
-            <div class="preview-topbar">
-              <span class="preview-dot"></span>
-              <strong>Vonza Front Desk</strong>
-            </div>
-            <div class="message-row customer-message">
-              <span>Customer question</span>
-              <p>Do you have appointments this week, and what should I bring?</p>
-            </div>
-            <div class="message-row vonza-message">
-              <span>Vonza answer</span>
-              <p>Yes. Here are the usual appointment times, what to bring, and the best next step if you want a booking or callback.</p>
-            </div>
-            <div class="summary-strip">
-              <strong>Saved for you</strong>
-              <span>Booking request, contact details, and a clear conversation summary.</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="problem" class="section problem-section">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">The everyday problem</p>
-          <h2>Customers ask when you are already busy.</h2>
-          <p class="section-copy">Small business owners answer the same questions again and again. When a website visitor cannot get a clear answer quickly, they may leave before you ever know they were ready to buy.</p>
-        </div>
-
-        <div class="problem-list" aria-label="Customer service problems">
-          <article data-reveal style="--reveal-delay: 40ms;">
-            <span>01</span>
-            <h3>Repeated questions take time</h3>
-            <p>Hours, prices, services, availability, contact details, and next steps keep coming up.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 100ms;">
-            <span>02</span>
-            <h3>Fast replies are hard</h3>
-            <p>Owners, teams, and front-desk staff are often serving customers in person.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 160ms;">
-            <span>03</span>
-            <h3>Missed replies cost customers</h3>
-            <p>A simple unanswered question can become a lost booking, quote request, or sale.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="section solution-section">
-        <div class="solution-grid">
-          <div class="section-intro" data-reveal>
-            <p class="eyebrow">The simple answer</p>
-            <h2>Vonza turns website visitors into organized customer conversations.</h2>
-            <p class="section-copy">It answers normal customer questions, guides visitors to the next helpful step, collects name and email when appropriate, and shows what customers keep asking about.</p>
-          </div>
-
-          <div class="solution-panel" data-reveal style="--reveal-delay: 120ms;" aria-label="Vonza customer conversation summary">
-            <div class="panel-line">
-              <span>Question</span>
-              <strong>Can I get a quote for next week?</strong>
-            </div>
-            <div class="panel-line">
-              <span>Vonza response</span>
-              <strong>Answered service basics and asked for the details needed for a quote request.</strong>
-            </div>
-            <div class="panel-line">
-              <span>Owner view</span>
-              <strong>Customer details and summary are ready in the dashboard.</strong>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="product" class="section product-section">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">Product areas</p>
-          <h2>A clean customer service workspace, not a complicated system.</h2>
-        </div>
-
-        <div class="product-grid">
-          <article class="product-item product-item-large" data-reveal style="--reveal-delay: 40ms;">
-            <p class="item-label">Front Desk</p>
-            <h3>Answer customer questions on your website</h3>
-            <p>Handles common questions about services, pricing, hours, availability, contact details, and next steps.</p>
-          </article>
-          <article class="product-item" data-reveal style="--reveal-delay: 90ms;">
-            <p class="item-label">Customers</p>
-            <h3>See who contacted you and what they asked</h3>
-            <p>Keep guest and identified visitors organized with clear conversation summaries.</p>
-          </article>
-          <article class="product-item" data-reveal style="--reveal-delay: 140ms;">
-            <p class="item-label">Home</p>
-            <h3>Know what needs attention today</h3>
-            <p>See simple priorities that help improve customer service.</p>
-          </article>
-          <article class="product-item" data-reveal style="--reveal-delay: 190ms;">
-            <p class="item-label">Analytics</p>
-            <h3>Understand what customers keep asking</h3>
-            <p>Spot unclear answers and common requests.</p>
-          </article>
-          <article class="product-item" data-reveal style="--reveal-delay: 240ms;">
-            <p class="item-label">Install</p>
-            <h3>Add Vonza to your website</h3>
-            <p>Simple setup without AI knowledge.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="how-it-works" class="section steps-section">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">How it works</p>
-          <h2>Three steps from setup to better service.</h2>
-        </div>
-
-        <div class="steps">
-          <article class="step" data-reveal style="--reveal-delay: 40ms;">
-            <span>1</span>
-            <h3>Add Vonza to your website.</h3>
-            <p>Set up the front desk with your website knowledge and install it on your site.</p>
-          </article>
-          <article class="step" data-reveal style="--reveal-delay: 110ms;">
-            <span>2</span>
-            <h3>Vonza answers customer questions.</h3>
-            <p>Visitors get clear answers about your business, services, and next steps.</p>
-          </article>
-          <article class="step" data-reveal style="--reveal-delay: 180ms;">
-            <span>3</span>
-            <h3>You see customers, summaries, and insights.</h3>
-            <p>Everything lands in one simple dashboard for follow-up and service improvement.</p>
-          </article>
-        </div>
-      </section>
-
-      <section id="trust" class="section handoff-section">
-        <div class="handoff-panel" data-reveal>
-          <div>
-            <p class="eyebrow">Human help stays clear</p>
-            <h2>Some requests need your attention. Vonza helps you see them clearly.</h2>
-          </div>
-          <p>Vonza answers normal questions itself. If a customer asks for a quote, booking, callback, contact, or human help, Vonza helps capture the request so your team can respond. Complaints are handled calmly first, with the context saved for review.</p>
-        </div>
-      </section>
-
-      <section class="section benefits-section">
-        <div class="section-intro" data-reveal>
-          <p class="eyebrow">Why SMBs use it</p>
-          <h2>Better service without adding a complicated tool.</h2>
-        </div>
-
-        <div class="benefit-grid">
-          <article data-reveal style="--reveal-delay: 40ms;">
-            <h3>Save time</h3>
-            <p>Let common questions get answered before they become another interruption.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 80ms;">
-            <h3>Reply faster</h3>
-            <p>Help customers get clear answers, even when you are busy.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 120ms;">
-            <h3>Reduce missed customers</h3>
-            <p>Capture useful details when someone wants a quote, booking, callback, or contact.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 160ms;">
-            <h3>Improve satisfaction</h3>
-            <p>Give visitors a calmer first response and a clearer next step.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 200ms;">
-            <h3>Learn what customers need</h3>
-            <p>See common questions and places where service information could be clearer.</p>
-          </article>
-          <article data-reveal style="--reveal-delay: 240ms;">
-            <h3>Set up without AI knowledge</h3>
-            <p>Vonza focuses on your website front desk and customer conversations.</p>
-          </article>
-        </div>
-      </section>
-
-      <!-- VONZA_MARKETING_PRICING_SECTION -->
-
-      <section class="section connected-section">
-        <div class="connected-note" data-reveal>
-          <p class="eyebrow">Planned connections</p>
-          <h2>Email, calendar, and automation connections are planned for later.</h2>
-          <p>Today, Vonza focuses on your website front desk and customer conversations.</p>
-          <span>Coming soon</span>
-        </div>
-      </section>
-
-      <section class="final-callout" data-reveal>
-        <div>
-          <p class="eyebrow">Ready to answer faster?</p>
-          <h2>Start your AI front desk.</h2>
-          <p>Give customers clear answers, keep conversations organized, and see what needs attention next.</p>
-        </div>
-        <div class="final-callout-actions">
-          <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
-          <a class="button button-secondary" href="#product">View product areas</a>
-        </div>
-      </section>
+      <!-- VONZA_MARKETING_PAGE_BODY -->
     </main>
 
     <footer class="site-footer" data-reveal>
       <div>
-        <p class="footer-brand">Vonza</p>
-        <p class="footer-copy">Your AI front desk for customer questions.</p>
+        <a class="footer-brand" href="/">Vonza</a>
+        <p class="footer-copy">An AI front desk for customer questions, lead signals, and faster replies.</p>
       </div>
-      <div class="footer-links">
+      <div class="footer-links" aria-label="Footer">
         <a href="/">Home</a>
-        <a data-app-link href="/dashboard?from=site">App</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#trust">Trust</a>
-        <a href="/aszf">ÁSZF</a>
+        <a href="/features">Features</a>
+        <a href="/product">Product</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/about">About</a>
+        <a data-app-link href="/dashboard?from=site">Dashboard</a>
+        <a href="/aszf">Terms</a>
         <a href="/impresszum">Impresszum</a>
-        <a href="/adatkezelesi-tajekoztato">Adatkezelési tájékoztató</a>
-        <a href="/cookie-tajekoztato">Cookie tájékoztató</a>
+        <a href="/adatkezelesi-tajekoztato">Privacy</a>
+        <a href="/cookie-tajekoztato">Cookies</a>
       </div>
     </footer>
   </div>

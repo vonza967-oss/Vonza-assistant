@@ -85,19 +85,401 @@ function renderMarketingPricingSection() {
   `;
 }
 
-function renderMarketingIndex(rootDir) {
+function renderAppImage({
+  src,
+  alt,
+  caption = "",
+  className = "",
+}) {
+  return `
+    <figure class="app-frame ${className}">
+      <div class="app-frame-bar" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" width="1440" height="980">
+      ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
+    </figure>
+  `;
+}
+
+function renderValueStrip() {
+  return `
+    <section class="value-strip" aria-label="Vonza value">
+      ${[
+        "Prioritize customer replies",
+        "Spot warm leads",
+        "Reduce missed messages",
+        "No AI knowledge needed",
+      ].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </section>
+  `;
+}
+
+function renderFinalCta() {
+  return `
+    <section class="final-cta" data-reveal>
+      <div>
+        <h2>Open a sharper front desk for every customer question.</h2>
+        <p>Set up Vonza, install the widget, and keep the customer work moving from one focused dashboard.</p>
+      </div>
+      <div class="final-cta-actions">
+        <a class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
+        <a class="button button-secondary" href="/features">View features</a>
+      </div>
+    </section>
+  `;
+}
+
+function renderMarketingHomePage() {
+  return `
+    <section class="hero">
+      <div class="hero-copy" data-reveal>
+        <h1>An AI front desk for your customer questions.</h1>
+        <p class="hero-text">Vonza answers common questions, captures customer details, and keeps conversations organized so teams can respond faster and lose fewer customers.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
+          <a class="button button-secondary" href="/product">See product tour</a>
+        </div>
+      </div>
+      <div class="hero-media" data-reveal style="--reveal-delay: 100ms;">
+        ${renderAppImage({
+          src: "/assets/product/dashboard-home.png",
+          alt: "Vonza dashboard home showing daily customer priorities and service metrics",
+          caption: "Home highlights customer priorities, wins, and service quality in one operational view.",
+          className: "app-frame-hero",
+        })}
+      </div>
+    </section>
+
+    ${renderValueStrip()}
+
+    <section class="section">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>Built for the customer work after the first question.</h2>
+          <p>Vonza keeps the dashboard compact and operational, so owners and teams can see who needs attention without sorting through noisy tools.</p>
+        </div>
+        <a class="text-arrow" href="/features">Explore all features</a>
+      </div>
+      <div class="feature-preview-grid">
+        <article class="feature-preview-card" data-reveal>
+          ${renderAppImage({
+            src: "/assets/product/customers-list.png",
+            alt: "Vonza customers page showing customer rows and statuses",
+          })}
+          <h3>Customer record rows</h3>
+          <p>See recent messages, reply state, lead context, and clean status pills in one compact list.</p>
+        </article>
+        <article class="feature-preview-card" data-reveal style="--reveal-delay: 80ms;">
+          ${renderAppImage({
+            src: "/assets/product/front-desk-inbox.png",
+            alt: "Vonza Front Desk page showing preview and readiness panels",
+          })}
+          <h3>Front Desk readiness</h3>
+          <p>Test the customer-facing assistant, review business grounding, and move into install when ready.</p>
+        </article>
+        <article class="feature-preview-card" data-reveal style="--reveal-delay: 160ms;">
+          ${renderAppImage({
+            src: "/assets/product/analytics-overview.png",
+            alt: "Vonza analytics overview showing customer service KPIs and trend chart",
+          })}
+          <h3>Customer-service analytics</h3>
+          <p>Track conversations, captured leads, weak-answer areas, and the customer questions that repeat.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section product-story">
+      <div class="story-copy" data-reveal>
+        <h2>One path from install to faster replies.</h2>
+        <p>Install the widget, let Vonza capture customer questions, review priority replies, and use analytics to tighten the answers customers rely on.</p>
+        <a class="button button-secondary" href="/product">How it works</a>
+      </div>
+      ${renderAppImage({
+        src: "/assets/product/settings-install.png",
+        alt: "Vonza install and settings view with setup status and configuration controls",
+        caption: "Settings and Install stay separate from the main dashboard so setup work never clutters daily operations.",
+        className: "story-frame",
+      })}
+    </section>
+
+    <section class="section use-cases">
+      <div class="section-intro" data-reveal>
+        <h2>For teams that cannot afford missed customer intent.</h2>
+      </div>
+      <div class="use-case-grid">
+        ${[
+          ["Service businesses", "Capture quote, booking, and callback intent while the team is busy."],
+          ["Ecommerce teams", "Answer product and order questions before they become abandoned carts."],
+          ["Creators and experts", "Route warm questions into a clearer follow-up process."],
+          ["Support teams", "Keep common questions answered and urgent replies visible."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    ${renderMarketingPricingSection()}
+
+    <section class="section connected-section">
+      <div class="connected-note" data-reveal>
+        <h2>Email, calendar, and automation connections are planned for later.</h2>
+        <p>Today, Vonza focuses on your website front desk and customer conversations.</p>
+        <span>Coming soon</span>
+      </div>
+    </section>
+
+    ${renderFinalCta()}
+  `;
+}
+
+function renderFeaturesPage() {
+  const features = [
+    {
+      title: "AI customer assistant",
+      copy: "Answer common website questions with business-aware guidance, clear next steps, and a tone that matches the company.",
+      src: "/assets/product/front-desk-inbox.png",
+      alt: "Vonza Front Desk preview for testing an AI customer assistant",
+    },
+    {
+      title: "Customer inbox / front desk",
+      copy: "Review conversations, chat availability, customer context, and handoff states without leaving the operational workspace.",
+      src: "/assets/product/customers-crm.png",
+      alt: "Vonza customer workspace with inbox-style customer rows",
+    },
+    {
+      title: "Lead detection",
+      copy: "Surface quote, booking, callback, and high-intent questions so the best follow-up does not get buried.",
+      src: "/assets/product/dashboard-home.png",
+      alt: "Vonza home page highlighting priority lead and reply tasks",
+    },
+    {
+      title: "Reply prioritization",
+      copy: "Give unhappy customers, unanswered questions, and warm leads a cleaner visual priority than ordinary activity.",
+      src: "/assets/product/customers-crm.png",
+      alt: "Vonza customer list with reply and lead status pills",
+    },
+    {
+      title: "Analytics",
+      copy: "Measure conversations, captured leads, weak answers, and frequent questions in a credible customer-service report.",
+      src: "/assets/product/analytics-overview.png",
+      alt: "Vonza analytics dashboard with KPI cards and chart",
+    },
+    {
+      title: "Settings / installation",
+      copy: "Keep business profile, widget behavior, installation, and verification clear without changing the daily dashboard flow.",
+      src: "/assets/product/settings-install.png",
+      alt: "Vonza settings and install configuration screens",
+    },
+  ];
+
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Everything the front desk needs to answer, route, and prioritize.</h1>
+        <p>Vonza combines customer-facing AI with an admin workspace designed for reply quality, lead visibility, and installation confidence.</p>
+      </div>
+      ${renderAppImage({
+        src: "/assets/product/front-desk-inbox.png",
+        alt: "Vonza Front Desk page with readiness and preview states",
+        className: "page-hero-frame",
+      })}
+    </section>
+
+    <section class="section feature-detail-list">
+      ${features.map((feature, index) => `
+        <article class="feature-detail ${index % 2 ? "feature-detail-reverse" : ""}" data-reveal>
+          <div class="feature-detail-copy">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <h2>${escapeHtml(feature.title)}</h2>
+            <p>${escapeHtml(feature.copy)}</p>
+          </div>
+          ${renderAppImage({
+            src: feature.src,
+            alt: feature.alt,
+          })}
+        </article>
+      `).join("")}
+    </section>
+
+    ${renderFinalCta()}
+  `;
+}
+
+function renderProductPage() {
+  const steps = [
+    ["Install", "Add Vonza to the website and verify the live embed.", "/assets/product/settings-install.png", "Vonza install page with setup steps"],
+    ["Connect or configure", "Set the business profile, tone, routing, and the knowledge Vonza should trust.", "/assets/product/settings-install.png", "Vonza settings page with business profile controls"],
+    ["Capture customer questions", "Let visitors ask questions and get useful first answers from the front desk.", "/assets/product/front-desk-inbox.png", "Vonza Front Desk preview conversation"],
+    ["Prioritize leads and replies", "Review warm leads, unhappy customers, and unresolved questions first.", "/assets/product/customers-crm.png", "Vonza customers page with prioritized customer records"],
+    ["Respond faster", "Use the latest context and suggested next step to decide what to do next.", "/assets/product/dashboard-home.png", "Vonza Home page with service priorities"],
+    ["Track performance", "See customer question themes, weak-answer areas, and outcomes in Analytics.", "/assets/product/analytics-overview.png", "Vonza analytics overview with chart"],
+  ];
+
+  return `
+    <section class="page-hero">
+      <div data-reveal>
+        <h1>How Vonza moves a customer question into a clear next step.</h1>
+        <p>From the website widget to the daily dashboard, every part of the product is built around answering faster and losing fewer customer opportunities.</p>
+      </div>
+    </section>
+
+    <section class="section walkthrough">
+      ${steps.map(([title, copy, src, alt], index) => `
+        <article class="walkthrough-step" data-reveal>
+          <div class="walkthrough-number">${String(index + 1).padStart(2, "0")}</div>
+          <div class="walkthrough-copy">
+            <h2>${escapeHtml(title)}</h2>
+            <p>${escapeHtml(copy)}</p>
+          </div>
+          ${renderAppImage({ src, alt })}
+        </article>
+      `).join("")}
+    </section>
+
+    ${renderFinalCta()}
+  `;
+}
+
+function renderPricingPage() {
+  return `
+    <section class="page-hero">
+      <div data-reveal>
+        <h1>Simple plans for launching an AI front desk.</h1>
+        <p>Choose the plan that matches the amount of customer conversation you want Vonza to help organize and answer.</p>
+      </div>
+    </section>
+    ${renderMarketingPricingSection()}
+    <section class="section faq-section">
+      <div class="section-intro" data-reveal>
+        <h2>Pricing FAQ</h2>
+      </div>
+      <div class="faq-grid">
+        ${[
+          ["Can I start without a technical setup?", "Yes. Vonza gives you an install snippet and verification flow so setup stays clear."],
+          ["Can I change plans later?", "Yes. Plan movement is handled from the dashboard billing experience when billing is configured."],
+          ["What happens if traffic is quiet?", "The dashboard still shows setup readiness, weak areas, and what needs attention as activity grows."],
+          ["Is this replacing my team?", "No. Vonza handles common first questions and keeps the human follow-up work visible."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+    ${renderFinalCta()}
+  `;
+}
+
+function renderAboutPage() {
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Vonza is built for businesses that answer customer questions while doing the work.</h1>
+        <p>It gives small teams a sharper front desk: helpful first responses for visitors, a cleaner place for customer follow-up, and visibility into what people keep asking.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
+          <a class="button button-secondary" href="mailto:support@vonza.app">Contact</a>
+        </div>
+      </div>
+      ${renderAppImage({
+        src: "/assets/product/dashboard-home.png",
+        alt: "Vonza dashboard home for customer-service operations",
+        className: "page-hero-frame",
+      })}
+    </section>
+
+    <section class="section about-grid">
+      <article data-reveal>
+        <h2>Product principle</h2>
+        <p>Vonza stays focused on customer service work: answer what can be answered, capture useful context, and make the next human action obvious.</p>
+      </article>
+      <article data-reveal style="--reveal-delay: 80ms;">
+        <h2>Who it serves</h2>
+        <p>Service businesses, ecommerce teams, creators, and support operators that need fewer missed messages and clearer reply priorities.</p>
+      </article>
+      <article data-reveal style="--reveal-delay: 160ms;">
+        <h2>Contact</h2>
+        <p>For support, product questions, or partnership conversations, contact the Vonza team from the dashboard or by email.</p>
+        <a class="text-arrow" href="mailto:support@vonza.app">support@vonza.app</a>
+      </article>
+    </section>
+
+    ${renderFinalCta()}
+  `;
+}
+
+const MARKETING_PAGES = {
+  home: {
+    title: "Vonza | AI front desk for customer questions",
+    description: "Vonza answers customer questions, detects warm leads, and organizes reply priorities in a polished dashboard for small teams.",
+    body: renderMarketingHomePage,
+  },
+  features: {
+    title: "Vonza Features | AI customer assistant and front desk",
+    description: "Explore Vonza features for AI customer assistance, customer inbox, lead detection, reply prioritization, analytics, settings, and install.",
+    body: renderFeaturesPage,
+  },
+  product: {
+    title: "Vonza Product | How the AI front desk works",
+    description: "See how Vonza moves from installation to customer question capture, lead prioritization, faster replies, and performance tracking.",
+    body: renderProductPage,
+  },
+  pricing: {
+    title: "Vonza Pricing | Plans for an AI front desk",
+    description: "Review Vonza pricing plans for launching an AI front desk and organizing customer questions.",
+    body: renderPricingPage,
+  },
+  about: {
+    title: "About Vonza | AI front desk for busy teams",
+    description: "Learn about Vonza, the AI front desk built for small teams that need faster customer replies and fewer missed messages.",
+    body: renderAboutPage,
+  },
+};
+
+function renderMarketingPage(rootDir, pageKey = "home") {
+  const page = MARKETING_PAGES[pageKey] || MARKETING_PAGES.home;
   const template = readFileSync(path.join(rootDir, "frontend", "index.html"), "utf8");
-  return template.replace(
-    "<!-- VONZA_MARKETING_PRICING_SECTION -->",
-    renderMarketingPricingSection()
-  );
+  return template
+    .replace("<!-- VONZA_MARKETING_TITLE -->", escapeHtml(page.title))
+    .replace("<!-- VONZA_MARKETING_DESCRIPTION -->", escapeHtml(page.description))
+    .replace("<!-- VONZA_MARKETING_PAGE_KEY -->", escapeHtml(pageKey))
+    .replace("<!-- VONZA_MARKETING_PAGE_BODY -->", page.body());
 }
 
 export function createPublicRouter({ rootDir }) {
   const router = express.Router();
 
   router.get("/", (_req, res) => {
-    res.type("html").send(renderMarketingIndex(rootDir));
+    res.type("html").send(renderMarketingPage(rootDir, "home"));
+  });
+
+  router.get("/features", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "features"));
+  });
+
+  router.get("/product", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "product"));
+  });
+
+  router.get("/how-it-works", (_req, res) => {
+    res.redirect(302, "/product");
+  });
+
+  router.get("/pricing", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "pricing"));
+  });
+
+  router.get("/about", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "about"));
+  });
+
+  router.get("/contact", (_req, res) => {
+    res.redirect(302, "/about");
   });
 
   router.get("/widget", (_req, res) => {

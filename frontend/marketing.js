@@ -3,6 +3,12 @@
   const primaryCta = document.getElementById("site-primary-cta");
   const appLinks = Array.from(document.querySelectorAll("[data-app-link]"));
   const revealNodes = Array.from(document.querySelectorAll("[data-reveal]"));
+  const siteHeader = typeof document.querySelector === "function"
+    ? document.querySelector(".site-header")
+    : null;
+  const menuToggle = typeof document.querySelector === "function"
+    ? document.querySelector("[data-site-menu-toggle]")
+    : null;
 
   function hasAuthConfig() {
     return Boolean(
@@ -159,6 +165,26 @@
     revealNodes.forEach((node) => observer.observe(node));
   }
 
+  function bootNavigation() {
+    const pageKey = document.body?.dataset?.marketingPage || "home";
+
+    document.querySelectorAll("[data-nav-page]").forEach((link) => {
+      if (link.dataset.navPage === pageKey) {
+        link.setAttribute("aria-current", "page");
+      } else {
+        link.removeAttribute("aria-current");
+      }
+    });
+
+    menuToggle?.addEventListener("click", () => {
+      const isOpen = !siteHeader?.classList.contains("nav-open");
+      siteHeader?.classList.toggle("nav-open", isOpen);
+      menuToggle.setAttribute("aria-expanded", String(isOpen));
+      menuToggle.setAttribute("aria-label", isOpen ? "Close navigation" : "Open navigation");
+    });
+  }
+
+  bootNavigation();
   bootRevealMotion();
 
   bootMarketingAuth().catch((error) => {
