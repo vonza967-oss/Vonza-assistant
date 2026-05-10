@@ -149,7 +149,8 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "common.lastMessage": "Last message",
   "common.viewChat": "View chat",
   "common.hideChat": "Hide chat",
-  "common.noChatYet": "No chat yet",
+  "common.noChatYet": "Chat unavailable",
+  "common.chatUnavailable": "Chat unavailable",
   "common.guestVisitor": "Guest visitor",
   "common.customer": "Customer",
   "common.vonza": "Vonza",
@@ -5082,7 +5083,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             data-contact-id="${escapeHtml(contact.id || "")}"
             aria-expanded="false"
             ${canShowChat ? "" : "disabled"}
-          >${canShowChat ? t("common.viewChat") : t("common.noChatYet")}</button>
+          >${canShowChat ? t("common.viewChat") : t("common.chatUnavailable")}</button>
         </div>
       </div>
       ${buildCustomerChatPanel(contact)}

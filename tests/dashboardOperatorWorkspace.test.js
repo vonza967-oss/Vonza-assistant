@@ -345,7 +345,7 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
   assert.match(contacts, /Ügyfelek/);
   assert.match(contacts, /Utolsó üzenet/);
   assert.match(contacts, /Chat megnyitása/);
-  assert.match(contacts, /Még nincs chat/);
+  assert.match(contacts, /Chat nem elérhető/);
   assert.match(contacts, /Vendég látogató/);
   assert.match(contacts, /Válaszra vár/);
   assert.match(contacts, /Érdeklődő/);
@@ -2183,7 +2183,8 @@ test("guest customer rows stay summary-only even if chat messages are present in
 
   assert.match(row, /data-toggle-customer-chat/);
   assert.match(row, /disabled/);
-  assert.match(row, /No chat yet/);
+  assert.match(row, /Chat unavailable/);
+  assert.doesNotMatch(row, /No chat yet/);
   assert.doesNotMatch(row, /data-customer-chat-panel/);
 });
 
