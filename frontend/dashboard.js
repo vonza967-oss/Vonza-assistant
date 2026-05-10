@@ -215,9 +215,14 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.helping": "Is Vonza helping customer service?",
   "analytics.totalConversations": "Total conversations",
   "analytics.leadsCaptured": "Leads captured",
+  "analytics.conversionRate": "Conversion rate",
+  "analytics.conversionRateNote": "Lead or assisted conversion share of total conversations",
+  "analytics.waitingForConversations": "Waiting for live conversations",
   "analytics.complaintsHandled": "Complaints handled",
   "analytics.estimatedSatisfaction": "Estimated customer satisfaction",
   "analytics.estimatedHoursSaved": "Estimated hours saved",
+  "analytics.aiUsage": "AI usage",
+  "analytics.planCapacity": "Plan capacity",
   "analytics.trends": "Trends",
   "analytics.trendsTitle": "Customer conversations and successful actions",
   "analytics.topInsights": "Top insights",
@@ -1554,6 +1559,11 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "After install is detected": "A telepítés észlelése után",
   "Home and Analytics become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.": "A Kezdőlap és az Elemzések megbízhatóbbá válnak, amint az éles oldalbetöltések, ügyfélkérdések és valódi konverziós utak ugyanabba a rendszerbe érkeznek.",
   "Open conversations still need a customer reply.": "A nyitott beszélgetésekhez még ügyfélválasz kell.",
+  "Conversion rate": "Konverziós arány",
+  "Lead or assisted conversion share of total conversations": "A leadek vagy támogatott konverziók aránya az összes beszélgetéshez képest",
+  "Waiting for live conversations": "Élő beszélgetésekre vár",
+  "AI usage": "AI-használat",
+  "Plan capacity": "Csomagkapacitás",
   "Customers reached an unclear service answer.": "Az ügyfelek nem elég egyértelmű szolgáltatásválaszt kaptak.",
   "Complaint or support recovery still needs a clear owner path.": "A panasz- vagy támogatási helyreállításhoz még egyértelmű tulajdonosi út kell.",
   "Visitors asked about price, cost, or packages without a clear pricing next step.": "A látogatók árakról, költségekről vagy csomagokról kérdeztek egyértelmű árazási következő lépés nélkül.",
@@ -9002,6 +9012,7 @@ function createEmptyActionQueue() {
     liveConversionAvailable: true,
     liveConversionMigrationRequired: false,
     analyticsSummary: createEmptyAnalyticsSummary(),
+    ownerAnalyticsDashboard: null,
   };
 }
 
@@ -9307,6 +9318,75 @@ function createEmptyAnalyticsSummary() {
   };
 }
 
+function createEmptyOwnerAnalyticsDashboard() {
+  return {
+    ok: false,
+    metrics: {
+      totalConversations: 0,
+      leadsCaptured: 0,
+      conversionRate: 0,
+    },
+    topVisitorQuestions: [],
+    missedQuestions: [],
+    aiUsage: null,
+  };
+}
+
+function normalizeOwnerAnalyticsDashboard(data = null) {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const emptyDashboard = createEmptyOwnerAnalyticsDashboard();
+  const metrics = data.metrics && typeof data.metrics === "object" ? data.metrics : {};
+  const aiUsage = data.aiUsage && typeof data.aiUsage === "object" ? data.aiUsage : null;
+
+  return {
+    ...emptyDashboard,
+    ...data,
+    ok: data.ok === true,
+    metrics: {
+      ...emptyDashboard.metrics,
+      ...metrics,
+      totalConversations: Number(metrics.totalConversations || 0),
+      leadsCaptured: Number(metrics.leadsCaptured || 0),
+      conversionRate: Number(metrics.conversionRate || 0),
+    },
+    topVisitorQuestions: Array.isArray(data.topVisitorQuestions)
+      ? data.topVisitorQuestions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.summary || item.question))
+      : [],
+    missedQuestions: Array.isArray(data.missedQuestions)
+      ? data.missedQuestions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.question || item.summary))
+      : [],
+    aiUsage: aiUsage
+      ? {
+        ...aiUsage,
+        planKey: trimText(aiUsage.planKey),
+        planName: trimText(aiUsage.planName),
+        statusLabel: trimText(aiUsage.statusLabel),
+        includedCents: Number(aiUsage.includedCents || 0),
+        usedCents: Number(aiUsage.usedCents || 0),
+        remainingCents: Number(aiUsage.remainingCents || 0),
+        percentUsed: Number(aiUsage.percentUsed || 0),
+      }
+      : null,
+  };
+}
+
+function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
+  const dashboard = normalizeOwnerAnalyticsDashboard(actionQueue.ownerAnalyticsDashboard);
+
+  if (!dashboard) {
+    return null;
+  }
+
+  const hasMetricData = Object.values(dashboard.metrics || {}).some((value) => Number(value || 0) > 0);
+  const hasQuestionData = dashboard.topVisitorQuestions.length > 0 || dashboard.missedQuestions.length > 0;
+  const hasAiUsage = dashboard.aiUsage && trimText(dashboard.aiUsage.statusLabel || dashboard.aiUsage.planName || dashboard.aiUsage.planKey);
+
+  return dashboard.ok || hasMetricData || hasQuestionData || hasAiUsage ? dashboard : null;
+}
+
 function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {}, messages = []) {
   const fallbackSignals = analyzeConversationSignals(messages);
   const fallbackSummary = createEmptyAnalyticsSummary();
@@ -9383,6 +9463,16 @@ function formatAnalyticsReportNumber(value) {
 
 function formatAnalyticsReportPercent(value) {
   return `${Math.round(Number(value || 0))}%`;
+}
+
+function formatAnalyticsReportDecimalPercent(value) {
+  const numeric = Number(value || 0);
+
+  if (!Number.isFinite(numeric)) {
+    return "0%";
+  }
+
+  return `${numeric.toFixed(1).replace(/\.0$/, "")}%`;
 }
 
 function formatAnalyticsReportHours(value) {
@@ -9778,8 +9868,11 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     ? Math.round((autonomousHandledCount / conversationCount) * 100)
     : 0;
   const contactsCaptured = Number(analyticsSummary.contactsCaptured || conversionSummary.contactsCaptured || 0);
-  const highIntentSignals = Number(analyticsSummary.highIntentSignals || 0);
   const assistedOutcomes = Number(analyticsSummary.assistedOutcomes || outcomeSummary.assistedConversions || 0);
+  const conversionRate = conversationCount > 0
+    ? Number(((Math.max(contactsCaptured, assistedOutcomes) / conversationCount) * 100).toFixed(1))
+    : 0;
+  const highIntentSignals = Number(analyticsSummary.highIntentSignals || 0);
   const pricingQuestions = Number(signals.intentCounts?.pricing || 0);
   const bookingQuestions = Number(signals.intentCounts?.booking || 0);
   const contactQuestions = Number(signals.intentCounts?.contact || 0);
@@ -9827,6 +9920,7 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     autonomousHandledCount,
     autonomousHandledRate,
     contactsCaptured,
+    conversionRate,
     complaintsHandled,
     complaintOpened,
     unresolvedComplaints,
@@ -11552,6 +11646,8 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
 function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
   const signals = analyzeConversationSignals(messages);
   const analyticsSummary = getAnalyticsSummary(actionQueue, agent, messages);
+  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
+  const ownerMetrics = ownerAnalyticsDashboard?.metrics || {};
   const conversionSummary = {
     ...createEmptyActionQueue().conversionSummary,
     ...(actionQueue.conversionSummary || {}),
@@ -11564,17 +11660,58 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   const report = buildAnalyticsReport(signals, analyticsSummary, actionQueue, conversionSummary, outcomeSummary, {
     contacts: operatorWorkspace.contacts?.list || [],
   });
+  if (ownerAnalyticsDashboard) {
+    report.conversationCount = Math.max(report.conversationCount, Number(ownerMetrics.totalConversations || 0));
+    report.contactsCaptured = Math.max(report.contactsCaptured, Number(ownerMetrics.leadsCaptured || 0));
+    report.conversionRate = Number(ownerMetrics.conversionRate || report.conversionRate || 0);
+  }
   report.recommendations = buildAnalyticsRecommendations(report);
   report.swot = buildAnalyticsSwot(report);
   report.summarySentence = buildAnalyticsSummarySentence(report);
   report.conversationSeries = buildAnalyticsTimeSeries(signals.userMessages || [], (message) => message.createdAt || message.created_at, 30);
   report.outcomeSeries = buildAnalyticsTimeSeries(recentOutcomes, (outcome) => outcome.occurredAt || outcome.createdAt || outcome.created_at, 30);
-  const topQuestionItems = Array.isArray(signals.topQuestions) && signals.topQuestions.length
+  const ownerTopQuestionItems = Array.isArray(ownerAnalyticsDashboard?.topVisitorQuestions)
+    ? ownerAnalyticsDashboard.topVisitorQuestions.map((item) => ({
+      label: trimText(item.summary || item.question),
+      count: Number(item.count || 0),
+    })).filter((item) => item.label)
+    : [];
+  const topQuestionItems = ownerTopQuestionItems.length
+    ? ownerTopQuestionItems.slice(0, 5)
+    : Array.isArray(signals.topQuestions) && signals.topQuestions.length
     ? signals.topQuestions.slice(0, 5)
     : [];
-  const weakAnswerItems = Array.isArray(signals.weakAnswerExamples) && signals.weakAnswerExamples.length
+  const ownerWeakQuestionItems = Array.isArray(ownerAnalyticsDashboard?.missedQuestions)
+    ? ownerAnalyticsDashboard.missedQuestions.map((item) => trimText(item.question || item.summary)).filter(Boolean)
+    : [];
+  const weakAnswerItems = ownerWeakQuestionItems.length
+    ? ownerWeakQuestionItems.slice(0, 4)
+    : Array.isArray(signals.weakAnswerExamples) && signals.weakAnswerExamples.length
     ? signals.weakAnswerExamples.slice(0, 4)
     : [];
+  const aiUsage = ownerAnalyticsDashboard?.aiUsage || null;
+  const hasAiUsage = aiUsage && (
+    Number(aiUsage.includedCents || 0) > 0
+    || Number(aiUsage.usedCents || 0) > 0
+    || trimText(aiUsage.statusLabel || aiUsage.planName || aiUsage.planKey)
+  );
+  const aiUsageMarkup = hasAiUsage
+    ? `<section class="workspace-card-soft">
+        <div class="flat-section-header">
+          <div>
+            <p class="overview-label">${escapeHtml(t("analytics.aiUsage"))}</p>
+            <h3 class="flat-section-title">${escapeHtml(t("analytics.planCapacity"))}</h3>
+          </div>
+        </div>
+        <div class="analytics-report-capacity">
+          <div class="analytics-report-capacity-bar" aria-label="AI usage vs plan capacity">
+            <span style="width:${escapeHtml(String(Math.min(100, Math.max(0, Number(aiUsage.percentUsed || 0)))))}%"></span>
+          </div>
+          <p>${escapeHtml(formatAnalyticsReportDecimalPercent(aiUsage.percentUsed))} used on ${escapeHtml(aiUsage.planName || aiUsage.planKey || "current plan")}</p>
+          <p class="analytics-report-section-copy">${escapeHtml(aiUsage.statusLabel || "Usage data is available for this billing period.")}</p>
+        </div>
+      </section>`
+    : "";
   const syncPendingMarkup = analyticsSummary.syncState === "pending"
     ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
     : "";
@@ -11617,6 +11754,14 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                   ? `${formatAnalyticsReportNumber(report.highIntentSignals - report.contactsCaptured)} warm chats still anonymous`
                   : "Lead capture is keeping pace with demand",
                 tone: report.contactsCaptured > 0 ? "positive" : "neutral",
+              },
+              {
+                label: t("analytics.conversionRate"),
+                value: formatAnalyticsReportDecimalPercent(report.conversionRate),
+                note: report.conversationCount > 0
+                  ? t("analytics.conversionRateNote")
+                  : t("analytics.waitingForConversations"),
+                tone: report.conversionRate > 0 ? "positive" : "neutral",
               },
               {
                 label: t("analytics.complaintsHandled"),
@@ -11711,6 +11856,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
                 </div>
                 <p class="analytics-report-section-copy">${escapeHtml(report.contactMixCopy)}</p>
               </section>
+              ${aiUsageMarkup}
             </div>
           </div>
           <section class="workspace-card-soft">
@@ -13031,6 +13177,13 @@ async function loadActionQueue(agentId) {
   };
 }
 
+async function loadOwnerAnalyticsDashboard(agentId) {
+  const url = new URL("/dashboard/analytics/summary", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  return normalizeOwnerAnalyticsDashboard(await fetchJson(url.toString()));
+}
+
 function normalizeOperatorWorkspace(data = null) {
   const emptyWorkspace = createEmptyOperatorWorkspace();
   const source = normalizeOperatorRecord(data);
@@ -13324,18 +13477,25 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
 function coalesceWorkspaceLoadState({
   messagesResult,
   actionQueueResult,
+  ownerAnalyticsResult,
   operatorResult,
 } = {}) {
-  const partialErrors = [messagesResult, actionQueueResult, operatorResult]
+  const partialErrors = [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult]
     .filter((result) => result?.status === "rejected")
     .map((result) => trimText(result.reason?.message || result.reason))
     .filter(Boolean);
+  const actionQueue = actionQueueResult?.status === "fulfilled"
+    ? actionQueueResult.value
+    : createEmptyActionQueue();
 
   return {
     messages: messagesResult?.status === "fulfilled" ? messagesResult.value : [],
-    actionQueue: actionQueueResult?.status === "fulfilled"
-      ? actionQueueResult.value
-      : createEmptyActionQueue(),
+    actionQueue: {
+      ...actionQueue,
+      ownerAnalyticsDashboard: ownerAnalyticsResult?.status === "fulfilled"
+        ? ownerAnalyticsResult.value
+        : actionQueue.ownerAnalyticsDashboard || null,
+    },
     operatorWorkspace: operatorResult?.status === "fulfilled"
       ? operatorResult.value
       : {
@@ -13345,7 +13505,7 @@ function coalesceWorkspaceLoadState({
           globalError: "We couldn't load the customer service workspace.",
         },
       },
-    hasPartialFailure: [messagesResult, actionQueueResult, operatorResult].some((result) => result?.status === "rejected"),
+    hasPartialFailure: [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
     partialErrors,
   };
 }
@@ -13381,10 +13541,11 @@ async function refreshAgentInstallState(agentId, options = {}) {
     return;
   }
 
-  const [agentResult, messagesResult, actionQueueResult, operatorResult] = await Promise.allSettled([
+  const [agentResult, messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
     loadAgentInstallSnapshot(agentId),
     loadAgentMessages(agentId),
     loadActionQueue(agentId),
+    loadOwnerAnalyticsDashboard(agentId),
     loadOperatorWorkspaceSafe(agentId, {
       forceSync: options.forceSync === true,
     }),
@@ -13392,8 +13553,16 @@ async function refreshAgentInstallState(agentId, options = {}) {
   const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
   const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
   const actionQueue = actionQueueResult.status === "fulfilled"
-    ? actionQueueResult.value
-    : createEmptyActionQueue();
+    ? {
+      ...actionQueueResult.value,
+      ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled"
+        ? ownerAnalyticsResult.value
+        : actionQueueResult.value?.ownerAnalyticsDashboard || null,
+    }
+    : {
+      ...createEmptyActionQueue(),
+      ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled" ? ownerAnalyticsResult.value : null,
+    };
   const operatorWorkspace = operatorResult.status === "fulfilled"
     ? operatorResult.value
     : {
@@ -13419,7 +13588,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
   };
   renderWorkspaceFromState();
 
-  if (messagesResult.status === "rejected" || actionQueueResult.status === "rejected" || operatorResult.status === "rejected") {
+  if (messagesResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
     setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
   }
 }
@@ -16810,9 +16979,10 @@ async function boot() {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, actionQueueResult, operatorResult] = await Promise.allSettled([
+    const [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadActionQueue(agent.id),
+      loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
     ]);
     const {
@@ -16824,6 +16994,7 @@ async function boot() {
     } = coalesceWorkspaceLoadState({
       messagesResult,
       actionQueueResult,
+      ownerAnalyticsResult,
       operatorResult,
     });
     const setup = inferSetup(agent);

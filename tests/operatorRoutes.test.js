@@ -288,7 +288,7 @@ test("owner analytics API returns secured metrics for an authenticated owner", a
   })));
 
   try {
-    const response = await requestJson(server.baseUrl, "/dashboard/analytics?agent_id=agent-1");
+    const response = await requestJson(server.baseUrl, "/dashboard/analytics/summary?agent_id=agent-1");
 
     assert.equal(response.status, 200);
     assert.equal(response.json.ok, true);
@@ -302,22 +302,37 @@ test("owner analytics API returns secured metrics for an authenticated owner", a
   }
 });
 
-test("owner analytics page route loads the standalone dashboard shell", async () => {
-  const server = await startServer(createApp(buildRouteDeps()));
+test("owner analytics route is JSON-only even for HTML requests", async () => {
+  const server = await startServer(createApp(buildRouteDeps({
+    assertMessagesSchemaReady: async () => {},
+    assertWidgetTelemetrySchemaReady: async () => {},
+    assertLeadCaptureSchemaReady: async () => {},
+    assertConversionOutcomeSchemaReady: async () => {},
+    listAgentMessages: async () => [],
+    listLeadCaptures: async () => ({ records: [], persistenceAvailable: true }),
+    listConversionOutcomesForAgent: async () => ({
+      records: [],
+      summary: {},
+      recentOutcomes: [],
+      persistenceAvailable: true,
+    }),
+    getOwnerBillingSnapshot: async () => null,
+    listActionQueueStatuses: async () => [],
+  })));
 
   try {
-    const response = await fetch(`${server.baseUrl}/dashboard/analytics`, {
+    const response = await fetch(`${server.baseUrl}/dashboard/analytics?agent_id=agent-1`, {
       headers: {
         Accept: "text/html",
         Authorization: "Bearer token",
       },
     });
-    const html = await response.text();
+    const data = await response.json();
 
     assert.equal(response.status, 200);
-    assert.match(html, /Vonza Analytics/);
-    assert.match(html, /\/dashboard\/analytics\.js/);
-    assert.match(html, /owner-analytics-root/);
+    assert.match(response.headers.get("content-type") || "", /application\/json/);
+    assert.equal(data.ok, true);
+    assert.equal(data.metrics.totalConversations, 0);
   } finally {
     await server.close();
   }

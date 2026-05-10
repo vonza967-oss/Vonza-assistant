@@ -329,38 +329,6 @@ export function createAgentRouter(deps = {}) {
     return Boolean(configuredToken && getAdminToken(req) === configuredToken);
   }
 
-  function renderOwnerAnalyticsPage() {
-    return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Vonza Analytics</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/dashboard.css">
-</head>
-<body>
-  <main class="standalone-analytics-shell">
-    <div class="standalone-analytics-topbar">
-      <a href="/dashboard" class="standalone-analytics-brand" aria-label="Back to dashboard">
-        <span>V</span>
-        <strong>Vonza Analytics</strong>
-      </a>
-    </div>
-    <section id="owner-analytics-root" class="standalone-analytics-root">
-      <h1>Owner analytics</h1>
-      <p>Loading customer-service metrics...</p>
-    </section>
-  </main>
-  <script src="/public-config.js"></script>
-  <script src="/supabase-auth.js"></script>
-  <script type="module" src="/dashboard/analytics.js"></script>
-</body>
-</html>`;
-  }
-
   router.post("/stripe/webhook", async (req, res) => {
     try {
       const supabase = getSupabase();
@@ -1200,9 +1168,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.get("/dashboard/analytics", async (req, res) => {
-    const wantsHtml = cleanText(req.headers.accept).includes("text/html");
-
+  router.get(["/dashboard/analytics", "/dashboard/analytics/summary"], async (req, res) => {
     try {
       const supabase = getSupabase();
       const agentId = req.query.agent_id || req.query.agentId;
@@ -1210,11 +1176,6 @@ export function createAgentRouter(deps = {}) {
       const user = isAdmin
         ? null
         : await authenticateUser(supabase, req);
-
-      if (wantsHtml) {
-        res.type("html").send(renderOwnerAnalyticsPage());
-        return;
-      }
 
       if (!isAdmin) {
         await requireActiveAgentAccessImpl(supabase, {

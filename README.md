@@ -29,7 +29,7 @@ Website visitor
 
 Owner
   -> /dashboard
-  -> owner APIs (/agents/*, /dashboard/analytics)
+  -> owner APIs (/agents/*, /dashboard/analytics/summary)
   -> Supabase auth + owner/admin access checks
 ```
 
@@ -57,7 +57,7 @@ STRIPE_PRICE_ID_GROWTH_MONTHLY=...
 STRIPE_PRICE_ID_PRO_MONTHLY=...
 ```
 
-Apply database schema in Supabase. `db/schema.sql` is canonical for a fresh database, and incremental migrations live in `supabase/migrations/` plus matching `db/*.sql` files. For an existing database, apply the new migration files in order.
+Apply database schema in Supabase. `db/schema.sql` is canonical for a fresh database, and incremental migrations live in `supabase/migrations/` plus matching `db/*.sql` files. For an existing database, apply the new migration files in order. Production must include `supabase/migrations/20260510000000_business_vertical.sql` before relying on persisted business verticals.
 
 Start the app:
 
@@ -65,7 +65,7 @@ Start the app:
 npm start
 ```
 
-Open the dashboard at `http://localhost:3000/dashboard`. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
+Open the dashboard at `http://localhost:3000/dashboard`. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
 
 ## Testing
 
