@@ -39,6 +39,89 @@ export function getMissingStartupEnvVars(env = process.env) {
   return REQUIRED_STARTUP_ENV_VARS.filter(({ name }) => !String(env[name] || "").trim());
 }
 
+function normalizeBooleanEnv(value, fallback = false) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
+}
+
+function isProductionLikeDeploy(env = process.env) {
+  const deployEnv = String(env.VONZA_DEPLOY_ENV || env.RENDER_ENV || "").trim().toLowerCase();
+  const nodeEnv = String(env.NODE_ENV || "").trim().toLowerCase();
+
+  return nodeEnv === "production"
+    || ["staging", "production", "prod"].includes(deployEnv)
+    || String(env.RENDER || "").trim().toLowerCase() === "true";
+}
+
+function isOperatorWorkspaceExplicitlyEnabled(env = process.env) {
+  return normalizeBooleanEnv(env.VONZA_OPERATOR_WORKSPACE_V1, false);
+}
+
+export function getMissingDeployReadinessEnvVars(env = process.env) {
+  const required = [...REQUIRED_STARTUP_ENV_VARS];
+
+  if (isProductionLikeDeploy(env)) {
+    required.push(
+      {
+        name: "STRIPE_SECRET_KEY",
+        note: "Required in staging/production so paid checkout can create subscription sessions.",
+      },
+      {
+        name: "STRIPE_WEBHOOK_SECRET",
+        note: "Required in staging/production so Stripe subscription webhooks can be verified.",
+      },
+      {
+        name: "STRIPE_PRICE_ID_STARTER_MONTHLY",
+        note: "Required in staging/production for Starter checkout.",
+      },
+      {
+        name: "STRIPE_PRICE_ID_GROWTH_MONTHLY",
+        note: "Required in staging/production for Growth checkout.",
+      },
+      {
+        name: "STRIPE_PRICE_ID_PRO_MONTHLY",
+        note: "Required in staging/production for Pro checkout.",
+      }
+    );
+  }
+
+  if (isOperatorWorkspaceExplicitlyEnabled(env)) {
+    required.push(
+      {
+        name: "GOOGLE_CLIENT_ID",
+        note: "Required only when VONZA_OPERATOR_WORKSPACE_V1=true.",
+      },
+      {
+        name: "GOOGLE_CLIENT_SECRET",
+        note: "Required only when VONZA_OPERATOR_WORKSPACE_V1=true.",
+      },
+      {
+        name: "GOOGLE_OAUTH_REDIRECT_URI",
+        note: "Required only when VONZA_OPERATOR_WORKSPACE_V1=true.",
+      },
+      {
+        name: "GOOGLE_TOKEN_ENCRYPTION_SECRET",
+        note: "Required only when VONZA_OPERATOR_WORKSPACE_V1=true.",
+      }
+    );
+  }
+
+  return required.filter(({ name }) => !String(env[name] || "").trim());
+}
+
 function unique(values = []) {
   return [...new Set(values)];
 }
@@ -181,7 +264,7 @@ export function buildDeployReadinessError(issues = []) {
 
 export async function runDeployReadinessVerification({ env = process.env, logger = console } = {}) {
   const issues = [];
-  const missingEnvVars = getMissingStartupEnvVars(env);
+  const missingEnvVars = getMissingDeployReadinessEnvVars(env);
 
   if (missingEnvVars.length) {
     issues.push(
@@ -197,7 +280,7 @@ export async function runDeployReadinessVerification({ env = process.env, logger
     throw buildDeployReadinessError(issues);
   }
 
-  logger.log("Required startup env vars: OK");
+  logger.log("Required deploy env vars: OK");
   logger.log("Deploy readiness manifest: OK");
 
   const liveResult = await verifyLiveStartupSchema({ env, logger });

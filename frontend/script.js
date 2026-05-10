@@ -85,8 +85,10 @@ let lastLeadReferenceMessage = "";
 let quickRepliesDismissed = false;
 const sentTelemetryKeys = new Set();
 const leadCapturePromptShownKeys = new Set();
+const submittedReplyFeedbackKeys = new Set();
 const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
+const VISITOR_IDENTITY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 let widgetPhase = WIDGET_PHASES.ENTRY;
 
 function getWidgetStorageScope() {
@@ -170,6 +172,10 @@ function normalizeVisitorIdentityState(input = {}) {
   };
 }
 
+function getStoredIdentityExpiry() {
+  return Date.now() + VISITOR_IDENTITY_TTL_MS;
+}
+
 function hasChosenVisitorIdentity() {
   return Boolean(normalizeVisitorIdentityMode(visitorIdentity.mode));
 }
@@ -185,6 +191,17 @@ function buildVisitorIdentityPayload(identity = visitorIdentity) {
   };
 }
 
+function buildAssistantMessageKey(reply, index = conversationHistory.length) {
+  const normalized = trimText(reply).toLowerCase();
+  let hash = 0;
+
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = ((hash << 5) - hash + normalized.charCodeAt(i)) | 0;
+  }
+
+  return `${getVisitorSessionKey()}::${index}::${Math.abs(hash)}`;
+}
+
 function saveVisitorIdentity(identity) {
   const normalized = normalizeVisitorIdentityState(identity);
 
@@ -194,7 +211,11 @@ function saveVisitorIdentity(identity) {
       return normalized;
     }
 
-    window.localStorage.setItem(getVisitorIdentityStorageKey(), JSON.stringify(normalized));
+    window.localStorage.setItem(getVisitorIdentityStorageKey(), JSON.stringify({
+      ...normalized,
+      savedAt: new Date().toISOString(),
+      expiresAt: new Date(getStoredIdentityExpiry()).toISOString(),
+    }));
   } catch {}
 
   return normalized;
@@ -204,10 +225,27 @@ function loadStoredVisitorIdentity() {
   try {
     const value = window.localStorage.getItem(getVisitorIdentityStorageKey());
     const parsed = value ? JSON.parse(value) : null;
+    const expiresAt = parsed?.expiresAt || parsed?.expires_at;
+
+    if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+      window.localStorage.removeItem(getVisitorIdentityStorageKey());
+      return normalizeVisitorIdentityState();
+    }
+
     return normalizeVisitorIdentityState(parsed || {});
   } catch {
     return normalizeVisitorIdentityState();
   }
+}
+
+function clearVisitorIdentity() {
+  visitorIdentity = normalizeVisitorIdentityState();
+  try {
+    window.localStorage.removeItem(getVisitorIdentityStorageKey());
+  } catch {}
+  syncWidgetPhaseWithIdentity(visitorIdentity);
+  setComposerStatus("Choose email or guest to start a fresh visitor identity.");
+  return visitorIdentity;
 }
 
 function addToHistory(role, content) {
@@ -1140,6 +1178,20 @@ async function loadWidgetBootstrap() {
   }
 }
 
+function buildReplyFeedbackMarkup(messageKey) {
+  if (!trimText(messageKey)) {
+    return "";
+  }
+
+  return `
+    <div class="reply-feedback" data-reply-feedback="${escapeHtml(messageKey)}">
+      <span>Was this helpful?</span>
+      <button type="button" data-reply-feedback-rating="helpful" aria-label="Mark this reply helpful">Helpful</button>
+      <button type="button" data-reply-feedback-rating="not_helpful" aria-label="Mark this reply not helpful">Not helpful</button>
+    </div>
+  `;
+}
+
 function appendMessage(chat, role, text, options = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = `message ${role}${options.typing ? " typing" : ""}`;
@@ -1162,12 +1214,61 @@ function appendMessage(chat, role, text, options = {}) {
     <div class="bubble">
       <p class="message-label">${escapeHtml(label)}</p>
       ${body}
+      ${role === "bot" && options.feedbackKey ? buildReplyFeedbackMarkup(options.feedbackKey) : ""}
     </div>
   `;
 
   chat.appendChild(wrapper);
   chat.scrollTop = chat.scrollHeight;
   return wrapper;
+}
+
+async function submitReplyFeedback(messageKey, rating) {
+  const normalizedMessageKey = trimText(messageKey);
+  const normalizedRating = trimText(rating).toLowerCase();
+  const dedupeKey = `${getVisitorSessionKey()}::${normalizedMessageKey}`;
+
+  if (!normalizedMessageKey || submittedReplyFeedbackKeys.has(dedupeKey)) {
+    return null;
+  }
+
+  submittedReplyFeedbackKeys.add(dedupeKey);
+
+  try {
+    const response = await fetch("/chat/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        agent_id: resolvedAgentId,
+        agent_key: resolvedAgentKey,
+        business_id: resolvedBusinessId,
+        install_id: INSTALL_ID,
+        website_url: WEBSITE_URL,
+        page_url: getPageUrl(),
+        origin: getPageOrigin(),
+        session_key: getVisitorSessionKey(),
+        assistant_message_key: normalizedMessageKey,
+        rating: normalizedRating,
+        message_context: {
+          conversation_index: conversationHistory.length,
+        },
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || "Feedback request failed");
+    }
+
+    setComposerStatus(normalizedRating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review that reply.");
+    return data;
+  } catch (error) {
+    submittedReplyFeedbackKeys.delete(dedupeKey);
+    console.warn("Vonza reply feedback failed:", error);
+    setComposerStatus("Feedback could not be saved just now.");
+    return null;
+  }
 }
 
 async function sendMessage(messageOverride = "") {
@@ -1253,7 +1354,8 @@ async function sendMessage(messageOverride = "") {
       applyWidgetConfig(data.widgetConfig);
     }
 
-    appendMessage(chat, "bot", data.reply);
+    const feedbackKey = buildAssistantMessageKey(data.reply);
+    appendMessage(chat, "bot", data.reply, { feedbackKey });
     resolvedAgentId = trimText(data.agentId || resolvedAgentId);
     resolvedAgentKey = trimText(data.agentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
@@ -1338,6 +1440,39 @@ document.getElementById("identity-email-form")?.addEventListener("submit", (even
   form.setAttribute("hidden", "");
 });
 
+document.getElementById("identity-reset-button")?.addEventListener("click", () => {
+  clearVisitorIdentity();
+});
+
+document.getElementById("chat")?.addEventListener("click", (event) => {
+  const button = event.target?.closest?.("[data-reply-feedback-rating]");
+
+  if (!button) {
+    return;
+  }
+
+  const container = button.closest("[data-reply-feedback]");
+  const messageKey = container?.dataset?.replyFeedback || "";
+  const rating = button.dataset.replyFeedbackRating || "";
+  container?.querySelectorAll?.("button").forEach((feedbackButton) => {
+    feedbackButton.disabled = true;
+  });
+  void submitReplyFeedback(messageKey, rating).then((result) => {
+    if (!result) {
+      container?.querySelectorAll?.("button").forEach((feedbackButton) => {
+        feedbackButton.disabled = false;
+      });
+      return;
+    }
+
+    container?.classList.add("submitted");
+    const label = container?.querySelector("span");
+    if (label) {
+      label.textContent = "Feedback saved";
+    }
+  });
+});
+
 document.getElementById("input").addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
     event.preventDefault();
@@ -1371,6 +1506,8 @@ loadWidgetBootstrap();
 window.__VONZA_WIDGET_TEST_HOOKS__ = {
   applyWidgetConfig,
   buildVisitorIdentityPayload,
+  buildAssistantMessageKey,
+  clearVisitorIdentity,
   continueIntoChat: (identity, options = {}) => continueIntoChat(identity, {
     track: false,
     capture: options.capture === true,
@@ -1382,7 +1519,9 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   renderQuickReplies,
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
+  saveVisitorIdentity,
   sendMessage: () => sendMessage(),
+  submitReplyFeedback,
 };
 
 if ("serviceWorker" in navigator && !EMBEDDED_MODE) {

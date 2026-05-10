@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
+const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -384,6 +385,23 @@ test("dashboard bundle parses cleanly", () => {
   assert.doesNotThrow(() => {
     new vm.Script(bundle, { filename: "frontend/dashboard.js" });
   });
+});
+
+test("dashboard helper bundle parses and exposes low-risk utility helpers", () => {
+  const helperBundle = readFileSync(dashboardHelpersPath, "utf8");
+  const context = { window: {} };
+
+  assert.doesNotThrow(() => {
+    new vm.Script(helperBundle, { filename: "frontend/dashboardHelpers.js" }).runInNewContext(context);
+  });
+
+  assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
+  assert.equal(context.window.VonzaDashboardHelpers.trimText("  Vonza  "), "Vonza");
+  assert.equal(
+    context.window.VonzaDashboardHelpers.normalizeBillingPlanKey("starter", [{ key: "starter" }], "growth"),
+    "starter"
+  );
+  assert.equal(context.window.VonzaDashboardHelpers.normalizeBillingPlanKey("bad", [{ key: "starter" }], "growth"), "growth");
 });
 
 test("dashboard shows a visible loading state before workspace data resolves", async () => {

@@ -102,7 +102,7 @@ function createFakeElement(id = "") {
   };
 }
 
-function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = {}) {
+function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {}, initialLocalStorage = {} } = {}) {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -137,6 +137,7 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
     "input",
     "send-button",
     "composer-status",
+    "identity-reset-button",
     "assistant-name",
     "welcome-assistant-name",
     "launcher-text",
@@ -191,6 +192,10 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
     },
   };
 
+  const localStorage = createStorage();
+  Object.entries(initialLocalStorage).forEach(([key, value]) => {
+    localStorage.setItem(key, value);
+  });
   const context = {
     console,
     document,
@@ -217,7 +222,7 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
         href: "https://example.com/widget",
         origin: "https://example.com",
       },
-      localStorage: createStorage(),
+      localStorage,
       sessionStorage: createStorage(),
       crypto: {
         randomUUID() {
@@ -239,6 +244,7 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
     hooks: context.window.__VONZA_WIDGET_TEST_HOOKS__,
     elements,
     fetchCalls,
+    localStorage,
   };
 }
 
@@ -375,6 +381,68 @@ test("widget can continue with email and build identified chat payloads", () => 
   assert.equal(harness.elements.get("intro-message").hidden, false);
   assert.equal(harness.elements.get("composer-shell").hidden, false);
   assert.equal(harness.elements.get("input").disabled, false);
+});
+
+test("widget stores visitor identity with expiry metadata and can clear it", () => {
+  const harness = createWidgetHarness();
+
+  harness.hooks.continueIntoChat({
+    mode: "identified",
+    email: "Visitor@Example.com",
+    name: "Avery Hart",
+  });
+
+  const stored = JSON.parse(harness.localStorage.getItem("vonza_visitor_identity_default"));
+  assert.equal(stored.mode, "identified");
+  assert.equal(stored.email, "visitor@example.com");
+  assert.ok(Date.parse(stored.savedAt));
+  assert.ok(Date.parse(stored.expiresAt) > Date.now());
+
+  harness.hooks.clearVisitorIdentity();
+
+  assert.equal(harness.localStorage.getItem("vonza_visitor_identity_default"), null);
+  assert.equal(harness.hooks.getWidgetPhase(), "entry");
+  assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
+    mode: "",
+    email: "",
+    name: "",
+  });
+});
+
+test("widget accepts old identity records but expires records with TTL metadata", () => {
+  const oldRecordHarness = createWidgetHarness({
+    initialLocalStorage: {
+      vonza_visitor_identity_default: JSON.stringify({
+        mode: "guest",
+      }),
+    },
+  });
+
+  assert.equal(oldRecordHarness.hooks.getWidgetPhase(), "chat");
+  assert.deepEqual(plain(oldRecordHarness.hooks.getVisitorIdentity()), {
+    mode: "guest",
+    email: "",
+    name: "",
+  });
+
+  const expiredHarness = createWidgetHarness({
+    initialLocalStorage: {
+      vonza_visitor_identity_default: JSON.stringify({
+        mode: "identified",
+        email: "expired@example.com",
+        name: "Expired",
+        expiresAt: "2026-01-01T00:00:00.000Z",
+      }),
+    },
+  });
+
+  assert.equal(expiredHarness.hooks.getWidgetPhase(), "entry");
+  assert.equal(expiredHarness.localStorage.getItem("vonza_visitor_identity_default"), null);
+  assert.deepEqual(plain(expiredHarness.hooks.getVisitorIdentity()), {
+    mode: "",
+    email: "",
+    name: "",
+  });
 });
 
 test("widget persists continue-with-email identity as a captured lead", async () => {
@@ -584,6 +652,7 @@ test("widget source separates entry and chat phases, hides the composer before i
 
   assert.match(widget, /Continue with email/);
   assert.match(widget, /Continue as guest/);
+  assert.match(widget, /Reset visitor identity/);
   assert.match(widget, /adatkezelesi-tajekoztato/);
   assert.match(widget, /id="entry-state"/);
   assert.match(widget, /id="chat-state" class="widget-phase widget-phase-chat" hidden/);
@@ -598,6 +667,8 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="quick-replies"/);
   assert.match(script, /QUICK_REPLY_TOPICS/);
   assert.match(style, /\.quick-reply-chip/);
+  assert.match(style, /\.reply-feedback/);
+  assert.match(script, /chat\/feedback/);
   assert.match(style, /@media \(max-width: 720px\)/);
   assert.match(style, /@media \(max-width: 420px\)/);
   assert.match(embed, /launcher-presence/);

@@ -2,6 +2,7 @@
 const rootEl = document.getElementById("dashboard-root");
 const statusBanner = document.getElementById("status-banner");
 const topbarMeta = document.getElementById("topbar-meta");
+const dashboardHelpers = window.VonzaDashboardHelpers || {};
 
 const CLIENT_ID_STORAGE_KEY = "vonza_client_id";
 const INSTALL_STORAGE_PREFIX = "vonza_install_progress_";
@@ -490,8 +491,12 @@ function getBillingPlans() {
 }
 
 function normalizeBillingPlanKey(value, fallback = "growth") {
-  const normalized = trimText(value).toLowerCase();
   const plans = getBillingPlans();
+  if (typeof dashboardHelpers.normalizeBillingPlanKey === "function") {
+    return dashboardHelpers.normalizeBillingPlanKey(value, plans, fallback);
+  }
+
+  const normalized = trimText(value).toLowerCase();
   return plans.some((plan) => plan.key === normalized) ? normalized : fallback;
 }
 
@@ -513,10 +518,18 @@ function replaceBillingPlanInUrl(planKey) {
 }
 
 function formatPercent(value) {
+  if (typeof dashboardHelpers.formatPercent === "function") {
+    return dashboardHelpers.formatPercent(value);
+  }
+
   return `${Math.round(Number(value || 0))}%`;
 }
 
 function formatBillingDate(value) {
+  if (typeof dashboardHelpers.formatBillingDate === "function") {
+    return dashboardHelpers.formatBillingDate(value);
+  }
+
   if (!trimText(value)) {
     return "Not available yet";
   }
@@ -2526,6 +2539,10 @@ function buildPreviewMarkup(installId) {
 }
 
 function escapeHtml(value) {
+  if (typeof dashboardHelpers.escapeHtml === "function") {
+    return dashboardHelpers.escapeHtml(value);
+  }
+
   return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -2535,6 +2552,10 @@ function escapeHtml(value) {
 }
 
 function trimText(value) {
+  if (typeof dashboardHelpers.trimText === "function") {
+    return dashboardHelpers.trimText(value);
+  }
+
   return String(value || "").trim();
 }
 
@@ -6965,12 +6986,23 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       { primary }
     );
   };
+  const getComparableTime = (...values) => {
+    for (const value of values) {
+      const timestamp = new Date(value || "").getTime();
+
+      if (Number.isFinite(timestamp)) {
+        return timestamp;
+      }
+    }
+
+    return 0;
+  };
   const recentWins = contactsList
     .filter((contact) => trimText(contact.latestOutcome?.label))
     .slice()
     .sort((left, right) => (
-      getDashboardComparableTime(right.latestOutcome?.occurredAt, right.mostRecentActivityAt)
-      - getDashboardComparableTime(left.latestOutcome?.occurredAt, left.mostRecentActivityAt)
+      getComparableTime(right.latestOutcome?.occurredAt, right.mostRecentActivityAt)
+      - getComparableTime(left.latestOutcome?.occurredAt, left.mostRecentActivityAt)
     ));
   const conversationsToday = Number(today.messagesToday || 0);
   const customersHelpedToday = Number(today.contactsDealtToday || 0);
@@ -7269,6 +7301,100 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       action: { type: "section", value: "analytics", label: "Review signals" },
     };
   })();
+  const attentionCategories = [
+    {
+      key: "unhappy",
+      label: "Unhappy or frustrated customer",
+      priority: 1,
+      match: (item, text) => trimText(item.type).toLowerCase() === "support" || /complaint|unhappy|frustrated|angry|upset|poor service/.test(text),
+      action: "Open the customer, acknowledge the issue, and decide the recovery follow-up.",
+    },
+    {
+      key: "warm_lead",
+      label: "Warm lead / booking intent",
+      priority: 2,
+      match: (item, text) => ["pricing", "booking", "contact", "repeat_high_intent"].includes(trimText(item.type).toLowerCase()) || /quote|booking|book|price|pricing|estimate|warm lead/.test(text),
+      action: "Confirm the quote, booking, or contact path before the lead cools off.",
+    },
+    {
+      key: "unanswered_question",
+      label: "Unanswered or repeated question",
+      priority: 3,
+      match: (item, text) => trimText(item.type).toLowerCase() === "weak_answer" || Boolean(item.knowledgeFix) || /knowledge|weak answer|repeated|faq|unanswered/.test(text),
+      action: "Turn the question into stronger website guidance or an FAQ answer.",
+    },
+    {
+      key: "missing_contact",
+      label: "Missing contact details",
+      priority: 4,
+      match: (item, text) => getTodayQueueItemLinkState(item) === "Unlinked" || /missing contact|contact not captured|no email|no phone/.test(text),
+      action: "Ask for the best email or phone before preparing a follow-up.",
+    },
+    {
+      key: "follow_up_due",
+      label: "Follow-up due",
+      priority: 5,
+      match: (item, text) => Boolean(item.followUp) || /follow-up|follow up|due|draft prepared/.test(text),
+      action: "Review the prepared follow-up and mark it sent, done, or dismissed.",
+    },
+    {
+      key: "needs_reply",
+      label: "Needs reply",
+      priority: 6,
+      match: (item, text) => /needs reply|reply|waiting|no response|unanswered/.test(text) || getActionQueueOwnerWorkflow(item).attention === true,
+      action: "Review the thread and send or prepare the clearest owner reply.",
+    },
+  ];
+  const attentionItems = buildTodayQueueItems(
+    {
+      ...actionQueue,
+      items: dedupedQueueItems,
+    },
+    {
+      ...operatorWorkspace,
+      calendar: {
+        ...(operatorWorkspace.calendar || {}),
+        reviewItems: dedupedReviewItems,
+      },
+    }
+  )
+    .map((item, index) => {
+      const text = [
+        item.label,
+        item.title,
+        item.type,
+        item.whyFlagged,
+        item.snippet,
+        item.suggestedAction,
+        item.followUp?.whyPrepared,
+        item.knowledgeFix?.issueSummary,
+        getTodayQueueItemWhyLabel(item),
+      ].map((value) => trimText(value).toLowerCase()).filter(Boolean).join(" ");
+      const category = attentionCategories.find((candidate) => candidate.match(item, text))
+        || {
+          key: "needs_reply",
+          label: "Needs reply",
+          priority: 7,
+          action: "Review the item and choose the most useful next step.",
+        };
+      const who = getTodayQueueItemContactLabel(item);
+      const genericContactLabel = ["Contact not captured yet", "Contact details still coming in"].includes(who);
+      const title = who && !genericContactLabel
+        ? who
+        : (isAppointmentReviewQueueItem(item) ? item.title : item.label) || getActionQueueTypeLabel(item.type);
+
+      return {
+        key: getTodayQueueItemKey(item) || `attention:${index}`,
+        category: category.label,
+        priority: category.priority,
+        title,
+        reason: getTodayQueueItemWhyLabel(item),
+        action: getTodayQueueItemCopilotSummary(item) || category.action,
+      };
+    })
+    .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
+    .sort((left, right) => left.priority - right.priority)
+    .slice(0, 6);
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
@@ -7320,6 +7446,22 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                     </div>
                   </article>
                 `).join("") : `<div class="placeholder-card">No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</div>`}
+              </div>
+              <div class="home-attention-list">
+                <div class="home-attention-heading">
+                  <h4>Who needs attention</h4>
+                  <p>Prioritized from the queue, customer records, and today’s workspace signals.</p>
+                </div>
+                ${attentionItems.length ? attentionItems.map((item) => `
+                  <article class="home-attention-item">
+                    <div>
+                      <span class="home-attention-category">${escapeHtml(item.category)}</span>
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <p>${escapeHtml(item.reason)}</p>
+                    </div>
+                    <p class="home-attention-action">${escapeHtml(item.action)}</p>
+                  </article>
+                `).join("") : `<div class="placeholder-card">No specific customer needs are waiting right now. Home will stay honest until real queue or customer signals arrive.</div>`}
               </div>
             </section>
 

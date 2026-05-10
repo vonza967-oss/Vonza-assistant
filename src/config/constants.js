@@ -6,6 +6,7 @@ export const FOLLOW_UP_WORKFLOW_TABLE = "agent_follow_up_workflows";
 export const KNOWLEDGE_FIX_WORKFLOW_TABLE = "agent_knowledge_fix_workflows";
 export const LEAD_CAPTURE_TABLE = "agent_contact_leads";
 export const CONVERSION_OUTCOME_TABLE = "agent_conversion_outcomes";
+export const VISITOR_REPLY_FEEDBACK_TABLE = "agent_visitor_reply_feedback";
 export const OWNER_BILLING_ACCOUNT_TABLE = "owner_billing_accounts";
 export const OWNER_AI_USAGE_LEDGER_TABLE = "owner_ai_usage_ledger";
 export const CONNECTED_ACCOUNT_TABLE = "google_connected_accounts";

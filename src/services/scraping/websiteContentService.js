@@ -1,5 +1,9 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import dns from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
+import net from "node:net";
 
 import {
   BUSINESSES_TABLE,
@@ -17,6 +21,306 @@ import {
 
 const MEDIA_BLOCK_START = "[[VONZA_MEDIA_ASSETS]]";
 const MEDIA_BLOCK_END = "[[/VONZA_MEDIA_ASSETS]]";
+const MAX_FETCH_REDIRECTS = 3;
+const MAX_HTML_BYTES = 1_500_000;
+const METADATA_HOSTNAMES = new Set([
+  "metadata.google.internal",
+]);
+
+function createBlockedFetchError(reason) {
+  const error = new Error(`Website import blocked unsafe URL: ${reason}`);
+  error.code = "unsafe_website_url";
+  error.statusCode = 400;
+  return error;
+}
+
+function parseIpv4Address(address = "") {
+  const parts = String(address || "").split(".");
+
+  if (parts.length !== 4) {
+    return null;
+  }
+
+  const octets = parts.map((part) => Number.parseInt(part, 10));
+
+  if (
+    octets.some((octet, index) =>
+      !Number.isInteger(octet) ||
+      octet < 0 ||
+      octet > 255 ||
+      String(octet) !== parts[index]
+    )
+  ) {
+    return null;
+  }
+
+  return octets;
+}
+
+function isBlockedIpv4(address = "") {
+  const octets = parseIpv4Address(address);
+
+  if (!octets) {
+    return false;
+  }
+
+  const [first, second, third, fourth] = octets;
+
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19)) ||
+    first >= 224 ||
+    (first === 169 && second === 254 && third === 169 && fourth === 254)
+  );
+}
+
+function ipv6ToBigInt(address = "") {
+  const normalized = String(address || "").toLowerCase();
+  const withoutZone = normalized.split("%")[0];
+  const ipv4Match = withoutZone.match(/(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/);
+  let candidate = withoutZone;
+  let ipv4Groups = [];
+
+  if (ipv4Match) {
+    const ipv4 = parseIpv4Address(ipv4Match[1]);
+
+    if (!ipv4) {
+      return null;
+    }
+
+    ipv4Groups = [
+      ((ipv4[0] << 8) | ipv4[1]).toString(16),
+      ((ipv4[2] << 8) | ipv4[3]).toString(16),
+    ];
+    candidate = withoutZone.slice(0, withoutZone.length - ipv4Match[1].length) + ipv4Groups.join(":");
+  }
+
+  const pieces = candidate.split("::");
+
+  if (pieces.length > 2) {
+    return null;
+  }
+
+  const left = pieces[0] ? pieces[0].split(":").filter(Boolean) : [];
+  const right = pieces[1] ? pieces[1].split(":").filter(Boolean) : [];
+  const missing = 8 - left.length - right.length;
+
+  if (missing < 0 || (pieces.length === 1 && missing !== 0)) {
+    return null;
+  }
+
+  const groups = [
+    ...left,
+    ...Array.from({ length: missing }, () => "0"),
+    ...right,
+  ];
+
+  if (
+    groups.length !== 8 ||
+    groups.some((group) => !/^[0-9a-f]{1,4}$/i.test(group))
+  ) {
+    return null;
+  }
+
+  return groups.reduce(
+    (total, group) => (total << 16n) + BigInt(Number.parseInt(group, 16)),
+    0n
+  );
+}
+
+function isIpv6InRange(value, prefix, bits) {
+  const address = ipv6ToBigInt(value);
+  const range = ipv6ToBigInt(prefix);
+
+  if (address === null || range === null) {
+    return false;
+  }
+
+  const shift = 128n - BigInt(bits);
+  return (address >> shift) === (range >> shift);
+}
+
+function isBlockedIpv6(address = "") {
+  const normalized = String(address || "").toLowerCase().split("%")[0];
+
+  if (!normalized) {
+    return false;
+  }
+
+  if (normalized.startsWith("::ffff:")) {
+    const mappedIpv4 = normalized.slice("::ffff:".length);
+    if (mappedIpv4.includes(".")) {
+      return isBlockedIpv4(mappedIpv4);
+    }
+  }
+
+  if (isIpv6InRange(normalized, "::ffff:0:0", 96)) {
+    const address = ipv6ToBigInt(normalized);
+
+    if (address !== null) {
+      const ipv4Value = Number(address & 0xffffffffn);
+      const mappedIpv4 = [
+        (ipv4Value >>> 24) & 255,
+        (ipv4Value >>> 16) & 255,
+        (ipv4Value >>> 8) & 255,
+        ipv4Value & 255,
+      ].join(".");
+      return isBlockedIpv4(mappedIpv4);
+    }
+  }
+
+  return (
+    isIpv6InRange(normalized, "::", 128) ||
+    isIpv6InRange(normalized, "::1", 128) ||
+    isIpv6InRange(normalized, "fc00::", 7) ||
+    isIpv6InRange(normalized, "fe80::", 10) ||
+    isIpv6InRange(normalized, "ff00::", 8)
+  );
+}
+
+export function isBlockedIpAddress(address = "") {
+  const normalized = String(address || "").trim().replace(/^\[|\]$/g, "");
+  const ipVersion = net.isIP(normalized);
+
+  if (ipVersion === 4) {
+    return isBlockedIpv4(normalized);
+  }
+
+  if (ipVersion === 6) {
+    return isBlockedIpv6(normalized);
+  }
+
+  return true;
+}
+
+function isBlockedHostname(hostname = "") {
+  const normalized = String(hostname || "").trim().toLowerCase().replace(/\.$/, "");
+
+  return (
+    !normalized ||
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    METADATA_HOSTNAMES.has(normalized)
+  );
+}
+
+function isHtmlCompatibleContentType(contentType = "") {
+  const normalized = cleanText(contentType).toLowerCase();
+
+  return normalized.includes("text/html") || normalized.includes("application/xhtml+xml");
+}
+
+function getContentLength(headers = {}) {
+  const value = Number.parseInt(headers["content-length"] || headers["Content-Length"] || "", 10);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export async function validateWebsiteFetchUrl(url, options = {}) {
+  let parsed;
+
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw createBlockedFetchError("invalid URL");
+  }
+
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw createBlockedFetchError("only HTTP and HTTPS URLs are allowed");
+  }
+
+  const hostname = parsed.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+
+  if (isBlockedHostname(hostname)) {
+    throw createBlockedFetchError("local or metadata hostnames are not allowed");
+  }
+
+  if (net.isIP(hostname)) {
+    if (isBlockedIpAddress(hostname)) {
+      throw createBlockedFetchError("local, private, metadata, multicast, or unspecified IPs are not allowed");
+    }
+
+    return parsed.toString();
+  }
+
+  const lookup = options.lookup || dns.lookup;
+  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  const resolvedAddresses = Array.isArray(addresses) ? addresses : [addresses];
+
+  if (!resolvedAddresses.length) {
+    throw createBlockedFetchError("hostname did not resolve");
+  }
+
+  for (const entry of resolvedAddresses) {
+    const address = typeof entry === "string" ? entry : entry?.address;
+
+    if (!address || isBlockedIpAddress(address)) {
+      throw createBlockedFetchError("hostname resolves to a blocked IP range");
+    }
+  }
+
+  return parsed.toString();
+}
+
+function createSafeLookup(lookup = dns.lookup) {
+  return async (hostname, options, callback) => {
+    const done = typeof callback === "function" ? callback : options;
+    const lookupOptions = typeof callback === "function" ? options : {};
+
+    try {
+      if (isBlockedHostname(hostname)) {
+        throw createBlockedFetchError("local or metadata hostnames are not allowed");
+      }
+
+      const result = await lookup(hostname, lookupOptions);
+      const entries = Array.isArray(result) ? result : [result];
+
+      for (const entry of entries) {
+        const address = typeof entry === "string" ? entry : entry?.address;
+
+        if (!address || isBlockedIpAddress(address)) {
+          throw createBlockedFetchError("hostname resolves to a blocked IP range");
+        }
+      }
+
+      if (Array.isArray(result)) {
+        done(null, result);
+        return;
+      }
+
+      if (typeof result === "string") {
+        done(null, result);
+        return;
+      }
+
+      done(null, result.address, result.family);
+    } catch (error) {
+      done(error);
+    }
+  };
+}
+
+function buildSafeFetchAgents(options = {}) {
+  if (options.httpAgent || options.httpsAgent) {
+    return {
+      httpAgent: options.httpAgent,
+      httpsAgent: options.httpsAgent,
+    };
+  }
+
+  const lookup = createSafeLookup(options.lookup || dns.lookup);
+
+  return {
+    httpAgent: new http.Agent({ lookup }),
+    httpsAgent: new https.Agent({ lookup }),
+  };
+}
 
 function escapeRegex(value = "") {
   return String(value).replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
@@ -515,17 +819,61 @@ function buildFallbackContentRecord(business, pageResults) {
   };
 }
 
-export async function fetchHtml(url) {
-  const response = await axios.get(url, {
-    timeout: 15000,
-    headers: {
-      "User-Agent":
-        `Mozilla/5.0 (compatible; AIShopAssistant/1.0; +${getPublicAppUrl()})`,
-      Accept: "text/html,application/xhtml+xml",
-    },
-  });
+export async function fetchHtml(url, options = {}) {
+  let currentUrl = await validateWebsiteFetchUrl(url, options);
+  const httpClient = options.httpClient || axios;
+  const safeFetchAgents = buildSafeFetchAgents(options);
 
-  return response.data;
+  for (let redirectCount = 0; redirectCount <= MAX_FETCH_REDIRECTS; redirectCount += 1) {
+    const response = await httpClient.get(currentUrl, {
+      timeout: 15000,
+      maxRedirects: 0,
+      maxContentLength: MAX_HTML_BYTES,
+      responseType: "text",
+      ...safeFetchAgents,
+      validateStatus: (status) => (status >= 200 && status < 300) || (status >= 300 && status < 400),
+      headers: {
+        "User-Agent":
+          `Mozilla/5.0 (compatible; AIShopAssistant/1.0; +${getPublicAppUrl()})`,
+        Accept: "text/html,application/xhtml+xml",
+      },
+    });
+    const finalUrl = response.request?.res?.responseUrl || response.config?.url || currentUrl;
+    await validateWebsiteFetchUrl(finalUrl, options);
+
+    if (response.status >= 300 && response.status < 400) {
+      const location = cleanText(response.headers?.location);
+
+      if (!location) {
+        throw createBlockedFetchError("redirect response did not include a location");
+      }
+
+      if (redirectCount >= MAX_FETCH_REDIRECTS) {
+        throw createBlockedFetchError("too many redirects");
+      }
+
+      currentUrl = await validateWebsiteFetchUrl(new URL(location, currentUrl).toString(), options);
+      continue;
+    }
+
+    if (!isHtmlCompatibleContentType(response.headers?.["content-type"])) {
+      throw createBlockedFetchError("response content type is not HTML");
+    }
+
+    if (getContentLength(response.headers) > MAX_HTML_BYTES) {
+      throw createBlockedFetchError("response is too large");
+    }
+
+    const html = String(response.data || "");
+
+    if (Buffer.byteLength(html, "utf8") > MAX_HTML_BYTES) {
+      throw createBlockedFetchError("response body is too large");
+    }
+
+    return html;
+  }
+
+  throw createBlockedFetchError("too many redirects");
 }
 
 export async function storeWebsiteContent(supabase, contentRecord) {

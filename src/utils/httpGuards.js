@@ -2,14 +2,55 @@ const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const chatRequestLog = new Map();
 
-function getClientKey(req) {
-  const forwardedFor = req.headers["x-forwarded-for"];
+function normalizeIpAddress(value = "") {
+  return String(value || "").trim().replace(/^::ffff:/i, "");
+}
 
-  if (typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return forwardedFor.split(",")[0].trim();
+function listTrustedProxyIps() {
+  return String(process.env.TRUSTED_PROXY_IPS || "")
+    .split(",")
+    .map((value) => normalizeIpAddress(value))
+    .filter(Boolean);
+}
+
+function isTrustedProxyRequest(req) {
+  const remoteAddress = normalizeIpAddress(req.socket?.remoteAddress || req.connection?.remoteAddress || "");
+
+  if (!remoteAddress) {
+    return false;
   }
 
-  return req.ip || req.socket?.remoteAddress || "unknown";
+  return listTrustedProxyIps().includes(remoteAddress);
+}
+
+function getClientIp(req) {
+  const forwardedFor = req.headers["x-forwarded-for"];
+
+  if (isTrustedProxyRequest(req) && typeof forwardedFor === "string" && forwardedFor.trim()) {
+    return normalizeIpAddress(forwardedFor.split(",")[0]);
+  }
+
+  return normalizeIpAddress(req.ip || req.socket?.remoteAddress || "unknown") || "unknown";
+}
+
+function getRequestIdentityPart(req) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const identityParts = [
+    body.install_id || body.installId,
+    body.session_id || body.sessionId || body.session_key || body.sessionKey,
+    body.agent_id || body.agentId,
+    body.agent_key || body.agentKey,
+    body.website_url || body.websiteUrl,
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  return identityParts.length ? identityParts.join("|") : "anonymous";
+}
+
+function getClientKey(req) {
+  return `${getClientIp(req)}:${getRequestIdentityPart(req)}`;
 }
 
 export function enforceChatRateLimit(req, res, next) {
@@ -28,6 +69,10 @@ export function enforceChatRateLimit(req, res, next) {
   recentRequests.push(now);
   chatRequestLog.set(clientKey, recentRequests);
   next();
+}
+
+export function clearChatRateLimitForTests() {
+  chatRequestLog.clear();
 }
 
 export function requireAdminToken(req, res, next) {

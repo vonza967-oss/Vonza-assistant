@@ -31,6 +31,7 @@ import {
   listWidgetRoutingEventsByAgentId,
   trackWidgetEvent,
 } from "../services/analytics/widgetTelemetryService.js";
+import { listVisitorReplyFeedbackForOwner } from "../services/analytics/visitorReplyFeedbackService.js";
 import {
   buildActionQueue,
   listActionQueueStatuses,
@@ -213,6 +214,8 @@ export function createAgentRouter(deps = {}) {
   const listLeadCapturesImpl = deps.listLeadCaptures || listLeadCaptures;
   const listWidgetRoutingEventsByAgentIdImpl =
     deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
+  const listVisitorReplyFeedbackForOwnerImpl =
+    deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
@@ -327,6 +330,15 @@ export function createAgentRouter(deps = {}) {
   function hasAdminAccess(req) {
     const configuredToken = process.env.ADMIN_TOKEN;
     return Boolean(configuredToken && getAdminToken(req) === configuredToken);
+  }
+
+  async function getOptionalAuthenticatedUser(supabase, req) {
+    return authenticateUser(supabase, req).catch((error) => {
+      if (error.statusCode === 401) {
+        return null;
+      }
+      throw error;
+    });
   }
 
   router.post("/stripe/webhook", async (req, res) => {
@@ -748,15 +760,10 @@ export function createAgentRouter(deps = {}) {
   router.get("/agents/messages", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       await requireActiveAgentAccessImpl(supabase, {
         agentId: req.query.agent_id || req.query.agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.query.client_id || req.query.clientId,
       });
       await assertMessagesSchemaReadyImpl(supabase, { phase: "request" });
@@ -928,17 +935,19 @@ export function createAgentRouter(deps = {}) {
 
     try {
       const supabase = getSupabase();
-      user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
-      await requireActiveAgentAccessImpl(supabase, {
-        agentId: req.body.agent_id || req.body.agentId,
-        ownerUserId: user?.id || null,
-        clientId: req.body.client_id || req.body.clientId,
-      });
+      user = await getOptionalAuthenticatedUser(supabase, req);
+      if (user) {
+        await requireActiveAgentAccessImpl(supabase, {
+          agentId: req.body.agent_id || req.body.agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+        });
+      } else {
+        await requirePreClaimAgentAccessImpl(supabase, {
+          agentId: req.body.agent_id || req.body.agentId,
+          clientId: req.body.client_id || req.body.clientId,
+        });
+      }
       const result = await updateAgentSettingsImpl(supabase, {
         agentId: req.body.agent_id || req.body.agentId,
         name: readBodyField(req.body, "name"),
@@ -1005,15 +1014,10 @@ export function createAgentRouter(deps = {}) {
   router.post("/agents/delete", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       await requireActiveAgentAccessImpl(supabase, {
         agentId: req.body.agent_id || req.body.agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.body.client_id || req.body.clientId,
       });
       const result = await deleteAgentImpl(supabase, req.body.agent_id || req.body.agentId);
@@ -1029,17 +1033,12 @@ export function createAgentRouter(deps = {}) {
   router.get("/agents/action-queue", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const agentId = req.query.agent_id || req.query.agentId;
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.query.client_id || req.query.clientId,
       });
       await Promise.all([
@@ -1053,10 +1052,10 @@ export function createAgentRouter(deps = {}) {
         listAgentMessagesImpl(supabase, agentId),
         listActionQueueStatusesImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
         }),
         listAgentsImpl(supabase, {
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
           includeBridgeAgent: false,
         }),
       ]);
@@ -1072,7 +1071,7 @@ export function createAgentRouter(deps = {}) {
       const leadCapturesResult = await Promise.allSettled([
         listLeadCapturesImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
         }),
       ]);
       const leadCaptures = leadCapturesResult[0]?.status === "fulfilled"
@@ -1088,22 +1087,22 @@ export function createAgentRouter(deps = {}) {
       const [followUpSync, knowledgeFixSync] = await Promise.all([
         syncFollowUpWorkflowsImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
           queueItems: hydratedPreliminaryQueue.items || [],
           agentProfile: {
             agentId,
-            ownerUserId: user?.id || null,
+            ownerUserId: user.id,
             businessName: agentProfile?.name || "",
             assistantName: agentProfile?.assistantName || agentProfile?.name || "",
           },
         }),
         syncKnowledgeFixWorkflowsImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
           queueItems: preliminaryQueue.items || [],
           agentProfile: {
             agentId,
-            ownerUserId: user?.id || null,
+            ownerUserId: user.id,
             systemPrompt: agentProfile?.systemPrompt || "",
             websiteUrl: agentProfile?.websiteUrl || "",
             knowledge: agentProfile?.knowledge || {},
@@ -1115,7 +1114,7 @@ export function createAgentRouter(deps = {}) {
         ? statuses
         : await listActionQueueStatusesImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
         });
       const finalPersistedRecords = Array.isArray(latestStatuses) ? latestStatuses : latestStatuses?.records || [];
       const finalPersistenceAvailable = Array.isArray(latestStatuses)
@@ -1132,7 +1131,7 @@ export function createAgentRouter(deps = {}) {
       const [conversionOutcomesResult] = await Promise.allSettled([
         listConversionOutcomesForAgentImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
         }),
       ]);
       const conversionOutcomes = conversionOutcomesResult.status === "fulfilled"
@@ -1239,6 +1238,32 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
+  router.get("/dashboard/feedback", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const agentId = req.query.agent_id || req.query.agentId;
+      const user = await authenticateUser(supabase, req);
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const result = await listVisitorReplyFeedbackForOwnerImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
   router.get("/agents/install-status", async (req, res) => {
     try {
       const supabase = getSupabase();
@@ -1305,23 +1330,18 @@ export function createAgentRouter(deps = {}) {
   router.post("/agents/action-queue/status", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const agentId = req.body.agent_id || req.body.agentId;
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.body.client_id || req.body.clientId,
       });
 
       const result = await updateActionQueueStatusImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         actionKey: req.body.action_key || req.body.actionKey,
         status: req.body.status,
         note: req.body.note,
@@ -1338,7 +1358,7 @@ export function createAgentRouter(deps = {}) {
         listAgentMessagesImpl(supabase, agentId),
         listActionQueueStatusesImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
         }),
       ]);
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
@@ -1862,23 +1882,18 @@ export function createAgentRouter(deps = {}) {
   router.post("/agents/follow-ups/update", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const agentId = req.body.agent_id || req.body.agentId;
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.body.client_id || req.body.clientId,
       });
 
       const result = await updateFollowUpWorkflowImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         followUpId: req.body.follow_up_id || req.body.followUpId,
         status: req.body.status,
         subject: req.body.subject,
@@ -1890,7 +1905,7 @@ export function createAgentRouter(deps = {}) {
       if (result?.followUp?.status === "sent") {
         await trackFollowUpOutcomeImpl(supabase, {
           agentId,
-          ownerUserId: user?.id || null,
+          ownerUserId: user.id,
           followUpId: result.followUp.id,
           actionKey: result.followUp.sourceActionKey,
           leadId: req.body.lead_id || req.body.leadId,
@@ -1924,17 +1939,12 @@ export function createAgentRouter(deps = {}) {
   router.post("/agents/conversion-outcomes/manual", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const agentId = req.body.agent_id || req.body.agentId;
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.body.client_id || req.body.clientId,
       });
 
@@ -1942,7 +1952,7 @@ export function createAgentRouter(deps = {}) {
       const result = await markManualConversionOutcomeImpl(supabase, {
         agentId,
         businessId: agentProfile?.businessId || req.body.business_id || req.body.businessId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         installId: req.body.install_id || req.body.installId || agentProfile?.installId || "",
         outcomeType: req.body.outcome_type || req.body.outcomeType,
         ctaEventId: req.body.cta_event_id || req.body.ctaEventId,
@@ -1984,28 +1994,23 @@ export function createAgentRouter(deps = {}) {
   router.post("/agents/knowledge-fixes/update", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const agentId = req.body.agent_id || req.body.agentId;
 
       await requireActiveAgentAccessImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         clientId: req.body.client_id || req.body.clientId,
       });
 
       const agentListResult = await listAgentsImpl(supabase, {
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         includeBridgeAgent: false,
       });
       const agentProfile = (agentListResult?.agents || []).find((candidate) => candidate.id === agentId) || null;
       const result = await updateKnowledgeFixWorkflowImpl(supabase, {
         agentId,
-        ownerUserId: user?.id || null,
+        ownerUserId: user.id,
         knowledgeFixId: req.body.knowledge_fix_id || req.body.knowledgeFixId,
         status: req.body.status,
         issueSummary: req.body.issue_summary ?? req.body.issueSummary,

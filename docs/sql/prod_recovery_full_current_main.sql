@@ -1289,3 +1289,95 @@ alter table public.businesses
 create index if not exists businesses_vertical_idx
   on public.businesses (vertical)
   where vertical is not null;
+-- Source: supabase/migrations/20260510001000_rls_hardening.sql
+
+alter table public.businesses enable row level security;
+alter table public.website_content enable row level security;
+alter table public.agents enable row level security;
+alter table public.widget_configs enable row level security;
+alter table public.messages enable row level security;
+alter table public.user_dashboard_preferences enable row level security;
+alter table public.agent_action_queue_statuses enable row level security;
+alter table public.agent_follow_up_workflows enable row level security;
+alter table public.agent_contact_leads enable row level security;
+alter table public.agent_knowledge_fix_workflows enable row level security;
+alter table public.product_events enable row level security;
+alter table public.agent_installations enable row level security;
+alter table public.agent_widget_events enable row level security;
+alter table public.agent_conversion_outcomes enable row level security;
+alter table public.google_oauth_states enable row level security;
+alter table public.google_connected_accounts enable row level security;
+alter table public.operator_contacts enable row level security;
+alter table public.operator_contact_identities enable row level security;
+alter table public.operator_inbox_threads enable row level security;
+alter table public.operator_inbox_messages enable row level security;
+alter table public.operator_calendar_events enable row level security;
+alter table public.operator_campaigns enable row level security;
+alter table public.operator_campaign_steps enable row level security;
+alter table public.operator_campaign_recipients enable row level security;
+alter table public.operator_tasks enable row level security;
+alter table public.operator_workspace_activations enable row level security;
+alter table public.operator_business_profiles enable row level security;
+alter table public.agent_copilot_proposal_states enable row level security;
+alter table public.operator_audit_logs enable row level security;
+alter table public.owner_billing_accounts enable row level security;
+alter table public.owner_ai_usage_ledger enable row level security;
+
+drop policy if exists "Owners can read their dashboard preferences." on public.user_dashboard_preferences;
+create policy "Owners can read their dashboard preferences."
+  on public.user_dashboard_preferences
+  for select
+  to authenticated
+  using ((select auth.uid()) is not null and (select auth.uid()) = owner_user_id);
+
+drop policy if exists "Owners can insert their dashboard preferences." on public.user_dashboard_preferences;
+create policy "Owners can insert their dashboard preferences."
+  on public.user_dashboard_preferences
+  for insert
+  to authenticated
+  with check ((select auth.uid()) is not null and (select auth.uid()) = owner_user_id);
+
+drop policy if exists "Owners can update their dashboard preferences." on public.user_dashboard_preferences;
+create policy "Owners can update their dashboard preferences."
+  on public.user_dashboard_preferences
+  for update
+  to authenticated
+  using ((select auth.uid()) is not null and (select auth.uid()) = owner_user_id)
+  with check ((select auth.uid()) is not null and (select auth.uid()) = owner_user_id);
+
+-- Source: supabase/migrations/20260510002000_visitor_reply_feedback.sql
+create table if not exists public.agent_visitor_reply_feedback (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid references public.agents (id) on delete cascade,
+  install_id text,
+  session_key text not null,
+  assistant_message_key text not null,
+  rating text not null,
+  message_context jsonb not null default '{}'::jsonb,
+  created_at timestamp with time zone default now(),
+  constraint agent_visitor_reply_feedback_rating_check
+    check (rating in ('helpful', 'not_helpful'))
+);
+
+create unique index if not exists agent_visitor_reply_feedback_message_idx
+  on public.agent_visitor_reply_feedback (agent_id, session_key, assistant_message_key);
+
+create index if not exists agent_visitor_reply_feedback_agent_created_idx
+  on public.agent_visitor_reply_feedback (agent_id, created_at desc);
+
+alter table public.agent_visitor_reply_feedback enable row level security;
+
+drop policy if exists "Owners can read reply feedback for their agents." on public.agent_visitor_reply_feedback;
+create policy "Owners can read reply feedback for their agents."
+  on public.agent_visitor_reply_feedback
+  for select
+  to authenticated
+  using (
+    (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.agents
+      where agents.id = agent_visitor_reply_feedback.agent_id
+        and agents.owner_user_id = (select auth.uid())
+    )
+  );

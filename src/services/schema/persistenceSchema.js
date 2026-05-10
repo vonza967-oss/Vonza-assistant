@@ -444,6 +444,19 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationColumns: ["contact_id"],
   },
+  agent_visitor_reply_feedback: {
+    requiredColumns: [
+      "id",
+      "agent_id",
+      "install_id",
+      "session_key",
+      "assistant_message_key",
+      "rating",
+      "message_context",
+      "created_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.visitor_reply_feedback],
+  },
   google_oauth_states: {
     requiredColumns: [
       "id",

@@ -1416,6 +1416,10 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Guided to next step/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
   assert.match(overviewPanel, /AI priorities/);
+  assert.match(overviewPanel, /Who needs attention/);
+  assert.match(overviewPanel, /Taylor Reed/);
+  assert.match(overviewPanel, /Warm lead \/ booking intent|Follow-up due|Needs reply/);
+  assert.match(overviewPanel, /A quote request still needs owner review/);
   assert.match(overviewPanel, /Give open customer needs a clear next step|Make service answers clearer|Make contacting you easier/i);
   assert.match(overviewPanel, /satisfaction|confidence|trust|friction/i);
   assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
@@ -1428,6 +1432,70 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Follow-up feed/);
   assert.doesNotMatch(overviewPanel, /Start next step/);
   assert.doesNotMatch(overviewPanel, /data-refresh-operator data-force-sync="true">Refresh/);
+});
+
+test("home attention list prioritizes customer needs with reasons and next actions", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const overviewPanel = harness.buildOverviewPanel(
+    { installId: "install-1", publicAgentKey: "agent-key" },
+    [],
+    { isReady: true, knowledgeDescription: "Knowledge ready.", knowledgeReady: true },
+    {
+      ...harness.createEmptyActionQueue(),
+      items: [
+        {
+          key: "support-1",
+          type: "support",
+          status: "new",
+          label: "Morgan is frustrated",
+          whyFlagged: "Customer sounded frustrated about a missed appointment.",
+          suggestedAction: "Open the customer and prepare a recovery reply.",
+          contactName: "Morgan Lee",
+        },
+        {
+          key: "quote-1",
+          type: "pricing",
+          status: "new",
+          label: "Quote request",
+          whyFlagged: "A visitor asked for an estimate and has no outcome yet.",
+          suggestedAction: "Confirm quote details and send the next step.",
+          contactEmail: "lead@example.com",
+        },
+        {
+          key: "knowledge-1",
+          type: "weak_answer",
+          status: "new",
+          label: "Repeated service question",
+          whyFlagged: "The same service area question came up twice.",
+          suggestedAction: "Add a clearer FAQ answer.",
+          knowledgeFix: {
+            id: "fix-1",
+            issueSummary: "Repeated service area question.",
+          },
+        },
+      ],
+      summary: {
+        total: 3,
+        attentionNeeded: 3,
+      },
+    },
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+    })
+  );
+
+  assert.match(overviewPanel, /Unhappy or frustrated customer/);
+  assert.match(overviewPanel, /Morgan Lee|Morgan is frustrated/);
+  assert.match(overviewPanel, /Customer sounded frustrated about a missed appointment/);
+  assert.match(overviewPanel, /Warm lead \/ booking intent/);
+  assert.match(overviewPanel, /lead@example.com|Quote request/);
+  assert.match(overviewPanel, /Unanswered or repeated question/);
+  assert.match(overviewPanel, /Add a clearer FAQ answer/);
 });
 
 test("today overview dedupes repeated queue and review items by stable keys", () => {

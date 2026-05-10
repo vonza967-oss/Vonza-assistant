@@ -18,6 +18,7 @@ import {
   completeGoogleConnection,
   createGoogleConnectionStart,
 } from "../src/services/operator/operatorWorkspaceService.js";
+import { clearChatRateLimitForTests } from "../src/utils/httpGuards.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,7 @@ function createFakeSupabase(initialState = {}) {
       agent_follow_up_workflows: [],
       agent_action_queue_statuses: [],
       agent_widget_events: [],
+      agent_visitor_reply_feedback: [],
       agent_installations: [],
       google_oauth_states: [],
       google_connected_accounts: [],
@@ -406,6 +408,168 @@ test("client_id-only listing only returns pre-claim onboarding assistants", asyn
   assert.deepEqual(result.agents.map((agent) => agent.id), ["preclaim-agent"]);
 });
 
+test("claimed owner routes reject unauthenticated client_id fallback", async () => {
+  const supabase = createFakeSupabase({
+    agents: [
+      buildAgentRow({
+        owner_user_id: "owner-1",
+      }),
+    ],
+  });
+  const app = express();
+  app.use(express.json());
+  app.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+    getAuthenticatedUser: async () => {
+      const error = new Error("Unauthorized");
+      error.statusCode = 401;
+      throw error;
+    },
+    listAgentMessages: async () => {
+      throw new Error("messages should not be read without owner auth");
+    },
+    buildActionQueue: () => {
+      throw new Error("action queue should not be built without owner auth");
+    },
+    updateAgentSettings: async () => {
+      throw new Error("claimed agent should not be updated without owner auth");
+    },
+    deleteAgent: async () => {
+      throw new Error("claimed agent should not be deleted without owner auth");
+    },
+  }));
+  const server = await startServer(app);
+
+  try {
+    const messageRead = await getJson(
+      server.baseUrl,
+      "/agents/messages?agent_id=agent-1&client_id=client-1"
+    );
+    const queueRead = await getJson(
+      server.baseUrl,
+      "/agents/action-queue?agent_id=agent-1&client_id=client-1"
+    );
+    const update = await postJson(server.baseUrl, "/agents/update", {
+      agent_id: "agent-1",
+      client_id: "client-1",
+      assistant_name: "Unsafe update",
+    });
+    const deletion = await postJson(server.baseUrl, "/agents/delete", {
+      agent_id: "agent-1",
+      client_id: "client-1",
+    });
+
+    assert.equal(messageRead.status, 401);
+    assert.equal(queueRead.status, 401);
+    assert.equal(update.status, 401);
+    assert.equal(deletion.status, 401);
+  } finally {
+    await server.close();
+  }
+});
+
+test("widget reply feedback persists once per assistant message without raw contact details", async () => {
+  clearChatRateLimitForTests();
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    agent_visitor_reply_feedback: [],
+  });
+  const app = express();
+  app.use(express.json());
+  app.use(createChatRouter({
+    getSupabaseClient: () => supabase,
+  }));
+  const server = await startServer(app);
+  const body = {
+    install_id: "install-1",
+    origin: "https://allowed.example",
+    page_url: "https://allowed.example/pricing",
+    session_key: "session-1",
+    assistant_message_key: "assistant-message-1",
+    rating: "not_helpful",
+    message_context: {
+      reply_length: 142,
+      visitor_email: "must-not-store@example.com",
+    },
+  };
+
+  try {
+    const first = await postJson(server.baseUrl, "/chat/feedback", body);
+    const duplicate = await postJson(server.baseUrl, "/chat/feedback", body);
+
+    assert.equal(first.status, 200);
+    assert.equal(first.json.duplicate, false);
+    assert.equal(duplicate.status, 200);
+    assert.equal(duplicate.json.duplicate, true);
+    assert.equal(supabase.state.agent_visitor_reply_feedback.length, 1);
+    assert.equal(supabase.state.agent_visitor_reply_feedback[0].rating, "not_helpful");
+    assert.deepEqual(supabase.state.agent_visitor_reply_feedback[0].message_context, {
+      replyLength: 142,
+      conversationIndex: 0,
+    });
+    assert.equal(JSON.stringify(supabase.state.agent_visitor_reply_feedback).includes("must-not-store"), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("owner feedback API requires authenticated owner access", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    agent_visitor_reply_feedback: [
+      {
+        id: "feedback-1",
+        agent_id: "agent-1",
+        install_id: "install-1",
+        session_key: "session-1",
+        assistant_message_key: "assistant-message-1",
+        rating: "helpful",
+        message_context: {
+          replyLength: 80,
+        },
+        created_at: "2026-04-01T12:00:00.000Z",
+      },
+    ],
+  });
+  const unauthenticatedApp = express();
+  unauthenticatedApp.use(express.json());
+  unauthenticatedApp.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+    getAuthenticatedUser: async () => {
+      const error = new Error("Unauthorized");
+      error.statusCode = 401;
+      throw error;
+    },
+  }));
+  const authenticatedApp = express();
+  authenticatedApp.use(express.json());
+  authenticatedApp.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+    getAuthenticatedUser: async () => ({ id: "owner-1", email: "owner@example.com" }),
+  }));
+  const unauthenticatedServer = await startServer(unauthenticatedApp);
+  const authenticatedServer = await startServer(authenticatedApp);
+
+  try {
+    const rejected = await getJson(
+      unauthenticatedServer.baseUrl,
+      "/dashboard/feedback?agent_id=agent-1&client_id=client-1"
+    );
+    const accepted = await getJson(
+      authenticatedServer.baseUrl,
+      "/dashboard/feedback?agent_id=agent-1"
+    );
+
+    assert.equal(rejected.status, 401);
+    assert.equal(accepted.status, 200);
+    assert.equal(accepted.json.summary.total, 1);
+    assert.equal(accepted.json.records[0].rating, "helpful");
+  } finally {
+    await unauthenticatedServer.close();
+    await authenticatedServer.close();
+  }
+});
+
 test("/chat rejects disallowed origins across install_id, website_url, agent_id, and agent_key", async () => {
   const supabase = createFakeSupabase(buildChatState());
   let openAiCalled = false;
@@ -536,6 +700,56 @@ test("/chat allows approved origins across install_id, website_url, agent_id, an
     assert.ok(openAiCalls >= resolutionCases.length);
   } finally {
     await server.close();
+  }
+});
+
+test("/chat rate limiting does not trust spoofed x-forwarded-for from untrusted clients", async () => {
+  clearChatRateLimitForTests();
+  const supabase = createFakeSupabase(buildChatState());
+  const app = express();
+  app.use(express.json());
+  app.use(createChatRouter({
+    getSupabaseClient: () => supabase,
+    getOpenAIClient: () => ({
+      chat: {
+        completions: {
+          create: async () => ({ choices: [{ message: { content: "Allowed." } }] }),
+        },
+      },
+    }),
+  }));
+  const server = await startServer(app);
+
+  try {
+    let lastResponse = null;
+
+    for (let index = 0; index < 21; index += 1) {
+      const response = await fetch(`${server.baseUrl}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-forwarded-for": `203.0.113.${index}`,
+        },
+        body: JSON.stringify({
+          install_id: "install-1",
+          session_id: "session-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/pricing",
+          message: "Hello there",
+        }),
+      });
+
+      lastResponse = {
+        status: response.status,
+        json: await response.json(),
+      };
+    }
+
+    assert.equal(lastResponse.status, 429);
+    assert.match(lastResponse.json.error, /too many chat requests/i);
+  } finally {
+    await server.close();
+    clearChatRateLimitForTests();
   }
 });
 

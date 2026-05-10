@@ -2981,6 +2981,7 @@ body {
 }
 
 .home-priority-list,
+.home-attention-list,
 .home-side-stack,
 .home-win-list {
   display: grid;
@@ -3048,6 +3049,64 @@ body {
 .home-priority-action,
 .home-improve-actions {
   flex-shrink: 0;
+}
+
+.home-attention-list {
+  padding-top: 2px;
+}
+
+.home-attention-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.home-attention-heading h4,
+.home-attention-heading p,
+.home-attention-item strong,
+.home-attention-item p {
+  margin: 0;
+}
+
+.home-attention-heading h4 {
+  color: #24334e;
+  font-size: 0.95rem;
+}
+
+.home-attention-heading p,
+.home-attention-item p {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.home-attention-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.home-attention-category {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 6px;
+  color: #53627c;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.home-attention-item strong {
+  display: block;
+  color: #24334e;
+  font-size: 0.94rem;
+}
+
+.home-attention-action {
+  padding-top: 8px;
+  border-top: 1px solid #e7edf5;
 }
 
 .home-mini-panel,
@@ -9738,6 +9797,7 @@ html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
 
 .home-priority-panel,
 .home-priority-list,
+.home-attention-list,
 .home-side-stack,
 .home-win-list,
 .home-mini-panel,
@@ -9757,6 +9817,8 @@ html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
 
 .home-priority-why,
 .home-priority-change,
+.home-attention-heading p,
+.home-attention-item p,
 .home-improve-copy,
 .home-win-row p,
 .home-win-row span {

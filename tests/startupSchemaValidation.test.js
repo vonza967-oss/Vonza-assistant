@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { logSupabaseStartupCheck } from "../src/clients/supabaseClient.js";
 import { validateStartupSchemaReady } from "../src/services/schema/startupSchemaService.js";
 
 function createSchemaProbeSupabase(failures = {}) {
@@ -134,4 +135,42 @@ test("startup schema validation errors map directly to the recovery bundle docs"
       ),
     /docs\/sql\/prod_recovery_startup\.sql/i
   );
+});
+
+test("Supabase startup check logs only non-sensitive metadata", async () => {
+  const logs = [];
+  const errors = [];
+  const previousLog = console.log;
+  const previousError = console.error;
+
+  console.log = (...args) => logs.push(args);
+  console.error = (...args) => errors.push(args);
+
+  try {
+    await logSupabaseStartupCheck({
+      from() {
+        return {
+          select() {
+            return {
+              limit() {
+                return Promise.resolve({
+                  data: [{ id: "business-1", name: "Sensitive Business" }],
+                  error: null,
+                });
+              },
+            };
+          },
+        };
+      },
+    });
+  } finally {
+    console.log = previousLog;
+    console.error = previousError;
+  }
+
+  const output = JSON.stringify({ logs, errors });
+
+  assert.match(output, /Supabase reachability/);
+  assert.doesNotMatch(output, /Sensitive Business/);
+  assert.doesNotMatch(output, /Supabase startup test data/);
 });

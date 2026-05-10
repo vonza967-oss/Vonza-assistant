@@ -181,6 +181,24 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds businesses.vertical for industry-specific front-desk prompt templates and owner setup controls.",
   }),
+  Object.freeze({
+    id: "rls_hardening",
+    version: "20260510001000",
+    name: "rls_hardening",
+    file: "supabase/migrations/20260510001000_rls_hardening.sql",
+    legacySources: Object.freeze([]),
+    tier: "foundation",
+    note: "Enables RLS across public app tables and adds owner-scoped authenticated policies for direct owner/customer table access.",
+  }),
+  Object.freeze({
+    id: "visitor_reply_feedback",
+    version: "20260510002000",
+    name: "visitor_reply_feedback",
+    file: "supabase/migrations/20260510002000_visitor_reply_feedback.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds assistant reply helpful/not-helpful feedback storage keyed by agent, session, and assistant message.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

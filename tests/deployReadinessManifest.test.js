@@ -12,6 +12,7 @@ import {
 import {
   evaluateDeployReadinessManifest,
   extractBundleSourceFiles,
+  getMissingDeployReadinessEnvVars,
   readRepoFile,
 } from "../scripts/lib/deployReadiness.js";
 
@@ -38,4 +39,51 @@ test("feature-gated and operator-only migrations stay outside startup-critical r
 
 test("deploy readiness manifest remains internally consistent", () => {
   assert.deepEqual(evaluateDeployReadinessManifest(), []);
+});
+
+test("deploy readiness requires Stripe plan prices for staging and production deploys", () => {
+  const missingNames = getMissingDeployReadinessEnvVars({
+    NODE_ENV: "production",
+    PUBLIC_APP_URL: "https://app.example",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "anon-key",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    STRIPE_SECRET_KEY: "sk_test_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_123",
+  }).map((entry) => entry.name);
+
+  assert.deepEqual(missingNames, [
+    "STRIPE_PRICE_ID_STARTER_MONTHLY",
+    "STRIPE_PRICE_ID_GROWTH_MONTHLY",
+    "STRIPE_PRICE_ID_PRO_MONTHLY",
+  ]);
+});
+
+test("Google deploy env vars are required only when operator workspace is explicitly enabled", () => {
+  const baseEnv = {
+    VONZA_DEPLOY_ENV: "staging",
+    PUBLIC_APP_URL: "https://app.example",
+    SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_ANON_KEY: "anon-key",
+    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+    STRIPE_SECRET_KEY: "sk_test_123",
+    STRIPE_WEBHOOK_SECRET: "whsec_123",
+    STRIPE_PRICE_ID_STARTER_MONTHLY: "price_starter",
+    STRIPE_PRICE_ID_GROWTH_MONTHLY: "price_growth",
+    STRIPE_PRICE_ID_PRO_MONTHLY: "price_pro",
+  };
+
+  assert.deepEqual(getMissingDeployReadinessEnvVars(baseEnv), []);
+
+  const missingNames = getMissingDeployReadinessEnvVars({
+    ...baseEnv,
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+  }).map((entry) => entry.name);
+
+  assert.deepEqual(missingNames, [
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_OAUTH_REDIRECT_URI",
+    "GOOGLE_TOKEN_ENCRYPTION_SECRET",
+  ]);
 });
