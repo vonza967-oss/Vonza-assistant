@@ -36,6 +36,7 @@ import {
   detectResponseLanguage,
   extractEmails,
   isPlaceholderEmail,
+  normalizeAssistantReply,
   sanitizeChatHistory,
   selectResponseLanguage,
 } from "../../utils/text.js";
@@ -47,7 +48,7 @@ function hasLimitedKnowledge(websiteContent) {
 }
 
 function stripRawAssetUrls(reply = "") {
-  return cleanText(
+  return normalizeAssistantReply(
     String(reply || "")
       .replace(/https?:\/\/\S+\.(?:avif|gif|jpe?g|png|webp)(?:[?#]\S*)?/gi, "")
       .replace(/\n{3,}/g, "\n\n")
@@ -272,7 +273,6 @@ export async function handleChatRequest({
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const normalizedMessage = cleanText(message || "");
   const language = selectResponseLanguage(normalizedMessage, history);
-  const conversationGuidance = buildConversationGuidance(message, history);
 
   if (!message || !String(message).trim()) {
     const error = new Error("Message cannot be empty.");
@@ -298,6 +298,13 @@ export async function handleChatRequest({
     pageUrl,
     businessName: body.name,
   });
+  const agentWithBusinessContext = {
+    ...agent,
+    vertical: cleanText(business.vertical || agent.vertical),
+  };
+  const conversationGuidance = buildConversationGuidance(message, history, {
+    vertical: agentWithBusinessContext.vertical,
+  });
 
   const websiteContent = await getStoredWebsiteContentImpl(supabase, business.id);
   await assertMessagesSchemaReadyImpl(supabase, { phase: "request" });
@@ -311,7 +318,7 @@ export async function handleChatRequest({
   if (billingSnapshot?.usage?.isCapped) {
     const userMessageCreatedAt = new Date().toISOString();
     const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
-      agent,
+      agent: agentWithBusinessContext,
       business,
       widgetConfig,
       sessionKey,
@@ -368,7 +375,7 @@ export async function handleChatRequest({
       reply: appendImageLines(
         buildLimitedKnowledgeReply(
           language,
-          agent.name || widgetConfig.assistantName,
+          agentWithBusinessContext.name || widgetConfig.assistantName,
           websiteContent
         ),
         websiteContent,
@@ -385,6 +392,7 @@ export async function handleChatRequest({
     effectiveUserText,
     {
       widgetConfig,
+      vertical: agentWithBusinessContext.vertical,
     }
   );
   logChatMetadata("request_prepared", {
@@ -399,7 +407,7 @@ export async function handleChatRequest({
     businessContextLength: businessContext.length,
   });
 
-  const systemPrompt = buildChatSystemPromptImpl(language, agent);
+  const systemPrompt = buildChatSystemPromptImpl(language, agentWithBusinessContext);
   const openaiClient = typeof openai === "function" ? openai() : openai;
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,
@@ -480,7 +488,7 @@ export async function handleChatRequest({
 
   const userMessageCreatedAt = new Date().toISOString();
   const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
-    agent,
+    agent: agentWithBusinessContext,
     business,
     widgetConfig,
     sessionKey,

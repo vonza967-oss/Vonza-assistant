@@ -1274,3 +1274,18 @@ create index if not exists owner_ai_usage_ledger_owner_occurred_at_idx
 
 create index if not exists owner_ai_usage_ledger_agent_occurred_at_idx
   on public.owner_ai_usage_ledger (agent_id, occurred_at desc);
+
+-- Source: supabase/migrations/20260510000000_business_vertical.sql
+alter table public.businesses
+  add column if not exists vertical text;
+
+alter table public.businesses
+  drop constraint if exists businesses_vertical_check;
+
+alter table public.businesses
+  add constraint businesses_vertical_check
+  check (vertical is null or vertical in ('clinic', 'web_studio', 'home_services'));
+
+create index if not exists businesses_vertical_idx
+  on public.businesses (vertical)
+  where vertical is not null;

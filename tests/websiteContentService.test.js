@@ -11,7 +11,9 @@ import {
 import {
   buildBusinessContextForChat,
   buildChatSystemPrompt,
+  buildConversationGuidance,
 } from "../src/services/chat/prompting.js";
+import { generateAssistantReply } from "../src/services/chat/assistantReplyService.js";
 
 const MEDIA_BLOCK = `[[VONZA_MEDIA_ASSETS]]
 [{"url":"https://example.com/images/hero.jpg","pageUrl":"https://example.com/gallery","alt":"Kitchen remodel hero"},{"url":"https://example.com/images/logo.png","pageUrl":"https://example.com","alt":"Company logo"}]
@@ -94,6 +96,66 @@ test("chat system prompt changes behavior for the selected widget purpose", () =
 
   assert.match(defaultPrompt, /widget purpose: Support/);
   assert.match(defaultPrompt, /resolving common confusion/i);
+});
+
+test("chat system prompt includes strict front-desk formatting rules", () => {
+  const prompt = buildChatSystemPrompt("English", {
+    name: "Acme Front Desk",
+    purpose: "lead_sales",
+  });
+
+  assert.match(prompt, /Use short, readable answers/i);
+  assert.match(prompt, /1-2 sentence paragraphs/i);
+  assert.match(prompt, /blank line between paragraphs/i);
+  assert.match(prompt, /Do not return dense blocks/i);
+  assert.match(prompt, /under 120 words/i);
+  assert.match(prompt, /Use bullets for contact details, prices, steps/i);
+  assert.match(prompt, /Direct answer\./);
+  assert.match(prompt, /Useful detail 1/);
+  assert.match(prompt, /one helpful next step or question/i);
+  assert.match(prompt, /leave their name, email, and a short project description/i);
+});
+
+test("pricing and contact guidance encourages structured business-specific answers", () => {
+  const pricingGuidance = buildConversationGuidance("Can I get a quote for this project?", []);
+
+  assert.match(pricingGuidance, /Use a structured answer/i);
+  assert.match(pricingGuidance, /fixed pricing is not listed publicly/i);
+  assert.match(pricingGuidance, /email or phone details in bullets/i);
+  assert.match(pricingGuidance, /leave contact details|short quote request/i);
+
+  const contactGuidance = buildConversationGuidance("How can I contact you?", []);
+
+  assert.match(contactGuidance, /concrete contact details in bullets/i);
+  assert.match(contactGuidance, /most practical next action/i);
+});
+
+test("assistant reply generation preserves paragraph spacing through post-processing", async () => {
+  const reply = await generateAssistantReply({
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [
+              {
+                message: {
+                  content: "Direct answer.\n\n- Detail one\n- Detail two\n\nWould you like help with the next step?",
+                },
+              },
+            ],
+          }),
+        },
+      },
+    },
+    userMessage: "Can I get a quote?",
+    systemPrompt: "Answer clearly.",
+    postProcess: (value) => value,
+    repair: {
+      getIssues: () => [],
+    },
+  });
+
+  assert.match(reply, /Direct answer\.\n\n- Detail one\n- Detail two\n\nWould you like help/);
 });
 
 test("explicit visual requests can still retrieve structured media assets", () => {

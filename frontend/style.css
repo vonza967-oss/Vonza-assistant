@@ -584,10 +584,31 @@ input:focus {
   color: var(--brand-ink);
 }
 
-.bubble p {
-  margin: 0;
+.vonza-message-body {
   white-space: pre-wrap;
-  line-height: 1.68;
+  line-height: 1.55;
+  font-size: 14px;
+  overflow-wrap: break-word;
+}
+
+.vonza-message-body p {
+  margin: 0 0 10px;
+}
+
+.vonza-message-body p:last-child,
+.vonza-message-body ul:last-child,
+.vonza-message-body ol:last-child {
+  margin-bottom: 0;
+}
+
+.vonza-message-body ul,
+.vonza-message-body ol {
+  margin: 8px 0 8px 18px;
+  padding-left: 16px;
+}
+
+.vonza-message-body li {
+  margin: 4px 0;
 }
 
 .typing .bubble {
@@ -638,6 +659,41 @@ input:focus {
 
 .lead-capture-card.subtle {
   background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+}
+
+.quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 10px;
+}
+
+.quick-replies[hidden] {
+  display: none !important;
+}
+
+.quick-reply-chip {
+  appearance: none;
+  border: 1px solid rgba(91, 97, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--brand-ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 9px 12px;
+  box-shadow: 0 8px 18px rgba(91, 97, 255, 0.08);
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.quick-reply-chip:hover,
+.quick-reply-chip:focus-visible {
+  background: #ffffff;
+  border-color: rgba(91, 97, 255, 0.38);
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .lead-capture-eyebrow {

@@ -61,6 +61,13 @@ const WIDGET_PHASES = Object.freeze({
   ENTRY: "entry",
   CHAT: "chat",
 });
+const QUICK_REPLY_TOPICS = Object.freeze([
+  "Services",
+  "Pricing",
+  "Request a quote",
+  "Contact details",
+  "Booking",
+]);
 
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
@@ -75,6 +82,7 @@ let visitorIdentity = {
   name: "",
 };
 let lastLeadReferenceMessage = "";
+let quickRepliesDismissed = false;
 const sentTelemetryKeys = new Set();
 const leadCapturePromptShownKeys = new Set();
 const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
@@ -219,6 +227,66 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function formatMessageParagraph(lines) {
+  const content = lines
+    .map((line) => escapeHtml(line))
+    .join("<br>");
+
+  return content ? `<p>${content}</p>` : "";
+}
+
+function formatAssistantMessageHtml(text) {
+  const normalized = String(text || "").replace(/\r/g, "").trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((block) => {
+      const lines = block.split("\n");
+      const parts = [];
+      let paragraphLines = [];
+      let bulletItems = [];
+
+      const flushParagraph = () => {
+        if (paragraphLines.length) {
+          parts.push(formatMessageParagraph(paragraphLines));
+          paragraphLines = [];
+        }
+      };
+
+      const flushBullets = () => {
+        if (bulletItems.length) {
+          parts.push(`<ul>${bulletItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`);
+          bulletItems = [];
+        }
+      };
+
+      lines.forEach((line) => {
+        const bulletMatch = line.match(/^\s*-\s+(.+)$/);
+
+        if (bulletMatch) {
+          flushParagraph();
+          bulletItems.push(bulletMatch[1]);
+          return;
+        }
+
+        flushBullets();
+        if (trimText(line)) {
+          paragraphLines.push(line);
+        }
+      });
+
+      flushParagraph();
+      flushBullets();
+      return parts.join("");
+    })
+    .filter(Boolean)
+    .join("");
+}
+
 function getAssistantMark(name = widgetConfig.assistantName) {
   return (name || "V").trim().charAt(0).toUpperCase() || "V";
 }
@@ -302,6 +370,34 @@ function getComposerShell() {
   return document.getElementById("composer-shell");
 }
 
+function getQuickReplies() {
+  return document.getElementById("quick-replies");
+}
+
+function shouldShowQuickReplies() {
+  return widgetPhase === WIDGET_PHASES.CHAT && !quickRepliesDismissed && conversationHistory.length < 2;
+}
+
+function renderQuickReplies() {
+  const container = getQuickReplies();
+
+  if (!container) {
+    return;
+  }
+
+  const showReplies = shouldShowQuickReplies();
+  container.hidden = !showReplies;
+
+  if (!showReplies) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = QUICK_REPLY_TOPICS.map((topic) => `
+    <button class="quick-reply-chip" type="button" data-quick-reply="${escapeHtml(topic)}">${escapeHtml(topic)}</button>
+  `).join("");
+}
+
 function updateComposerAvailability() {
   const composerShell = getComposerShell();
   const input = document.getElementById("input");
@@ -318,6 +414,7 @@ function updateComposerAvailability() {
   button.disabled = !chatReady;
   input.placeholder = "Type your question...";
   inputArea.classList.toggle("is-locked", !chatReady);
+  renderQuickReplies();
 }
 
 function normalizeWidgetPhase(value) {
@@ -1054,7 +1151,11 @@ function appendMessage(chat, role, text, options = {}) {
   const label = role === "user" ? "You" : widgetConfig.assistantName;
   const body = options.typing
     ? `<div class="typing-dots"><span></span><span></span><span></span></div>`
-    : `<p>${escapeHtml(text)}</p>`;
+    : `<div class="vonza-message-body">${
+        role === "bot"
+          ? formatAssistantMessageHtml(text)
+          : formatMessageParagraph(String(text || "").replace(/\r/g, "").split("\n"))
+      }</div>`;
 
   wrapper.innerHTML = `
     <div class="avatar">${avatar}</div>
@@ -1069,12 +1170,12 @@ function appendMessage(chat, role, text, options = {}) {
   return wrapper;
 }
 
-async function sendMessage() {
+async function sendMessage(messageOverride = "") {
   const input = document.getElementById("input");
   const chat = document.getElementById("chat");
   const button = document.getElementById("send-button");
 
-  const message = input.value.trim();
+  const message = trimText(messageOverride || input.value);
   const historySnapshot = conversationHistory.slice(-6);
 
   if (!message) return;
@@ -1101,7 +1202,9 @@ async function sendMessage() {
 
   appendMessage(chat, "user", message);
   lastLeadReferenceMessage = message;
+  quickRepliesDismissed = true;
   input.value = "";
+  renderQuickReplies();
   button.disabled = true;
   input.disabled = true;
   setComposerStatus(`${widgetConfig.assistantName} is preparing a reply...`);
@@ -1158,6 +1261,7 @@ async function sendMessage() {
     syncWidgetPhaseWithIdentity(visitorIdentity);
     addToHistory("user", message);
     addToHistory("assistant", data.reply);
+    renderQuickReplies();
     liveLeadCapture = data.leadCapture || null;
     renderDirectRouting(data.directRouting || null);
     renderLeadCapture(liveLeadCapture, {
@@ -1241,6 +1345,20 @@ document.getElementById("input").addEventListener("keydown", (event) => {
   }
 });
 
+getQuickReplies()?.addEventListener("click", (event) => {
+  const button = event.target?.closest?.("[data-quick-reply]");
+
+  if (!button) {
+    return;
+  }
+
+  const topic = trimText(button.textContent);
+
+  if (topic) {
+    sendMessage(topic);
+  }
+});
+
 if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
 }
@@ -1260,6 +1378,8 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getVisitorIdentity: () => ({ ...visitorIdentity }),
   getWidgetPhase: () => widgetPhase,
   hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
+  formatAssistantMessageHtml,
+  renderQuickReplies,
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
   sendMessage: () => sendMessage(),

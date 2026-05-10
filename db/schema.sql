@@ -4,8 +4,20 @@ create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   name text,
   website_url text unique,
+  vertical text,
   created_at timestamp with time zone default now()
 );
+
+alter table public.businesses
+  drop constraint if exists businesses_vertical_check;
+
+alter table public.businesses
+  add constraint businesses_vertical_check
+  check (vertical is null or vertical in ('clinic', 'web_studio', 'home_services'));
+
+create index if not exists businesses_vertical_idx
+  on public.businesses (vertical)
+  where vertical is not null;
 
 create table if not exists public.website_content (
   id uuid primary key default gen_random_uuid(),

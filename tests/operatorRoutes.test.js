@@ -224,6 +224,105 @@ test("google connect start route returns an auth URL for the owner workspace", a
   }
 });
 
+test("owner analytics API returns secured metrics for an authenticated owner", async () => {
+  const server = await startServer(createApp(buildRouteDeps({
+    assertMessagesSchemaReady: async () => {},
+    assertWidgetTelemetrySchemaReady: async () => {},
+    assertLeadCaptureSchemaReady: async () => {},
+    assertConversionOutcomeSchemaReady: async () => {},
+    getAgentWorkspaceSnapshot: async () => ({
+      id: "agent-1",
+      businessId: "business-1",
+      ownerUserId: "owner-1",
+      accessStatus: "active",
+      name: "Vonza Operator",
+      vertical: "home_services",
+      widgetMetrics: {
+        conversationStartedCount: 2,
+        uniqueSessionCount: 2,
+      },
+    }),
+    listAgentMessages: async () => [
+      {
+        role: "user",
+        content: "Do you serve my area?",
+        sessionKey: "session-1",
+        createdAt: "2026-05-10T08:00:00.000Z",
+      },
+      {
+        role: "assistant",
+        content: "The website does not list a fixed service area.",
+        sessionKey: "session-1",
+        createdAt: "2026-05-10T08:00:02.000Z",
+      },
+      {
+        role: "user",
+        content: "Can I get a quote?",
+        sessionKey: "session-2",
+        createdAt: "2026-05-10T09:00:00.000Z",
+      },
+    ],
+    listLeadCaptures: async () => ({
+      records: [{ captureState: "captured", contactEmail: "lead@example.com" }],
+      persistenceAvailable: true,
+    }),
+    listConversionOutcomesForAgent: async () => ({
+      records: [],
+      summary: { assistedConversions: 1 },
+      recentOutcomes: [],
+      persistenceAvailable: true,
+    }),
+    getOwnerBillingSnapshot: async () => ({
+      planKey: "growth",
+      displayName: "Growth",
+      includedAiBudgetCents: 3000,
+      usage: {
+        usedCents: 300,
+        includedCents: 3000,
+        remainingCents: 2700,
+        percentUsed: 10,
+        statusLabel: "Within the included monthly capacity",
+      },
+    }),
+    listActionQueueStatuses: async () => [],
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/dashboard/analytics?agent_id=agent-1");
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.metrics.totalConversations, 2);
+    assert.equal(response.json.metrics.leadsCaptured, 1);
+    assert.equal(response.json.metrics.conversionRate, 50);
+    assert.equal(response.json.aiUsage.percentUsed, 10);
+    assert.match(response.json.missedQuestions[0].question, /serve my area/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("owner analytics page route loads the standalone dashboard shell", async () => {
+  const server = await startServer(createApp(buildRouteDeps()));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/dashboard/analytics`, {
+      headers: {
+        Accept: "text/html",
+        Authorization: "Bearer token",
+      },
+    });
+    const html = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(html, /Vonza Analytics/);
+    assert.match(html, /\/dashboard\/analytics\.js/);
+    assert.match(html, /owner-analytics-root/);
+  } finally {
+    await server.close();
+  }
+});
+
 test("operator workspace route exposes inbox, calendar, and automations surfaces", async () => {
   const server = await startServer(createApp(buildRouteDeps()));
 

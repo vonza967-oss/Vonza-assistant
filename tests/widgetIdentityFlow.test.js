@@ -133,6 +133,7 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {} } = 
     "direct-routing-slot",
     "welcome-panel",
     "composer-shell",
+    "quick-replies",
     "input",
     "send-button",
     "composer-status",
@@ -544,9 +545,41 @@ test("widget send flow keeps identity payloads and stays in the chat state after
   assert.equal(welcomePanel.hidden, true);
 });
 
+test("assistant output formatter preserves paragraph spacing", () => {
+  const harness = createWidgetHarness();
+  const html = harness.hooks.formatAssistantMessageHtml(
+    "Direct answer.\n\nShort explanation, if needed.\n\nOne clear next step?"
+  );
+
+  assert.match(html, /<p>Direct answer\.<\/p><p>Short explanation, if needed\.<\/p><p>One clear next step\?<\/p>/);
+});
+
+test("assistant output formatter renders bullet responses as readable lists", () => {
+  const harness = createWidgetHarness();
+  const html = harness.hooks.formatAssistantMessageHtml(
+    "For an accurate quote, include:\n\n- Service type\n- Timeline\n- Must-have features"
+  );
+
+  assert.match(html, /<p>For an accurate quote, include:<\/p>/);
+  assert.match(html, /<ul><li>Service type<\/li><li>Timeline<\/li><li>Must-have features<\/li><\/ul>/);
+});
+
+test("assistant output formatter escapes script and HTML content", () => {
+  const harness = createWidgetHarness();
+  const html = harness.hooks.formatAssistantMessageHtml(
+    "Safe answer <script>alert('x')</script>\n\n- <img src=x onerror=alert(1)>"
+  );
+
+  assert.doesNotMatch(html, /<script/i);
+  assert.doesNotMatch(html, /<img/i);
+  assert.match(html, /&lt;script&gt;alert\(&#39;x&#39;\)&lt;\/script&gt;/);
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+});
+
 test("widget source separates entry and chat phases, hides the composer before identity, omits attach and emoji controls, and preserves mobile rules", () => {
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const style = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
+  const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const embed = readFileSync(path.join(repoRoot, "embed.js"), "utf8");
 
   assert.match(widget, /Continue with email/);
@@ -560,6 +593,11 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.doesNotMatch(widget, /paperclip/i);
   assert.match(style, /\[hidden\]\s*\{\s*display:\s*none !important;/);
   assert.match(style, /\.widget-phase-chat/);
+  assert.match(style, /\.vonza-message-body/);
+  assert.match(style, /overflow-wrap:\s*break-word/);
+  assert.match(widget, /id="quick-replies"/);
+  assert.match(script, /QUICK_REPLY_TOPICS/);
+  assert.match(style, /\.quick-reply-chip/);
   assert.match(style, /@media \(max-width: 720px\)/);
   assert.match(style, /@media \(max-width: 420px\)/);
   assert.match(embed, /launcher-presence/);

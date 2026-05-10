@@ -67,8 +67,8 @@ async function rewriteAssistantReply({
   );
 
   return typeof postProcess === "function"
-    ? cleanText(postProcess(rewrittenReply))
-    : cleanText(rewrittenReply);
+    ? normalizeAssistantReply(postProcess(rewrittenReply))
+    : normalizeAssistantReply(rewrittenReply);
 }
 
 export async function generateAssistantReply({
@@ -136,8 +136,8 @@ export async function generateAssistantReply({
     completion.choices?.[0]?.message?.content || ""
   );
   reply = typeof postProcess === "function"
-    ? cleanText(postProcess(reply))
-    : cleanText(reply);
+    ? normalizeAssistantReply(postProcess(reply))
+    : normalizeAssistantReply(reply);
 
   const issues = typeof repair.getIssues === "function"
     ? repair.getIssues(reply)

@@ -1,6 +1,34 @@
 import { BUSINESSES_TABLE } from "../../config/constants.js";
 import { cleanText, isUuid, slugifyLookupValue } from "../../utils/text.js";
 import { getHostnameFromUrl } from "../../utils/url.js";
+import { normalizeBusinessVertical } from "../../templates/businessVerticals.js";
+
+const BUSINESS_SELECT = "id, name, website_url, vertical";
+const LEGACY_BUSINESS_SELECT = "id, name, website_url";
+
+function isMissingVerticalColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "42703" ||
+    error?.code === "PGRST204" ||
+    (message.includes("vertical") && message.includes("does not exist"))
+  );
+}
+
+async function selectBusinessMaybeWithVertical(queryBuilder, fallbackFactory) {
+  let { data, error } = await queryBuilder(BUSINESS_SELECT);
+
+  if (error && isMissingVerticalColumnError(error)) {
+    ({ data, error } = await fallbackFactory(LEGACY_BUSINESS_SELECT));
+  }
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  return data;
+}
 
 export function buildBusinessLookupKeys(business) {
   const keys = new Set();
@@ -39,30 +67,28 @@ export async function findBusinessByIdentifier(supabase, businessIdentifier) {
   }
 
   if (isUuid(lookupValue)) {
-    const { data: business, error } = await supabase
-      .from(BUSINESSES_TABLE)
-      .select("id, name, website_url")
-      .eq("id", lookupValue)
-      .maybeSingle();
-
-    if (error) {
-      console.error(error);
-      throw error;
-    }
+    const business = await selectBusinessMaybeWithVertical(
+      (selectColumns) => supabase
+        .from(BUSINESSES_TABLE)
+        .select(selectColumns)
+        .eq("id", lookupValue)
+        .maybeSingle(),
+      (selectColumns) => supabase
+        .from(BUSINESSES_TABLE)
+        .select(selectColumns)
+        .eq("id", lookupValue)
+        .maybeSingle()
+    );
 
     return business || null;
   }
 
   const normalizedLookup = slugifyLookupValue(lookupValue);
   const lowercaseLookup = lookupValue.toLowerCase();
-  const { data: businesses, error } = await supabase
-    .from(BUSINESSES_TABLE)
-    .select("id, name, website_url");
-
-  if (error) {
-    console.error(error);
-    throw error;
-  }
+  const businesses = await selectBusinessMaybeWithVertical(
+    (selectColumns) => supabase.from(BUSINESSES_TABLE).select(selectColumns),
+    (selectColumns) => supabase.from(BUSINESSES_TABLE).select(selectColumns)
+  );
 
   return (
     (businesses || []).find((business) => {
@@ -74,6 +100,7 @@ export async function findBusinessByIdentifier(supabase, businessIdentifier) {
 
 export async function ensureBusinessRecord(supabase, options = {}) {
   const { businessId, websiteUrl, name } = options;
+  const vertical = normalizeBusinessVertical(options.vertical);
 
   if (businessId) {
     const business = await findBusinessByIdentifier(supabase, businessId);
@@ -97,29 +124,64 @@ export async function ensureBusinessRecord(supabase, options = {}) {
     throw missingError;
   }
 
-  const { data: existingBusiness, error: lookupError } = await supabase
-    .from(BUSINESSES_TABLE)
-    .select("id, name, website_url")
-    .eq("website_url", websiteUrl)
-    .maybeSingle();
-
-  if (lookupError) {
-    console.error(lookupError);
-    throw lookupError;
-  }
+  const existingBusiness = await selectBusinessMaybeWithVertical(
+    (selectColumns) => supabase
+      .from(BUSINESSES_TABLE)
+      .select(selectColumns)
+      .eq("website_url", websiteUrl)
+      .maybeSingle(),
+    (selectColumns) => supabase
+      .from(BUSINESSES_TABLE)
+      .select(selectColumns)
+      .eq("website_url", websiteUrl)
+      .maybeSingle()
+  );
 
   if (existingBusiness) {
+    if (vertical && existingBusiness.vertical !== vertical) {
+      const { data: updatedBusiness, error: updateError } = await supabase
+        .from(BUSINESSES_TABLE)
+        .update({ vertical })
+        .eq("id", existingBusiness.id)
+        .select(BUSINESS_SELECT)
+        .single();
+
+      if (!updateError) {
+        return updatedBusiness;
+      }
+
+      if (!isMissingVerticalColumnError(updateError)) {
+        console.error(updateError);
+        throw updateError;
+      }
+    }
+
     return existingBusiness;
   }
 
-  const { data: createdBusiness, error: createError } = await supabase
+  const insertPayload = {
+    name: name || new URL(websiteUrl).hostname,
+    website_url: websiteUrl,
+  };
+
+  if (vertical) {
+    insertPayload.vertical = vertical;
+  }
+
+  let { data: createdBusiness, error: createError } = await supabase
     .from(BUSINESSES_TABLE)
-    .insert({
-      name: name || new URL(websiteUrl).hostname,
-      website_url: websiteUrl,
-    })
-    .select("id, name, website_url")
+    .insert(insertPayload)
+    .select(BUSINESS_SELECT)
     .single();
+
+  if (createError && isMissingVerticalColumnError(createError)) {
+    delete insertPayload.vertical;
+    ({ data: createdBusiness, error: createError } = await supabase
+      .from(BUSINESSES_TABLE)
+      .insert(insertPayload)
+      .select(LEGACY_BUSINESS_SELECT)
+      .single());
+  }
 
   if (createError) {
     console.error(createError);

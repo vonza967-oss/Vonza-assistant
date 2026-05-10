@@ -172,6 +172,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "startup-critical",
     note: "Adds owner billing plan state plus per-period AI usage ledger storage for subscription enforcement, warnings, and monthly capacity caps.",
   }),
+  Object.freeze({
+    id: "business_vertical",
+    version: "20260510000000",
+    name: "business_vertical",
+    file: "supabase/migrations/20260510000000_business_vertical.sql",
+    legacySources: Object.freeze(["db/business_vertical.sql"]),
+    tier: "feature-gated",
+    note: "Adds businesses.vertical for industry-specific front-desk prompt templates and owner setup controls.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

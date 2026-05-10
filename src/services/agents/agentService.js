@@ -20,6 +20,7 @@ import {
 } from "./agentDefaults.js";
 import { normalizeWidgetPurpose } from "./widgetPurpose.js";
 import { isTempInstantWorkspaceAccessEnabled } from "../../config/env.js";
+import { normalizeBusinessVertical } from "../../templates/businessVerticals.js";
 
 const AGENTS_TABLE = "agents";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
@@ -286,6 +287,15 @@ function isMissingWidgetRoutingColumnError(error) {
   );
 }
 
+function isMissingBusinessVerticalColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "42703"
+    || error?.code === "PGRST204"
+    || (message.includes("vertical") && message.includes("does not exist"))
+  );
+}
+
 function buildWidgetConfigUpsertPayload(agentId, config, options = {}) {
   const payload = {
     agent_id: agentId,
@@ -345,6 +355,37 @@ async function updateBusinessWebsiteUrl(supabase, businessId, websiteUrl) {
     console.error("[agentService] Failed to update business website URL:", {
       businessId,
       websiteUrl,
+      code: error.code,
+      message: error.message,
+    });
+    throw error;
+  }
+}
+
+async function updateBusinessVertical(supabase, businessId, vertical) {
+  if (!businessId) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("businesses")
+    .update({
+      vertical: normalizeBusinessVertical(vertical) || null,
+    })
+    .eq("id", businessId);
+
+  if (error) {
+    if (isMissingBusinessVerticalColumnError(error)) {
+      throw buildAgentSettingsError(
+        "Business vertical could not be saved because the server schema is missing the vertical field. Apply the business vertical migration and try again.",
+        503,
+        error?.code || "business_vertical_persistence_unavailable"
+      );
+    }
+
+    console.error("[agentService] Failed to update business vertical:", {
+      businessId,
+      vertical,
       code: error.code,
       message: error.message,
     });
@@ -1014,6 +1055,7 @@ export async function getWidgetBootstrap(supabase, options = {}) {
       id: context.business.id,
       name: context.business.name,
       websiteUrl: context.business.website_url,
+      vertical: normalizeBusinessVertical(context.business.vertical),
     },
     widgetConfig: {
       ...context.widgetConfig,
@@ -1171,10 +1213,17 @@ export async function listAgents(supabase, options = {}) {
   }
 
   if (businessIds.length) {
-    const { data: businessRows, error: businessError } = await supabase
+    let { data: businessRows, error: businessError } = await supabase
       .from("businesses")
-      .select("id, website_url")
+      .select("id, website_url, vertical")
       .in("id", businessIds);
+
+    if (businessError && isMissingBusinessVerticalColumnError(businessError)) {
+      ({ data: businessRows, error: businessError } = await supabase
+        .from("businesses")
+        .select("id, website_url")
+        .in("id", businessIds));
+    }
 
     if (businessError) {
       console.error(businessError);
@@ -1216,7 +1265,9 @@ export async function listAgents(supabase, options = {}) {
     const widgetConfig = widgetConfigsByAgentId.get(row.id);
     const knowledge = websiteContentByBusinessId.get(row.business_id) || buildKnowledgeSummary(null);
     const messageStats = messageStatsByAgentId.get(row.id) || {};
-    const websiteUrl = businessesById.get(row.business_id)?.website_url || "";
+    const business = businessesById.get(row.business_id) || {};
+    const websiteUrl = business.website_url || "";
+    const vertical = normalizeBusinessVertical(business.vertical);
 
     return {
       id: row.id,
@@ -1234,6 +1285,7 @@ export async function listAgents(supabase, options = {}) {
       isActive: row.is_active !== false,
       tone: row.tone || DEFAULT_TONE,
       systemPrompt: row.system_prompt || "",
+      vertical,
       websiteUrl,
       welcomeMessage:
         widgetConfig?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
@@ -1359,10 +1411,17 @@ export async function listAllAgents(supabase) {
   }
 
   if (businessIds.length) {
-    const { data: businessRows, error: businessError } = await supabase
+    let { data: businessRows, error: businessError } = await supabase
       .from("businesses")
-      .select("id, website_url")
+      .select("id, website_url, vertical")
       .in("id", businessIds);
+
+    if (businessError && isMissingBusinessVerticalColumnError(businessError)) {
+      ({ data: businessRows, error: businessError } = await supabase
+        .from("businesses")
+        .select("id, website_url")
+        .in("id", businessIds));
+    }
 
     if (businessError) {
       console.error(businessError);
@@ -1401,6 +1460,7 @@ export async function listAllAgents(supabase) {
     isActive: row.is_active !== false,
     tone: row.tone || DEFAULT_TONE,
     systemPrompt: row.system_prompt || "",
+    vertical: normalizeBusinessVertical(businessesById.get(row.business_id)?.vertical),
     websiteUrl: businessesById.get(row.business_id)?.website_url || "",
     welcomeMessage:
       widgetConfigsByAgentId.get(row.id)?.welcomeMessage ?? DEFAULT_WIDGET_CONFIG.welcomeMessage,
@@ -1522,6 +1582,7 @@ export async function updateAgentSettings(
     primaryCtaMode,
     fallbackCtaMode,
     businessHoursNote,
+    vertical,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
   const hasSubmittedRoutingField = ROUTING_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
@@ -1741,6 +1802,10 @@ export async function updateAgentSettings(
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
     : null;
+  const hasVerticalUpdate = hasField("vertical");
+  const nextVertical = hasVerticalUpdate
+    ? normalizeBusinessVertical(vertical)
+    : normalizeBusinessVertical(currentBusiness?.vertical);
   const currentWebsiteUrl =
     normalizeWebsiteUrl(currentBusiness?.website_url || "", {
       requirePublicHostname: false,
@@ -1815,6 +1880,10 @@ export async function updateAgentSettings(
       }
       resolvedWebsiteUrl = "";
     }
+  }
+
+  if (hasVerticalUpdate) {
+    await updateBusinessVertical(supabase, resolvedBusinessId, nextVertical);
   }
 
   const nextAllowedDomainsRaw = hasField("allowedDomains")
@@ -1906,6 +1975,7 @@ export async function updateAgentSettings(
     purpose: nextPurpose,
     tone: nextTone,
     systemPrompt: nextSystemPrompt,
+    vertical: nextVertical,
     websiteUrl: resolvedWebsiteUrl,
     websiteSync: {
       previousUrl: currentWebsiteUrl,

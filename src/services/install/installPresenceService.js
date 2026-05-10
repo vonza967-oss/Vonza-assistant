@@ -34,6 +34,15 @@ function isMissingWidgetLogoColumnError(error) {
   return error?.code === "42703" || error?.code === "PGRST204" || message.includes("widget_logo_url");
 }
 
+function isMissingBusinessVerticalColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "42703" ||
+    error?.code === "PGRST204" ||
+    (message.includes("vertical") && message.includes("does not exist"))
+  );
+}
+
 function parseAbsoluteUrl(value) {
   const normalizedValue = cleanText(value);
 
@@ -451,11 +460,19 @@ async function getAgentAndBusinessByAgentId(supabase, agentId) {
     return null;
   }
 
-  const { data: businessRow, error: businessError } = await supabase
+  let { data: businessRow, error: businessError } = await supabase
     .from(BUSINESSES_TABLE)
-    .select("id, name, website_url")
+    .select("id, name, website_url, vertical")
     .eq("id", agentRow.business_id)
     .maybeSingle();
+
+  if (businessError && isMissingBusinessVerticalColumnError(businessError)) {
+    ({ data: businessRow, error: businessError } = await supabase
+      .from(BUSINESSES_TABLE)
+      .select("id, name, website_url")
+      .eq("id", agentRow.business_id)
+      .maybeSingle());
+  }
 
   if (businessError) {
     if (isMissingRelationError(businessError, BUSINESSES_TABLE)) {

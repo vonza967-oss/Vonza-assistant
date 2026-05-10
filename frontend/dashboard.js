@@ -99,6 +99,28 @@ const WIDGET_PURPOSE_OPTIONS = [
     description: "Help visitors book, request a quote, or move forward.",
   },
 ];
+const BUSINESS_VERTICAL_OPTIONS = [
+  {
+    value: "",
+    label: "General service business",
+    description: "Use broad front-desk guidance without industry-specific defaults.",
+  },
+  {
+    value: "clinic",
+    label: "Clinic or healthcare office",
+    description: "Careful appointment, preparation, and privacy-aware guidance.",
+  },
+  {
+    value: "web_studio",
+    label: "Web studio or agency",
+    description: "Project, quote, ecommerce, timeline, and scope guidance.",
+  },
+  {
+    value: "home_services",
+    label: "Home services",
+    description: "Quote, urgency, service-area, and job-detail guidance.",
+  },
+];
 const FEATURE_STATE_STABLE = "stable";
 const FEATURE_STATE_BETA = "beta";
 const FEATURE_STATE_HIDDEN = "hidden";
@@ -2536,6 +2558,35 @@ function normalizeWidgetPurpose(value) {
 function getWidgetPurposeOption(value) {
   const normalizedPurpose = normalizeWidgetPurpose(value);
   return WIDGET_PURPOSE_OPTIONS.find((option) => option.value === normalizedPurpose) || WIDGET_PURPOSE_OPTIONS[1];
+}
+
+function normalizeBusinessVertical(value) {
+  const normalized = trimText(value)
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (["clinic", "clinics", "healthcare", "medical", "dental", "wellness"].includes(normalized)) {
+    return "clinic";
+  }
+
+  if (["web_studio", "web_studios", "web_agency", "agency", "digital_agency", "studio"].includes(normalized)) {
+    return "web_studio";
+  }
+
+  if (["home_services", "home_service", "trades", "contractor", "repair", "field_service"].includes(normalized)) {
+    return "home_services";
+  }
+
+  return BUSINESS_VERTICAL_OPTIONS.some((option) => option.value === normalized)
+    ? normalized
+    : "";
+}
+
+function getBusinessVerticalOption(value) {
+  const normalized = normalizeBusinessVertical(value);
+  return BUSINESS_VERTICAL_OPTIONS.find((option) => option.value === normalized) || BUSINESS_VERTICAL_OPTIONS[0];
 }
 
 function formatRichTextHtml(value) {
@@ -7396,6 +7447,8 @@ function buildFrontDeskSettingsForm(agent, setup) {
   const advancedGuidanceVisible = isCapabilityExplicitlyVisible("advanced_guidance");
   const selectedPurpose = normalizeWidgetPurpose(agent.purpose);
   const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
+  const selectedVertical = normalizeBusinessVertical(agent.vertical);
+  const selectedVerticalOption = getBusinessVerticalOption(selectedVertical);
 
   return `
     <form data-settings-form data-form-kind="customize" class="settings-form-shell">
@@ -7419,6 +7472,23 @@ function buildFrontDeskSettingsForm(agent, setup) {
                   `).join("")}
                 </select>
                 <p class="field-help">Current purpose: ${escapeHtml(selectedPurposeOption.description)}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="studio-group">
+            <p class="studio-kicker">Industry template</p>
+            <h3 class="studio-group-title">Tune the front desk for your business type.</h3>
+            <p class="studio-group-copy">Templates add industry-specific answer guidance for common questions while still using your website as the source of truth.</p>
+            <div class="form-grid">
+              <div class="field">
+                <label for="assistant-business-vertical">Business vertical</label>
+                <select id="assistant-business-vertical" name="vertical">
+                  ${BUSINESS_VERTICAL_OPTIONS.map((option) => `
+                    <option value="${escapeHtml(option.value)}" ${selectedVertical === option.value ? "selected" : ""}>${escapeHtml(option.label)} - ${escapeHtml(option.description)}</option>
+                  `).join("")}
+                </select>
+                <p class="field-help">Current template: ${escapeHtml(selectedVerticalOption.description)}</p>
               </div>
             </div>
           </section>
@@ -7608,6 +7678,7 @@ function buildFrontDeskSettingsForm(agent, setup) {
           <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
           <div class="studio-summary-badge-row">
             <span id="studio-summary-purpose" class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
+            <span id="studio-summary-vertical" class="badge success">${escapeHtml(selectedVerticalOption.label)}</span>
             <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
             <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
           </div>
@@ -13688,6 +13759,7 @@ async function saveAssistant(event, agent) {
   const updateFieldNames = [
     "assistant_name",
     "widget_purpose",
+    "vertical",
     "tone",
     "system_prompt",
     "welcome_message",
@@ -13923,6 +13995,7 @@ function updateStudioSummary(
   const toneEl = document.getElementById("studio-summary-tone");
   const buttonEl = document.getElementById("studio-summary-button");
   const purposeEl = document.getElementById("studio-summary-purpose");
+  const verticalEl = document.getElementById("studio-summary-vertical");
   const primarySwatch = document.getElementById("studio-swatch-primary");
   const secondarySwatch = document.getElementById("studio-swatch-secondary");
   const brandWidgetTitle = document.getElementById("brand-widget-title");
@@ -13949,6 +14022,7 @@ function updateStudioSummary(
   const tone = getSummaryValue("tone", fallbackAgent.tone) || "friendly";
   const buttonLabel = getSummaryValue("button_label", fallbackAgent.buttonLabel) || "Chat";
   const purpose = getWidgetPurposeOption(getSummaryValue("widget_purpose", fallbackAgent.purpose));
+  const vertical = getBusinessVerticalOption(getSummaryValue("vertical", fallbackAgent.vertical));
   const primaryColor = getSummaryValue("primary_color", fallbackAgent.primaryColor) || "#14b8a6";
   const secondaryColor = getSummaryValue("secondary_color", fallbackAgent.secondaryColor) || "#0f766e";
 
@@ -13958,6 +14032,9 @@ function updateStudioSummary(
   buttonEl.textContent = buttonLabel;
   if (purposeEl) {
     purposeEl.textContent = purpose.label;
+  }
+  if (verticalEl) {
+    verticalEl.textContent = vertical.label;
   }
   if (primarySwatch) {
     primarySwatch.style.setProperty("--swatch-color", primaryColor);

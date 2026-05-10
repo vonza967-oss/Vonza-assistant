@@ -24,6 +24,7 @@ import {
   listAgentMessages,
 } from "../services/chat/messageService.js";
 import { buildAnalyticsSummary } from "../services/analytics/analyticsSummaryService.js";
+import { buildOwnerAnalyticsDashboard } from "../services/analytics/ownerAnalyticsDashboardService.js";
 import { getProductFunnelSummary, trackProductEvent } from "../services/analytics/productEventService.js";
 import {
   assertWidgetTelemetrySchemaReady,
@@ -70,6 +71,7 @@ import {
 } from "../services/billing/checkoutService.js";
 import {
   getOwnerBillingRecord,
+  getOwnerBillingSnapshot,
   simulateOwnerBillingActivation,
   syncOwnerBillingState,
 } from "../services/billing/billingUsageService.js";
@@ -220,6 +222,7 @@ export function createAgentRouter(deps = {}) {
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
   const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
   const getOwnerBillingRecordImpl = deps.getOwnerBillingRecord || getOwnerBillingRecord;
+  const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
   const simulateOwnerBillingActivationImpl =
     deps.simulateOwnerBillingActivation || simulateOwnerBillingActivation;
   const syncOwnerBillingStateImpl = deps.syncOwnerBillingState || syncOwnerBillingState;
@@ -319,6 +322,43 @@ export function createAgentRouter(deps = {}) {
       error.statusCode = 401;
       throw error;
     }
+  }
+
+  function hasAdminAccess(req) {
+    const configuredToken = process.env.ADMIN_TOKEN;
+    return Boolean(configuredToken && getAdminToken(req) === configuredToken);
+  }
+
+  function renderOwnerAnalyticsPage() {
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vonza Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <main class="standalone-analytics-shell">
+    <div class="standalone-analytics-topbar">
+      <a href="/dashboard" class="standalone-analytics-brand" aria-label="Back to dashboard">
+        <span>V</span>
+        <strong>Vonza Analytics</strong>
+      </a>
+    </div>
+    <section id="owner-analytics-root" class="standalone-analytics-root">
+      <h1>Owner analytics</h1>
+      <p>Loading customer-service metrics...</p>
+    </section>
+  </main>
+  <script src="/public-config.js"></script>
+  <script src="/supabase-auth.js"></script>
+  <script type="module" src="/dashboard/analytics.js"></script>
+</body>
+</html>`;
   }
 
   router.post("/stripe/webhook", async (req, res) => {
@@ -614,6 +654,7 @@ export function createAgentRouter(deps = {}) {
         req.body.primary_color || req.body.primaryColor,
         req.body.secondary_color || req.body.secondaryColor,
         req.body.website_url || req.body.websiteUrl,
+        req.body.vertical,
       ].some((value) => Boolean(String(value || "").trim()));
 
       if (hasInitialSettings) {
@@ -627,6 +668,7 @@ export function createAgentRouter(deps = {}) {
           welcomeMessage: req.body.welcome_message || req.body.welcomeMessage,
           buttonLabel: req.body.button_label || req.body.buttonLabel,
           websiteUrl: req.body.website_url || req.body.websiteUrl,
+          vertical: req.body.vertical,
           primaryColor: req.body.primary_color || req.body.primaryColor,
           secondaryColor: req.body.secondary_color || req.body.secondaryColor,
         });
@@ -972,6 +1014,7 @@ export function createAgentRouter(deps = {}) {
           "business_hours_note",
           "businessHoursNote"
         ),
+        vertical: readBodyField(req.body, "vertical"),
       });
 
       res.json({ ok: true, agent: result });
@@ -1149,6 +1192,84 @@ export function createAgentRouter(deps = {}) {
           dashboardLanguage: normalizeDashboardLanguage(req.query.dashboard_language || req.query.dashboardLanguage),
         }),
       });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/dashboard/analytics", async (req, res) => {
+    const wantsHtml = cleanText(req.headers.accept).includes("text/html");
+
+    try {
+      const supabase = getSupabase();
+      const agentId = req.query.agent_id || req.query.agentId;
+      const isAdmin = hasAdminAccess(req);
+      const user = isAdmin
+        ? null
+        : await authenticateUser(supabase, req);
+
+      if (wantsHtml) {
+        res.type("html").send(renderOwnerAnalyticsPage());
+        return;
+      }
+
+      if (!isAdmin) {
+        await requireActiveAgentAccessImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.query.client_id || req.query.clientId,
+        });
+      }
+
+      await Promise.all([
+        assertMessagesSchemaReadyImpl(supabase, { phase: "request" }),
+        assertWidgetTelemetrySchemaReadyImpl(supabase),
+        assertLeadCaptureSchemaReadyImpl(supabase, { phase: "request" }),
+        assertConversionOutcomeSchemaReadyImpl(supabase, { phase: "request" }),
+      ]);
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const ownerUserId = user?.id || cleanText(req.query.owner_user_id || req.query.ownerUserId) || agent.ownerUserId || "";
+
+      const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses] = await Promise.all([
+        listAgentMessagesImpl(supabase, agentId),
+        listLeadCapturesImpl(supabase, {
+          agentId,
+          ownerUserId,
+        }),
+        listConversionOutcomesForAgentImpl(supabase, {
+          agentId,
+          ownerUserId,
+        }),
+        ownerUserId
+          ? getOwnerBillingSnapshotImpl(supabase, {
+              ownerUserId,
+              accessStatus: agent.accessStatus,
+            })
+          : null,
+        listActionQueueStatusesImpl(supabase, {
+          agentId,
+          ownerUserId,
+        }).catch(() => []),
+      ]);
+
+      const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
+      const actionQueue = buildActionQueueImpl(messages, persistedRecords, {
+        persistenceAvailable: Array.isArray(statuses) ? true : statuses?.persistenceAvailable !== false,
+      });
+
+      res.json(buildOwnerAnalyticsDashboard({
+        agent,
+        messages,
+        leadCaptures,
+        conversionOutcomes,
+        widgetMetrics: agent.widgetMetrics || {},
+        billingSnapshot,
+        actionQueue,
+      }));
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
