@@ -76,7 +76,7 @@ button:hover {
 .site-shell {
   width: min(1180px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 18px 0 44px;
+  padding: 14px 0 34px;
 }
 
 .site-header {
@@ -86,9 +86,9 @@ button:hover {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 22px;
-  min-height: 64px;
-  padding: 10px 12px 10px 14px;
+  gap: 18px;
+  min-height: 58px;
+  padding: 8px 10px 8px 12px;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.88);
@@ -178,12 +178,12 @@ button:hover {
 }
 
 .button {
-  min-height: 44px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 17px;
+  padding: 0 15px;
   border: 1px solid transparent;
   border-radius: 999px;
   font-size: 14px;
@@ -234,14 +234,14 @@ button:hover {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 0.74fr) minmax(460px, 1fr);
-  gap: 48px;
+  grid-template-columns: minmax(0, 0.72fr) minmax(460px, 1fr);
+  gap: 36px;
   align-items: center;
-  padding: 86px 0 34px;
+  padding: 64px 0 20px;
 }
 
 .hero-copy {
-  max-width: 620px;
+  max-width: 590px;
 }
 
 .hero h1,
@@ -257,7 +257,7 @@ button:hover {
 }
 
 .hero h1 {
-  font-size: clamp(46px, 5.8vw, 78px);
+  font-size: clamp(42px, 5vw, 64px);
 }
 
 .hero-text,
@@ -265,16 +265,16 @@ button:hover {
 .section-heading-row p,
 .product-story p,
 .final-cta p {
-  margin: 22px 0 0;
+  margin: 16px 0 0;
   color: var(--muted);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 17px;
+  line-height: 1.58;
 }
 
 .hero-actions {
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 30px;
+  margin-top: 22px;
 }
 
 .hero-media {
@@ -300,8 +300,8 @@ button:hover {
   display: flex;
   align-items: center;
   gap: 7px;
-  height: 34px;
-  padding: 0 14px;
+  height: 30px;
+  padding: 0 12px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   background: #f8fafc;
 }
@@ -332,18 +332,18 @@ button:hover {
 }
 
 .app-frame figcaption {
-  padding: 12px 14px;
+  padding: 9px 12px;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   color: var(--muted);
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .value-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
-  margin: 26px 0 0;
+  margin: 20px 0 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
@@ -352,11 +352,11 @@ button:hover {
 }
 
 .value-strip span {
-  min-height: 70px;
+  min-height: 58px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.8);
   color: var(--ink-soft);
   font-size: 14px;
@@ -365,15 +365,15 @@ button:hover {
 }
 
 .section {
-  padding-top: 100px;
+  padding-top: 72px;
 }
 
 .section-heading-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
+  gap: 20px;
   align-items: end;
-  margin-bottom: 26px;
+  margin-bottom: 20px;
 }
 
 .section-heading-row h2,
@@ -381,7 +381,7 @@ button:hover {
 .product-story h2,
 .final-cta h2 {
   max-width: 760px;
-  font-size: clamp(34px, 4vw, 54px);
+  font-size: clamp(30px, 3.5vw, 46px);
 }
 
 .section-heading-row p,
@@ -389,12 +389,30 @@ button:hover {
   max-width: 720px;
 }
 
+.section-intro {
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.section-copy {
+  margin-top: 12px;
+}
+
 .feature-preview-grid,
 .use-case-grid,
 .faq-grid,
 .about-grid {
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .feature-preview-grid {
@@ -413,8 +431,8 @@ button:hover {
 
 .feature-preview-card {
   display: grid;
-  gap: 16px;
-  padding: 14px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .feature-preview-card .app-frame {
@@ -443,18 +461,18 @@ button:hover {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.52;
 }
 
 .product-story {
   display: grid;
   grid-template-columns: minmax(0, 0.74fr) minmax(420px, 1fr);
-  gap: 42px;
+  gap: 32px;
   align-items: center;
 }
 
 .story-copy .button {
-  margin-top: 26px;
+  margin-top: 18px;
 }
 
 .use-case-grid,
@@ -467,26 +485,26 @@ button:hover {
 .faq-grid article,
 .about-grid article {
   display: grid;
-  gap: 10px;
-  padding: 24px;
+  gap: 8px;
+  padding: 18px;
 }
 
 .page-hero {
-  padding: 90px 0 18px;
+  padding: 62px 0 6px;
 }
 
 .page-hero > div {
-  max-width: 860px;
+  max-width: 780px;
 }
 
 .page-hero h1 {
-  font-size: clamp(44px, 5.5vw, 72px);
+  font-size: clamp(34px, 4.2vw, 46px);
 }
 
 .page-hero-split {
   display: grid;
   grid-template-columns: minmax(0, 0.82fr) minmax(420px, 0.9fr);
-  gap: 44px;
+  gap: 32px;
   align-items: center;
 }
 
@@ -496,23 +514,23 @@ button:hover {
 
 .feature-detail-list {
   display: grid;
-  gap: 34px;
+  gap: 22px;
 }
 
 .feature-detail,
 .walkthrough-step {
   display: grid;
-  gap: 34px;
+  gap: 24px;
   align-items: center;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: rgba(255, 255, 255, 0.72);
   box-shadow: var(--shadow-sm);
 }
 
 .feature-detail {
   grid-template-columns: minmax(0, 0.72fr) minmax(420px, 1fr);
-  padding: 28px;
+  padding: 22px;
 }
 
 .feature-detail-reverse {
@@ -525,7 +543,7 @@ button:hover {
 
 .feature-detail-copy span {
   display: inline-flex;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   color: var(--brand);
   font-size: 13px;
   font-weight: 800;
@@ -535,31 +553,31 @@ button:hover {
 .walkthrough-copy h2 {
   margin: 0;
   color: var(--ink);
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.06;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.08;
 }
 
 .feature-detail-copy p,
 .walkthrough-copy p {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   color: var(--muted);
   font-size: 16px;
-  line-height: 1.7;
+  line-height: 1.56;
 }
 
 .walkthrough {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .walkthrough-step {
-  grid-template-columns: 72px minmax(0, 0.72fr) minmax(390px, 1fr);
-  padding: 22px;
+  grid-template-columns: 58px minmax(0, 0.72fr) minmax(360px, 1fr);
+  padding: 18px;
 }
 
 .walkthrough-number {
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -570,22 +588,22 @@ button:hover {
 }
 
 .pricing-section {
-  padding-top: 70px;
+  padding-top: 52px;
 }
 
 .pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
 .pricing-plan {
   position: relative;
   display: grid;
-  gap: 16px;
-  padding: 28px;
+  gap: 12px;
+  padding: 22px;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 14px;
   background: #ffffff;
   box-shadow: var(--shadow-sm);
 }
@@ -597,7 +615,7 @@ button:hover {
 
 .pricing-plan-badge {
   width: fit-content;
-  padding: 7px 10px;
+  padding: 6px 9px;
   border-radius: 999px;
   color: #ffffff;
   background: var(--brand);
@@ -607,12 +625,12 @@ button:hover {
 
 .pricing-plan-header {
   display: grid;
-  gap: 16px;
+  gap: 10px;
 }
 
 .pricing-plan-header h3 {
   margin: 0;
-  font-size: 25px;
+  font-size: 22px;
 }
 
 .pricing-plan-audience,
@@ -631,25 +649,25 @@ button:hover {
 .pricing-plan-price strong {
   display: block;
   color: var(--ink);
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1;
 }
 
 .pricing-plan-price span,
 .pricing-plan-detail {
   color: var(--muted);
-  line-height: 1.65;
+  line-height: 1.5;
 }
 
 .pricing-plan-summary {
   color: var(--ink-soft);
   font-weight: 800;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .pricing-plan-features {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -660,7 +678,7 @@ button:hover {
   padding-left: 20px;
   color: var(--ink-soft);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.42;
 }
 
 .pricing-plan-features li::before {
@@ -680,10 +698,10 @@ button:hover {
 
 .connected-note {
   display: grid;
-  gap: 12px;
-  padding: 28px;
+  gap: 10px;
+  padding: 22px;
   border: 1px solid rgba(15, 118, 110, 0.18);
-  border-radius: 18px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 32%),
     #f2fbf8;
@@ -694,7 +712,7 @@ button:hover {
   margin: 0;
   max-width: 760px;
   color: var(--ink);
-  font-size: clamp(30px, 3.4vw, 46px);
+  font-size: clamp(26px, 3vw, 38px);
   line-height: 1.05;
 }
 
@@ -702,8 +720,8 @@ button:hover {
   max-width: 720px;
   margin: 0;
   color: var(--muted);
-  font-size: 16px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .connected-note span {
@@ -725,10 +743,10 @@ button:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 24px;
   align-items: center;
-  margin-top: 104px;
-  padding: 34px;
+  margin-top: 72px;
+  padding: 26px;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 18px;
+  border-radius: 14px;
   background:
     radial-gradient(circle at top right, rgba(21, 94, 239, 0.14), transparent 32%),
     #111827;
@@ -769,7 +787,7 @@ button:hover {
   gap: 24px;
   align-items: start;
   margin-top: 26px;
-  padding: 26px 0 0;
+  padding: 20px 0 0;
   border-top: 1px solid var(--line);
 }
 
@@ -782,7 +800,7 @@ button:hover {
   max-width: 420px;
   margin: 8px 0 0;
   color: var(--muted);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .footer-links {
@@ -862,7 +880,7 @@ button:hover {
   }
 
   .hero {
-    padding-top: 58px;
+    padding-top: 48px;
   }
 
   .value-strip,
@@ -925,7 +943,12 @@ button:hover {
   }
 
   .section {
-    padding-top: 72px;
+    padding-top: 56px;
+  }
+
+  .hero,
+  .page-hero {
+    padding-top: 46px;
   }
 
   .section-heading-row h2,

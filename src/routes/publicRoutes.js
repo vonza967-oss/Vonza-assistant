@@ -90,13 +90,14 @@ function renderAppImage({
   alt,
   caption = "",
   className = "",
+  loading = "lazy",
 }) {
   return `
     <figure class="app-frame ${className}">
       <div class="app-frame-bar" aria-hidden="true">
         <span></span><span></span><span></span>
       </div>
-      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" width="1440" height="980">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="${escapeHtml(loading)}" width="1440" height="980">
       ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
     </figure>
   `;
@@ -147,6 +148,7 @@ function renderMarketingHomePage() {
           alt: "Vonza dashboard home showing daily customer priorities and service metrics",
           caption: "Home highlights customer priorities, wins, and service quality in one operational view.",
           className: "app-frame-hero",
+          loading: "eager",
         })}
       </div>
     </section>
@@ -286,6 +288,7 @@ function renderFeaturesPage() {
         src: "/assets/product/front-desk-inbox.png",
         alt: "Vonza Front Desk page with readiness and preview states",
         className: "page-hero-frame",
+        loading: "eager",
       })}
     </section>
 
@@ -320,11 +323,17 @@ function renderProductPage() {
   ];
 
   return `
-    <section class="page-hero">
+    <section class="page-hero page-hero-split">
       <div data-reveal>
         <h1>How Vonza moves a customer question into a clear next step.</h1>
         <p>From the website widget to the daily dashboard, every part of the product is built around answering faster and losing fewer customer opportunities.</p>
       </div>
+      ${renderAppImage({
+        src: "/assets/product/dashboard-home.png",
+        alt: "Vonza Home page showing customer priorities and service metrics",
+        className: "page-hero-frame",
+        loading: "eager",
+      })}
     </section>
 
     <section class="section walkthrough">
@@ -390,6 +399,7 @@ function renderAboutPage() {
         src: "/assets/product/dashboard-home.png",
         alt: "Vonza dashboard home for customer-service operations",
         className: "page-hero-frame",
+        loading: "eager",
       })}
     </section>
 
