@@ -31,7 +31,10 @@ import {
   listWidgetRoutingEventsByAgentId,
   trackWidgetEvent,
 } from "../services/analytics/widgetTelemetryService.js";
-import { listVisitorReplyFeedbackForOwner } from "../services/analytics/visitorReplyFeedbackService.js";
+import {
+  buildKnowledgeImprovementQueueItemsFromFeedback,
+  listVisitorReplyFeedbackForOwner,
+} from "../services/analytics/visitorReplyFeedbackService.js";
 import {
   buildActionQueue,
   listActionQueueStatuses,
@@ -1048,7 +1051,7 @@ export function createAgentRouter(deps = {}) {
         assertConversionOutcomeSchemaReadyImpl(supabase, { phase: "request" }),
       ]);
 
-      const [messages, statuses, agentListResult] = await Promise.all([
+      const [messages, statuses, agentListResult, feedback] = await Promise.all([
         listAgentMessagesImpl(supabase, agentId),
         listActionQueueStatusesImpl(supabase, {
           agentId,
@@ -1058,6 +1061,18 @@ export function createAgentRouter(deps = {}) {
           ownerUserId: user.id,
           includeBridgeAgent: false,
         }),
+        listVisitorReplyFeedbackForOwnerImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+        }).catch(() => ({
+          records: [],
+          summary: {
+            total: 0,
+            helpful: 0,
+            notHelpful: 0,
+          },
+          persistenceAvailable: false,
+        })),
       ]);
 
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
@@ -1065,8 +1080,13 @@ export function createAgentRouter(deps = {}) {
         ? true
         : statuses?.persistenceAvailable !== false;
       const agentProfile = (agentListResult?.agents || []).find((candidate) => candidate.id === agentId) || null;
+      const feedbackKnowledgeItems = buildKnowledgeImprovementQueueItemsFromFeedback(
+        messages,
+        feedback?.records || []
+      );
       const preliminaryQueue = buildActionQueueImpl(messages, persistedRecords, {
         persistenceAvailable,
+        additionalItems: feedbackKnowledgeItems,
       });
       const leadCapturesResult = await Promise.allSettled([
         listLeadCapturesImpl(supabase, {
@@ -1123,6 +1143,7 @@ export function createAgentRouter(deps = {}) {
 
       const baseQueue = buildActionQueueImpl(messages, finalPersistedRecords, {
         persistenceAvailable: finalPersistenceAvailable,
+        additionalItems: feedbackKnowledgeItems,
         followUps: followUpSync?.records || [],
         knowledgeFixes: knowledgeFixSync?.records || [],
         followUpWorkflowAvailable: followUpSync?.persistenceAvailable !== false,
@@ -1229,8 +1250,13 @@ export function createAgentRouter(deps = {}) {
       ]);
 
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
+      const feedbackKnowledgeItems = buildKnowledgeImprovementQueueItemsFromFeedback(
+        messages,
+        feedback?.records || []
+      );
       const actionQueue = buildActionQueueImpl(messages, persistedRecords, {
         persistenceAvailable: Array.isArray(statuses) ? true : statuses?.persistenceAvailable !== false,
+        additionalItems: feedbackKnowledgeItems,
       });
 
       res.json(buildOwnerAnalyticsDashboard({

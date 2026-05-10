@@ -513,6 +513,55 @@ test("widget reply feedback persists once per assistant message without raw cont
   }
 });
 
+test("widget reply feedback rejects session-level spam while preserving idempotent repeats", async () => {
+  clearChatRateLimitForTests();
+  const existingFeedback = Array.from({ length: 25 }, (_entry, index) => ({
+    id: `feedback-${index + 1}`,
+    agent_id: "agent-1",
+    install_id: "install-1",
+    session_key: "session-1",
+    assistant_message_key: `assistant-message-${index + 1}`,
+    rating: "not_helpful",
+    message_context: {},
+    created_at: "2026-04-01T12:00:00.000Z",
+  }));
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    agent_visitor_reply_feedback: existingFeedback,
+  });
+  const app = express();
+  app.use(express.json());
+  app.use(createChatRouter({
+    getSupabaseClient: () => supabase,
+  }));
+  const server = await startServer(app);
+  const baseBody = {
+    install_id: "install-1",
+    origin: "https://allowed.example",
+    page_url: "https://allowed.example/pricing",
+    session_key: "session-1",
+    rating: "not_helpful",
+  };
+
+  try {
+    const duplicate = await postJson(server.baseUrl, "/chat/feedback", {
+      ...baseBody,
+      assistant_message_key: "assistant-message-1",
+    });
+    const spam = await postJson(server.baseUrl, "/chat/feedback", {
+      ...baseBody,
+      assistant_message_key: "assistant-message-new",
+    });
+
+    assert.equal(duplicate.status, 200);
+    assert.equal(duplicate.json.duplicate, true);
+    assert.equal(spam.status, 429);
+    assert.equal(supabase.state.agent_visitor_reply_feedback.length, 25);
+  } finally {
+    await server.close();
+  }
+});
+
 test("owner feedback API requires authenticated owner access", async () => {
   const supabase = createFakeSupabase({
     ...buildChatState(),

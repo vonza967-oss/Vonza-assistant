@@ -11375,7 +11375,57 @@ function buildKnowledgeImprovementCenterMarkup(actionQueue = createEmptyActionQu
     }
   });
 
-  const items = Array.isArray(improvement.items) ? improvement.items.slice(0, 8) : [];
+  const queueImprovementItems = queueItems
+    .filter((item) =>
+      item.knowledgeFixSupported === true ||
+      ["knowledge_gap", "unanswered_question"].includes(trimText(item.actionType || item.type))
+    )
+    .map((item) => {
+      const knowledgeFix = item.knowledgeFix && typeof item.knowledgeFix === "object" ? item.knowledgeFix : null;
+      const evidence = knowledgeFix?.evidence && typeof knowledgeFix.evidence === "object" ? knowledgeFix.evidence : {};
+      const workflowStatus = trimText(knowledgeFix?.status || item.status);
+      const mappedStatus = workflowStatus === "applied"
+        ? "approved_fixed"
+        : workflowStatus === "dismissed"
+          ? "dismissed"
+          : ["ready", "failed", "reviewing"].includes(workflowStatus)
+            ? "reviewing"
+            : "new";
+
+      return {
+        id: trimText(knowledgeFix?.id || item.key),
+        actionKey: trimText(item.key),
+        knowledgeFixId: trimText(knowledgeFix?.id),
+        source: knowledgeFix ? "knowledge_fix_workflow" : "action_queue",
+        status: mappedStatus,
+        workflowStatus,
+        question: trimText(evidence.question || item.question || item.snippet) || "A weak or unanswered customer question needs review.",
+        safeSummary: trimText(evidence.question || item.question || item.label) || "Customer question summary is not available yet.",
+        reason: trimText(knowledgeFix?.issueSummary || item.whyFlagged) || "Vonza surfaced this because the answer looked weak, repeated, or unresolved.",
+        currentGap: trimText(evidence.currentResponse || item.reply || evidence.conversationExcerpt) || "No current answer was captured for this item.",
+        suggestedFix: trimText(knowledgeFix?.proposedGuidance || item.suggestedAction) || "Review the conversation and add grounded guidance from verified business knowledge.",
+        occurrenceCount: Math.max(Number(knowledgeFix?.occurrenceCount || item.count || 1), 1),
+        targetLabel: trimText(knowledgeFix?.targetLabel) || "Advanced guidance / system prompt",
+        lastSeenAt: item.lastSeenAt || evidence.lastSeenAt || null,
+      };
+    });
+  const seenImprovementKeys = new Set();
+  const items = [
+    ...queueImprovementItems,
+    ...(Array.isArray(improvement.items) ? improvement.items : []),
+  ].filter((item) => {
+    const key = trimText(item.knowledgeFixId || item.actionKey || item.id || item.question || item.safeSummary).toLowerCase();
+
+    if (!key || seenImprovementKeys.has(key)) {
+      return false;
+    }
+
+    seenImprovementKeys.add(key);
+    return true;
+  }).slice(0, 8);
+  const computedOpenCount = items.filter((item) => ["new", "reviewing"].includes(item.status)).length;
+  const computedApprovedFixedCount = items.filter((item) => item.status === "approved_fixed").length;
+  const computedDismissedCount = items.filter((item) => item.status === "dismissed").length;
   const itemMarkup = items.map((item) => {
     const relatedQueueItem = queueByFixId.get(item.knowledgeFixId) || queueByActionKey.get(item.actionKey) || null;
     const knowledgeFix = relatedQueueItem?.knowledgeFix || null;
@@ -11437,9 +11487,9 @@ function buildKnowledgeImprovementCenterMarkup(actionQueue = createEmptyActionQu
           <p class="analytics-report-section-copy">${escapeHtml(improvement.copy || "Weak, repeated, and not-helpful answers will appear here for owner review.")}</p>
         </div>
         <div class="analytics-report-overview-pills">
-          <span class="pill">${escapeHtml(`${improvement.openCount || 0} open`)}</span>
-          <span class="pill">${escapeHtml(`${improvement.approvedFixedCount || 0} approved/fixed`)}</span>
-          <span class="pill">${escapeHtml(`${improvement.dismissedCount || 0} dismissed`)}</span>
+          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.openCount || 0), computedOpenCount)} open`)}</span>
+          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.approvedFixedCount || 0), computedApprovedFixedCount)} approved/fixed`)}</span>
+          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.dismissedCount || 0), computedDismissedCount)} dismissed`)}</span>
         </div>
       </div>
       <div class="placeholder-card">${escapeHtml(improvement.guardrail || "Approved guidance must stay grounded in verified business facts.")}</div>

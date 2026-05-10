@@ -783,6 +783,73 @@ function buildOperatorSummary(item = {}) {
   }
 }
 
+function normalizeAdditionalActionItem(item = {}, persistedMap = new Map()) {
+  const key = cleanText(item.key || item.actionKey || item.action_key);
+  const actionType = normalizeActionType(item.actionType || item.action_type || item.type);
+
+  if (!key || !actionType) {
+    return null;
+  }
+
+  const persistedItem = persistedMap.get(key) || persistedMap.get(buildOperatorActionKey(key)) || {};
+  const count = Math.max(Number(item.count || 1), 1);
+  const normalized = {
+    key,
+    type: actionType,
+    actionType,
+    label: cleanText(item.label) || getActionTypeLabel(actionType),
+    status: persistedItem.status || normalizeStatus(item.status),
+    count,
+    snippet: cleanText(item.snippet),
+    question: cleanText(item.question),
+    reply: cleanText(item.reply),
+    whyFlagged: cleanText(item.whyFlagged || item.why_flagged),
+    suggestedAction: cleanText(item.suggestedAction || item.suggested_action) || getSuggestedAction(actionType),
+    lastSeenAt: item.lastSeenAt || item.last_seen_at || null,
+    messageId: cleanText(item.messageId || item.message_id),
+    note: persistedItem.note || "",
+    outcome: persistedItem.outcome || "",
+    nextStep: persistedItem.nextStep || "",
+    followUpNeeded: persistedItem.followUpNeeded,
+    followUpCompleted: persistedItem.followUpCompleted,
+    contactStatus: persistedItem.contactStatus || "",
+    updatedAt: persistedItem.updatedAt || null,
+    contactCaptured: item.contactCaptured === true || item.contact_captured === true,
+    contactInfo: item.contactInfo || item.contact_info || null,
+    unresolved: item.unresolved === true,
+    weakAnswer: item.weakAnswer === true || item.weak_answer === true,
+    intent: cleanText(item.intent) || "general",
+    sessionKey: cleanText(item.sessionKey || item.session_key),
+    relatedActionKeys: Array.isArray(item.relatedActionKeys || item.related_action_keys)
+      ? item.relatedActionKeys || item.related_action_keys
+      : [],
+    evidence: item.evidence && typeof item.evidence === "object" ? item.evidence : {},
+  };
+
+  return {
+    ...normalized,
+    followUpSupported: isSupportedFollowUpActionType(actionType),
+    knowledgeFixSupported: isSupportedKnowledgeFixActionType(actionType),
+    ownerWorkflow: buildOwnerWorkflow(normalized),
+    priority: cleanText(item.priority) || buildActionQueuePriority({
+      actionType,
+      count,
+      contactCaptured: normalized.contactCaptured,
+      weakAnswer: normalized.weakAnswer,
+      unresolved: normalized.unresolved,
+      intent: normalized.intent,
+    }),
+    operatorSummary: cleanText(item.operatorSummary || item.operator_summary) || buildOperatorSummary({
+      actionType,
+      count,
+      contactCaptured: normalized.contactCaptured,
+      weakAnswer: normalized.weakAnswer,
+      unresolved: normalized.unresolved,
+      intent: normalized.intent,
+    }),
+  };
+}
+
 function buildActionEvidence(group = {}) {
   const entries = Array.isArray(group.entries) ? group.entries : [];
   const latest = entries[entries.length - 1] || {};
@@ -1707,7 +1774,10 @@ export function buildActionQueue(messages = [], persistedStatuses = [], options 
     };
   });
   const repeatHighIntentItems = buildRepeatHighIntentItems(preliminaryStitched.people, itemsBeforeRepeat, persistedMap);
-  const items = [...itemsBeforeRepeat, ...repeatHighIntentItems];
+  const additionalItems = (Array.isArray(options.additionalItems) ? options.additionalItems : [])
+    .map((item) => normalizeAdditionalActionItem(item, persistedMap))
+    .filter(Boolean);
+  const items = [...itemsBeforeRepeat, ...repeatHighIntentItems, ...additionalItems];
   const followUpsByActionKey = new Map();
   const knowledgeFixesByActionKey = new Map();
 

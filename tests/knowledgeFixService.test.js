@@ -7,6 +7,7 @@ import {
   syncKnowledgeFixWorkflows,
   updateKnowledgeFixWorkflow,
 } from "../src/services/knowledge/knowledgeFixService.js";
+import { buildKnowledgeImprovementQueueItemsFromFeedback } from "../src/services/analytics/visitorReplyFeedbackService.js";
 
 function createSupabaseStub(initialState = {}) {
   const state = {
@@ -256,6 +257,64 @@ test("syncKnowledgeFixWorkflows dedupes repeated similar gaps and strengthens on
   assert.equal(result.records.length, 1);
   assert.deepEqual(result.records[0].linkedActionKeys.sort(), ["conversation-1", "conversation-2"]);
   assert.equal(result.records[0].occurrenceCount, 2);
+});
+
+test("not-helpful visitor feedback creates a scoped knowledge improvement draft", async () => {
+  const { ...supabase } = createSupabaseStub();
+  const feedbackItems = buildKnowledgeImprovementQueueItemsFromFeedback(
+    [
+      {
+        id: "message-user-1",
+        role: "user",
+        sessionKey: "session-1",
+        content: "How much does emergency service cost?",
+        createdAt: "2026-05-10T08:00:00.000Z",
+      },
+      {
+        id: "message-assistant-1",
+        role: "assistant",
+        sessionKey: "session-1",
+        content: "Please contact the business directly.",
+        createdAt: "2026-05-10T08:00:03.000Z",
+      },
+    ],
+    [
+      {
+        id: "feedback-1",
+        sessionKey: "session-1",
+        assistantMessageKey: "message-assistant-1",
+        rating: "not_helpful",
+        createdAt: "2026-05-10T08:01:00.000Z",
+      },
+    ]
+  );
+
+  assert.equal(feedbackItems.length, 1);
+  assert.equal(feedbackItems[0].actionType, "knowledge_gap");
+  assert.match(feedbackItems[0].question, /emergency service cost/i);
+  assert.match(feedbackItems[0].whyFlagged, /not helpful/i);
+
+  const synced = await syncKnowledgeFixWorkflows(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queueItems: feedbackItems,
+    agentProfile: {
+      systemPrompt: "Stay grounded in the website.",
+      websiteUrl: "https://example.com",
+      knowledge: { state: "ready" },
+    },
+    websiteContent: {
+      content: "Title: Example\nBody:\nEmergency service prices are not published. Customers can request a quote.",
+    },
+  });
+
+  assert.equal(synced.records.length, 1);
+  assert.equal(synced.records[0].ownerUserId, "owner-1");
+  assert.equal(synced.records[0].agentId, "agent-1");
+  assert.equal(synced.records[0].sourceActionKey, "feedback:feedback-1");
+  assert.equal(synced.records[0].status, "draft");
+  assert.match(synced.records[0].issueSummary, /weakly or uncertainly/i);
+  assert.match(synced.records[0].proposedGuidance, /concrete detail/i);
 });
 
 test("dismissed knowledge fixes preserve history, survive reload, and stay scoped to the right owner", async () => {

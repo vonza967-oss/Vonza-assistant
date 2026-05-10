@@ -2449,6 +2449,68 @@ test("analytics surfaces feedback recovery and owner-visible notifications", () 
   assert.match(analyticsPanel, /50% negative/);
 });
 
+test("knowledge improvement center renders editable feedback-backed knowledge fixes", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    items: [
+      {
+        key: "feedback:feedback-1",
+        actionType: "knowledge_gap",
+        knowledgeFixSupported: true,
+        question: "How much does emergency service cost?",
+        reply: "Please contact the business directly.",
+        whyFlagged: "Flagged because a visitor explicitly marked this answer not helpful.",
+        suggestedAction: "Use verified quote guidance and do not invent prices.",
+        count: 1,
+        knowledgeFix: {
+          id: "knowledge-fix-1",
+          status: "draft",
+          proposedGuidance: "If emergency pricing is not published, say that clearly and direct the visitor to request a quote.",
+          issueSummary: "The answer did not explain the quote path.",
+          targetLabel: "Advanced guidance / system prompt",
+          occurrenceCount: 1,
+          evidence: {
+            question: "How much does emergency service cost?",
+            currentResponse: "Please contact the business directly.",
+          },
+        },
+      },
+    ],
+    ownerAnalyticsDashboard: {
+      ok: true,
+      knowledgeImprovement: {
+        title: "Knowledge Improvement",
+        copy: "Weak, repeated, and not-helpful answers are ready for owner review and grounded guidance.",
+        total: 1,
+        openCount: 1,
+        approvedFixedCount: 0,
+        dismissedCount: 0,
+        guardrail: "Approved guidance must not override safety rules, contact verification, or the rule to avoid inventing business facts.",
+        items: [],
+      },
+    },
+  };
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [],
+    { knowledgeReady: true },
+    actionQueue
+  );
+
+  assert.match(analyticsPanel, /Knowledge Improvement/);
+  assert.match(analyticsPanel, /How much does emergency service cost/);
+  assert.match(analyticsPanel, /Owner-approved guidance/);
+  assert.match(analyticsPanel, /Approve fix/);
+  assert.match(analyticsPanel, /avoid inventing business facts/i);
+  assert.match(analyticsPanel, /Do not add guessed prices/i);
+});
+
 test("install section shows live confirmation and customer-loop next step", () => {
   const harness = createDashboardHarness();
   const markup = harness.buildInstallSection({
@@ -2467,6 +2529,13 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /You are live/);
   assert.match(markup, /test one customer question/);
   assert.match(markup, /weak answers, leads, and follow-up needs/);
+  assert.match(markup, /Setup checklist/);
+  assert.match(markup, /Assistant created/);
+  assert.match(markup, /Website knowledge imported/);
+  assert.match(markup, /Widget configured/);
+  assert.match(markup, /Install snippet available/);
+  assert.match(markup, /Widget detected \/ verified/);
+  assert.match(markup, /First test conversation complete/);
   assert.match(markup, /Verify installation/);
 });
 
