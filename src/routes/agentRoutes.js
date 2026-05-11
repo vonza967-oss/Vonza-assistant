@@ -139,6 +139,10 @@ import {
   normalizeDashboardLanguage,
   saveDashboardLanguagePreference,
 } from "../services/dashboard/dashboardPreferenceService.js";
+import {
+  getActivationWizardState,
+  updateActivationWizardProgress,
+} from "../services/activation/activationWizardService.js";
 import { cleanText } from "../utils/text.js";
 
 function expandGroupedFollowUpItems(queue = {}) {
@@ -251,6 +255,9 @@ export function createAgentRouter(deps = {}) {
     deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
+  const getActivationWizardStateImpl = deps.getActivationWizardState || getActivationWizardState;
+  const updateActivationWizardProgressImpl =
+    deps.updateActivationWizardProgress || updateActivationWizardProgress;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
   const getAgentWorkspaceSnapshotImpl = deps.getAgentWorkspaceSnapshot || getAgentWorkspaceSnapshot;
@@ -1452,6 +1459,85 @@ export function createAgentRouter(deps = {}) {
         verification,
         agent,
       });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/activation-wizard", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const [messagesResult, statusesResult] = await Promise.allSettled([
+        listAgentMessagesImpl(supabase, agentId),
+        listActionQueueStatusesImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+        }),
+      ]);
+      const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
+      const persistedRecords = statusesResult.status === "fulfilled"
+        ? (Array.isArray(statusesResult.value) ? statusesResult.value : statusesResult.value?.records || [])
+        : [];
+      const actionQueue = buildActionQueueImpl(messages, persistedRecords, {
+        persistenceAvailable: statusesResult.status === "fulfilled",
+      });
+
+      const wizard = await getActivationWizardStateImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        messages,
+        actionQueue,
+      });
+
+      res.json({ wizard });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/activation-wizard/progress", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const wizard = await updateActivationWizardProgressImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        step: req.body.step,
+        action: req.body.action,
+        importStatus: req.body.import_status ?? req.body.importStatus,
+        importError: req.body.import_error ?? req.body.importError,
+        testQuestion: req.body.test_question ?? req.body.testQuestion,
+        testQuality: req.body.test_quality ?? req.body.testQuality,
+        routeTarget: req.body.route_target ?? req.body.routeTarget,
+        metadata: req.body.metadata,
+      });
+
+      res.json({ ok: true, wizard });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

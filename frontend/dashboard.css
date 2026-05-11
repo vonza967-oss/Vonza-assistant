@@ -10840,6 +10840,204 @@ textarea::placeholder {
   color: var(--dashboard-muted);
 }
 
+.activation-wizard-card {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff, #f8fbfb);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.activation-wizard-card-compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.activation-wizard-card h3,
+.activation-wizard-card p {
+  margin: 0;
+}
+
+.activation-wizard-card h3 {
+  color: var(--dashboard-ink);
+  font-size: 1.2rem;
+}
+
+.activation-wizard-card p {
+  color: var(--dashboard-muted);
+  line-height: 1.55;
+}
+
+.activation-kicker {
+  margin-bottom: 6px !important;
+  color: #0f766e !important;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.activation-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 18px;
+  align-items: start;
+}
+
+.activation-progress {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.activation-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--dashboard-muted);
+  font-size: 0.82rem;
+}
+
+.activation-progress-head strong {
+  color: var(--dashboard-ink);
+}
+
+.activation-step-dots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.activation-step-dot {
+  height: 8px;
+  border-radius: 999px;
+  background: #dbe5ea;
+}
+
+.activation-step-dot.done {
+  background: #0f766e;
+}
+
+.activation-step-dot.active {
+  background: #2563eb;
+}
+
+.activation-step-dot.skipped:not(.done) {
+  background: #f59e0b;
+}
+
+.activation-form {
+  display: grid;
+  gap: 14px;
+}
+
+.activation-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.activation-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--dashboard-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.activation-form input,
+.activation-form select,
+.activation-form textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--dashboard-ink);
+  background: #ffffff;
+  font: inherit;
+  font-size: 0.92rem;
+}
+
+.activation-form textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.activation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.activation-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding-top: 2px;
+  color: var(--dashboard-muted);
+  font-size: 0.84rem;
+}
+
+.text-button {
+  border: 0;
+  padding: 0;
+  color: #0f766e;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.activation-warning,
+.activation-error,
+.activation-test-state {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-weight: 700;
+}
+
+.activation-error,
+.activation-test-state.needs-improvement {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.activation-import-summary,
+.activation-install-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.activation-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.activation-detail-row span {
+  color: var(--dashboard-muted);
+}
+
+.activation-detail-row strong {
+  color: var(--dashboard-ink);
+  text-align: right;
+}
+
 @media (max-width: 959px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -10851,6 +11049,17 @@ textarea::placeholder {
 }
 
 @media (max-width: 700px) {
+  .activation-wizard-card-compact,
+  .activation-header,
+  .activation-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .activation-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .workspace-page .page-header,
   .workspace-page .page-toolbar,
   .workspace-page-body,

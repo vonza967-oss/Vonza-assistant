@@ -136,6 +136,27 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.dashboard_language_preferences],
   },
+  agent_activation_wizard_progress: {
+    requiredColumns: [
+      "id",
+      "agent_id",
+      "owner_user_id",
+      "current_step",
+      "completed_steps",
+      "skipped_steps",
+      "exited_at",
+      "completed_at",
+      "import_status",
+      "import_error",
+      "test_question",
+      "test_quality",
+      "route_target",
+      "metadata",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.activation_wizard_progress],
+  },
   owner_billing_accounts: {
     requiredColumns: [
       "id",

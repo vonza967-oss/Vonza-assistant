@@ -12,7 +12,11 @@ const customerValueTrustMigrationSql = readFileSync(
   "supabase/migrations/20260510003000_customer_value_trust_controls.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}`;
+const activationWizardMigrationSql = readFileSync(
+  "supabase/migrations/20260511100000_activation_wizard_progress.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]

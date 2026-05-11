@@ -47,6 +47,7 @@ const LAUNCH_STEPS = [
   }
 ];
 const trackedEventKeys = new Set();
+let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
@@ -12097,6 +12098,218 @@ function buildOverviewActionMarkup(agent, action = null, { primary = false } = {
   return "";
 }
 
+function getActivationWizardActiveStep(wizard = activationWizardState) {
+  const steps = Array.isArray(wizard?.steps) ? wizard.steps : [];
+  return steps.find((step) => step.active) || steps.find((step) => step.key === wizard?.currentStep) || steps[0] || null;
+}
+
+function buildActivationWizardProgressMarkup(wizard) {
+  const steps = Array.isArray(wizard?.steps) ? wizard.steps : [];
+  const completedCount = steps.filter((step) => step.complete).length;
+
+  return `
+    <div class="activation-progress" aria-label="Activation progress">
+      <div class="activation-progress-head">
+        <strong>${completedCount} / ${steps.length}</strong>
+        <span>${escapeHtml(wizard?.isComplete ? "Complete" : "Activation")}</span>
+      </div>
+      <div class="activation-step-dots">
+        ${steps.map((step) => `
+          <span
+            class="activation-step-dot ${step.complete ? "done" : ""} ${step.active ? "active" : ""} ${step.skipped ? "skipped" : ""}"
+            title="${escapeHtml(step.label)}"
+          ></span>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
+  const stepKey = activeStep?.key || wizard?.currentStep || "";
+  const action = activeStep?.nextAction || wizard?.nextAction || {};
+
+  if (stepKey === "business_basics") {
+    const selectedVertical = normalizeBusinessVertical(agent.vertical);
+    return `
+      <form class="activation-form" data-activation-form="business_basics">
+        <div class="activation-form-grid">
+          <label>
+            <span>Business name</span>
+            <input name="name" type="text" value="${escapeHtml(agent.name || agent.assistantName || "")}" placeholder="Your business">
+          </label>
+          <label>
+            <span>Website URL</span>
+            <input name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}" placeholder="https://example.com">
+          </label>
+          <label>
+            <span>Business type</span>
+            <select name="vertical">
+              ${BUSINESS_VERTICAL_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}" ${selectedVertical === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </label>
+        </div>
+        <div class="activation-actions">
+          <button class="primary-button" type="submit">${escapeHtml(action.label || "Save basics")}</button>
+          <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
+        </div>
+      </form>
+    `;
+  }
+
+  if (stepKey === "configure_assistant") {
+    const selectedPurpose = normalizeWidgetPurpose(agent.purpose);
+    return `
+      <form class="activation-form" data-activation-form="configure_assistant">
+        <div class="activation-form-grid">
+          <label>
+            <span>Assistant name</span>
+            <input name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name || "")}" placeholder="Website assistant">
+          </label>
+          <label>
+            <span>Tone</span>
+            <select name="tone">
+              ${["friendly", "professional", "sales", "support"].map((tone) => `
+                <option value="${escapeHtml(tone)}" ${trimText(agent.tone || "friendly") === tone ? "selected" : ""}>${escapeHtml(tone)}</option>
+              `).join("")}
+            </select>
+          </label>
+          <label>
+            <span>Purpose</span>
+            <select name="widget_purpose">
+              ${WIDGET_PURPOSE_OPTIONS.map((option) => `
+                <option value="${escapeHtml(option.value)}" ${selectedPurpose === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>
+              `).join("")}
+            </select>
+          </label>
+          <label>
+            <span>Contact email</span>
+            <input name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+          </label>
+        </div>
+        <div class="activation-actions">
+          <button class="primary-button" type="submit">${escapeHtml(action.label || "Save configuration")}</button>
+          <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
+        </div>
+      </form>
+    `;
+  }
+
+  if (stepKey === "import_knowledge") {
+    const importedPages = Number(agent.knowledge?.pageCount || 0);
+    const importStatus = trimText(wizard?.importStatus || "");
+    return `
+      <div class="activation-import-summary">
+        <div class="activation-detail-row">
+          <span>Website</span>
+          <strong>${escapeHtml(agent.websiteUrl || "No website saved yet")}</strong>
+        </div>
+        <div class="activation-detail-row">
+          <span>Imported detail</span>
+          <strong>${escapeHtml(importedPages ? `${importedPages} page${importedPages === 1 ? "" : "s"}` : formatKnowledgeState(agent.knowledge?.state || "missing"))}</strong>
+        </div>
+        ${importStatus === "failed" ? `<p class="activation-error">${escapeHtml(wizard?.importError || "Import failed. Retry when the site is reachable.")}</p>` : ""}
+      </div>
+      <div class="activation-actions">
+        <button class="primary-button" type="button" data-activation-import>${escapeHtml(agent.knowledge?.state === "missing" ? action.label || "Import website knowledge" : "Retry website import")}</button>
+        <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
+      </div>
+    `;
+  }
+
+  if (stepKey === "install_widget") {
+    const installStatus = getDefaultInstallStatus(agent);
+    const live = isInstallSeen(installStatus);
+    return `
+      <div class="activation-install-summary">
+        <div class="activation-detail-row">
+          <span>Status</span>
+          <strong>${escapeHtml(live ? "You are live" : installStatus.label || "Not installed yet")}</strong>
+        </div>
+        <div class="activation-detail-row">
+          <span>Install id</span>
+          <strong>${escapeHtml(agent.installId || "Not generated yet")}</strong>
+        </div>
+        <p>${escapeHtml(live ? "Vonza has detected the widget on the live site. Test one customer question next." : "Copy the snippet, publish it on the live site, then verify. If verification cannot find it yet, keep the dashboard usable and return later.")}</p>
+      </div>
+      <div class="activation-actions">
+        ${live
+          ? `<button class="primary-button" type="button" data-activation-complete="${escapeHtml(stepKey)}">Continue to test</button>`
+          : `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(action.label || "Copy install code")}</button>
+             <button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>Verify installation</button>`}
+        <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
+      </div>
+    `;
+  }
+
+  const needsImprovement = wizard?.signals?.needsImprovement === true || wizard?.testQuality === "needs_improvement";
+  return `
+    <form class="activation-form" data-activation-form="test_improve">
+      <label>
+        <span>Sample customer question</span>
+        <textarea name="test_question" placeholder="What services do you offer, and how can I book?">${escapeHtml(wizard?.testQuestion || "")}</textarea>
+      </label>
+      <div class="activation-test-state ${needsImprovement ? "needs-improvement" : ""}">
+        ${escapeHtml(needsImprovement
+          ? "Needs improvement: route this to Knowledge Improvement."
+          : wizard?.signals?.hasPreviewTest ? "Test conversation detected." : "Use preview to ask one realistic customer question.")}
+      </div>
+      <div class="activation-actions">
+        ${needsImprovement
+          ? `<button class="primary-button" type="button" data-activation-open-improvement>Open Knowledge Improvement</button>`
+          : `<button class="primary-button" type="submit">${escapeHtml(action.label || "Ask a sample question")}</button>`}
+        <button class="ghost-button" type="button" data-activation-complete="test_improve">Finish wizard</button>
+      </div>
+    </form>
+  `;
+}
+
+function buildActivationWizardMarkup(agent, wizard = activationWizardState) {
+  if (!wizard || wizard.isComplete) {
+    return "";
+  }
+
+  const activeStep = getActivationWizardActiveStep(wizard);
+
+  if (!activeStep && !wizard.canReturn) {
+    return "";
+  }
+
+  if (wizard.canReturn && !wizard.shouldShow) {
+    return `
+      <section class="activation-wizard-card activation-wizard-card-compact" data-activation-wizard>
+        <div>
+          <p class="activation-kicker">Activation wizard</p>
+          <h3>Return to setup when you are ready</h3>
+          <p>Dashboard stays usable. The wizard will pick up from ${escapeHtml(activeStep?.label || "the next unfinished step")}.</p>
+        </div>
+        <button class="primary-button" type="button" data-activation-return>Return to wizard</button>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="activation-wizard-card" data-activation-wizard>
+      <div class="activation-header">
+        <div>
+          <p class="activation-kicker">Activation wizard</p>
+          <h3>${escapeHtml(activeStep?.label || "Activation")}</h3>
+          <p>${escapeHtml(activeStep?.copy || "Follow the next setup action to get Vonza live.")}</p>
+        </div>
+        ${buildActivationWizardProgressMarkup(wizard)}
+      </div>
+      ${wizard.migrationRequired ? `<div class="activation-warning">Progress is shown from current setup state, but durable wizard progress needs the activation wizard migration.</div>` : ""}
+      ${buildActivationWizardActionMarkup(agent, wizard, activeStep)}
+      <div class="activation-footer">
+        <button class="text-button" type="button" data-activation-exit>Exit wizard</button>
+        <span>One primary action at a time. You can skip and return later.</span>
+      </div>
+    </section>
+  `;
+}
+
 function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const attentionItems = (actionQueue.items || [])
@@ -12237,6 +12450,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
 
   return localizeDashboardHtml(`
     <section class="overview-shell">
+      ${buildActivationWizardMarkup(agent)}
       <section class="overview-hero">
         <span class="eyebrow">${isInstallSeen(overview.installStatus) ? "Live front desk" : "Home"}</span>
         <h2 class="overview-title">${escapeHtml(overview.title)}</h2>
@@ -14026,6 +14240,30 @@ async function loadAgentInstallSnapshot(agentId) {
   return data.agent || null;
 }
 
+async function loadActivationWizard(agentId) {
+  const url = new URL("/agents/activation-wizard", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  const data = await fetchJson(url.toString());
+  return data.wizard || null;
+}
+
+async function saveActivationWizardProgress(payload = {}) {
+  const data = await fetchJson("/agents/activation-wizard/progress", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: getClientId(),
+      ...payload,
+    }),
+  });
+
+  activationWizardState = data.wizard || activationWizardState;
+  return activationWizardState;
+}
+
 async function loadActionQueue(agentId) {
   const url = new URL("/agents/action-queue", window.location.origin);
   url.searchParams.set("agent_id", agentId);
@@ -14494,6 +14732,12 @@ async function refreshAgentInstallState(agentId, options = {}) {
   if (!nextAgent) {
     await boot();
     return;
+  }
+
+  try {
+    activationWizardState = await loadActivationWizard(agentId);
+  } catch (error) {
+    console.warn("[activation wizard] Could not refresh wizard state:", error.message);
   }
 
   workspaceState = {
@@ -15465,6 +15709,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const helpLocation = document.querySelector("[data-help-location]");
   const helpForm = document.querySelector("[data-help-form]");
   const helpInput = helpForm?.querySelector('[name="question"]') || null;
+  const activationForms = document.querySelectorAll("[data-activation-form]");
+  const activationImportButtons = document.querySelectorAll("[data-activation-import]");
+  const activationSkipButtons = document.querySelectorAll("[data-activation-skip]");
+  const activationExitButtons = document.querySelectorAll("[data-activation-exit]");
+  const activationReturnButtons = document.querySelectorAll("[data-activation-return]");
+  const activationCompleteButtons = document.querySelectorAll("[data-activation-complete]");
+  const activationImproveButtons = document.querySelectorAll("[data-activation-open-improvement]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
   let activeContactFilter = "all";
   let activeTodayFilter = "all";
@@ -17341,8 +17592,225 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
+  const refreshActivationWizard = async () => {
+    try {
+      activationWizardState = await loadActivationWizard(agent.id);
+    } catch (error) {
+      console.warn("[activation wizard] Could not refresh wizard state:", error.message);
+    }
+  };
+
+  const completeActivationStep = async (stepKey, extraPayload = {}) => {
+    await saveActivationWizardProgress({
+      agent_id: agent.id,
+      step: stepKey,
+      action: "complete_step",
+      ...extraPayload,
+    });
+  };
+
+  const saveActivationForm = async (form) => {
+    const stepKey = trimText(form.dataset.activationForm);
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    const payload = {
+      client_id: getClientId(),
+      agent_id: agent.id,
+    };
+
+    if (stepKey === "business_basics") {
+      payload.name = trimText(formData.get("name"));
+      payload.website_url = trimText(formData.get("website_url"));
+      payload.vertical = trimText(formData.get("vertical"));
+
+      if (!payload.name || !payload.website_url) {
+        setStatus("Add the business name and website URL before continuing.");
+        return;
+      }
+    } else if (stepKey === "configure_assistant") {
+      payload.assistant_name = trimText(formData.get("assistant_name"));
+      payload.tone = trimText(formData.get("tone"));
+      payload.widget_purpose = trimText(formData.get("widget_purpose"));
+      payload.contact_email = trimText(formData.get("contact_email"));
+
+      if (!payload.assistant_name || !payload.tone || !payload.widget_purpose) {
+        setStatus("Add the assistant name, tone, and purpose before continuing.");
+        return;
+      }
+    } else if (stepKey === "test_improve") {
+      const question = trimText(formData.get("test_question"));
+
+      if (!question) {
+        setStatus("Add one sample customer question first.");
+        return;
+      }
+
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: "test_improve",
+        action: "return",
+        test_question: question,
+        test_quality: "unknown",
+      });
+      setActiveShellSection("customize", operatorWorkspace);
+      showShellSection("customize");
+      showFrontDeskSection("preview");
+      await sendPromptToPreview(agent, question);
+      await completeActivationStep("test_improve", {
+        test_question: question,
+        test_quality: activationWizardState?.signals?.needsImprovement ? "needs_improvement" : "strong",
+      });
+      return;
+    }
+
+    if (submitButton) {
+      submitButton.disabled = true;
+    }
+    setStatus(stepKey === "business_basics" ? "Saving business basics..." : "Saving assistant configuration...");
+
+    try {
+      const updateData = await fetchJson("/agents/update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (updateData?.ok !== true) {
+        throw new Error("Activation changes were not confirmed.");
+      }
+
+      await completeActivationStep(stepKey);
+      setStatus(stepKey === "business_basics" ? "Business basics saved." : "Assistant configuration saved.");
+      await boot();
+    } catch (error) {
+      setStatus(error.message || "We couldn't save that activation step.");
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+    }
+  };
+
+  activationForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveActivationForm(form);
+    });
+  });
+
+  activationImportButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: "import_knowledge",
+        action: "return",
+        import_status: "running",
+      });
+      setStatus("Importing website knowledge...");
+
+      try {
+        const nextSetup = await importKnowledge(agent);
+        await completeActivationStep("import_knowledge", {
+          import_status: nextSetup.hadError ? "failed" : nextSetup.knowledgeState === "ready" ? "success" : "limited",
+          import_error: nextSetup.errorMessage || "",
+        });
+        setStatus(nextSetup.knowledgeState === "ready"
+          ? "Website knowledge imported."
+          : nextSetup.errorMessage || "Website knowledge imported with limited detail.");
+        await boot();
+      } catch (error) {
+        await saveActivationWizardProgress({
+          agent_id: agent.id,
+          step: "import_knowledge",
+          action: "return",
+          import_status: "failed",
+          import_error: error.message || "Import failed.",
+        });
+        setStatus(error.message || "Import failed.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
+  activationSkipButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: button.dataset.activationSkip,
+        action: "skip_step",
+      });
+      setStatus("Activation step skipped. You can return later.");
+      await boot();
+    });
+  });
+
+  activationExitButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: activationWizardState?.currentStep || "",
+        action: "exit",
+      });
+      setStatus("Wizard closed. Dashboard remains usable.");
+      await boot();
+    });
+  });
+
+  activationReturnButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: activationWizardState?.currentStep || "",
+        action: "return",
+      });
+      setStatus("Activation wizard reopened.");
+      await boot();
+    });
+  });
+
+  activationCompleteButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const stepKey = button.dataset.activationComplete;
+      await completeActivationStep(stepKey);
+      if (stepKey === "test_improve") {
+        await saveActivationWizardProgress({
+          agent_id: agent.id,
+          step: stepKey,
+          action: "complete_wizard",
+        });
+      }
+      setStatus(stepKey === "test_improve" ? "Activation wizard completed." : "Activation step completed.");
+      await boot();
+    });
+  });
+
+  activationImproveButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      await saveActivationWizardProgress({
+        agent_id: agent.id,
+        step: "test_improve",
+        action: "return",
+        test_quality: "needs_improvement",
+        route_target: "knowledge_improvement",
+      });
+      showSectionAndHighlight("analytics", "#knowledge-improvement");
+      setStatus("Opened Knowledge Improvement for the weak answer.");
+      button.disabled = false;
+    });
+  });
+
   importButtons.forEach((button) => {
-    button.addEventListener("click", () => runKnowledgeImport(agent));
+    button.addEventListener("click", async () => {
+      await runKnowledgeImport(agent);
+      await refreshActivationWizard();
+    });
   });
 
   googleConnectButtons.forEach((button) => {
@@ -17727,6 +18195,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           setup: inferSetup(result.agent || agent),
         };
         renderWorkspaceFromState();
+        if (isInstallSeen(getDefaultInstallStatus(result.agent || agent))) {
+          await completeActivationStep("install_widget");
+        }
         setStatus(
           result.verification?.status === "found"
             ? "Install snippet verified."
@@ -18038,11 +18509,12 @@ async function boot() {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
+    const [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadActionQueue(agent.id),
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
+      loadActivationWizard(agent.id),
     ]);
     const {
       messages,
@@ -18057,10 +18529,11 @@ async function boot() {
       operatorResult,
     });
     const setup = inferSetup(agent);
+    activationWizardState = activationWizardResult.status === "fulfilled" ? activationWizardResult.value : null;
 
     clearLaunchState();
 
-    if (hasPartialFailure) {
+    if (hasPartialFailure || activationWizardResult.status === "rejected") {
       const partialWarning = partialErrors[0];
       setStatus(partialWarning
         ? `Vonza loaded with partial data. ${partialWarning}`

@@ -217,6 +217,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner context and first-event dedupe keys to internal product events without changing public analytics providers.",
   }),
+  Object.freeze({
+    id: "activation_wizard_progress",
+    version: "20260511100000",
+    name: "activation_wizard_progress",
+    file: "supabase/migrations/20260511100000_activation_wizard_progress.sql",
+    legacySources: Object.freeze(["db/activation_wizard_progress.sql"]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped activation wizard progress for the first-value setup path.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
