@@ -5403,12 +5403,6 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
   const customerFilters = buildCustomerFilterDefinitions(contacts);
   const peopleWorkspaceMarkup = `
-    <div class="customers-page-topbar">
-      <div class="customers-page-copy">
-        <h2 class="customers-page-title">${escapeHtml(t("customers.title"))}</h2>
-        <p class="customers-page-subtitle">${escapeHtml(t("customers.subtitle"))}</p>
-      </div>
-    </div>
     ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
     <section class="customer-focus-banner">
       <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
@@ -5438,6 +5432,11 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
+      ${buildPageHeader({
+        eyebrow: "Core workflow",
+        title: t("customers.title"),
+        copy: t("customers.subtitle"),
+      })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
@@ -7102,6 +7101,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const topHumanFollowUps = Array.isArray(actionQueue.humanFollowUps?.topItems)
     ? actionQueue.humanFollowUps.topItems
     : [];
+  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
+  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
+  const knowledgeOpen = Number(ownerAnalyticsDashboard?.knowledgeImprovement?.openCount || 0);
+  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
+  const customerSatisfaction = ownerAnalyticsDashboard?.customerSatisfaction || createEmptyOwnerAnalyticsDashboard().customerSatisfaction;
+  const notHelpfulCount = Number(customerSatisfaction.notHelpful || 0);
   const addPriority = (priority) => {
     if (priorityCards.length >= 3 || !priority) {
       return;
@@ -7120,23 +7125,47 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     });
   });
 
-  if (openIssueCount > 0) {
+  if (attentionCount > 0 && !topHumanFollowUps.length) {
     addPriority({
-      tone: "danger",
-      title: `${countLabel(openIssueCount, "customer issue")} could hurt satisfaction`,
-      why: "Unresolved complaints or service problems can turn a fixable moment into a lost customer or negative word of mouth.",
-      change: "Review the affected customers, add clearer complaint-handling guidance, and make the follow-up path easier to trust.",
+      tone: "brand",
+      title: "Give open customer needs a clear next step",
+      why: "Open needs create friction when someone is waiting on an answer, booking path, contact route, or owner decision.",
+      change: "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.",
       action: { type: "section", value: "contacts", label: "Review customers" },
     });
   }
 
-  if (attentionCount > 0) {
+  if (leadsNeedingAction > 0) {
     addPriority({
       tone: "brand",
-      title: "Give open customer needs a clear next step",
-      why: "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.",
-      change: "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.",
-      action: { type: "section", value: "contacts", label: "Review open needs" },
+      title: "Follow up with high-intent leads",
+      why: "Visitors who ask about quotes, bookings, pricing, or contact are close to taking action, but interest cools quickly without an obvious path.",
+      change: "Make the quote, booking, or contact route direct and follow up before the lead drifts away.",
+      action: { type: "section", value: "contacts", label: "Follow up" },
+    });
+  }
+
+  if (openIssueCount > 0 || notHelpfulCount > 0) {
+    addPriority({
+      tone: "danger",
+      title: openIssueCount > 0
+        ? `${countLabel(openIssueCount, "customer issue")} could hurt satisfaction`
+        : `${countLabel(notHelpfulCount, "not-helpful answer")} need recovery`,
+      why: openIssueCount > 0
+        ? "Unresolved complaints or service problems can turn a fixable moment into a lost customer or negative word of mouth."
+        : "Visitors have marked answers as not helpful, which means the owner may need to recover the customer moment and tighten the answer.",
+      change: "Review the affected customers, add clearer recovery guidance, and make the follow-up path easier to trust.",
+      action: { type: "section", value: "analytics", label: "Review feedback" },
+    });
+  }
+
+  if (knowledgeOpen > 0) {
+    addPriority({
+      tone: "warning",
+      title: `${countLabel(knowledgeOpen, "knowledge fix", "knowledge fixes")} need review`,
+      why: "Knowledge fixes keep Follow-Ups, Analytics, Notifications, and the Front Desk learning from the same customer signals.",
+      change: "Review the proposed fix, keep it grounded in business facts, and mark it done once the answer is stronger.",
+      action: { type: "section", value: "analytics", label: "Open knowledge fixes" },
     });
   }
 
@@ -7160,16 +7189,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     });
   }
 
-  if (leadsNeedingAction > 0) {
-    addPriority({
-      tone: "brand",
-      title: "Strengthen quote or booking guidance",
-      why: "Visitors who ask about quotes, bookings, or contact are close to taking action, but interest cools quickly without an obvious path.",
-      change: "Make the quote, booking, or contact route more direct and follow up on high-intent customers before they drift away.",
-      action: { type: "section", value: "contacts", label: "Follow up" },
-    });
-  }
-
   if ((!setup.knowledgeReady || setup.knowledgeLimited) && priorityCards.length < 4) {
     addPriority({
       tone: "slate",
@@ -7187,6 +7206,16 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       why: "If the front desk is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
       change: "Confirm the widget is installed on the right site so visitors can get support at the moment they need it.",
       action: { type: "focus", value: "install", label: "Open install" },
+    });
+  }
+
+  if (notificationUnread > 0 && priorityCards.length < 3) {
+    addPriority({
+      tone: "slate",
+      title: `${countLabel(notificationUnread, "owner alert")} waiting`,
+      why: "Notifications stay quiet unless there is a relevant owner-facing alert from feedback, follow-up, or setup activity.",
+      change: "Open the alert, confirm the owner action, and clear anything that no longer needs attention.",
+      action: { type: "section", value: "analytics", label: "Open notifications" },
     });
   }
 
@@ -7452,9 +7481,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
-  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
-  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const commandLinks = [
     {
       label: "Customers / Follow-Ups",

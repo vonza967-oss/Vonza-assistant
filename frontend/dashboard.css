@@ -11178,3 +11178,727 @@ textarea::placeholder {
     min-height: auto;
   }
 }
+
+/* Dashboard premium polish pass */
+:root {
+  --dashboard-sidebar-width: 224px;
+  --dashboard-page-bg: #f3f5f8;
+  --dashboard-page-surface: #ffffff;
+  --dashboard-page-surface-soft: #f8fafc;
+  --dashboard-border: #d9e2ee;
+  --dashboard-border-strong: #c2cedd;
+  --dashboard-title: #121a2a;
+  --dashboard-text: #314158;
+  --dashboard-muted: #66758b;
+  --dashboard-accent: #2457d6;
+  --dashboard-accent-hover: #1d49b7;
+  --dashboard-accent-soft: #edf3ff;
+  --dashboard-success: #0f766e;
+  --dashboard-warning: #9a5b00;
+  --dashboard-danger: #a93426;
+  --dashboard-radius: 8px;
+  --dashboard-control-radius: 6px;
+  --dashboard-shadow-main: 0 20px 48px rgba(15, 23, 42, 0.11);
+  --dashboard-shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.055);
+}
+
+html[data-dashboard-theme="light"] body {
+  background: var(--dashboard-page-bg);
+  color: var(--dashboard-text);
+}
+
+html[data-dashboard-theme="light"] .shell {
+  width: min(1280px, 100%);
+}
+
+html[data-dashboard-theme="light"] .app-shell {
+  grid-template-columns: var(--dashboard-sidebar-width) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+html[data-dashboard-theme="light"] .sidebar-shell {
+  width: var(--dashboard-sidebar-width);
+  min-height: calc(100vh - 72px);
+  padding: 14px 10px;
+  border-radius: var(--dashboard-radius);
+  background: #111827;
+  box-shadow: 0 20px 42px rgba(15, 23, 42, 0.22);
+}
+
+html[data-dashboard-theme="light"] .sidebar-identity {
+  min-height: 48px;
+  padding: 4px 10px 14px;
+}
+
+html[data-dashboard-theme="light"] .sidebar-identity-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--dashboard-radius);
+  background: #2457d6;
+}
+
+html[data-dashboard-theme="light"] .shell-sidebar-label {
+  padding: 0 10px;
+  color: rgba(226, 232, 240, 0.64);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html[data-dashboard-theme="light"] .shell-nav-button {
+  min-height: 38px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--dashboard-radius);
+}
+
+html[data-dashboard-theme="light"] .shell-nav-label {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+html[data-dashboard-theme="light"] .shell-nav-note {
+  display: none;
+}
+
+html[data-dashboard-theme="light"] .shell-nav-button.active {
+  background: #2457d6;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .workspace-page,
+html[data-dashboard-theme="light"] .workspace-page-overview {
+  overflow: hidden;
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+  background: var(--dashboard-page-surface);
+  box-shadow: var(--dashboard-shadow-main);
+}
+
+html[data-dashboard-theme="light"] .workspace-page .page-header,
+html[data-dashboard-theme="light"] .workspace-page-overview .page-header {
+  padding: 18px 24px 16px;
+  border-bottom: 1px solid var(--dashboard-border);
+  background: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .workspace-page .page-title,
+html[data-dashboard-theme="light"] .workspace-page-overview .page-title {
+  color: var(--dashboard-title);
+  font-size: clamp(24px, 2.1vw, 31px);
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+html[data-dashboard-theme="light"] .workspace-page .page-copy,
+html[data-dashboard-theme="light"] .workspace-page-overview .page-copy {
+  max-width: 820px;
+  color: var(--dashboard-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+html[data-dashboard-theme="light"] .page-eyebrow,
+html[data-dashboard-theme="light"] .studio-kicker,
+html[data-dashboard-theme="light"] .overview-label,
+html[data-dashboard-theme="light"] .analytics-report-kicker,
+html[data-dashboard-theme="light"] .analytics-report-metric-label,
+html[data-dashboard-theme="light"] .home-daily-card-label,
+html[data-dashboard-theme="light"] .frontdesk-detail-kicker,
+html[data-dashboard-theme="light"] .frontdesk-step-label,
+html[data-dashboard-theme="light"] .customer-row-meta-label {
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html[data-dashboard-theme="light"] .workspace-page .page-toolbar {
+  padding: 11px 24px;
+  border-bottom: 1px solid var(--dashboard-border);
+  background: #fbfcfe;
+}
+
+html[data-dashboard-theme="light"] .workspace-page-body,
+html[data-dashboard-theme="light"] .workspace-page-overview .workspace-page-body {
+  padding: 20px 24px 24px;
+  background: var(--dashboard-page-surface-soft);
+}
+
+html[data-dashboard-theme="light"] .workspace-section-stack,
+html[data-dashboard-theme="light"] .home-surface {
+  gap: 16px;
+}
+
+html[data-dashboard-theme="light"] .workspace-card-soft,
+html[data-dashboard-theme="light"] .frontdesk-workspace-panel,
+html[data-dashboard-theme="light"] .flat-section,
+html[data-dashboard-theme="light"] .contacts-list-shell,
+html[data-dashboard-theme="light"] .analytics-report-metric-card,
+html[data-dashboard-theme="light"] .analytics-report-insight,
+html[data-dashboard-theme="light"] .analytics-report-contact-card,
+html[data-dashboard-theme="light"] .analytics-report-recommendation,
+html[data-dashboard-theme="light"] .analytics-report-swot-item,
+html[data-dashboard-theme="light"] .analytics-report-card,
+html[data-dashboard-theme="light"] .customer-detail-card,
+html[data-dashboard-theme="light"] .customer-draft-card,
+html[data-dashboard-theme="light"] .customer-risk-note,
+html[data-dashboard-theme="light"] .frontdesk-readiness-item,
+html[data-dashboard-theme="light"] .frontdesk-detail-block,
+html[data-dashboard-theme="light"] .frontdesk-step,
+html[data-dashboard-theme="light"] .frontdesk-support-note,
+html[data-dashboard-theme="light"] .frontdesk-preview-guide,
+html[data-dashboard-theme="light"] .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="light"] .install-step,
+html[data-dashboard-theme="light"] .studio-group,
+html[data-dashboard-theme="light"] .settings-summary-card,
+html[data-dashboard-theme="light"] .home-daily-card,
+html[data-dashboard-theme="light"] .home-setup-progress,
+html[data-dashboard-theme="light"] .home-priority-card,
+html[data-dashboard-theme="light"] .home-attention-item,
+html[data-dashboard-theme="light"] .overview-list-item,
+html[data-dashboard-theme="light"] .action-queue-item,
+html[data-dashboard-theme="light"] .action-queue-detail,
+html[data-dashboard-theme="light"] .action-queue-handoff-item,
+html[data-dashboard-theme="light"] .action-queue-form,
+html[data-dashboard-theme="light"] .action-queue-follow-up-form,
+html[data-dashboard-theme="light"] .knowledge-improvement-item {
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .workspace-card-soft,
+html[data-dashboard-theme="light"] .contacts-list-shell,
+html[data-dashboard-theme="light"] .analytics-report-overview,
+html[data-dashboard-theme="light"] .frontdesk-polished-panel {
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+html[data-dashboard-theme="light"] .workspace-panel-title,
+html[data-dashboard-theme="light"] .flat-section-title,
+html[data-dashboard-theme="light"] .overview-card-title,
+html[data-dashboard-theme="light"] .analytics-report-title,
+html[data-dashboard-theme="light"] .analytics-report-metric-value,
+html[data-dashboard-theme="light"] .analytics-report-insight strong,
+html[data-dashboard-theme="light"] .analytics-report-contact-card strong,
+html[data-dashboard-theme="light"] .analytics-report-recommendation strong,
+html[data-dashboard-theme="light"] .analytics-report-swot-item strong,
+html[data-dashboard-theme="light"] .frontdesk-section-title,
+html[data-dashboard-theme="light"] .frontdesk-detail-title,
+html[data-dashboard-theme="light"] .frontdesk-step-title,
+html[data-dashboard-theme="light"] .contact-row-name,
+html[data-dashboard-theme="light"] .customer-row-summary,
+html[data-dashboard-theme="light"] .detail-kv-item strong,
+html[data-dashboard-theme="light"] .action-queue-title,
+html[data-dashboard-theme="light"] .action-queue-detail-value,
+html[data-dashboard-theme="light"] .home-priority-title,
+html[data-dashboard-theme="light"] .home-daily-card-value,
+html[data-dashboard-theme="light"] .home-win-row strong {
+  color: var(--dashboard-title);
+  letter-spacing: 0;
+}
+
+html[data-dashboard-theme="light"] .workspace-panel-copy,
+html[data-dashboard-theme="light"] .overview-card-copy,
+html[data-dashboard-theme="light"] .analytics-report-copy,
+html[data-dashboard-theme="light"] .analytics-report-section-copy,
+html[data-dashboard-theme="light"] .analytics-report-insight p,
+html[data-dashboard-theme="light"] .analytics-report-recommendation p,
+html[data-dashboard-theme="light"] .analytics-report-swot-item p,
+html[data-dashboard-theme="light"] .frontdesk-section-copy,
+html[data-dashboard-theme="light"] .frontdesk-readiness-copy,
+html[data-dashboard-theme="light"] .frontdesk-detail-copy,
+html[data-dashboard-theme="light"] .frontdesk-step-copy,
+html[data-dashboard-theme="light"] .customer-row-identity,
+html[data-dashboard-theme="light"] .customer-row-meta-value,
+html[data-dashboard-theme="light"] .action-queue-copy,
+html[data-dashboard-theme="light"] .action-queue-meta-inline,
+html[data-dashboard-theme="light"] .home-priority-why,
+html[data-dashboard-theme="light"] .home-priority-change,
+html[data-dashboard-theme="light"] .home-daily-card-copy,
+html[data-dashboard-theme="light"] .home-win-row p,
+html[data-dashboard-theme="light"] .home-win-row span {
+  color: var(--dashboard-muted);
+}
+
+html[data-dashboard-theme="light"] button,
+html[data-dashboard-theme="light"] a.primary-button,
+html[data-dashboard-theme="light"] a.ghost-button,
+html[data-dashboard-theme="light"] .primary-button,
+html[data-dashboard-theme="light"] .ghost-button,
+html[data-dashboard-theme="light"] .test-link,
+html[data-dashboard-theme="light"] .toolbar-chip,
+html[data-dashboard-theme="light"] .local-section-button,
+html[data-dashboard-theme="light"] .contact-filter-button,
+html[data-dashboard-theme="light"] .customer-filter-pill {
+  min-height: 36px;
+  border-radius: var(--dashboard-control-radius);
+  font-size: 13px;
+  font-weight: 750;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .primary-button {
+  border-color: var(--dashboard-accent);
+  background: var(--dashboard-accent);
+  color: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .primary-button:hover {
+  background: var(--dashboard-accent-hover);
+  box-shadow: 0 10px 22px rgba(36, 87, 214, 0.18);
+  transform: translateY(-1px);
+}
+
+html[data-dashboard-theme="light"] .ghost-button,
+html[data-dashboard-theme="light"] .test-link,
+html[data-dashboard-theme="light"] .toolbar-chip,
+html[data-dashboard-theme="light"] .local-section-button,
+html[data-dashboard-theme="light"] .contact-filter-button,
+html[data-dashboard-theme="light"] .customer-filter-pill {
+  border-color: var(--dashboard-border-strong);
+  background: #ffffff;
+  color: var(--dashboard-text);
+}
+
+html[data-dashboard-theme="light"] .ghost-button:hover,
+html[data-dashboard-theme="light"] .test-link:hover,
+html[data-dashboard-theme="light"] .toolbar-chip:hover,
+html[data-dashboard-theme="light"] .local-section-button:hover,
+html[data-dashboard-theme="light"] .contact-filter-button:hover,
+html[data-dashboard-theme="light"] .customer-filter-pill:hover {
+  border-color: #aebbd0;
+  background: #f4f7fb;
+  color: var(--dashboard-title);
+  transform: translateY(-1px);
+}
+
+html[data-dashboard-theme="light"] .toolbar-chip.active,
+html[data-dashboard-theme="light"] .local-section-button.active,
+html[data-dashboard-theme="light"] .contact-filter-button.active,
+html[data-dashboard-theme="light"] .customer-filter-pill.active {
+  border-color: var(--dashboard-accent);
+  background: var(--dashboard-accent);
+  color: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .home-daily-banner,
+html[data-dashboard-theme="light"] .home-improve-panel,
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner {
+  border: 0;
+  border-radius: var(--dashboard-radius);
+  background: #111827;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .home-daily-banner {
+  min-height: 76px;
+  padding: 18px 20px;
+}
+
+html[data-dashboard-theme="light"] .home-daily-banner-title,
+html[data-dashboard-theme="light"] .home-improve-panel .workspace-panel-title,
+html[data-dashboard-theme="light"] .home-improve-panel .workspace-panel-copy,
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner .workspace-panel-title {
+  color: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .home-daily-banner-kicker,
+html[data-dashboard-theme="light"] .home-improve-panel .studio-kicker {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+html[data-dashboard-theme="light"] .overview-command-strip {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: var(--dashboard-radius);
+  background: #111827;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .overview-command-primary {
+  display: grid;
+  gap: 8px;
+}
+
+html[data-dashboard-theme="light"] .overview-command-primary .eyebrow {
+  width: fit-content;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+html[data-dashboard-theme="light"] .overview-command-primary .overview-card-title {
+  max-width: 860px;
+  margin: 0;
+  color: #ffffff;
+  font-size: clamp(20px, 2.2vw, 30px);
+  line-height: 1.15;
+}
+
+html[data-dashboard-theme="light"] .overview-command-primary .overview-card-copy {
+  max-width: 860px;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+html[data-dashboard-theme="light"] .overview-command-primary .overview-action-row {
+  margin-top: 4px;
+}
+
+html[data-dashboard-theme="light"] .overview-command-links {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+html[data-dashboard-theme="light"] .overview-command-link {
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.16);
+  border-radius: var(--dashboard-radius);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .overview-command-link:hover {
+  border-color: rgba(255, 255, 255, 0.36);
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+html[data-dashboard-theme="light"] .overview-command-link span {
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+html[data-dashboard-theme="light"] .overview-command-link strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+html[data-dashboard-theme="light"] .overview-command-link small {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+html[data-dashboard-theme="light"] .home-daily-strip {
+  gap: 12px;
+}
+
+html[data-dashboard-theme="light"] .home-daily-card {
+  min-height: 114px;
+  padding: 14px;
+}
+
+html[data-dashboard-theme="light"] .home-daily-card-attention .home-daily-card-value,
+html[data-dashboard-theme="light"] .home-priority-card-danger .home-priority-title {
+  color: var(--dashboard-danger);
+}
+
+html[data-dashboard-theme="light"] .home-daily-card-caution .home-daily-card-value,
+html[data-dashboard-theme="light"] .home-priority-card-warning .home-priority-title {
+  color: var(--dashboard-warning);
+}
+
+html[data-dashboard-theme="light"] .home-daily-card-healthy .home-daily-card-value,
+html[data-dashboard-theme="light"] .home-daily-card-positive .home-daily-card-value,
+html[data-dashboard-theme="light"] .home-priority-card-healthy .home-priority-title {
+  color: var(--dashboard-success);
+}
+
+html[data-dashboard-theme="light"] .home-command-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.8fr);
+  gap: 16px;
+}
+
+html[data-dashboard-theme="light"] .home-priority-panel,
+html[data-dashboard-theme="light"] .home-mini-panel,
+html[data-dashboard-theme="light"] .home-improve-panel {
+  padding: 18px;
+}
+
+html[data-dashboard-theme="light"] .home-priority-card {
+  align-items: flex-start;
+  padding: 14px;
+}
+
+html[data-dashboard-theme="light"] .home-priority-action .primary-button,
+html[data-dashboard-theme="light"] .home-priority-action .ghost-button,
+html[data-dashboard-theme="light"] .home-improve-actions .primary-button {
+  white-space: nowrap;
+}
+
+html[data-dashboard-theme="light"] .home-attention-item {
+  padding: 13px 14px;
+}
+
+html[data-dashboard-theme="light"] .home-attention-category {
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+html[data-dashboard-theme="light"] .placeholder-card,
+html[data-dashboard-theme="light"] .operator-empty-state,
+html[data-dashboard-theme="light"] .today-command-empty,
+html[data-dashboard-theme="light"] .customer-chat-empty {
+  border: 1px dashed #b9c7da;
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+  color: var(--dashboard-muted);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .placeholder-card::before,
+html[data-dashboard-theme="light"] .operator-empty-state::before {
+  display: none;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .workspace-section-stack {
+  gap: 14px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .summary-strip {
+  gap: 10px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .summary-strip-item {
+  padding: 13px 14px;
+  border-radius: var(--dashboard-radius);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner {
+  min-height: 58px;
+  padding: 14px 16px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .contacts-list-shell {
+  gap: 12px;
+  padding: 14px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .contacts-list {
+  overflow: hidden;
+  border: 1px solid var(--dashboard-border);
+  border-radius: var(--dashboard-radius);
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-row {
+  min-height: 82px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--dashboard-border);
+  border-radius: 0;
+  background: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-row:last-child {
+  border-bottom: 0;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-row:hover {
+  background: #f7faff;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-row.active {
+  background: var(--dashboard-accent-soft);
+  box-shadow: inset 3px 0 0 var(--dashboard-accent);
+}
+
+html[data-dashboard-theme="light"] .customer-row-top,
+html[data-dashboard-theme="light"] .customer-row-title-group {
+  align-items: flex-start;
+}
+
+html[data-dashboard-theme="light"] .customer-row-statuses {
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+html[data-dashboard-theme="light"] .customer-row-meta {
+  align-items: center;
+}
+
+html[data-dashboard-theme="light"] .customer-status-chip,
+html[data-dashboard-theme="light"] .workspace-page .customer-status-chip {
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-overview {
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-metric-grid {
+  gap: 12px;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-metric-card {
+  min-height: 124px;
+  padding: 15px;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-card {
+  display: grid;
+  gap: 10px;
+  padding: 15px;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-card > span {
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-grid {
+  gap: 16px;
+}
+
+html[data-dashboard-theme="light"] .analytics-report-chart {
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .action-queue-item,
+html[data-dashboard-theme="light"] .knowledge-improvement-item {
+  padding: 15px;
+}
+
+html[data-dashboard-theme="light"] .action-queue-details,
+html[data-dashboard-theme="light"] .action-queue-handoff-summary {
+  gap: 10px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  gap: 18px;
+  padding: 20px;
+  border-radius: var(--dashboard-radius);
+  background: #ffffff;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-intro {
+  padding: 0 0 16px;
+}
+
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
+html[data-dashboard-theme="light"] .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
+  gap: 12px;
+}
+
+html[data-dashboard-theme="light"] .frontdesk-readiness-head,
+html[data-dashboard-theme="light"] .frontdesk-step-head,
+html[data-dashboard-theme="light"] .flat-section-header,
+html[data-dashboard-theme="light"] .contacts-list-header {
+  gap: 10px;
+}
+
+html[data-dashboard-theme="light"] .frontdesk-support-note {
+  background: #f7faff;
+}
+
+html[data-dashboard-theme="light"] input,
+html[data-dashboard-theme="light"] textarea,
+html[data-dashboard-theme="light"] select {
+  border-color: var(--dashboard-border-strong);
+  border-radius: var(--dashboard-control-radius);
+  background: #ffffff;
+  color: var(--dashboard-title);
+}
+
+@media (max-width: 1180px) {
+  html[data-dashboard-theme="light"] .overview-command-links {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  html[data-dashboard-theme="light"] .home-command-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 959px) {
+  html[data-dashboard-theme="light"] .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-dashboard-theme="light"] .sidebar-shell {
+    width: min(284px, 86vw);
+    border-radius: 0 var(--dashboard-radius) var(--dashboard-radius) 0;
+  }
+}
+
+@media (max-width: 760px) {
+  html[data-dashboard-theme="light"] .workspace-page .page-header,
+  html[data-dashboard-theme="light"] .workspace-page .page-toolbar,
+  html[data-dashboard-theme="light"] .workspace-page-body,
+  html[data-dashboard-theme="light"] .workspace-page-overview .workspace-page-body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  html[data-dashboard-theme="light"] .page-header,
+  html[data-dashboard-theme="light"] .page-header-actions,
+  html[data-dashboard-theme="light"] .home-daily-banner,
+  html[data-dashboard-theme="light"] .home-priority-card,
+  html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-focus-banner {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  html[data-dashboard-theme="light"] .overview-command-links,
+  html[data-dashboard-theme="light"] .home-daily-strip,
+  html[data-dashboard-theme="light"] .summary-strip,
+  html[data-dashboard-theme="light"] .analytics-report-metric-grid,
+  html[data-dashboard-theme="light"] .analytics-report-grid,
+  html[data-dashboard-theme="light"] .action-queue-details,
+  html[data-dashboard-theme="light"] .action-queue-handoff-summary {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-dashboard-theme="light"] .home-priority-action,
+  html[data-dashboard-theme="light"] .home-priority-action .primary-button,
+  html[data-dashboard-theme="light"] .home-priority-action .ghost-button,
+  html[data-dashboard-theme="light"] .home-improve-actions .primary-button,
+  html[data-dashboard-theme="light"] .customer-banner-button {
+    width: 100%;
+  }
+
+  html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .contact-row-main {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-dashboard-theme="light"] .workspace-page[data-shell-section="contacts"] .customer-row-meta {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
+    white-space: normal;
+  }
+}
