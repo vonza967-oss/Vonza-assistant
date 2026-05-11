@@ -7076,6 +7076,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     };
   })();
   const priorityCards = [];
+  const topHumanFollowUps = Array.isArray(actionQueue.humanFollowUps?.topItems)
+    ? actionQueue.humanFollowUps.topItems
+    : [];
   const addPriority = (priority) => {
     if (priorityCards.length >= 3 || !priority) {
       return;
@@ -7083,6 +7086,16 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
     priorityCards.push(priority);
   };
+
+  topHumanFollowUps.slice(0, 2).forEach((item) => {
+    addPriority({
+      tone: item.priority === "high" ? "danger" : "brand",
+      title: `${item.customerLabel || "Customer"} needs a human reply`,
+      why: item.whyItMatters?.[0]?.copy || item.safeSummary || "Vonza found a customer moment that should not be left only to AI.",
+      change: item.recommendedNextAction || "Review the customer context, reply outside Vonza, and mark the follow-up replied.",
+      action: { type: "section", value: "analytics", label: "Open follow-ups" },
+    });
+  });
 
   if (openIssueCount > 0) {
     addPriority({
@@ -9163,6 +9176,34 @@ function createEmptyActionQueue() {
     },
     recentOutcomes: [],
     recentLeadCaptures: [],
+    humanFollowUps: {
+      available: true,
+      migrationRequired: false,
+      summary: {
+        total: 0,
+        open: 0,
+        highPriority: 0,
+        new: 0,
+        reviewing: 0,
+        replied: 0,
+        follow_up_later: 0,
+        dismissed: 0,
+      },
+      items: [],
+      topItems: [],
+      emptyState: "No customers need a human reply right now.",
+    },
+    ownerNotifications: {
+      records: [],
+      summary: {
+        unread: 0,
+        read: 0,
+        dismissed: 0,
+        active: 0,
+        total: 0,
+      },
+      persistenceAvailable: true,
+    },
     persistenceAvailable: true,
     migrationRequired: false,
     followUpWorkflowAvailable: true,
@@ -10817,6 +10858,207 @@ function buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
   `;
 }
 
+function getHumanFollowUpStatusLabel(status = "") {
+  switch (trimText(status).toLowerCase()) {
+    case "reviewing":
+      return "Reviewing";
+    case "replied":
+      return "Replied";
+    case "follow_up_later":
+      return "Follow up later";
+    case "dismissed":
+      return "Dismissed";
+    default:
+      return "New";
+  }
+}
+
+function getHumanFollowUpBadgeClass(status = "") {
+  switch (trimText(status).toLowerCase()) {
+    case "replied":
+      return "badge success";
+    case "dismissed":
+      return "badge muted";
+    case "follow_up_later":
+      return "badge pending";
+    case "reviewing":
+      return "badge";
+    default:
+      return "badge pending";
+  }
+}
+
+function buildHumanFollowUpWorkflowMarkup(actionQueue = createEmptyActionQueue()) {
+  const workflow = actionQueue.humanFollowUps || createEmptyActionQueue().humanFollowUps;
+  const items = Array.isArray(workflow.items) ? workflow.items : [];
+  const openItems = items.filter((item) => !["replied", "dismissed"].includes(trimText(item.status).toLowerCase()));
+  const summary = {
+    ...createEmptyActionQueue().humanFollowUps.summary,
+    ...(workflow.summary || {}),
+  };
+  const notificationState = actionQueue.ownerNotifications || createEmptyActionQueue().ownerNotifications;
+  const notifications = Array.isArray(notificationState.records) ? notificationState.records : [];
+
+  const itemMarkup = openItems.slice(0, 8).map((item) => {
+    const reasons = Array.isArray(item.whyItMatters) ? item.whyItMatters : [];
+    const hasKnowledgeAction = trimText(item.related?.knowledgeFixId);
+    const formKey = escapeHtml(item.itemKey || item.actionKey || "");
+    const followUpId = trimText(item.related?.followUpId || item.followUpId);
+    const knowledgeFixId = trimText(item.related?.knowledgeFixId || item.knowledgeFixId);
+
+    return `
+      <article class="action-queue-item human-follow-up-item" data-human-follow-up-item data-human-follow-up-key="${formKey}">
+        <div class="action-queue-item-top">
+          <div class="action-queue-headline">
+            <div class="action-queue-badges">
+              <span class="${getHumanFollowUpBadgeClass(item.status)}">${escapeHtml(getHumanFollowUpStatusLabel(item.status))}</span>
+              <span class="pill">${escapeHtml(item.priority || "medium")} priority</span>
+              ${reasons.slice(0, 2).map((reason) => `<span class="pill">${escapeHtml(reason.label || reason.key)}</span>`).join("")}
+            </div>
+            <h4 class="action-queue-title">${escapeHtml(item.customerLabel || "Guest visitor")}</h4>
+            <p class="action-queue-copy">${escapeHtml(item.latestQuestion || item.safeSummary || "Customer context is sparse.")}</p>
+          </div>
+        </div>
+        <div class="action-queue-handoff-summary">
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Why it matters</span>
+            <strong class="action-queue-detail-value">${escapeHtml(reasons.map((reason) => reason.label).filter(Boolean).join(", ") || "Needs human review")}</strong>
+            <p class="action-queue-copy">${escapeHtml(reasons[0]?.copy || item.safeSummary || "Review this customer before it goes stale.")}</p>
+          </div>
+          <div class="action-queue-handoff-item">
+            <span class="action-queue-detail-label">Recommended next action</span>
+            <strong class="action-queue-detail-value">${escapeHtml(item.recommendedNextAction || "Review and reply.")}</strong>
+          </div>
+        </div>
+        ${trimText(item.suggestedReplyDraft) ? `
+          <div class="field">
+            <label>Suggested reply draft</label>
+            <textarea rows="4" name="owner_reply" data-human-follow-up-reply>${escapeHtml(item.suggestedReplyDraft)}</textarea>
+          </div>
+        ` : `<div class="placeholder-card">No draft is available yet. Review the conversation and write the owner reply outside Vonza.</div>`}
+        <div class="action-queue-form-actions">
+          ${followUpId ? `<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(followUpId)}">Open follow-up draft</button>` : ""}
+          ${hasKnowledgeAction ? `<button class="ghost-button" type="button" data-shell-target="analytics" data-target-id="${escapeHtml(item.related?.actionKey || item.actionKey || "")}">Improve knowledge</button>` : ""}
+          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="reviewing" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Mark reviewing</button>
+          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="follow_up_later" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Follow up later</button>
+          <button class="primary-button" type="button" data-human-follow-up-status-action data-next-status="replied" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Mark replied</button>
+          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="dismissed" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Dismiss</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="workspace-card-soft human-follow-up-workflow" data-human-follow-up-workflow>
+      <div class="flat-section-header">
+        <div>
+          <p class="overview-label">Human Follow-Up Workflow</p>
+          <h3 class="flat-section-title">Customers who need a human reply</h3>
+          <p class="analytics-report-section-copy">High-intent leads, unhappy customers, not-helpful replies, repeated unanswered questions, missing contact details, and due follow-ups stay in one owner-facing list.</p>
+        </div>
+        <div class="analytics-report-overview-pills">
+          <span class="pill">${escapeHtml(`${summary.open || 0} open`)}</span>
+          <span class="pill">${escapeHtml(`${summary.highPriority || 0} high priority`)}</span>
+          <span class="pill">${escapeHtml(`${notifications.filter((item) => item.status === "unread").length} unread notices`)}</span>
+        </div>
+      </div>
+      ${workflow.migrationRequired ? `<div class="placeholder-card">Human follow-up status changes are read-only until this workspace finishes the customer value and trust migration.</div>` : ""}
+      ${itemMarkup || `<div class="placeholder-card">${escapeHtml(workflow.emptyState || "No customers need a human reply right now. Sparse data is expected until real customer moments arrive.")}</div>`}
+      ${notifications.length ? `
+        <div class="knowledge-improvement-list">
+          ${notifications.filter((item) => item.status !== "dismissed").slice(0, 4).map((item) => `
+            <article class="overview-list-item">
+              <p class="overview-list-title">${escapeHtml(item.title || "Owner notification")}</p>
+              <p class="overview-list-copy">${escapeHtml(item.reason || "")}</p>
+              <p class="overview-list-copy">${escapeHtml(item.recommendedNextAction || "Review this customer moment.")}</p>
+            </article>
+          `).join("")}
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
+function buildPrivacyControlsMarkup(actionQueue = createEmptyActionQueue()) {
+  const workflow = actionQueue.humanFollowUps || createEmptyActionQueue().humanFollowUps;
+
+  return `
+    <section class="workspace-card-soft privacy-controls-panel" data-privacy-controls>
+      <div class="flat-section-header">
+        <div>
+          <p class="overview-label">Data Privacy Controls</p>
+          <h3 class="flat-section-title">Export, delete, and retention preferences</h3>
+          <p class="analytics-report-section-copy">Owner-scoped controls for conversations, leads, customer records, retention preferences, and visitor identity guidance.</p>
+        </div>
+        <div class="analytics-report-overview-pills">
+          <span class="pill">${escapeHtml(`${workflow.summary?.total || 0} follow-up records`)}</span>
+          <span class="pill">Owner scoped</span>
+        </div>
+      </div>
+      <div class="analytics-report-grid">
+        <article class="analytics-report-card">
+          <span>Export customer data</span>
+          <p class="analytics-report-section-copy">Download owner-scoped conversations, leads, follow-ups, knowledge fixes, and action statuses. Billing, auth, and account records stay out of this export.</p>
+          <div class="action-queue-form-actions">
+            <button class="ghost-button" type="button" data-privacy-export="json">Export JSON</button>
+            <button class="ghost-button" type="button" data-privacy-export="csv">Export CSV</button>
+          </div>
+        </article>
+        <article class="analytics-report-card">
+          <span>Delete visitor/customer records</span>
+          <p class="analytics-report-section-copy">Delete by guest session, visitor email, contact id, person key, lead id, or action key. Deletes are scoped to this owner and agent.</p>
+          <form class="workspace-section-stack" data-privacy-delete-form>
+            <div class="field-grid two">
+              <div class="field">
+                <label>Session key</label>
+                <input name="session_key" type="text" placeholder="guest/session key">
+              </div>
+              <div class="field">
+                <label>Visitor email</label>
+                <input name="visitor_email" type="email" placeholder="customer@example.com">
+              </div>
+              <div class="field">
+                <label>Contact id</label>
+                <input name="contact_id" type="text" placeholder="optional">
+              </div>
+              <div class="field">
+                <label>Action key</label>
+                <input name="action_key" type="text" placeholder="optional queue item">
+              </div>
+            </div>
+            <div class="action-queue-form-actions">
+              <button class="ghost-button" type="submit">Delete matching records</button>
+            </div>
+          </form>
+        </article>
+        <article class="analytics-report-card">
+          <span>Retention preference</span>
+          <p class="analytics-report-section-copy">V1 stores the owner preference and surfaces the policy clearly. It does not delete billing, auth, or account records.</p>
+          <form class="workspace-section-stack" data-privacy-settings-form>
+            <div class="field-grid two">
+              <div class="field">
+                <label>Conversation retention days</label>
+                <input name="retention_days" type="number" min="1" value="365">
+              </div>
+              <div class="field">
+                <label>Guest visitor cleanup days</label>
+                <input name="delete_unidentified_visitors_after_days" type="number" min="1" value="90">
+              </div>
+            </div>
+            <div class="action-queue-form-actions">
+              <button class="ghost-button" type="submit">Save privacy preference</button>
+            </div>
+          </form>
+        </article>
+        <article class="analytics-report-card">
+          <span>Widget visitor identity</span>
+          <p class="analytics-report-section-copy">To disconnect a visitor identity, clear visitor email/name in the host site and remove local widget identity storage in that browser. Guest sessions remain safe labels until the visitor shares contact details.</p>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
 function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), options = {}) {
   const items = Array.isArray(actionQueue.items) ? actionQueue.items : [];
   const summary = {
@@ -12157,7 +12399,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
             </div>
           </section>
+          ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
           ${buildKnowledgeImprovementCenterMarkup(actionQueue)}
+          ${buildPrivacyControlsMarkup(actionQueue)}
           ${customerSatisfactionMarkup}
           <section class="analytics-report-metric-grid">
             ${[
@@ -13683,6 +13927,25 @@ async function loadActionQueue(agentId) {
     },
     recentOutcomes: Array.isArray(data.recentOutcomes) ? data.recentOutcomes : [],
     recentLeadCaptures: Array.isArray(data.recentLeadCaptures) ? data.recentLeadCaptures : [],
+    humanFollowUps: {
+      ...createEmptyActionQueue().humanFollowUps,
+      ...(data.humanFollowUps || {}),
+      summary: {
+        ...createEmptyActionQueue().humanFollowUps.summary,
+        ...(data.humanFollowUps?.summary || {}),
+      },
+      items: Array.isArray(data.humanFollowUps?.items) ? data.humanFollowUps.items : [],
+      topItems: Array.isArray(data.humanFollowUps?.topItems) ? data.humanFollowUps.topItems : [],
+    },
+    ownerNotifications: {
+      ...createEmptyActionQueue().ownerNotifications,
+      ...(data.ownerNotifications || {}),
+      records: Array.isArray(data.ownerNotifications?.records) ? data.ownerNotifications.records : [],
+      summary: {
+        ...createEmptyActionQueue().ownerNotifications.summary,
+        ...(data.ownerNotifications?.summary || {}),
+      },
+    },
     persistenceAvailable: data.persistenceAvailable !== false,
     migrationRequired: data.migrationRequired === true,
     followUpWorkflowAvailable: data.followUpWorkflowAvailable !== false,
@@ -15015,8 +15278,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
   const followUpForms = document.querySelectorAll("[data-follow-up-form]");
   const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
+  const humanFollowUpStatusButtons = document.querySelectorAll("[data-human-follow-up-status-action]");
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
   const knowledgeFixStatusButtons = document.querySelectorAll("[data-knowledge-fix-status-action]");
+  const privacyExportButtons = document.querySelectorAll("[data-privacy-export]");
+  const privacyDeleteForms = document.querySelectorAll("[data-privacy-delete-form]");
+  const privacySettingsForms = document.querySelectorAll("[data-privacy-settings-form]");
   const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
   const openInboxThreadButtons = document.querySelectorAll("[data-open-inbox-thread]");
@@ -15401,6 +15668,114 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       if (submitButton) {
         submitButton.disabled = false;
       }
+    }
+  };
+
+  const updateHumanFollowUp = async (button) => {
+    const itemKey = trimText(button.dataset.itemKey);
+    const card = button.closest("[data-human-follow-up-item]");
+    const ownerReply = trimText(card?.querySelector("[data-human-follow-up-reply]")?.value || "");
+    const nextStatus = trimText(button.dataset.nextStatus);
+
+    if (!itemKey || !nextStatus) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus(`Updating human follow-up to ${getHumanFollowUpStatusLabel(nextStatus).toLowerCase()}...`);
+
+    try {
+      const result = await fetchJson("/agents/human-follow-ups/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          item_key: itemKey,
+          action_key: button.dataset.actionKey || itemKey,
+          follow_up_id: button.dataset.followUpId || "",
+          knowledge_fix_id: button.dataset.knowledgeFixId || "",
+          status: nextStatus,
+          owner_reply: ownerReply,
+        }),
+      });
+
+      setStatus(result.message || "Human follow-up updated.");
+      await boot();
+      setDashboardFocus("analytics");
+    } catch (error) {
+      setStatus(error.message || "We couldn't update that human follow-up.");
+    } finally {
+      button.disabled = false;
+    }
+  };
+
+  const exportPrivacyData = (format = "json") => {
+    const url = new URL("/agents/privacy/export", window.location.origin);
+    url.searchParams.set("agent_id", agent.id);
+    url.searchParams.set("client_id", getClientId());
+    url.searchParams.set("format", format);
+    window.location.assign(url.toString());
+  };
+
+  const savePrivacyPreference = async (form) => {
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    setStatus("Saving privacy preference...");
+
+    try {
+      await fetchJson("/agents/privacy/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          retention_days: formData.get("retention_days"),
+          delete_unidentified_visitors_after_days: formData.get("delete_unidentified_visitors_after_days"),
+        }),
+      });
+      setStatus("Privacy preference saved.");
+    } catch (error) {
+      setStatus(error.message || "We couldn't save privacy preferences.");
+    } finally {
+      submitButton.disabled = false;
+    }
+  };
+
+  const deletePrivacyRecords = async (form) => {
+    const formData = new FormData(form);
+    const submitButton = form.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    setStatus("Deleting matching visitor/customer records...");
+
+    try {
+      const result = await fetchJson("/agents/privacy/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          session_key: trimText(formData.get("session_key")),
+          visitor_email: trimText(formData.get("visitor_email")),
+          contact_id: trimText(formData.get("contact_id")),
+          action_key: trimText(formData.get("action_key")),
+        }),
+      });
+      const deletedCount = Object.values(result.deleted || {}).reduce((total, value) => total + Number(value || 0), 0);
+      setStatus(deletedCount ? `${deletedCount} matching record${deletedCount === 1 ? "" : "s"} deleted.` : "No matching records were found for this owner and agent.");
+      await boot();
+      setDashboardFocus("analytics");
+    } catch (error) {
+      setStatus(error.message || "We couldn't delete those records.");
+    } finally {
+      submitButton.disabled = false;
     }
   };
 
@@ -16665,6 +17040,32 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       await saveFollowUp(form, button.dataset.nextStatus || "");
+    });
+  });
+
+  humanFollowUpStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await updateHumanFollowUp(button);
+    });
+  });
+
+  privacyExportButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      exportPrivacyData(button.dataset.privacyExport || "json");
+    });
+  });
+
+  privacySettingsForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await savePrivacyPreference(form);
+    });
+  });
+
+  privacyDeleteForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await deletePrivacyRecords(form);
     });
   });
 

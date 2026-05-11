@@ -174,6 +174,19 @@ function buildRouteDeps(overrides = {}) {
       followUp: { id: "follow-up-1", status: "draft" },
       persistenceAvailable: true,
     }),
+    listHumanFollowUpStatusRows: async () => ({ records: [], persistenceAvailable: true }),
+    buildHumanFollowUpWorkflow: () => ({
+      available: true,
+      migrationRequired: false,
+      summary: { total: 0, open: 0, highPriority: 0 },
+      items: [],
+      topItems: [],
+    }),
+    syncOwnerNotifications: async () => ({
+      records: [],
+      summary: { unread: 0, read: 0, dismissed: 0, active: 0, total: 0 },
+      persistenceAvailable: true,
+    }),
     updateOperatorContactLifecycleState: async () => ({
       id: "contact-1",
       lifecycleState: "customer",

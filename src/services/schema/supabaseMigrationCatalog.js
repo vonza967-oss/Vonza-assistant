@@ -199,6 +199,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds assistant reply helpful/not-helpful feedback storage keyed by agent, session, and assistant message.",
   }),
+  Object.freeze({
+    id: "customer_value_trust_controls",
+    version: "20260510003000",
+    name: "customer_value_trust_controls",
+    file: "supabase/migrations/20260510003000_customer_value_trust_controls.sql",
+    legacySources: Object.freeze(["db/customer_value_trust_controls.sql"]),
+    tier: "feature-gated",
+    note: "Adds owner-facing human follow-up statuses, notification dedupe/status, and privacy retention preferences.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

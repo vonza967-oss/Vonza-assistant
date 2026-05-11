@@ -899,6 +899,77 @@ function createAgentTestDeps(state) {
         persistenceAvailable: true,
       };
     },
+    listHumanFollowUpStatusRows: async () => ({
+      records: [...(state.humanFollowUpStatuses || new Map()).values()],
+      persistenceAvailable: true,
+    }),
+    buildHumanFollowUpWorkflow: (actionQueue, statusRows = [], options = {}) => {
+      const persistedByItemKey = new Map(statusRows.map((row) => [row.itemKey || row.item_key, row]));
+      const items = (actionQueue.items || [])
+        .filter((item) => item.ownerWorkflow?.attention || item.followUp || item.knowledgeFix)
+        .map((item) => {
+          const persisted = persistedByItemKey.get(item.key) || {};
+          const status = persisted.status || (item.status === "done" ? "replied" : item.status === "dismissed" ? "dismissed" : "new");
+          return {
+            itemKey: item.key,
+            actionKey: item.key,
+            customerLabel: item.person?.label || item.contactInfo?.email || "Guest visitor",
+            latestQuestion: item.question || item.snippet || "Customer context is sparse.",
+            safeSummary: item.snippet || item.whyFlagged || "",
+            whyItMatters: [{ key: item.knowledgeFix ? "not_helpful" : "high_intent", label: item.knowledgeFix ? "Not-helpful reply" : "High intent", copy: item.whyFlagged || "" }],
+            suggestedReplyDraft: item.followUp?.draftContent || "",
+            recommendedNextAction: item.knowledgeFix ? "Improve knowledge, then reply." : "Review and reply.",
+            status,
+            priority: "high",
+            related: {
+              actionKey: item.key,
+              followUpId: item.followUp?.id || "",
+              knowledgeFixId: item.knowledgeFix?.id || "",
+              messageId: item.messageId || "",
+            },
+          };
+        });
+      return {
+        available: options.persistenceAvailable !== false,
+        migrationRequired: options.persistenceAvailable === false,
+        summary: {
+          total: items.length,
+          open: items.filter((item) => !["replied", "dismissed"].includes(item.status)).length,
+          highPriority: items.length,
+        },
+        items,
+        topItems: items.filter((item) => !["replied", "dismissed"].includes(item.status)).slice(0, 3),
+      };
+    },
+    updateHumanFollowUpStatus: async (_supabase, payload) => {
+      state.humanFollowUpStatuses ||= new Map();
+      const nextItem = {
+        id: `human-${payload.itemKey}`,
+        itemKey: payload.itemKey,
+        actionKey: payload.actionKey,
+        followUpId: payload.followUpId || "",
+        knowledgeFixId: payload.knowledgeFixId || "",
+        status: payload.status,
+        ownerReply: payload.ownerReply || "",
+        ownerUserId: payload.ownerUserId,
+      };
+      state.humanFollowUpStatuses.set(payload.itemKey, nextItem);
+      return { ok: true, item: nextItem, persistenceAvailable: true };
+    },
+    syncOwnerNotifications: async (_supabase, { humanFollowUps }) => ({
+      records: (humanFollowUps.items || []).slice(0, 2).map((item) => ({
+        id: `notice-${item.itemKey}`,
+        dedupeKey: `notice:${item.itemKey}`,
+        type: item.whyItMatters?.[0]?.key === "not_helpful" ? "not_helpful_ai_reply" : "high_intent_lead",
+        title: `${item.customerLabel} needs attention`,
+        reason: item.safeSummary,
+        relatedActionKey: item.actionKey,
+        recommendedNextAction: item.recommendedNextAction,
+        status: "unread",
+      })),
+      summary: { unread: Math.min((humanFollowUps.items || []).length, 2), read: 0, dismissed: 0, active: Math.min((humanFollowUps.items || []).length, 2), total: Math.min((humanFollowUps.items || []).length, 2) },
+      persistenceAvailable: true,
+    }),
     listLeadCaptures: async () => ({
       records: [],
       summary: {

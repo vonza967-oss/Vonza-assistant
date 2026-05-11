@@ -46,6 +46,21 @@ import {
   updateFollowUpWorkflow,
 } from "../services/followup/followUpService.js";
 import {
+  buildHumanFollowUpWorkflow,
+  listHumanFollowUpStatusRows,
+  updateHumanFollowUpStatus,
+} from "../services/followup/humanFollowUpWorkflowService.js";
+import {
+  syncOwnerNotifications,
+  updateOwnerNotificationStatus,
+} from "../services/notifications/ownerNotificationService.js";
+import {
+  deleteVisitorOrCustomerRecords,
+  exportAgentPrivacyData,
+  getPrivacySettings,
+  savePrivacySettings,
+} from "../services/privacy/privacyControlService.js";
+import {
   syncKnowledgeFixWorkflows,
   updateKnowledgeFixWorkflow,
 } from "../services/knowledge/knowledgeFixService.js";
@@ -204,6 +219,21 @@ export function createAgentRouter(deps = {}) {
   const syncFollowUpWorkflowsImpl = deps.syncFollowUpWorkflows || syncFollowUpWorkflows;
   const createManualFollowUpWorkflowImpl = deps.createManualFollowUpWorkflow || createManualFollowUpWorkflow;
   const updateFollowUpWorkflowImpl = deps.updateFollowUpWorkflow || updateFollowUpWorkflow;
+  const listHumanFollowUpStatusRowsImpl =
+    deps.listHumanFollowUpStatusRows || listHumanFollowUpStatusRows;
+  const buildHumanFollowUpWorkflowImpl =
+    deps.buildHumanFollowUpWorkflow || buildHumanFollowUpWorkflow;
+  const updateHumanFollowUpStatusImpl =
+    deps.updateHumanFollowUpStatus || updateHumanFollowUpStatus;
+  const syncOwnerNotificationsImpl =
+    deps.syncOwnerNotifications || syncOwnerNotifications;
+  const updateOwnerNotificationStatusImpl =
+    deps.updateOwnerNotificationStatus || updateOwnerNotificationStatus;
+  const getPrivacySettingsImpl = deps.getPrivacySettings || getPrivacySettings;
+  const savePrivacySettingsImpl = deps.savePrivacySettings || savePrivacySettings;
+  const exportAgentPrivacyDataImpl = deps.exportAgentPrivacyData || exportAgentPrivacyData;
+  const deleteVisitorOrCustomerRecordsImpl =
+    deps.deleteVisitorOrCustomerRecords || deleteVisitorOrCustomerRecords;
   const syncKnowledgeFixWorkflowsImpl = deps.syncKnowledgeFixWorkflows || syncKnowledgeFixWorkflows;
   const updateKnowledgeFixWorkflowImpl = deps.updateKnowledgeFixWorkflow || updateKnowledgeFixWorkflow;
   const listConversionOutcomesForAgentImpl =
@@ -1169,9 +1199,23 @@ export function createAgentRouter(deps = {}) {
         persistenceAvailable: leadCaptures.persistenceAvailable !== false,
       });
       const responseQueue = expandGroupedFollowUpItems(hydratedQueue);
+      const humanFollowUpStatuses = await listHumanFollowUpStatusRowsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+      });
+      const humanFollowUps = buildHumanFollowUpWorkflowImpl(responseQueue, humanFollowUpStatuses.records || [], {
+        persistenceAvailable: humanFollowUpStatuses.persistenceAvailable !== false,
+      });
+      const ownerNotifications = await syncOwnerNotificationsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        humanFollowUps,
+      });
 
       res.json({
         ...responseQueue,
+        humanFollowUps,
+        ownerNotifications,
         analyticsSummary: buildAnalyticsSummary({
           messages,
           actionQueue: hydratedQueue,
@@ -1412,6 +1456,237 @@ export function createAgentRouter(deps = {}) {
         persistenceAvailable,
         migrationRequired: !persistenceAvailable,
       });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/human-follow-ups/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+      const itemKey = req.body.item_key || req.body.itemKey || req.body.action_key || req.body.actionKey;
+      const actionKey = req.body.action_key || req.body.actionKey || itemKey;
+      const followUpId = req.body.follow_up_id || req.body.followUpId;
+      const knowledgeFixId = req.body.knowledge_fix_id || req.body.knowledgeFixId;
+      const status = cleanText(req.body.status).toLowerCase();
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateHumanFollowUpStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        itemKey,
+        actionKey,
+        followUpId,
+        knowledgeFixId,
+        status,
+        note: req.body.note,
+        ownerReply: req.body.owner_reply ?? req.body.ownerReply,
+        followUpAt: req.body.follow_up_at || req.body.followUpAt,
+      });
+
+      if (actionKey) {
+        const queuePatch = {
+          agentId,
+          ownerUserId: user.id,
+          actionKey,
+          status: status === "dismissed" ? "dismissed" : status === "replied" ? "done" : "reviewed",
+          note: req.body.note,
+          nextStep: status === "follow_up_later"
+            ? "Follow up later."
+            : status === "replied"
+              ? "Owner replied."
+              : undefined,
+          followUpNeeded: status === "follow_up_later" ? true : status === "replied" ? false : undefined,
+          followUpCompleted: status === "replied" ? true : undefined,
+        };
+
+        await updateActionQueueStatusImpl(supabase, queuePatch).catch((error) => {
+          if (error?.statusCode >= 500) {
+            console.warn("[human follow-up] action queue sync skipped:", error.message);
+            return null;
+          }
+          throw error;
+        });
+      }
+
+      if (followUpId && ["replied", "dismissed"].includes(status)) {
+        await updateFollowUpWorkflowImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          followUpId,
+          status: status === "replied" ? "sent" : "dismissed",
+          draftContent: req.body.owner_reply ?? req.body.ownerReply,
+        }).catch((error) => {
+          if (error?.statusCode >= 500) {
+            console.warn("[human follow-up] prepared follow-up sync skipped:", error.message);
+            return null;
+          }
+          throw error;
+        });
+      }
+
+      res.json({
+        ok: true,
+        item: result.item,
+        message: status === "replied"
+          ? "Human follow-up marked replied."
+          : status === "dismissed"
+            ? "Human follow-up dismissed."
+            : status === "follow_up_later"
+              ? "Human follow-up moved to later."
+              : "Human follow-up updated.",
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/notifications/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateOwnerNotificationStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        notificationId: req.body.notification_id || req.body.notificationId,
+        dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
+        status: req.body.status,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/privacy/settings", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      res.json(await getPrivacySettingsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+      }));
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/privacy/settings", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      res.json(await savePrivacySettingsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        retentionDays: req.body.retention_days || req.body.retentionDays,
+        deleteUnidentifiedVisitorsAfterDays:
+          req.body.delete_unidentified_visitors_after_days || req.body.deleteUnidentifiedVisitorsAfterDays,
+        policyNote: req.body.policy_note || req.body.policyNote,
+        widgetIdentityGuidance: req.body.widget_identity_guidance || req.body.widgetIdentityGuidance,
+      }));
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/privacy/export", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const result = await exportAgentPrivacyDataImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        format: req.query.format,
+      });
+
+      res.setHeader("Content-Type", result.contentType);
+      res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
+      res.send(result.body);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/privacy/delete", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      res.json(await deleteVisitorOrCustomerRecordsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        contactId: req.body.contact_id || req.body.contactId,
+        sessionKey: req.body.session_key || req.body.sessionKey,
+        visitorEmail: req.body.visitor_email || req.body.visitorEmail,
+        personKey: req.body.person_key || req.body.personKey,
+        leadId: req.body.lead_id || req.body.leadId,
+        actionKey: req.body.action_key || req.body.actionKey,
+      }));
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
