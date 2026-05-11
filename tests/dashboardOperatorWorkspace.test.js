@@ -1085,6 +1085,99 @@ test("dashboard renders a simplified Today command page and read-only calendar m
   assert.doesNotMatch(calendarPanel, /Create event draft/);
 });
 
+test("Home command center consolidates setup, priority workflows, and mobile-safe markup", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    summary: {
+      ...harness.createEmptyActionQueue().summary,
+      attentionNeeded: 2,
+    },
+    humanFollowUps: {
+      ...harness.createEmptyActionQueue().humanFollowUps,
+      summary: {
+        open: 1,
+        highPriority: 1,
+      },
+      topItems: [
+        {
+          customerLabel: "Taylor Reed",
+          priority: "high",
+          safeSummary: "Asked for a quote and still needs an owner reply.",
+          recommendedNextAction: "Reply with the quote path and timing.",
+          whyItMatters: [
+            {
+              label: "High-intent lead",
+              copy: "This customer is close to booking and should not wait on AI alone.",
+            },
+          ],
+        },
+      ],
+    },
+    ownerAnalyticsDashboard: {
+      ok: true,
+      knowledgeImprovement: {
+        openCount: 1,
+      },
+    },
+    ownerNotifications: {
+      summary: {
+        unread: 1,
+      },
+      records: [],
+    },
+  };
+
+  const overview = harness.buildOverviewPanel(
+    {
+      installId: "install-1",
+      installStatus: { state: "not_installed", label: "Not installed yet" },
+    },
+    [],
+    {
+      isReady: false,
+      knowledgeReady: false,
+      knowledgeLimited: true,
+    },
+    actionQueue,
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(overview, /data-mobile-safe="true"/);
+  assert.match(overview, /Do this now/);
+  assert.match(overview, /Taylor Reed needs a human reply/);
+  assert.match(overview, /This customer is close to booking and should not wait on AI alone/);
+  assert.match(overview, /Customers \/ Follow-Ups/);
+  assert.match(overview, /data-target-id="human-follow-ups"/);
+  assert.match(overview, /Knowledge Improvement/);
+  assert.match(overview, /data-target-id="knowledge-improvement"/);
+  assert.match(overview, /Notifications/);
+  assert.match(overview, /data-target-id="notifications"/);
+  assert.match(overview, /Setup progress/);
+  assert.match(overview, /Website knowledge/);
+  assert.match(overview, /Install/);
+
+  const sparseOverview = harness.buildOverviewPanel(
+    { installId: "install-1", installStatus: { state: "seen_recently", label: "Seen recently" } },
+    [],
+    { isReady: true, knowledgeReady: true, knowledgeLimited: false },
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(sparseOverview, /Home is ready/);
+  assert.match(sparseOverview, /No urgent improvements right now/);
+  assert.doesNotMatch(sparseOverview, /Notifications/);
+  assert.doesNotMatch(sparseOverview, /Setup progress/);
+
+  const css = readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
+  assert.match(css, /\.home-setup-progress-head,\s*\n\s*\.home-setup-step-list\s*\{\s*\n\s*grid-template-columns:\s*1fr;/);
+});
+
 test("today copilot stays hidden when the browser flag is off", () => {
   const harness = createDashboardHarness({
     windowFlags: {

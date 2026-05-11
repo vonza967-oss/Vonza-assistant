@@ -492,11 +492,11 @@ test("dashboard Home renders one command-center action strip with workflow links
 
   assert.match(html, /Home command center/);
   assert.match(html, /Do this now/);
-  assert.match(html, /Follow-Ups/);
+  assert.match(html, /Customers \/ Follow-Ups/);
   assert.match(html, /Knowledge Improvement/);
-  assert.match(html, /Notifications/);
-  assert.match(html, /Privacy Controls/);
-  assert.match(html, /No human replies are waiting/);
+  assert.match(html, /Settings \/ Privacy/);
+  assert.match(html, /Review customers, replies, and follow-up status/);
+  assert.doesNotMatch(html, /data-target-id="notifications"/);
 });
 
 test("access-locked checkout view renders Starter, Growth, and Pro plan choices", async () => {

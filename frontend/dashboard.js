@@ -158,11 +158,15 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "language.unsaved": "Unsaved changes",
   "language.save": "Save language",
   "nav.home": "Home",
+  "nav.homeToday": "Home / Today",
   "nav.customers": "Customers",
+  "nav.customersFollowUps": "Customers / Follow-Ups",
+  "nav.knowledgeImprovement": "Knowledge Improvement",
   "nav.frontDesk": "Front Desk",
   "nav.analytics": "Analytics",
   "nav.install": "Install",
   "nav.settings": "Settings",
+  "nav.settingsPrivacy": "Settings / Privacy",
   "nav.connectedTools": "Connected Tools",
   "nav.comingSoon": "coming soon",
   "nav.email": "Email",
@@ -4001,6 +4005,7 @@ function getShellNavIconMarkup(sectionKey = "") {
   const iconMap = {
     overview: "home",
     contacts: "users",
+    knowledge_improvement: "review",
     customize: "frontdesk",
     analytics: "outcomes",
     inbox: "inbox",
@@ -4014,13 +4019,16 @@ function getShellNavIconMarkup(sectionKey = "") {
 }
 
 function buildShellNavButton(item, activeSection) {
-  const isActive = activeSection === item.key;
+  const targetSection = item.target || item.key;
+  const isActive = activeSection === (item.activeKey || item.key);
 
   return `
     <button
       class="shell-nav-button ${isActive ? "active" : ""}"
       type="button"
-      data-shell-target="${escapeHtml(item.key)}"
+      data-shell-target="${escapeHtml(targetSection)}"
+      ${item.targetId ? `data-target-id="${escapeHtml(item.targetId)}"` : ""}
+      ${item.settingsTarget ? `data-settings-target="${escapeHtml(item.settingsTarget)}"` : ""}
       aria-current="${isActive ? "page" : "false"}"
     >
       <span class="shell-nav-icon" aria-hidden="true">${getShellNavIconMarkup(item.key)}</span>
@@ -4061,6 +4069,9 @@ function buildSidebarShell(
   const installStatus = getDefaultInstallStatus(agent);
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
+  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
+  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
+  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const workspaceStatus = setup.isReady ? "Ready to use" : "Getting started";
   const knowledgeStatus = setup.knowledgeReady
     ? "Website learned"
@@ -4078,17 +4089,26 @@ function buildSidebarShell(
   const coreItems = [
     {
       key: "overview",
-      label: t("nav.home"),
-      note: "Your clearest next steps, recent wins, and what needs attention.",
+      label: t("nav.homeToday"),
+      note: "One command center for the next useful action.",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
-      label: t("nav.customers"),
-      note: "People, follow-ups, and the latest customer progress.",
-      badge: contactsAttention > 0 ? String(contactsAttention) : "",
-      badgeTone: contactsAttention > 0 ? "Needs attention" : "Pending",
+      label: t("nav.customersFollowUps"),
+      note: "People who need replies, follow-ups, or decisions.",
+      badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
+      badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
+    },
+    {
+      key: "knowledge_improvement",
+      target: "analytics",
+      targetId: "knowledge-improvement",
+      label: t("nav.knowledgeImprovement"),
+      note: "Weak answers and not-helpful feedback ready for review.",
+      badge: knowledgeOpen > 0 ? String(knowledgeOpen) : "",
+      badgeTone: knowledgeOpen > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "customize",
@@ -4098,9 +4118,11 @@ function buildSidebarShell(
     {
       key: "analytics",
       label: t("nav.analytics"),
-      note: "Signals, proof, weak spots, and business results.",
+      note: "Performance, trends, feedback recovery, and outcomes.",
+      badge: notificationUnread > 0 ? String(notificationUnread) : "",
+      badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
     },
-  ].filter((item) => availableSections.includes(item.key));
+  ].filter((item) => availableSections.includes(item.target || item.key));
 
   const utilityItems = [
     {
@@ -4112,8 +4134,8 @@ function buildSidebarShell(
     },
     {
       key: "settings",
-      label: t("nav.settings"),
-      note: "Business profile, front desk, connected tools, and workspace.",
+      label: t("nav.settingsPrivacy"),
+      note: "Business profile, front desk, privacy, and workspace.",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -7182,7 +7204,11 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     priorityCards.push(null);
   }
 
-  const primaryHomeAction = priorityCards[0]?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
+  const primaryPriority = priorityCards[0] || null;
+  const primaryHomeAction = primaryPriority?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
+  const secondaryPriorityCards = primaryPriority
+    ? priorityCards.filter(Boolean).slice(1)
+    : priorityCards.filter(Boolean);
   const summarySentence = conversationsToday || customersHelpedToday || openIssueCount
     ? t("home.summary", {
       conversations: countLabel(conversationsToday, "conversation"),
@@ -7328,6 +7354,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       action: { type: "section", value: "analytics", label: "Review signals" },
     };
   })();
+  const primaryActionTitle = primaryPriority?.title || improvementRecommendation.title || "Review the next useful action";
+  const primaryActionCopy = primaryPriority
+    ? [primaryPriority.why, primaryPriority.change].filter(Boolean).join(" ")
+    : improvementRecommendation.copy || "Use the links on the right to move into the workflow that needs attention.";
   const attentionCategories = [
     {
       key: "unhappy",
@@ -7427,8 +7457,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const commandLinks = [
     {
-      label: "Follow-Ups",
-      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "No human replies are waiting.",
+      label: "Customers / Follow-Ups",
+      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "Review customers, replies, and follow-up status.",
       target: "analytics",
       targetId: "human-follow-ups",
       count: humanFollowUpOpen,
@@ -7441,15 +7471,22 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       count: knowledgeOpen,
     },
     {
+      label: "Analytics",
+      copy: "Service trends, weak spots, satisfaction, and outcomes.",
+      target: "analytics",
+      targetId: "",
+      count: 0,
+    },
+    notificationUnread ? {
       label: "Notifications",
-      copy: notificationUnread ? `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.` : "No unread owner notices.",
+      copy: `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.`,
       target: "analytics",
       targetId: "notifications",
       count: notificationUnread,
-    },
+    } : null,
     {
-      label: "Privacy Controls",
-      copy: "Export, delete, or update retention settings.",
+      label: "Settings / Privacy",
+      copy: "Business profile, retention, export, and delete controls.",
       target: "analytics",
       targetId: "privacy-controls",
       count: 0,
@@ -7461,10 +7498,24 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       targetId: "",
       count: isInstallSeen(overview.installStatus) ? 0 : 1,
     },
+  ].filter(Boolean);
+  const setupNeedsAttention = !setup.isReady || !setup.knowledgeReady || setup.knowledgeLimited || !isInstallSeen(overview.installStatus);
+  const activeSetupStep = getActivationWizardActiveStep();
+  const setupStatusItems = [
+    ...overview.progressItems,
+    {
+      title: "Website knowledge",
+      copy: setup.knowledgeReady
+        ? "Vonza has usable business knowledge for customer answers."
+        : setup.knowledgeLimited
+          ? "Knowledge is usable, but another pass would improve answers."
+          : "Import website knowledge so customer answers are grounded.",
+      done: setup.knowledgeReady && !setup.knowledgeLimited,
+    },
   ];
 
   return localizeDashboardHtml(`
-    <section class="workspace-page workspace-page-overview" data-shell-section="overview">
+    <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
       ${buildPageHeader({
         title: t("home.title"),
         copy: t("home.copy"),
@@ -7484,8 +7535,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           <div class="overview-command-strip" aria-label="Home command center">
             <div class="overview-command-primary">
               <span class="eyebrow">Do this now</span>
-              <h3 class="overview-card-title">${escapeHtml(primaryHomeAction.title || improvementRecommendation.title || "Review the next useful action")}</h3>
-              <p class="overview-card-copy">${escapeHtml(primaryHomeAction.copy || improvementRecommendation.copy || "Use the links on the right to move into the workflow that needs attention.")}</p>
+              <h3 class="overview-card-title">${escapeHtml(primaryActionTitle)}</h3>
+              <p class="overview-card-copy">${escapeHtml(primaryActionCopy)}</p>
               <div class="overview-action-row">
                 ${renderHomeAction(primaryHomeAction, { primary: true, labelOverride: primaryHomeAction.label || "Open next step" })}
               </div>
@@ -7505,6 +7556,32 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               `).join("")}
             </div>
           </div>
+
+          ${setupNeedsAttention ? `
+            <section class="home-setup-progress" aria-label="Setup progress">
+              <div class="home-setup-progress-head">
+                <div>
+                  <p class="studio-kicker">Setup progress</p>
+                  <h3 class="workspace-panel-title">${escapeHtml(activeSetupStep?.label || "Finish the activation path")}</h3>
+                  <p class="workspace-panel-copy">${escapeHtml(activeSetupStep?.copy || "New workspaces stay useful while setup finishes. Complete the next activation step, then return to Home for live customer priorities.")}</p>
+                </div>
+                <div class="home-setup-progress-action">
+                  ${renderHomeAction(overview.primaryAction || primaryHomeAction, { primary: true, labelOverride: overview.primaryAction?.label || "Continue setup" })}
+                </div>
+              </div>
+              <div class="home-setup-step-list">
+                ${setupStatusItems.map((item) => `
+                  <div class="home-setup-step ${item.done ? "complete" : "pending"}">
+                    <span class="home-setup-dot" aria-hidden="true"></span>
+                    <div>
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <p>${escapeHtml(item.copy)}</p>
+                    </div>
+                  </div>
+                `).join("")}
+              </div>
+            </section>
+          ` : ""}
 
           <div class="home-daily-strip">
             ${dailyStats.map((stat) => `
@@ -7526,7 +7603,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 </div>
               </div>
               <div class="home-priority-list">
-                ${priorityCards[0] ? priorityCards.map((priority) => `
+                ${secondaryPriorityCards.length ? secondaryPriorityCards.map((priority) => `
                   <article class="home-priority-card home-priority-card-${escapeHtml(priority.tone || "slate")}">
                     <div class="home-priority-copy">
                       <h4 class="home-priority-title">${escapeHtml(priority.title)}</h4>
@@ -7537,7 +7614,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                       ${renderHomeAction(priority.action, { primary: true })}
                     </div>
                   </article>
-                `).join("") : `<div class="placeholder-card">No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</div>`}
+                `).join("") : `<div class="placeholder-card">${escapeHtml(primaryPriority ? "After the primary action, no other urgent improvements are competing for attention right now." : "No urgent improvements right now. Keep watching new questions and update weak answers as they appear.")}</div>`}
               </div>
               <div class="home-attention-list">
                 <div class="home-attention-heading">
@@ -15959,6 +16036,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       case "automations":
         return `[data-follow-up-card][data-follow-up-id="${targetId}"], [data-operator-task-card][data-task-id="${targetId}"], [data-campaign-card][data-campaign-id="${targetId}"]`;
       case "analytics":
+        if (["human-follow-ups", "knowledge-improvement", "notifications", "privacy-controls"].includes(targetId)) {
+          return `#${targetId}`;
+        }
         return `[data-action-queue-item][data-action-key="${targetId}"]`;
       default:
         return "";
