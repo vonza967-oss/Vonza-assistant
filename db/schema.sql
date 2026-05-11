@@ -379,9 +379,11 @@ create table if not exists public.product_events (
   id uuid primary key default gen_random_uuid(),
   client_id text not null,
   agent_id uuid references public.agents (id) on delete set null,
+  owner_user_id uuid,
   event_name text not null,
   source text,
   metadata jsonb,
+  dedupe_key text,
   created_at timestamp with time zone default now()
 );
 
@@ -393,6 +395,13 @@ create index if not exists product_events_event_name_idx
 
 create index if not exists product_events_created_at_idx
   on public.product_events (created_at desc);
+
+create index if not exists product_events_owner_user_id_idx
+  on public.product_events (owner_user_id);
+
+create unique index if not exists product_events_dedupe_key_idx
+  on public.product_events (dedupe_key)
+  where dedupe_key is not null;
 
 create table if not exists public.agent_installations (
   id uuid primary key default gen_random_uuid(),

@@ -5,6 +5,7 @@ const PRODUCT_EVENTS_TABLE = "product_events";
 export const TRACKED_PRODUCT_EVENTS = [
   "dashboard_arrived",
   "onboarding_started",
+  "onboarding_completed",
   "assistant_created",
   "knowledge_imported",
   "knowledge_limited",
@@ -13,6 +14,18 @@ export const TRACKED_PRODUCT_EVENTS = [
   "install_code_copied",
   "install_instructions_copied",
   "added_to_site_confirmed",
+  "install_verification_success",
+  "first_widget_chat",
+  "first_lead_captured",
+  "first_helpful_feedback",
+  "first_not_helpful_feedback",
+  "first_follow_up_completed",
+  "first_knowledge_fix_approved",
+  "notification_read",
+  "notification_dismissed",
+  "data_exported",
+  "data_deleted",
+  "privacy_retention_saved",
 ];
 
 const FUNNEL_STAGES = [
@@ -29,7 +42,9 @@ function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "").toLowerCase();
   return (
     error?.code === "PGRST205" ||
+    error?.code === "PGRST204" ||
     error?.code === "42P01" ||
+    error?.code === "42703" ||
     message.includes(`'public.${relationName}'`) ||
     message.includes(`${relationName} was not found`)
   );
@@ -37,9 +52,77 @@ function isMissingRelationError(error, relationName) {
 
 function getActorKey(row) {
   const clientId = cleanText(row?.client_id);
+  const ownerUserId = cleanText(row?.owner_user_id);
   const agentId = cleanText(row?.agent_id);
   const rowId = cleanText(row?.id);
-  return clientId || (agentId ? `agent:${agentId}` : `event:${rowId}`);
+  return ownerUserId || clientId || (agentId ? `agent:${agentId}` : `event:${rowId}`);
+}
+
+function shouldDropMetadataKey(key = "") {
+  const normalized = cleanText(key).toLowerCase();
+  return [
+    "email",
+    "phone",
+    "name",
+    "contact",
+    "message",
+    "content",
+    "secret",
+    "token",
+    "password",
+    "authorization",
+    "cookie",
+    "session_key",
+    "visitor_email",
+    "visitor_name",
+  ].some((term) => normalized.includes(term));
+}
+
+function isSafeMetadataKey(key = "") {
+  const normalized = cleanText(key);
+  return Boolean(normalized)
+    && normalized.length <= 64
+    && /^[a-zA-Z0-9_.-]+$/.test(normalized)
+    && !shouldDropMetadataKey(normalized);
+}
+
+function normalizeMetadataValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const normalized = cleanText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > 160) {
+    return `${normalized.slice(0, 157).trimEnd()}...`;
+  }
+
+  return normalized;
+}
+
+export function sanitizeProductEventMetadata(metadata) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+
+  const entries = Object.entries(metadata)
+    .filter(([key]) => isSafeMetadataKey(key))
+    .slice(0, 20)
+    .map(([key, value]) => [key, normalizeMetadataValue(value)])
+    .filter(([, value]) => value !== null);
+
+  return entries.length ? Object.fromEntries(entries) : null;
 }
 
 export async function trackProductEvent(supabase, input = {}) {
@@ -61,9 +144,11 @@ export async function trackProductEvent(supabase, input = {}) {
   const payload = {
     client_id: clientId,
     agent_id: cleanText(input.agentId) || null,
+    owner_user_id: cleanText(input.ownerUserId) || null,
     event_name: eventName,
     source: cleanText(input.source) || null,
-    metadata: input.metadata && typeof input.metadata === "object" ? input.metadata : null,
+    metadata: sanitizeProductEventMetadata(input.metadata),
+    dedupe_key: cleanText(input.dedupeKey) || null,
     created_at: new Date().toISOString(),
   };
 
@@ -72,6 +157,10 @@ export async function trackProductEvent(supabase, input = {}) {
   if (error) {
     if (isMissingRelationError(error, PRODUCT_EVENTS_TABLE)) {
       return { ok: false, skipped: true };
+    }
+
+    if (error?.code === "23505") {
+      return { ok: true, duplicate: true };
     }
 
     console.error(error);

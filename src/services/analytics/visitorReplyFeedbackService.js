@@ -78,6 +78,15 @@ function cleanMessageContext(input = {}) {
   };
 }
 
+function assertFeedbackKeyMatchesSession(sessionKey, assistantMessageKey) {
+  if (!assistantMessageKey.startsWith(`${sessionKey}::`)) {
+    const error = new Error("assistant_message_key does not match this conversation session");
+    error.statusCode = 400;
+    error.code = "feedback_session_mismatch";
+    throw error;
+  }
+}
+
 function getTimestamp(value) {
   const timestamp = new Date(value || "").getTime();
   return Number.isFinite(timestamp) ? timestamp : 0;
@@ -199,6 +208,7 @@ export async function recordVisitorReplyFeedback(supabase, options = {}) {
     options.assistantMessageKey || options.assistant_message_key,
     "assistant_message_key"
   );
+  assertFeedbackKeyMatchesSession(sessionKey, assistantMessageKey);
 
   const context = await resolveAllowedPublicWidgetContext(supabase, {
     installId: options.installId || options.install_id,

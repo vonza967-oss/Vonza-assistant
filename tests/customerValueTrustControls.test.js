@@ -361,7 +361,8 @@ test("privacy exports and deletes are owner scoped and keep empty states safe", 
   const body = JSON.parse(exported.body);
 
   assert.equal(body.leads.length, 1);
-  assert.equal(body.leads[0].owner_user_id, "owner-1");
+  assert.equal(body.leads[0].owner_user_id, undefined);
+  assert.equal(body.leads[0].contactEmail, "a@example.com");
   assert.equal(body.messages.length, 1);
   assert.equal(body.guidance.includes("excludes billing"), true);
 

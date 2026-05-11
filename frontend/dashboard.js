@@ -7421,6 +7421,46 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
+  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
+  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
+  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
+  const commandLinks = [
+    {
+      label: "Follow-Ups",
+      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "No human replies are waiting.",
+      target: "analytics",
+      targetId: "human-follow-ups",
+      count: humanFollowUpOpen,
+    },
+    {
+      label: "Knowledge Improvement",
+      copy: knowledgeOpen ? `${knowledgeOpen} answer fix${knowledgeOpen === 1 ? "" : "es"} need review.` : "No weak-answer fix is waiting.",
+      target: "analytics",
+      targetId: "knowledge-improvement",
+      count: knowledgeOpen,
+    },
+    {
+      label: "Notifications",
+      copy: notificationUnread ? `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.` : "No unread owner notices.",
+      target: "analytics",
+      targetId: "notifications",
+      count: notificationUnread,
+    },
+    {
+      label: "Privacy Controls",
+      copy: "Export, delete, or update retention settings.",
+      target: "analytics",
+      targetId: "privacy-controls",
+      count: 0,
+    },
+    {
+      label: "Install",
+      copy: isInstallSeen(overview.installStatus) ? "Live install is detected." : "Finish verification before launch.",
+      target: "install",
+      targetId: "",
+      count: isInstallSeen(overview.installStatus) ? 0 : 1,
+    },
+  ];
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview">
@@ -7439,6 +7479,31 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               ${renderHomeAction(primaryHomeAction, { labelOverride: primaryHomeAction.label || "See next step" })}
             </div>
           </section>
+
+          <div class="overview-command-strip" aria-label="Home command center">
+            <div class="overview-command-primary">
+              <span class="eyebrow">Do this now</span>
+              <h3 class="overview-card-title">${escapeHtml(primaryHomeAction.title || improvementRecommendation.title || "Review the next useful action")}</h3>
+              <p class="overview-card-copy">${escapeHtml(primaryHomeAction.copy || improvementRecommendation.copy || "Use the links on the right to move into the workflow that needs attention.")}</p>
+              <div class="overview-action-row">
+                ${renderHomeAction(primaryHomeAction, { primary: true, labelOverride: primaryHomeAction.label || "Open next step" })}
+              </div>
+            </div>
+            <div class="overview-command-links" aria-label="Command center links">
+              ${commandLinks.map((item) => `
+                <button
+                  class="overview-command-link"
+                  type="button"
+                  data-overview-target="${escapeHtml(item.target)}"
+                  data-target-id="${escapeHtml(item.targetId)}"
+                >
+                  <span>${escapeHtml(item.label)}</span>
+                  <strong>${escapeHtml(item.count ? String(item.count) : "Open")}</strong>
+                  <small>${escapeHtml(item.copy)}</small>
+                </button>
+              `).join("")}
+            </div>
+          </div>
 
           <div class="home-daily-strip">
             ${dailyStats.map((stat) => `
@@ -10949,7 +11014,7 @@ function buildHumanFollowUpWorkflowMarkup(actionQueue = createEmptyActionQueue()
   }).join("");
 
   return `
-    <section class="workspace-card-soft human-follow-up-workflow" data-human-follow-up-workflow>
+    <section id="human-follow-ups" class="workspace-card-soft human-follow-up-workflow" data-human-follow-up-workflow>
       <div class="flat-section-header">
         <div>
           <p class="overview-label">Human Follow-Up Workflow</p>
@@ -10963,7 +11028,7 @@ function buildHumanFollowUpWorkflowMarkup(actionQueue = createEmptyActionQueue()
         </div>
       </div>
       ${workflow.migrationRequired ? `<div class="placeholder-card">Human follow-up status changes are read-only until this workspace finishes the customer value and trust migration.</div>` : ""}
-      ${itemMarkup || `<div class="placeholder-card">${escapeHtml(workflow.emptyState || "No customers need a human reply right now. Sparse data is expected until real customer moments arrive.")}</div>`}
+      ${itemMarkup || `<div class="placeholder-card">${escapeHtml(workflow.emptyState || "No customers need a human reply right now. Keep the live widget installed and watch this area after high-intent, unhappy, not-helpful, or repeated unanswered customer moments appear.")}</div>`}
       ${notifications.length ? `
         <div class="knowledge-improvement-list">
           ${notifications.filter((item) => item.status !== "dismissed").slice(0, 4).map((item) => `
@@ -10983,7 +11048,7 @@ function buildPrivacyControlsMarkup(actionQueue = createEmptyActionQueue()) {
   const workflow = actionQueue.humanFollowUps || createEmptyActionQueue().humanFollowUps;
 
   return `
-    <section class="workspace-card-soft privacy-controls-panel" data-privacy-controls>
+    <section id="privacy-controls" class="workspace-card-soft privacy-controls-panel" data-privacy-controls>
       <div class="flat-section-header">
         <div>
           <p class="overview-label">Data Privacy Controls</p>
@@ -11721,7 +11786,7 @@ function buildKnowledgeImprovementCenterMarkup(actionQueue = createEmptyActionQu
   }).join("");
 
   return `
-    <section class="workspace-card-soft knowledge-improvement-center" data-knowledge-improvement-center>
+    <section id="knowledge-improvement" class="workspace-card-soft knowledge-improvement-center" data-knowledge-improvement-center>
       <div class="flat-section-header">
         <div>
           <p class="overview-label">Knowledge Improvement</p>
@@ -12077,6 +12142,46 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         : highIntentSignals > 0
           ? "High-intent questions are already coming in. Review Analytics to see whether visitors want pricing, booking, contact, or support help most."
           : "Keep an eye on the first real visitor questions so you can tighten the welcome, website copy, or install placement if needed.";
+  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
+  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
+  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
+  const commandLinks = [
+    {
+      label: "Follow-Ups",
+      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "No human replies are waiting.",
+      target: "analytics",
+      targetId: "human-follow-ups",
+      count: humanFollowUpOpen,
+    },
+    {
+      label: "Knowledge Improvement",
+      copy: knowledgeOpen ? `${knowledgeOpen} answer fix${knowledgeOpen === 1 ? "" : "es"} need review.` : "No weak-answer fix is waiting.",
+      target: "analytics",
+      targetId: "knowledge-improvement",
+      count: knowledgeOpen,
+    },
+    {
+      label: "Notifications",
+      copy: notificationUnread ? `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.` : "No unread owner notices.",
+      target: "analytics",
+      targetId: "notifications",
+      count: notificationUnread,
+    },
+    {
+      label: "Privacy Controls",
+      copy: "Export, delete, or update retention settings.",
+      target: "analytics",
+      targetId: "privacy-controls",
+      count: 0,
+    },
+    {
+      label: "Install",
+      copy: isInstallSeen(overview.installStatus) ? "Live install is detected." : "Finish verification before launch.",
+      target: "install",
+      targetId: "",
+      count: isInstallSeen(overview.installStatus) ? 0 : 1,
+    },
+  ];
   const weakAnswerMarkup = overview.signals.weakAnswerExamples.length
     ? overview.signals.weakAnswerExamples.map((question) => `
       <div class="overview-list-item">
@@ -12165,6 +12270,27 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
         <div class="overview-action-row">
           ${overview.primaryAction ? renderAction(overview.primaryAction, { primary: true }) : ""}
           ${overview.nextActions.map((action) => renderAction(action)).join("")}
+        </div>
+        <div class="overview-command-strip" aria-label="Home command center">
+          <div class="overview-command-primary">
+            <span class="eyebrow">Do this now</span>
+            <h3 class="overview-card-title">${escapeHtml(recommendationTitle)}</h3>
+            <p class="overview-card-copy">${escapeHtml(recommendationCopy)}</p>
+          </div>
+          <div class="overview-command-links" aria-label="Command center links">
+            ${commandLinks.map((item) => `
+              <button
+                class="overview-command-link"
+                type="button"
+                data-overview-target="${escapeHtml(item.target)}"
+                data-target-id="${escapeHtml(item.targetId)}"
+              >
+                <span>${escapeHtml(item.label)}</span>
+                <strong>${escapeHtml(item.count ? String(item.count) : "Open")}</strong>
+                <small>${escapeHtml(item.copy)}</small>
+              </button>
+            `).join("")}
+          </div>
         </div>
         <div class="overview-progress-row">
           ${overview.progressItems.map((item) => `
@@ -12347,7 +12473,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
       </div>
       ${customerSatisfaction.persistenceAvailable === false ? `<div class="placeholder-card">Reply feedback analytics are waiting for the feedback migration on this workspace.</div>` : ""}
       <div class="analytics-report-grid">
-        <article class="analytics-report-card">
+        <article id="notifications" class="analytics-report-card">
           <span>Owner notifications</span>
           ${satisfactionNotifications.length ? satisfactionNotifications.map((item) => `
             <div class="overview-list-item">
@@ -16848,10 +16974,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   overviewSectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const targetSection = button.dataset.overviewTarget;
+      const targetId = button.dataset.targetId || "";
 
       showShellSection(targetSection);
 
-      const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
+      const sectionEl = targetId
+        ? document.getElementById(targetId)
+        : document.querySelector(`[data-shell-section="${targetSection}"]`);
       if (sectionEl) {
         sectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
       }

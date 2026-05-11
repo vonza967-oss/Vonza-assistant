@@ -7,7 +7,9 @@ import {
   handleLeadCaptureRequest,
 } from "../services/chat/chatService.js";
 import { recordVisitorReplyFeedback } from "../services/analytics/visitorReplyFeedbackService.js";
+import { trackProductEvent } from "../services/analytics/productEventService.js";
 import { enforceChatRateLimit } from "../utils/httpGuards.js";
+import { cleanText } from "../utils/text.js";
 
 export function createChatRouter(deps = {}) {
   const router = express.Router();
@@ -17,6 +19,40 @@ export function createChatRouter(deps = {}) {
   const handleLeadCaptureRequestImpl = deps.handleLeadCaptureRequest || handleLeadCaptureRequest;
   const recordVisitorReplyFeedbackImpl =
     deps.recordVisitorReplyFeedback || recordVisitorReplyFeedback;
+  const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
+  const trackPublicProductEvent = async ({
+    agentId,
+    installId = "",
+    eventName,
+    source,
+    metadata = {},
+    dedupeKey = "",
+  } = {}) => {
+    const resolvedAgentId = cleanText(agentId);
+
+    if (!resolvedAgentId || !eventName) {
+      return null;
+    }
+
+    return trackProductEventImpl(getSupabase(), {
+      clientId: `agent:${resolvedAgentId}`,
+      agentId: resolvedAgentId,
+      eventName,
+      source,
+      metadata: {
+        ...metadata,
+        has_install_id: Boolean(cleanText(installId)),
+      },
+      dedupeKey,
+    }).catch((error) => {
+      console.warn("[product-event] public tracking skipped", {
+        eventName,
+        agentId: resolvedAgentId,
+        message: error?.message || "Unknown tracking error",
+      });
+      return null;
+    });
+  };
 
   router.post("/chat", enforceChatRateLimit, async (req, res) => {
     try {
@@ -24,6 +60,17 @@ export function createChatRouter(deps = {}) {
         supabase: getSupabase(),
         openai: getOpenAI,
         body: req.body,
+      });
+      await trackPublicProductEvent({
+        agentId: result?.agentId,
+        installId: req.body.install_id || req.body.installId,
+        eventName: "first_widget_chat",
+        source: "public_widget",
+        metadata: {
+          lead_capture_state: result?.leadCapture?.state || "",
+          direct_routing_mode: result?.directRouting?.mode || "",
+        },
+        dedupeKey: `first_widget_chat:${result?.agentId || ""}`,
       });
 
       res.json(result);
@@ -41,6 +88,19 @@ export function createChatRouter(deps = {}) {
         supabase: getSupabase(),
         body: req.body,
       });
+      if (result?.leadCapture?.state === "captured") {
+        await trackPublicProductEvent({
+          agentId: result.agentId,
+          installId: req.body.install_id || req.body.installId,
+          eventName: "first_lead_captured",
+          source: "lead_capture",
+          metadata: {
+            state: result.leadCapture.state,
+            preferred_channel: result.leadCapture.preferredChannel || "",
+          },
+          dedupeKey: `first_lead_captured:${result.agentId}`,
+        });
+      }
 
       res.json(result);
     } catch (err) {
@@ -66,6 +126,18 @@ export function createChatRouter(deps = {}) {
         rating: req.body.rating,
         messageContext: req.body.message_context || req.body.messageContext,
       });
+      if (result?.duplicate !== true) {
+        await trackPublicProductEvent({
+          agentId: result?.feedback?.agentId,
+          installId: result?.feedback?.installId || req.body.install_id || req.body.installId,
+          eventName: result?.feedback?.rating === "helpful" ? "first_helpful_feedback" : "first_not_helpful_feedback",
+          source: "reply_feedback",
+          metadata: {
+            rating: result?.feedback?.rating || "",
+          },
+          dedupeKey: `first_${result?.feedback?.rating === "helpful" ? "helpful" : "not_helpful"}_feedback:${result?.feedback?.agentId || ""}`,
+        });
+      }
 
       res.json(result);
     } catch (err) {

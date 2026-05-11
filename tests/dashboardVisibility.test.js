@@ -450,6 +450,55 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
+test("dashboard Home renders one command-center action strip with workflow links", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/action-queue") {
+        return buildResponse({
+          status: 200,
+          body: {
+            items: [],
+            summary: {
+              total: 0,
+              attentionNeeded: 0,
+            },
+            humanFollowUps: {
+              summary: {
+                open: 0,
+                highPriority: 0,
+              },
+              items: [],
+              topItems: [],
+              emptyState: "No customers need a human reply right now.",
+            },
+            ownerNotifications: {
+              records: [],
+              summary: {
+                unread: 0,
+              },
+            },
+            persistenceAvailable: true,
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /Home command center/);
+  assert.match(html, /Do this now/);
+  assert.match(html, /Follow-Ups/);
+  assert.match(html, /Knowledge Improvement/);
+  assert.match(html, /Notifications/);
+  assert.match(html, /Privacy Controls/);
+  assert.match(html, /No human replies are waiting/);
+});
+
 test("access-locked checkout view renders Starter, Growth, and Pro plan choices", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent({ accessStatus: "pending" })],

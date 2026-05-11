@@ -249,6 +249,7 @@ export function createAgentRouter(deps = {}) {
     deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
   const listVisitorReplyFeedbackForOwnerImpl =
     deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
+  const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const deleteAgentImpl = deps.deleteAgent || deleteAgent;
   const resolveAgentContextImpl = deps.resolveAgentContext || resolveAgentContext;
@@ -317,6 +318,41 @@ export function createAgentRouter(deps = {}) {
     deps.getDashboardPreferences || getDashboardPreferences;
   const saveDashboardLanguagePreferenceImpl =
     deps.saveDashboardLanguagePreference || saveDashboardLanguagePreference;
+  const trackOwnerProductEvent = async (supabase, {
+    agentId,
+    ownerUserId = "",
+    clientId = "",
+    eventName,
+    source,
+    metadata = {},
+    dedupeKey = "",
+  } = {}) => {
+    const resolvedAgentId = cleanText(agentId);
+    const resolvedOwnerUserId = cleanText(ownerUserId);
+    const resolvedClientId = cleanText(clientId) || (resolvedOwnerUserId ? `owner:${resolvedOwnerUserId}` : `agent:${resolvedAgentId}`);
+
+    if (!resolvedClientId || !eventName) {
+      return null;
+    }
+
+    return trackProductEventImpl(supabase, {
+      clientId: resolvedClientId,
+      agentId: resolvedAgentId,
+      ownerUserId: resolvedOwnerUserId,
+      eventName,
+      source,
+      metadata,
+      dedupeKey,
+    }).catch((error) => {
+      console.warn("[product-event] tracking skipped", {
+        eventName,
+        agentId: resolvedAgentId || null,
+        ownerUserId: resolvedOwnerUserId || null,
+        message: error?.message || "Unknown tracking error",
+      });
+      return null;
+    });
+  };
   const getAdminToken = (req) => {
     const bearerToken =
       typeof req.headers.authorization === "string" &&
@@ -1396,6 +1432,20 @@ export function createAgentRouter(deps = {}) {
         agentId,
       });
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      if (verification.ok === true) {
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user?.id || agent?.ownerUserId || "",
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: "install_verification_success",
+          source: "install_verify",
+          metadata: {
+            status: verification.status || "found",
+            install_state: agent?.installStatus?.state || "",
+          },
+          dedupeKey: `install_verification_success:${agentId}`,
+        });
+      }
 
       res.json({
         ok: verification.ok === true,
@@ -1534,6 +1584,21 @@ export function createAgentRouter(deps = {}) {
           throw error;
         });
       }
+      if (status === "replied") {
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: "first_follow_up_completed",
+          source: "human_follow_up",
+          metadata: {
+            status,
+            has_follow_up_id: Boolean(followUpId),
+            has_knowledge_fix_id: Boolean(knowledgeFixId),
+          },
+          dedupeKey: `first_follow_up_completed:${agentId}:${user.id}`,
+        });
+      }
 
       res.json({
         ok: true,
@@ -1573,6 +1638,20 @@ export function createAgentRouter(deps = {}) {
         dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
         status: req.body.status,
       });
+      if (["read", "dismissed"].includes(result?.notification?.status)) {
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: result.notification.status === "dismissed" ? "notification_dismissed" : "notification_read",
+          source: "owner_notification",
+          metadata: {
+            status: result.notification.status,
+            type: result.notification.type,
+          },
+          dedupeKey: `${result.notification.status === "dismissed" ? "notification_dismissed" : "notification_read"}:${result.notification.id || result.notification.dedupeKey}`,
+        });
+      }
 
       res.json(result);
     } catch (err) {
@@ -1619,7 +1698,7 @@ export function createAgentRouter(deps = {}) {
         clientId: req.body.client_id || req.body.clientId,
       });
 
-      res.json(await savePrivacySettingsImpl(supabase, {
+      const result = await savePrivacySettingsImpl(supabase, {
         agentId,
         ownerUserId: user.id,
         retentionDays: req.body.retention_days || req.body.retentionDays,
@@ -1627,7 +1706,20 @@ export function createAgentRouter(deps = {}) {
           req.body.delete_unidentified_visitors_after_days || req.body.deleteUnidentifiedVisitorsAfterDays,
         policyNote: req.body.policy_note || req.body.policyNote,
         widgetIdentityGuidance: req.body.widget_identity_guidance || req.body.widgetIdentityGuidance,
-      }));
+      });
+      await trackOwnerProductEvent(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+        eventName: "privacy_retention_saved",
+        source: "privacy_controls",
+        metadata: {
+          retention_days: req.body.retention_days || req.body.retentionDays,
+          delete_unidentified_visitors_after_days:
+            req.body.delete_unidentified_visitors_after_days || req.body.deleteUnidentifiedVisitorsAfterDays,
+        },
+      });
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -1653,6 +1745,19 @@ export function createAgentRouter(deps = {}) {
         ownerUserId: user.id,
         format: req.query.format,
       });
+      await trackOwnerProductEvent(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+        eventName: "data_exported",
+        source: "privacy_controls",
+        metadata: {
+          format: result.format,
+          messages_count: result.counts?.messages || 0,
+          leads_count: result.counts?.leads || 0,
+          follow_ups_count: result.counts?.followUps || 0,
+        },
+      });
 
       res.setHeader("Content-Type", result.contentType);
       res.setHeader("Content-Disposition", `attachment; filename="${result.filename}"`);
@@ -1677,7 +1782,7 @@ export function createAgentRouter(deps = {}) {
         clientId: req.body.client_id || req.body.clientId,
       });
 
-      res.json(await deleteVisitorOrCustomerRecordsImpl(supabase, {
+      const result = await deleteVisitorOrCustomerRecordsImpl(supabase, {
         agentId,
         ownerUserId: user.id,
         contactId: req.body.contact_id || req.body.contactId,
@@ -1686,7 +1791,21 @@ export function createAgentRouter(deps = {}) {
         personKey: req.body.person_key || req.body.personKey,
         leadId: req.body.lead_id || req.body.leadId,
         actionKey: req.body.action_key || req.body.actionKey,
-      }));
+      });
+      await trackOwnerProductEvent(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+        eventName: "data_deleted",
+        source: "privacy_controls",
+        metadata: {
+          messages_count: result.deleted?.messages || 0,
+          leads_count: result.deleted?.leads || 0,
+          follow_ups_count: result.deleted?.followUps || 0,
+          notifications_count: result.deleted?.notifications || 0,
+        },
+      });
+      res.json(result);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -2183,6 +2302,21 @@ export function createAgentRouter(deps = {}) {
         markInboxReviewed: req.body.mark_inbox_reviewed === true || req.body.markInboxReviewed === true,
         markCalendarReviewed: req.body.mark_calendar_reviewed === true || req.body.markCalendarReviewed === true,
       });
+      if (activation?.activationCompletedAt) {
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: "onboarding_completed",
+          source: "operator_activation",
+          metadata: {
+            status: "completed",
+            google_connected: activation.googleConnected === true,
+            calendar_synced: activation.calendarSynced === true,
+          },
+          dedupeKey: `onboarding_completed:${agentId}:${user.id}`,
+        });
+      }
 
       res.json({ activation });
     } catch (err) {
@@ -2224,6 +2358,18 @@ export function createAgentRouter(deps = {}) {
           actionKey: result.followUp.sourceActionKey,
           leadId: req.body.lead_id || req.body.leadId,
           outcomeType: "follow_up_sent",
+        });
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: "first_follow_up_completed",
+          source: "prepared_follow_up",
+          metadata: {
+            status: "sent",
+            action_type: result.followUp.actionType || "",
+          },
+          dedupeKey: `first_follow_up_completed:${agentId}:${user.id}`,
         });
       }
 
@@ -2336,6 +2482,21 @@ export function createAgentRouter(deps = {}) {
           systemPrompt: agentProfile?.systemPrompt || "",
         },
       });
+      if (result?.knowledgeFix?.status === "applied") {
+        await trackOwnerProductEvent(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.body.client_id || req.body.clientId,
+          eventName: "first_knowledge_fix_approved",
+          source: "knowledge_improvement",
+          metadata: {
+            status: "applied",
+            action_type: result.knowledgeFix.actionType || "",
+            occurrence_count: result.knowledgeFix.occurrenceCount || 0,
+          },
+          dedupeKey: `first_knowledge_fix_approved:${agentId}:${user.id}`,
+        });
+      }
 
       res.json({
         ok: true,
@@ -2403,12 +2564,21 @@ export function createAgentRouter(deps = {}) {
 
   router.post("/product-events", async (req, res) => {
     try {
-      const result = await trackProductEvent(getSupabase(), {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req).catch((error) => {
+        if (error.statusCode === 401) {
+          return null;
+        }
+        throw error;
+      });
+      const result = await trackProductEventImpl(supabase, {
         clientId: req.body.client_id || req.body.clientId,
         agentId: req.body.agent_id || req.body.agentId,
+        ownerUserId: user?.id || "",
         eventName: req.body.event_name || req.body.eventName,
         source: req.body.source,
         metadata: req.body.metadata,
+        dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
       });
 
       res.json(result);

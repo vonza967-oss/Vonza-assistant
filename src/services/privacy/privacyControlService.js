@@ -64,6 +64,94 @@ function rowsToCsv(rows = []) {
   return `${header.join(",")}\n${lines.join("\n")}\n`;
 }
 
+function mapMessageExport(row = {}) {
+  return {
+    id: cleanText(row.id),
+    createdAt: row.created_at || null,
+    role: cleanText(row.role),
+    content: cleanText(row.content),
+    sessionKey: cleanText(row.session_key),
+    visitorIdentityMode: cleanText(row.visitor_identity_mode),
+    visitorEmail: cleanText(row.visitor_email).toLowerCase(),
+    visitorName: cleanText(row.visitor_name),
+  };
+}
+
+function mapLeadExport(row = {}) {
+  return {
+    id: cleanText(row.id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    state: cleanText(row.capture_state),
+    preferredChannel: cleanText(row.preferred_channel),
+    contactName: cleanText(row.contact_name),
+    contactEmail: cleanText(row.contact_email).toLowerCase(),
+    contactPhone: cleanText(row.contact_phone),
+    visitorSessionKey: cleanText(row.visitor_session_key),
+    latestIntentType: cleanText(row.latest_intent_type),
+    latestActionType: cleanText(row.latest_action_type),
+    promptedAt: row.prompted_at || null,
+    capturedAt: row.captured_at || null,
+  };
+}
+
+function mapFollowUpExport(row = {}) {
+  return {
+    id: cleanText(row.id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    status: cleanText(row.status),
+    channel: cleanText(row.channel),
+    personKey: cleanText(row.person_key),
+    contactName: cleanText(row.contact_name),
+    contactEmail: cleanText(row.contact_email).toLowerCase(),
+    contactPhone: cleanText(row.contact_phone),
+    subject: cleanText(row.subject),
+    draftContent: cleanText(row.draft_content),
+    sentAt: row.sent_at || null,
+    dismissedAt: row.dismissed_at || null,
+  };
+}
+
+function mapKnowledgeFixExport(row = {}) {
+  const evidence = row.evidence && typeof row.evidence === "object" ? row.evidence : {};
+
+  return {
+    id: cleanText(row.id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    status: cleanText(row.status),
+    topic: cleanText(row.topic),
+    issueSummary: cleanText(row.issue_summary),
+    mattersSummary: cleanText(row.matters_summary),
+    proposedGuidance: cleanText(row.proposed_guidance),
+    occurrenceCount: Number(row.occurrence_count || 0) || 0,
+    evidence: {
+      question: cleanText(evidence.question),
+      currentResponse: cleanText(evidence.currentResponse),
+      knowledgeState: cleanText(evidence.knowledgeState),
+      lastSeenAt: evidence.lastSeenAt || null,
+    },
+    appliedAt: row.applied_at || null,
+    dismissedAt: row.dismissed_at || null,
+  };
+}
+
+function mapActionStatusExport(row = {}) {
+  return {
+    id: cleanText(row.id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    actionKey: cleanText(row.action_key),
+    status: cleanText(row.status),
+    outcome: cleanText(row.outcome),
+    nextStep: cleanText(row.next_step),
+    followUpNeeded: row.follow_up_needed === true,
+    followUpCompleted: row.follow_up_completed === true,
+    contactStatus: cleanText(row.contact_status),
+  };
+}
+
 async function selectRows(supabase, tableName, filters = []) {
   let query = supabase.from(tableName).select("*");
   filters.forEach(([column, value]) => {
@@ -251,13 +339,12 @@ export async function exportAgentPrivacyData(supabase, options = {}) {
     body: JSON.stringify({
       exportedAt: new Date().toISOString(),
       agentId,
-      ownerUserId,
       guidance: "This export is owner-scoped and excludes billing, auth, and account records.",
-      messages,
-      leads,
-      followUps,
-      knowledgeFixes,
-      actionStatuses,
+      messages: messages.map(mapMessageExport),
+      leads: leads.map(mapLeadExport),
+      followUps: followUps.map(mapFollowUpExport),
+      knowledgeFixes: knowledgeFixes.map(mapKnowledgeFixExport),
+      actionStatuses: actionStatuses.map(mapActionStatusExport),
     }, null, 2),
     counts: {
       messages: messages.length,
@@ -335,6 +422,7 @@ export async function deleteVisitorOrCustomerRecords(supabase, options = {}) {
     deleted.humanFollowUps += await deleteRows(supabase, HUMAN_FOLLOW_UP_STATUS_TABLE, [["agent_id", agentId], ["owner_user_id", ownerUserId], ["item_key", actionKey]]);
     deleted.notifications += await deleteRows(supabase, OWNER_NOTIFICATION_TABLE, [["agent_id", agentId], ["owner_user_id", ownerUserId], ["related_action_key", actionKey]]);
     deleted.knowledgeFixes += await deleteRows(supabase, KNOWLEDGE_FIX_WORKFLOW_TABLE, [["agent_id", agentId], ["owner_user_id", ownerUserId], ["source_action_key", actionKey]]);
+    deleted.followUps += await deleteRows(supabase, FOLLOW_UP_WORKFLOW_TABLE, [["agent_id", agentId], ["owner_user_id", ownerUserId], ["source_action_key", actionKey]]);
   }
 
   return {

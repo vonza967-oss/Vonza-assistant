@@ -1358,6 +1358,61 @@ a.ghost-button:hover {
   margin-top: 18px;
 }
 
+.overview-command-strip {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.5fr);
+  gap: 14px;
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.22);
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.overview-command-primary {
+  min-width: 0;
+}
+
+.overview-command-links {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.overview-command-link {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.overview-command-link span,
+.overview-command-link strong,
+.overview-command-link small {
+  display: block;
+}
+
+.overview-command-link span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.overview-command-link strong {
+  margin-top: 6px;
+  font-size: 1rem;
+}
+
+.overview-command-link small {
+  margin-top: 6px;
+  color: var(--soft);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .overview-progress-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6908,6 +6963,7 @@ body {
   .launch-layout,
   .state-grid,
   .overview-grid,
+  .overview-command-strip,
   .home-grid,
   .analytics-simple-grid,
   .operator-home-grid,
@@ -6925,6 +6981,7 @@ body {
   .operator-thread-grid,
   .intent-grid,
   .overview-metric-grid,
+  .overview-command-links,
   .summary-strip,
   .today-workspace,
   .today-secondary-grid,

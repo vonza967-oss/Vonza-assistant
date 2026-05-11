@@ -208,6 +208,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-facing human follow-up statuses, notification dedupe/status, and privacy retention preferences.",
   }),
+  Object.freeze({
+    id: "product_events_owner_dedupe",
+    version: "20260511090000",
+    name: "product_events_owner_dedupe",
+    file: "supabase/migrations/20260511090000_product_events_owner_dedupe.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner context and first-event dedupe keys to internal product events without changing public analytics providers.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

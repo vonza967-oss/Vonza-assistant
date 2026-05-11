@@ -485,7 +485,7 @@ test("widget reply feedback persists once per assistant message without raw cont
     origin: "https://allowed.example",
     page_url: "https://allowed.example/pricing",
     session_key: "session-1",
-    assistant_message_key: "assistant-message-1",
+    assistant_message_key: "session-1::0::101",
     rating: "not_helpful",
     message_context: {
       reply_length: 142,
@@ -520,7 +520,7 @@ test("widget reply feedback rejects session-level spam while preserving idempote
     agent_id: "agent-1",
     install_id: "install-1",
     session_key: "session-1",
-    assistant_message_key: `assistant-message-${index + 1}`,
+    assistant_message_key: `session-1::${index + 1}::101`,
     rating: "not_helpful",
     message_context: {},
     created_at: "2026-04-01T12:00:00.000Z",
@@ -546,17 +546,48 @@ test("widget reply feedback rejects session-level spam while preserving idempote
   try {
     const duplicate = await postJson(server.baseUrl, "/chat/feedback", {
       ...baseBody,
-      assistant_message_key: "assistant-message-1",
+      assistant_message_key: "session-1::1::101",
     });
     const spam = await postJson(server.baseUrl, "/chat/feedback", {
       ...baseBody,
-      assistant_message_key: "assistant-message-new",
+      assistant_message_key: "session-1::26::999",
     });
 
     assert.equal(duplicate.status, 200);
     assert.equal(duplicate.json.duplicate, true);
     assert.equal(spam.status, 429);
     assert.equal(supabase.state.agent_visitor_reply_feedback.length, 25);
+  } finally {
+    await server.close();
+  }
+});
+
+test("widget reply feedback rejects assistant-message keys replayed from another session", async () => {
+  clearChatRateLimitForTests();
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    agent_visitor_reply_feedback: [],
+  });
+  const app = express();
+  app.use(express.json());
+  app.use(createChatRouter({
+    getSupabaseClient: () => supabase,
+  }));
+  const server = await startServer(app);
+
+  try {
+    const response = await postJson(server.baseUrl, "/chat/feedback", {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      session_key: "session-1",
+      assistant_message_key: "other-session::0::101",
+      rating: "not_helpful",
+    });
+
+    assert.equal(response.status, 400);
+    assert.match(response.json.error, /does not match this conversation session/i);
+    assert.equal(supabase.state.agent_visitor_reply_feedback.length, 0);
   } finally {
     await server.close();
   }
