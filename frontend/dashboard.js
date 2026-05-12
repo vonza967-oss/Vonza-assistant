@@ -143,8 +143,15 @@ const DASHBOARD_CAPABILITY_MAP = {
   install: "widget_install",
 };
 const DASHBOARD_ENGLISH_FALLBACKS = {
-  "app.loading.title": "Loading your workspace",
-  "app.loading.copy": "Getting your customer service dashboard ready.",
+  "app.loading.title": "Preparing your workspace",
+  "app.loading.copy": "Connecting your assistant, loading your business data, and getting your front desk ready.",
+  "app.loading.footer": "This usually takes a few seconds",
+  "app.loading.stepProfile": "Loading business profile",
+  "app.loading.stepCompleted": "Completed",
+  "app.loading.stepConversations": "Syncing customer conversations",
+  "app.loading.stepInProgress": "In progress",
+  "app.loading.stepDashboard": "Preparing dashboard",
+  "app.loading.stepUpNext": "Up next",
   "language.title": "Choose your dashboard language",
   "language.subtitle": "You can change this later in Settings.",
   "language.continue": "Continue",
@@ -3176,10 +3183,97 @@ function renderLoadingState() {
   renderTopbarMeta();
   applyDashboardLanguage();
   rootEl.innerHTML = `
-    <section class="dashboard-loading-screen" role="status" aria-live="polite">
-      <div class="dashboard-loading-mark" aria-hidden="true">V</div>
-      <h1>${escapeHtml(t("app.loading.title"))}</h1>
-      <p>${escapeHtml(t("app.loading.copy"))}</p>
+    <section class="dashboard-loading-screen" role="status" aria-live="polite" aria-busy="true" aria-label="${escapeHtml(t("app.loading.title"))}">
+      <div class="dashboard-loading-orb dashboard-loading-orb-one" aria-hidden="true"></div>
+      <div class="dashboard-loading-orb dashboard-loading-orb-two" aria-hidden="true"></div>
+      <div class="dashboard-loading-shell">
+        <div class="dashboard-loading-header">
+          <div class="dashboard-loading-mark" aria-hidden="true">V</div>
+          <h1 data-loading-title>${escapeHtml(t("app.loading.title"))}</h1>
+          <p data-loading-copy>${escapeHtml(t("app.loading.copy"))}</p>
+        </div>
+
+        <div class="dashboard-loading-progress" role="progressbar" aria-label="${escapeHtml(t("app.loading.title"))}" aria-valuetext="Loading">
+          <span></span>
+        </div>
+
+        <ol class="dashboard-loading-steps" aria-label="Workspace preparation progress">
+          <li class="dashboard-loading-step is-complete">
+            <span class="dashboard-loading-step-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" focusable="false">
+                <path d="M7.8 13.6 4.5 10.3l1.4-1.4 1.9 1.9 6.3-6.2 1.4 1.4-7.7 7.6Z"></path>
+              </svg>
+            </span>
+            <span>
+              <strong>${escapeHtml(t("app.loading.stepProfile"))}</strong>
+              <em>${escapeHtml(t("app.loading.stepCompleted"))}</em>
+            </span>
+          </li>
+          <li class="dashboard-loading-step is-active">
+            <span class="dashboard-loading-step-icon" aria-hidden="true"></span>
+            <span>
+              <strong>${escapeHtml(t("app.loading.stepConversations"))}</strong>
+              <em>${escapeHtml(t("app.loading.stepInProgress"))}</em>
+            </span>
+          </li>
+          <li class="dashboard-loading-step is-next">
+            <span class="dashboard-loading-step-icon" aria-hidden="true"></span>
+            <span>
+              <strong>${escapeHtml(t("app.loading.stepDashboard"))}</strong>
+              <em>${escapeHtml(t("app.loading.stepUpNext"))}</em>
+            </span>
+          </li>
+        </ol>
+
+        <div class="dashboard-skeleton-preview" aria-hidden="true">
+          <div class="dashboard-skeleton-sidebar">
+            <span class="dashboard-skeleton-mini-mark"></span>
+            <span class="dashboard-skeleton-line short"></span>
+            <span class="dashboard-skeleton-line"></span>
+            <span class="dashboard-skeleton-line active"></span>
+            <span class="dashboard-skeleton-line"></span>
+            <span class="dashboard-skeleton-line"></span>
+            <span class="dashboard-skeleton-line"></span>
+          </div>
+          <div class="dashboard-skeleton-grid">
+            <div class="dashboard-skeleton-card dashboard-skeleton-chart">
+              <span class="dashboard-skeleton-line short"></span>
+              <svg viewBox="0 0 260 120" focusable="false">
+                <path class="dashboard-skeleton-gridline" d="M18 92H242M18 60H242M18 28H242"></path>
+                <path class="dashboard-skeleton-chartline" d="M18 96c18-20 28-14 44-33 20-23 38-4 58-14 24-12 34 2 58-10 26-13 34-35 64-47"></path>
+              </svg>
+            </div>
+            <div class="dashboard-skeleton-card dashboard-skeleton-list">
+              <span class="dashboard-skeleton-line short"></span>
+              <span></span><span></span><span></span>
+            </div>
+            <div class="dashboard-skeleton-card dashboard-skeleton-donut">
+              <span class="dashboard-skeleton-line short"></span>
+              <div class="dashboard-skeleton-donut-ring"></div>
+              <div class="dashboard-skeleton-donut-lines">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <div class="dashboard-skeleton-card dashboard-skeleton-table">
+              <span class="dashboard-skeleton-line short"></span>
+              <span></span><span></span><span></span>
+            </div>
+            <div class="dashboard-skeleton-card dashboard-skeleton-table">
+              <span class="dashboard-skeleton-line short"></span>
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+        <p class="dashboard-loading-reassurance">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 20 20" focusable="false">
+              <path d="M10 2.2 16.4 5v4.7c0 3.8-2.6 6.8-6.4 8.1-3.8-1.3-6.4-4.3-6.4-8.1V5L10 2.2Zm0 2.1L5.5 6.2v3.5c0 2.7 1.7 4.9 4.5 6 2.8-1.1 4.5-3.3 4.5-6V6.2L10 4.3Zm3.2 4.4-4 4-2.1-2.1 1.2-1.2.9.9L12 7.5l1.2 1.2Z"></path>
+            </svg>
+          </span>
+          ${escapeHtml(t("app.loading.footer"))}
+        </p>
+      </div>
     </section>
   `;
 }
@@ -18480,7 +18574,7 @@ async function boot() {
 
   try {
     renderLoadingState();
-    setStatus(authCopy("Loading your workspace...", "Betöltjük a munkaterületedet..."));
+    setStatus(authCopy("Preparing your workspace...", "Előkészítjük a munkaterületedet..."));
     await ensureAuthClient();
     renderTopbarMeta();
 

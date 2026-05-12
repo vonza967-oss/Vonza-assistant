@@ -185,24 +185,36 @@ test("dashboard flag resolver prefers the canonical browser flag and falls back 
   assert.equal(canonicalOffHarness.isOperatorWorkspaceFlagEnabled(), false);
 });
 
-test("dashboard loading screen uses centered customer-service copy", () => {
+test("dashboard loading screen uses premium workspace preparation UI", () => {
   const html = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
   const css = readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
   assert.match(html, /dashboard-loading-screen/);
-  assert.match(html, /Loading your workspace/);
-  assert.match(html, /Getting your customer service dashboard ready\./);
+  assert.match(html, /Preparing your workspace/);
+  assert.match(html, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+  assert.match(html, /Loading business profile/);
+  assert.match(html, /Syncing customer conversations/);
+  assert.match(html, /Preparing dashboard/);
+  assert.match(html, /dashboard-skeleton-preview/);
+  assert.match(html, /This usually takes a few seconds/);
+  assert.doesNotMatch(html, /\b72%/);
   assert.doesNotMatch(html, /approvals/i);
 
-  assert.match(script, /Loading your workspace/);
-  assert.match(script, /Getting your customer service dashboard ready\./);
+  assert.match(script, /Preparing your workspace/);
+  assert.match(script, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+  assert.match(script, /dashboard-loading-progress/);
+  assert.match(script, /dashboard-skeleton-preview/);
+  assert.doesNotMatch(script, /\b72%/);
   assert.doesNotMatch(script.match(/function renderLoadingState\(\)[\s\S]*?\n}/)?.[0] || "", /approvals/i);
 
   const loadingStyles = css.match(/\.dashboard-loading-screen\s*\{[\s\S]*?\n}/)?.[0] || "";
   assert.match(loadingStyles, /min-height:\s*min\(680px,\s*calc\(100vh - 150px\)\)/);
   assert.match(loadingStyles, /align-content:\s*center/);
   assert.match(loadingStyles, /justify-items:\s*center/);
+  assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)/);
+  assert.match(css, /\.dashboard-loading-steps\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(css, /\.dashboard-skeleton-preview\s*\{[^}]*grid-template-columns:\s*150px minmax\(0,\s*1fr\)/);
   assert.doesNotMatch(loadingStyles, /position:\s*absolute|top:\s*0|left:\s*0/i);
 });
 
@@ -267,10 +279,13 @@ test("Hungarian loading state stays fully Hungarian", () => {
   harness.renderLoadingState();
   const loading = harness.document.getElementById("dashboard-root").innerHTML;
 
-  assert.match(loading, /Munkaterület betöltése/);
-  assert.match(loading, /Előkészítjük az ügyfélszolgálati irányítópultot\./);
+  assert.match(loading, /Előkészítjük a munkaterületedet/);
+  assert.match(loading, /Csatlakoztatjuk az asszisztenst, betöltjük az üzleti adatokat, és előkészítjük a front desket\./);
+  assert.match(loading, /Ez általában csak néhány másodperc/);
+  assert.match(loading, /Ügyfélbeszélgetések szinkronizálása/);
   assert.doesNotMatch(loading, /Loading your workspace/);
   assert.doesNotMatch(loading, /Getting your customer service dashboard ready\./);
+  assert.doesNotMatch(loading, /Syncing customer conversations/);
 });
 
 test("Hungarian dashboard language translates navigation, customer labels, settings, and analytics labels", () => {

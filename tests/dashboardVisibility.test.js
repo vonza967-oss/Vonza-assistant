@@ -429,8 +429,11 @@ test("dashboard shows a visible loading state before workspace data resolves", a
     },
   });
 
-  assert.match(harness.getRootHtml(), /Loading your workspace/i);
-  assert.match(harness.getRootHtml(), /Getting your customer service dashboard ready\./i);
+  assert.match(harness.getRootHtml(), /Preparing your workspace/i);
+  assert.match(harness.getRootHtml(), /Connecting your assistant, loading your business data, and getting your front desk ready\./i);
+  assert.match(harness.getRootHtml(), /Syncing customer conversations/i);
+  assert.match(harness.getRootHtml(), /dashboard-skeleton-preview/i);
+  assert.doesNotMatch(harness.getRootHtml(), /\b72%/);
   assert.doesNotMatch(harness.getRootHtml(), /approvals/i);
 
   resolveList();

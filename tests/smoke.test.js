@@ -1345,8 +1345,9 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/settings\/settings\.css/);
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
-        assert.match(dashboard.text, /Loading your workspace/);
-        assert.match(dashboard.text, /Getting your customer service dashboard ready\./);
+        assert.match(dashboard.text, /Preparing your workspace/);
+        assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
+        assert.match(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
 
         const widget = await getText(server.baseUrl, "/widget");
