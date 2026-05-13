@@ -247,6 +247,32 @@ test("widget bootstrap enforces allowlists across install_id, website_url, agent
   }
 });
 
+test("full-page assistant bootstrap reuses config without weakening installed widget validation", async () => {
+  const pageSupabase = createInstallState();
+  const page = await getWidgetBootstrap(pageSupabase, {
+    agentKey: "agent-key",
+    displayMode: "page",
+    origin: "https://bad.example.net",
+    pageUrl: "https://bad.example.net/help",
+  });
+
+  assert.equal(page.agent.id, "agent-1");
+  assert.equal(page.widgetConfig.assistantName, "Vonza");
+
+  const installedSupabase = createInstallState();
+  await assert.rejects(
+    () =>
+      getWidgetBootstrap(installedSupabase, {
+        installId: "11111111-1111-1111-1111-111111111111",
+        displayMode: "page",
+        origin: "https://bad.example.net",
+        pageUrl: "https://bad.example.net/help",
+      }),
+    (error) => error.statusCode === 403,
+    "install_id validation should stay allowlist-bound"
+  );
+});
+
 test("install ping sets last seen state and fields", async () => {
   const supabase = createInstallState();
 

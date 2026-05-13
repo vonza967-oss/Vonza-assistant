@@ -1,4 +1,8 @@
 const searchParams = new URLSearchParams(window.location.search);
+const ROUTE_AGENT_KEY = getRouteAgentKey();
+const DISPLAY_MODE = normalizeDisplayMode(
+  searchParams.get("mode") || (ROUTE_AGENT_KEY ? "page" : "widget")
+);
 const EMBEDDED_MODE = searchParams.get("embedded") === "1";
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
@@ -11,6 +15,7 @@ const AGENT_ID =
   "";
 const AGENT_KEY =
   searchParams.get("agent_key") ||
+  ROUTE_AGENT_KEY ||
   STORED_AGENT_KEY ||
   window.VonzaWidgetConfig?.agentKey ||
   "";
@@ -90,6 +95,28 @@ const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
 const VISITOR_IDENTITY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 let widgetPhase = WIDGET_PHASES.ENTRY;
+
+function normalizeDisplayMode(value) {
+  return trimText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
+function getRouteAgentKey() {
+  const match = window.location.pathname.match(/^\/(?:a|assistant)\/([^/?#]+)/);
+
+  if (!match?.[1]) {
+    return "";
+  }
+
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function isPageMode() {
+  return DISPLAY_MODE === "page";
+}
 
 function getWidgetStorageScope() {
   return (
@@ -380,6 +407,117 @@ function getFingerprint() {
   return trimText(EMBED_FINGERPRINT);
 }
 
+function applyDisplayModeClasses() {
+  document.documentElement.classList.toggle("vonza-mode-page", isPageMode());
+  document.documentElement.classList.toggle("vonza-mode-widget", !isPageMode());
+  document.body?.classList.toggle("vonza-mode-page", isPageMode());
+  document.body?.classList.toggle("vonza-mode-widget", !isPageMode());
+}
+
+function getAssistantLoadingState() {
+  return document.getElementById("assistant-loading-state");
+}
+
+function getAssistantUnavailableState() {
+  return document.getElementById("assistant-unavailable-state");
+}
+
+function getPageAssistantHero() {
+  return document.getElementById("page-assistant-hero");
+}
+
+function setPageShellState(state, details = {}) {
+  if (!isPageMode()) {
+    return;
+  }
+
+  const loadingState = getAssistantLoadingState();
+  const unavailableState = getAssistantUnavailableState();
+  const hero = getPageAssistantHero();
+  const chatContainer = document.querySelector(".chat-container");
+  const isReady = state === "ready";
+  const isLoading = state === "loading";
+  const isUnavailable = state === "unavailable";
+
+  if (loadingState) {
+    loadingState.hidden = !isLoading;
+  }
+
+  if (unavailableState) {
+    unavailableState.hidden = !isUnavailable;
+  }
+
+  if (hero) {
+    hero.hidden = !isReady;
+  }
+
+  if (chatContainer) {
+    chatContainer.hidden = !isReady;
+  }
+
+  if (isUnavailable) {
+    const titleEl = document.getElementById("assistant-unavailable-title");
+    const copyEl = document.getElementById("assistant-unavailable-copy");
+    if (titleEl) {
+      titleEl.textContent = details.title || "This assistant is not available right now.";
+    }
+    if (copyEl) {
+      copyEl.textContent = details.copy || "Please check the link or try again later.";
+    }
+  }
+}
+
+function getFriendlyUnavailableState(error = null) {
+  const statusCode = Number(error?.statusCode || 0);
+
+  if (statusCode === 404) {
+    return {
+      title: "This assistant is not available right now.",
+      copy: "The link may have changed, or the assistant may not be available yet.",
+    };
+  }
+
+  if (statusCode === 403) {
+    return {
+      title: "This assistant cannot open here.",
+      copy: "Please use the assistant page provided by the business.",
+    };
+  }
+
+  if (statusCode === 400) {
+    return {
+      title: "This assistant link is incomplete.",
+      copy: "Please check the link and try again.",
+    };
+  }
+
+  return {
+    title: "We couldn't open this assistant.",
+    copy: "Please refresh the page or try again later.",
+  };
+}
+
+function syncPageAssistantHeader({ business = null, config = widgetConfig } = {}) {
+  const businessName = trimText(business?.name || business?.businessName);
+  const assistantName = trimText(config.assistantName) || DEFAULT_WIDGET_CONFIG.assistantName;
+  const subtitle = trimText(config.welcomeMessage) || "Ask a question and get a clear answer.";
+  const businessNameEl = document.getElementById("page-business-name");
+  const assistantNameEl = document.getElementById("page-assistant-name");
+  const subtitleEl = document.getElementById("page-assistant-subtitle");
+
+  if (businessNameEl) {
+    businessNameEl.textContent = businessName || trimText(config.launcherText) || "Customer support";
+  }
+
+  if (assistantNameEl) {
+    assistantNameEl.textContent = assistantName;
+  }
+
+  if (subtitleEl) {
+    subtitleEl.textContent = subtitle;
+  }
+}
+
 function getIdentityChoicePanel() {
   return document.getElementById("identity-choice-panel");
 }
@@ -569,6 +707,7 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        display_mode: DISPLAY_MODE,
         visitor_session_key: getVisitorSessionKey(),
         reference_message: normalized.mode === "guest"
           ? "Visitor continued as guest."
@@ -922,6 +1061,7 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        display_mode: DISPLAY_MODE,
         visitor_session_key: getVisitorSessionKey(),
         reference_message: lastLeadReferenceMessage,
         ...buildVisitorIdentityPayload(),
@@ -984,7 +1124,10 @@ async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
         origin: getPageOrigin(),
         page_url: getPageUrl(),
         dedupe_key: dedupeKey,
-        metadata,
+        metadata: {
+          ...metadata,
+          displayMode: DISPLAY_MODE,
+        },
       }),
     });
   } catch (error) {
@@ -1113,6 +1256,7 @@ function applyWidgetConfig(config = {}) {
   if (poweredBy) {
     poweredBy.textContent = "We're here to help | Powered by Vonza";
   }
+  syncPageAssistantHeader({ config: widgetConfig });
 
   if (hasChosenVisitorIdentity()) {
     continueIntoChat(visitorIdentity, {
@@ -1131,6 +1275,13 @@ function applyWidgetConfig(config = {}) {
 
 async function loadWidgetBootstrap() {
   if (!hasAssistantConfig()) {
+    if (isPageMode()) {
+      setPageShellState("unavailable", {
+        title: "This assistant link is incomplete.",
+        copy: "Please check the link and try again.",
+      });
+      return;
+    }
     applyWidgetConfig({
       ...DEFAULT_WIDGET_CONFIG,
       welcomeMessage: "No assistant configured yet. Please create one first.",
@@ -1148,16 +1299,32 @@ async function loadWidgetBootstrap() {
   if (WEBSITE_URL) bootstrapUrl.searchParams.set("website_url", WEBSITE_URL);
   if (getPageOrigin()) bootstrapUrl.searchParams.set("origin", getPageOrigin());
   if (getPageUrl()) bootstrapUrl.searchParams.set("page_url", getPageUrl());
+  bootstrapUrl.searchParams.set("mode", DISPLAY_MODE);
 
   try {
     const response = await fetch(bootstrapUrl.toString());
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.error || "Failed to load widget configuration");
+      const error = new Error(data.error || "Failed to load assistant configuration");
+      error.statusCode = response.status;
+      throw error;
+    }
+
+    if (isPageMode() && (!data.agent?.id || !data.widgetConfig)) {
+      const error = new Error("Assistant is not available");
+      error.statusCode = 404;
+      throw error;
     }
 
     applyWidgetConfig(data.widgetConfig || {});
+    syncPageAssistantHeader({
+      business: data.business || null,
+      config: {
+        ...widgetConfig,
+        ...(data.widgetConfig || {}),
+      },
+    });
     resolvedAgentId = trimText(data.agent?.id || resolvedAgentId);
     resolvedAgentKey = trimText(data.agent?.publicAgentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.business?.id || resolvedBusinessId);
@@ -1170,9 +1337,14 @@ async function loadWidgetBootstrap() {
     } else {
       setComposerStatus("Choose how to continue, then start chatting.");
     }
+    setPageShellState("ready");
     await detectConversionOutcomesOnLoad();
   } catch (error) {
     console.error("Vonza assistant bootstrap failed:", error);
+    if (isPageMode()) {
+      setPageShellState("unavailable", getFriendlyUnavailableState(error));
+      return;
+    }
     applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
     setComposerStatus("The assistant loaded with default styling. You can still test the experience.");
   }
@@ -1247,6 +1419,7 @@ async function submitReplyFeedback(messageKey, rating) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        display_mode: DISPLAY_MODE,
         session_key: getVisitorSessionKey(),
         assistant_message_key: normalizedMessageKey,
         rating: normalizedRating,
@@ -1333,6 +1506,7 @@ async function sendMessage(messageOverride = "") {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        display_mode: DISPLAY_MODE,
         visitor_session_key: sessionKey,
         history: historySnapshot,
         ...buildVisitorIdentityPayload(),
@@ -1498,13 +1672,22 @@ if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
 }
 
+applyDisplayModeClasses();
 visitorIdentity = loadStoredVisitorIdentity();
 syncWidgetPhaseWithIdentity(visitorIdentity);
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
+if (isPageMode()) {
+  setPageShellState(hasAssistantConfig() ? "loading" : "unavailable", {
+    title: "This assistant link is incomplete.",
+    copy: "Please check the link and try again.",
+  });
+}
 loadWidgetBootstrap();
 
 window.__VONZA_WIDGET_TEST_HOOKS__ = {
   applyWidgetConfig,
+  getDisplayMode: () => DISPLAY_MODE,
+  setPageShellState,
   buildVisitorIdentityPayload,
   buildAssistantMessageKey,
   clearVisitorIdentity,

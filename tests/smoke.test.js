@@ -1354,6 +1354,16 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.equal(widget.status, 200);
         assert.match(widget.text, /chat-container/);
         assert.match(widget.text, /Powered by Vonza/);
+        assert.match(widget.text, /vonza-mode-/);
+
+        const pageModeWidget = await getText(server.baseUrl, "/widget?agent_id=agent-1&mode=page");
+        assert.equal(pageModeWidget.status, 200);
+        assert.match(pageModeWidget.text, /page-assistant-hero/);
+        assert.match(pageModeWidget.text, /assistant-unavailable-state/);
+
+        const assistantPage = await getText(server.baseUrl, "/a/agent-key");
+        assert.equal(assistantPage.status, 200);
+        assert.match(assistantPage.text, /page-assistant-hero/);
 
         const authScript = await getText(server.baseUrl, "/supabase-auth.js");
         assert.equal(authScript.status, 200);

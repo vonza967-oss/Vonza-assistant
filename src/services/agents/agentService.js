@@ -160,6 +160,10 @@ function normalizeAgentKey(value) {
   return slugifyLookupValue(value).replace(/_+/g, "");
 }
 
+function normalizePublicDisplayMode(value) {
+  return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
 function buildInvalidWebsiteUrlError() {
   const error = new Error("Enter a valid public https URL, like https://example.com.");
   error.statusCode = 400;
@@ -1016,6 +1020,7 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
   const installId = cleanText(options.installId);
   const requestedOrigin = cleanText(options.origin);
   const pageUrl = cleanText(options.pageUrl);
+  const displayMode = normalizePublicDisplayMode(options.displayMode || options.mode);
 
   if (installId) {
     const installContext = await requireAllowedInstallOrigin(supabase, {
@@ -1034,6 +1039,10 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
   }
 
   const context = await resolveExistingPublicWidgetContext(supabase, options);
+
+  if (displayMode === "page") {
+    return context;
+  }
 
   requireAllowedOriginForWidgetContext(context, {
     installId: context.widgetConfig.installId,

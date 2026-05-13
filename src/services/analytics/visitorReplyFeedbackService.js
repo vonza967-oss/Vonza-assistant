@@ -218,6 +218,7 @@ export async function recordVisitorReplyFeedback(supabase, options = {}) {
     websiteUrl: options.websiteUrl || options.website_url,
     origin: options.origin,
     pageUrl: options.pageUrl || options.page_url,
+    displayMode: options.displayMode || options.display_mode,
   });
 
   const installId = cleanText(options.installId || options.install_id || context.widgetConfig?.installId);

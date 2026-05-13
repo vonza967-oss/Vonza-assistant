@@ -497,6 +497,11 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "frontend", "widget.html"));
   });
 
+  router.get(["/a/:agentSlug", "/assistant/:agentSlug"], (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    res.sendFile(path.join(rootDir, "frontend", "widget.html"));
+  });
+
   router.get("/embed.js", (_req, res) => {
     res.type("application/javascript");
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");

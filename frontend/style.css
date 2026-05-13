@@ -48,6 +48,17 @@ body {
     linear-gradient(180deg, #f9faff 0%, #f3f6ff 45%, #eef3ff 100%);
 }
 
+html.vonza-mode-page,
+html.vonza-mode-page body {
+  min-height: 100%;
+}
+
+html.vonza-mode-page body {
+  background:
+    linear-gradient(180deg, #f7fafc 0%, #eef4f3 48%, #f8fafc 100%);
+  overflow-x: hidden;
+}
+
 html.embedded-mode,
 html.embedded-mode body,
 body.embedded {
@@ -72,6 +83,17 @@ body.embedded {
   align-items: center;
   padding: 36px 18px;
   overflow: hidden;
+}
+
+html.vonza-mode-page .app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-content: start;
+  gap: clamp(18px, 3vw, 28px);
+  padding: clamp(24px, 5vw, 52px) 16px 36px;
+  overflow: visible;
 }
 
 html.embedded-mode .app-shell,
@@ -104,6 +126,106 @@ body.embedded .app-shell {
   background: rgba(91, 97, 255, 0.18);
 }
 
+html.vonza-mode-page .ambient {
+  display: none;
+}
+
+.page-assistant-hero {
+  position: relative;
+  z-index: 1;
+  display: none;
+  width: min(100%, 820px);
+  text-align: center;
+}
+
+html.vonza-mode-widget .page-assistant-hero {
+  display: none;
+}
+
+html.vonza-mode-page .page-assistant-hero:not([hidden]) {
+  display: grid;
+  gap: 10px;
+}
+
+.page-assistant-eyebrow {
+  margin: 0;
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.page-assistant-hero h1 {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.page-assistant-hero p:last-child {
+  margin: 0 auto;
+  max-width: 620px;
+  color: #53657d;
+  font-size: clamp(0.98rem, 2vw, 1.12rem);
+  line-height: 1.7;
+}
+
+.assistant-state {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 560px);
+  min-height: 320px;
+  display: none;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  padding: 32px;
+  border: 1px solid rgba(122, 139, 160, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 22px 60px rgba(34, 49, 66, 0.12);
+  text-align: center;
+}
+
+html.vonza-mode-page .assistant-state:not([hidden]) {
+  display: grid;
+}
+
+.assistant-state-spinner {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 3px solid rgba(15, 118, 110, 0.14);
+  border-top-color: #0f766e;
+  animation: spin 900ms linear infinite;
+}
+
+.assistant-state-eyebrow {
+  margin: 0;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.assistant-state h1 {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(1.65rem, 5vw, 2.3rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+
+.assistant-state p {
+  margin: 0;
+  max-width: 420px;
+  color: #53657d;
+  line-height: 1.65;
+}
+
 .chat-container {
   position: relative;
   width: min(100%, 428px);
@@ -117,6 +239,15 @@ body.embedded .app-shell {
   box-shadow: var(--shadow-main);
   overflow: hidden;
   animation: riseIn 600ms ease;
+}
+
+html.vonza-mode-page .chat-container {
+  width: min(100%, 780px);
+  min-height: min(760px, calc(100vh - 230px));
+  border-radius: 8px;
+  border: 1px solid rgba(122, 139, 160, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(34, 49, 66, 0.14);
 }
 
 .chat-container::before {
@@ -149,6 +280,12 @@ body.embedded .chat-container {
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.24), transparent 28%),
     linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
   color: var(--text-white);
+}
+
+html.vonza-mode-page .chat-header {
+  padding: 22px 24px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 94%, #0f766e 6%) 0%, var(--brand-secondary) 100%);
 }
 
 .brand {
@@ -958,6 +1095,12 @@ input:focus-visible {
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 720px) {
   .app-shell {
     padding: 14px;
@@ -1003,6 +1146,25 @@ input:focus-visible {
   .identity-email-actions button,
   .lead-capture-actions button {
     width: 100%;
+  }
+
+  html.vonza-mode-page .app-shell {
+    padding: 20px 12px 24px;
+    gap: 16px;
+  }
+
+  html.vonza-mode-page .chat-container {
+    width: 100%;
+    min-height: calc(100vh - 190px);
+    border-radius: 8px;
+  }
+
+  html.vonza-mode-page .page-assistant-hero {
+    text-align: left;
+  }
+
+  html.vonza-mode-page .page-assistant-hero p:last-child {
+    margin-left: 0;
   }
 }
 

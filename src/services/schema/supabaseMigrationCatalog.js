@@ -226,6 +226,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped activation wizard progress for the first-value setup path.",
   }),
+  Object.freeze({
+    id: "messages_display_mode",
+    version: "20260513000000",
+    name: "messages_display_mode",
+    file: "supabase/migrations/20260513000000_messages_display_mode.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds page/widget display mode metadata to persisted public assistant messages.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

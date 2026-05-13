@@ -114,6 +114,7 @@ create table if not exists public.messages (
   visitor_identity_mode text,
   visitor_email text,
   visitor_name text,
+  display_mode text not null default 'widget',
   created_at timestamp with time zone default now()
 );
 

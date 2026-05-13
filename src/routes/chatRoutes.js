@@ -11,6 +11,10 @@ import { trackProductEvent } from "../services/analytics/productEventService.js"
 import { enforceChatRateLimit } from "../utils/httpGuards.js";
 import { cleanText } from "../utils/text.js";
 
+function normalizePublicDisplayMode(value) {
+  return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
 export function createChatRouter(deps = {}) {
   const router = express.Router();
   const getSupabase = deps.getSupabaseClient || getSupabaseClient;
@@ -56,6 +60,9 @@ export function createChatRouter(deps = {}) {
 
   router.post("/chat", enforceChatRateLimit, async (req, res) => {
     try {
+      const displayMode = normalizePublicDisplayMode(
+        req.body.display_mode || req.body.displayMode || req.body.mode
+      );
       const result = await handleChatRequestImpl({
         supabase: getSupabase(),
         openai: getOpenAI,
@@ -65,12 +72,13 @@ export function createChatRouter(deps = {}) {
         agentId: result?.agentId,
         installId: req.body.install_id || req.body.installId,
         eventName: "first_widget_chat",
-        source: "public_widget",
+        source: displayMode === "page" ? "public_page" : "public_widget",
         metadata: {
+          display_mode: displayMode,
           lead_capture_state: result?.leadCapture?.state || "",
           direct_routing_mode: result?.directRouting?.mode || "",
         },
-        dedupeKey: `first_widget_chat:${result?.agentId || ""}`,
+        dedupeKey: `first_widget_chat:${displayMode}:${result?.agentId || ""}`,
       });
 
       res.json(result);
@@ -84,6 +92,9 @@ export function createChatRouter(deps = {}) {
 
   router.post("/chat/capture", enforceChatRateLimit, async (req, res) => {
     try {
+      const displayMode = normalizePublicDisplayMode(
+        req.body.display_mode || req.body.displayMode || req.body.mode
+      );
       const result = await handleLeadCaptureRequestImpl({
         supabase: getSupabase(),
         body: req.body,
@@ -95,10 +106,11 @@ export function createChatRouter(deps = {}) {
           eventName: "first_lead_captured",
           source: "lead_capture",
           metadata: {
+            display_mode: displayMode,
             state: result.leadCapture.state,
             preferred_channel: result.leadCapture.preferredChannel || "",
           },
-          dedupeKey: `first_lead_captured:${result.agentId}`,
+          dedupeKey: `first_lead_captured:${displayMode}:${result.agentId}`,
         });
       }
 
@@ -113,6 +125,9 @@ export function createChatRouter(deps = {}) {
 
   router.post("/chat/feedback", enforceChatRateLimit, async (req, res) => {
     try {
+      const displayMode = normalizePublicDisplayMode(
+        req.body.display_mode || req.body.displayMode || req.body.mode
+      );
       const result = await recordVisitorReplyFeedbackImpl(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
         agentId: req.body.agent_id || req.body.agentId,
@@ -121,6 +136,7 @@ export function createChatRouter(deps = {}) {
         websiteUrl: req.body.website_url || req.body.websiteUrl,
         origin: req.body.origin,
         pageUrl: req.body.page_url || req.body.pageUrl,
+        displayMode,
         sessionKey: req.body.session_key || req.body.sessionKey,
         assistantMessageKey: req.body.assistant_message_key || req.body.assistantMessageKey,
         rating: req.body.rating,
@@ -133,9 +149,10 @@ export function createChatRouter(deps = {}) {
           eventName: result?.feedback?.rating === "helpful" ? "first_helpful_feedback" : "first_not_helpful_feedback",
           source: "reply_feedback",
           metadata: {
+            display_mode: displayMode,
             rating: result?.feedback?.rating || "",
           },
-          dedupeKey: `first_${result?.feedback?.rating === "helpful" ? "helpful" : "not_helpful"}_feedback:${result?.feedback?.agentId || ""}`,
+          dedupeKey: `first_${result?.feedback?.rating === "helpful" ? "helpful" : "not_helpful"}_feedback:${displayMode}:${result?.feedback?.agentId || ""}`,
         });
       }
 

@@ -102,7 +102,12 @@ function createFakeElement(id = "") {
   };
 }
 
-function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {}, initialLocalStorage = {} } = {}) {
+function createWidgetHarness({
+  customFetch = null,
+  widgetRuntimeConfig = {},
+  initialLocalStorage = {},
+  location = {},
+} = {}) {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -150,13 +155,44 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {}, ini
     "welcome-brand-v",
     "powered-by",
     "chat",
+    "chat-container",
+    "assistant-loading-state",
+    "assistant-unavailable-state",
+    "assistant-unavailable-title",
+    "assistant-unavailable-copy",
+    "page-assistant-hero",
+    "page-business-name",
+    "page-assistant-name",
+    "page-assistant-subtitle",
   ].forEach((id) => getElement(id));
 
+  [
+    "assistant-loading-state",
+    "assistant-unavailable-state",
+    "page-assistant-hero",
+  ].forEach((id) => {
+    getElement(id).hidden = true;
+  });
+
+  const documentElement = createFakeElement("documentElement");
   const document = {
     body: createFakeElement("body"),
     documentElement: {
+      ...documentElement,
       classList: {
-        add() {},
+        ...documentElement.classList,
+        add(...tokens) {
+          documentElement.classList.add(...tokens);
+        },
+        remove(...tokens) {
+          documentElement.classList.remove(...tokens);
+        },
+        toggle(token, force) {
+          return documentElement.classList.toggle(token, force);
+        },
+        contains(token) {
+          return documentElement.classList.contains(token);
+        },
       },
       style: {
         setProperty() {},
@@ -176,6 +212,10 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {}, ini
 
       if (selector === ".welcome-brand-mark") {
         return getElement("welcome-brand-mark");
+      }
+
+      if (selector === ".chat-container") {
+        return getElement("chat-container");
       }
 
       if (selector === 'meta[name="apple-mobile-web-app-title"]') {
@@ -218,9 +258,10 @@ function createWidgetHarness({ customFetch = null, widgetRuntimeConfig = {}, ini
     URLSearchParams,
     window: {
       location: {
-        search: "",
-        href: "https://example.com/widget",
-        origin: "https://example.com",
+        search: location.search || "",
+        pathname: location.pathname || "/widget",
+        href: location.href || `https://example.com${location.pathname || "/widget"}${location.search || ""}`,
+        origin: location.origin || "https://example.com",
       },
       localStorage,
       sessionStorage: createStorage(),
@@ -335,10 +376,118 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   const harness = createWidgetHarness();
 
   assert.equal(harness.hooks.getWidgetPhase(), "entry");
+  assert.equal(harness.hooks.getDisplayMode(), "widget");
   assert.equal(harness.elements.get("entry-state").hidden, false);
   assert.equal(harness.elements.get("chat-state").hidden, true);
   assert.equal(harness.elements.get("welcome-panel").hidden, false);
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
+});
+
+test("explicit widget mode keeps the widget shell as the default display", () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?mode=widget&agent_id=agent-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?mode=widget&agent_id=agent-1",
+    },
+  });
+
+  assert.equal(harness.hooks.getDisplayMode(), "widget");
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, true);
+  assert.equal(harness.elements.get("assistant-loading-state").hidden, true);
+  assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
+  assert.equal(harness.elements.get("entry-state").hidden, false);
+});
+
+test("page mode waits for a real assistant before showing the chat shell", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        assert.match(url, /mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Ask us anything about Acme.",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("assistant-loading-state").hidden, false);
+  assert.equal(harness.elements.get("chat-container").hidden, true);
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("assistant-loading-state").hidden, true);
+  assert.equal(harness.elements.get("chat-container").hidden, false);
+  assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(harness.elements.get("page-business-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Assistant");
+  assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "Ask us anything about Acme.");
+});
+
+test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/a/acme-desk",
+      href: "https://example.com/a/acme-desk",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+      assert.match(url, /agent_key=acme-desk/);
+      assert.match(url, /mode=page/);
+      return {
+        ok: false,
+        status: 404,
+        async json() {
+          return { error: "Agent not found" };
+        },
+      };
+    },
+  });
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("assistant-loading-state").hidden, true);
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, true);
+  assert.equal(harness.elements.get("assistant-unavailable-state").hidden, false);
+  assert.equal(harness.elements.get("assistant-unavailable-title").textContent, "This assistant is not available right now.");
+  assert.doesNotMatch(harness.elements.get("assistant-unavailable-copy").textContent, /agent_id|widget config|API/i);
 });
 
 test("fresh widget does not render the chat intro or composer before identity is chosen", () => {
@@ -665,9 +814,18 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(style, /\.vonza-message-body/);
   assert.match(style, /overflow-wrap:\s*break-word/);
   assert.match(widget, /id="quick-replies"/);
+  assert.match(widget, /id="assistant-loading-state"/);
+  assert.match(widget, /id="assistant-unavailable-state"/);
+  assert.match(widget, /id="page-assistant-hero"/);
+  assert.match(widget, /href="\/style\.css"/);
+  assert.match(widget, /src="\/script\.js"/);
+  assert.doesNotMatch(widget, /class="launcher"/);
   assert.match(script, /QUICK_REPLY_TOPICS/);
+  assert.match(script, /DISPLAY_MODE/);
   assert.match(style, /\.quick-reply-chip/);
   assert.match(style, /\.reply-feedback/);
+  assert.match(style, /\.vonza-mode-widget/);
+  assert.match(style, /\.vonza-mode-page/);
   assert.match(script, /chat\/feedback/);
   assert.match(style, /@media \(max-width: 720px\)/);
   assert.match(style, /@media \(max-width: 420px\)/);

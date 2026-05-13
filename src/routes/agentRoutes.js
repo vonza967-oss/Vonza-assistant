@@ -468,6 +468,7 @@ export function createAgentRouter(deps = {}) {
         websiteUrl: req.query.website_url || req.query.websiteUrl,
         origin: req.query.origin,
         pageUrl: req.query.page_url || req.query.pageUrl,
+        displayMode: req.query.display_mode || req.query.displayMode || req.query.mode,
       });
 
       res.setHeader("Cache-Control", "private, max-age=60, stale-while-revalidate=300");

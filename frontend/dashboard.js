@@ -2549,6 +2549,25 @@ function buildWidgetUrl(agentKey) {
   return `${getPublicAppUrl()}/widget?agent_key=${encodeURIComponent(agentKey)}`;
 }
 
+function buildFullPageAssistantUrl(agent = {}) {
+  const agentKey = trimText(agent.publicAgentKey);
+
+  if (agentKey) {
+    return `${getPublicAppUrl()}/a/${encodeURIComponent(agentKey)}`;
+  }
+
+  const url = new URL("/widget", getPublicAppUrl());
+  url.searchParams.set("mode", "page");
+  if (trimText(agent.id)) {
+    url.searchParams.set("agent_id", agent.id);
+  }
+  return url.toString();
+}
+
+function buildFullPageAssistantIframe(agent = {}) {
+  return `<iframe src="${buildFullPageAssistantUrl(agent)}" title="AI assistant" style="width:100%;min-height:720px;border:0;" loading="lazy"><\/iframe>`;
+}
+
 function buildPreviewMarkup(installId) {
   const publicAppUrl = getPublicAppUrl();
   return `<!DOCTYPE html>
@@ -14055,6 +14074,8 @@ function buildInstallSection(agent, options = {}) {
   const hasInstall = Boolean(trimText(agent.installId));
   const progress = getInstallProgress(agent.id);
   const script = hasInstall ? buildScript(agent) : "";
+  const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+  const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
@@ -14191,43 +14212,66 @@ function buildInstallSection(agent, options = {}) {
         </div>
       `).join("")}
     </div>
-    <div class="install-steps" aria-label="Install actions">
-      <div class="install-step">
-        <div class="install-step-number">A</div>
-        <div>
-          <p class="install-step-title">${escapeHtml(t("install.copyCode"))}</p>
-          <p class="install-step-copy">Use the stable head snippet with your install id so Vonza can verify the right site.</p>
+    <div class="install-options-grid">
+      <section class="install-option-card">
+        <p class="install-option-eyebrow">A. Website widget</p>
+        <h3 class="install-option-title">Add Vonza to your website</h3>
+        <p class="install-option-copy">Use the current launcher and popup widget on every page where visitors need help.</p>
+        <div class="install-steps" aria-label="Website widget install actions">
+          <div class="install-step">
+            <div class="install-step-number">A</div>
+            <div>
+              <p class="install-step-title">${escapeHtml(t("install.copyCode"))}</p>
+              <p class="install-step-copy">Use the stable head snippet with your install id so Vonza can verify the right site.</p>
+            </div>
+            <div class="step-check ${progress.codeCopied ? "done" : ""}">${progress.codeCopied ? "Done" : "Pending"}</div>
+          </div>
+          <div class="install-step">
+            <div class="install-step-number">B</div>
+            <div>
+              <p class="install-step-title">${escapeHtml(t("install.publish"))}</p>
+              <p class="install-step-copy">Paste it into the live site head, theme layout, or global custom code area.</p>
+            </div>
+            <div class="step-check ${publishDone ? "done" : ""}">${publishDone ? "Detected" : "Pending"}</div>
+          </div>
+          <div class="install-step">
+            <div class="install-step-number">C</div>
+            <div>
+              <p class="install-step-title">${escapeHtml(t("install.verify"))}</p>
+              <p class="install-step-copy">Run the server check, then wait for the widget to ping back from a real page load.</p>
+            </div>
+            <div class="step-check ${verifyDone ? "done" : ""}">${verifyDone ? "Ready" : "Pending"}</div>
+          </div>
         </div>
-        <div class="step-check ${progress.codeCopied ? "done" : ""}">${progress.codeCopied ? "Done" : "Pending"}</div>
-      </div>
-      <div class="install-step">
-        <div class="install-step-number">B</div>
-        <div>
-          <p class="install-step-title">${escapeHtml(t("install.publish"))}</p>
-          <p class="install-step-copy">Paste it into the live site head, theme layout, or global custom code area.</p>
+        <div class="install-cta-row">
+          <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>
+          <button class="ghost-button" data-action="copy-install-instructions" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstructions"))}</button>
+          <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
+          <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(t("install.testFrontDesk"))}</a>
         </div>
-        <div class="step-check ${publishDone ? "done" : ""}">${publishDone ? "Detected" : "Pending"}</div>
-      </div>
-      <div class="install-step">
-        <div class="install-step-number">C</div>
-        <div>
-          <p class="install-step-title">${escapeHtml(t("install.verify"))}</p>
-          <p class="install-step-copy">Run the server check, then wait for the widget to ping back from a real page load.</p>
+        <p class="install-help">${hasInstall ? "Keep it simple: place the script in the live site head. Vonza will verify the snippet server-side and mark the install live once a real page load pings back." : "Install will be available as soon as your front desk has a live install id."}</p>
+        <details class="code-toggle">
+          <summary>View code</summary>
+          <textarea id="install-script-output" readonly>${script}</textarea>
+        </details>
+      </section>
+      <section class="install-option-card">
+        <p class="install-option-eyebrow">B. Full-page assistant</p>
+        <h3 class="install-option-title">Share a dedicated assistant page</h3>
+        <p class="install-option-copy">Use this as a support page, booking/help page, menu link, or QR code destination.</p>
+        <div class="install-copy-field">
+          <label for="full-page-assistant-url">Full-page URL</label>
+          <textarea id="full-page-assistant-url" readonly>${escapeHtml(fullPageUrl)}</textarea>
+          <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
         </div>
-        <div class="step-check ${verifyDone ? "done" : ""}">${verifyDone ? "Ready" : "Pending"}</div>
-      </div>
+        <div class="install-copy-field">
+          <label for="full-page-assistant-iframe">Iframe snippet</label>
+          <textarea id="full-page-assistant-iframe" readonly>${escapeHtml(fullPageIframe)}</textarea>
+          <button class="ghost-button" type="button" data-action="copy-full-page-iframe" ${fullPageIframe ? "" : "disabled"}>Copy iframe snippet</button>
+        </div>
+        <p class="install-help">QR code generation is not available in this dashboard yet. TODO: add a lightweight QR option for the full-page URL.</p>
+      </section>
     </div>
-    <div class="install-cta-row">
-      <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>
-      <button class="ghost-button" data-action="copy-install-instructions" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstructions"))}</button>
-      <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
-      <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(t("install.testFrontDesk"))}</a>
-    </div>
-    <p class="install-help">${hasInstall ? "Keep it simple: place the script in the live site head. Vonza will verify the snippet server-side and mark the install live once a real page load pings back." : "Install will be available as soon as your front desk has a live install id."}</p>
-    <details class="code-toggle">
-      <summary>View code</summary>
-      <textarea id="install-script-output" readonly>${script}</textarea>
-    </details>
   `;
 }
 
@@ -15414,6 +15458,48 @@ async function copyInstallInstructions(agent) {
   await refreshAgentInstallState(agent.id);
 }
 
+async function copyDashboardText(value, successMessage, fallbackElementId = "") {
+  const text = trimText(value);
+
+  if (!text) {
+    setStatus("There is nothing to copy yet.");
+    return false;
+  }
+
+  try {
+    await navigator.clipboard.writeText(text);
+    setStatus(successMessage);
+    return true;
+  } catch (_error) {
+    const textarea = fallbackElementId ? document.getElementById(fallbackElementId) : null;
+    if (textarea) {
+      textarea.select();
+      document.execCommand("copy");
+      setStatus(successMessage);
+      return true;
+    }
+
+    setStatus("We couldn't copy that text.");
+    return false;
+  }
+}
+
+async function copyFullPageAssistantUrl(agent) {
+  await copyDashboardText(
+    buildFullPageAssistantUrl(agent),
+    "Full-page assistant URL copied.",
+    "full-page-assistant-url"
+  );
+}
+
+async function copyFullPageAssistantIframe(agent) {
+  await copyDashboardText(
+    buildFullPageAssistantIframe(agent),
+    "Full-page assistant iframe copied.",
+    "full-page-assistant-iframe"
+  );
+}
+
 function getPreviewFrame() {
   return document.getElementById("preview-frame");
 }
@@ -15808,6 +15894,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const importButtons = document.querySelectorAll('[data-action="import-knowledge"]');
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
+  const copyFullPageUrlButtons = document.querySelectorAll('[data-action="copy-full-page-url"]');
+  const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
   const verifyInstallButtons = document.querySelectorAll('[data-action="verify-install"]');
   const previewLinks = document.querySelectorAll('[data-action="open-preview"]');
   const resetPreviewButton = document.querySelector('[data-action="reset-preview"]');
@@ -18341,6 +18429,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   copyInstructionsButtons.forEach((button) => {
     button.addEventListener("click", () => copyInstallInstructions(agent));
+  });
+
+  copyFullPageUrlButtons.forEach((button) => {
+    button.addEventListener("click", () => copyFullPageAssistantUrl(agent));
+  });
+
+  copyFullPageIframeButtons.forEach((button) => {
+    button.addEventListener("click", () => copyFullPageAssistantIframe(agent));
   });
 
   verifyInstallButtons.forEach((button) => {

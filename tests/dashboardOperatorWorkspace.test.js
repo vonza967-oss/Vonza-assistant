@@ -2645,6 +2645,13 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /Widget detected \/ verified/);
   assert.match(markup, /First test conversation complete/);
   assert.match(markup, /Verify installation/);
+  assert.match(markup, /A\. Website widget/);
+  assert.match(markup, /B\. Full-page assistant/);
+  assert.match(markup, /Use this as a support page, booking\/help page, menu link, or QR code destination\./);
+  assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
+  assert.match(markup, /data-action="copy-full-page-url"/);
+  assert.match(markup, /data-action="copy-full-page-iframe"/);
+  assert.match(markup, /QR code generation is not available/);
 });
 
 test("analytics customer-question summaries stay specific without copying chat text", () => {

@@ -15,6 +15,19 @@ function isMissingMessagesSchemaError(error) {
   );
 }
 
+function isMissingDisplayModeColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    message.includes("display_mode")
+  );
+}
+
+function normalizeDisplayMode(value) {
+  return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
 function buildMissingMessagesSchemaError(phase = "request") {
   const error = new Error(
     `[${phase}] Missing required message persistence schema for '${MESSAGES_TABLE}'. Apply the latest database migration before running this build.`
@@ -43,6 +56,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   const normalizedAgentId = cleanText(agentId);
   const normalizedSessionKey = cleanText(options.sessionKey);
   const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
+  const displayMode = normalizeDisplayMode(options.displayMode || options.display_mode);
   const seenEntries = new Set();
   const payload = entries
     .map((entry) => ({
@@ -53,6 +67,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
       visitor_identity_mode: visitorIdentity.mode || null,
       visitor_email: visitorIdentity.email || null,
       visitor_name: visitorIdentity.name || null,
+      display_mode: normalizeDisplayMode(entry.displayMode || entry.display_mode || displayMode),
       created_at: entry.createdAt || entry.created_at || new Date().toISOString(),
     }))
     .filter((entry) => {
@@ -74,10 +89,17 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     return;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(MESSAGES_TABLE)
     .insert(payload)
-    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at");
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at");
+
+  if (error && isMissingDisplayModeColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(MESSAGES_TABLE)
+      .insert(payload.map(({ display_mode: _displayMode, ...entry }) => entry))
+      .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at"));
+  }
 
   if (error) {
     if (isMissingMessagesSchemaError(error)) {
@@ -97,6 +119,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     visitorIdentityMode: row.visitor_identity_mode || null,
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
+    displayMode: normalizeDisplayMode(row.display_mode),
     createdAt: row.created_at,
   }));
 }
@@ -110,12 +133,21 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
     throw error;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(MESSAGES_TABLE)
-    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at")
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at")
     .eq("agent_id", normalizedAgentId)
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (error && isMissingDisplayModeColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(MESSAGES_TABLE)
+      .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at")
+      .eq("agent_id", normalizedAgentId)
+      .order("created_at", { ascending: false })
+      .limit(50));
+  }
 
   if (error) {
     if (isMissingMessagesSchemaError(error)) {
@@ -135,6 +167,7 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
     visitorIdentityMode: row.visitor_identity_mode || null,
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
+    displayMode: normalizeDisplayMode(row.display_mode),
     createdAt: row.created_at,
   }));
 }

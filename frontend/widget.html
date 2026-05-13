@@ -11,19 +11,44 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icon-192.svg">
   <script>
-    if (new URLSearchParams(window.location.search).get("embedded") === "1") {
+    const vonzaInitialParams = new URLSearchParams(window.location.search);
+    const vonzaAssistantPathMatch = window.location.pathname.match(/^\/(?:a|assistant)\/([^/?#]+)/);
+    const vonzaInitialMode = vonzaInitialParams.get("mode") === "page" || vonzaAssistantPathMatch
+      ? "page"
+      : "widget";
+    document.documentElement.classList.add(`vonza-mode-${vonzaInitialMode}`);
+    if (vonzaInitialParams.get("embedded") === "1") {
       document.documentElement.classList.add("embedded-mode");
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="app-shell">
     <div class="ambient ambient-left"></div>
     <div class="ambient ambient-right"></div>
+
+    <section id="assistant-loading-state" class="assistant-state assistant-loading-state" hidden>
+      <div class="assistant-state-spinner" aria-hidden="true"></div>
+      <p class="assistant-state-eyebrow">Opening assistant</p>
+      <h1>Getting everything ready.</h1>
+      <p>One moment while the assistant loads.</p>
+    </section>
+
+    <section id="assistant-unavailable-state" class="assistant-state assistant-unavailable-state" hidden>
+      <p class="assistant-state-eyebrow">Assistant unavailable</p>
+      <h1 id="assistant-unavailable-title">This assistant is not available right now.</h1>
+      <p id="assistant-unavailable-copy">Please check the link or try again later.</p>
+    </section>
+
+    <section id="page-assistant-hero" class="page-assistant-hero" hidden>
+      <p class="page-assistant-eyebrow" id="page-business-name">Customer support</p>
+      <h1 id="page-assistant-name">Vonza AI</h1>
+      <p id="page-assistant-subtitle">Ask a question and get a clear answer.</p>
+    </section>
 
     <main class="chat-container">
       <header class="chat-header">
@@ -156,6 +181,6 @@
     </main>
   </div>
 
-  <script src="./script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>

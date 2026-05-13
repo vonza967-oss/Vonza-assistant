@@ -47,6 +47,10 @@ function hasLimitedKnowledge(websiteContent) {
   );
 }
 
+function normalizePublicDisplayMode(value) {
+  return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
 function stripRawAssetUrls(reply = "") {
   return normalizeAssistantReply(
     String(reply || "")
@@ -203,6 +207,7 @@ async function buildChatResponse({
   leadCapture = null,
   directRouting = null,
   visitorIdentity = null,
+  displayMode = "widget",
   storeUserMessage = true,
   userMessageCreatedAt = null,
   storeMessages = storeAgentMessages,
@@ -215,6 +220,7 @@ async function buildChatResponse({
   await storeMessages(supabase, agent.id, entries, {
     sessionKey,
     visitorIdentity,
+    displayMode,
   });
 
   return {
@@ -263,6 +269,7 @@ export async function handleChatRequest({
   const installId = cleanText(body.install_id || body.installId || "");
   const pageUrl = cleanText(body.page_url || body.pageUrl || "");
   const origin = cleanText(body.origin || "");
+  const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
   const history = sanitizeChatHistory(body.history);
   const visitorIdentity = normalizeVisitorIdentity({
     ...(body.visitor_identity || {}),
@@ -297,6 +304,7 @@ export async function handleChatRequest({
     origin,
     pageUrl,
     businessName: body.name,
+    displayMode,
   });
   const agentWithBusinessContext = {
     ...agent,
@@ -343,6 +351,7 @@ export async function handleChatRequest({
       visitorIdentity,
       userMessageCreatedAt,
       storeMessages: storeMessagesImpl,
+      displayMode,
     });
   }
 
@@ -362,6 +371,7 @@ export async function handleChatRequest({
       sessionKey,
       visitorIdentity,
       storeMessages: storeMessagesImpl,
+      displayMode,
     });
   }
 
@@ -384,6 +394,7 @@ export async function handleChatRequest({
       sessionKey,
       visitorIdentity,
       storeMessages: storeMessagesImpl,
+      displayMode,
     });
   }
 
@@ -548,6 +559,7 @@ export async function handleChatRequest({
     visitorIdentity,
     userMessageCreatedAt,
     storeMessages: storeMessagesImpl,
+    displayMode,
   });
 }
 
@@ -563,6 +575,7 @@ export async function handleLeadCaptureRequest({
   const installId = cleanText(body.install_id || body.installId || "");
   const pageUrl = cleanText(body.page_url || body.pageUrl || "");
   const origin = cleanText(body.origin || "");
+  const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
   const action = cleanText(body.action).toLowerCase();
   const referenceMessage = cleanText(body.reference_message || body.referenceMessage || "");
   const language = detectResponseLanguage(referenceMessage);
@@ -594,6 +607,7 @@ export async function handleLeadCaptureRequest({
     origin,
     pageUrl,
     businessName: body.name,
+    displayMode,
   });
 
   const leadCapture = await applyLeadCaptureAction(supabase, {

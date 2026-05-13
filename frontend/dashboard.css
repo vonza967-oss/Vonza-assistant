@@ -6763,6 +6763,66 @@ body {
   margin-top: 16px;
 }
 
+.install-options-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.install-option-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: var(--surface-highlight);
+}
+
+.install-option-eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.install-option-title {
+  margin: 0;
+  color: white;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+}
+
+.install-option-copy {
+  margin: 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.install-copy-field {
+  display: grid;
+  gap: 8px;
+}
+
+.install-copy-field label {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.install-copy-field textarea {
+  min-height: 82px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .install-next-step {
   margin-top: 16px;
   padding: 16px;
@@ -7688,6 +7748,7 @@ body {
   .settings-summary-grid,
   .frontdesk-page-layout,
   .install-page-layout,
+  .install-options-grid,
   .settings-layout,
   .results-workspace,
   .results-secondary-grid {
@@ -9158,6 +9219,7 @@ body {
 .workspace-page .frontdesk-detail-kicker,
 .workspace-page .frontdesk-detail-row-label,
 .workspace-page .frontdesk-step-label,
+.workspace-page .install-copy-field label,
 .workspace-page .action-queue-filter-label,
 .workspace-page .action-queue-control-label,
 .workspace-page .action-queue-detail-label,
@@ -9204,6 +9266,7 @@ body {
 .workspace-page .frontdesk-preview-frame-title,
 .workspace-page .frontdesk-step-title,
 .workspace-page .frontdesk-detail-row-value,
+.workspace-page .install-option-title,
 .workspace-page .install-step-title,
 .workspace-page .section-heading,
 .workspace-page .settings-section-title,
@@ -9255,6 +9318,7 @@ body {
 .workspace-page .frontdesk-detail-copy,
 .workspace-page .frontdesk-step-copy,
 .workspace-page .frontdesk-support-copy,
+.workspace-page .install-option-copy,
 .workspace-page .install-step-copy,
 .workspace-page .install-help,
 .workspace-page .install-upcoming,
@@ -9989,6 +10053,7 @@ html[data-dashboard-theme="dark"] .frontdesk-detail-title,
 html[data-dashboard-theme="dark"] .frontdesk-support-title,
 html[data-dashboard-theme="dark"] .frontdesk-preview-frame-title,
 html[data-dashboard-theme="dark"] .frontdesk-step-title,
+html[data-dashboard-theme="dark"] .install-option-title,
 html[data-dashboard-theme="dark"] .install-step-title,
 html[data-dashboard-theme="dark"] .studio-group-title,
 html[data-dashboard-theme="dark"] .field label {
@@ -10022,6 +10087,7 @@ html[data-dashboard-theme="dark"] .frontdesk-section-copy,
 html[data-dashboard-theme="dark"] .frontdesk-detail-copy,
 html[data-dashboard-theme="dark"] .frontdesk-step-copy,
 html[data-dashboard-theme="dark"] .frontdesk-support-copy,
+html[data-dashboard-theme="dark"] .install-option-copy,
 html[data-dashboard-theme="dark"] .install-step-copy,
 html[data-dashboard-theme="dark"] .studio-group-copy,
 html[data-dashboard-theme="dark"] .field-help {
@@ -11481,6 +11547,7 @@ textarea::placeholder {
 .frontdesk-step,
 .frontdesk-preview-guide,
 .frontdesk-preview-frame-shell,
+.install-option-card,
 .install-step,
 .knowledge-improvement-item,
 .overview-list-item,

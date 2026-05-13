@@ -119,13 +119,15 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "visitor_identity_mode",
       "visitor_email",
       "visitor_name",
+      "display_mode",
       "created_at",
     ],
     migrationFiles: [
       SUPABASE_MIGRATION_FILE_BY_ID.messages_visitor_identity,
       SUPABASE_MIGRATION_FILE_BY_ID.message_visitor_identity_fields,
+      SUPABASE_MIGRATION_FILE_BY_ID.messages_display_mode,
     ],
-    migrationColumns: ["session_key", "visitor_identity_mode", "visitor_email", "visitor_name"],
+    migrationColumns: ["session_key", "visitor_identity_mode", "visitor_email", "visitor_name", "display_mode"],
   },
   user_dashboard_preferences: {
     requiredColumns: [
