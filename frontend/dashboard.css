@@ -6853,20 +6853,6 @@ body {
   color: var(--dashboard-muted);
 }
 
-.knowledge-improvement-center {
-  display: grid;
-  gap: 14px;
-}
-
-.knowledge-improvement-item {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
 .install-help {
   margin-top: 14px;
   color: var(--soft);
@@ -11549,7 +11535,6 @@ textarea::placeholder {
 .frontdesk-preview-frame-shell,
 .install-option-card,
 .install-step,
-.knowledge-improvement-item,
 .overview-list-item,
 .analytics-item,
 .results-list-item,

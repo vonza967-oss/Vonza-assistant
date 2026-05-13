@@ -496,7 +496,7 @@ test("dashboard Home renders one command-center action strip with workflow links
   assert.match(html, /Home command center/);
   assert.match(html, /Do this now/);
   assert.match(html, /Customers \/ Follow-Ups/);
-  assert.match(html, /Knowledge Improvement/);
+  assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.match(html, /Settings \/ Privacy/);
   assert.match(html, /Review customers, replies, and follow-up status/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);

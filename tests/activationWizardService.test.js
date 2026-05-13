@@ -271,7 +271,7 @@ test("install verified state confirms the owner is live", () => {
   assert.match(installStep.copy, /You are live/i);
 });
 
-test("weak test state routes to Knowledge Improvement", () => {
+test("weak test state routes to Analytics", () => {
   const wizard = buildActivationWizardState({
     agent: buildAgent({
       name: "Improve Co",
@@ -305,5 +305,6 @@ test("weak test state routes to Knowledge Improvement", () => {
   });
 
   assert.equal(wizard.currentStep, "test_improve");
-  assert.equal(wizard.nextAction.target, "knowledge_improvement");
+  assert.equal(wizard.nextAction.target, "analytics");
+  assert.equal(wizard.nextAction.action, "open_analytics");
 });

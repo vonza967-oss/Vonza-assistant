@@ -1168,8 +1168,8 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
   assert.match(overview, /This customer is close to booking and should not wait on AI alone/);
   assert.match(overview, /Customers \/ Follow-Ups/);
   assert.match(overview, /data-target-id="human-follow-ups"/);
-  assert.match(overview, /Knowledge Improvement/);
-  assert.match(overview, /data-target-id="knowledge-improvement"/);
+  assert.doesNotMatch(overview, /Knowledge Improvement/);
+  assert.doesNotMatch(overview, /data-target-id="knowledge-improvement"/);
   assert.match(overview, /Notifications/);
   assert.match(overview, /data-target-id="notifications"/);
   assert.match(overview, /Setup progress/);
@@ -2557,7 +2557,7 @@ test("analytics surfaces feedback recovery and owner-visible notifications", () 
   assert.match(analyticsPanel, /50% negative/);
 });
 
-test("knowledge improvement center renders editable feedback-backed knowledge fixes", () => {
+test("analytics panel omits standalone knowledge improvement center", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -2611,12 +2611,10 @@ test("knowledge improvement center renders editable feedback-backed knowledge fi
     actionQueue
   );
 
-  assert.match(analyticsPanel, /Knowledge Improvement/);
-  assert.match(analyticsPanel, /How much does emergency service cost/);
-  assert.match(analyticsPanel, /Owner-approved guidance/);
-  assert.match(analyticsPanel, /Approve fix/);
-  assert.match(analyticsPanel, /avoid inventing business facts/i);
-  assert.match(analyticsPanel, /Do not add guessed prices/i);
+  assert.doesNotMatch(analyticsPanel, /id="knowledge-improvement"/);
+  assert.doesNotMatch(analyticsPanel, /data-knowledge-improvement-center/);
+  assert.doesNotMatch(analyticsPanel, /Close the weak-answer loop/);
+  assert.doesNotMatch(analyticsPanel, /How much does emergency service cost/);
 });
 
 test("install section shows live confirmation and customer-loop next step", () => {

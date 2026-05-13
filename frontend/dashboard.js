@@ -4183,7 +4183,6 @@ function buildSidebarShell(
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
   const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
   const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const workspaceStatus = setup.isReady ? "Ready to use" : "Getting started";
   const knowledgeStatus = setup.knowledgeReady
@@ -4213,15 +4212,6 @@ function buildSidebarShell(
       note: "People who need replies, follow-ups, or decisions.",
       badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
       badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
-    },
-    {
-      key: "knowledge_improvement",
-      target: "analytics",
-      targetId: "knowledge-improvement",
-      label: t("nav.knowledgeImprovement"),
-      note: "Weak answers and not-helpful feedback ready for review.",
-      badge: knowledgeOpen > 0 ? String(knowledgeOpen) : "",
-      badgeTone: knowledgeOpen > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "customize",
@@ -7566,7 +7556,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
   const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
   const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const commandLinks = [
     {
@@ -7575,13 +7564,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       target: "analytics",
       targetId: "human-follow-ups",
       count: humanFollowUpOpen,
-    },
-    {
-      label: "Knowledge Improvement",
-      copy: knowledgeOpen ? `${knowledgeOpen} answer fix${knowledgeOpen === 1 ? "" : "es"} need review.` : "No weak-answer fix is waiting.",
-      target: "analytics",
-      targetId: "knowledge-improvement",
-      count: knowledgeOpen,
     },
     {
       label: "Analytics",
@@ -11857,146 +11839,6 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
   `;
 }
 
-function buildKnowledgeImprovementCenterMarkup(actionQueue = createEmptyActionQueue()) {
-  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue) || createEmptyOwnerAnalyticsDashboard();
-  const improvement = ownerAnalyticsDashboard.knowledgeImprovement || createEmptyOwnerAnalyticsDashboard().knowledgeImprovement;
-  const queueItems = Array.isArray(actionQueue.items) ? actionQueue.items : [];
-  const queueByFixId = new Map();
-  const queueByActionKey = new Map();
-
-  queueItems.forEach((item) => {
-    if (item.knowledgeFix?.id) {
-      queueByFixId.set(item.knowledgeFix.id, item);
-    }
-    if (item.key) {
-      queueByActionKey.set(item.key, item);
-    }
-  });
-
-  const queueImprovementItems = queueItems
-    .filter((item) =>
-      item.knowledgeFixSupported === true ||
-      ["knowledge_gap", "unanswered_question"].includes(trimText(item.actionType || item.type))
-    )
-    .map((item) => {
-      const knowledgeFix = item.knowledgeFix && typeof item.knowledgeFix === "object" ? item.knowledgeFix : null;
-      const evidence = knowledgeFix?.evidence && typeof knowledgeFix.evidence === "object" ? knowledgeFix.evidence : {};
-      const workflowStatus = trimText(knowledgeFix?.status || item.status);
-      const mappedStatus = workflowStatus === "applied"
-        ? "approved_fixed"
-        : workflowStatus === "dismissed"
-          ? "dismissed"
-          : ["ready", "failed", "reviewing"].includes(workflowStatus)
-            ? "reviewing"
-            : "new";
-
-      return {
-        id: trimText(knowledgeFix?.id || item.key),
-        actionKey: trimText(item.key),
-        knowledgeFixId: trimText(knowledgeFix?.id),
-        source: knowledgeFix ? "knowledge_fix_workflow" : "action_queue",
-        status: mappedStatus,
-        workflowStatus,
-        question: trimText(evidence.question || item.question || item.snippet) || "A weak or unanswered customer question needs review.",
-        safeSummary: trimText(evidence.question || item.question || item.label) || "Customer question summary is not available yet.",
-        reason: trimText(knowledgeFix?.issueSummary || item.whyFlagged) || "Vonza surfaced this because the answer looked weak, repeated, or unresolved.",
-        currentGap: trimText(evidence.currentResponse || item.reply || evidence.conversationExcerpt) || "No current answer was captured for this item.",
-        suggestedFix: trimText(knowledgeFix?.proposedGuidance || item.suggestedAction) || "Review the conversation and add grounded guidance from verified business knowledge.",
-        occurrenceCount: Math.max(Number(knowledgeFix?.occurrenceCount || item.count || 1), 1),
-        targetLabel: trimText(knowledgeFix?.targetLabel) || "Advanced guidance / system prompt",
-        lastSeenAt: item.lastSeenAt || evidence.lastSeenAt || null,
-      };
-    });
-  const seenImprovementKeys = new Set();
-  const items = [
-    ...queueImprovementItems,
-    ...(Array.isArray(improvement.items) ? improvement.items : []),
-  ].filter((item) => {
-    const key = trimText(item.knowledgeFixId || item.actionKey || item.id || item.question || item.safeSummary).toLowerCase();
-
-    if (!key || seenImprovementKeys.has(key)) {
-      return false;
-    }
-
-    seenImprovementKeys.add(key);
-    return true;
-  }).slice(0, 8);
-  const computedOpenCount = items.filter((item) => ["new", "reviewing"].includes(item.status)).length;
-  const computedApprovedFixedCount = items.filter((item) => item.status === "approved_fixed").length;
-  const computedDismissedCount = items.filter((item) => item.status === "dismissed").length;
-  const itemMarkup = items.map((item) => {
-    const relatedQueueItem = queueByFixId.get(item.knowledgeFixId) || queueByActionKey.get(item.actionKey) || null;
-    const knowledgeFix = relatedQueueItem?.knowledgeFix || null;
-    const knowledgeFixStatus = trimText(knowledgeFix?.status).toLowerCase();
-    const readOnly = knowledgeFixStatus === "applied" || knowledgeFixStatus === "dismissed";
-    const canEdit = Boolean(knowledgeFix?.id) && actionQueue.knowledgeFixWorkflowAvailable !== false && !readOnly;
-    const formId = escapeHtml(knowledgeFix?.id || item.id || item.actionKey || "");
-
-    return `
-      <article class="knowledge-improvement-item">
-        <div class="action-queue-item-top">
-          <div class="action-queue-headline">
-            <div class="action-queue-badges">
-              <span class="${getKnowledgeFixStatusBadgeClass(knowledgeFix?.status || item.status)}">${escapeHtml(getKnowledgeFixStatusLabel(knowledgeFix?.status || item.status))}</span>
-              <span class="pill">${escapeHtml(`${item.occurrenceCount || 1} conversation${Number(item.occurrenceCount || 1) === 1 ? "" : "s"}`)}</span>
-              <span class="pill">${escapeHtml(item.targetLabel || "Advanced guidance")}</span>
-            </div>
-            <h4 class="action-queue-title">${escapeHtml(item.safeSummary || item.question || "Knowledge improvement")}</h4>
-            <p class="action-queue-copy">${escapeHtml(item.reason || "Vonza flagged this for owner review.")}</p>
-          </div>
-        </div>
-        <div class="action-queue-handoff-summary">
-          <div class="action-queue-handoff-item">
-            <span class="action-queue-detail-label">Customer question</span>
-            <strong class="action-queue-detail-value">${escapeHtml(item.question || "No stored question available.")}</strong>
-          </div>
-          <div class="action-queue-handoff-item">
-            <span class="action-queue-detail-label">Current answer gap</span>
-            <strong class="action-queue-detail-value">${escapeHtml(item.currentGap || "No current answer gap captured yet.")}</strong>
-          </div>
-        </div>
-        ${knowledgeFix ? `
-          <form class="action-queue-knowledge-fix-form" data-knowledge-fix-form data-knowledge-fix-id="${formId}" data-action-key="${escapeHtml(relatedQueueItem?.key || item.actionKey || "")}">
-            <div class="field">
-              <label for="knowledge-center-guidance-${formId}">Owner-approved guidance</label>
-              <textarea id="knowledge-center-guidance-${formId}" name="proposed_guidance" ${canEdit ? "" : "disabled"}>${escapeHtml(knowledgeFix.proposedGuidance || item.suggestedFix || "")}</textarea>
-              <p class="field-help">${escapeHtml(readOnly ? "This item is closed. If the issue comes back, Vonza will create a fresh improvement item." : "Keep guidance factual and scoped to what the business has verified. Do not add guessed prices, policies, availability, or services.")}</p>
-            </div>
-            <div class="action-queue-form-actions">
-              <button class="primary-button" type="submit" ${canEdit ? "" : "disabled"}>Save guidance</button>
-              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="ready" ${canEdit ? "" : "disabled"}>Mark reviewing</button>
-              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="applied" ${canEdit && trimText(knowledgeFix.proposedGuidance || item.suggestedFix) ? "" : "disabled"}>Approve fix</button>
-              <button class="ghost-button" type="button" data-knowledge-fix-status-action data-next-status="dismissed" ${knowledgeFixStatus === "applied" ? "disabled" : ""}>Dismiss</button>
-            </div>
-          </form>
-        ` : `
-          <div class="placeholder-card">This item came from reply feedback before a knowledge-fix draft was prepared. Review the related Home queue once the next sync creates editable guidance.</div>
-        `}
-      </article>
-    `;
-  }).join("");
-
-  return `
-    <section id="knowledge-improvement" class="workspace-card-soft knowledge-improvement-center" data-knowledge-improvement-center>
-      <div class="flat-section-header">
-        <div>
-          <p class="overview-label">Knowledge Improvement</p>
-          <h3 class="flat-section-title">Close the weak-answer loop</h3>
-          <p class="analytics-report-section-copy">${escapeHtml(improvement.copy || "Weak, repeated, and not-helpful answers will appear here for owner review.")}</p>
-        </div>
-        <div class="analytics-report-overview-pills">
-          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.openCount || 0), computedOpenCount)} open`)}</span>
-          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.approvedFixedCount || 0), computedApprovedFixedCount)} approved/fixed`)}</span>
-          <span class="pill">${escapeHtml(`${Math.max(Number(improvement.dismissedCount || 0), computedDismissedCount)} dismissed`)}</span>
-        </div>
-      </div>
-      <div class="placeholder-card">${escapeHtml(improvement.guardrail || "Approved guidance must stay grounded in verified business facts.")}</div>
-      ${actionQueue.knowledgeFixWorkflowMigrationRequired === true ? `<div class="placeholder-card">Knowledge Improvement is visible, but editing is read-only until this workspace finishes its migration.</div>` : ""}
-      ${items.length ? `<div class="knowledge-improvement-list">${itemMarkup}</div>` : `<div class="placeholder-card">No weak or repeated answer pattern is active yet. After real visitor feedback or unanswered questions appear, this area will show the question, the gap, and a grounded draft fix.</div>`}
-    </section>
-  `;
-}
-
 function buildOverviewState(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const installStatus = getDefaultInstallStatus(agent);
   const signals = analyzeConversationSignals(messages);
@@ -12443,12 +12285,12 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
       </label>
       <div class="activation-test-state ${needsImprovement ? "needs-improvement" : ""}">
         ${escapeHtml(needsImprovement
-          ? "Needs improvement: route this to Knowledge Improvement."
+          ? "Needs improvement: review this in Analytics."
           : wizard?.signals?.hasPreviewTest ? "Test conversation detected." : "Use preview to ask one realistic customer question.")}
       </div>
       <div class="activation-actions">
         ${needsImprovement
-          ? `<button class="primary-button" type="button" data-activation-open-improvement>Open Knowledge Improvement</button>`
+          ? `<button class="primary-button" type="button" data-activation-open-improvement>Open Analytics</button>`
           : `<button class="primary-button" type="submit">${escapeHtml(action.label || "Ask a sample question")}</button>`}
         <button class="ghost-button" type="button" data-activation-complete="test_improve">Finish wizard</button>
       </div>
@@ -12546,7 +12388,6 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
           ? "High-intent questions are already coming in. Review Analytics to see whether visitors want pricing, booking, contact, or support help most."
           : "Keep an eye on the first real visitor questions so you can tighten the welcome, website copy, or install placement if needed.";
   const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const knowledgeOpen = Number(getOwnerAnalyticsDashboard(actionQueue)?.knowledgeImprovement?.openCount || 0);
   const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
   const commandLinks = [
     {
@@ -12555,13 +12396,6 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
       target: "analytics",
       targetId: "human-follow-ups",
       count: humanFollowUpOpen,
-    },
-    {
-      label: "Knowledge Improvement",
-      copy: knowledgeOpen ? `${knowledgeOpen} answer fix${knowledgeOpen === 1 ? "" : "es"} need review.` : "No weak-answer fix is waiting.",
-      target: "analytics",
-      targetId: "knowledge-improvement",
-      count: knowledgeOpen,
     },
     {
       label: "Notifications",
@@ -12930,7 +12764,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             </div>
           </section>
           ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
-          ${buildKnowledgeImprovementCenterMarkup(actionQueue)}
           ${buildPrivacyControlsMarkup(actionQueue)}
           ${customerSatisfactionMarkup}
           <section class="analytics-report-metric-grid">
@@ -14168,7 +14001,7 @@ function buildInstallSection(agent, options = {}) {
             }
             : {
               title: "Next best step: improve knowledge if answers get weak",
-              copy: "Install is live. Watch Analytics for weak-answer feedback and use Knowledge Improvement when a repeated gap appears.",
+              copy: "Install is live. Watch Analytics for weak-answer feedback and review repeated gaps in the follow-up workflow.",
               action: `<button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>`,
             };
   const liveConfirmationMarkup = isInstallSeen(installStatus)
@@ -16218,7 +16051,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       case "automations":
         return `[data-follow-up-card][data-follow-up-id="${targetId}"], [data-operator-task-card][data-task-id="${targetId}"], [data-campaign-card][data-campaign-id="${targetId}"]`;
       case "analytics":
-        if (["human-follow-ups", "knowledge-improvement", "notifications", "privacy-controls"].includes(targetId)) {
+        if (["human-follow-ups", "notifications", "privacy-controls"].includes(targetId)) {
           return `#${targetId}`;
         }
         return `[data-action-queue-item][data-action-key="${targetId}"]`;
@@ -18060,10 +17893,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         step: "test_improve",
         action: "return",
         test_quality: "needs_improvement",
-        route_target: "knowledge_improvement",
+        route_target: "analytics",
       });
-      showSectionAndHighlight("analytics", "#knowledge-improvement");
-      setStatus("Opened Knowledge Improvement for the weak answer.");
+      showSectionAndHighlight("analytics", "#human-follow-ups");
+      setStatus("Opened Analytics for the weak answer.");
       button.disabled = false;
     });
   });

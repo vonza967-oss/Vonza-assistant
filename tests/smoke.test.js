@@ -1562,10 +1562,8 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Owner follow-up state/);
         assert.match(dashboardScript.text, /Conversation summary/);
         assert.match(dashboardScript.text, /Visitor thread/);
-        assert.match(dashboardScript.text, /Knowledge Improvement/);
-        assert.match(dashboardScript.text, /Close the weak-answer loop/);
-        assert.match(dashboardScript.text, /Owner-approved guidance/);
         assert.match(dashboardScript.text, /Approved\/fixed/);
+        assert.match(dashboardScript.text, /Drafted guidance to add/);
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open follow-up note/);
         assert.match(dashboardScript.text, /Save follow-up note/);

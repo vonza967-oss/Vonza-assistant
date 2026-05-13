@@ -269,7 +269,7 @@ function buildStepCopy(stepKey, signals, progress) {
   }
 
   if (signals.needsImprovement) {
-    return "A weak-answer signal exists. Route this into Knowledge Improvement before calling setup complete.";
+    return "A weak-answer signal exists. Review it in Analytics before calling setup complete.";
   }
 
   if (signals.hasPreviewTest) {
@@ -298,9 +298,9 @@ function buildStepNextAction(stepKey, signals) {
 
   if (stepKey === "test_improve" && signals.needsImprovement) {
     return {
-      label: "Open Knowledge Improvement",
-      action: "open_knowledge_improvement",
-      target: "knowledge_improvement",
+      label: "Open Analytics",
+      action: "open_analytics",
+      target: "analytics",
     };
   }
 
