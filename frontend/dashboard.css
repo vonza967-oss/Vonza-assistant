@@ -5003,6 +5003,52 @@ body {
   font-size: 13px;
 }
 
+.analytics-source-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analytics-source-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: var(--surface-highlight);
+}
+
+.analytics-source-card span,
+.analytics-source-card p,
+.analytics-source-card small {
+  display: block;
+  color: var(--soft);
+}
+
+.analytics-source-card span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.analytics-source-card strong {
+  display: block;
+  margin-top: 10px;
+  color: white;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.analytics-source-card p {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.analytics-source-card small {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .analytics-report-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.78fr);
@@ -6823,6 +6869,16 @@ body {
   line-height: 1.5;
 }
 
+.install-copy-field textarea.full-page-url-output {
+  min-height: 48px;
+  overflow-wrap: anywhere;
+}
+
+.install-copy-field textarea.full-page-iframe-output {
+  min-height: 132px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
 .install-next-step {
   margin-top: 16px;
   padding: 16px;
@@ -7712,6 +7768,7 @@ body {
   .analytics-report-grid,
   .analytics-report-contact-grid,
   .analytics-report-swot-grid,
+  .analytics-source-grid,
   .operator-thread-grid,
   .intent-grid,
   .overview-metric-grid,
@@ -9141,6 +9198,7 @@ body {
 .analytics-report-contact-card,
 .analytics-report-recommendation,
 .analytics-report-swot-item,
+.analytics-source-card,
 .analytics-report-chart,
 .install-step,
 .studio-group,
@@ -9173,6 +9231,7 @@ body {
 .analytics-report-contact-card,
 .analytics-report-recommendation,
 .analytics-report-swot-item,
+.analytics-source-card,
 .install-step,
 .studio-group,
 .guidance-card,
@@ -9227,6 +9286,7 @@ body {
 .workspace-page .analytics-report-insight strong,
 .workspace-page .analytics-report-contact-card strong,
 .workspace-page .analytics-report-recommendation strong,
+.workspace-page .analytics-source-card strong,
 .workspace-page .analytics-question-list strong,
 .workspace-page .analytics-report-swot-item strong,
 .workspace-page .operator-focus-title,
@@ -9279,6 +9339,9 @@ body {
 .workspace-page .analytics-report-recommendation p,
 .workspace-page .analytics-report-swot-item p,
 .workspace-page .analytics-report-contact-card span,
+.workspace-page .analytics-source-card span,
+.workspace-page .analytics-source-card p,
+.workspace-page .analytics-source-card small,
 .workspace-page .operator-focus-copy,
 .workspace-page .operator-checklist-note,
 .workspace-page .operator-empty-copy,

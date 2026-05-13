@@ -2557,6 +2557,114 @@ test("analytics surfaces feedback recovery and owner-visible notifications", () 
   assert.match(analyticsPanel, /50% negative/);
 });
 
+test("analytics renders assistant source breakdown for widget, page, and legacy activity", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    ownerAnalyticsDashboard: {
+      ok: true,
+      metrics: {
+        totalConversations: 3,
+      },
+      assistantSource: {
+        widget: {
+          key: "widget",
+          label: "Website widget",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
+        page: {
+          key: "page",
+          label: "Full-page assistant",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 1,
+        },
+        unknown: {
+          key: "unknown",
+          label: "Legacy/unknown",
+          conversationCount: 1,
+          messageCount: 1,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
+        totalConversations: 3,
+        totalMessages: 5,
+      },
+    },
+  };
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [],
+    { knowledgeReady: true },
+    actionQueue,
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(analyticsPanel, /Assistant source/);
+  assert.match(analyticsPanel, /See whether visitors are using the website widget or the dedicated assistant page\./);
+  assert.match(analyticsPanel, /Website widget/);
+  assert.match(analyticsPanel, /Full-page assistant/);
+  assert.match(analyticsPanel, /Legacy\/unknown/);
+  assert.match(analyticsPanel, /1 lead captured/);
+  assert.doesNotMatch(analyticsPanel, /display_mode/);
+});
+
+test("analytics assistant source shows clean full-page empty state", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    ownerAnalyticsDashboard: {
+      ok: true,
+      assistantSource: {
+        widget: {
+          key: "widget",
+          label: "Website widget",
+          conversationCount: 1,
+          messageCount: 2,
+        },
+        page: {
+          key: "page",
+          label: "Full-page assistant",
+          conversationCount: 0,
+          messageCount: 0,
+        },
+        unknown: {
+          key: "unknown",
+          label: "Legacy/unknown",
+          conversationCount: 0,
+          messageCount: 0,
+        },
+        totalConversations: 1,
+        totalMessages: 2,
+      },
+    },
+  };
+
+  const analyticsPanel = harness.buildAnalyticsPanel(
+    {},
+    [],
+    { knowledgeReady: true },
+    actionQueue,
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(analyticsPanel, /No full-page assistant conversations yet\./);
+  assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
+});
+
 test("analytics panel omits standalone knowledge improvement center", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -2649,7 +2757,8 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
-  assert.match(markup, /QR code generation is not available/);
+  assert.match(markup, /QR code option coming soon\./);
+  assert.doesNotMatch(markup, /TODO/);
 });
 
 test("analytics customer-question summaries stay specific without copying chat text", () => {

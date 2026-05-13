@@ -2565,7 +2565,12 @@ function buildFullPageAssistantUrl(agent = {}) {
 }
 
 function buildFullPageAssistantIframe(agent = {}) {
-  return `<iframe src="${buildFullPageAssistantUrl(agent)}" title="AI assistant" style="width:100%;min-height:720px;border:0;" loading="lazy"><\/iframe>`;
+  return `<iframe
+  src="${buildFullPageAssistantUrl(agent)}"
+  title="AI assistant"
+  style="width:100%;min-height:720px;border:0;"
+  loading="lazy"
+><\/iframe>`;
 }
 
 function buildPreviewMarkup(installId) {
@@ -9758,6 +9763,35 @@ function createEmptyAnalyticsSummary() {
 }
 
 function createEmptyOwnerAnalyticsDashboard() {
+  const emptyAssistantSource = {
+    widget: {
+      key: "widget",
+      label: "Website widget",
+      conversationCount: 0,
+      messageCount: 0,
+      visitorQuestionCount: 0,
+      leadsCaptured: 0,
+    },
+    page: {
+      key: "page",
+      label: "Full-page assistant",
+      conversationCount: 0,
+      messageCount: 0,
+      visitorQuestionCount: 0,
+      leadsCaptured: 0,
+    },
+    unknown: {
+      key: "unknown",
+      label: "Legacy/unknown",
+      conversationCount: 0,
+      messageCount: 0,
+      visitorQuestionCount: 0,
+      leadsCaptured: 0,
+    },
+    totalConversations: 0,
+    totalMessages: 0,
+  };
+
   return {
     ok: false,
     metrics: {
@@ -9765,6 +9799,7 @@ function createEmptyOwnerAnalyticsDashboard() {
       leadsCaptured: 0,
       conversionRate: 0,
     },
+    assistantSource: emptyAssistantSource,
     topVisitorQuestions: [],
     missedQuestions: [],
     customerSatisfaction: {
@@ -9792,6 +9827,21 @@ function createEmptyOwnerAnalyticsDashboard() {
   };
 }
 
+function normalizeAssistantSourceBucket(bucket = {}, fallback = {}) {
+  const source = bucket && typeof bucket === "object" ? bucket : {};
+
+  return {
+    ...fallback,
+    ...source,
+    key: trimText(source.key || fallback.key),
+    label: trimText(source.label || fallback.label),
+    conversationCount: Number(source.conversationCount || 0),
+    messageCount: Number(source.messageCount || 0),
+    visitorQuestionCount: Number(source.visitorQuestionCount || 0),
+    leadsCaptured: Number(source.leadsCaptured || 0),
+  };
+}
+
 function normalizeOwnerAnalyticsDashboard(data = null) {
   if (!data || typeof data !== "object") {
     return null;
@@ -9799,6 +9849,9 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
 
   const emptyDashboard = createEmptyOwnerAnalyticsDashboard();
   const metrics = data.metrics && typeof data.metrics === "object" ? data.metrics : {};
+  const assistantSource = data.assistantSource && typeof data.assistantSource === "object"
+    ? data.assistantSource
+    : {};
   const aiUsage = data.aiUsage && typeof data.aiUsage === "object" ? data.aiUsage : null;
   const customerSatisfaction = data.customerSatisfaction && typeof data.customerSatisfaction === "object"
     ? data.customerSatisfaction
@@ -9817,6 +9870,15 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
       totalConversations: Number(metrics.totalConversations || 0),
       leadsCaptured: Number(metrics.leadsCaptured || 0),
       conversionRate: Number(metrics.conversionRate || 0),
+    },
+    assistantSource: {
+      ...emptyDashboard.assistantSource,
+      ...assistantSource,
+      widget: normalizeAssistantSourceBucket(assistantSource.widget, emptyDashboard.assistantSource.widget),
+      page: normalizeAssistantSourceBucket(assistantSource.page, emptyDashboard.assistantSource.page),
+      unknown: normalizeAssistantSourceBucket(assistantSource.unknown, emptyDashboard.assistantSource.unknown),
+      totalConversations: Number(assistantSource.totalConversations || 0),
+      totalMessages: Number(assistantSource.totalMessages || 0),
     },
     topVisitorQuestions: Array.isArray(data.topVisitorQuestions)
       ? data.topVisitorQuestions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.summary || item.question))
@@ -9883,8 +9945,10 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
   const hasSatisfactionData = Number(dashboard.customerSatisfaction?.totalFeedback || 0) > 0 || dashboard.notifications.length > 0;
   const hasKnowledgeImprovementData = Number(dashboard.knowledgeImprovement?.total || 0) > 0;
   const hasAiUsage = dashboard.aiUsage && trimText(dashboard.aiUsage.statusLabel || dashboard.aiUsage.planName || dashboard.aiUsage.planKey);
+  const hasAssistantSourceData = Number(dashboard.assistantSource?.totalMessages || 0) > 0
+    || Number(dashboard.assistantSource?.totalConversations || 0) > 0;
 
-  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage ? dashboard : null;
+  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage || hasAssistantSourceData ? dashboard : null;
 }
 
 function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {}, messages = []) {
@@ -10451,6 +10515,56 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
     recommendations: [],
     swot: [],
   };
+}
+
+function buildAssistantSourceMarkup(sourceBreakdown = {}) {
+  const emptySource = createEmptyOwnerAnalyticsDashboard().assistantSource;
+  const source = sourceBreakdown && typeof sourceBreakdown === "object" ? sourceBreakdown : {};
+  const widget = normalizeAssistantSourceBucket(source.widget, emptySource.widget);
+  const page = normalizeAssistantSourceBucket(source.page, emptySource.page);
+  const unknown = normalizeAssistantSourceBucket(source.unknown, emptySource.unknown);
+  const sourceCards = [
+    {
+      ...widget,
+      note: `${formatAnalyticsReportNumber(widget.messageCount)} message${widget.messageCount === 1 ? "" : "s"}`,
+    },
+    {
+      ...page,
+      note: page.conversationCount > 0
+        ? `${formatAnalyticsReportNumber(page.messageCount)} message${page.messageCount === 1 ? "" : "s"}`
+        : "No full-page assistant conversations yet.",
+    },
+  ];
+
+  if (unknown.conversationCount > 0 || unknown.messageCount > 0 || unknown.leadsCaptured > 0) {
+    sourceCards.push({
+      ...unknown,
+      note: `${formatAnalyticsReportNumber(unknown.messageCount)} legacy message${unknown.messageCount === 1 ? "" : "s"}`,
+    });
+  }
+
+  return `
+    <section class="workspace-card-soft analytics-source-section">
+      <div class="flat-section-header">
+        <div>
+          <p class="overview-label">Assistant source</p>
+          <h3 class="flat-section-title">Assistant source</h3>
+          <p class="analytics-report-section-copy">See whether visitors are using the website widget or the dedicated assistant page.</p>
+        </div>
+      </div>
+      <div class="analytics-source-grid">
+        ${sourceCards.map((item) => `
+          <article class="analytics-source-card">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(formatAnalyticsReportNumber(item.conversationCount))}</strong>
+            <p>${escapeHtml(item.conversationCount === 1 ? "conversation" : "conversations")}</p>
+            <small>${escapeHtml(item.note)}</small>
+            ${Number(item.leadsCaptured || 0) > 0 ? `<small>${escapeHtml(`${formatAnalyticsReportNumber(item.leadsCaptured)} lead${item.leadsCaptured === 1 ? "" : "s"} captured`)}</small>` : ""}
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function buildAnalyticsTrendMarkup(report = {}) {
@@ -12766,6 +12880,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
           ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
           ${buildPrivacyControlsMarkup(actionQueue)}
           ${customerSatisfactionMarkup}
+          ${buildAssistantSourceMarkup(ownerAnalyticsDashboard?.assistantSource)}
           <section class="analytics-report-metric-grid">
             ${[
               {
@@ -14094,15 +14209,15 @@ function buildInstallSection(agent, options = {}) {
         <p class="install-option-copy">Use this as a support page, booking/help page, menu link, or QR code destination.</p>
         <div class="install-copy-field">
           <label for="full-page-assistant-url">Full-page URL</label>
-          <textarea id="full-page-assistant-url" readonly>${escapeHtml(fullPageUrl)}</textarea>
+          <textarea id="full-page-assistant-url" class="full-page-url-output" rows="2" readonly>${escapeHtml(fullPageUrl)}</textarea>
           <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
         </div>
         <div class="install-copy-field">
           <label for="full-page-assistant-iframe">Iframe snippet</label>
-          <textarea id="full-page-assistant-iframe" readonly>${escapeHtml(fullPageIframe)}</textarea>
+          <textarea id="full-page-assistant-iframe" class="full-page-iframe-output" rows="7" readonly>${escapeHtml(fullPageIframe)}</textarea>
           <button class="ghost-button" type="button" data-action="copy-full-page-iframe" ${fullPageIframe ? "" : "disabled"}>Copy iframe snippet</button>
         </div>
-        <p class="install-help">QR code generation is not available in this dashboard yet. TODO: add a lightweight QR option for the full-page URL.</p>
+        <p class="install-help">QR code option coming soon.</p>
       </section>
     </div>
   `;

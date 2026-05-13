@@ -156,3 +156,80 @@ test("owner analytics dashboard keeps sparse knowledge improvement state honest"
   assert.deepEqual(dashboard.knowledgeImprovement.items, []);
   assert.match(dashboard.knowledgeImprovement.copy, /No weak-answer pattern is active yet/i);
 });
+
+test("owner analytics dashboard breaks assistant activity down by widget, page, and legacy source", () => {
+  const dashboard = buildOwnerAnalyticsDashboard({
+    agent: {
+      id: "agent-1",
+      name: "Front Desk",
+    },
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "Widget question",
+        sessionKey: "widget-session",
+        displayMode: "widget",
+        createdAt: "2026-05-13T08:00:00.000Z",
+      },
+      {
+        id: "message-2",
+        role: "assistant",
+        content: "Widget answer",
+        sessionKey: "widget-session",
+        displayMode: "widget",
+        createdAt: "2026-05-13T08:00:02.000Z",
+      },
+      {
+        id: "message-3",
+        role: "user",
+        content: "Page question",
+        sessionKey: "page-session",
+        displayMode: "page",
+        createdAt: "2026-05-13T09:00:00.000Z",
+      },
+      {
+        id: "message-4",
+        role: "assistant",
+        content: "Page answer",
+        sessionKey: "page-session",
+        displayMode: "page",
+        createdAt: "2026-05-13T09:00:02.000Z",
+      },
+      {
+        id: "message-5",
+        role: "user",
+        content: "Legacy question",
+        sessionKey: "legacy-session",
+        displayMode: null,
+        createdAt: "2026-05-13T10:00:00.000Z",
+      },
+    ],
+    leadCaptures: {
+      records: [
+        {
+          captureState: "captured",
+          contactEmail: "page@example.com",
+          visitorSessionKey: "page-session",
+        },
+      ],
+      persistenceAvailable: true,
+    },
+    actionQueue: {
+      items: [],
+      summary: {},
+    },
+  });
+
+  assert.equal(dashboard.assistantSource.widget.conversationCount, 1);
+  assert.equal(dashboard.assistantSource.widget.messageCount, 2);
+  assert.equal(dashboard.assistantSource.widget.visitorQuestionCount, 1);
+  assert.equal(dashboard.assistantSource.page.conversationCount, 1);
+  assert.equal(dashboard.assistantSource.page.messageCount, 2);
+  assert.equal(dashboard.assistantSource.page.visitorQuestionCount, 1);
+  assert.equal(dashboard.assistantSource.page.leadsCaptured, 1);
+  assert.equal(dashboard.assistantSource.unknown.conversationCount, 1);
+  assert.equal(dashboard.assistantSource.unknown.messageCount, 1);
+  assert.equal(dashboard.assistantSource.totalConversations, 3);
+  assert.equal(dashboard.assistantSource.totalMessages, 5);
+});

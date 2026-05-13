@@ -28,6 +28,16 @@ function normalizeDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
 }
 
+function normalizeStoredDisplayMode(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (normalized === "page" || normalized === "widget") {
+    return normalized;
+  }
+
+  return "";
+}
+
 function buildMissingMessagesSchemaError(phase = "request") {
   const error = new Error(
     `[${phase}] Missing required message persistence schema for '${MESSAGES_TABLE}'. Apply the latest database migration before running this build.`
@@ -119,7 +129,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     visitorIdentityMode: row.visitor_identity_mode || null,
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
-    displayMode: normalizeDisplayMode(row.display_mode),
+    displayMode: normalizeStoredDisplayMode(row.display_mode),
     createdAt: row.created_at,
   }));
 }
@@ -167,7 +177,7 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
     visitorIdentityMode: row.visitor_identity_mode || null,
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
-    displayMode: normalizeDisplayMode(row.display_mode),
+    displayMode: normalizeStoredDisplayMode(row.display_mode),
     createdAt: row.created_at,
   }));
 }

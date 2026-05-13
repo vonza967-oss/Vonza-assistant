@@ -25,7 +25,88 @@ function normalizeMessage(message = {}) {
     sessionKey: cleanText(message.sessionKey || message.session_key),
     visitorEmail: cleanText(message.visitorEmail || message.visitor_email).toLowerCase(),
     visitorName: cleanText(message.visitorName || message.visitor_name),
+    displayMode: normalizeAssistantSource(message.displayMode || message.display_mode),
     createdAt: message.createdAt || message.created_at || null,
+  };
+}
+
+function normalizeAssistantSource(value) {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (normalized === "widget" || normalized === "page") {
+    return normalized;
+  }
+
+  return "unknown";
+}
+
+function createEmptyAssistantSourceBucket(key, label) {
+  return {
+    key,
+    label,
+    conversationCount: 0,
+    messageCount: 0,
+    visitorQuestionCount: 0,
+    leadsCaptured: 0,
+  };
+}
+
+function buildAssistantSourceBreakdown(messages = [], leadCaptures = {}) {
+  const buckets = {
+    widget: createEmptyAssistantSourceBucket("widget", "Website widget"),
+    page: createEmptyAssistantSourceBucket("page", "Full-page assistant"),
+    unknown: createEmptyAssistantSourceBucket("unknown", "Legacy/unknown"),
+  };
+  const sessionsBySource = {
+    widget: new Set(),
+    page: new Set(),
+    unknown: new Set(),
+  };
+  const sourceBySession = new Map();
+
+  messages.forEach((message) => {
+    const source = normalizeAssistantSource(message.displayMode);
+    const bucket = buckets[source] || buckets.unknown;
+    bucket.messageCount += 1;
+
+    if (message.role === "user") {
+      bucket.visitorQuestionCount += 1;
+    }
+
+    if (message.sessionKey) {
+      sessionsBySource[bucket.key].add(message.sessionKey);
+      if (!sourceBySession.has(message.sessionKey) || sourceBySession.get(message.sessionKey) === "unknown") {
+        sourceBySession.set(message.sessionKey, bucket.key);
+      }
+    }
+  });
+
+  Object.entries(sessionsBySource).forEach(([source, sessions]) => {
+    buckets[source].conversationCount = sessions.size;
+  });
+
+  const records = Array.isArray(leadCaptures.records) ? leadCaptures.records : [];
+  records.forEach((record) => {
+    const state = cleanText(record.captureState || record.capture_state).toLowerCase();
+    const email = cleanText(record.contactEmail || record.contact_email);
+    const phone = cleanText(record.contactPhone || record.contact_phone);
+
+    if (state !== "captured" && !email && !phone) {
+      return;
+    }
+
+    const sessionKey = cleanText(record.visitorSessionKey || record.visitor_session_key || record.sessionKey || record.session_key);
+    const source = normalizeAssistantSource(record.displayMode || record.display_mode || sourceBySession.get(sessionKey));
+    const bucket = buckets[source] || buckets.unknown;
+    bucket.leadsCaptured += 1;
+  });
+
+  return {
+    widget: buckets.widget,
+    page: buckets.page,
+    unknown: buckets.unknown,
+    totalConversations: buckets.widget.conversationCount + buckets.page.conversationCount + buckets.unknown.conversationCount,
+    totalMessages: buckets.widget.messageCount + buckets.page.messageCount + buckets.unknown.messageCount,
   };
 }
 
@@ -403,6 +484,7 @@ export function buildOwnerAnalyticsDashboard({
   });
   const notifications = buildOwnerNotifications(customerSatisfaction, fallbackActionQueue);
   const capturedLeads = countCapturedLeads(leadCaptures);
+  const assistantSource = buildAssistantSourceBreakdown(normalizedMessages, leadCaptures);
   const outcomeSummary = conversionOutcomes.summary || {};
   const assistedConversions = Number(outcomeSummary.assistedConversions || 0);
   const totalConversations = Math.max(
@@ -442,6 +524,7 @@ export function buildOwnerAnalyticsDashboard({
       ctaClicks: Number(widgetMetrics.ctaClicks || 0),
       ctaClickThroughRate: Number(widgetMetrics.ctaClickThroughRate || 0),
     },
+    assistantSource,
     topVisitorQuestions: buildCustomerQuestionSummaries(normalizedMessages, 8),
     missedQuestions: findMissedQuestions(normalizedMessages),
     customerSatisfaction,
