@@ -2757,8 +2757,30 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
-  assert.match(markup, /QR code option coming soon\./);
+  assert.match(markup, /data-full-page-qr-preview/);
+  assert.match(markup, /Download QR code/);
+  assert.match(markup, /Print this QR code or place it on menus, reception desks, flyers, and signs\./);
+  assert.doesNotMatch(markup, /QR code option coming soon\./);
   assert.doesNotMatch(markup, /TODO/);
+});
+
+test("install section falls back to widget page URL when public slug is missing", () => {
+  const harness = createDashboardHarness();
+  const markup = harness.buildInstallSection({
+    id: "agent-1",
+    installId: "install-1",
+    installStatus: {
+      state: "not_installed",
+      label: "Not installed yet",
+    },
+  });
+
+  assert.match(markup, /A\. Website widget/);
+  assert.match(markup, /B\. Full-page assistant/);
+  assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/widget\?agent_id=agent-1&amp;mode=page/);
+  assert.match(markup, /data-action="copy-full-page-url"/);
+  assert.match(markup, /data-action="copy-full-page-iframe"/);
+  assert.match(markup, /data-action="download-full-page-qr"/);
 });
 
 test("analytics customer-question summaries stay specific without copying chat text", () => {

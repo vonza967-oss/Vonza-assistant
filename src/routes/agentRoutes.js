@@ -1,4 +1,5 @@
 import express from "express";
+import QRCode from "qrcode";
 
 import { getOpenAIClient } from "../clients/openaiClient.js";
 import { getSupabaseClient } from "../clients/supabaseClient.js";
@@ -94,7 +95,7 @@ import {
   simulateOwnerBillingActivation,
   syncOwnerBillingState,
 } from "../services/billing/billingUsageService.js";
-import { isLocalDevBillingRequestAllowed } from "../config/env.js";
+import { getPublicAppUrl, isLocalDevBillingRequestAllowed } from "../config/env.js";
 import {
   extractBusinessWebsiteContent,
   getStoredWebsiteContent,
@@ -103,6 +104,7 @@ import {
   recordInstallPing,
   verifyAgentInstallation,
 } from "../services/install/installPresenceService.js";
+import { buildFullPageAssistantUrl } from "../services/install/fullPageAssistantUrlService.js";
 import {
   approveCalendarAction,
   approveCampaignDraft,
@@ -1411,6 +1413,43 @@ export function createAgentRouter(deps = {}) {
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
 
       res.json({ agent });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/full-page-assistant-qr.svg", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const fullPageUrl = buildFullPageAssistantUrl(agent, getPublicAppUrl());
+      const svg = await QRCode.toString(fullPageUrl, {
+        type: "svg",
+        errorCorrectionLevel: "M",
+        margin: 2,
+        color: {
+          dark: "#111827",
+          light: "#ffffff",
+        },
+      });
+
+      res.type("image/svg+xml");
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("Content-Disposition", "inline; filename=\"vonza-full-page-assistant-qr.svg\"");
+      res.setHeader("X-Vonza-QR-Target", fullPageUrl);
+      res.send(svg);
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

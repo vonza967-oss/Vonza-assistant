@@ -25,6 +25,7 @@
     "express": "^4.21.1",
     "openai": "^6.33.0",
     "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
     "stripe": "^18.5.0"
   },
   "devDependencies": {

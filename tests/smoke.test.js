@@ -1401,6 +1401,110 @@ test("marketing homepage and app routes load without broken handoff paths", { co
   );
 });
 
+test("full-page assistant QR endpoint uses clean URL target and enforces owner access", { concurrency: false }, async () => {
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "https://app.example.com",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key-present",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const accessChecks = [];
+      const deps = {
+        ...createAgentTestDeps({ accessStatus: "active" }),
+        requireActiveAgentAccess: async (_supabase, options) => {
+          accessChecks.push(options);
+          return {
+            id: options.agentId,
+            accessStatus: "active",
+          };
+        },
+        getAgentWorkspaceSnapshot: async (_supabase, agentId) => ({
+          id: agentId,
+          publicAgentKey: "agent-key",
+          ownerUserId: "owner-1",
+        }),
+      };
+      const server = await startServer(createTestApp(deps));
+
+      try {
+        const response = await getText(server.baseUrl, "/agents/full-page-assistant-qr.svg?agent_id=agent-1&client_id=client-1");
+        assert.equal(response.status, 200);
+        assert.match(response.headers.get("content-type"), /image\/svg\+xml/);
+        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/a/agent-key");
+        assert.match(response.text, /<svg[^>]+/);
+        assert.ok(accessChecks.some((check) =>
+          check.agentId === "agent-1" &&
+          check.ownerUserId === "owner-1" &&
+          check.clientId === "client-1"
+        ));
+      } finally {
+        await server.close();
+      }
+    }
+  );
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "https://app.example.com",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key-present",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const deps = {
+        ...createAgentTestDeps({ accessStatus: "active" }),
+        getAgentWorkspaceSnapshot: async (_supabase, agentId) => ({
+          id: agentId,
+          publicAgentKey: "",
+          ownerUserId: "owner-1",
+        }),
+      };
+      const server = await startServer(createTestApp(deps));
+
+      try {
+        const response = await getText(server.baseUrl, "/agents/full-page-assistant-qr.svg?agent_id=agent-1&client_id=client-1");
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/widget?agent_id=agent-1&mode=page");
+        assert.match(response.text, /<svg[^>]+/);
+      } finally {
+        await server.close();
+      }
+    }
+  );
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "https://app.example.com",
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key-present",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    () => withMutedConsoleError(async () => {
+      const deps = {
+        ...createAgentTestDeps({ accessStatus: "active" }),
+        requireActiveAgentAccess: async () => {
+          const error = new Error("Forbidden");
+          error.statusCode = 403;
+          throw error;
+        },
+      };
+      const server = await startServer(createTestApp(deps));
+
+      try {
+        const response = await getText(server.baseUrl, "/agents/full-page-assistant-qr.svg?agent_id=agent-1&client_id=wrong-client");
+        assert.equal(response.status, 403);
+      } finally {
+        await server.close();
+      }
+    })
+  );
+});
+
 test("public legal pages, aliases, and legal links are exposed without placeholder business data", { concurrency: false }, async () => {
   await withEnv(
     {

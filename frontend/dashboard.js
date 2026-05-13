@@ -2557,11 +2557,24 @@ function buildFullPageAssistantUrl(agent = {}) {
   }
 
   const url = new URL("/widget", getPublicAppUrl());
-  url.searchParams.set("mode", "page");
   if (trimText(agent.id)) {
     url.searchParams.set("agent_id", agent.id);
   }
+  url.searchParams.set("mode", "page");
   return url.toString();
+}
+
+function buildFullPageQrEndpoint(agent = {}) {
+  const agentId = trimText(agent.id);
+
+  if (!agentId) {
+    return "";
+  }
+
+  const url = new URL("/agents/full-page-assistant-qr.svg", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  return `${url.pathname}${url.search}`;
 }
 
 function buildFullPageAssistantIframe(agent = {}) {
@@ -14217,7 +14230,15 @@ function buildInstallSection(agent, options = {}) {
           <textarea id="full-page-assistant-iframe" class="full-page-iframe-output" rows="7" readonly>${escapeHtml(fullPageIframe)}</textarea>
           <button class="ghost-button" type="button" data-action="copy-full-page-iframe" ${fullPageIframe ? "" : "disabled"}>Copy iframe snippet</button>
         </div>
-        <p class="install-help">QR code option coming soon.</p>
+        <div class="install-qr-section">
+          <div class="install-qr-preview" data-full-page-qr-preview aria-label="Full-page assistant QR code">
+            <p class="install-qr-status">Loading QR code...</p>
+          </div>
+          <div class="install-qr-copy">
+            <p class="install-help">Print this QR code or place it on menus, reception desks, flyers, and signs.</p>
+            <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
+          </div>
+        </div>
       </section>
     </div>
   `;
@@ -14351,6 +14372,22 @@ async function fetchJson(url, options) {
   }
 
   return data;
+}
+
+async function fetchText(url, options) {
+  const nextOptions = { ...(options || {}) };
+  nextOptions.headers = options?.auth === false
+    ? { ...(options?.headers || {}) }
+    : getAuthHeaders(options?.headers || {});
+
+  const response = await fetch(url, nextOptions);
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(text || "Something went wrong.");
+  }
+
+  return text;
 }
 
 async function loadAgents() {
@@ -15448,6 +15485,63 @@ async function copyFullPageAssistantIframe(agent) {
   );
 }
 
+async function loadFullPageAssistantQr(agent) {
+  const preview = document.querySelector("[data-full-page-qr-preview]");
+  const downloadButton = document.querySelector('[data-action="download-full-page-qr"]');
+  const endpoint = buildFullPageQrEndpoint(agent);
+
+  if (!preview || !downloadButton) {
+    return;
+  }
+
+  if (!endpoint) {
+    preview.innerHTML = '<p class="install-qr-status">QR code will be available after the assistant is ready.</p>';
+    downloadButton.disabled = true;
+    return;
+  }
+
+  try {
+    const svg = await fetchText(endpoint, {
+      headers: {
+        Accept: "image/svg+xml",
+      },
+    });
+    preview.innerHTML = svg;
+    const blob = new Blob([svg], { type: "image/svg+xml" });
+    const objectUrl = URL.createObjectURL(blob);
+    const previousUrl = downloadButton.dataset.objectUrl || "";
+    if (previousUrl) {
+      URL.revokeObjectURL(previousUrl);
+    }
+    downloadButton.dataset.objectUrl = objectUrl;
+    downloadButton.disabled = false;
+  } catch (error) {
+    console.error("[dashboard install] Failed to load full-page assistant QR:", {
+      agentId: agent.id,
+      message: error?.message || "Unknown QR error",
+    });
+    preview.innerHTML = '<p class="install-qr-status">QR code could not load. Refresh the dashboard and try again.</p>';
+    downloadButton.disabled = true;
+  }
+}
+
+function downloadFullPageAssistantQr(button) {
+  const objectUrl = button?.dataset?.objectUrl || "";
+
+  if (!objectUrl) {
+    setStatus("QR code is still loading.");
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = "vonza-full-page-assistant-qr.svg";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setStatus("QR code download started.");
+}
+
 function getPreviewFrame() {
   return document.getElementById("preview-frame");
 }
@@ -15844,6 +15938,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
   const copyFullPageUrlButtons = document.querySelectorAll('[data-action="copy-full-page-url"]');
   const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
+  const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
   const verifyInstallButtons = document.querySelectorAll('[data-action="verify-install"]');
   const previewLinks = document.querySelectorAll('[data-action="open-preview"]');
   const resetPreviewButton = document.querySelector('[data-action="reset-preview"]');
@@ -18386,6 +18481,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   copyFullPageIframeButtons.forEach((button) => {
     button.addEventListener("click", () => copyFullPageAssistantIframe(agent));
   });
+
+  downloadFullPageQrButtons.forEach((button) => {
+    button.addEventListener("click", () => downloadFullPageAssistantQr(button));
+  });
+
+  loadFullPageAssistantQr(agent);
 
   verifyInstallButtons.forEach((button) => {
     button.addEventListener("click", async () => {
