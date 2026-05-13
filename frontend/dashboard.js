@@ -4272,6 +4272,18 @@ function buildSidebarShell(
 ) {
   const availableSections = getAvailableShellSections(operatorWorkspace);
   const installStatus = getDefaultInstallStatus(agent);
+  const billing = operatorWorkspace.billing || createEmptyOperatorWorkspace().billing;
+  const billingUsage = billing.usage || createEmptyOperatorWorkspace().billing.usage;
+  const billingUsagePercent = Math.min(100, Math.max(0, Number(billingUsage.percentUsed || 0) || 0));
+  const billingUsageLabel = billingUsage.includedCents
+    ? `${formatAnalyticsReportNumber(Math.round(Number(billingUsage.usedCents || 0) / 100))} / ${formatAnalyticsReportNumber(Math.round(Number(billingUsage.includedCents || 0) / 100))} AI credits`
+    : billingUsage.statusLabel || "Monthly usage will appear here";
+  const billingPlanLabel = trimText(billing.displayName || "Growth");
+  const billingPlanTitle = /\bplan\b/i.test(billingPlanLabel) ? billingPlanLabel : `${billingPlanLabel} Plan`;
+  const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
+  const accountInitials = trimText(accountLabel)
+    ? trimText(accountLabel).slice(0, 2).toUpperCase()
+    : "V";
   const todayAttention = Number(actionQueue.summary?.attentionNeeded || 0);
   const contactsAttention = Number(operatorWorkspace.contacts?.summary?.contactsNeedingAttention || 0);
   const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
@@ -4329,8 +4341,8 @@ function buildSidebarShell(
       <div class="sidebar-identity">
         <div class="sidebar-identity-mark">V</div>
         <div class="sidebar-identity-copy">
-          <p class="sidebar-eyebrow">Vonza</p>
-          <h2 class="sidebar-title">${escapeHtml(agent.assistantName || agent.name || "Workspace")}</h2>
+          <p class="sidebar-eyebrow">${escapeHtml(agent.assistantName || agent.name || "Workspace")}</p>
+          <h2 class="sidebar-title">Vonza</h2>
           <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
         </div>
       </div>
@@ -4350,7 +4362,30 @@ function buildSidebarShell(
             <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
           </div>
         </div>
+        <div class="sidebar-plan-card">
+          <div class="sidebar-plan-card-head">
+            <strong>${escapeHtml(billingPlanTitle)}</strong>
+            <span class="${getBadgeClass(billing.hasActiveSubscription ? "Ready" : "Pending")}">${escapeHtml(billing.hasActiveSubscription ? "Active" : "Setup")}</span>
+          </div>
+          <p>${escapeHtml(billingUsage.statusLabel || billing.monthlyPriceLabel || "Monthly AI capacity")}</p>
+          <div class="sidebar-plan-meter" aria-label="Monthly AI usage">
+            <span style="width:${escapeHtml(String(billingUsagePercent))}%"></span>
+          </div>
+          <small>${escapeHtml(billingUsageLabel)}</small>
+        </div>
         ${buildSidebarGroup(t("nav.utilities"), utilityItems, activeSection)}
+        <div class="sidebar-user-card">
+          <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
+          <span class="sidebar-user-copy">
+            <strong>${escapeHtml(agent.ownerName || agent.businessName || agent.name || "Vonza workspace")}</strong>
+            <small>${escapeHtml(accountLabel || agent.websiteUrl || "Workspace owner")}</small>
+          </span>
+          <span class="sidebar-user-chevron" aria-hidden="true">
+            <svg viewBox="0 0 20 20" focusable="false">
+              <path d="m6 8 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </span>
+        </div>
       </div>
     </aside>
   `;
@@ -14304,9 +14339,44 @@ function buildInstallSection(agent, options = {}) {
   const mismatchMarkup = verifyDetails?.foundInstallIds?.length
     ? `<p class="install-help">Found install id${verifyDetails.foundInstallIds.length === 1 ? "" : "s"}: ${escapeHtml(verifyDetails.foundInstallIds.join(", "))}</p>`
     : "";
+  const methodCards = [
+    {
+      icon: "install",
+      title: "Widget",
+      copy: "Embed the Vonza widget on your website.",
+      tag: hasInstall ? "Recommended" : "Waiting for setup",
+      tone: hasInstall ? "Ready" : "Pending",
+    },
+    {
+      icon: "frontdesk",
+      title: "Full-page assistant",
+      copy: "Create a dedicated assistant page.",
+      tag: fullPageUrl ? "Ready to share" : "Needs assistant URL",
+      tone: fullPageUrl ? "Ready" : "Pending",
+    },
+    {
+      icon: "review",
+      title: "QR code",
+      copy: "Create QR touchpoints for any channel.",
+      tag: fullPageUrl ? "Print and download" : "Needs assistant URL",
+      tone: fullPageUrl ? "Ready" : "Pending",
+    },
+  ];
 
   return `
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
+    <div class="install-method-grid" aria-label="Installation methods">
+      ${methodCards.map((item, index) => `
+        <article class="install-method-card ${index === 0 ? "active" : ""}">
+          <span class="install-method-icon" aria-hidden="true">${getUiIconMarkup(item.icon)}</span>
+          <span class="install-method-copy">
+            <strong>${escapeHtml(item.title)}</strong>
+            <small>${escapeHtml(item.copy)}</small>
+            <em class="${getBadgeClass(item.tone)}">${escapeHtml(item.tag)}</em>
+          </span>
+        </article>
+      `).join("")}
+    </div>
     <section class="install-status-card">
       <div>
         <p class="overview-label">${escapeHtml(translateDashboardText("Installation status"))}</p>
