@@ -30,7 +30,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
+    "settings.copy": "Organize business details, Front Desk behavior, privacy, language, and workspace preferences.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
     "settings.light": "Light",

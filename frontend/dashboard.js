@@ -51,6 +51,32 @@ let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
+const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
+  home: "overview",
+  today: "overview",
+  overview: "overview",
+  customers: "contacts",
+  customer: "contacts",
+  contacts: "contacts",
+  "follow-ups": "contacts",
+  followups: "contacts",
+  "front-desk": "customize",
+  frontdesk: "customize",
+  conversations: "customize",
+  customize: "customize",
+  analytics: "analytics",
+  install: "install",
+  settings: "settings",
+  privacy: "settings",
+});
+const DASHBOARD_SECTION_HASHES = Object.freeze({
+  overview: "",
+  contacts: "customers",
+  customize: "front-desk",
+  analytics: "analytics",
+  install: "install",
+  settings: "settings",
+});
 const DASHBOARD_HELP_SECTION_LABELS = {
   overview: "Home",
   contacts: "Customers",
@@ -189,6 +215,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "common.guestVisitor": "Guest visitor",
   "common.customer": "Customer",
   "common.vonza": "Vonza",
+  "common.save": "Save",
   "common.noCustomerMessage": "No customer message yet",
   "common.noSavedChat": "No saved chat messages yet.",
   "common.noMessageText": "No message text saved.",
@@ -262,7 +289,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "install.verifyInstallation": "Verify installation",
   "install.testFrontDesk": "Test front desk",
   "settings.title": "Settings",
-  "settings.copy": "Manage business profile, Front Desk behavior, connected tools, and workspace status in a dedicated settings system.",
+  "settings.copy": "Organize business details, Front Desk behavior, privacy, language, and workspace preferences.",
   "settings.theme": "Theme",
   "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
   "settings.light": "Light",
@@ -315,6 +342,7 @@ let authViewMode = AUTH_VIEW_MODES.SIGN_UP;
 let authFeedback = null;
 let authCallbackIssue = null;
 let authStateListenerBound = false;
+let shellHashNavigationHandler = null;
 let workspaceState = null;
 let dashboardHelpState = null;
 let workspaceRefreshBound = false;
@@ -2281,9 +2309,54 @@ function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorksp
   return getShellSectionsForWorkspace(operatorWorkspace);
 }
 
+function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
+  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
+
+  if (!rawHash) {
+    return "";
+  }
+
+  const hashParams = rawHash.includes("=") ? new URLSearchParams(rawHash) : null;
+  const hashKey = hashParams
+    ? trimText(hashParams.get("section") || hashParams.get("tab") || hashParams.get("page"))
+    : rawHash.split(/[?&]/)[0];
+
+  const normalizedHash = hashKey
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+  const section = DASHBOARD_SECTION_HASH_ALIASES[normalizedHash] || "";
+
+  return availableSections.includes(section) ? section : "";
+}
+
+function syncShellSectionHash(section) {
+  const hash = DASHBOARD_SECTION_HASHES[section] || "";
+
+  if (!window.history?.replaceState) {
+    return;
+  }
+
+  const nextUrl = new URL(window.location.href);
+  const nextHash = hash ? `#${hash}` : "";
+
+  if (nextUrl.hash === nextHash) {
+    return;
+  }
+
+  nextUrl.hash = hash;
+  window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+}
+
 function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const storedSection = trimText(window.localStorage.getItem(DASHBOARD_SECTION_KEY)).toLowerCase();
   const availableSections = getAvailableShellSections(operatorWorkspace);
+  const hashSection = getShellSectionFromHash(availableSections);
+
+  if (hashSection) {
+    window.localStorage.setItem(DASHBOARD_SECTION_KEY, hashSection);
+    return hashSection;
+  }
 
   if (availableSections.includes(storedSection)) {
     return storedSection;
@@ -2298,6 +2371,7 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
   }
 
   window.localStorage.setItem(DASHBOARD_SECTION_KEY, section);
+  syncShellSectionHash(section);
 }
 
 function getActiveFrontDeskSection() {
@@ -4208,38 +4282,30 @@ function buildSidebarShell(
     : setup.knowledgeLimited
       ? "Website learning"
       : "Add website details";
-  const installTone = isInstallSeen(installStatus)
-    ? "Ready"
-    : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
-      ? "Needs attention"
-      : installStatus.state === "installed_unseen"
-        ? "Limited"
-        : "Pending";
-
   const coreItems = [
     {
       key: "overview",
-      label: t("nav.homeToday"),
-      note: "One command center for the next useful action.",
+      label: t("nav.home"),
+      note: "Today",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
-      label: t("nav.customersFollowUps"),
-      note: "People who need replies, follow-ups, or decisions.",
+      label: t("nav.customers"),
+      note: "Follow-ups",
       badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
       badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "customize",
       label: t("nav.frontDesk"),
-      note: "Preview the customer experience and launch readiness.",
+      note: "Conversations",
     },
     {
       key: "analytics",
       label: t("nav.analytics"),
-      note: "Performance, trends, feedback recovery, and outcomes.",
+      note: "Performance",
       badge: notificationUnread > 0 ? String(notificationUnread) : "",
       badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
     },
@@ -4249,14 +4315,12 @@ function buildSidebarShell(
     {
       key: "install",
       label: t("nav.install"),
-      note: "Go live on the website and verify the embed.",
-      badge: isInstallSeen(installStatus) ? "" : "Go live",
-      badgeTone: installTone,
+      note: "Widget, full-page, and QR",
     },
     {
       key: "settings",
       label: t("nav.settingsPrivacy"),
-      note: "Business profile, front desk, privacy, and workspace.",
+      note: "Privacy and workspace",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -4271,7 +4335,6 @@ function buildSidebarShell(
         </div>
       </div>
       ${buildSidebarGroup(t("nav.primary"), coreItems, activeSection)}
-      ${buildSidebarGroup(t("nav.connectedTools"), [], activeSection, { note: `(${t("nav.comingSoon")})` })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
@@ -4449,6 +4512,72 @@ function formatContactLifecycleLabel(value = "") {
 
 function buildContactSources(contact = {}) {
   return Array.isArray(contact.sources) ? contact.sources : [];
+}
+
+function getCustomerSourceLabel(source = "") {
+  const normalized = trimText(source)
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.includes("qr")) {
+    return "QR touchpoint";
+  }
+
+  if (normalized.includes("full page") || normalized === "page" || normalized.includes("assistant page")) {
+    return "Full-page assistant";
+  }
+
+  if (normalized.includes("widget") || normalized.includes("chat")) {
+    return "Website widget";
+  }
+
+  if (normalized.includes("inbox") || normalized.includes("email")) {
+    return "Inbox";
+  }
+
+  if (normalized.includes("calendar")) {
+    return "Calendar";
+  }
+
+  if (normalized.includes("campaign")) {
+    return "Campaign";
+  }
+
+  if (normalized.includes("follow up") || normalized.includes("follow-up")) {
+    return "Follow-up";
+  }
+
+  if (normalized.includes("conversion")) {
+    return "Recorded outcome";
+  }
+
+  return normalized.replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function getCustomerSourceLabels(contact = {}) {
+  return [
+    ...new Set(
+      buildContactSources(contact)
+        .map(getCustomerSourceLabel)
+        .filter(Boolean)
+    ),
+  ];
+}
+
+function buildCustomerSourceBadgeMarkup(contact = {}, limit = 2) {
+  const labels = getCustomerSourceLabels(contact).slice(0, limit);
+
+  if (!labels.length) {
+    return "";
+  }
+
+  return labels.map((label) => `
+    <span class="customer-source-chip">${escapeHtml(translateDashboardText(label))}</span>
+  `).join("");
 }
 
 function buildContactFlags(contact = {}) {
@@ -5061,9 +5190,14 @@ function buildCustomerFilterDefinitions(contacts = []) {
 
   return [
     { key: "all", label: t("customers.all"), count: contacts.length },
+    {
+      key: "unresolved",
+      label: translateDashboardText("Needs follow-up"),
+      count: countMatching((contact) => contactNeedsReply(contact) || isComplaintContact(contact) || isLeadContact(contact)),
+    },
     { key: "needs_reply", label: t("customers.needsReply"), count: countMatching((contact) => contactNeedsReply(contact)) },
-    { key: "complaints", label: t("customers.unhappy"), count: countMatching((contact) => isComplaintContact(contact)) },
     { key: "leads", label: t("customers.leads"), count: countMatching((contact) => isLeadContact(contact)) },
+    { key: "complaints", label: t("customers.unhappy"), count: countMatching((contact) => isComplaintContact(contact)) },
   ];
 }
 
@@ -5229,7 +5363,7 @@ function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWork
 }
 
 function buildContactSourceSummary(contact = {}) {
-  const sources = buildContactSources(contact);
+  const sources = getCustomerSourceLabels(contact);
   return sources.length ? sources.join(" · ") : localizeDashboardCopy("Sparse record", "Hiányos rekord");
 }
 
@@ -5284,6 +5418,8 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
   const guestRow = isGuestCustomerRow(contact);
   const canShowChat = !guestRow && chatMessages.length > 0;
+  const needsReply = contactNeedsReply(contact);
+  const identityTone = guestRow ? "guest" : "identified";
 
   return `
     <article
@@ -5309,7 +5445,10 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             </div>
           </div>
           <div class="customer-row-statuses">
-            ${primaryStatus ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
+            <span class="customer-identity-chip customer-identity-chip--${escapeHtml(identityTone)}">${escapeHtml(guestRow ? t("common.guestVisitor") : translateDashboardText("Identified"))}</span>
+            ${buildCustomerSourceBadgeMarkup(contact)}
+            ${needsReply ? `<span class="customer-status-chip customer-status-chip--needs_reply">${escapeHtml(translateDashboardText("Needs follow-up"))}</span>` : ""}
+            ${primaryStatus && primaryStatus.key !== "needs_reply" ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
           </div>
         </div>
         <div class="customer-row-meta">
@@ -5523,18 +5662,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
   const contacts = operatorWorkspace.contacts?.list || [];
   const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
   const customerFilters = buildCustomerFilterDefinitions(contacts);
-  const peopleWorkspaceMarkup = `
-    <div class="customers-page-topbar">
-      <div class="customers-page-copy">
-        <h2 class="customers-page-title">${escapeHtml(t("customers.title"))}</h2>
-        <p class="customers-page-subtitle">${escapeHtml(t("customers.subtitle"))}</p>
-      </div>
-    </div>
-    ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
-    <section class="customer-focus-banner">
-      <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
-      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">${escapeHtml(t("customers.showNeedsHelp"))}</button>
-    </section>
+  const filtersMarkup = `
     <div class="customer-filter-strip" data-customer-filter-strip>
       ${customerFilters.map((filter, index) => `
         <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
@@ -5542,11 +5670,28 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         </button>
       `).join("")}
     </div>
+  `;
+  const searchMarkup = `
+    <div class="toolbar-search customer-toolbar-search">
+      <label class="sr-only" for="customer-search-input">${escapeHtml(translateDashboardText("Search customers"))}</label>
+      <input id="customer-search-input" data-contact-search type="search" placeholder="${escapeHtml(translateDashboardText("Search by name, email, phone, or conversation"))}">
+    </div>
+  `;
+  const peopleWorkspaceMarkup = `
+    ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
+    <section class="customer-focus-banner">
+      <div>
+        <p class="studio-kicker">${escapeHtml(translateDashboardText("Follow-up focus"))}</p>
+        <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
+      </div>
+      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">${escapeHtml(t("customers.showNeedsHelp"))}</button>
+    </section>
     <div class="contacts-workspace" data-contacts-workspace>
       <section class="contacts-list-shell">
         <div class="contacts-list-header">
           <div>
-            <h3 class="flat-section-title">${escapeHtml(t("customers.title"))}</h3>
+            <p class="overview-label">${escapeHtml(translateDashboardText("People view"))}</p>
+            <h3 class="flat-section-title">${escapeHtml(translateDashboardText("Customer records"))}</h3>
             <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
           </div>
         </div>
@@ -5554,11 +5699,19 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
           ${contacts.map((contact) => buildContactRow(contact, operatorWorkspace)).join("")}
         </div>
       </section>
+      <aside class="contacts-detail-shell">
+        ${contacts.map((contact, index) => buildContactDetailPanel(agent, contact, operatorWorkspace, index === 0)).join("")}
+      </aside>
     </div>
   `;
 
   return `
     <section class="workspace-page" data-shell-section="contacts" hidden>
+      ${buildPageHeader({
+        title: t("customers.title"),
+        copy: t("customers.subtitle"),
+      })}
+      ${contacts.length ? buildPageToolbar({ searchMarkup, filtersMarkup }) : ""}
       <div class="workspace-page-body">
         <div class="workspace-section-stack">
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
@@ -10536,6 +10689,7 @@ function buildAssistantSourceMarkup(sourceBreakdown = {}) {
   const widget = normalizeAssistantSourceBucket(source.widget, emptySource.widget);
   const page = normalizeAssistantSourceBucket(source.page, emptySource.page);
   const unknown = normalizeAssistantSourceBucket(source.unknown, emptySource.unknown);
+  const totalConversations = Math.max(0, Number(source.totalConversations || 0));
   const sourceCards = [
     {
       ...widget,
@@ -10562,17 +10716,21 @@ function buildAssistantSourceMarkup(sourceBreakdown = {}) {
         <div>
           <p class="overview-label">Assistant source</p>
           <h3 class="flat-section-title">Assistant source</h3>
-          <p class="analytics-report-section-copy">See whether visitors are using the website widget or the dedicated assistant page.</p>
+          <p class="analytics-report-section-copy">See whether visitors are using the website widget, the full-page assistant, or older activity.</p>
         </div>
       </div>
       <div class="analytics-source-grid">
         ${sourceCards.map((item) => `
-          <article class="analytics-source-card">
+          <article class="analytics-source-card analytics-source-card--${escapeHtml(item.key || "source")}">
             <span>${escapeHtml(item.label)}</span>
             <strong>${escapeHtml(formatAnalyticsReportNumber(item.conversationCount))}</strong>
             <p>${escapeHtml(item.conversationCount === 1 ? "conversation" : "conversations")}</p>
             <small>${escapeHtml(item.note)}</small>
+            ${Number(item.visitorQuestionCount || 0) > 0 ? `<small>${escapeHtml(`${formatAnalyticsReportNumber(item.visitorQuestionCount)} visitor question${item.visitorQuestionCount === 1 ? "" : "s"}`)}</small>` : ""}
             ${Number(item.leadsCaptured || 0) > 0 ? `<small>${escapeHtml(`${formatAnalyticsReportNumber(item.leadsCaptured)} lead${item.leadsCaptured === 1 ? "" : "s"} captured`)}</small>` : ""}
+            <div class="analytics-source-meter" aria-hidden="true">
+              <span style="width:${escapeHtml(String(totalConversations > 0 ? Math.round((Number(item.conversationCount || 0) / totalConversations) * 100) : 0))}%"></span>
+            </div>
           </article>
         `).join("")}
       </div>
@@ -12890,10 +13048,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
             </div>
           </section>
-          ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
-          ${buildPrivacyControlsMarkup(actionQueue)}
-          ${customerSatisfactionMarkup}
-          ${buildAssistantSourceMarkup(ownerAnalyticsDashboard?.assistantSource)}
           <section class="analytics-report-metric-grid">
             ${[
               {
@@ -12954,6 +13108,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               </article>
             `).join("")}
           </section>
+          ${buildAssistantSourceMarkup(ownerAnalyticsDashboard?.assistantSource)}
           <div class="analytics-report-grid">
             <section class="workspace-card-soft analytics-report-primary">
               <div class="flat-section-header">
@@ -13065,6 +13220,9 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               </article>
             </div>
           </section>
+          ${customerSatisfactionMarkup}
+          ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
+          ${buildPrivacyControlsMarkup(actionQueue)}
           <section class="settings-page" data-analytics-section="overview"></section>
           <section class="settings-page" data-analytics-section="questions" hidden></section>
           <section class="settings-page" data-analytics-section="outcomes" hidden></section>
@@ -14149,13 +14307,21 @@ function buildInstallSection(agent, options = {}) {
 
   return `
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
-    <p class="section-copy">${escapeHtml(installStatus.label)}</p>
-    <p class="install-help">${escapeHtml(statusCopy)}</p>
+    <section class="install-status-card">
+      <div>
+        <p class="overview-label">${escapeHtml(translateDashboardText("Installation status"))}</p>
+        <h3 class="install-status-title">${escapeHtml(installStatus.label || t("common.notInstalled"))}</h3>
+        <p class="install-help">${escapeHtml(statusCopy)}</p>
+      </div>
+      <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : verifyDone ? "Limited" : "Pending")}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : verifyDone ? "Verified" : "Not live yet")}</span>
+    </section>
     ${liveConfirmationMarkup}
-    ${allowedDomains.length ? `<p class="install-help">Allowed domains: ${escapeHtml(allowedDomains.join(", "))}</p>` : ""}
-    ${recentSeenMarkup}
-    ${verificationMarkup}
-    ${mismatchMarkup}
+    <div class="install-meta-grid">
+      ${allowedDomains.length ? `<p class="install-help"><strong>Allowed domains</strong>${escapeHtml(allowedDomains.join(", "))}</p>` : ""}
+      ${recentSeenMarkup}
+      ${verificationMarkup}
+      ${mismatchMarkup}
+    </div>
     <div class="install-next-step">
       <p class="install-next-step-title">${escapeHtml(nextBestStep.title)}</p>
       <p class="install-next-step-copy">${escapeHtml(nextBestStep.copy)}</p>
@@ -14176,8 +14342,8 @@ function buildInstallSection(agent, options = {}) {
     <div class="install-options-grid">
       <section class="install-option-card">
         <p class="install-option-eyebrow">A. Website widget</p>
-        <h3 class="install-option-title">Add Vonza to your website</h3>
-        <p class="install-option-copy">Use the current launcher and popup widget on every page where visitors need help.</p>
+        <h3 class="install-option-title">Website widget</h3>
+        <p class="install-option-copy">Add the Vonza launcher to your website so visitors can ask questions while they browse.</p>
         <div class="install-steps" aria-label="Website widget install actions">
           <div class="install-step">
             <div class="install-step-number">A</div>
@@ -14218,8 +14384,8 @@ function buildInstallSection(agent, options = {}) {
       </section>
       <section class="install-option-card">
         <p class="install-option-eyebrow">B. Full-page assistant</p>
-        <h3 class="install-option-title">Share a dedicated assistant page</h3>
-        <p class="install-option-copy">Use this as a support page, booking/help page, menu link, or QR code destination.</p>
+        <h3 class="install-option-title">Full-page assistant</h3>
+        <p class="install-option-copy">Use a dedicated assistant page for support links, booking/help pages, and deeper customer conversations.</p>
         <div class="install-copy-field">
           <label for="full-page-assistant-url">Full-page URL</label>
           <textarea id="full-page-assistant-url" class="full-page-url-output" rows="2" readonly>${escapeHtml(fullPageUrl)}</textarea>
@@ -14230,12 +14396,18 @@ function buildInstallSection(agent, options = {}) {
           <textarea id="full-page-assistant-iframe" class="full-page-iframe-output" rows="7" readonly>${escapeHtml(fullPageIframe)}</textarea>
           <button class="ghost-button" type="button" data-action="copy-full-page-iframe" ${fullPageIframe ? "" : "disabled"}>Copy iframe snippet</button>
         </div>
+      </section>
+      <section class="install-option-card install-option-card-qr">
+        <p class="install-option-eyebrow">C. QR code</p>
+        <h3 class="install-option-title">QR touchpoints</h3>
+        <p class="install-option-copy">Use the full-page assistant QR code on menus, reception desks, flyers, and signs.</p>
         <div class="install-qr-section">
           <div class="install-qr-preview" data-full-page-qr-preview aria-label="Full-page assistant QR code">
             <p class="install-qr-status">Loading QR code...</p>
           </div>
           <div class="install-qr-copy">
             <p class="install-help">Print this QR code or place it on menus, reception desks, flyers, and signs.</p>
+            <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
             <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
           </div>
         </div>
@@ -18610,6 +18782,25 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       window.setTimeout(() => panel.classList.remove("active"), 1600);
     });
   });
+
+  if (shellHashNavigationHandler && typeof window.removeEventListener === "function") {
+    window.removeEventListener("hashchange", shellHashNavigationHandler);
+  }
+
+  shellHashNavigationHandler = () => {
+    const hashSection = getShellSectionFromHash(availableSections);
+
+    if (!hashSection) {
+      return;
+    }
+
+    showShellSection(hashSection, {
+      settingsSection: settingsShellController?.getActiveSettingsSection?.(),
+    });
+  };
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("hashchange", shellHashNavigationHandler);
+  }
 
   const initialSection = getActiveShellSection(setup, operatorWorkspace);
   showShellSection(initialSection, {

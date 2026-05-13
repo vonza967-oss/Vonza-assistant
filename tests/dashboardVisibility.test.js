@@ -453,6 +453,27 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
+test("dashboard hash routes open the matching interior section", async () => {
+  const hashRoutes = [
+    ["#today", /data-shell-target="overview"[\s\S]{0,260}aria-current="page"/],
+    ["#customers", /data-shell-target="contacts"[\s\S]{0,260}aria-current="page"/],
+    ["#front-desk", /data-shell-target="customize"[\s\S]{0,260}aria-current="page"/],
+    ["#analytics", /data-shell-target="analytics"[\s\S]{0,260}aria-current="page"/],
+    ["#install", /data-shell-target="install"[\s\S]{0,260}aria-current="page"/],
+    ["#settings", /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/],
+  ];
+
+  for (const [hash, expectedMarkup] of hashRoutes) {
+    const harness = createDashboardHarness({
+      hash,
+      agents: () => [createActiveAgent()],
+    });
+    await harness.settle();
+
+    assert.match(harness.getRootHtml(), expectedMarkup, `${hash} should render the expected dashboard section`);
+  }
+});
+
 test("dashboard Home renders one command-center action strip with workflow links", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],

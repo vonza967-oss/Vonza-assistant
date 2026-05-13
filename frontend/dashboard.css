@@ -12025,3 +12025,441 @@ textarea::placeholder {
     min-height: auto;
   }
 }
+
+/* Dashboard interior polish pass */
+:root {
+  --dashboard-sidebar-bg: #071827;
+  --dashboard-sidebar-raised: rgba(20, 48, 62, 0.82);
+  --dashboard-sidebar-line: rgba(177, 214, 221, 0.13);
+  --dashboard-page-bg: #f2f6f8;
+  --dashboard-panel-soft: #f7fafc;
+  --dashboard-panel-line: #d9e3ec;
+  --dashboard-panel-line-strong: #bdcbd8;
+  --dashboard-shadow-soft: 0 12px 28px rgba(15, 30, 43, 0.06);
+  --dashboard-shadow-panel: 0 18px 48px rgba(15, 30, 43, 0.08);
+}
+
+.sidebar-shell {
+  padding: 20px 16px;
+  background:
+    linear-gradient(180deg, rgba(24, 68, 82, 0.9) 0%, rgba(7, 24, 39, 0.98) 44%, #061421 100%);
+  border-right: 1px solid var(--dashboard-sidebar-line);
+}
+
+.sidebar-identity {
+  min-height: 64px;
+  padding: 0 8px 18px;
+  border-bottom-color: var(--dashboard-sidebar-line);
+}
+
+.sidebar-identity-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #0f8f7f 0%, #0a665f 100%);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-eyebrow {
+  display: none;
+}
+
+.sidebar-title {
+  color: #f8fbfd;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.sidebar-copy {
+  color: rgba(222, 235, 241, 0.66);
+}
+
+.shell-sidebar-group + .shell-sidebar-group,
+.sidebar-footer {
+  border-top-color: var(--dashboard-sidebar-line);
+}
+
+.shell-sidebar-label,
+.shell-sidebar-note,
+.shell-nav-note,
+.sidebar-status-label {
+  color: rgba(222, 235, 241, 0.6);
+}
+
+.shell-nav-button {
+  min-height: 48px;
+  padding: 10px 11px;
+  color: rgba(244, 249, 251, 0.8);
+}
+
+.shell-nav-button:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.shell-nav-button.active {
+  background:
+    linear-gradient(90deg, rgba(15, 143, 127, 0.28), rgba(255, 255, 255, 0.055));
+  border-color: rgba(101, 214, 191, 0.24);
+  box-shadow: inset 3px 0 0 #21c6aa;
+}
+
+.shell-nav-note {
+  font-size: 11.5px;
+}
+
+.sidebar-status-dock {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--dashboard-sidebar-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.sidebar-status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar-status-item strong {
+  color: #f7fbfd;
+  font-size: 12px;
+  font-weight: 750;
+  text-align: right;
+}
+
+.workspace-context-bar {
+  display: none;
+}
+
+.workspace-pages {
+  gap: 22px;
+  padding: 30px 34px 42px;
+}
+
+.workspace-page {
+  border-radius: 14px;
+}
+
+.workspace-page .page-header {
+  align-items: center;
+  padding: 24px 30px 18px;
+}
+
+.workspace-page .page-title {
+  color: #111827;
+  font-size: clamp(28px, 2vw, 34px);
+}
+
+.workspace-page .page-copy {
+  color: #5b6b80;
+}
+
+.workspace-page .page-toolbar {
+  padding: 14px 30px;
+  background: #fbfdff;
+}
+
+.workspace-page-body,
+.workspace-page-overview .workspace-page-body {
+  padding: 24px 30px 30px;
+  background: var(--dashboard-panel-soft);
+}
+
+.customer-filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.customer-toolbar-search {
+  min-width: min(440px, 100%);
+  flex: 1 1 360px;
+}
+
+.workspace-page[data-shell-section="contacts"] .contacts-workspace {
+  grid-template-columns: minmax(420px, 1.15fr) minmax(320px, 0.85fr);
+  gap: 18px;
+}
+
+.workspace-page[data-shell-section="contacts"] .contacts-detail-shell {
+  display: grid;
+  gap: 12px;
+  min-height: auto;
+  top: 24px;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-row {
+  min-height: 92px;
+  padding: 16px 18px;
+}
+
+.workspace-page[data-shell-section="contacts"] .customer-row.active {
+  background: #eefaf7;
+}
+
+.customer-row-statuses {
+  align-items: center;
+}
+
+.customer-identity-chip,
+.customer-source-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid #d7dfeb;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: #4b5f78;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.customer-identity-chip--identified {
+  border-color: #a7dbc7;
+  background: #eaf8f2;
+  color: #147854;
+}
+
+.customer-identity-chip--guest {
+  border-color: #d7dfeb;
+  background: #f4f7fb;
+  color: #60748e;
+}
+
+.customer-source-chip {
+  border-color: #bfd1f3;
+  background: #eef4ff;
+  color: #315fbd;
+}
+
+.customer-detail-panel {
+  border-color: var(--dashboard-panel-line);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.customer-detail-header {
+  gap: 14px;
+}
+
+.customer-risk-note {
+  padding: 12px 14px;
+  border: 1px solid #d9e3ec;
+  border-radius: 10px;
+  background: #f7fafc;
+  color: #40516c;
+  line-height: 1.5;
+}
+
+.customer-chat-message {
+  max-width: min(760px, 100%);
+}
+
+.customer-chat-message p {
+  white-space: pre-wrap;
+}
+
+.analytics-report-metric-grid {
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+}
+
+.analytics-source-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.analytics-source-card {
+  display: grid;
+  gap: 7px;
+  min-height: 158px;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.analytics-source-card strong {
+  margin-top: 2px;
+}
+
+.analytics-source-meter {
+  height: 7px;
+  overflow: hidden;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #e4ebf2;
+}
+
+.analytics-source-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0f8f7f, #315fbd);
+}
+
+.install-page-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 18px;
+}
+
+.install-status-card,
+.install-meta-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.install-status-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid #d8e6e2;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, #f7fcfa);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.install-status-title {
+  margin: 5px 0 6px;
+  color: #111827;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.install-meta-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.install-meta-grid:empty {
+  display: none;
+}
+
+.install-meta-grid .install-help {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dfe7ef;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.install-meta-grid .install-help strong {
+  color: #1f2d44;
+  font-size: 12px;
+}
+
+.install-options-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.install-option-card {
+  gap: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.install-option-card-qr .install-qr-section {
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+}
+
+.install-qr-preview {
+  width: 150px;
+  min-height: 150px;
+}
+
+.install-copy-field textarea {
+  border-color: #d7e0eb;
+  background: #f8fbfd;
+  color: #243449;
+}
+
+html[data-dashboard-theme="dark"] .sidebar-shell {
+  background:
+    linear-gradient(180deg, rgba(24, 68, 82, 0.8) 0%, rgba(7, 24, 39, 0.98) 44%, #061421 100%);
+}
+
+html[data-dashboard-theme="dark"] .workspace-context-bar {
+  display: none;
+}
+
+html[data-dashboard-theme="dark"] .customer-identity-chip,
+html[data-dashboard-theme="dark"] .customer-source-chip,
+html[data-dashboard-theme="dark"] .install-status-card,
+html[data-dashboard-theme="dark"] .install-meta-grid .install-help,
+html[data-dashboard-theme="dark"] .analytics-source-card,
+html[data-dashboard-theme="dark"] .customer-detail-panel {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: var(--theme-panel);
+}
+
+@media (max-width: 1280px) {
+  .analytics-report-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .workspace-page[data-shell-section="contacts"] .contacts-workspace,
+  .install-page-layout,
+  .analytics-source-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page[data-shell-section="contacts"] .contacts-detail-shell {
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .workspace-pages {
+    padding: 18px 14px 28px;
+  }
+
+  .workspace-page .page-header,
+  .workspace-page .page-toolbar {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .workspace-page-body,
+  .workspace-page-overview .workspace-page-body {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .workspace-page .page-header {
+    align-items: flex-start;
+  }
+
+  .analytics-report-metric-grid,
+  .summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page[data-shell-section="contacts"] .customer-row-top,
+  .workspace-page[data-shell-section="contacts"] .contact-row-main {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page[data-shell-section="contacts"] .customer-row-meta {
+    justify-content: flex-start;
+    justify-items: start;
+    white-space: normal;
+  }
+
+  .customer-row-statuses {
+    justify-content: flex-start;
+  }
+
+  .install-option-card-qr .install-qr-section {
+    grid-template-columns: 1fr;
+  }
+}

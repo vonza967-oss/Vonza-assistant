@@ -1815,7 +1815,7 @@ test("today knowledge-fix CTAs route to the actionable analytics workflow", () =
   assert.match(drawerMarkup, /data-target-id="action-knowledge"/);
 });
 
-test("customers render as a single-column workspace without inactive controls", () => {
+test("customers render as a polished workspace without inactive controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -1880,8 +1880,8 @@ test("customers render as a single-column workspace without inactive controls", 
   assert.doesNotMatch(contactsPanel, /Show filters/);
   assert.doesNotMatch(contactsPanel, /Export customers/);
   assert.match(contactsPanel, /data-contact-row/);
-  assert.doesNotMatch(contactsPanel, /data-contact-detail/);
-  assert.doesNotMatch(contactsPanel, /contacts-detail-shell/);
+  assert.match(contactsPanel, /data-contact-detail/);
+  assert.match(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /customer-status-chip/);
   assert.match(contactsPanel, /<strong class="contact-row-name">Taylor Reed<\/strong>/);
   assert.match(contactsPanel, /<p class="customer-row-identity">Email user · taylor@example\.com<\/p>/);
@@ -2400,7 +2400,7 @@ test("contacts panel still renders rows when a contact only has the needs-reply 
   assert.doesNotMatch(contactsPanel, /Your customers will show up here/);
 });
 
-test("sidebar rail stays grouped into primary, connected tools, and utilities", () => {
+test("sidebar rail keeps primary and utility navigation without placeholder connected tools", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -2439,8 +2439,8 @@ test("sidebar rail stays grouped into primary, connected tools, and utilities", 
   );
 
   assert.match(sidebar, /Primary/);
-  assert.match(sidebar, /Connected Tools/);
-  assert.match(sidebar, /\(coming soon\)/);
+  assert.doesNotMatch(sidebar, /Connected Tools/);
+  assert.doesNotMatch(sidebar, /\(coming soon\)/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Calendar[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Automations[\s\S]{0,80}Beta/);
@@ -2610,11 +2610,12 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
   );
 
   assert.match(analyticsPanel, /Assistant source/);
-  assert.match(analyticsPanel, /See whether visitors are using the website widget or the dedicated assistant page\./);
+  assert.match(analyticsPanel, /See whether visitors are using the website widget, the full-page assistant, or older activity\./);
   assert.match(analyticsPanel, /Website widget/);
   assert.match(analyticsPanel, /Full-page assistant/);
   assert.match(analyticsPanel, /Legacy\/unknown/);
   assert.match(analyticsPanel, /1 lead captured/);
+  assert.match(analyticsPanel, /analytics-source-meter/);
   assert.doesNotMatch(analyticsPanel, /display_mode/);
 });
 
@@ -2663,6 +2664,57 @@ test("analytics assistant source shows clean full-page empty state", () => {
 
   assert.match(analyticsPanel, /No full-page assistant conversations yet\./);
   assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
+});
+
+test("customers panel renders searchable records with real identity, source, and detail surfaces", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const workspace = harness.createEmptyOperatorWorkspace();
+  workspace.contacts.list = [
+    {
+      id: "contact-identified",
+      name: "Alex Customer",
+      email: "alex@example.com",
+      lifecycleState: "active_lead",
+      sources: ["chat"],
+      nextAction: {
+        title: "Send a follow-up",
+        description: "Answer the open pricing question.",
+      },
+      chatMessages: [
+        { role: "customer", label: "Customer", content: "Can I get pricing?", createdAt: "2026-05-13T10:00:00.000Z" },
+        { role: "vonza", label: "Vonza", content: "I can help with that.", createdAt: "2026-05-13T10:00:05.000Z" },
+      ],
+      timeline: [
+        { label: "Visitor message", source: "chat", summary: "Asked about pricing.", at: "2026-05-13T10:00:00.000Z" },
+      ],
+    },
+    {
+      id: "contact-page",
+      partialIdentity: true,
+      lifecycleState: "new",
+      sources: ["page", "qr"],
+      timeline: [
+        { label: "Visitor message", source: "chat", summary: "Asked which service fits.", at: "2026-05-13T10:05:00.000Z" },
+      ],
+    },
+  ];
+
+  const contactsPanel = harness.buildContactsPanel({}, workspace);
+
+  assert.match(contactsPanel, /data-contact-search/);
+  assert.match(contactsPanel, /Needs follow-up/);
+  assert.match(contactsPanel, /Identified/);
+  assert.match(contactsPanel, /Guest visitor/);
+  assert.match(contactsPanel, /Website widget/);
+  assert.match(contactsPanel, /Full-page assistant/);
+  assert.match(contactsPanel, /QR touchpoint/);
+  assert.match(contactsPanel, /contacts-detail-shell/);
+  assert.match(contactsPanel, /Current situation/);
+  assert.doesNotMatch(contactsPanel, /display_mode/);
 });
 
 test("analytics panel omits standalone knowledge improvement center", () => {
@@ -2753,7 +2805,9 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /Verify installation/);
   assert.match(markup, /A\. Website widget/);
   assert.match(markup, /B\. Full-page assistant/);
-  assert.match(markup, /Use this as a support page, booking\/help page, menu link, or QR code destination\./);
+  assert.match(markup, /C\. QR code/);
+  assert.match(markup, /Use a dedicated assistant page for support links, booking\/help pages, and deeper customer conversations\./);
+  assert.match(markup, /Use the full-page assistant QR code on menus, reception desks, flyers, and signs\./);
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
@@ -2777,6 +2831,7 @@ test("install section falls back to widget page URL when public slug is missing"
 
   assert.match(markup, /A\. Website widget/);
   assert.match(markup, /B\. Full-page assistant/);
+  assert.match(markup, /C\. QR code/);
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/widget\?agent_id=agent-1&amp;mode=page/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
