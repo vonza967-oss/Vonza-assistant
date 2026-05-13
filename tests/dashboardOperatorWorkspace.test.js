@@ -185,6 +185,236 @@ test("dashboard flag resolver prefers the canonical browser flag and falls back 
   assert.equal(canonicalOffHarness.isOperatorWorkspaceFlagEnabled(), false);
 });
 
+test("dashboard V2 shell renders behind the production flag without preview-only chrome", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_DASHBOARD_V2_ENABLED: true,
+    },
+  });
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "public-agent-key",
+    installId: "install-1",
+    websiteUrl: "https://example.com",
+    assistantName: "Example assistant",
+    accessStatus: "active",
+  };
+  const setup = harness.inferSetup(agent);
+
+  harness.renderAssistantShell(
+    agent,
+    [],
+    setup,
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  const markup = harness.document.getElementById("dashboard-root").innerHTML;
+  assert.match(markup, /dashboard-v2-shell/);
+  assert.match(markup, /data-dashboard-v2="enabled"/);
+  assert.match(markup, />Home</);
+  assert.match(markup, />Customers</);
+  assert.match(markup, />Front Desk</);
+  assert.match(markup, />Analytics</);
+  assert.match(markup, />Install</);
+  assert.match(markup, />Settings</);
+  assert.doesNotMatch(markup, /dashboard-help-fab/);
+  assert.doesNotMatch(markup, /Ask Vonza/);
+  assert.doesNotMatch(markup, /Growth Plan/);
+  assert.doesNotMatch(markup, /\$50\/month/);
+});
+
+test("dashboard V2 Home uses real metrics, activity, readiness, and source empty states", () => {
+  const harness = createDashboardHarness();
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "public-agent-key",
+    installId: "install-1",
+    websiteUrl: "https://example.com",
+    assistantName: "Example assistant",
+    accessStatus: "active",
+  };
+  const setup = harness.inferSetup(agent);
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    conversionSummary: {
+      ...harness.createEmptyActionQueue().conversionSummary,
+      contactsCaptured: 3,
+    },
+    humanFollowUps: {
+      ...harness.createEmptyActionQueue().humanFollowUps,
+      summary: {
+        ...harness.createEmptyActionQueue().humanFollowUps.summary,
+        open: 2,
+      },
+    },
+    analyticsSummary: {
+      ...harness.createEmptyAnalyticsSummary(),
+      contactsCaptured: 3,
+      assistedOutcomes: 4,
+    },
+  };
+  const operatorWorkspace = {
+    ...harness.createEmptyOperatorWorkspace(),
+    today: {
+      ...harness.createEmptyOperatorWorkspace().today,
+      messagesToday: 5,
+      assistedOutcomes: 4,
+    },
+  };
+
+  const markup = harness.buildOverviewPanel(
+    agent,
+    [
+      { createdAt: "2026-05-13T09:00:00.000Z", role: "user", content: "Can I book a consult?" },
+      { createdAt: "2026-05-13T09:01:00.000Z", role: "assistant", content: "Yes, here is the next step." },
+    ],
+    setup,
+    actionQueue,
+    operatorWorkspace
+  );
+
+  assert.match(markup, /Conversations today/);
+  assert.match(markup, /Leads captured/);
+  assert.match(markup, /Needs reply \/ follow-ups/);
+  assert.match(markup, /AI handled/);
+  assert.match(markup, /Latest real conversation activity/);
+  assert.match(markup, /Can I book a consult\?/);
+  assert.match(markup, /Assistant readiness/);
+  assert.match(markup, /Source activity/);
+  assert.match(markup, /QR scan tracking is not available yet|QR scans are not tracked yet/);
+  assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
+
+  const emptyMarkup = harness.buildOverviewPanel(
+    agent,
+    [],
+    setup,
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assert.match(emptyMarkup, /No conversations yet/);
+  assert.match(emptyMarkup, /No captured leads are recorded yet/);
+  assert.match(emptyMarkup, /No source analytics are available yet/);
+});
+
+test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and verification controls", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_PUBLIC_APP_URL: "https://app.example.com",
+    },
+  });
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "public-agent-key",
+    installId: "install-1",
+    websiteUrl: "https://example.com",
+    assistantName: "Example assistant",
+    welcomeMessage: "Welcome",
+    buttonLabel: "Chat",
+    accessStatus: "active",
+  };
+  const setup = harness.inferSetup(agent);
+  const markup = harness.buildInstallPanel(
+    agent,
+    setup,
+    harness.createEmptyOperatorWorkspace(),
+    [],
+    harness.createEmptyActionQueue()
+  );
+
+  assert.match(markup, /Website widget/);
+  assert.match(markup, /data-action="copy-install"/);
+  assert.match(markup, /data-action="verify-install"/);
+  assert.match(markup, /https:\/\/app\.example\.com\/embed\.js/);
+  assert.match(markup, /data-install-id="install-1"/);
+  assert.match(markup, /Full-page assistant/);
+  assert.match(markup, /https:\/\/app\.example\.com\/a\/public-agent-key/);
+  assert.match(markup, /data-action="copy-full-page-url"/);
+  assert.match(markup, /data-action="copy-full-page-iframe"/);
+  assert.match(markup, /QR touchpoints/);
+  assert.match(markup, /data-full-page-qr-preview/);
+  assert.match(markup, /data-action="download-full-page-qr"/);
+  assert.match(markup, /QR scan tracking is not tracked yet/);
+  assert.doesNotMatch(markup, /cdn\.vonza\.com/);
+});
+
+test("dashboard V2 Analytics source cards render real widget, page, and legacy counts only", () => {
+  const harness = createDashboardHarness();
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "public-agent-key",
+    installId: "install-1",
+    accessStatus: "active",
+  };
+  const setup = harness.inferSetup(agent);
+  const actionQueue = {
+    ...harness.createEmptyActionQueue(),
+    ownerAnalyticsDashboard: {
+      ok: true,
+      metrics: {
+        totalConversations: 6,
+        leadsCaptured: 3,
+        conversionRate: 50,
+      },
+      assistantSource: {
+        widget: {
+          key: "widget",
+          label: "Website widget",
+          conversationCount: 2,
+          messageCount: 5,
+          visitorQuestionCount: 2,
+          leadsCaptured: 1,
+        },
+        page: {
+          key: "page",
+          label: "Full-page assistant",
+          conversationCount: 3,
+          messageCount: 7,
+          visitorQuestionCount: 3,
+          leadsCaptured: 2,
+        },
+        unknown: {
+          key: "unknown",
+          label: "Legacy/unknown",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
+        totalConversations: 6,
+        totalMessages: 14,
+      },
+    },
+  };
+  const markup = harness.buildAnalyticsPanel(
+    agent,
+    [],
+    setup,
+    actionQueue,
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  assert.match(markup, /Assistant source/);
+  assert.match(markup, /Website widget/);
+  assert.match(markup, /Full-page assistant/);
+  assert.match(markup, /Legacy\/unknown/);
+  assert.match(markup, /5 messages/);
+  assert.match(markup, /7 messages/);
+  assert.match(markup, /2 legacy messages/);
+  assert.doesNotMatch(markup, /QR scans/);
+
+  const emptyMarkup = harness.buildAnalyticsPanel(
+    agent,
+    [],
+    setup,
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assert.match(emptyMarkup, /No full-page assistant conversations yet/);
+  assert.doesNotMatch(emptyMarkup, /Legacy\/unknown/);
+});
+
 test("dashboard loading screen uses premium workspace preparation UI", () => {
   const html = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
   const css = readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
@@ -1521,7 +1751,9 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Home/);
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
   assert.match(overviewPanel, /Conversations today/);
-  assert.match(overviewPanel, /Guided to next step/);
+  assert.match(overviewPanel, /Leads captured/);
+  assert.match(overviewPanel, /Needs reply \/ follow-ups/);
+  assert.match(overviewPanel, /AI handled/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
   assert.match(overviewPanel, /AI priorities/);
   assert.match(overviewPanel, /Who needs attention/);
@@ -1533,7 +1765,9 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
   assert.doesNotMatch(overviewPanel, /Finish the live launch/);
-  assert.match(overviewPanel, /Recent wins/);
+  assert.match(overviewPanel, /Recent activity/);
+  assert.match(overviewPanel, /Assistant readiness/);
+  assert.match(overviewPanel, /Source activity/);
   assert.match(overviewPanel, /Improve service/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);

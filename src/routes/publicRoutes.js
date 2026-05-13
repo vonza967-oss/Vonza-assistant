@@ -522,6 +522,10 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "dashboard.html"));
   });
 
+  router.get("/dashboard-v2-preview", (_req, res) => {
+    res.sendFile(path.join(rootDir, "frontend", "dashboard-v2-preview.html"));
+  });
+
   router.get("/aszf", (_req, res) => {
     res.type("html");
     res.send(renderLegalPage("terms"));
@@ -573,6 +577,7 @@ window.VONZA_DEV_FAKE_BILLING = ${JSON.stringify(isLocalDevBillingRequestAllowed
 window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED = ${JSON.stringify(operatorWorkspaceEnabled)};
 window.VONZA_OPERATOR_WORKSPACE_V1 = window.VONZA_OPERATOR_WORKSPACE_V1_ENABLED;
 window.VONZA_TODAY_COPILOT_V1_ENABLED = ${JSON.stringify(todayCopilotEnabled)};
+window.VONZA_DASHBOARD_V2_ENABLED = true;
 window.VONZA_APP_VERSION = ${JSON.stringify(getAppVersion())};
 window.VONZA_BUILD_SHA = ${JSON.stringify(getBuildSha())};
 window.VONZA_LAUNCH_PROFILE = ${JSON.stringify(launchProfile)};

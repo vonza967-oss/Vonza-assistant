@@ -1350,6 +1350,12 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
 
+        const dashboardV2Preview = await getText(server.baseUrl, "/dashboard-v2-preview");
+        assert.equal(dashboardV2Preview.status, 200);
+        assert.match(dashboardV2Preview.text, /v2-preview-root/);
+        assert.match(dashboardV2Preview.text, /dashboard-v2-preview\.css/);
+        assert.match(dashboardV2Preview.text, /dashboard-v2-preview\.js/);
+
         const widget = await getText(server.baseUrl, "/widget");
         assert.equal(widget.status, 200);
         assert.match(widget.text, /chat-container/);
@@ -1386,6 +1392,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const publicConfig = await getText(server.baseUrl, "/public-config.js");
         assert.equal(publicConfig.status, 200);
+        assert.match(publicConfig.text, /window\.VONZA_DASHBOARD_V2_ENABLED = true/);
         assert.match(publicConfig.text, /window\.VONZA_BILLING_PLANS/);
         assert.match(publicConfig.text, /"starter"/);
         assert.match(publicConfig.text, /"growth"/);

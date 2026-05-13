@@ -171,27 +171,27 @@
 
   function defaultBillingSnapshot() {
     return {
-      planKey: "growth",
-      displayName: "Growth",
-      monthlyPriceCents: 5000,
-      monthlyPriceUsd: 50,
-      monthlyPriceLabel: "$50/month",
-      billingInterval: "month",
-      includedAiBudgetCents: 3000,
+      planKey: "",
+      displayName: "",
+      monthlyPriceCents: 0,
+      monthlyPriceUsd: 0,
+      monthlyPriceLabel: "",
+      billingInterval: "",
+      includedAiBudgetCents: 0,
       currentPeriodStart: null,
       currentPeriodEnd: null,
       subscriptionStatus: "pending",
       hasActiveSubscription: false,
       usage: {
         usedCents: 0,
-        includedCents: 3000,
-        remainingCents: 3000,
+        includedCents: 0,
+        remainingCents: 0,
         percentUsed: 0,
         warningState: "normal",
         warningThreshold: 0,
         tone: "ok",
-        statusLabel: "Within the included monthly capacity",
-        ownerMessage: "Monthly AI usage is comfortably within the included capacity.",
+        statusLabel: "",
+        ownerMessage: "",
         isCapped: false,
       },
       upgradeOptions: [],
@@ -891,6 +891,11 @@
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
     const billingUsage = billing.usage || defaultBillingSnapshot().usage;
+    const hasBillingPlanData = billing.hasActiveSubscription === true
+      || Boolean(defaultTrimText(billing.displayName || billing.monthlyPriceLabel || billing.planKey));
+    const currentPlanLabel = hasBillingPlanData
+      ? [billing.displayName, billing.monthlyPriceLabel].map(defaultTrimText).filter(Boolean).join(" · ") || "Current plan"
+      : "No active billing plan data";
     const usagePercentLabel = formatBillingPercent(billingUsage.percentUsed);
     const billingPeriodLabel = billing.currentPeriodStart && billing.currentPeriodEnd
       ? `${formatBillingDate(billing.currentPeriodStart)} - ${formatBillingDate(billing.currentPeriodEnd)}`
@@ -959,10 +964,10 @@
             <div class="settings-shell-status-row">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Current plan</p>
-                <h4 class="settings-shell-status-value">${escapeHtml(`${billing.displayName || "Growth"} · ${billing.monthlyPriceLabel || "$50/month"}`)}</h4>
+                <h4 class="settings-shell-status-value">${escapeHtml(currentPlanLabel)}</h4>
                 <p class="settings-shell-status-copy">${escapeHtml(billing.hasActiveSubscription
                   ? "Hosted monthly subscription with upgrade-anytime capacity."
-                  : "This workspace is ready for a hosted monthly subscription plan.")}</p>
+                  : "Billing plan details will appear here after checkout or subscription sync.")}</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
@@ -1017,7 +1022,7 @@
               `
               : `
                 <div class="settings-shell-billing-notice settings-shell-billing-notice--ok">
-                  You are already on the highest monthly capacity plan available in this pass.
+                  Plan change options are not available for this workspace yet.
                 </div>
               `}
           </div>

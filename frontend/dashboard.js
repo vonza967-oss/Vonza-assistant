@@ -3,6 +3,7 @@ const rootEl = document.getElementById("dashboard-root");
 const statusBanner = document.getElementById("status-banner");
 const topbarMeta = document.getElementById("topbar-meta");
 const dashboardHelpers = window.VonzaDashboardHelpers || {};
+const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 
 const CLIENT_ID_STORAGE_KEY = "vonza_client_id";
 const INSTALL_STORAGE_PREFIX = "vonza_install_progress_";
@@ -4275,10 +4276,11 @@ function buildSidebarShell(
   const billing = operatorWorkspace.billing || createEmptyOperatorWorkspace().billing;
   const billingUsage = billing.usage || createEmptyOperatorWorkspace().billing.usage;
   const billingUsagePercent = Math.min(100, Math.max(0, Number(billingUsage.percentUsed || 0) || 0));
+  const hasRealBillingData = billing.hasActiveSubscription === true;
   const billingUsageLabel = billingUsage.includedCents
     ? `${formatAnalyticsReportNumber(Math.round(Number(billingUsage.usedCents || 0) / 100))} / ${formatAnalyticsReportNumber(Math.round(Number(billingUsage.includedCents || 0) / 100))} AI credits`
     : billingUsage.statusLabel || "Monthly usage will appear here";
-  const billingPlanLabel = trimText(billing.displayName || "Growth");
+  const billingPlanLabel = trimText(billing.displayName || "Current plan");
   const billingPlanTitle = /\bplan\b/i.test(billingPlanLabel) ? billingPlanLabel : `${billingPlanLabel} Plan`;
   const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
   const accountInitials = trimText(accountLabel)
@@ -4294,6 +4296,21 @@ function buildSidebarShell(
     : setup.knowledgeLimited
       ? "Website learning"
       : "Add website details";
+  const billingPlanMarkup = hasRealBillingData
+    ? `
+        <div class="sidebar-plan-card">
+          <div class="sidebar-plan-card-head">
+            <strong>${escapeHtml(billingPlanTitle)}</strong>
+            <span class="${getBadgeClass("Ready")}">Active</span>
+          </div>
+          <p>${escapeHtml(billingUsage.statusLabel || billing.monthlyPriceLabel || "Monthly AI capacity")}</p>
+          <div class="sidebar-plan-meter" aria-label="Monthly AI usage">
+            <span style="width:${escapeHtml(String(billingUsagePercent))}%"></span>
+          </div>
+          <small>${escapeHtml(billingUsageLabel)}</small>
+        </div>
+      `
+    : "";
   const coreItems = [
     {
       key: "overview",
@@ -4331,7 +4348,7 @@ function buildSidebarShell(
     },
     {
       key: "settings",
-      label: t("nav.settingsPrivacy"),
+      label: t("nav.settings"),
       note: "Privacy and workspace",
     },
   ].filter((item) => availableSections.includes(item.key));
@@ -4362,17 +4379,7 @@ function buildSidebarShell(
             <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
           </div>
         </div>
-        <div class="sidebar-plan-card">
-          <div class="sidebar-plan-card-head">
-            <strong>${escapeHtml(billingPlanTitle)}</strong>
-            <span class="${getBadgeClass(billing.hasActiveSubscription ? "Ready" : "Pending")}">${escapeHtml(billing.hasActiveSubscription ? "Active" : "Setup")}</span>
-          </div>
-          <p>${escapeHtml(billingUsage.statusLabel || billing.monthlyPriceLabel || "Monthly AI capacity")}</p>
-          <div class="sidebar-plan-meter" aria-label="Monthly AI usage">
-            <span style="width:${escapeHtml(String(billingUsagePercent))}%"></span>
-          </div>
-          <small>${escapeHtml(billingUsageLabel)}</small>
-        </div>
+        ${billingPlanMarkup}
         ${buildSidebarGroup(t("nav.utilities"), utilityItems, activeSection)}
         <div class="sidebar-user-card">
           <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
@@ -7288,7 +7295,6 @@ function buildTodayQueueList(items = [], actionQueue = createEmptyActionQueue(),
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
-  const contactsList = Array.isArray(operatorWorkspace.contacts?.list) ? operatorWorkspace.contacts.list : [];
   const contactSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const dedupedQueueItems = (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
     const key = trimText(item?.key || item?.id || `${item?.type || "item"}-${index}`);
@@ -7331,24 +7337,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       { primary }
     );
   };
-  const getComparableTime = (...values) => {
-    for (const value of values) {
-      const timestamp = new Date(value || "").getTime();
-
-      if (Number.isFinite(timestamp)) {
-        return timestamp;
-      }
-    }
-
-    return 0;
-  };
-  const recentWins = contactsList
-    .filter((contact) => trimText(contact.latestOutcome?.label))
-    .slice()
-    .sort((left, right) => (
-      getComparableTime(right.latestOutcome?.occurredAt, right.mostRecentActivityAt)
-      - getComparableTime(left.latestOutcome?.occurredAt, left.mostRecentActivityAt)
-    ));
   const conversationsToday = Number(today.messagesToday || 0);
   const customersHelpedToday = Number(today.contactsDealtToday || 0);
   const complaintIssueCount = Number(today.complaintsNeedingReview || 0) + Number(today.supportNeedingReview || 0);
@@ -7376,37 +7364,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const pricingWeakAnswer = (overview.signals.weakAnswerExamples || []).some((item) =>
     /pricing|price|quote|cost|package/i.test(trimText(item))
   );
-  const serviceHealth = (() => {
-    if (openIssueCount > 0) {
-      return {
-        label: openIssueCount > 2 ? "Needs attention" : "Watch closely",
-        copy: `${countLabel(openIssueCount, "open issue")} could affect satisfaction.`,
-        tone: "attention",
-      };
-    }
-
-    if (weakAnswerCount > 0) {
-      return {
-        label: weakAnswerCount > 2 ? "Mixed" : "Mostly healthy",
-        copy: `${countLabel(weakAnswerCount, "answer")} still need work.`,
-        tone: weakAnswerCount > 2 ? "attention" : "caution",
-      };
-    }
-
-    if (conversationsToday > 0 || customersHelpedToday > 0) {
-      return {
-        label: "Healthy",
-        copy: "No active complaint or service-quality warning is standing out.",
-        tone: "healthy",
-      };
-    }
-
-    return {
-      label: "No signal yet",
-      copy: "This becomes more useful once live conversations start today.",
-      tone: "muted",
-    };
-  })();
   const priorityCards = [];
   const topHumanFollowUps = Array.isArray(actionQueue.humanFollowUps?.topItems)
     ? actionQueue.humanFollowUps.topItems
@@ -7525,6 +7482,24 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       issues: countLabel(openIssueCount, "issue"),
     })
     : t("home.ready");
+  const leadsCapturedCount = Math.max(
+    Number(overview.analyticsSummary.contactsCaptured || 0),
+    Number(actionQueue.conversionSummary?.contactsCaptured || 0),
+    Number(contactSummary.lifecycleCounts?.activeLead || 0) + Number(contactSummary.lifecycleCounts?.qualified || 0),
+  );
+  const needsReplyOrFollowUpCount = Math.max(
+    Number(actionQueue.humanFollowUps?.summary?.open || 0),
+    Number(today.customersAwaitingFollowUp || 0),
+    Number(today.followUpsAwaitingApproval || 0),
+    Number(contactSummary.contactsNeedingAttention || 0),
+    Number(overview.queueSummary?.attentionNeeded || 0),
+  );
+  const aiHandledCount = Math.max(
+    customersHelpedToday,
+    Number(today.assistedOutcomes || 0),
+    Number(overview.analyticsSummary.assistedOutcomes || 0),
+    Number(overview.outcomeSummary.assistedConversions || 0),
+  );
   const dailyStats = [
     {
       label: t("home.conversationsToday"),
@@ -7533,87 +7508,53 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "neutral",
     },
     {
-      label: t("home.guidedNextStep"),
-      value: String(customersHelpedToday),
-      copy: customersHelpedToday > 0
-        ? "Unique customers with a booking, follow-up, or recorded outcome today."
-        : "No customer has a booking, follow-up, or recorded outcome yet today.",
+      label: "Leads captured",
+      value: String(leadsCapturedCount),
+      copy: leadsCapturedCount > 0
+        ? "Real lead or contact capture signals currently available."
+        : "No captured leads are recorded yet.",
       tone: "positive",
     },
     {
-      label: t("home.openIssues"),
-      value: String(openIssueCount),
-      copy: openIssueCount > 0 ? "Complaints or service issues still needing attention." : "No active service issue signal is standing out.",
-      tone: openIssueCount > 0 ? "attention" : "positive",
+      label: "Needs reply / follow-ups",
+      value: String(needsReplyOrFollowUpCount),
+      copy: needsReplyOrFollowUpCount > 0
+        ? "Customers or owner tasks still need a human next step."
+        : "No customer reply or follow-up is waiting.",
+      tone: needsReplyOrFollowUpCount > 0 ? "attention" : "positive",
     },
     {
-      label: t("home.customerSatisfaction"),
-      value: serviceHealth.label,
-      copy: serviceHealth.copy,
-      tone: serviceHealth.tone,
+      label: "AI handled",
+      value: String(aiHandledCount),
+      copy: aiHandledCount > 0
+        ? "Conversations with an assisted outcome or handled customer next step."
+        : "No AI-handled outcome is recorded yet.",
+      tone: aiHandledCount > 0 ? "positive" : "neutral",
     },
   ];
-  const recentWinItems = (() => {
-    const items = [];
+  const recentActivityItems = (Array.isArray(messages) ? messages : [])
+    .map((message, index) => {
+      const role = trimText(message.role || message.sender || message.direction).toLowerCase();
+      const text = trimText(message.content || message.message || message.text || message.body);
+      const createdAt = message.createdAt || message.created_at || message.insertedAt || message.inserted_at || "";
+      const timestamp = new Date(createdAt || "").getTime();
+      const title = role === "assistant"
+        ? "Assistant reply"
+        : role === "user" || role === "visitor" || role === "customer"
+          ? "Visitor question"
+          : "Conversation activity";
 
-    if (Number(today.complaintResolutions || 0) > 0) {
-      items.push({
-        title: `${countLabel(Number(today.complaintResolutions || 0), "complaint")} resolved`,
-        copy: "A customer issue was closed instead of lingering.",
-        meta: "Daily",
-      });
-    }
-
-    if (Number(today.followUpReplies || 0) > 0) {
-      items.push({
-        title: `${countLabel(Number(today.followUpReplies || 0), "customer")} replied after follow-up`,
-        copy: "Vonza kept the conversation moving after the first contact.",
-        meta: "Daily",
-      });
-    }
-
-    if (customersHelpedToday > 0) {
-      items.push({
-        title: `${countLabel(customersHelpedToday, "customer")} reached a next step`,
-        copy: "A booking, follow-up, or recorded outcome was tied to a customer today.",
-        meta: "Daily",
-      });
-    }
-
-    if (Number(today.bookingsConfirmed || 0) > 0) {
-      items.push({
-        title: `${countLabel(Number(today.bookingsConfirmed || 0), "booking")} confirmed`,
-        copy: "A customer reached a clear next step today.",
-        meta: "Daily",
-      });
-    }
-
-    if (Number(today.quoteRequests || 0) > 0) {
-      items.push({
-        title: `${countLabel(Number(today.quoteRequests || 0), "quote request")} captured`,
-        copy: "A high-intent customer moved forward instead of dropping off.",
-        meta: "Daily",
-      });
-    }
-
-    if (items.length) {
-      return items.slice(0, 4);
-    }
-
-    if (Array.isArray(today.recentSuccessfulOutcomes) && today.recentSuccessfulOutcomes.length) {
-      return today.recentSuccessfulOutcomes.slice(0, 4).map((outcome) => ({
-        title: getOutcomeTypeLabel(outcome.outcomeType),
-        copy: trimText(outcome.sourceLabel || outcome.relatedIntentType || outcome.pageUrl || "Recent customer outcome"),
-        meta: outcome.occurredAt ? formatSeenAt(outcome.occurredAt) : "Recent",
-      }));
-    }
-
-    return recentWins.slice(0, 4).map((contact) => ({
-      title: trimText(contact.latestOutcome?.label) || "Customer helped",
-      copy: trimText(contact.name || contact.bestIdentifier || "Recent customer"),
-      meta: contact.latestOutcome?.occurredAt ? formatSeenAt(contact.latestOutcome.occurredAt) : "Recent",
-    }));
-  })();
+      return {
+        key: `${timestamp || 0}:${index}`,
+        title,
+        copy: text,
+        meta: createdAt ? formatSeenAt(createdAt) : "Recent",
+        timestamp: Number.isFinite(timestamp) ? timestamp : 0,
+      };
+    })
+    .filter((item) => item.copy)
+    .sort((left, right) => right.timestamp - left.timestamp)
+    .slice(0, 4);
   const improvementRecommendation = (() => {
     if (pricingWeakAnswer || (pricingQuestionCount > 0 && weakAnswerCount > 0)) {
       return {
@@ -7814,6 +7755,15 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       done: setup.knowledgeReady && !setup.knowledgeLimited,
     },
   ];
+  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
+  const sourceBreakdown = ownerAnalyticsDashboard?.assistantSource || null;
+  const sourceActivityItems = sourceBreakdown
+    ? [
+      normalizeAssistantSourceBucket(sourceBreakdown.widget, createEmptyOwnerAnalyticsDashboard().assistantSource.widget),
+      normalizeAssistantSourceBucket(sourceBreakdown.page, createEmptyOwnerAnalyticsDashboard().assistantSource.page),
+      normalizeAssistantSourceBucket(sourceBreakdown.unknown, createEmptyOwnerAnalyticsDashboard().assistantSource.unknown),
+    ].filter((item) => item.key !== "unknown" || Number(item.conversationCount || 0) > 0 || Number(item.messageCount || 0) > 0 || Number(item.leadsCaptured || 0) > 0)
+    : [];
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
@@ -7939,14 +7889,14 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <section class="workspace-card-soft home-mini-panel">
                 <div class="workspace-panel-header">
                   <div>
-                    <p class="studio-kicker">${escapeHtml(t("home.recentWins"))}</p>
-                    <h3 class="workspace-panel-title">${escapeHtml(t("home.savedCustomers"))}</h3>
-                    <p class="workspace-panel-copy">Small proof that Vonza is helping today without making you dig through analytics.</p>
+                    <p class="studio-kicker">Recent activity</p>
+                    <h3 class="workspace-panel-title">Latest real conversation activity</h3>
+                    <p class="workspace-panel-copy">Only stored messages appear here. If there are no conversations yet, Home stays empty instead of showing sample people.</p>
                   </div>
                 </div>
-                ${recentWinItems.length ? `
+                ${recentActivityItems.length ? `
                   <div class="home-win-list">
-                    ${recentWinItems.map((item) => `
+                    ${recentActivityItems.map((item) => `
                       <div class="home-win-row">
                         <span class="home-win-dot" aria-hidden="true"></span>
                         <div>
@@ -7957,7 +7907,54 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                       </div>
                     `).join("")}
                   </div>
-                ` : `<div class="placeholder-card">Recent customer wins will show up here as soon as Vonza can point to a real helped moment or resolved issue.</div>`}
+                ` : `<div class="placeholder-card">No conversations yet. Recent customer questions and assistant replies will appear here once real visitors start using Vonza.</div>`}
+              </section>
+
+              <section class="workspace-card-soft home-mini-panel">
+                <div class="workspace-panel-header">
+                  <div>
+                    <p class="studio-kicker">Assistant readiness</p>
+                    <h3 class="workspace-panel-title">Setup and install status</h3>
+                    <p class="workspace-panel-copy">Readiness is based on the current assistant, install, and website knowledge state.</p>
+                  </div>
+                </div>
+                <div class="home-win-list">
+                  ${setupStatusItems.slice(0, 4).map((item) => `
+                    <div class="home-win-row">
+                      <span class="home-win-dot" aria-hidden="true"></span>
+                      <div>
+                        <strong>${escapeHtml(item.title)}</strong>
+                        <p>${escapeHtml(item.copy)}</p>
+                        <span>${escapeHtml(item.done ? "Ready" : "Needs setup")}</span>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              </section>
+
+              <section class="workspace-card-soft home-mini-panel">
+                <div class="workspace-panel-header">
+                  <div>
+                    <p class="studio-kicker">Source activity</p>
+                    <h3 class="workspace-panel-title">Widget, full-page, and QR</h3>
+                    <p class="workspace-panel-copy">Source counts use existing analytics only. QR scan tracking is not available yet.</p>
+                  </div>
+                </div>
+                ${sourceActivityItems.length ? `
+                  <div class="home-win-list">
+                    ${sourceActivityItems.map((item) => `
+                      <div class="home-win-row">
+                        <span class="home-win-dot" aria-hidden="true"></span>
+                        <div>
+                          <strong>${escapeHtml(item.label)}</strong>
+                          <p>${escapeHtml(`${formatAnalyticsReportNumber(item.conversationCount)} conversation${Number(item.conversationCount || 0) === 1 ? "" : "s"} and ${formatAnalyticsReportNumber(item.messageCount)} message${Number(item.messageCount || 0) === 1 ? "" : "s"}`)}</p>
+                          <span>${escapeHtml(Number(item.leadsCaptured || 0) > 0 ? `${formatAnalyticsReportNumber(item.leadsCaptured)} lead${Number(item.leadsCaptured || 0) === 1 ? "" : "s"}` : "No leads from this source yet")}</span>
+                        </div>
+                      </div>
+                    `).join("")}
+                    <div class="placeholder-card">QR is available for the full-page assistant, but QR scan tracking is not tracked yet.</div>
+                  </div>
+                ` : `<div class="placeholder-card">No source analytics are available yet. Widget and full-page counts will appear here when real activity is recorded. QR scans are not tracked yet.</div>`}
               </section>
 
               <section class="workspace-card-soft home-improve-panel">
@@ -9855,27 +9852,27 @@ function createEmptyOperatorWorkspace() {
       followUps: [],
     },
     billing: {
-      planKey: "growth",
-      displayName: "Growth",
-      monthlyPriceCents: 5000,
-      monthlyPriceUsd: 50,
-      monthlyPriceLabel: "$50/month",
-      billingInterval: "month",
-      includedAiBudgetCents: 3000,
+      planKey: "",
+      displayName: "",
+      monthlyPriceCents: 0,
+      monthlyPriceUsd: 0,
+      monthlyPriceLabel: "",
+      billingInterval: "",
+      includedAiBudgetCents: 0,
       currentPeriodStart: null,
       currentPeriodEnd: null,
       subscriptionStatus: "pending",
       hasActiveSubscription: false,
       usage: {
         usedCents: 0,
-        includedCents: 3000,
-        remainingCents: 3000,
+        includedCents: 0,
+        remainingCents: 0,
         percentUsed: 0,
         warningState: "normal",
         warningThreshold: 0,
         tone: "ok",
-        statusLabel: "Within the included monthly capacity",
-        ownerMessage: "Monthly AI usage is comfortably within the included capacity.",
+        statusLabel: "",
+        ownerMessage: "",
         isCapped: false,
       },
       upgradeOptions: [],
@@ -14105,9 +14102,10 @@ function renderAssistantShell(
       </div>
     `
     : "";
+  const shellClassName = DASHBOARD_V2_ENABLED ? "app-shell dashboard-v2-shell" : "app-shell";
 
   rootEl.innerHTML = `
-    <div class="app-shell" data-app-shell>
+    <div class="${shellClassName}" data-app-shell data-dashboard-v2="${DASHBOARD_V2_ENABLED ? "enabled" : "disabled"}">
       <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
@@ -14477,6 +14475,7 @@ function buildInstallSection(agent, options = {}) {
           </div>
           <div class="install-qr-copy">
             <p class="install-help">Print this QR code or place it on menus, reception desks, flyers, and signs.</p>
+            <p class="install-help">QR scan tracking is not tracked yet. The QR opens the real full-page assistant URL.</p>
             <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
             <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
           </div>
