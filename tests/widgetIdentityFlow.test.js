@@ -162,8 +162,18 @@ function createWidgetHarness({
     "assistant-unavailable-copy",
     "page-assistant-hero",
     "page-business-name",
+    "page-business-domain",
+    "page-business-mark",
+    "page-business-logo",
+    "page-business-initial",
     "page-assistant-name",
     "page-assistant-subtitle",
+    "page-help-title",
+    "page-action-list",
+    "page-question-examples",
+    "welcome-badge",
+    "welcome-title",
+    "welcome-copy",
   ].forEach((id) => getElement(id));
 
   [
@@ -212,6 +222,10 @@ function createWidgetHarness({
 
       if (selector === ".welcome-brand-mark") {
         return getElement("welcome-brand-mark");
+      }
+
+      if (selector === ".welcome-brand-subtitle") {
+        return getElement("welcome-brand-subtitle");
       }
 
       if (selector === ".chat-container") {
@@ -397,6 +411,8 @@ test("explicit widget mode keeps the widget shell as the default display", () =>
   assert.equal(harness.elements.get("assistant-loading-state").hidden, true);
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
   assert.equal(harness.elements.get("entry-state").hidden, false);
+  assert.equal(harness.elements.get("welcome-title").textContent, "Hi! How can we help today?");
+  assert.equal(harness.elements.get("launcher-text").textContent, "AI front desk for your website");
 });
 
 test("page mode waits for a real assistant before showing the chat shell", async () => {
@@ -452,9 +468,21 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("chat-container").hidden, false);
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
   assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
-  assert.equal(harness.elements.get("page-business-name").textContent, "Acme Co");
-  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Assistant");
-  assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "Ask us anything about Acme.");
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.match(harness.elements.get("page-business-name").textContent, /Ask Acme Co anything/);
+  assert.equal(harness.elements.get("page-business-domain").textContent, "Business assistant");
+  assert.equal(harness.elements.get("page-help-title").textContent, "How can we help?");
+  assert.equal(
+    harness.elements.get("page-assistant-subtitle").textContent,
+    "Ask about services, pricing, bookings, quotes, or contact details."
+  );
+  assert.match(harness.elements.get("page-action-list").innerHTML, /What services do you offer\?/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Can I request a quote\?/);
+  assert.match(harness.elements.get("page-question-examples").innerHTML, /Tell me which service fits my situation\./);
+  assert.equal(harness.elements.get("assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("launcher-text").textContent, "Online now");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Start a conversation");
+  assert.equal(harness.elements.get("welcome-message").textContent, "Ask us anything about Acme.");
 });
 
 test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
@@ -488,6 +516,68 @@ test("assistant slug route defaults to page mode and missing assistant shows una
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, false);
   assert.equal(harness.elements.get("assistant-unavailable-title").textContent, "This assistant is not available right now.");
   assert.doesNotMatch(harness.elements.get("assistant-unavailable-copy").textContent, /agent_id|widget config|API/i);
+});
+
+test("assistant alias route uses hosted page mode and personalized default greeting", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/assistant/acme-desk",
+      href: "https://example.com/assistant/acme-desk",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        assert.match(url, /agent_key=acme-desk/);
+        assert.match(url, /mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+                websiteUrl: "https://www.acme.test/services",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Hi! How can we help today?",
+                widgetLogoUrl: "",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("page-business-domain").textContent, "acme.test");
+  assert.equal(
+    harness.elements.get("welcome-message").textContent,
+    "Hi, I can help with questions about Acme Co. What would you like to know?"
+  );
+  assert.notEqual(
+    harness.elements.get("page-assistant-subtitle").textContent,
+    harness.elements.get("welcome-message").textContent
+  );
 });
 
 test("fresh widget does not render the chat intro or composer before identity is chosen", () => {
@@ -817,12 +907,19 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="assistant-loading-state"/);
   assert.match(widget, /id="assistant-unavailable-state"/);
   assert.match(widget, /id="page-assistant-hero"/);
+  assert.match(widget, /id="page-action-list"/);
   assert.match(widget, /href="\/style\.css"/);
   assert.match(widget, /src="\/script\.js"/);
   assert.doesNotMatch(widget, /class="launcher"/);
+  assert.doesNotMatch(widget, /minimize/i);
+  assert.doesNotMatch(widget, /close-modal/i);
   assert.match(script, /QUICK_REPLY_TOPICS/);
+  assert.match(script, /PAGE_QUICK_REPLY_TOPICS/);
+  assert.match(script, /data-page-quick-action/);
   assert.match(script, /DISPLAY_MODE/);
+  assert.match(script, /display_mode: DISPLAY_MODE/);
   assert.match(style, /\.quick-reply-chip/);
+  assert.match(style, /\.page-action-card/);
   assert.match(style, /\.reply-feedback/);
   assert.match(style, /\.vonza-mode-widget/);
   assert.match(style, /\.vonza-mode-page/);

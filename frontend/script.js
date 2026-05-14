@@ -73,6 +73,18 @@ const QUICK_REPLY_TOPICS = Object.freeze([
   "Contact details",
   "Booking",
 ]);
+const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
+  "What services do you offer?",
+  "How much does it cost?",
+  "Can I request a quote?",
+  "How can I contact you?",
+  "Can I book a time?",
+]);
+const PAGE_EXAMPLE_QUESTIONS = Object.freeze([
+  "Tell me which service fits my situation.",
+  "Share pricing, availability, or booking details.",
+  "Help me leave my contact details for follow-up.",
+]);
 
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
@@ -81,6 +93,7 @@ let resolvedAgentKey = AGENT_KEY;
 let resolvedBusinessId = BUSINESS_ID;
 let liveLeadCapture = null;
 let liveDirectRouting = null;
+let pageBusinessContext = null;
 let visitorIdentity = {
   mode: "",
   email: "",
@@ -356,6 +369,92 @@ function getAssistantMark(name = widgetConfig.assistantName) {
   return (name || "V").trim().charAt(0).toUpperCase() || "V";
 }
 
+function isDefaultWelcomeMessage(message) {
+  const normalized = trimText(message);
+  return !normalized || normalized === DEFAULT_WIDGET_CONFIG.welcomeMessage;
+}
+
+function getConfiguredQuickReplies(config = widgetConfig) {
+  const candidates = [
+    config.suggestedQuestions,
+    config.suggested_questions,
+    config.quickReplies,
+    config.quick_replies,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const values = candidate.map((entry) => trimText(entry)).filter(Boolean);
+      if (values.length) {
+        return values.slice(0, 5);
+      }
+    }
+
+    if (typeof candidate === "string") {
+      const values = candidate
+        .split(/\n|,/)
+        .map((entry) => trimText(entry))
+        .filter(Boolean);
+      if (values.length) {
+        return values.slice(0, 5);
+      }
+    }
+  }
+
+  return [];
+}
+
+function getQuickReplyTopics(config = widgetConfig) {
+  const configured = getConfiguredQuickReplies(config);
+
+  if (configured.length) {
+    return configured;
+  }
+
+  return isPageMode() ? PAGE_QUICK_REPLY_TOPICS : QUICK_REPLY_TOPICS;
+}
+
+function getBusinessDisplayName(business = null, config = widgetConfig) {
+  const configuredBusinessName = trimText(
+    business?.name
+    || business?.businessName
+    || config.businessName
+    || config.business_name
+  );
+  const assistantName = trimText(config.assistantName);
+
+  return configuredBusinessName || assistantName || DEFAULT_WIDGET_CONFIG.assistantName;
+}
+
+function getBusinessDomainLabel(business = null) {
+  const websiteUrl = trimText(
+    business?.websiteUrl
+    || business?.website_url
+    || WEBSITE_URL
+  );
+
+  if (!websiteUrl) {
+    return "";
+  }
+
+  try {
+    return new URL(websiteUrl).hostname.replace(/^www\./i, "");
+  } catch {
+    return websiteUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0];
+  }
+}
+
+function getPageWelcomeMessage({ business = null, config = widgetConfig } = {}) {
+  const configuredWelcome = trimText(config.welcomeMessage);
+
+  if (!isPageMode() || !isDefaultWelcomeMessage(configuredWelcome)) {
+    return configuredWelcome || DEFAULT_WIDGET_CONFIG.welcomeMessage;
+  }
+
+  const businessName = getBusinessDisplayName(business, config);
+  return `Hi, I can help with questions about ${businessName}. What would you like to know?`;
+}
+
 function hasAssistantConfig() {
   return Boolean(INSTALL_ID || resolvedAgentId || resolvedAgentKey || resolvedBusinessId || WEBSITE_URL);
 }
@@ -497,24 +596,126 @@ function getFriendlyUnavailableState(error = null) {
   };
 }
 
-function syncPageAssistantHeader({ business = null, config = widgetConfig } = {}) {
-  const businessName = trimText(business?.name || business?.businessName);
-  const assistantName = trimText(config.assistantName) || DEFAULT_WIDGET_CONFIG.assistantName;
-  const subtitle = trimText(config.welcomeMessage) || "Ask a question and get a clear answer.";
+function syncPageAssistantHeader({ business = pageBusinessContext, config = widgetConfig } = {}) {
+  if (!isPageMode()) {
+    return;
+  }
+
+  const displayName = getBusinessDisplayName(business, config);
+  const assistantName = trimText(config.assistantName) || displayName || DEFAULT_WIDGET_CONFIG.assistantName;
+  const assistantDisplayName = assistantName === DEFAULT_WIDGET_CONFIG.assistantName ? displayName : assistantName;
+  const domain = getBusinessDomainLabel(business);
+  const hasNamedBrand = displayName && displayName !== DEFAULT_WIDGET_CONFIG.assistantName;
+  const customLogoUrl = trimText(config.widgetLogoUrl);
+  const mark = getAssistantMark(displayName);
+  const subtitle = "Ask about services, pricing, bookings, quotes, or contact details.";
   const businessNameEl = document.getElementById("page-business-name");
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
+  const domainEl = document.getElementById("page-business-domain");
+  const helpTitleEl = document.getElementById("page-help-title");
+  const pageMark = document.getElementById("page-business-mark");
+  const pageLogo = document.getElementById("page-business-logo");
+  const pageInitial = document.getElementById("page-business-initial");
+  const pageActionList = document.getElementById("page-action-list");
+  const pageQuestionExamples = document.getElementById("page-question-examples");
+  const chatAssistantNameEl = document.getElementById("assistant-name");
+  const launcherTextEl = document.getElementById("launcher-text");
+  const welcomeAssistantNameEl = document.getElementById("welcome-assistant-name");
+  const welcomeBrandSubtitleEl = document.querySelector(".welcome-brand-subtitle");
+  const welcomeBadgeEl = document.getElementById("welcome-badge");
+  const welcomeTitleEl = document.getElementById("welcome-title");
+  const welcomeCopyEl = document.getElementById("welcome-copy");
+  const welcomeMessageEl = document.getElementById("welcome-message");
+  const brandMark = document.querySelector(".brand-mark");
+  const welcomeBrandMark = document.querySelector(".welcome-brand-mark");
+  const brandLogo = document.getElementById("brand-mark-logo");
+  const welcomeBrandLogo = document.getElementById("welcome-brand-logo");
+  const brandInitial = document.getElementById("brand-mark-v");
+  const welcomeBrandInitial = document.getElementById("welcome-brand-v");
+  const introAvatar = document.getElementById("intro-avatar");
+
+  document.title = displayName;
 
   if (businessNameEl) {
-    businessNameEl.textContent = businessName || trimText(config.launcherText) || "Customer support";
+    businessNameEl.textContent = hasNamedBrand
+      ? `Ask ${displayName} anything, or leave your details for follow-up.`
+      : "Ask us anything, or leave your details for follow-up.";
   }
 
   if (assistantNameEl) {
-    assistantNameEl.textContent = assistantName;
+    assistantNameEl.textContent = displayName;
   }
 
   if (subtitleEl) {
     subtitleEl.textContent = subtitle;
+  }
+
+  if (domainEl) {
+    domainEl.textContent = domain || "Business assistant";
+  }
+
+  if (helpTitleEl) {
+    helpTitleEl.textContent = "How can we help?";
+  }
+
+  if (pageMark && pageLogo && pageInitial) {
+    applyBrandMark(pageMark, pageLogo, pageInitial, customLogoUrl, mark);
+  }
+
+  applyBrandMark(brandMark, brandLogo, brandInitial, customLogoUrl, mark);
+  applyBrandMark(welcomeBrandMark, welcomeBrandLogo, welcomeBrandInitial, customLogoUrl, mark);
+
+  if (introAvatar) {
+    introAvatar.textContent = mark;
+  }
+
+  if (pageActionList) {
+    const labels = getQuickReplyTopics(config).slice(0, 4);
+    pageActionList.innerHTML = labels.map((topic) => `
+      <button class="page-action-card" type="button" data-page-quick-action="${escapeHtml(topic)}">
+        <span class="page-action-label">${escapeHtml(topic)}</span>
+        <span class="page-action-arrow" aria-hidden="true">›</span>
+      </button>
+    `).join("");
+  }
+
+  if (pageQuestionExamples) {
+    pageQuestionExamples.innerHTML = PAGE_EXAMPLE_QUESTIONS.map((question) => `
+      <li>${escapeHtml(question)}</li>
+    `).join("");
+  }
+
+  if (chatAssistantNameEl) {
+    chatAssistantNameEl.textContent = displayName;
+  }
+
+  if (launcherTextEl) {
+    launcherTextEl.textContent = "Online now";
+  }
+
+  if (welcomeAssistantNameEl) {
+    welcomeAssistantNameEl.textContent = assistantDisplayName;
+  }
+
+  if (welcomeBrandSubtitleEl) {
+    welcomeBrandSubtitleEl.textContent = "Business assistant";
+  }
+
+  if (welcomeBadgeEl) {
+    welcomeBadgeEl.textContent = "Choose how to continue";
+  }
+
+  if (welcomeTitleEl) {
+    welcomeTitleEl.textContent = "Start a conversation";
+  }
+
+  if (welcomeCopyEl) {
+    welcomeCopyEl.textContent = "Continue with email if you may want follow-up, or ask as a guest.";
+  }
+
+  if (welcomeMessageEl) {
+    welcomeMessageEl.textContent = getPageWelcomeMessage({ business, config });
   }
 }
 
@@ -569,7 +770,7 @@ function renderQuickReplies() {
     return;
   }
 
-  container.innerHTML = QUICK_REPLY_TOPICS.map((topic) => `
+  container.innerHTML = getQuickReplyTopics().map((topic) => `
     <button class="quick-reply-chip" type="button" data-quick-reply="${escapeHtml(topic)}">${escapeHtml(topic)}</button>
   `).join("");
 }
@@ -1226,6 +1427,9 @@ function applyWidgetConfig(config = {}) {
   const assistantMark = getAssistantMark(widgetConfig.assistantName);
   const sendButton = document.getElementById("send-button");
   const poweredBy = document.getElementById("powered-by");
+  const welcomeBadge = document.getElementById("welcome-badge");
+  const welcomeTitle = document.getElementById("welcome-title");
+  const welcomeCopy = document.getElementById("welcome-copy");
 
   document.title = widgetConfig.assistantName;
   document.documentElement.style.setProperty("--brand-primary", widgetConfig.primaryColor);
@@ -1255,6 +1459,17 @@ function applyWidgetConfig(config = {}) {
   }
   if (poweredBy) {
     poweredBy.textContent = "We're here to help | Powered by Vonza";
+  }
+  if (!isPageMode()) {
+    if (welcomeBadge) {
+      welcomeBadge.textContent = "Quick answers";
+    }
+    if (welcomeTitle) {
+      welcomeTitle.textContent = "Hi! How can we help today?";
+    }
+    if (welcomeCopy) {
+      welcomeCopy.textContent = "Ask a question and get a clear answer. Choose how you'd like to continue.";
+    }
   }
   syncPageAssistantHeader({ config: widgetConfig });
 
@@ -1317,9 +1532,10 @@ async function loadWidgetBootstrap() {
       throw error;
     }
 
+    pageBusinessContext = data.business || null;
     applyWidgetConfig(data.widgetConfig || {});
     syncPageAssistantHeader({
-      business: data.business || null,
+      business: pageBusinessContext,
       config: {
         ...widgetConfig,
         ...(data.widgetConfig || {}),
@@ -1666,6 +1882,32 @@ getQuickReplies()?.addEventListener("click", (event) => {
   if (topic) {
     sendMessage(topic);
   }
+});
+
+document.getElementById("page-action-list")?.addEventListener("click", (event) => {
+  const button = event.target?.closest?.("[data-page-quick-action]");
+
+  if (!button) {
+    return;
+  }
+
+  const topic = trimText(button.dataset.pageQuickAction || button.textContent);
+
+  if (!topic) {
+    return;
+  }
+
+  if (hasChosenVisitorIdentity()) {
+    sendMessage(topic);
+    return;
+  }
+
+  const input = document.getElementById("input");
+  if (input) {
+    input.value = topic;
+  }
+  setComposerStatus("Choose email or guest, then send that question.");
+  document.getElementById("identity-guest-button")?.focus();
 });
 
 if (EMBEDDED_MODE) {

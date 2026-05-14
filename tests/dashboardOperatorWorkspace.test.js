@@ -3134,7 +3134,8 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /A\. Website widget/);
   assert.match(markup, /B\. Full-page assistant/);
   assert.match(markup, /C\. QR code/);
-  assert.match(markup, /Use a dedicated assistant page for support links, booking\/help pages, and deeper customer conversations\./);
+  assert.match(markup, /Use this as a support page, booking\/help page, menu link, quote page, or QR destination\./);
+  assert.match(markup, /Share a support, booking, help, or quote page\./);
   assert.match(markup, /Use the full-page assistant QR code on menus, reception desks, flyers, and signs\./);
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);

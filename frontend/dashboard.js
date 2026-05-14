@@ -2694,10 +2694,10 @@ function buildFullPageQrEndpoint(agent = {}) {
 function buildFullPageAssistantIframe(agent = {}) {
   return `<iframe
   src="${buildFullPageAssistantUrl(agent)}"
-  title="AI assistant"
-  style="width:100%;min-height:720px;border:0;"
+  title="${escapeHtml(trimText(agent.assistantName || agent.name) || "Business assistant")}"
+  style="width:100%;min-height:760px;border:0;background:transparent;"
   loading="lazy"
-><\/iframe>`;
+></iframe>`;
 }
 
 function buildPreviewMarkup(installId) {
@@ -14772,7 +14772,7 @@ function buildInstallSection(agent, options = {}) {
     {
       icon: "frontdesk",
       title: "Full-page assistant",
-      copy: "Create a dedicated assistant page.",
+      copy: "Share a support, booking, help, or quote page.",
       tag: fullPageUrl ? "Ready to share" : "Needs assistant URL",
       tone: fullPageUrl ? "Ready" : "Pending",
     },
@@ -14877,7 +14877,7 @@ function buildInstallSection(agent, options = {}) {
       <section class="install-option-card">
         <p class="install-option-eyebrow">B. Full-page assistant</p>
         <h3 class="install-option-title">Full-page assistant</h3>
-        <p class="install-option-copy">Use a dedicated assistant page for support links, booking/help pages, and deeper customer conversations.</p>
+        <p class="install-option-copy">Use this as a support page, booking/help page, menu link, quote page, or QR destination.</p>
         <div class="install-copy-field">
           <label for="full-page-assistant-url">Full-page URL</label>
           <textarea id="full-page-assistant-url" class="full-page-url-output" rows="2" readonly>${escapeHtml(fullPageUrl)}</textarea>
