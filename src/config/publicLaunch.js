@@ -103,7 +103,6 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
     matrix.inbox.state = FEATURE_STATES.HIDDEN;
     matrix.calendar.state = FEATURE_STATES.HIDDEN;
     matrix.automations.state = FEATURE_STATES.HIDDEN;
-    matrix.contacts.state = FEATURE_STATES.HIDDEN;
   }
 
   return {

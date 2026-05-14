@@ -32,6 +32,53 @@ const SETUP_DOCTOR_KEYS = [
   "STRIPE_WEBHOOK_SECRET",
 ];
 
+function getDashboardAssetVersion() {
+  return encodeURIComponent(getBuildSha() || getAppVersion() || "local-dev");
+}
+
+function setDashboardNoStoreHeaders(res) {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+}
+
+function isLocalDashboardFixtureAllowed(req) {
+  if (String(process.env.NODE_ENV || "").trim().toLowerCase() === "production") {
+    return false;
+  }
+
+  const host = String(req?.hostname || req?.headers?.host || "").split(":")[0].trim().toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0" || host === "::1" || host.endsWith(".local");
+}
+
+function renderDashboardDocument(rootDir, { localFixture = false } = {}) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "dashboard.html"), "utf8");
+
+  [
+    "/dashboard.css",
+    "/settings/settings.css",
+    "/public-config.js",
+    "/i18n/dashboardI18n.js",
+    "/settings/SettingsShell.js",
+    "/dashboardHelpers.js",
+    "/dashboard.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  if (localFixture) {
+    html = html.replace(
+      '<script src="/dashboard.js',
+      '<script>window.VONZA_LOCAL_DASHBOARD_FIXTURE = true;</script>\n  <script src="/dashboard.js'
+    );
+  }
+
+  return html;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -519,7 +566,18 @@ export function createPublicRouter({ rootDir }) {
   });
 
   router.get("/dashboard", (_req, res) => {
-    res.sendFile(path.join(rootDir, "dashboard.html"));
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderDashboardDocument(rootDir));
+  });
+
+  router.get("/dashboard-v2-fixture", (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderDashboardDocument(rootDir, { localFixture: true }));
   });
 
   router.get("/dashboard-v2-preview", (_req, res) => {
@@ -569,6 +627,7 @@ export function createPublicRouter({ rootDir }) {
       operatorWorkspaceEnabled,
     });
     res.type("application/javascript");
+    setDashboardNoStoreHeaders(res);
     res.send(`
 window.VONZA_PUBLIC_APP_URL = ${JSON.stringify(getPublicAppUrl())};
 window.VONZA_SUPABASE_URL = ${JSON.stringify(getSupabasePublicUrl())};
@@ -619,6 +678,8 @@ window.VONZA_BILLING_PLANS = ${JSON.stringify(listPublicBillingPlans())};
   });
 
   router.get("/service-worker.js", (_req, res) => {
+    res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
     res.sendFile(path.join(rootDir, "service-worker.js"));
   });
 

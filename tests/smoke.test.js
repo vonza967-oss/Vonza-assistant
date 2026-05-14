@@ -1658,8 +1658,8 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /What stays out of the way/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
-        assert.match(dashboardScript.text, /A simple customer-service performance report for your business/);
-        assert.match(dashboardScript.text, /Is Vonza helping customer service\?/);
+        assert.match(dashboardScript.text, /Performance insights for your AI front desk/);
+        assert.match(dashboardScript.text, /AI front desk performance/);
         assert.match(dashboardScript.text, /Customer conversations and successful actions/);
         assert.match(dashboardScript.text, /What stands out right now/);
         assert.match(dashboardScript.text, /Who Vonza is talking to/);

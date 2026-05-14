@@ -27,7 +27,7 @@ test("public launch profile hides operator beta surfaces when the workspace flag
     operatorWorkspaceEnabled: false,
   });
 
-  assert.equal(profile.matrix.contacts.state, FEATURE_STATES.HIDDEN);
+  assert.equal(profile.matrix.contacts.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.google_connect.state, FEATURE_STATES.HIDDEN);
   assert.equal(profile.matrix.inbox.state, FEATURE_STATES.HIDDEN);
   assert.equal(profile.matrix.calendar.state, FEATURE_STATES.HIDDEN);

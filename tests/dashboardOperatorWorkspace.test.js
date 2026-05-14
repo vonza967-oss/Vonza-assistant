@@ -395,7 +395,7 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(markup, /Assistant source/);
+  assert.match(markup, /Source breakdown/);
   assert.match(markup, /Website widget/);
   assert.match(markup, /Full-page assistant/);
   assert.match(markup, /Legacy\/unknown/);
@@ -2776,13 +2776,15 @@ test("analytics page now renders as a service report instead of stacked equal-we
     }
   );
 
-  assert.match(analyticsPanel, /A simple customer-service performance report for your business/);
-  assert.match(analyticsPanel, /Is Vonza helping customer service\?/);
+  assert.match(analyticsPanel, /Performance insights for your AI front desk/);
+  assert.match(analyticsPanel, /AI front desk performance/);
+  assert.doesNotMatch(analyticsPanel, /Is Vonza helping customer service\?/);
+  assert.doesNotMatch(analyticsPanel, /Service report/);
   assert.match(analyticsPanel, /Customer conversations and successful actions/);
   assert.match(analyticsPanel, /What stands out right now/);
   assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
-  assert.match(analyticsPanel, /Estimated customer satisfaction/);
+  assert.match(analyticsPanel, /Service quality estimate/);
   assert.match(analyticsPanel, /Looking for booking or availability/);
   assert.match(analyticsPanel, /Asking how to contact the business directly/);
   assert.doesNotMatch(analyticsPanel, /AI-handled/);
@@ -2901,7 +2903,7 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Assistant source/);
+  assert.match(analyticsPanel, /Source breakdown/);
   assert.match(analyticsPanel, /See whether visitors are using the website widget, the full-page assistant, or older activity\./);
   assert.match(analyticsPanel, /Website widget/);
   assert.match(analyticsPanel, /Full-page assistant/);

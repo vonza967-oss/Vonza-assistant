@@ -4,6 +4,7 @@ const statusBanner = document.getElementById("status-banner");
 const topbarMeta = document.getElementById("topbar-meta");
 const dashboardHelpers = window.VonzaDashboardHelpers || {};
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
+const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
 const CLIENT_ID_STORAGE_KEY = "vonza_client_id";
 const INSTALL_STORAGE_PREFIX = "vonza_install_progress_";
@@ -251,17 +252,17 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "customers.leads": "Leads",
   "customers.returning": "Returning",
   "analytics.title": "Analytics",
-  "analytics.copy": "A simple customer-service performance report for your business.",
-  "analytics.serviceReport": "Service report",
-  "analytics.helping": "Is Vonza helping customer service?",
+  "analytics.copy": "Performance insights for your AI front desk.",
+  "analytics.serviceReport": "Performance report",
+  "analytics.helping": "AI front desk performance",
   "analytics.totalConversations": "Total conversations",
   "analytics.leadsCaptured": "Leads captured",
   "analytics.conversionRate": "Conversion rate",
   "analytics.conversionRateNote": "Lead or assisted conversion share of total conversations",
   "analytics.waitingForConversations": "Waiting for live conversations",
   "analytics.complaintsHandled": "Complaints handled",
-  "analytics.estimatedSatisfaction": "Estimated customer satisfaction",
-  "analytics.estimatedHoursSaved": "Estimated hours saved",
+  "analytics.estimatedSatisfaction": "Service quality estimate",
+  "analytics.estimatedHoursSaved": "Time saved estimate",
   "analytics.aiUsage": "AI usage",
   "analytics.planCapacity": "Plan capacity",
   "analytics.trends": "Trends",
@@ -10870,8 +10871,8 @@ function buildAssistantSourceMarkup(sourceBreakdown = {}) {
     <section class="workspace-card-soft analytics-source-section">
       <div class="flat-section-header">
         <div>
-          <p class="overview-label">Assistant source</p>
-          <h3 class="flat-section-title">Assistant source</h3>
+          <p class="overview-label">Source breakdown</p>
+          <h3 class="flat-section-title">Source breakdown</h3>
           <p class="analytics-report-section-copy">See whether visitors are using the website widget, the full-page assistant, or older activity.</p>
         </div>
       </div>
@@ -14217,6 +14218,11 @@ function renderAssistantShell(
   actionQueue = createEmptyActionQueue(),
   operatorWorkspace = createEmptyOperatorWorkspace()
 ) {
+  if (DASHBOARD_V2_ENABLED) {
+    renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace);
+    return;
+  }
+
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
   const setupHintMarkup = !setup.isReady
@@ -14234,6 +14240,47 @@ function renderAssistantShell(
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
         ${buildWorkspaceContextBar(agent, setup, operatorWorkspace)}
+        ${setupHintMarkup}
+        <div class="workspace-pages">
+          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
+          ${buildCustomizePanel(agent, setup, operatorWorkspace)}
+          ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+          ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
+          ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace);
+}
+
+function renderDashboardV2Shell(
+  agent,
+  messages,
+  setup,
+  actionQueue = createEmptyActionQueue(),
+  operatorWorkspace = createEmptyOperatorWorkspace()
+) {
+  renderTopbarMeta();
+  const activeSection = getActiveShellSection(setup, operatorWorkspace);
+  const setupHintMarkup = !setup.isReady
+    ? `
+      <div class="shell-inline-note dashboard-v2-inline-note">
+        Finish the Front Desk basics, test the live experience, and move into Install when you are ready to publish.
+      </div>
+    `
+    : "";
+
+  rootEl.innerHTML = `
+    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell" data-app-shell data-dashboard-v2="enabled">
+      <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
+      ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
+      <div class="workspace-shell">
         ${setupHintMarkup}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
@@ -15873,6 +15920,19 @@ async function loadFullPageAssistantQr(agent) {
   if (!endpoint) {
     preview.innerHTML = '<p class="install-qr-status">QR code will be available after the assistant is ready.</p>';
     downloadButton.disabled = true;
+    return;
+  }
+
+  if (DASHBOARD_LOCAL_FIXTURE_ENABLED) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Local fixture QR preview">
+        <rect width="160" height="160" rx="16" fill="#fff"/>
+        <path fill="#0f172a" d="M20 20h38v38H20V20Zm10 10v18h18V30H30Zm72-10h38v38h-38V20Zm10 10v18h18V30h-18ZM20 102h38v38H20v-38Zm10 10v18h18v-18H30Zm58-48h12v12H88V64Zm20 0h12v12h-12V64Zm-40 20h12v12H68V84Zm20 0h32v12H88V84Zm42 0h10v12h-10V84ZM68 106h12v34H68v-34Zm20 0h12v12H88v-12Zm22 0h30v12h-30v-12Zm-22 22h32v12H88v-12Zm42 0h10v12h-10v-12Z"/>
+      </svg>
+    `;
+    preview.innerHTML = svg;
+    downloadButton.disabled = false;
+    downloadButton.dataset.objectUrl = "";
     return;
   }
 
@@ -19087,6 +19147,291 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 }
 
 // Dashboard bootstrapping
+function renderLocalDashboardV2Fixture() {
+  authSession = { access_token: "local-dashboard-v2-fixture" };
+  authUser = { id: "local-v2-owner", email: "local.owner@example.test" };
+  dashboardLanguageLoadFailed = false;
+  applyDashboardLanguage(getDashboardLanguage());
+
+  const now = new Date().toISOString();
+  const agent = {
+    id: "local-agent-1",
+    name: "Local fixture workspace",
+    assistantName: "Local front desk",
+    ownerName: "Local Owner",
+    ownerEmail: "local.owner@example.test",
+    businessName: "Local Services",
+    websiteUrl: "https://local.example.test",
+    publicAgentKey: "local-public-agent",
+    installId: "local-install-1",
+    welcomeMessage: "Hi, I can help with services, booking, quotes, and support.",
+    buttonLabel: "Ask a question",
+    tone: "professional",
+    accessStatus: "active",
+    knowledge: {
+      state: "ready",
+      pageCount: 7,
+    },
+    allowedDomains: ["local.example.test"],
+    installStatus: {
+      state: "seen_recently",
+      label: "Live install detected",
+      host: "local.example.test",
+      pageUrl: "https://local.example.test/",
+      lastSeenAt: now,
+      lastSeenUrl: "https://local.example.test/",
+      lastVerifiedAt: now,
+      verificationStatus: "ok",
+      verificationTargetUrl: "https://local.example.test/",
+      verificationOrigin: "server",
+      verificationDetails: {},
+      allowedDomains: ["local.example.test"],
+      installId: "local-install-1",
+      installedAt: now,
+    },
+  };
+  const messages = [
+    {
+      id: "fixture-message-1",
+      role: "user",
+      content: "Can I book a consultation this week?",
+      createdAt: now,
+      source: "widget",
+    },
+    {
+      id: "fixture-message-2",
+      role: "assistant",
+      content: "Yes. Share your preferred day and contact details, and the team can confirm the next step.",
+      createdAt: now,
+      source: "widget",
+    },
+    {
+      id: "fixture-message-3",
+      role: "user",
+      content: "What affects the quote?",
+      createdAt: now,
+      source: "page",
+    },
+  ];
+  const actionQueue = {
+    ...createEmptyActionQueue(),
+    items: [
+      {
+        id: "fixture-action-1",
+        key: "fixture-action-1",
+        type: "pricing",
+        status: "new",
+        safeSummary: "Customer asked what affects quote timing and price.",
+        recommendedNextAction: "Review pricing guidance and confirm the follow-up path.",
+      },
+    ],
+    summary: {
+      ...createEmptyActionQueue().summary,
+      total: 1,
+      new: 1,
+      attentionNeeded: 1,
+    },
+    conversionSummary: {
+      ...createEmptyActionQueue().conversionSummary,
+      highIntentConversations: 2,
+      contactsCaptured: 1,
+      captureRate: 50,
+      assistedConversions: 1,
+      bookingDirectHandoffs: 1,
+    },
+    outcomeSummary: {
+      ...createEmptyActionQueue().outcomeSummary,
+      total: 1,
+      assistedConversions: 1,
+      bookingStarted: 1,
+    },
+    analyticsSummary: {
+      ...createEmptyAnalyticsSummary(),
+      conversationCount: 2,
+      uniqueVisitorCount: 2,
+      totalMessages: 3,
+      visitorQuestions: 2,
+      highIntentSignals: 2,
+      contactsCaptured: 1,
+      assistedOutcomes: 1,
+      weakAnswerCount: 1,
+      attentionNeeded: 1,
+      customerQuestionSummaries: [
+        { summary: "Booking availability", count: 1 },
+        { summary: "Quote details", count: 1 },
+      ],
+      weakAnswerExamples: ["Quote guidance needs clearer inputs and timing."],
+      usageTrend: {
+        copy: "Fixture activity uses the same shape as live dashboard data.",
+      },
+      recentActivity: {
+        lastActivityAt: now,
+      },
+    },
+    ownerAnalyticsDashboard: {
+      ok: true,
+      metrics: {
+        totalConversations: 2,
+        leadsCaptured: 1,
+        conversionRate: 50,
+      },
+      assistantSource: {
+        widget: {
+          key: "widget",
+          label: "Website widget",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 1,
+        },
+        page: {
+          key: "page",
+          label: "Full-page assistant",
+          conversationCount: 1,
+          messageCount: 1,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
+        unknown: {
+          key: "unknown",
+          label: "Legacy/unknown",
+          conversationCount: 0,
+          messageCount: 0,
+          visitorQuestionCount: 0,
+          leadsCaptured: 0,
+        },
+        totalConversations: 2,
+        totalMessages: 3,
+      },
+      topVisitorQuestions: [
+        { summary: "Booking availability", count: 1 },
+        { summary: "Quote details", count: 1 },
+      ],
+      missedQuestions: [
+        { question: "Quote guidance needs clearer inputs and timing." },
+      ],
+      customerSatisfaction: {
+        totalFeedback: 1,
+        helpful: 1,
+        notHelpful: 0,
+        negativeRate: 0,
+        unhappyAnswers: [],
+        weakTopics: [],
+        recoveryActions: [],
+        persistenceAvailable: true,
+      },
+      knowledgeImprovement: {
+        title: "Knowledge Improvement",
+        copy: "One pricing answer could use stronger guidance.",
+        total: 1,
+        openCount: 1,
+        approvedFixedCount: 0,
+        dismissedCount: 0,
+        guardrail: "Approved guidance must stay grounded in verified business facts.",
+        items: [
+          {
+            question: "What affects the quote?",
+            safeSummary: "Customer asked about quote factors.",
+            reason: "Pricing detail was thin.",
+            status: "new",
+          },
+        ],
+      },
+      notifications: [],
+      aiUsage: null,
+    },
+  };
+  const operatorWorkspace = {
+    ...createEmptyOperatorWorkspace(),
+    enabled: true,
+    featureEnabled: true,
+    today: {
+      ...createEmptyOperatorWorkspace().today,
+      messagesToday: 3,
+      contactsDealtToday: 1,
+      needsAttentionCount: 1,
+      assistedOutcomes: 1,
+      leadsWithoutNextStep: 1,
+    },
+    contacts: {
+      ...createEmptyOperatorWorkspace().contacts,
+      list: [
+        {
+          id: "fixture-contact-1",
+          customerRowKey: "fixture-contact-1",
+          name: "Local Customer",
+          email: "customer@example.test",
+          phone: "+1 555 0100",
+          lifecycleState: "active_lead",
+          source: "widget",
+          latestMessageId: "fixture-message-1",
+          latestSummary: "Asked to book a consultation this week.",
+          lastMessageAt: now,
+          nextAction: {
+            label: "Confirm booking path",
+          },
+          counts: {
+            leads: 1,
+            inboxThreads: 0,
+            calendarEvents: 0,
+            followUps: 1,
+            outcomes: 1,
+          },
+          chatMessages: [
+            { role: "customer", label: "Customer", content: "Can I book a consultation this week?", createdAt: now },
+            { role: "vonza", label: "Vonza", content: "Yes. Share your preferred day and contact details.", createdAt: now },
+          ],
+          timeline: [
+            { at: now, label: "Widget conversation", summary: "Booking question captured by the front desk." },
+          ],
+        },
+        {
+          id: "fixture-contact-2",
+          customerRowKey: "fixture-contact-2",
+          name: "Quote Request",
+          email: "quote@example.test",
+          lifecycleState: "needs_reply",
+          source: "page",
+          latestMessageId: "fixture-message-3",
+          latestSummary: "Asked what affects the quote.",
+          lastMessageAt: now,
+          chatMessages: [
+            { role: "customer", label: "Customer", content: "What affects the quote?", createdAt: now },
+          ],
+          timeline: [
+            { at: now, label: "Full-page assistant", summary: "Pricing question needs a clearer follow-up path." },
+          ],
+        },
+      ],
+      summary: {
+        ...createEmptyOperatorWorkspace().contacts.summary,
+        totalContacts: 2,
+        contactsNeedingAttention: 1,
+        leadsWithoutNextStep: 1,
+        contactsWithOutcomes: 1,
+        lifecycleCounts: {
+          ...createEmptyOperatorWorkspace().contacts.summary.lifecycleCounts,
+          activeLead: 1,
+          customer: 1,
+        },
+      },
+    },
+    businessProfile: {
+      ...createEmptyOperatorWorkspace().businessProfile,
+      readiness: {
+        totalSections: 4,
+        completedSections: 4,
+        missingCount: 0,
+        missingSections: [],
+        summary: "Core local fixture business context is complete.",
+      },
+    },
+  };
+
+  setStatus("Local-only dashboard V2 fixture. Production auth and access gates are not bypassed.");
+  renderReadyState(agent, messages, actionQueue, operatorWorkspace);
+}
+
 async function boot() {
   applyDashboardLanguage();
   trackProductEvent("dashboard_arrived", {
@@ -19095,6 +19440,11 @@ async function boot() {
       path: window.location.pathname,
     },
   });
+
+  if (DASHBOARD_LOCAL_FIXTURE_ENABLED) {
+    renderLocalDashboardV2Fixture();
+    return;
+  }
 
   if (!hasAuthConfig()) {
     setStatus(authCopy("Supabase Auth is not configured yet.", "A Supabase Auth még nincs beállítva."));
