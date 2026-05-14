@@ -8,18 +8,13 @@
     },
     {
       key: "front_desk",
-      label: "Front Desk",
-      note: "Identity, routing, website knowledge, and launch behavior.",
-    },
-    {
-      key: "connected_tools",
-      label: "Connected tools",
-      note: "Beta. Email, Calendar, and Automations are not ready yet.",
+      label: "Assistant behavior",
+      note: "Identity, routing, website knowledge, and customer-facing behavior.",
     },
     {
       key: "workspace",
-      label: "Workspace",
-      note: "Access, launch mode, and honest workspace-level status.",
+      label: "Account and billing",
+      note: "Access, billing, language, theme, and legal links.",
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
@@ -30,7 +25,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Organize business details, Front Desk behavior, privacy, language, and workspace preferences.",
+    "settings.copy": "Manage the real business profile, assistant behavior, account status, billing, language, and legal links.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
     "settings.light": "Light",
@@ -793,89 +788,6 @@
     `;
   }
 
-  function buildConnectedToolsSettingsPanel(agent, operatorWorkspace, helpers) {
-    const { escapeHtml, getBadgeClass } = helpers;
-
-    return `
-      <div class="settings-shell-form">
-        <header class="settings-shell-page-header">
-          <div class="settings-shell-page-title-group">
-            <p class="studio-kicker">Connected tools</p>
-            <h2 class="settings-shell-page-title">Connected tools</h2>
-            <p class="settings-shell-page-copy">Beta. Email, Calendar, and Automations are not self-serve yet, so this area stays informational instead of offering controls that are not ready.</p>
-          </div>
-        </header>
-
-        <section class="settings-shell-section">
-          <div class="settings-shell-section-header">
-            <div>
-              <h3 class="settings-shell-section-title">Google workspace connection</h3>
-              <p class="settings-shell-section-copy">This connection is not available from the dashboard yet. The core workspace works without it.</p>
-            </div>
-          </div>
-          <div class="settings-shell-status-list">
-            <div class="settings-shell-status-row">
-              <div class="settings-shell-status-main">
-                <p class="settings-shell-status-label">Account</p>
-                <h4 class="settings-shell-status-value">Beta</h4>
-                <p class="settings-shell-status-copy">Google connection is not ready to use here yet.</p>
-              </div>
-            </div>
-            <div class="settings-shell-status-row">
-              <div class="settings-shell-status-main">
-                <p class="settings-shell-status-label">Calendar mode</p>
-                <h4 class="settings-shell-status-value">Beta</h4>
-                <p class="settings-shell-status-copy">Schedule context will stay unavailable until the connected tools release is ready.</p>
-              </div>
-            </div>
-            <div class="settings-shell-status-row">
-              <div class="settings-shell-status-main">
-                <p class="settings-shell-status-label">Connection scope</p>
-                <h4 class="settings-shell-status-value">Beta</h4>
-                <p class="settings-shell-status-copy">Inbox review and automation controls are not available yet.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="settings-shell-section">
-          <div class="settings-shell-section-header">
-            <div>
-              <h3 class="settings-shell-section-title">Beta</h3>
-              <p class="settings-shell-section-copy">These connected tools are planned, but they should not look usable before the product is ready.</p>
-            </div>
-          </div>
-          <div class="settings-shell-key-value-list">
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Inbox</p>
-                <h4 class="settings-shell-key-value-title">Email connection</h4>
-                <p class="settings-shell-key-value-copy">Email review is not self-serve yet.</p>
-              </div>
-              <span class="${getBadgeClass("Pending")}">Beta</span>
-            </div>
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Calendar</p>
-                <h4 class="settings-shell-key-value-title">Schedule context</h4>
-                <p class="settings-shell-key-value-copy">Calendar access is not ready yet.</p>
-              </div>
-              <span class="${getBadgeClass("Pending")}">Beta</span>
-            </div>
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Automations</p>
-                <h4 class="settings-shell-key-value-title">Workflow support</h4>
-                <p class="settings-shell-key-value-copy">Automations are not available yet.</p>
-              </div>
-              <span class="${getBadgeClass("Pending")}">Beta</span>
-            </div>
-          </div>
-        </section>
-      </div>
-    `;
-  }
-
   function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace, helpers) {
     const {
       escapeHtml,
@@ -913,16 +825,16 @@
       <div class="settings-shell-form">
         <header class="settings-shell-page-header">
           <div class="settings-shell-page-title-group">
-            <p class="studio-kicker">Workspace</p>
-            <h2 class="settings-shell-page-title">Workspace</h2>
-            <p class="settings-shell-page-copy">This area stays honest about what is configured today. Workspace-level controls that do not exist yet are shown as status, not fake settings.</p>
+            <p class="studio-kicker">Account</p>
+            <h2 class="settings-shell-page-title">Account and billing</h2>
+            <p class="settings-shell-page-copy">Review the real access, billing, language, theme, and legal surfaces available for this workspace.</p>
           </div>
         </header>
 
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Current workspace status</h3>
+              <h3 class="settings-shell-section-title">Current account status</h3>
               <p class="settings-shell-section-copy">Review the access, launch mode, and install posture that shape how this workspace behaves today.</p>
             </div>
           </div>
@@ -931,7 +843,7 @@
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Access</p>
                 <h4 class="settings-shell-status-value">${escapeHtml(accessStatus)}</h4>
-                <p class="settings-shell-status-copy">Billing and access are currently managed through secure checkout and workspace activation, not through a separate in-app billing center in this pass.</p>
+                <p class="settings-shell-status-copy">Access follows the existing checkout and activation flow for this workspace.</p>
               </div>
             </div>
             <div class="settings-shell-status-row">
@@ -1002,7 +914,7 @@
           <div class="settings-shell-billing-upgrade-stack">
             <div>
               <h4 class="settings-shell-section-title settings-shell-section-title--compact">Plan options</h4>
-              <p class="settings-shell-section-copy">Use secure hosted checkout or a Stripe-backed plan change to move up before traffic hits the cap.</p>
+              <p class="settings-shell-section-copy">Available plan changes use the existing Stripe-backed billing flow.</p>
             </div>
             ${upgradeOptions.length
               ? `
@@ -1084,39 +996,6 @@
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Workspace boundaries</h3>
-              <p class="settings-shell-section-copy">Keep the product honest about what is and is not self-serve today.</p>
-            </div>
-          </div>
-          <div class="settings-shell-key-value-list">
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Billing management</p>
-                <p class="settings-shell-key-value-copy">Plan changes stay tied to secure hosted checkout and Stripe-backed subscription updates. This pass still avoids a fake in-app billing center.</p>
-              </div>
-            </div>
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Workspace preferences</p>
-                <p class="settings-shell-key-value-copy">This pass creates the shell for preferences, but avoids pretending there are extra backend preference systems when they are not implemented yet.</p>
-              </div>
-            </div>
-            <div class="settings-shell-key-value-row">
-              <div class="settings-shell-key-value-main">
-                <p class="settings-shell-key-value-label">Access controls</p>
-                <p class="settings-shell-key-value-copy">Owner access, auth, and activation remain preserved exactly as they already work in the product.</p>
-              </div>
-            </div>
-          </div>
-          <div class="inline-actions">
-            <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
-            <button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>
-          </div>
-        </section>
-
-        <section class="settings-shell-section">
-          <div class="settings-shell-section-header">
-            <div>
               <h3 class="settings-shell-section-title">${escapeHtml(isHungarian ? "Jogi és bizalmi felület" : "Legal and trust")}</h3>
               <p class="settings-shell-section-copy">${escapeHtml(isHungarian
                 ? "Ezek a nyilvános oldalak a website, az app, a widget és a hosted checkout jogi felületét fedik le."
@@ -1161,9 +1040,6 @@
               </section>
               <section class="settings-shell-panel" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
                 ${buildFrontDeskSettingsForm(agent, setup, helpers)}
-              </section>
-              <section class="settings-shell-panel" data-settings-section="connected_tools" ${activeSettingsSection === "connected_tools" ? "" : "hidden"}>
-                ${buildConnectedToolsSettingsPanel(agent, operatorWorkspace, helpers)}
               </section>
               <section class="settings-shell-panel" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
                 ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace, helpers)}

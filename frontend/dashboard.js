@@ -92,7 +92,7 @@ const DASHBOARD_HELP_SECTION_LABELS = {
 const DASHBOARD_HELP_SUBSECTION_LABELS = {
   customize: {
     overview: "Overview",
-    preview: "Preview",
+    preview: "Test",
     context: "Knowledge",
     launch: "Launch",
   },
@@ -238,7 +238,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "home.serviceQuality": "Service quality",
   "home.improveService": "Improve service",
   "customers.title": "Customers",
-  "customers.subtitle": "Who contacted you, who needs a reply, and what to do next.",
+  "customers.subtitle": "Track leads, guests, follow-ups, and recent conversations.",
   "customers.focus": "Focus first on unhappy customers, unanswered questions, and warm leads.",
   "customers.showNeedsHelp": "Show customers needing help",
   "customers.listCopy": "The people who need a reply, decision, or follow-up.",
@@ -290,7 +290,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "install.verifyInstallation": "Verify installation",
   "install.testFrontDesk": "Test front desk",
   "settings.title": "Settings",
-  "settings.copy": "Organize business details, Front Desk behavior, privacy, language, and workspace preferences.",
+  "settings.copy": "Manage the real business profile, assistant behavior, account status, billing, language, and legal links.",
   "settings.theme": "Theme",
   "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
   "settings.light": "Light",
@@ -4611,13 +4611,10 @@ function getCustomerSourceLabels(contact = {}) {
 }
 
 function buildCustomerSourceBadgeMarkup(contact = {}, limit = 2) {
-  const labels = getCustomerSourceLabels(contact).slice(0, limit);
+  const labels = getCustomerSourceLabels(contact);
+  const visibleLabels = labels.length ? labels.slice(0, limit) : ["Legacy/unknown"];
 
-  if (!labels.length) {
-    return "";
-  }
-
-  return labels.map((label) => `
+  return visibleLabels.map((label) => `
     <span class="customer-source-chip">${escapeHtml(translateDashboardText(label))}</span>
   `).join("");
 }
@@ -4744,6 +4741,14 @@ function contactNeedsReply(contact = {}) {
   }
 
   return Boolean(trimText(contact.nextAction?.title) || trimText(contact.nextAction?.description));
+}
+
+function customerNeedsFollowUp(contact = {}) {
+  return contactNeedsReply(contact)
+    || isComplaintContact(contact)
+    || buildContactFlags(contact).some((flag) => /follow.?up|reply|attention|due/i.test(trimText(flag)))
+    || Boolean(trimText(contact.nextAction?.followUpId))
+    || ["draft", "ready", "failed", "missing_contact"].includes(trimText(contact.followUpStatus).toLowerCase());
 }
 
 function isComplaintContact(contact = {}) {
@@ -5183,6 +5188,10 @@ function getCustomerStatusList(contact = {}) {
     }
   };
 
+  if (isGuestCustomerRow(contact)) {
+    pushStatus("guest", t("common.guestVisitor"));
+  }
+
   if (isComplaintContact(contact)) {
     pushStatus("complaint", translateDashboardText("Complaint"));
   }
@@ -5193,10 +5202,12 @@ function getCustomerStatusList(contact = {}) {
 
   if (contactNeedsReply(contact)) {
     pushStatus("needs_reply", t("customers.needsReply"));
+  } else if (customerNeedsFollowUp(contact)) {
+    pushStatus("follow_up", translateDashboardText("Follow-up"));
   }
 
   if (isResolvedContact(contact)) {
-    pushStatus("resolved", translateDashboardText("Resolved"));
+    pushStatus("resolved", translateDashboardText("AI handled"));
   }
 
   if (isReturningContact(contact)) {
@@ -5231,15 +5242,26 @@ function buildCustomerFilterDefinitions(contacts = []) {
   const countMatching = (predicate) => contacts.filter(predicate).length;
 
   return [
-    { key: "all", label: t("customers.all"), count: contacts.length },
+    { key: "all", label: translateDashboardText("All"), count: contacts.length },
+    { key: "identified", label: translateDashboardText("Identified"), count: countMatching((contact) => !isGuestCustomerRow(contact)) },
+    { key: "guests", label: translateDashboardText("Guests"), count: countMatching((contact) => isGuestCustomerRow(contact)) },
     {
-      key: "unresolved",
+      key: "needs_follow_up",
       label: translateDashboardText("Needs follow-up"),
-      count: countMatching((contact) => contactNeedsReply(contact) || isComplaintContact(contact) || isLeadContact(contact)),
+      count: countMatching((contact) => customerNeedsFollowUp(contact)),
     },
-    { key: "needs_reply", label: t("customers.needsReply"), count: countMatching((contact) => contactNeedsReply(contact)) },
-    { key: "leads", label: t("customers.leads"), count: countMatching((contact) => isLeadContact(contact)) },
-    { key: "complaints", label: t("customers.unhappy"), count: countMatching((contact) => isComplaintContact(contact)) },
+    {
+      key: "website_widget",
+      label: translateDashboardText("Website widget"),
+      count: countMatching((contact) => getCustomerSourceLabels(contact).includes("Website widget")),
+    },
+    {
+      key: "full_page_assistant",
+      label: translateDashboardText("Full-page assistant"),
+      count: countMatching((contact) =>
+        getCustomerSourceLabels(contact).some((label) => ["Full-page assistant", "QR touchpoint"].includes(label))
+      ),
+    },
   ];
 }
 
@@ -5248,33 +5270,24 @@ function buildCustomerSummaryItems(contacts = []) {
 
   return [
     {
-      label: t("customers.needsReply"),
-      value: countMatching((contact) => contactNeedsReply(contact)),
-      copy: translateDashboardText("People waiting on an answer, follow-up, or decision."),
+      label: translateDashboardText("Total conversations"),
+      value: contacts.length,
+      copy: translateDashboardText("Real customer, lead, and guest conversation records."),
     },
     {
-      label: t("customers.unhappy"),
-      value: countMatching((contact) => isComplaintContact(contact)),
-      copy: localizeDashboardCopy(
-        "Unhappy or at-risk conversations that should not sit idle.",
-        "Elégedetlen vagy kockázatos beszélgetések, amelyeket nem szabad magukra hagyni."
-      ),
+      label: translateDashboardText("Identified leads"),
+      value: countMatching((contact) => isLeadContact(contact) && !isGuestCustomerRow(contact)),
+      copy: translateDashboardText("People with a usable name, email, or phone plus lead intent."),
     },
     {
-      label: t("customers.leads"),
-      value: countMatching((contact) => isLeadContact(contact)),
-      copy: localizeDashboardCopy(
-        "People showing buying intent or asking for next-step details.",
-        "Vásárlási szándékot mutató emberek vagy akik a következő lépés részleteire kérdeznek rá."
-      ),
+      label: translateDashboardText("Guests"),
+      value: countMatching((contact) => isGuestCustomerRow(contact)),
+      copy: translateDashboardText("Anonymous sessions stay labeled as guests until identity is captured."),
     },
     {
-      label: t("customers.returning"),
-      value: countMatching((contact) => isReturningContact(contact)),
-      copy: localizeDashboardCopy(
-        "Existing relationships where prior context should shape the next reply.",
-        "Meglévő kapcsolatok, ahol az előző kontextusnak kell meghatároznia a következő választ."
-      ),
+      label: translateDashboardText("Needs follow-up"),
+      value: countMatching((contact) => customerNeedsFollowUp(contact)),
+      copy: translateDashboardText("Customers or guests waiting on a reply, decision, or next step."),
     },
   ];
 }
@@ -5461,6 +5474,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const guestRow = isGuestCustomerRow(contact);
   const canShowChat = !guestRow && chatMessages.length > 0;
   const needsReply = contactNeedsReply(contact);
+  const sourceLabels = getCustomerSourceLabels(contact);
   const identityTone = guestRow ? "guest" : "identified";
 
   return `
@@ -5473,7 +5487,9 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
       data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
       data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"
+      data-contact-source-labels="${escapeHtml((sourceLabels.length ? sourceLabels : ["Legacy/unknown"]).join("|"))}"
       data-contact-statuses="${escapeHtml(statusKeys)}"
+      data-contact-identity="${escapeHtml(guestRow ? "guest" : "identified")}"
       data-contact-last-activity="${escapeHtml(visibleLastActivityAt)}"
     >
       <div class="contact-row-main">
@@ -5726,7 +5742,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         <p class="studio-kicker">${escapeHtml(translateDashboardText("Follow-up focus"))}</p>
         <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
       </div>
-      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="unresolved">${escapeHtml(t("customers.showNeedsHelp"))}</button>
+      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_follow_up">${escapeHtml(t("customers.showNeedsHelp"))}</button>
     </section>
     <div class="contacts-workspace" data-contacts-workspace>
       <section class="contacts-list-shell">
@@ -5758,10 +5774,8 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
         <div class="workspace-section-stack">
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
           ${!contacts.length ? buildOperatorEmptyState({
-            title: t("customers.emptyTitle"),
-            copy: operatorWorkspace.status?.googleConnected
-              ? t("customers.emptyCopyConnected")
-              : t("customers.emptyCopy"),
+            title: "No customer conversations yet.",
+            copy: "Install Vonza or open your assistant preview to start testing.",
           }) : peopleWorkspaceMarkup}
         </div>
       </div>
@@ -8495,21 +8509,89 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
   });
 }
 
+function getFriendlyRouteLabel(value = "") {
+  const normalized = trimText(value || "contact").toLowerCase();
+  const labels = {
+    contact: "Contact the business",
+    booking: "Book or schedule",
+    quote: "Request a quote",
+    checkout: "Checkout",
+    capture: "Capture contact details",
+    chat: "Continue the chat",
+  };
+
+  return labels[normalized] || normalized.replace(/[_-]+/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function getFrontDeskMissingSetupFields(agent = {}, setup = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const missing = [];
+  const businessReadiness = operatorWorkspace.businessProfile?.readiness || {};
+  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
+
+  if (!trimText(agent.assistantName || agent.name)) {
+    missing.push("assistant name");
+  }
+  if (!trimText(agent.welcomeMessage)) {
+    missing.push("welcome message");
+  }
+  if (!trimText(agent.tone)) {
+    missing.push("tone");
+  }
+  if (!hasWebsite) {
+    missing.push("website");
+  }
+  if (setup.knowledgeMissing) {
+    missing.push("website knowledge");
+  }
+
+  normalizeOperatorArray(businessReadiness.missingSections, (value) => trimText(value))
+    .filter(Boolean)
+    .forEach((section) => missing.push(section.replace(/[_-]+/g, " ")));
+
+  return [...new Set(missing)].slice(0, 6);
+}
+
+function getBusinessProfileContentSummary(operatorWorkspace = createEmptyOperatorWorkspace()) {
+  const profile = getBusinessProfileViewModel(operatorWorkspace);
+  const filled = [
+    ["business summary", profile.fields?.businessSummary],
+    ["services", profile.fields?.services],
+    ["pricing", profile.fields?.pricing],
+    ["policies", profile.fields?.policies],
+    ["service areas", profile.fields?.serviceAreas],
+    ["hours", profile.fields?.operatingHours],
+  ].filter(([, value]) => trimText(value));
+
+  if (filled.length) {
+    return `${filled.length} business profile area${filled.length === 1 ? "" : "s"} filled: ${filled.map(([label]) => label).join(", ")}.`;
+  }
+
+  if (profile.prefill?.available) {
+    return profile.prefill.sourceSummary || `${profile.prefill.fieldCount || 0} safe suggestion${profile.prefill.fieldCount === 1 ? "" : "s"} ready for review.`;
+  }
+
+  return "No approved business profile summary is saved yet.";
+}
+
 function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
   const purposeOption = getWidgetPurposeOption(agent.purpose);
   const activeFrontDeskSection = getActiveFrontDeskSection();
   const hasPreview = Boolean(trimText(agent.publicAgentKey));
+  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
   const frontDeskSections = [
     { key: "overview", label: "Overview" },
-    { key: "preview", label: "Preview" },
-    { key: "context", label: "Website / Context" },
-    { key: "launch", label: "Install / Launch" },
+    { key: "context", label: "Knowledge" },
+    { key: "preview", label: "Test" },
+    { key: "launch", label: "Launch" },
   ];
+  const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+  const qrEndpoint = buildFullPageQrEndpoint(agent);
+  const widgetInstalled = isInstallDetected(installStatus) || isInstallSeen(installStatus);
   const readinessItems = [
     {
-      title: "Front-desk basics",
+      title: "Assistant configured",
       copy: setup.personalityReady
         ? "Name, welcome message, and tone are in place."
         : "Add the business name, welcome message, or tone so the Front Desk feels polished from the first hello.",
@@ -8517,15 +8599,15 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
       actionMarkup: `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit setup</button>`,
     },
     {
-      title: "Website knowledge",
+      title: "Website knowledge imported",
       copy: setup.knowledgeDescription,
-      tone: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
+      tone: setup.knowledgeReady || hasWebsite ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
       actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="context">Review knowledge</button>`,
     },
     {
-      title: "Live install",
+      title: "Widget installed",
       copy: installStatus.label || "Not installed yet",
-      tone: isInstallSeen(installStatus)
+      tone: widgetInstalled
         ? "Ready"
         : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
           ? "Needs attention"
@@ -8534,8 +8616,24 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             : "Pending",
       actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="launch">Review launch</button>`,
     },
+    {
+      title: "Full-page assistant available",
+      copy: fullPageUrl ? "A shareable assistant page is available for links, QR codes, and standalone support pages." : "The full-page assistant appears after the assistant is saved.",
+      tone: fullPageUrl ? "Ready" : "Pending",
+      actionMarkup: fullPageUrl
+        ? `<button class="ghost-button" type="button" data-frontdesk-open="launch">View launch options</button>`
+        : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`,
+    },
+    {
+      title: "QR available",
+      copy: qrEndpoint ? "QR code generation is available for the full-page assistant." : "QR code generation appears after the assistant has a saved workspace.",
+      tone: qrEndpoint ? "Ready" : "Pending",
+      actionMarkup: `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`,
+    },
   ];
   const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
+  const missingSetupFields = getFrontDeskMissingSetupFields(agent, setup, operatorWorkspace);
+  const profileContentSummary = getBusinessProfileContentSummary(operatorWorkspace);
   const overviewPrimaryAction = hasPreview
     ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
     : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open Front Desk settings</button>`;
@@ -8561,9 +8659,8 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="customize" hidden>
       ${buildPageHeader({
-        eyebrow: "Core workflow",
         title: "Front Desk",
-        copy: "Shape the customer-facing experience in one place: review readiness, test the conversation, improve website grounding, and move confidently toward launch.",
+        copy: "Configure, test, and improve the assistant customers see.",
         actionsMarkup: pageHeaderActions,
       })}
       ${buildPageToolbar({
@@ -8574,8 +8671,8 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           <div class="frontdesk-section-intro">
             <div>
               <p class="studio-kicker">Overview</p>
-              <h2 class="frontdesk-section-title">Keep the Front Desk focused on value, clarity, and launch readiness.</h2>
-              <p class="frontdesk-section-copy">This overview keeps the essentials in view: what already looks strong, what is worth improving, and where to go next.</p>
+              <h2 class="frontdesk-section-title">See what is ready before customers use the assistant.</h2>
+              <p class="frontdesk-section-copy">Readiness is based on the current assistant, website knowledge, install status, full-page assistant, and QR availability.</p>
             </div>
             <div class="frontdesk-section-actions">
               ${overviewPrimaryAction}
@@ -8600,8 +8697,8 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             `).join("")}
           </div>
           <div class="frontdesk-support-note">
-            <p class="frontdesk-support-title">What stays out of the way</p>
-            <p class="frontdesk-support-copy">Deeper configuration lives in Settings. Front Desk stays focused on readiness, preview, website grounding, and the path to launch.</p>
+              <p class="frontdesk-support-title">What stays out of the way</p>
+            <p class="frontdesk-support-copy">Front Desk stays focused on the customer-facing experience. Deeper settings remain in Settings so launch status does not get buried.</p>
           </div>
         </section>
 
@@ -8611,9 +8708,9 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
         <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
-              <p class="studio-kicker">Website / Context</p>
-              <h2 class="frontdesk-section-title">Ground the Front Desk in what your business actually does.</h2>
-              <p class="frontdesk-section-copy">Keep website detail, business context, and behavior summary together so the Front Desk sounds trustworthy before it goes live.</p>
+              <p class="studio-kicker">Knowledge</p>
+              <h2 class="frontdesk-section-title">Ground answers in the real website and business profile.</h2>
+              <p class="frontdesk-section-copy">Only saved website knowledge, setup status, and reviewed business context appear here.</p>
             </div>
             <div class="frontdesk-section-actions">
               <button class="primary-button" type="button" data-shell-target="settings" data-settings-target="business">Review business context</button>
@@ -8636,6 +8733,10 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                   <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgePageCount ? `${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported` : "No pages imported yet")}</strong>
                 </div>
                 <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Missing setup</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(missingSetupFields.length ? missingSetupFields.join(", ") : "No required setup gaps are standing out.")}</strong>
+                </div>
+                <div class="frontdesk-detail-row">
                   <span class="frontdesk-detail-row-label">Customer impact</span>
                   <strong class="frontdesk-detail-row-value">${escapeHtml(setup.knowledgeReady ? "The Front Desk is ready to answer with solid business context." : setup.knowledgeLimited ? "The Front Desk can already help, and another import should make answers stronger." : "Import your site to give the Front Desk more specific business detail.")}</strong>
                 </div>
@@ -8656,7 +8757,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 </div>
                 <div class="frontdesk-detail-row">
                   <span class="frontdesk-detail-row-label">Primary route</span>
-                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.primaryCtaMode || "contact"))}</strong>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(getFriendlyRouteLabel(agent.primaryCtaMode))}</strong>
                 </div>
                 <div class="frontdesk-detail-row">
                   <span class="frontdesk-detail-row-label">Advanced guidance</span>
@@ -8673,14 +8774,18 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                   <span class="frontdesk-detail-row-label">Review progress</span>
                   <strong class="frontdesk-detail-row-value">${escapeHtml(businessContextStatus)}</strong>
                 </div>
+                <div class="frontdesk-detail-row">
+                  <span class="frontdesk-detail-row-label">Known content</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(profileContentSummary)}</strong>
+                </div>
               </div>
             </section>
           </div>
         </section>
-        <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
-              <p class="studio-kicker">Install / Launch</p>
+              <p class="studio-kicker">Launch</p>
               <h2 class="frontdesk-section-title">${escapeHtml(launchHeadline)}</h2>
               <p class="frontdesk-section-copy">${escapeHtml(launchCopy)}</p>
             </div>
@@ -8689,6 +8794,25 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
               ${hasPreview
                 ? `<button class="ghost-button" type="button" data-frontdesk-open="preview">Test preview first</button>`
                 : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
+            </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-detail-list frontdesk-launch-status-list">
+            <div class="frontdesk-detail-row">
+              <span class="frontdesk-detail-row-label">Widget status</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(installStatus.label || "Not installed yet")}</strong>
+            </div>
+            <div class="frontdesk-detail-row">
+              <span class="frontdesk-detail-row-label">Full-page assistant URL</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(fullPageUrl || "Available after the assistant is saved.")}</strong>
+            </div>
+            <div class="frontdesk-detail-row">
+              <span class="frontdesk-detail-row-label">QR code</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(qrEndpoint ? "Available in Install" : "Available after the assistant is saved.")}</strong>
+            </div>
+            <div class="frontdesk-detail-row">
+              <span class="frontdesk-detail-row-label">Verification</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(liveVerificationLabel)}</strong>
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
@@ -14155,8 +14279,12 @@ function renderReadyState(agent, messages, actionQueue, operatorWorkspace) {
 }
 
 function buildPreviewSection(agent, setup) {
+  const hasPreview = Boolean(trimText(agent.publicAgentKey));
+  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
   const statusPills = [
-    `<span class="preview-status-pill">Website connected</span>`,
+    hasWebsite
+      ? `<span class="preview-status-pill">Website connected</span>`
+      : `<span class="preview-status-pill">Website not connected yet</span>`,
     setup.knowledgeState === "ready"
       ? `<span class="preview-status-pill">Website detail loaded</span>`
       : setup.knowledgeState === "limited"
@@ -14174,13 +14302,15 @@ function buildPreviewSection(agent, setup) {
   return `
     <div class="frontdesk-section-intro">
       <div>
-        <p class="studio-kicker">Preview</p>
+        <p class="studio-kicker">Test</p>
         <h2 class="frontdesk-section-title">Test the customer experience before you launch it.</h2>
-        <p class="frontdesk-section-copy">Ask realistic questions, check the next step, and make sure the next step feels helpful and on-brand.</p>
+        <p class="frontdesk-section-copy">Ask realistic questions, check the next step, and make sure the answer feels helpful and on-brand.</p>
       </div>
       <div class="frontdesk-section-actions">
-        <a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>
-        <button class="ghost-button" type="button" data-action="reset-preview">Reset conversation</button>
+        ${hasPreview
+          ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>`
+          : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`}
+        <button class="ghost-button" type="button" data-action="reset-preview" ${hasPreview ? "" : "disabled"}>Reset conversation</button>
         ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Refresh website details</button>` : ""}
       </div>
     </div>
@@ -14203,16 +14333,21 @@ function buildPreviewSection(agent, setup) {
       </div>
     </div>
     <div class="frontdesk-section-divider"></div>
-    <div class="frontdesk-preview-frame-shell">
-      <p class="frontdesk-preview-frame-title">Embedded preview</p>
-      <p class="frontdesk-support-copy">This is the in-workspace version of the Front Desk, so you can test it without leaving the page.</p>
-    </div>
-    <iframe
-      id="preview-frame"
-      class="preview-frame"
-      title="Widget preview"
-      src="${buildWidgetUrl(agent.publicAgentKey)}"
-    ></iframe>
+    ${hasPreview ? `
+      <div class="frontdesk-preview-frame-shell">
+        <p class="frontdesk-preview-frame-title">Embedded preview</p>
+        <p class="frontdesk-support-copy">This is the in-workspace version of the Front Desk, so you can test it without leaving the page.</p>
+      </div>
+      <iframe
+        id="preview-frame"
+        class="preview-frame"
+        title="Widget preview"
+        src="${buildWidgetUrl(agent.publicAgentKey)}"
+      ></iframe>
+    ` : buildOperatorEmptyState({
+      title: "Assistant preview is not available yet.",
+      copy: "Finish the assistant setup first. No sample chat history is shown here.",
+    })}
   `;
 }
 
@@ -16798,15 +16933,30 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     contactRows.forEach((row) => {
       const lifecycle = trimText(row.dataset.contactLifecycle);
       const statuses = trimText(row.dataset.contactStatuses).split("|").filter(Boolean);
+      const identity = trimText(row.dataset.contactIdentity);
+      const sourceLabels = trimText(row.dataset.contactSourceLabels).split("|").filter(Boolean);
       const searchText = trimText(row.textContent || "").toLowerCase();
       let visible = true;
 
       switch (filterKey) {
         case "unresolved":
-          visible = statuses.some((status) => ["needs_reply", "complaint", "lead"].includes(status));
+        case "needs_follow_up":
+          visible = statuses.some((status) => ["needs_reply", "complaint", "follow_up"].includes(status));
           break;
         case "needs_reply":
           visible = statuses.includes("needs_reply");
+          break;
+        case "identified":
+          visible = identity === "identified";
+          break;
+        case "guests":
+          visible = identity === "guest";
+          break;
+        case "website_widget":
+          visible = sourceLabels.includes("Website widget");
+          break;
+        case "full_page_assistant":
+          visible = sourceLabels.some((label) => ["Full-page assistant", "QR touchpoint"].includes(label));
           break;
         case "leads":
           visible = statuses.includes("lead") || ["active_lead", "qualified", "new"].includes(lifecycle);

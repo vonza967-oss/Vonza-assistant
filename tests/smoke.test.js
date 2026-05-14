@@ -1647,13 +1647,14 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Improve service/);
         assert.match(dashboardScript.text, /today-queue-row/);
         assert.match(dashboardScript.text, /data-today-open-review/);
-        assert.match(dashboardScript.text, /Who contacted you, who needs a reply, and what to do next/);
+        assert.match(dashboardScript.text, /Track leads, guests, follow-ups, and recent conversations/);
         assert.match(dashboardScript.text, /Show customers needing help/);
         assert.doesNotMatch(dashboardScript.text, /Export customers/);
         assert.match(dashboardScript.text, /Business profile/);
         assert.match(dashboardScript.text, /data-frontdesk-target/);
-        assert.match(dashboardScript.text, /Website \/ Context/);
-        assert.match(dashboardScript.text, /Install \/ Launch/);
+        assert.match(dashboardScript.text, /Knowledge/);
+        assert.match(dashboardScript.text, /Test/);
+        assert.match(dashboardScript.text, /Launch/);
         assert.match(dashboardScript.text, /What stays out of the way/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);

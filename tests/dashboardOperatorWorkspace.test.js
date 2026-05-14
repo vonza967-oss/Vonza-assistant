@@ -1584,15 +1584,19 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Make a decision/);
   assert.match(settings, /Lead capture \/ contact/);
   assert.match(settings, /Booking \/ next step guidance/);
+  assert.match(settings, /Assistant behavior/);
+  assert.match(settings, /Account and billing/);
   assert.doesNotMatch(settings, /Primary color/);
   assert.doesNotMatch(settings, /Secondary color/);
   assert.doesNotMatch(settings, /assistant-primary-color/);
   assert.doesNotMatch(settings, /assistant-secondary-color/);
   assert.doesNotMatch(settings, /studio-swatch/i);
-  assert.match(settings, /Connected tools/);
-  assert.match(settings, /Beta/);
+  assert.doesNotMatch(settings, /<h2[^>]*>Connected tools<\/h2>/);
+  assert.doesNotMatch(settings, /data-settings-section="connected_tools"/);
+  assert.doesNotMatch(settings, /Beta/);
   assert.doesNotMatch(settings, /Connect Google/);
-  assert.match(settings, /Workspace/);
+  assert.doesNotMatch(settings, /Team management/);
+  assert.doesNotMatch(settings, /Export controls/);
   assert.match(settings, /Business profile/);
   assert.match(settings, /Save Business Profile/);
   assert.doesNotMatch(settings, /Approved owner path/i);
@@ -2109,8 +2113,17 @@ test("customers render as a polished workspace without inactive controls", () =>
 
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
-  assert.match(contactsPanel, /Who contacted you, who needs a reply, and what to do next/);
+  assert.match(contactsPanel, /Track leads, guests, follow-ups, and recent conversations/);
+  assert.match(contactsPanel, /Total conversations/);
+  assert.match(contactsPanel, /Identified leads/);
+  assert.match(contactsPanel, /Guests/);
+  assert.match(contactsPanel, /Needs follow-up/);
   assert.match(contactsPanel, /Show customers needing help/);
+  assert.match(contactsPanel, /data-contact-filter="identified"/);
+  assert.match(contactsPanel, /data-contact-filter="guests"/);
+  assert.match(contactsPanel, /data-contact-filter="needs_follow_up"/);
+  assert.match(contactsPanel, /data-contact-filter="website_widget"/);
+  assert.match(contactsPanel, /data-contact-filter="full_page_assistant"/);
   assert.doesNotMatch(contactsPanel, /Show filters/);
   assert.doesNotMatch(contactsPanel, /Export customers/);
   assert.match(contactsPanel, /data-contact-row/);
@@ -2274,18 +2287,32 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
     workspace
   );
 
-  assert.match(panel, /Website \/ Context/);
-  assert.match(panel, /Install \/ Launch/);
+  assert.match(panel, /Configure, test, and improve the assistant customers see/);
+  assert.match(panel, />Overview<\/button>/);
+  assert.match(panel, />Knowledge<\/button>/);
+  assert.match(panel, />Test<\/button>/);
+  assert.match(panel, />Launch<\/button>/);
   assert.match(panel, /Open settings/);
   assert.match(panel, /Try front desk/);
-  assert.match(panel, /Review business context/);
+  assert.match(panel, /Assistant configured/);
+  assert.match(panel, /Website knowledge imported/);
+  assert.match(panel, /Widget installed/);
+  assert.match(panel, /Full-page assistant available/);
+  assert.match(panel, /QR available/);
+  assert.match(panel, /Review knowledge/);
   assert.match(panel, /Open install/);
   assert.match(panel, /What stays out of the way/);
-  assert.match(panel, /Deeper configuration lives in Settings/);
+  assert.match(panel, /Deeper settings remain in Settings/);
+  assert.match(panel, /Widget status/);
+  assert.match(panel, /Full-page assistant URL/);
+  assert.match(panel, /QR code/);
+  assert.match(panel, /Verification/);
+  assert.doesNotMatch(panel, /display_mode/);
+  assert.doesNotMatch(panel, /primaryCtaMode/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-overview-panel/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-preview-shell frontdesk-preview-panel/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-context-panel/);
-  assert.match(panel, /class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="launch"/);
+  assert.match(panel, /class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch"/);
   assert.match(panel, /data-frontdesk-section="launch"/);
   assert.match(panel, /frontdesk-main-panel/);
   assert.doesNotMatch(panel, /settings-summary-grid/);
@@ -2324,6 +2351,37 @@ test("front desk preview CTAs use the same primary treatment as open install", (
   harness.setActiveFrontDeskSection("launch");
   const launchPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
   assert.match(launchPanel, /<button class="primary-button"[^>]*>Open install<\/button>/);
+});
+
+test("front desk test section renders a clean empty state without fake chat data", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.setActiveFrontDeskSection("preview");
+  const panel = harness.buildFrontDeskPanel(
+    {
+      name: "Acme Services",
+      websiteUrl: "https://acme.example",
+    },
+    {
+      personalityReady: true,
+      knowledgeReady: true,
+      knowledgeLimited: false,
+      knowledgeState: "ready",
+      knowledgeDescription: "Website knowledge is ready.",
+      isReady: true,
+    },
+    harness.normalizeOperatorWorkspace({})
+  );
+
+  assert.match(panel, /Assistant preview is not available yet/);
+  assert.match(panel, /No sample chat history is shown here/);
+  assert.match(panel, /Finish setup/);
+  assert.doesNotMatch(panel, /<iframe/);
+  assert.doesNotMatch(panel, /Customer:|Assistant:/);
 });
 
 test("analytics weak-answer areas use actionable summaries instead of raw questions", () => {
@@ -2940,15 +2998,41 @@ test("customers panel renders searchable records with real identity, source, and
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
   assert.match(contactsPanel, /data-contact-search/);
+  assert.match(contactsPanel, /Total conversations/);
+  assert.match(contactsPanel, /Identified leads/);
+  assert.match(contactsPanel, /Guests/);
   assert.match(contactsPanel, /Needs follow-up/);
   assert.match(contactsPanel, /Identified/);
   assert.match(contactsPanel, /Guest visitor/);
   assert.match(contactsPanel, /Website widget/);
   assert.match(contactsPanel, /Full-page assistant/);
   assert.match(contactsPanel, /QR touchpoint/);
+  assert.match(contactsPanel, /data-contact-identity="identified"/);
+  assert.match(contactsPanel, /data-contact-identity="guest"/);
+  assert.match(contactsPanel, /data-contact-source-labels="Website widget"/);
+  assert.match(contactsPanel, /data-contact-source-labels="Full-page assistant\|QR touchpoint"/);
+  assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /Current situation/);
   assert.doesNotMatch(contactsPanel, /display_mode/);
+  assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
+});
+
+test("customers panel uses a polished empty state with no preview customer data", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const workspace = harness.createEmptyOperatorWorkspace();
+  workspace.contacts.list = [];
+  const contactsPanel = harness.buildContactsPanel({}, workspace);
+
+  assert.match(contactsPanel, /No customer conversations yet/);
+  assert.match(contactsPanel, /Install Vonza or open your assistant preview to start testing/);
+  assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
+  assert.doesNotMatch(contactsPanel, /fake|mock/i);
 });
 
 test("analytics panel omits standalone knowledge improvement center", () => {
