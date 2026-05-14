@@ -1659,9 +1659,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /Performance insights for your AI front desk/);
-        assert.match(dashboardScript.text, /AI front desk performance/);
-        assert.match(dashboardScript.text, /Customer conversations and successful actions/);
-        assert.match(dashboardScript.text, /What stands out right now/);
+        assert.match(dashboardScript.text, /Conversations over time/);
+        assert.match(dashboardScript.text, /Entry point \/ source breakdown/);
+        assert.match(dashboardScript.text, /AI vs Human handling/);
         assert.match(dashboardScript.text, /Who Vonza is talking to/);
         assert.match(dashboardScript.text, /Clarify pricing guidance/);
         assert.match(dashboardScript.text, /Top questions and weak answers/);

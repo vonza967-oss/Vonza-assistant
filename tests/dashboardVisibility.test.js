@@ -855,7 +855,7 @@ test("dashboard shows visible empty states when no analytics data exists", async
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /Home|AI priorities/);
-  assert.match(harness.getRootHtml(), /What stands out right now/i);
+  assert.match(harness.getRootHtml(), /Conversations over time/i);
 });
 
 test("Home surfaces weak pricing guidance as an AI priority", async () => {
@@ -998,5 +998,5 @@ test("tab switching still leaves the selected section rendered as the active vie
     harness.getRootHtml(),
     /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
-  assert.match(harness.getRootHtml(), /Customer conversations and successful actions/);
+  assert.match(harness.getRootHtml(), /Conversations over time/);
 });

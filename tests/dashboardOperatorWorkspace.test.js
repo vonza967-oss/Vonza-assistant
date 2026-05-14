@@ -395,14 +395,13 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(markup, /Source breakdown/);
+  assert.match(markup, /Entry point \/ source breakdown/);
   assert.match(markup, /Website widget/);
   assert.match(markup, /Full-page assistant/);
   assert.match(markup, /Legacy\/unknown/);
-  assert.match(markup, /5 messages/);
-  assert.match(markup, /7 messages/);
-  assert.match(markup, /2 legacy messages/);
-  assert.doesNotMatch(markup, /QR scans/);
+  assert.match(markup, /Performance by source/);
+  assert.match(markup, /QR scans/);
+  assert.match(markup, /Not tracked/);
 
   const emptyMarkup = harness.buildAnalyticsPanel(
     agent,
@@ -411,7 +410,8 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /No full-page assistant conversations yet/);
+  assert.match(emptyMarkup, /Full-page assistant/);
+  assert.match(emptyMarkup, /Not tracked/);
   assert.doesNotMatch(emptyMarkup, /Legacy\/unknown/);
 });
 
@@ -598,7 +598,7 @@ test("Hungarian dashboard language translates navigation, customer labels, setti
   assert.match(contacts, /Vonza/);
   assert.match(contacts, /Még nincs ügyfélüzenet/);
   assert.match(settings, /Irányítópult nyelve/);
-  assert.match(analytics, /Becsült ügyfél-elégedettség/);
+  assert.match(analytics, /Beszélgetések időben/);
   assert.match(connectedTools, /Kapcsolt eszközök/);
   assert.match(connectedTools, /hamarosan/);
   assert.equal(harness.t("common.hideChat"), "Chat elrejtése");
@@ -788,7 +788,7 @@ test("Hungarian dashboard completeness covers Home, Customers, Front Desk, Analy
   }
 
   assert.match(pages.Home, /Nyitott igények áttekintése|Szolgáltatásválaszok javítása/);
-  assert.match(pages.Analytics, /A Vonza \d+ \/ 25 beszélgetést kezelt/);
+  assert.match(pages.Analytics, /Beszélgetések időben/);
   assert.match(pages.Install, /Élesítés előtt/);
   assert.match(pages.Settings, /Vállalkozási profil/);
 });
@@ -808,7 +808,7 @@ test("English dashboard still renders the supported dashboard UI in English", ()
   assert.match(settings, /Business profile/);
   assert.match(settings, /Setup status/);
   assert.match(install, /Before you go live/);
-  assert.match(analytics, /lost-customer risk/);
+  assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
 });
 
@@ -2743,7 +2743,7 @@ test("sidebar rail keeps primary and utility navigation without placeholder conn
   assert.match(sidebar, /Install/);
 });
 
-test("analytics page now renders as a service report instead of stacked equal-weight cards", () => {
+test("analytics page renders the approved V2 analytics composition with real data", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -2777,17 +2777,18 @@ test("analytics page now renders as a service report instead of stacked equal-we
   );
 
   assert.match(analyticsPanel, /Performance insights for your AI front desk/);
-  assert.match(analyticsPanel, /AI front desk performance/);
+  assert.match(analyticsPanel, /Conversations over time/);
   assert.doesNotMatch(analyticsPanel, /Is Vonza helping customer service\?/);
   assert.doesNotMatch(analyticsPanel, /Service report/);
-  assert.match(analyticsPanel, /Customer conversations and successful actions/);
-  assert.match(analyticsPanel, /What stands out right now/);
+  assert.match(analyticsPanel, /Entry point \/ source breakdown/);
+  assert.match(analyticsPanel, /AI vs Human handling/);
+  assert.match(analyticsPanel, /Performance by source/);
   assert.match(analyticsPanel, /What to improve next/);
   assert.match(analyticsPanel, /Top questions and weak answers/);
-  assert.match(analyticsPanel, /Service quality estimate/);
+  assert.match(analyticsPanel, /Conversion rate/);
   assert.match(analyticsPanel, /Looking for booking or availability/);
   assert.match(analyticsPanel, /Asking how to contact the business directly/);
-  assert.doesNotMatch(analyticsPanel, /AI-handled/);
+  assert.match(analyticsPanel, /AI vs Human handling/);
   assert.doesNotMatch(analyticsPanel, /answered without needing a team reply/);
   assert.doesNotMatch(analyticsPanel, /Yeah I'd like to contact the boss/);
   assert.doesNotMatch(analyticsPanel, /data-refresh-operator data-force-sync="true">Refresh/);
@@ -2903,13 +2904,13 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Source breakdown/);
-  assert.match(analyticsPanel, /See whether visitors are using the website widget, the full-page assistant, or older activity\./);
+  assert.match(analyticsPanel, /Entry point \/ source breakdown/);
+  assert.match(analyticsPanel, /Performance by source/);
   assert.match(analyticsPanel, /Website widget/);
   assert.match(analyticsPanel, /Full-page assistant/);
   assert.match(analyticsPanel, /Legacy\/unknown/);
-  assert.match(analyticsPanel, /1 lead captured/);
-  assert.match(analyticsPanel, /analytics-source-meter/);
+  assert.match(analyticsPanel, /Conversion rate/);
+  assert.match(analyticsPanel, /AI handled/);
   assert.doesNotMatch(analyticsPanel, /display_mode/);
 });
 
@@ -2956,7 +2957,8 @@ test("analytics assistant source shows clean full-page empty state", () => {
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /No full-page assistant conversations yet\./);
+  assert.match(analyticsPanel, /Full-page assistant/);
+  assert.match(analyticsPanel, /Not tracked/);
   assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
 });
 

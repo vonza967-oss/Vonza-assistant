@@ -282,6 +282,44 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.questionsAndWeakAnswers": "Top questions and weak answers",
   "analytics.topQuestions": "Top questions",
   "analytics.weakAreas": "Weak-answer areas",
+  "analytics.dateRangeLast30": "Last 30 days",
+  "analytics.sourceAll": "Source: All",
+  "analytics.export": "Export",
+  "analytics.aiHandled": "AI handled",
+  "analytics.humanFollowUps": "Human follow-ups",
+  "analytics.fullPageActivity": "Full-page activity",
+  "analytics.qrScans": "QR scans",
+  "analytics.notTracked": "Not tracked",
+  "analytics.qrScanAnalyticsUnavailable": "QR scan analytics unavailable",
+  "analytics.liveCustomerConversations": "Live customer conversations",
+  "analytics.handledWithoutTeamReply": "handled without team reply",
+  "analytics.needsOwnerAttention": "Needs or received owner attention",
+  "analytics.capturedFromRealCustomerSignals": "Captured from real customer signals",
+  "analytics.fullPageConversationsRecorded": "Full-page conversations recorded",
+  "analytics.conversationsOverTime": "Conversations over time",
+  "analytics.liveCurrentWorkspace": "Live activity from the current workspace",
+  "analytics.daily": "Daily",
+  "analytics.total": "Total",
+  "analytics.totalConversationLabel": "Total conversations",
+  "analytics.entrySourceBreakdown": "Entry point / source breakdown",
+  "analytics.qrCode": "QR code",
+  "analytics.topCustomerQuestions": "Top customer questions",
+  "analytics.viewAll": "View all",
+  "analytics.noRepeatedQuestions": "No repeated customer questions are standing out yet.",
+  "analytics.conversationsByHour": "Conversations by hour",
+  "analytics.low": "Low",
+  "analytics.high": "High",
+  "analytics.aiVsHumanHandling": "AI vs Human handling",
+  "analytics.basedOnCapturedLeads": "Based on captured leads and assisted outcomes",
+  "analytics.estimatedTimeSaved": "Estimated time saved",
+  "analytics.estimatedFromAiHandled": "Estimated from AI-handled customer questions",
+  "analytics.performanceBySource": "Performance by source",
+  "analytics.source": "Source",
+  "analytics.visits": "Visits",
+  "analytics.conversations": "Conversations",
+  "analytics.leads": "Leads",
+  "analytics.avgFirstResponse": "Avg. time to first response",
+  "analytics.instant": "Instant",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -4102,6 +4140,62 @@ function getUiIconMarkup(icon = "") {
       <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
         <circle cx="10" cy="6.2" r="2.6" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
         <path d="M5 15.1c.8-2.4 2.5-3.7 5-3.7s4.2 1.3 5 3.7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    chat: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M4.3 5.4a3 3 0 0 1 3-3h5.4a3 3 0 0 1 3 3v4.7a3 3 0 0 1-3 3H8.2l-3.9 3.1V5.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    sparkle: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 3.2v3.2m0 7.2v3.2M3.2 10h3.2m7.2 0h3.2M5.2 5.2l2.2 2.2m5.2 5.2 2.2 2.2m0-9.6-2.2 2.2m-5.2 5.2-2.2 2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    window: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="3.5" y="4.3" width="13" height="11.4" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"></rect>
+        <path d="M3.5 8h13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    qr: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <rect x="3.4" y="3.4" width="4.5" height="4.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+        <rect x="12.1" y="3.4" width="4.5" height="4.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+        <rect x="3.4" y="12.1" width="4.5" height="4.5" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+        <path d="M12.2 12.2h1.8v1.8h-1.8Zm3.2 0h1.2v4.4h-4.4v-1.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    link: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M8.7 11.3a3.4 3.4 0 0 0 4.8 0l1.9-1.9a3.4 3.4 0 0 0-4.8-4.8l-1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+        <path d="M11.3 8.7a3.4 3.4 0 0 0-4.8 0l-1.9 1.9a3.4 3.4 0 0 0 4.8 4.8l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    clock: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <circle cx="10" cy="10" r="6.7" fill="none" stroke="currentColor" stroke-width="1.5"></circle>
+        <path d="M10 6.4v4l2.6 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+      </svg>
+    `,
+    download: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 3.2v8.5m0 0 3-3m-3 3-3-3M4.4 15.9h11.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    arrowUp: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 16V4m0 0 4 4m-4-4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    arrowDown: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="M10 4v12m0 0 4-4m-4 4-4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>
+    `,
+    chevronDown: `
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+        <path d="m6 8 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"></path>
       </svg>
     `,
     frontdesk: `
@@ -10943,6 +11037,435 @@ function buildAnalyticsTrendMarkup(report = {}) {
   `;
 }
 
+function buildV2Icon(name = "", className = "") {
+  const classes = ["v2-icon", className].filter(Boolean).join(" ");
+  return getUiIconMarkup(name).replace("<svg ", `<svg class="${escapeHtml(classes)}" `);
+}
+
+function buildV2IconBadge(name = "", tone = "blue") {
+  return `<span class="v2-icon-badge ${escapeHtml(tone)}">${buildV2Icon(name)}</span>`;
+}
+
+function buildV2Button(label, iconName = "", variant = "") {
+  const variantClass = variant ? ` ${escapeHtml(variant)}` : "";
+  return `<button class="v2-button${variantClass}" type="button">${iconName ? buildV2Icon(iconName) : ""}${escapeHtml(label)}</button>`;
+}
+
+function buildV2MetricCard(metric = {}) {
+  const trendClass = metric.down ? "v2-trend-down" : "v2-trend-up";
+  const trendIcon = metric.down ? "arrowDown" : "arrowUp";
+
+  return `
+    <article class="v2-metric-card">
+      <div class="v2-metric-top">
+        <div class="v2-metric-label">
+          ${buildV2IconBadge(metric.icon || "review", metric.tone || "blue")}
+          <span>${escapeHtml(metric.label || "")}</span>
+        </div>
+        <span class="v2-info-dot">i</span>
+      </div>
+      <div class="v2-metric-value">${escapeHtml(metric.value || "0")}</div>
+      <div class="v2-metric-change">
+        ${metric.change ? `<span class="${trendClass}">${buildV2Icon(trendIcon)} ${escapeHtml(metric.change)}</span>` : ""}
+        <span>${escapeHtml(metric.compare || "Live workspace data")}</span>
+      </div>
+    </article>
+  `;
+}
+
+function getAnalyticsSourceRows(sourceBreakdown = {}) {
+  const emptySource = createEmptyOwnerAnalyticsDashboard().assistantSource;
+  const source = sourceBreakdown && typeof sourceBreakdown === "object" ? sourceBreakdown : {};
+  const rows = [
+    {
+      ...normalizeAssistantSourceBucket(source.widget, emptySource.widget),
+      icon: "window",
+      tone: "teal",
+      color: "teal",
+      visits: "",
+    },
+    {
+      ...normalizeAssistantSourceBucket(source.page, emptySource.page),
+      icon: "window",
+      tone: "blue",
+      color: "blue",
+      visits: "",
+    },
+  ];
+  const unknown = normalizeAssistantSourceBucket(source.unknown, emptySource.unknown);
+
+  if (unknown.conversationCount > 0 || unknown.messageCount > 0 || unknown.leadsCaptured > 0) {
+    rows.push({
+      ...unknown,
+      icon: "link",
+      tone: "blue",
+      color: "gray",
+      visits: "Legacy",
+    });
+  }
+
+  rows.push({
+    key: "qr",
+    label: "QR code",
+    conversationCount: 0,
+    messageCount: 0,
+    visitorQuestionCount: 0,
+    leadsCaptured: 0,
+    icon: "qr",
+    tone: "teal",
+    color: "soft-blue",
+    visits: "",
+    unavailable: true,
+  });
+
+  return rows;
+}
+
+function buildV2LineChart(series = {}) {
+  const values = Array.isArray(series.values) && series.values.length ? series.values : [0, 0, 0, 0, 0, 0, 0];
+  const labels = Array.isArray(series.labels) && series.labels.length ? series.labels : [];
+  const width = 680;
+  const height = 180;
+  const paddingX = 50;
+  const top = 25;
+  const bottom = 154;
+  const maxValue = Math.max(...values, 1);
+  const linePath = values.map((value, index) => {
+    const x = paddingX + ((width - paddingX - 30) * index) / Math.max(values.length - 1, 1);
+    const y = bottom - ((bottom - top) * Number(value || 0)) / maxValue;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(" ");
+  const startX = paddingX;
+  const endX = width - 30;
+  const fillPath = `${linePath} L${endX} ${bottom} L${startX} ${bottom} Z`;
+  const labelIndexes = [0, Math.floor(values.length * 0.25), Math.floor(values.length * 0.5), Math.floor(values.length * 0.75), values.length - 1]
+    .filter((index, position, indexes) => index >= 0 && indexes.indexOf(index) === position);
+
+  return `
+    <svg class="v2-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t("analytics.conversationsOverTime"))} line chart">
+      <defs>
+        <linearGradient id="v2LineGradientProduction" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stop-color="#0ea99b" stop-opacity="0.22"></stop>
+          <stop offset="1" stop-color="#0ea99b" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <path class="v2-chart-gridline" d="M50 25H650M50 68H650M50 111H650M50 154H650"></path>
+      <path class="v2-chart-fill" d="${escapeHtml(fillPath)}"></path>
+      <path class="v2-chart-line" d="${escapeHtml(linePath)}"></path>
+      <text class="v2-axis-label" x="18" y="158">0</text>
+      <text class="v2-axis-label" x="14" y="115">${escapeHtml(formatAnalyticsReportNumber(Math.ceil(maxValue / 2)))}</text>
+      <text class="v2-axis-label" x="8" y="72">${escapeHtml(formatAnalyticsReportNumber(maxValue))}</text>
+      ${labelIndexes.map((index) => {
+        const x = paddingX + ((width - paddingX - 30) * index) / Math.max(values.length - 1, 1);
+        return `<text class="v2-axis-label" x="${escapeHtml(x.toFixed(0))}" y="176">${escapeHtml(labels[index] || "")}</text>`;
+      }).join("")}
+    </svg>
+  `;
+}
+
+function buildV2AnalyticsSourceBreakdown(sourceRows = [], totalConversations = 0) {
+  const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
+  const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
+
+  return `
+    <article class="v2-card">
+      <div class="v2-section-header">
+        <h2 class="v2-section-title">${escapeHtml(t("analytics.entrySourceBreakdown"))}</h2>
+      </div>
+      <div class="v2-donut-layout">
+        <div class="v2-donut" aria-hidden="true"></div>
+        <div class="v2-donut-legend">
+          ${trackedRows.map((row) => {
+            const percent = total > 0 ? Math.round((Number(row.conversationCount || 0) / total) * 100) : 0;
+            return `
+              <div class="v2-legend-row">
+                <span class="v2-legend-color ${escapeHtml(row.color || "gray")}"></span>
+                <span>${escapeHtml(row.label)}</span>
+                <strong>${escapeHtml(`${percent}%`)}</strong>
+                <span class="v2-subtext">${escapeHtml(formatAnalyticsReportNumber(row.conversationCount))}</span>
+              </div>
+            `;
+          }).join("")}
+          ${sourceRows.some((row) => row.unavailable) ? `
+            <div class="v2-legend-row">
+              <span class="v2-legend-color soft-blue"></span>
+              <span>${escapeHtml(t("analytics.qrCode"))}</span>
+              <strong>-</strong>
+              <span class="v2-subtext">${escapeHtml(t("analytics.notTracked"))}</span>
+            </div>
+          ` : ""}
+          <div class="v2-legend-row v2-legend-total">
+            <span></span><strong>${escapeHtml(t("analytics.total"))}</strong><strong></strong><strong>${escapeHtml(formatAnalyticsReportNumber(total))}</strong>
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function buildV2TopQuestions(topQuestionItems = []) {
+  const maxCount = Math.max(...topQuestionItems.map((item) => Number(item.count || 0)), 1);
+
+  return `
+    <article class="v2-card">
+      <div class="v2-section-header">
+        <h2 class="v2-section-title">${escapeHtml(t("analytics.topCustomerQuestions"))}</h2>
+        ${buildV2Button(t("analytics.viewAll"), "")}
+      </div>
+      ${topQuestionItems.length ? `
+        <div class="v2-list">
+          ${topQuestionItems.map((item) => {
+            const count = Number(item.count || 0);
+            const width = Math.max(8, Math.round((count / maxCount) * 100));
+            return `
+              <div class="v2-question-row">
+                <div class="v2-row-title">${escapeHtml(item.label || "Customer question")}</div>
+                <div class="v2-bar-track"><span class="v2-bar-fill" style="--v2-bar:${escapeHtml(String(width))}%"></span></div>
+                <div class="v2-row-meta">${escapeHtml(formatAnalyticsReportNumber(count))}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `<div class="placeholder-card">${escapeHtml(t("analytics.noRepeatedQuestions"))}</div>`}
+    </article>
+  `;
+}
+
+function buildV2Heatmap(userMessages = []) {
+  const times = [
+    { label: "12am", start: 0, end: 3 },
+    { label: "4am", start: 4, end: 7 },
+    { label: "8am", start: 8, end: 11 },
+    { label: "12pm", start: 12, end: 15 },
+    { label: "4pm", start: 16, end: 19 },
+    { label: "8pm", start: 20, end: 23 },
+  ];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const buckets = times.map(() => days.map(() => 0));
+
+  userMessages.forEach((message) => {
+    const date = new Date(message.createdAt || message.created_at || "");
+
+    if (Number.isNaN(date.getTime())) {
+      return;
+    }
+
+    const hour = date.getHours();
+    const rowIndex = times.findIndex((time) => hour >= time.start && hour <= time.end);
+    const dayIndex = (date.getDay() + 6) % 7;
+
+    if (rowIndex >= 0) {
+      buckets[rowIndex][dayIndex] += 1;
+    }
+  });
+
+  const max = Math.max(...buckets.flat(), 1);
+  const colors = ["#e8f0ff", "#cfe0ff", "#9ec1ff", "#5d94f5", "#2563eb", "#0a3f94"];
+  const cells = times.map((time, rowIndex) => {
+    const rowCells = days.map((_day, dayIndex) => {
+      const intensity = Math.ceil((buckets[rowIndex][dayIndex] / max) * (colors.length - 1));
+      return `<span class="v2-heat-cell" style="--heat:${escapeHtml(colors[Math.max(0, intensity)])}"></span>`;
+    }).join("");
+    return `<span class="v2-heatmap-label">${escapeHtml(time.label)}</span>${rowCells}`;
+  }).join("");
+
+  return `
+    <article class="v2-card">
+      <div class="v2-section-header">
+        <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsByHour"))}</h2>
+        <span class="v2-info-dot">i</span>
+      </div>
+      <div class="v2-heatmap">
+        <span></span>
+        ${days.map((day) => `<span class="v2-heatmap-day">${escapeHtml(day)}</span>`).join("")}
+        ${cells}
+      </div>
+      <div class="v2-heatmap-key">
+        <span>${escapeHtml(t("analytics.low"))}</span>
+        ${colors.map((color) => `<span class="v2-heat-key-box" style="--heat:${escapeHtml(color)}"></span>`).join("")}
+        <span>${escapeHtml(t("analytics.high"))}</span>
+      </div>
+    </article>
+  `;
+}
+
+function buildV2HandlingCard(report = {}) {
+  const rate = Math.max(0, Math.min(100, Number(report.autonomousHandledRate || 0)));
+  const handled = Number(report.autonomousHandledCount || 0);
+  const human = Math.max(0, Number(report.conversationCount || 0) - handled);
+  const dashOffset = 236 - (236 * rate) / 100;
+
+  return `
+    <article class="v2-card">
+      <div class="v2-section-header">
+        <h2 class="v2-section-title">${escapeHtml(t("analytics.aiVsHumanHandling"))}</h2>
+      </div>
+      <div class="v2-gauge">
+        <svg viewBox="0 0 220 140" aria-label="${escapeHtml(t("analytics.aiHandled"))} ${escapeHtml(String(rate))} percent">
+          <path class="v2-gauge-base" d="M35 112A75 75 0 0 1 185 112"></path>
+          <path class="v2-gauge-value" d="M35 112A75 75 0 0 1 185 112" style="stroke-dasharray:236; stroke-dashoffset:${escapeHtml(dashOffset.toFixed(2))}"></path>
+          <text class="v2-gauge-text" x="110" y="103">${escapeHtml(`${rate}%`)}</text>
+          <text class="v2-gauge-sub" x="110" y="124">${escapeHtml(t("analytics.aiHandled"))}</text>
+        </svg>
+      </div>
+      <div class="v2-donut-legend">
+        <div class="v2-legend-row"><span class="v2-legend-color teal"></span><span>${escapeHtml(t("analytics.aiHandled"))}</span><strong></strong><span>${escapeHtml(formatAnalyticsReportNumber(handled))}</span></div>
+        <div class="v2-legend-row"><span class="v2-legend-color soft-blue"></span><span>${escapeHtml(t("analytics.humanFollowUps"))}</span><strong></strong><span>${escapeHtml(formatAnalyticsReportNumber(human))}</span></div>
+      </div>
+    </article>
+  `;
+}
+
+function buildV2ConversionCard(report = {}) {
+  return `
+    <article class="v2-card">
+      <div class="v2-split-stat">
+        <div class="v2-split-stat-item">
+          ${buildV2IconBadge("users", "teal")}
+          <div>
+            <div class="v2-row-title">${escapeHtml(t("analytics.conversionRate"))}</div>
+            <div class="v2-split-stat-value">${escapeHtml(formatAnalyticsReportDecimalPercent(report.conversionRate || 0))}</div>
+            <div class="v2-metric-change"><span>${escapeHtml(t("analytics.basedOnCapturedLeads"))}</span></div>
+          </div>
+        </div>
+        <div class="v2-split-stat-item">
+          ${buildV2IconBadge("clock", "blue")}
+          <div>
+            <div class="v2-row-title">${escapeHtml(t("analytics.estimatedTimeSaved"))}</div>
+            <div class="v2-split-stat-value">${escapeHtml(formatAnalyticsReportHours(report.estimatedHoursSaved))}h</div>
+            <div class="v2-metric-change"><span>${escapeHtml(t("analytics.estimatedFromAiHandled"))}</span></div>
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function buildV2ContactMixCard(report = {}) {
+  return `
+    <section class="v2-card v2-section v2-contact-mix-card">
+      <div class="v2-section-header">
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(t("analytics.talkingTo"))}</h2>
+          <p class="v2-section-subtitle">${escapeHtml(report.contactMixCopy || "Contact identity will become more useful as more live conversations arrive.")}</p>
+        </div>
+      </div>
+      <div class="analytics-report-contact-grid">
+        <div class="analytics-report-contact-card">
+          <span>${escapeHtml(t("analytics.guestUsers"))}</span>
+          <strong>${escapeHtml(formatAnalyticsReportNumber(report.guestUsers))}</strong>
+        </div>
+        <div class="analytics-report-contact-card">
+          <span>${escapeHtml(t("analytics.identifiedUsers"))}</span>
+          <strong>${escapeHtml(formatAnalyticsReportNumber(report.identifiedUsers))}</strong>
+        </div>
+        <div class="analytics-report-contact-card">
+          <span>${escapeHtml(t("analytics.emailUsers"))}</span>
+          <strong>${escapeHtml(formatAnalyticsReportNumber(report.emailUsers))}</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function buildV2PerformanceBySource(sourceRows = [], report = {}) {
+  const total = Math.max(Number(report.conversationCount || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
+  const rows = sourceRows.map((row) => {
+    const conversations = Number(row.conversationCount || 0);
+    const percent = total > 0 ? Math.round((conversations / total) * 100) : 0;
+    const aiHandled = Math.min(conversations, Math.round((conversations * Number(report.autonomousHandledRate || 0)) / 100));
+    const human = Math.max(0, conversations - aiHandled);
+
+    return `
+      <tr>
+        <td><span class="v2-name">${buildV2Icon(row.icon || "window", row.tone || "blue")} ${escapeHtml(row.label)}</span></td>
+        <td>${escapeHtml(row.visits || t("analytics.notTracked"))}</td>
+        <td>${escapeHtml(row.unavailable ? t("analytics.notTracked") : `${formatAnalyticsReportNumber(conversations)} (${percent}%)`)}</td>
+        <td>${escapeHtml(row.unavailable ? t("analytics.notTracked") : formatAnalyticsReportNumber(row.leadsCaptured || 0))}</td>
+        <td>${escapeHtml(row.unavailable || conversations <= 0 ? "-" : formatAnalyticsReportDecimalPercent((Number(row.leadsCaptured || 0) / conversations) * 100))}</td>
+        <td>${escapeHtml(row.unavailable ? "-" : formatAnalyticsReportNumber(aiHandled))}</td>
+        <td>${escapeHtml(row.unavailable ? "-" : formatAnalyticsReportNumber(human))}</td>
+        <td>${escapeHtml(t("analytics.instant"))}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <section class="v2-table-card v2-section">
+      <div class="v2-table-header">
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(t("analytics.performanceBySource"))}</h2>
+        </div>
+      </div>
+      <div class="v2-data-table-wrap">
+        <table class="v2-data-table">
+          <thead>
+            <tr>
+              <th>${escapeHtml(t("analytics.source"))}</th>
+              <th>${escapeHtml(t("analytics.visits"))}</th>
+              <th>${escapeHtml(t("analytics.conversations"))}</th>
+              <th>${escapeHtml(t("analytics.leads"))}</th>
+              <th>${escapeHtml(t("analytics.conversionRate"))}</th>
+              <th>${escapeHtml(t("analytics.aiHandled"))}</th>
+              <th>${escapeHtml(t("analytics.humanFollowUps"))}</th>
+              <th>${escapeHtml(t("analytics.avgFirstResponse"))}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = null, topQuestionItems = [], userMessages = []) {
+  const sourceRows = getAnalyticsSourceRows(ownerAnalyticsDashboard?.assistantSource);
+  const sourceTotal = Math.max(
+    Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
+    Number(report.conversationCount || 0)
+  );
+  const humanFollowUps = Math.max(0, Number(report.conversationCount || 0) - Number(report.autonomousHandledCount || 0));
+  const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
+  const metrics = [
+    { label: t("analytics.totalConversations"), value: formatAnalyticsReportNumber(report.conversationCount), compare: t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
+    { label: t("analytics.aiHandled"), value: formatAnalyticsReportPercent(report.autonomousHandledRate), compare: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} ${t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
+    { label: t("analytics.humanFollowUps"), value: formatAnalyticsReportNumber(humanFollowUps), compare: t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
+    { label: t("analytics.leadsCaptured"), value: formatAnalyticsReportNumber(report.contactsCaptured), compare: t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
+    { label: t("analytics.fullPageActivity"), value: formatAnalyticsReportNumber(fullPageRow.conversationCount || 0), compare: t("analytics.fullPageConversationsRecorded"), icon: "window", tone: "blue" },
+    { label: t("analytics.qrScans"), value: t("analytics.notTracked"), compare: t("analytics.qrScanAnalyticsUnavailable"), icon: "qr", tone: "teal" },
+  ];
+
+  return `
+    <div class="dashboard-v2-analytics">
+      <section class="v2-grid v2-grid-6">
+        ${metrics.map(buildV2MetricCard).join("")}
+      </section>
+      <section class="v2-three-col-wide v2-section">
+        <article class="v2-card v2-chart-card">
+          <div class="v2-section-header">
+            <div>
+              <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsOverTime"))}</h2>
+              <div class="v2-metric-value v2-chart-total">${escapeHtml(formatAnalyticsReportNumber(report.conversationCount))} <span class="v2-subtext">${escapeHtml(t("analytics.totalConversationLabel"))}</span></div>
+              <div class="v2-metric-change"><span>${escapeHtml(t("analytics.liveCurrentWorkspace"))}</span></div>
+            </div>
+            <button class="v2-button" type="button">${escapeHtml(t("analytics.daily"))} ${buildV2Icon("chevronDown")}</button>
+          </div>
+          ${buildV2LineChart(report.conversationSeries)}
+        </article>
+        ${buildV2AnalyticsSourceBreakdown(sourceRows, sourceTotal)}
+        ${buildV2TopQuestions(topQuestionItems)}
+      </section>
+      <section class="v2-analytics-second v2-section">
+        ${buildV2Heatmap(userMessages)}
+        ${buildV2HandlingCard(report)}
+        ${buildV2ConversionCard(report)}
+      </section>
+      ${buildV2PerformanceBySource(sourceRows, report)}
+      ${buildV2ContactMixCard(report)}
+    </div>
+  `;
+}
+
 function normalizeActionQueueStatus(value) {
   const normalized = trimText(value).toLowerCase();
   return ACTION_QUEUE_STATUSES.includes(normalized) ? normalized : "new";
@@ -13184,151 +13707,23 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     </section>
   `;
 
-  return localizeDashboardHtml(`
-    <section class="workspace-page" data-shell-section="analytics" hidden>
-      ${buildPageHeader({
-        title: t("analytics.title"),
-        copy: t("analytics.copy"),
-      })}
-      <div class="workspace-page-body">
-        <div class="workspace-section-stack">
-          ${syncPendingMarkup}
-          <section class="workspace-card-soft analytics-report-overview">
-            <div>
-              <p class="analytics-report-kicker">${escapeHtml(t("analytics.serviceReport"))}</p>
-              <h2 class="analytics-report-title">${escapeHtml(t("analytics.helping"))}</h2>
-              <p class="analytics-report-copy">${escapeHtml(report.summarySentence)}</p>
-            </div>
-            <div class="analytics-report-overview-pills">
-              <span class="pill">${escapeHtml(`${report.lostCustomerRisk} lost-customer risk`)}</span>
-              <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.highIntentSignals)} warm conversations`)}</span>
-              <span class="pill">${escapeHtml(`${formatAnalyticsReportNumber(report.attentionNeeded)} needing review`)}</span>
-            </div>
-          </section>
-          <section class="analytics-report-metric-grid">
-            ${[
-              {
-                label: t("analytics.totalConversations"),
-                value: formatAnalyticsReportNumber(report.conversationCount),
-                note: analyticsSummary.syncState === "pending"
-                  ? "Refreshing from live usage"
-                  : signals.usageTrend?.copy || "Live customer traffic will appear here.",
-                tone: report.conversationCount > 0 ? "positive" : "neutral",
-              },
-              {
-                label: t("analytics.leadsCaptured"),
-                value: formatAnalyticsReportNumber(report.contactsCaptured),
-                note: report.highIntentSignals > report.contactsCaptured
-                  ? `${formatAnalyticsReportNumber(report.highIntentSignals - report.contactsCaptured)} warm chats still anonymous`
-                  : "Lead capture is keeping pace with demand",
-                tone: report.contactsCaptured > 0 ? "positive" : "neutral",
-              },
-              {
-                label: t("analytics.conversionRate"),
-                value: formatAnalyticsReportDecimalPercent(report.conversionRate),
-                note: report.conversationCount > 0
-                  ? t("analytics.conversionRateNote")
-                  : t("analytics.waitingForConversations"),
-                tone: report.conversionRate > 0 ? "positive" : "neutral",
-              },
-              {
-                label: t("analytics.complaintsHandled"),
-                value: formatAnalyticsReportNumber(report.complaintsHandled),
-                note: report.complaintOpened > 0
-                  ? `${formatAnalyticsReportNumber(report.unresolvedComplaints)} unresolved of ${formatAnalyticsReportNumber(report.complaintOpened)} recorded`
-                  : "No complaint risk recorded yet",
-                tone: report.unresolvedComplaints > 0 ? "risk" : report.complaintsHandled > 0 ? "positive" : "neutral",
-              },
-              {
-                label: t("analytics.estimatedSatisfaction"),
-                value: report.conversationCount > 0 ? formatAnalyticsReportScore(report.satisfactionScore) : "Early",
-                note: report.conversationCount > 0
-                  ? report.satisfactionScore >= 4.3
-                    ? "Estimated from strong service-quality signals"
-                    : report.satisfactionScore >= 3.7
-                      ? "Estimated as good, with room to tighten answers"
-                      : "Estimated friction risk from current service signals"
-                  : "Waiting for enough live service signal to estimate",
-                tone: report.satisfactionScore >= 4.3 ? "positive" : report.satisfactionScore >= 3.7 ? "watch" : "risk",
-              },
-              {
-                label: t("analytics.estimatedHoursSaved"),
-                value: formatAnalyticsReportHours(report.estimatedHoursSaved),
-                note: "Estimated from customer questions Vonza handled itself",
-                tone: report.estimatedHoursSaved > 0 ? "positive" : "neutral",
-              },
-            ].map((metric) => `
-              <article class="analytics-report-metric-card">
-                <p class="analytics-report-metric-label">${escapeHtml(metric.label)}</p>
-                <strong class="analytics-report-metric-value">${escapeHtml(metric.value)}</strong>
-                <p class="analytics-report-metric-note tone-${metric.tone}">${escapeHtml(metric.note)}</p>
-              </article>
-            `).join("")}
-          </section>
-          ${buildAssistantSourceMarkup(ownerAnalyticsDashboard?.assistantSource)}
-          <div class="analytics-report-grid">
-            <section class="workspace-card-soft analytics-report-primary">
-              <div class="flat-section-header">
-                <div>
-                  <p class="overview-label">${escapeHtml(t("analytics.trends"))}</p>
-                  <h3 class="flat-section-title">${escapeHtml(t("analytics.trendsTitle"))}</h3>
-                  <p class="analytics-report-section-copy">See whether support demand and completed next steps are moving in the right direction.</p>
-                </div>
-              </div>
-              ${buildAnalyticsTrendMarkup(report)}
-            </section>
-            <div class="analytics-report-sidebar">
-              <section class="workspace-card-soft">
-                <div class="flat-section-header">
-                  <div>
-                    <p class="overview-label">${escapeHtml(t("analytics.topInsights"))}</p>
-                    <h3 class="flat-section-title">${escapeHtml(t("analytics.standsOut"))}</h3>
-                  </div>
-                </div>
-                <div class="analytics-report-insights">
-                  ${[
-                    { label: t("analytics.mostAsked"), value: report.mostAskedQuestion, tone: "conversations" },
-                    { label: t("analytics.peakHours"), value: report.peakHours, tone: "actions" },
-                    { label: t("analytics.doesBestAt"), value: report.bestArea, tone: "positive" },
-                    { label: t("analytics.needsImprovement"), value: report.improvementArea, tone: "risk" },
-                  ].map((item) => `
-                    <div class="analytics-report-insight">
-                      <span class="analytics-report-insight-dot tone-${item.tone}"></span>
-                      <div>
-                        <strong>${escapeHtml(item.label)}</strong>
-                        <p>${escapeHtml(item.value)}</p>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              </section>
-              <section class="workspace-card-soft">
-                <div class="flat-section-header">
-                  <div>
-                    <p class="overview-label">${escapeHtml(t("analytics.contactSummary"))}</p>
-                    <h3 class="flat-section-title">${escapeHtml(t("analytics.talkingTo"))}</h3>
-                  </div>
-                </div>
-                <div class="analytics-report-contact-grid">
-                  <div class="analytics-report-contact-card">
-                    <span>${escapeHtml(t("analytics.guestUsers"))}</span>
-                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.guestUsers))}</strong>
-                  </div>
-                  <div class="analytics-report-contact-card">
-                    <span>${escapeHtml(t("analytics.identifiedUsers"))}</span>
-                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.identifiedUsers))}</strong>
-                  </div>
-                  <div class="analytics-report-contact-card">
-                    <span>${escapeHtml(t("analytics.emailUsers"))}</span>
-                    <strong>${escapeHtml(formatAnalyticsReportNumber(report.emailUsers))}</strong>
-                  </div>
-                </div>
-                <p class="analytics-report-section-copy">${escapeHtml(report.contactMixCopy)}</p>
-              </section>
-              ${aiUsageMarkup}
-            </div>
-          </div>
-          <section class="workspace-card-soft">
+	  return localizeDashboardHtml(`
+	    <section class="workspace-page" data-shell-section="analytics" hidden>
+	      ${buildPageHeader({
+	        title: t("analytics.title"),
+	        copy: t("analytics.copy"),
+	        actionsMarkup: `
+	          <span class="v2-select">${escapeHtml(t("analytics.dateRangeLast30"))}</span>
+	          <span class="v2-select">${escapeHtml(t("analytics.sourceAll"))}</span>
+	          ${buildV2Button(t("analytics.export"), "download")}
+	        `,
+	      })}
+	      <div class="workspace-page-body">
+	        <div class="workspace-section-stack">
+	          ${syncPendingMarkup}
+	          ${buildDashboardV2AnalyticsMarkup(report, ownerAnalyticsDashboard, topQuestionItems, signals.userMessages || [])}
+	          ${aiUsageMarkup}
+	          <section class="workspace-card-soft">
             <div class="flat-section-header">
               <div>
                 <p class="overview-label">${escapeHtml(t("home.improveNext"))}</p>
