@@ -1307,6 +1307,11 @@ a {
   border-radius: 999px;
 }
 
+.v2-check-icon.gray {
+  color: #64748b;
+  border-color: #cbd5e1;
+}
+
 .v2-knowledge-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2228,5 +2233,465 @@ a {
 
   .v2-chat-fab {
     display: none;
+  }
+}
+
+/* Compact desktop density to match the production reference layout. */
+@media (min-width: 921px) {
+  :root {
+    --v2-sidebar-width: 212px;
+    --v2-radius: 8px;
+    --v2-radius-sm: 7px;
+    --v2-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+    --v2-shadow-soft: 0 5px 12px rgba(15, 23, 42, 0.035);
+  }
+
+  body {
+    font-size: 13px;
+    line-height: 1.36;
+  }
+
+  .v2-icon {
+    width: 16px;
+    height: 16px;
+    vertical-align: -3px;
+  }
+
+  .v2-sidebar {
+    padding: 18px 12px 14px;
+  }
+
+  .v2-brand {
+    gap: 10px;
+    margin-bottom: 22px;
+    font-size: 17px;
+  }
+
+  .v2-brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 20px;
+  }
+
+  .v2-sidebar-nav {
+    gap: 4px;
+  }
+
+  .v2-nav-section-label {
+    margin: 16px 0 6px;
+    font-size: 10px;
+  }
+
+  .v2-nav-item {
+    grid-template-columns: 28px 1fr auto;
+    gap: 9px;
+    min-height: 40px;
+    padding: 7px 9px;
+    border-radius: 8px;
+  }
+
+  .v2-nav-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .v2-nav-label {
+    font-size: 12.5px;
+  }
+
+  .v2-nav-sub {
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .v2-nav-badge {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .v2-plan-card {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .v2-plan-name,
+  .v2-user-name {
+    font-size: 12.5px;
+  }
+
+  .v2-plan-meta,
+  .v2-plan-usage,
+  .v2-user-email {
+    font-size: 11px;
+  }
+
+  .v2-user-card {
+    grid-template-columns: 34px 1fr auto;
+    gap: 9px;
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+
+  .v2-user-avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+  }
+
+  .v2-main {
+    padding: 20px 22px 28px;
+  }
+
+  .v2-page {
+    max-width: 1360px;
+  }
+
+  .v2-page-header {
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .v2-page-title {
+    font-size: 24px;
+    line-height: 1.08;
+  }
+
+  .v2-page-subtitle {
+    margin-top: 4px;
+    font-size: 12.5px;
+  }
+
+  .v2-header-actions,
+  .v2-toolbar {
+    gap: 8px;
+  }
+
+  .v2-button,
+  .v2-input,
+  .v2-select,
+  .v2-textarea {
+    min-height: 32px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+
+  .v2-button {
+    gap: 6px;
+    padding: 7px 11px;
+  }
+
+  .v2-select,
+  .v2-input,
+  .v2-textarea {
+    padding: 7px 10px;
+  }
+
+  .v2-select {
+    min-width: 112px;
+    padding-right: 28px;
+    background-position:
+      calc(100% - 15px) 50%,
+      calc(100% - 10px) 50%;
+  }
+
+  .v2-grid,
+  .v2-two-col,
+  .v2-three-col-wide,
+  .v2-analytics-second,
+  .v2-source-summary,
+  .v2-install-layout,
+  .v2-install-methods,
+  .v2-settings-grid,
+  .v2-settings-grid-bottom {
+    gap: 12px;
+  }
+
+  .v2-card {
+    padding: 12px;
+  }
+
+  .v2-detail-panel {
+    padding: 14px;
+  }
+
+  .v2-metric-card {
+    min-height: 94px;
+    padding: 12px;
+  }
+
+  .v2-card + .v2-card,
+  .v2-card + .v2-table-card,
+  .v2-grid + .v2-grid,
+  .v2-grid + .v2-card,
+  .v2-grid + .v2-table-card,
+  .v2-table-card + .v2-card,
+  .v2-section + .v2-section {
+    margin-top: 12px;
+  }
+
+  .v2-section-header {
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+
+  .v2-section-title {
+    font-size: 14px;
+  }
+
+  .v2-section-subtitle,
+  .v2-row-title,
+  .v2-row-copy,
+  .v2-detail-copy,
+  .v2-muted-list,
+  .v2-install-method p,
+  .v2-knowledge-card p {
+    font-size: 12px;
+  }
+
+  .v2-metric-label {
+    gap: 7px;
+    font-size: 12px;
+  }
+
+  .v2-icon-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .v2-icon-badge .v2-icon {
+    width: 15px;
+    height: 15px;
+  }
+
+  .v2-info-dot {
+    width: 15px;
+    height: 15px;
+    font-size: 10px;
+  }
+
+  .v2-metric-value {
+    margin-bottom: 5px;
+    font-size: 27px;
+  }
+
+  .v2-metric-change,
+  .v2-row-meta,
+  .v2-subtext {
+    font-size: 11px;
+  }
+
+  .v2-action-row,
+  .v2-activity-row,
+  .v2-status-row,
+  .v2-link-row,
+  .v2-team-row,
+  .v2-timeline-row,
+  .v2-source-row,
+  .v2-question-row,
+  .v2-readiness-row {
+    gap: 9px;
+    padding: 8px 0;
+  }
+
+  .v2-source-tile {
+    min-height: 82px;
+    padding: 11px;
+    border-radius: 8px;
+  }
+
+  .v2-source-label {
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .v2-source-value {
+    margin-top: 10px;
+    font-size: 21px;
+  }
+
+  .v2-data-table {
+    font-size: 12px;
+  }
+
+  .v2-data-table th,
+  .v2-data-table td {
+    padding: 8px 12px;
+  }
+
+  .v2-table-header {
+    padding: 12px 14px 8px;
+  }
+
+  .v2-table-footer {
+    padding: 10px 14px;
+  }
+
+  .v2-chart-card {
+    min-height: 190px;
+  }
+
+  .v2-line-chart {
+    height: 126px;
+    margin-top: 8px;
+  }
+
+  .v2-donut-layout {
+    grid-template-columns: 100px 1fr;
+    gap: 12px;
+  }
+
+  .v2-donut {
+    width: 96px;
+    height: 96px;
+    box-shadow: inset 0 0 0 18px #ffffff;
+  }
+
+  .v2-donut-legend,
+  .v2-list,
+  .v2-split-stat {
+    gap: 9px;
+  }
+
+  .v2-legend-row {
+    grid-template-columns: 11px 1fr auto auto;
+    gap: 7px;
+    font-size: 11.5px;
+  }
+
+  .v2-question-row {
+    grid-template-columns: minmax(112px, 1fr) 96px 30px;
+  }
+
+  .v2-heatmap {
+    grid-template-columns: 40px repeat(7, 1fr);
+  }
+
+  .v2-heat-cell {
+    height: 8px;
+  }
+
+  .v2-heatmap-key {
+    margin-top: 10px;
+  }
+
+  .v2-gauge {
+    height: 112px;
+  }
+
+  .v2-gauge svg {
+    width: 164px;
+    height: 98px;
+  }
+
+  .v2-gauge-base,
+  .v2-gauge-value {
+    stroke-width: 15;
+  }
+
+  .v2-gauge-text {
+    font-size: 22px;
+  }
+
+  .v2-split-stat-item {
+    grid-template-columns: 34px 1fr;
+    gap: 9px;
+    padding: 10px 0;
+  }
+
+  .v2-split-stat-value {
+    font-size: 21px;
+  }
+
+  .v2-customers-layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 12px;
+  }
+
+  .v2-detail-head {
+    grid-template-columns: 48px 1fr auto;
+    gap: 11px;
+    margin-bottom: 14px;
+  }
+
+  .v2-avatar.large {
+    width: 46px;
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .v2-detail-title,
+  .v2-billing-plan {
+    font-size: 16px;
+  }
+
+  .v2-detail-mini-grid,
+  .v2-install-steps-grid,
+  .v2-qr-grid,
+  .v2-form-grid {
+    gap: 10px;
+  }
+
+  .v2-mini-card,
+  .v2-detail-section,
+  .v2-install-step,
+  .v2-method-detail,
+  .v2-billing-panel,
+  .v2-knowledge-card,
+  .v2-chat-preview,
+  .v2-qr-card {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .v2-install-method {
+    grid-template-columns: 34px 1fr;
+    gap: 10px;
+    min-height: 78px;
+    padding: 12px;
+  }
+
+  .v2-install-method h3,
+  .v2-knowledge-card h3 {
+    font-size: 14px;
+  }
+
+  .v2-install-step {
+    min-height: 104px;
+  }
+
+  .v2-code-block {
+    margin-top: 10px;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  .v2-preview-browser {
+    height: 164px;
+    border-radius: 8px;
+  }
+
+  .v2-widget-card {
+    width: 158px;
+    padding: 10px;
+    border-radius: 8px;
+  }
+
+  .v2-chat-fab {
+    right: 20px;
+    bottom: 20px;
+    width: 46px;
+    height: 46px;
+  }
+
+  .v2-chat-fab .v2-icon {
+    width: 22px;
+    height: 22px;
   }
 }

@@ -236,6 +236,7 @@
 
   let frontDeskTab = "overview";
   let installMethod = "widget";
+  const notAvailableLabel = "not available yet";
 
   function icon(name, className = "") {
     const paths = iconPaths[name] || iconPaths.chat;
@@ -256,12 +257,13 @@
     return `<span class="v2-icon-badge ${tone}">${icon(name)}</span>`;
   }
 
-  function button(label, name, variant = "") {
+  function button(label, name, variant = "", attrs = "") {
     const variantClass = variant ? ` ${variant}` : "";
-    return `<button class="v2-button${variantClass}" type="button">${name ? icon(name) : ""}${label}</button>`;
+    return `<button class="v2-button${variantClass}" type="button" ${attrs}>${name ? icon(name) : ""}${label}</button>`;
   }
 
   function metricCard(metric) {
+    const hasTrend = metric.change && metric.compare;
     const trendIcon = metric.down ? "arrowDown" : "arrowUp";
     const trendClass = metric.down ? "v2-trend-down" : "v2-trend-up";
     return `
@@ -275,8 +277,7 @@
         </div>
         <div class="v2-metric-value">${metric.value}</div>
         <div class="v2-metric-change">
-          <span class="${trendClass}">${icon(trendIcon)} ${metric.change}</span>
-          <span>${metric.compare}</span>
+          ${hasTrend ? `<span class="${trendClass}">${icon(trendIcon)} ${metric.change}</span><span>${metric.compare}</span>` : `<span>${notAvailableLabel}</span>`}
         </div>
       </article>
     `;
@@ -370,15 +371,14 @@
   }
 
   function renderHome() {
-    const metrics = [
-      { label: "Conversations today", value: "186", change: "+18%", compare: "vs yesterday", icon: "chat", tone: "blue" },
-      { label: "Leads captured", value: "24", change: "+12%", compare: "vs yesterday", icon: "users", tone: "green" },
-      { label: "Needs reply", value: "7", change: "-9%", compare: "vs yesterday", icon: "bell", tone: "amber", down: true },
-      { label: "AI handled", value: "88%", change: "+6pp", compare: "vs last week", icon: "sparkle", tone: "teal" },
-    ];
+    const metrics = buildHomeMetrics();
+    const priorityRows = buildHomePriorityRows();
+    const activityRows = buildHomeActivityRows();
+    const sourceRows = buildHomeSourceRows();
+    const readinessRows = buildHomeReadinessRows();
 
     return `
-      ${pageHeader(pageMeta.home.title, pageMeta.home.subtitle, `${button("Review replies", "chat", "v2-button-primary")}${button("View analytics", "analytics")}`)}
+      ${pageHeader(pageMeta.home.title, pageMeta.home.subtitle, `${button("Review replies", "chat", "v2-button-primary", 'data-preview-target="front-desk"')}${button("View analytics", "analytics", "", 'data-preview-target="analytics"')}`)}
       <section class="v2-grid v2-grid-4">
         ${metrics.map(metricCard).join("")}
       </section>
@@ -386,15 +386,13 @@
         <article class="v2-card">
           <div class="v2-section-header">
             <div>
-              <h2 class="v2-section-title">Priority queue</h2>
+              <h2 class="v2-section-title">Today's priority</h2>
               <p class="v2-section-subtitle">Focused work that needs owner attention.</p>
             </div>
-            ${pill("7 open", "amber")}
+            ${pill(`${priorityRows.length} open`, priorityRows.length ? "amber" : "green")}
           </div>
           <div class="v2-list">
-            ${actionRow("Lauren Martinez", "Asked about custom pricing packages.", "Reply", "amber", "chat")}
-            ${actionRow("Sarah Brown", "Integration question needs a confident answer.", "Review", "blue", "sparkle")}
-            ${actionRow("Front door QR", "Traffic is up 18% after the new flyer scan.", "Inspect", "teal", "qr")}
+            ${priorityRows.length ? priorityRows.map((row) => actionRow(row.title, row.copy, row.action, row.tone, row.iconName)).join("") : emptyHomeRow("No owner priorities in the existing customer rows yet.")}
           </div>
         </article>
         <article class="v2-card">
@@ -406,10 +404,7 @@
             ${button("View all", "", "")}
           </div>
           <div class="v2-list">
-            ${activityRow("Jessica Smith became a warm lead", "QR code", "2m ago", "users", "teal")}
-            ${activityRow("AI answered pricing question", "Full-page assistant", "7m ago", "sparkle", "blue")}
-            ${activityRow("Website widget captured email", "Website widget", "18m ago", "mail", "green")}
-            ${activityRow("Install verification checked", "Widget detected", "1h ago", "check", "teal")}
+            ${activityRows.length ? activityRows.map((row) => activityRow(row.title, row.source, row.time, row.iconName, row.tone)).join("") : emptyHomeRow("Recent activity is not available yet.")}
           </div>
         </article>
       </section>
@@ -420,13 +415,10 @@
               <h2 class="v2-section-title">Assistant readiness</h2>
               <p class="v2-section-subtitle">Compact launch health for daily operations.</p>
             </div>
-            ${pill("4 of 5 ready", "green")}
+            ${pill(notAvailableLabel, "gray")}
           </div>
           <div class="v2-list">
-            ${readinessRow("Business profile", "Services, contact, and service area are complete.", "Ready", "green")}
-            ${readinessRow("Website knowledge", "23 pages indexed from vonza.com.", "Ready", "green")}
-            ${readinessRow("Suggested replies", "2 replies waiting for review.", "Review", "amber")}
-            ${readinessRow("Full-page assistant", "Public page needs final verification.", "Verify", "amber")}
+            ${readinessRows.map((row) => readinessRow(row.title, row.copy, row.status, row.tone)).join("")}
           </div>
         </article>
         <article class="v2-card">
@@ -437,13 +429,94 @@
             </div>
           </div>
           <div class="v2-source-summary">
-            ${sourceTile("Website widget", "112", "+24%", "chat", "teal")}
-            ${sourceTile("Full-page assistant", "48", "+11%", "window", "blue")}
-            ${sourceTile("QR", "26", "+18%", "qr", "green")}
+            ${sourceRows.map((row) => sourceTile(row.label, row.value, row.iconName, row.tone)).join("")}
           </div>
         </article>
       </section>
     `;
+  }
+
+  function buildHomeMetrics() {
+    const todayRows = customerRows.filter((row) => isRecentPreviewRow(row.lastSeen));
+    const leadRows = customerRows.filter((row) => /lead/i.test(row.status || ""));
+    const needsReplyRows = getNeedsOwnerAttentionRows();
+    const aiHandledRows = customerRows.filter((row) => row.status === "AI handled");
+    const aiHandledValue = customerRows.length
+      ? `${Math.round((aiHandledRows.length / customerRows.length) * 100)}%`
+      : notAvailableLabel;
+
+    return [
+      { label: "Conversations today", value: String(todayRows.length), icon: "chat", tone: "blue" },
+      { label: "Leads captured", value: String(leadRows.length), icon: "users", tone: "green" },
+      { label: "Needs reply", value: String(needsReplyRows.length), icon: "bell", tone: "amber" },
+      { label: "AI handled", value: aiHandledValue, icon: "sparkle", tone: "teal" },
+    ];
+  }
+
+  function buildHomePriorityRows() {
+    return getNeedsOwnerAttentionRows().slice(0, 3).map((row) => ({
+      title: row.name,
+      copy: row.lastMessage || notAvailableLabel,
+      action: row.status === "Needs reply" ? "Reply" : "Review",
+      tone: row.status === "Needs reply" ? "amber" : row.intentTone || "blue",
+      iconName: row.sourceIcon || "chat",
+    }));
+  }
+
+  function buildHomeActivityRows() {
+    return customerRows.slice(0, 4).map((row) => ({
+      title: `${row.name}: ${row.status || notAvailableLabel}`,
+      source: row.source || notAvailableLabel,
+      time: row.lastSeen || notAvailableLabel,
+      iconName: row.status === "AI handled" ? "sparkle" : row.sourceIcon || "users",
+      tone: row.statusTone || row.intentTone || "teal",
+    }));
+  }
+
+  function buildHomeReadinessRows() {
+    return [
+      ["Business profile", notAvailableLabel],
+      ["Website knowledge", notAvailableLabel],
+      ["Suggested replies", notAvailableLabel],
+      ["Full-page assistant", notAvailableLabel],
+    ].map(([title, copy]) => ({ title, copy, status: notAvailableLabel, tone: "gray" }));
+  }
+
+  function buildHomeSourceRows() {
+    const sourceCounts = customerRows.reduce((counts, row) => {
+      const source = row.source || notAvailableLabel;
+      counts.set(source, (counts.get(source) || 0) + 1);
+      return counts;
+    }, new Map());
+
+    return Array.from(sourceCounts.entries()).map(([label, value]) => ({
+      label,
+      value: String(value),
+      iconName: sourceIconForLabel(label),
+      tone: sourceToneForLabel(label),
+    }));
+  }
+
+  function getNeedsOwnerAttentionRows() {
+    return customerRows.filter((row) => ["Needs reply", "Unanswered", "Follow-up"].includes(row.status));
+  }
+
+  function isRecentPreviewRow(label = "") {
+    return /\b(?:just now|\d+\s*[mh]\s*ago)\b/i.test(label);
+  }
+
+  function sourceIconForLabel(label = "") {
+    if (/qr/i.test(label)) return "qr";
+    if (/full-page/i.test(label)) return "window";
+    if (/integration/i.test(label)) return "sparkle";
+    return "chat";
+  }
+
+  function sourceToneForLabel(label = "") {
+    if (/qr/i.test(label)) return "green";
+    if (/full-page/i.test(label)) return "blue";
+    if (/integration/i.test(label)) return "purple";
+    return "teal";
   }
 
   function actionRow(title, copy, action, tone, iconName) {
@@ -473,9 +546,10 @@
   }
 
   function readinessRow(title, copy, status, tone) {
+    const statusIcon = tone === "gray" ? "clock" : "check";
     return `
       <div class="v2-readiness-row">
-        <span class="v2-check-icon">${icon("check")}</span>
+        <span class="v2-check-icon ${tone}">${icon(statusIcon)}</span>
         <div>
           <div class="v2-row-title">${title}</div>
           <div class="v2-row-copy">${copy}</div>
@@ -485,14 +559,18 @@
     `;
   }
 
-  function sourceTile(label, value, change, iconName, tone) {
+  function sourceTile(label, value, iconName, tone) {
     return `
       <div class="v2-source-tile">
         <div class="v2-source-label">${iconBadge(iconName, tone)}<span>${label}</span></div>
         <div class="v2-source-value">${value}</div>
-        <div class="v2-metric-change"><span class="v2-trend-up">${icon("arrowUp")} ${change}</span><span>today</span></div>
+        <div class="v2-metric-change"><span>${notAvailableLabel}</span></div>
       </div>
     `;
+  }
+
+  function emptyHomeRow(copy) {
+    return `<div class="v2-empty-note">${copy}</div>`;
   }
 
   function renderCustomers() {
@@ -1603,8 +1681,13 @@
   }
 
   document.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-front-desk-tab], [data-install-method]");
+    const target = event.target.closest("[data-front-desk-tab], [data-install-method], [data-preview-target]");
     if (!target) return;
+    if (target.dataset.previewTarget) {
+      window.location.hash = target.dataset.previewTarget;
+      renderApp();
+      return;
+    }
     if (target.dataset.frontDeskTab) {
       frontDeskTab = target.dataset.frontDeskTab;
       renderApp();

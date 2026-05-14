@@ -39,17 +39,20 @@ function renderPreview(hash = "") {
   return { document, root, window, listeners };
 }
 
-test("dashboard V2 preview renders compact mock dashboard sections", () => {
+test("dashboard V2 preview renders home sections from available preview data", () => {
   const { document, root } = renderPreview();
   const html = root.innerHTML;
 
   assert.equal(document.title, "Vonza V2 Preview | Home");
   assert.match(html, /class="v2-app"/);
-  assert.match(html, /Priority queue/);
+  assert.match(html, /Today&#39;s priority|Today's priority/);
   assert.match(html, /Assistant readiness/);
   assert.match(html, /Source activity/);
+  assert.match(html, /not available yet/);
+  assert.match(html, /Jessica Smith: Warm lead/);
+  assert.match(html, /Katherine Hall/);
   assert.equal((html.match(/class="v2-metric-card"/g) || []).length, 4);
-  assert.doesNotMatch(html, /Today's priority/);
+  assert.doesNotMatch(html, /186/);
 });
 
 test("dashboard V2 install preview uses equal step cards and semantic statuses", () => {

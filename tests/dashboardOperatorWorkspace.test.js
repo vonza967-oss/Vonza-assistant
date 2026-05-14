@@ -277,13 +277,13 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
 
   assert.match(markup, /Conversations today/);
   assert.match(markup, /Leads captured/);
-  assert.match(markup, /Needs reply \/ follow-ups/);
+  assert.match(markup, /Needs reply/);
   assert.match(markup, /AI handled/);
-  assert.match(markup, /Latest real conversation activity/);
+  assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
   assert.match(markup, /Assistant readiness/);
   assert.match(markup, /Source activity/);
-  assert.match(markup, /QR scan tracking is not available yet|QR scans are not tracked yet/);
+  assert.match(markup, /not available yet/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
 
   const emptyMarkup = harness.buildOverviewPanel(
@@ -293,9 +293,9 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /No conversations yet/);
-  assert.match(emptyMarkup, /No captured leads are recorded yet/);
-  assert.match(emptyMarkup, /No source analytics are available yet/);
+  assert.match(emptyMarkup, /not available yet/);
+  assert.match(emptyMarkup, /Leads captured/);
+  assert.match(emptyMarkup, /Source activity/);
 });
 
 test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and verification controls", () => {
@@ -1147,10 +1147,11 @@ test("home overview AI priorities use business-facing wording and a calm empty s
     harness.createEmptyOperatorWorkspace()
   );
 
+  assert.match(panel, /Today&#39;s priority|Today's priority/);
+  assert.match(panel, /Focused work that needs owner attention/);
+  assert.match(panel, /Warm lead \/ booking intent/);
+  assert.match(panel, /Open customer question/);
   assert.match(panel, /What to improve next/);
-  assert.match(panel, /These are the changes most likely to improve customer satisfaction and save time/);
-  assert.match(panel, /Give open customer needs a clear next step/);
-  assert.match(panel, /Make service answers clearer/);
   assert.doesNotMatch(panel, /What matters most right now/);
   assert.doesNotMatch(panel, /may be waiting too long/);
   assert.doesNotMatch(panel, /Improve Vonza/);
@@ -1162,7 +1163,7 @@ test("home overview AI priorities use business-facing wording and a calm empty s
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyPanel, /No urgent improvements right now/);
+  assert.match(emptyPanel, /not available yet/);
 });
 
 test("dashboard normalizes sparse operator payloads without forcing the legacy shell", async () => {
@@ -1393,18 +1394,17 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
   );
 
   assert.match(overview, /data-mobile-safe="true"/);
-  assert.match(overview, /Do this now/);
+  assert.match(overview, /Today&#39;s priority|Today's priority/);
   assert.match(overview, /Taylor Reed needs a human reply/);
   assert.match(overview, /This customer is close to booking and should not wait on AI alone/);
-  assert.match(overview, /Customers \/ Follow-Ups/);
-  assert.match(overview, /data-target-id="human-follow-ups"/);
+  assert.doesNotMatch(overview, /data-target-id="human-follow-ups"/);
   assert.doesNotMatch(overview, /Knowledge Improvement/);
   assert.doesNotMatch(overview, /data-target-id="knowledge-improvement"/);
-  assert.match(overview, /Notifications/);
-  assert.match(overview, /data-target-id="notifications"/);
-  assert.match(overview, /Setup progress/);
+  assert.match(overview, /Review replies/);
+  assert.match(overview, /View analytics/);
+  assert.match(overview, /Assistant readiness/);
   assert.match(overview, /Website knowledge/);
-  assert.match(overview, /Install/);
+  assert.match(overview, /Website install/);
 
   const sparseOverview = harness.buildOverviewPanel(
     { installId: "install-1", installStatus: { state: "seen_recently", label: "Seen recently" } },
@@ -1414,13 +1414,12 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(sparseOverview, /Home is ready/);
-  assert.match(sparseOverview, /No urgent improvements right now/);
+  assert.match(sparseOverview, /not available yet/);
+  assert.match(sparseOverview, /Today&#39;s priority|Today's priority/);
   assert.doesNotMatch(sparseOverview, /Notifications/);
-  assert.doesNotMatch(sparseOverview, /Setup progress/);
 
   const css = readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
-  assert.match(css, /\.home-setup-progress-head,\s*\n\s*\.home-setup-step-list\s*\{\s*\n\s*grid-template-columns:\s*1fr;/);
+  assert.match(css, /\.dashboard-v2-production-shell \.v2-home-two-col\s*\{\s*\n\s*display:\s*grid;/);
 });
 
 test("today copilot stays hidden when the browser flag is off", () => {
@@ -1756,15 +1755,14 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
   assert.match(overviewPanel, /Conversations today/);
   assert.match(overviewPanel, /Leads captured/);
-  assert.match(overviewPanel, /Needs reply \/ follow-ups/);
+  assert.match(overviewPanel, /Needs reply/);
   assert.match(overviewPanel, /AI handled/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
-  assert.match(overviewPanel, /AI priorities/);
-  assert.match(overviewPanel, /Who needs attention/);
+  assert.match(overviewPanel, /Today&#39;s priority|Today's priority/);
   assert.match(overviewPanel, /Taylor Reed/);
   assert.match(overviewPanel, /Warm lead \/ booking intent|Follow-up due|Needs reply/);
   assert.match(overviewPanel, /A quote request still needs owner review/);
-  assert.match(overviewPanel, /Give open customer needs a clear next step|Make service answers clearer|Make contacting you easier/i);
+  assert.match(overviewPanel, /Review replies/);
   assert.match(overviewPanel, /satisfaction|confidence|trust|friction/i);
   assert.match(overviewPanel, /FAQ|pricing|contact|quote|booking|follow-up|next-step/i);
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
@@ -1772,7 +1770,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.match(overviewPanel, /Recent activity/);
   assert.match(overviewPanel, /Assistant readiness/);
   assert.match(overviewPanel, /Source activity/);
-  assert.match(overviewPanel, /Improve service/);
+  assert.match(overviewPanel, /What to improve next/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
   assert.doesNotMatch(overviewPanel, /today-side-column/);
   assert.doesNotMatch(overviewPanel, /Follow-up feed/);
@@ -1899,7 +1897,8 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
     })
   );
 
-  assert.equal(overviewPanel.match(/Give open customer needs a clear next step/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/A quote request still needs owner review/g)?.length || 0, 1);
+  assert.equal(overviewPanel.match(/Missing follow-up after the appointment ended/g)?.length || 0, 1);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
@@ -2114,10 +2113,12 @@ test("customers render as a polished workspace without inactive controls", () =>
   assert.match(contactsPanel, /contacts-workspace/);
   assert.match(contactsPanel, />Customers</);
   assert.match(contactsPanel, /Track leads, guests, follow-ups, and recent conversations/);
-  assert.match(contactsPanel, /Total conversations/);
-  assert.match(contactsPanel, /Identified leads/);
+  assert.match(contactsPanel, /New leads/);
+  assert.match(contactsPanel, /Warm leads/);
   assert.match(contactsPanel, /Guests/);
   assert.match(contactsPanel, /Needs follow-up/);
+  assert.match(contactsPanel, /Missing contact details/);
+  assert.match(contactsPanel, /Trend unavailable/);
   assert.match(contactsPanel, /Show customers needing help/);
   assert.match(contactsPanel, /data-contact-filter="identified"/);
   assert.match(contactsPanel, /data-contact-filter="guests"/);
@@ -2134,6 +2135,8 @@ test("customers render as a polished workspace without inactive controls", () =>
   assert.match(contactsPanel, /<p class="customer-row-identity">Email user · taylor@example\.com<\/p>/);
   assert.match(contactsPanel, /Visitor asked for pricing/);
   assert.match(contactsPanel, /Last message/);
+  assert.match(contactsPanel, /Conversation summary/);
+  assert.match(contactsPanel, /Suggested next action/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /data-customer-chat-panel/);
   assert.match(contactsPanel, />Customer</);
@@ -2447,14 +2450,15 @@ test("customer rows for email users show email, customer question, and persisted
   const nameIndex = row.indexOf("Alex Harper");
   const questionIndex = row.indexOf("Can you send pricing?");
   const emailIndex = row.indexOf("alex@example.com");
-  const timeIndex = row.indexOf("Last message");
+  const timeIndex = row.indexOf("2026,");
 
   assert.ok(nameIndex >= 0);
   assert.ok(questionIndex > nameIndex);
   assert.ok(emailIndex >= 0);
-  assert.ok(emailIndex > questionIndex);
+  assert.ok(emailIndex > nameIndex);
   assert.ok(timeIndex > emailIndex);
-  assert.match(row, /<strong class="contact-row-name">Alex Harper<\/strong>\s*<p class="customer-row-summary">Can you send pricing\?<\/p>/);
+  assert.match(row, /<strong class="contact-row-name">Alex Harper<\/strong>/);
+  assert.match(row, /<p class="customer-row-summary">Can you send pricing\?<\/p>/);
   assert.match(row, /<p class="customer-row-identity">Email user · alex@example.com<\/p>/);
   assert.match(row, /data-contact-last-activity="2026-04-14T09:03:55\.000Z"/);
   assert.doesNotMatch(row, /2026-04-16T12:34:56\.000Z/);
@@ -2563,7 +2567,7 @@ test("customer rows do not invent Last message timestamps without a customer-aut
     },
   });
 
-  assert.match(row, /<span class="customer-row-meta-label">Last message<\/span>/);
+  assert.match(row, /class="customer-row-last-seen">No customer message yet<\/strong>/);
   assert.match(row, /No customer message yet/);
   assert.match(row, /data-contact-last-activity=""/);
   assert.doesNotMatch(row, /Last active/);
@@ -3002,10 +3006,11 @@ test("customers panel renders searchable records with real identity, source, and
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
   assert.match(contactsPanel, /data-contact-search/);
-  assert.match(contactsPanel, /Total conversations/);
-  assert.match(contactsPanel, /Identified leads/);
+  assert.match(contactsPanel, /New leads/);
+  assert.match(contactsPanel, /Warm leads/);
   assert.match(contactsPanel, /Guests/);
   assert.match(contactsPanel, /Needs follow-up/);
+  assert.match(contactsPanel, /Missing contact details/);
   assert.match(contactsPanel, /Identified/);
   assert.match(contactsPanel, /Guest visitor/);
   assert.match(contactsPanel, /Website widget/);
@@ -3017,7 +3022,8 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /data-contact-source-labels="Full-page assistant\|QR touchpoint"/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /contacts-detail-shell/);
-  assert.match(contactsPanel, /Current situation/);
+  assert.match(contactsPanel, /Conversation summary/);
+  assert.match(contactsPanel, /Chat unavailable/);
   assert.doesNotMatch(contactsPanel, /display_mode/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
 });
@@ -3390,7 +3396,7 @@ test("front-desk-only mode keeps the stable non-operator shell available", () =>
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "customize", "analytics", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "front_desk_only");
 });
@@ -3443,7 +3449,7 @@ test("dashboard renders inbox threads safely when thread messages are missing", 
   assert.doesNotMatch(markup, /Approve and send/i);
 });
 
-test("dashboard keeps the legacy shell only when the operator flag is off", async () => {
+test("dashboard keeps the launch-core shell when the operator flag is off", async () => {
   let fetchCalls = 0;
   const harness = createDashboardHarness({
     windowFlags: {
@@ -3463,11 +3469,11 @@ test("dashboard keeps the legacy shell only when the operator flag is off", asyn
 
   const workspace = await harness.loadOperatorWorkspace("agent-1");
 
-  assert.equal(fetchCalls, 0);
+  assert.equal(fetchCalls, 1);
   assert.equal(workspace.enabled, false);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "customize", "analytics", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
 });
 

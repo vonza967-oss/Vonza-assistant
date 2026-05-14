@@ -3968,7 +3968,7 @@ function buildOperatorSummary({
   campaigns = [],
   followUps = [],
   suggestedSlots = [],
-}) {
+} = {}) {
   const inboxNeedingAttention = threads.filter((thread) => thread.needsReply || thread.riskLevel === "high").length;
   const complaintQueue = tasks.filter((task) => task.taskType === "complaint_queue" && task.status === "open").length;
   const activeCampaigns = campaigns.filter((campaign) => campaign.status === "active").length;
@@ -4046,6 +4046,57 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   });
 
   if (!capabilities.featureEnabled) {
+    const [
+      messagesResult,
+      leadCapturesResult,
+      followUpsResult,
+      outcomesResult,
+      businessProfileResult,
+      billingResult,
+    ] = await Promise.allSettled([
+      listAgentMessages(supabase, agent.id),
+      listLeadCaptures(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      }),
+      listFollowUpWorkflows(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      }),
+      listConversionOutcomesForAgent(supabase, {
+        agentId: agent.id,
+        ownerUserId,
+      }),
+      getOperatorBusinessProfile(supabase, {
+        agent,
+        ownerUserId,
+      }),
+      getOwnerBillingSnapshot(supabase, {
+        ownerUserId,
+        accessStatus: agent.accessStatus,
+      }),
+    ]);
+    const partialLoadErrors = [
+      getSettledErrorMessage(messagesResult),
+      getSettledErrorMessage(leadCapturesResult),
+      getSettledErrorMessage(followUpsResult),
+      getSettledErrorMessage(outcomesResult),
+      getSettledErrorMessage(businessProfileResult),
+      getSettledErrorMessage(billingResult),
+    ].filter(Boolean);
+    const leadCaptureResult = getSettledValue(leadCapturesResult, { records: [], persistenceAvailable: true });
+    const followUpResult = getSettledValue(followUpsResult, { records: [], persistenceAvailable: true });
+    const conversionOutcomeResult = getSettledValue(outcomesResult, { records: [], persistenceAvailable: true });
+    const contactsWorkspace = await getOperatorContactsWorkspace(supabase, {
+      agent,
+      ownerUserId,
+      leads: leadCaptureResult.records || [],
+      messages: getSettledValue(messagesResult, []),
+      followUps: followUpResult.records || [],
+      outcomes: conversionOutcomeResult.records || [],
+      loadError: partialLoadErrors[0] || "",
+    });
+
     return createEmptyOperatorWorkspaceSnapshot({
       ...emptySnapshot,
       enabled: false,
@@ -4067,7 +4118,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       nextAction: {
         key: "legacy_workspace",
         title: "Open workspace",
-        description: "Home, Front Desk, and Analytics stay available while the website front desk continues to work.",
+        description: "Home, Customers, Front Desk, and Analytics stay available while the website front desk continues to work.",
         buttonLabel: "Open Front Desk",
         actionType: "open_customize",
         targetSection: "customize",
@@ -4083,20 +4134,30 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         syncMode: "disabled",
       },
       contacts: {
-        ...emptySnapshot.contacts,
+        ...contactsWorkspace,
         health: {
-          ...emptySnapshot.contacts.health,
-          persistenceAvailable: true,
-          migrationRequired: false,
+          ...contactsWorkspace.health,
+          loadError: cleanText(contactsWorkspace.health?.loadError || partialLoadErrors[0]),
         },
       },
-      businessProfile: createDefaultOperatorBusinessProfile({
-        agent,
-        ownerUserId,
-      }),
+      billing: getSettledValue(billingResult, emptySnapshot.billing),
+      businessProfile: getSettledValue(
+        businessProfileResult,
+        createDefaultOperatorBusinessProfile({
+          agent,
+          ownerUserId,
+        })
+      ),
       copilot: buildTodayCopilotSnapshot({
         featureEnabled: false,
       }),
+      health: {
+        ...emptySnapshot.health,
+        contactsError: cleanText(contactsWorkspace.health?.loadError),
+        globalError: partialLoadErrors.length > 1
+          ? `${partialLoadErrors.length} customer data source${partialLoadErrors.length === 1 ? "" : "s"} returned partial data.`
+          : "",
+      },
       summary: buildOperatorSummary(),
     });
   }

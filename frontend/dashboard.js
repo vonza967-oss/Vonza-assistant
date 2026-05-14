@@ -51,7 +51,7 @@ const LAUNCH_STEPS = [
 const trackedEventKeys = new Set();
 let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
-const LEGACY_SHELL_SECTIONS = ["overview", "customize", "analytics", "install", "settings"];
+const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
 const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
   home: "overview",
@@ -329,7 +329,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "install.verifyInstallation": "Verify installation",
   "install.testFrontDesk": "Test front desk",
   "settings.title": "Settings",
-  "settings.copy": "Manage the real business profile, assistant behavior, account status, billing, language, and legal links.",
+  "settings.copy": "Control assistant branding, business context, billing, privacy, and workspace access.",
   "settings.theme": "Theme",
   "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
   "settings.light": "Light",
@@ -694,7 +694,7 @@ function isCapabilityVisibleForWorkspace(capabilityKey, operatorWorkspace = crea
     return false;
   }
 
-  if (["contacts", "inbox", "calendar", "automations", "google_connect"].includes(capabilityKey)) {
+  if (["inbox", "calendar", "automations", "google_connect"].includes(capabilityKey)) {
     if (operatorWorkspace?.enabled === false) {
       return false;
     }
@@ -4648,7 +4648,15 @@ function formatContactLifecycleLabel(value = "") {
 }
 
 function buildContactSources(contact = {}) {
-  return Array.isArray(contact.sources) ? contact.sources : [];
+  if (Array.isArray(contact.sources) && contact.sources.length) {
+    return contact.sources;
+  }
+
+  return [
+    trimText(contact.source),
+    trimText(contact.captureSource || contact.capture_source),
+    trimText(contact.sourceType || contact.source_type),
+  ].filter(Boolean);
 }
 
 function getCustomerSourceLabel(source = "") {
@@ -4992,7 +5000,25 @@ function getCustomerIdentifier(contact = {}) {
 }
 
 function getCustomerLastMessageAt(contact = {}) {
-  return trimText(contact.lastCustomerMessageAt);
+  const directCustomerMessageAt = trimText(contact.lastCustomerMessageAt || contact.last_customer_message_at);
+
+  if (directCustomerMessageAt) {
+    return directCustomerMessageAt;
+  }
+
+  const legacyLastMessageAt = trimText(contact.lastMessageAt || contact.last_message_at);
+
+  if (
+    legacyLastMessageAt
+    && (
+      trimText(contact.latestCustomerMessageSummary || contact.latestSummary)
+      || (Array.isArray(contact.chatMessages) && contact.chatMessages.some((message) => trimText(message.role) === "customer"))
+    )
+  ) {
+    return legacyLastMessageAt;
+  }
+
+  return "";
 }
 
 function hasGuestCustomerActivity(contact = {}) {
@@ -5110,7 +5136,7 @@ function getCustomerLatestSummary(contact = {}) {
     : isLikelyCustomerMessageLabel(contact.bestIdentifier)
       ? trimText(contact.bestIdentifier)
       : "";
-  const latestCustomerMessageSummary = trimText(contact.latestCustomerMessageSummary);
+  const latestCustomerMessageSummary = trimText(contact.latestCustomerMessageSummary || contact.latestSummary);
   const customerMessageSummary = trimText(customerMessageEntry.summary);
 
   if (isGuestCustomerRow(contact)) {
@@ -5365,26 +5391,123 @@ function buildCustomerSummaryItems(contacts = []) {
 
   return [
     {
-      label: translateDashboardText("Total conversations"),
-      value: contacts.length,
-      copy: translateDashboardText("Real customer, lead, and guest conversation records."),
+      label: translateDashboardText("New leads"),
+      value: countMatching((contact) => trimText(contact.lifecycleState) === "new"),
+      copy: translateDashboardText("Trend unavailable: daily lead comparison is not in this workflow yet."),
     },
     {
-      label: translateDashboardText("Identified leads"),
-      value: countMatching((contact) => isLeadContact(contact) && !isGuestCustomerRow(contact)),
-      copy: translateDashboardText("People with a usable name, email, or phone plus lead intent."),
+      label: translateDashboardText("Warm leads"),
+      value: countMatching((contact) => ["active_lead", "qualified"].includes(trimText(contact.lifecycleState))),
+      copy: translateDashboardText("Live count from saved customer records."),
     },
     {
-      label: translateDashboardText("Guests"),
-      value: countMatching((contact) => isGuestCustomerRow(contact)),
-      copy: translateDashboardText("Anonymous sessions stay labeled as guests until identity is captured."),
-    },
-    {
-      label: translateDashboardText("Needs follow-up"),
-      value: countMatching((contact) => customerNeedsFollowUp(contact)),
+      label: t("customers.needsReply"),
+      value: countMatching((contact) => contactNeedsReply(contact)),
       copy: translateDashboardText("Customers or guests waiting on a reply, decision, or next step."),
     },
+    {
+      label: translateDashboardText("Missing contact details"),
+      value: countMatching((contact) => isGuestCustomerRow(contact) || contact.partialIdentity === true),
+      copy: translateDashboardText("Chat unavailable on guest visitor rows until identity is captured."),
+    },
   ];
+}
+
+function getCustomerMetricIcon(label = "") {
+  const normalized = trimText(label).toLowerCase();
+
+  if (normalized.includes("warm")) {
+    return "users";
+  }
+
+  if (normalized.includes("reply")) {
+    return "chat";
+  }
+
+  if (normalized.includes("missing")) {
+    return "review";
+  }
+
+  return "chat";
+}
+
+function buildCustomerMetricCards(contacts = []) {
+  return `
+    <div class="customer-v2-metric-grid">
+      ${buildCustomerSummaryItems(contacts).map((item) => `
+        <article class="customer-v2-metric-card">
+          <div class="customer-v2-metric-label">
+            <span class="customer-v2-metric-icon" aria-hidden="true">${getUiIconMarkup(getCustomerMetricIcon(item.label))}</span>
+            <span>${escapeHtml(item.label)}</span>
+          </div>
+          <strong>${escapeHtml(formatAnalyticsReportNumber(item.value || 0))}</strong>
+          <p>${escapeHtml(item.copy)}</p>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function getContactFirstSeenAt(contact = {}) {
+  const timeline = Array.isArray(contact.timeline) ? contact.timeline : [];
+  const datedEntries = timeline
+    .map((entry) => entry.at || entry.createdAt || entry.created_at || "")
+    .filter((value) => !Number.isNaN(new Date(value).getTime()))
+    .sort((left, right) => new Date(left).getTime() - new Date(right).getTime());
+
+  return trimText(contact.firstSeenAt || contact.first_seen_at || contact.createdAt || contact.created_at)
+    || datedEntries[0]
+    || "";
+}
+
+function getCustomerIntentLabel(contact = {}) {
+  const nextActionTitle = trimText(contact.nextAction?.title || contact.nextAction?.label);
+
+  if (nextActionTitle && !isGenericCustomerNoActionTitle(nextActionTitle)) {
+    return nextActionTitle;
+  }
+
+  const outcomeLabel = trimText(contact.latestOutcome?.label);
+
+  if (outcomeLabel) {
+    return outcomeLabel;
+  }
+
+  const primaryStatus = getPrimaryCustomerStatus(contact);
+  return primaryStatus?.label || translateDashboardText("General inquiry");
+}
+
+function getCustomerDetailMetaRows(contact = {}) {
+  const email = getCustomerEmailLabel(contact.email);
+  const phone = trimText(contact.phone);
+  const firstSeenAt = getContactFirstSeenAt(contact);
+
+  return [
+    email ? { icon: "mail", label: email } : { icon: "mail", label: localizeDashboardCopy("Email missing", "Hiányzó email") },
+    phone ? { icon: "phone", label: phone } : { icon: "phone", label: localizeDashboardCopy("Phone missing", "Hiányzó telefon") },
+    { icon: "link", label: buildContactSourceSummary(contact) },
+    {
+      icon: "clock",
+      label: firstSeenAt
+        ? `${localizeDashboardCopy("First seen", "Első megjelenés")} ${formatSeenAt(firstSeenAt)}`
+        : localizeDashboardCopy("First seen unavailable", "Első megjelenés nem elérhető"),
+    },
+  ];
+}
+
+function buildCustomerInitials(contact = {}) {
+  const label = getCustomerRowIdentifier(contact);
+  const parts = trimText(label).split(/\s+/).filter(Boolean);
+
+  if (isGuestCustomerRow(contact)) {
+    return "G";
+  }
+
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  }
+
+  return trimText(label).slice(0, 2).toUpperCase() || "C";
 }
 
 function buildContactQuickActions(
@@ -5588,25 +5711,26 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       data-contact-last-activity="${escapeHtml(visibleLastActivityAt)}"
     >
       <div class="contact-row-main">
+        <span class="customer-row-select" aria-hidden="true"></span>
         <div class="customer-row-top">
           <div class="customer-row-title-group">
-            <span class="customer-row-dot customer-row-dot--${escapeHtml(primaryStatus.key)}" aria-hidden="true"></span>
+            <span class="customer-avatar customer-avatar--${escapeHtml(identityTone)}" aria-hidden="true">${escapeHtml(buildCustomerInitials(contact))}</span>
             <div>
               <strong class="contact-row-name">${escapeHtml(rowIdentifier)}</strong>
-              <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
               ${secondaryIdentityLine ? `<p class="customer-row-identity">${escapeHtml(secondaryIdentityLine)}</p>` : ""}
             </div>
           </div>
+          <div class="customer-row-source">${buildCustomerSourceBadgeMarkup(contact, 1)}</div>
+          <div class="customer-row-intent"><span class="customer-intent-chip">${escapeHtml(getCustomerIntentLabel(contact))}</span></div>
+          <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
+          <strong class="customer-row-last-seen">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
           <div class="customer-row-statuses">
             <span class="customer-identity-chip customer-identity-chip--${escapeHtml(identityTone)}">${escapeHtml(guestRow ? t("common.guestVisitor") : translateDashboardText("Identified"))}</span>
-            ${buildCustomerSourceBadgeMarkup(contact)}
             ${needsReply ? `<span class="customer-status-chip customer-status-chip--needs_reply">${escapeHtml(translateDashboardText("Needs follow-up"))}</span>` : ""}
             ${primaryStatus && primaryStatus.key !== "needs_reply" ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
           </div>
         </div>
         <div class="customer-row-meta">
-          <span class="customer-row-meta-label">${escapeHtml(t("common.lastMessage"))}</span>
-          <strong class="customer-row-meta-value">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
           <button
             class="ghost-button customer-chat-toggle"
             type="button"
@@ -5629,6 +5753,9 @@ function buildContactDetailPanel(
   selected = false
 ) {
   const primaryStatus = getPrimaryCustomerStatus(contact);
+  const guestRow = isGuestCustomerRow(contact);
+  const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
+  const canShowChat = !guestRow && chatMessages.length > 0;
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
   const canDraftReply = automationsVisible && Boolean(contact.email || contact.phone);
   const primaryActionMarkup = canDraftReply ? `
@@ -5654,6 +5781,16 @@ function buildContactDetailPanel(
     <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">${escapeHtml(localizeDashboardCopy("Review calendar action", "Naptárművelet áttekintése"))}</button>
   ` : `
     <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review customer", "Ügyfél áttekintése"))}</button>
+  `;
+  const directChatActionMarkup = `
+    <button
+      class="ghost-button customer-chat-toggle"
+      type="button"
+      data-toggle-customer-chat
+      data-contact-id="${escapeHtml(contact.id || "")}"
+      aria-expanded="false"
+      ${canShowChat ? "" : "disabled"}
+    >${escapeHtml(canShowChat ? t("common.viewChat") : t("common.chatUnavailable"))}</button>
   `;
   const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
     <div class="timeline-list customer-timeline-list">
@@ -5740,30 +5877,39 @@ function buildContactDetailPanel(
       data-contact-id="${escapeHtml(contact.id || "")}"
       ${selected ? "" : "hidden"}
     >
-      <div class="contact-detail-header customer-detail-header">
+      <div class="customer-detail-topbar">
+        <span class="customer-avatar customer-avatar--${escapeHtml(guestRow ? "guest" : "identified")}" aria-hidden="true">${escapeHtml(buildCustomerInitials(contact))}</span>
         <div class="customer-detail-intro">
-          <h2 class="contact-detail-title">${escapeHtml(getCustomerRowIdentifier(contact))}</h2>
-          <p class="contact-detail-copy">${escapeHtml([
-            getCustomerIdentityLabel(contact),
-            primaryStatus?.label || "",
-            `${t("common.lastMessage")} ${getCustomerLastActivityLabel(contact)}`,
-          ].filter(Boolean).join(" · "))}</p>
-          <div class="action-queue-badges customer-status-row">
-            ${buildCustomerStatusMarkup(contact, 2)}
+          <div class="customer-detail-heading-row">
+            <h2 class="contact-detail-title">${escapeHtml(getCustomerRowIdentifier(contact))}</h2>
+            ${primaryStatus ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
+          </div>
+          <p class="contact-detail-copy">${escapeHtml(getCustomerIdentityLabel(contact))}</p>
+          <div class="customer-detail-meta-list">
+            ${getCustomerDetailMetaRows(contact).map((item) => `
+              <span>${getUiIconMarkup(item.icon)}${escapeHtml(item.label)}</span>
+            `).join("")}
           </div>
         </div>
       </div>
-      <div class="contact-detail-summary-grid customer-detail-summary-grid">
-        <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Current situation", "Jelenlegi helyzet"))}</span>
-          <strong>${escapeHtml(getCustomerSituationSummary(contact))}</strong>
+      <div class="customer-detail-card customer-detail-summary-card">
+        <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation summary", "Beszélgetés összefoglaló"))}</span>
+        <p>${escapeHtml(getCustomerSituationSummary(contact))}</p>
+        <span class="customer-intent-chip">${escapeHtml(getCustomerIntentLabel(contact))}</span>
+      </div>
+      <div class="customer-detail-card customer-suggested-action-card">
+        <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Suggested next action", "Javasolt következő lépés"))}</span>
+        <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
+      </div>
+      <div class="customer-detail-card customer-timeline-card">
+        <div class="customer-card-heading">
+          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation timeline", "Beszélgetés idővonala"))}</span>
+          <span>${escapeHtml(formatDashboardCountLabel(contact.timeline?.length || 0, "interaction", "interactions", "interakció"))}</span>
         </div>
-        <div class="detail-kv-item customer-detail-card">
-          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Next best step", "Legjobb következő lépés"))}</span>
-          <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
-        </div>
+        ${timelineMarkup}
       </div>
       <div class="inline-actions customer-primary-actions">
+        ${directChatActionMarkup}
         ${primaryActionMarkup}
         <button
           class="ghost-button customer-secondary-button"
@@ -5831,22 +5977,25 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
     </div>
   `;
   const peopleWorkspaceMarkup = `
-    ${buildSummaryStrip(buildCustomerSummaryItems(contacts).slice(0, 4))}
-    <section class="customer-focus-banner">
-      <div>
-        <p class="studio-kicker">${escapeHtml(translateDashboardText("Follow-up focus"))}</p>
-        <p class="workspace-panel-title">${escapeHtml(t("customers.focus"))}</p>
-      </div>
-      <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_follow_up">${escapeHtml(t("customers.showNeedsHelp"))}</button>
-    </section>
+    ${buildCustomerMetricCards(contacts)}
     <div class="contacts-workspace" data-contacts-workspace>
       <section class="contacts-list-shell">
         <div class="contacts-list-header">
           <div>
-            <p class="overview-label">${escapeHtml(translateDashboardText("People view"))}</p>
-            <h3 class="flat-section-title">${escapeHtml(translateDashboardText("Customer records"))}</h3>
+            <h3 class="flat-section-title">${escapeHtml(translateDashboardText("All customers"))}</h3>
             <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
           </div>
+          <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_follow_up">${escapeHtml(t("customers.showNeedsHelp"))}</button>
+        </div>
+        <div class="customer-table-head" aria-hidden="true">
+          <span></span>
+          <span>${escapeHtml(translateDashboardText("Customer"))}</span>
+          <span>${escapeHtml(translateDashboardText("Source"))}</span>
+          <span>${escapeHtml(translateDashboardText("Intent"))}</span>
+          <span>${escapeHtml(t("common.lastMessage"))}</span>
+          <span>${escapeHtml(translateDashboardText("Last seen"))}</span>
+          <span>${escapeHtml(translateDashboardText("Status"))}</span>
+          <span>${escapeHtml(t("common.viewChat"))}</span>
         </div>
         <div class="contacts-list" data-contact-filter-results>
           ${contacts.map((contact) => buildContactRow(contact, operatorWorkspace)).join("")}
@@ -7580,17 +7729,9 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   }
 
   const primaryPriority = priorityCards[0] || null;
-  const primaryHomeAction = primaryPriority?.action || overview.primaryAction || { type: "section", value: "contacts", label: "Open customers" };
   const secondaryPriorityCards = primaryPriority
     ? priorityCards.filter(Boolean).slice(1)
     : priorityCards.filter(Boolean);
-  const summarySentence = conversationsToday || customersHelpedToday || openIssueCount
-    ? t("home.summary", {
-      conversations: countLabel(conversationsToday, "conversation"),
-      customers: countLabel(customersHelpedToday, "customer"),
-      issues: countLabel(openIssueCount, "issue"),
-    })
-    : t("home.ready");
   const leadsCapturedCount = Math.max(
     Number(overview.analyticsSummary.contactsCaptured || 0),
     Number(actionQueue.conversionSummary?.contactsCaptured || 0),
@@ -7609,38 +7750,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     Number(overview.analyticsSummary.assistedOutcomes || 0),
     Number(overview.outcomeSummary.assistedConversions || 0),
   );
-  const dailyStats = [
-    {
-      label: t("home.conversationsToday"),
-      value: String(conversationsToday),
-      copy: conversationsToday > 0 ? "Live customer messages handled today." : "No conversations recorded yet today.",
-      tone: "neutral",
-    },
-    {
-      label: "Leads captured",
-      value: String(leadsCapturedCount),
-      copy: leadsCapturedCount > 0
-        ? "Real lead or contact capture signals currently available."
-        : "No captured leads are recorded yet.",
-      tone: "positive",
-    },
-    {
-      label: "Needs reply / follow-ups",
-      value: String(needsReplyOrFollowUpCount),
-      copy: needsReplyOrFollowUpCount > 0
-        ? "Customers or owner tasks still need a human next step."
-        : "No customer reply or follow-up is waiting.",
-      tone: needsReplyOrFollowUpCount > 0 ? "attention" : "positive",
-    },
-    {
-      label: "AI handled",
-      value: String(aiHandledCount),
-      copy: aiHandledCount > 0
-        ? "Conversations with an assisted outcome or handled customer next step."
-        : "No AI-handled outcome is recorded yet.",
-      tone: aiHandledCount > 0 ? "positive" : "neutral",
-    },
-  ];
   const recentActivityItems = (Array.isArray(messages) ? messages : [])
     .map((message, index) => {
       const role = trimText(message.role || message.sender || message.direction).toLowerCase();
@@ -7713,10 +7822,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       action: { type: "section", value: "analytics", label: "Review signals" },
     };
   })();
-  const primaryActionTitle = primaryPriority?.title || improvementRecommendation.title || "Review the next useful action";
-  const primaryActionCopy = primaryPriority
-    ? [primaryPriority.why, primaryPriority.change].filter(Boolean).join(" ")
-    : improvementRecommendation.copy || "Use the links on the right to move into the workflow that needs attention.";
   const attentionCategories = [
     {
       key: "unhappy",
@@ -7811,47 +7916,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
     .sort((left, right) => left.priority - right.priority)
     .slice(0, 6);
-  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
-  const commandLinks = [
-    {
-      label: "Customers / Follow-Ups",
-      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "Review customers, replies, and follow-up status.",
-      target: "analytics",
-      targetId: "human-follow-ups",
-      count: humanFollowUpOpen,
-    },
-    {
-      label: "Analytics",
-      copy: "Service trends, weak spots, satisfaction, and outcomes.",
-      target: "analytics",
-      targetId: "",
-      count: 0,
-    },
-    notificationUnread ? {
-      label: "Notifications",
-      copy: `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.`,
-      target: "analytics",
-      targetId: "notifications",
-      count: notificationUnread,
-    } : null,
-    {
-      label: "Settings / Privacy",
-      copy: "Business profile, retention, export, and delete controls.",
-      target: "analytics",
-      targetId: "privacy-controls",
-      count: 0,
-    },
-    {
-      label: "Install",
-      copy: isInstallSeen(overview.installStatus) ? "Live install is detected." : "Finish verification before launch.",
-      target: "install",
-      targetId: "",
-      count: isInstallSeen(overview.installStatus) ? 0 : 1,
-    },
-  ].filter(Boolean);
   const setupNeedsAttention = !setup.isReady || !setup.knowledgeReady || setup.knowledgeLimited || !isInstallSeen(overview.installStatus);
-  const activeSetupStep = getActivationWizardActiveStep();
   const setupStatusItems = [
     ...overview.progressItems,
     {
@@ -7866,221 +7931,207 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   ];
   const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
   const sourceBreakdown = ownerAnalyticsDashboard?.assistantSource || null;
-  const sourceActivityItems = sourceBreakdown
-    ? [
-      normalizeAssistantSourceBucket(sourceBreakdown.widget, createEmptyOwnerAnalyticsDashboard().assistantSource.widget),
-      normalizeAssistantSourceBucket(sourceBreakdown.page, createEmptyOwnerAnalyticsDashboard().assistantSource.page),
-      normalizeAssistantSourceBucket(sourceBreakdown.unknown, createEmptyOwnerAnalyticsDashboard().assistantSource.unknown),
-    ].filter((item) => item.key !== "unknown" || Number(item.conversationCount || 0) > 0 || Number(item.messageCount || 0) > 0 || Number(item.leadsCaptured || 0) > 0)
-    : [];
+  const notAvailableLabel = "not available yet";
+  const homeHeaderActions = `
+    <button class="v2-button v2-button-primary" type="button" data-overview-target="analytics">${buildV2Icon("chat")}Review replies</button>
+    <button class="v2-button" type="button" data-overview-target="analytics">${buildV2Icon("outcomes")}View analytics</button>
+  `;
+  const homeMetrics = [
+    {
+      label: t("home.conversationsToday"),
+      value: String(conversationsToday),
+      compare: notAvailableLabel,
+      icon: "chat",
+      tone: "blue",
+    },
+    {
+      label: "Leads captured",
+      value: String(leadsCapturedCount),
+      compare: notAvailableLabel,
+      icon: "users",
+      tone: "green",
+    },
+    {
+      label: "Needs reply",
+      value: String(needsReplyOrFollowUpCount),
+      compare: notAvailableLabel,
+      icon: "bell",
+      tone: "amber",
+    },
+    {
+      label: "AI handled",
+      value: String(aiHandledCount),
+      compare: notAvailableLabel,
+      icon: "sparkle",
+      tone: "teal",
+    },
+  ];
+  const priorityRows = attentionItems.slice(0, 3).map((item) => ({
+    category: item.category || "",
+    title: item.title || item.category || "Customer needs attention",
+    copy: [item.reason, item.action].filter(Boolean).join(" ") || notAvailableLabel,
+    actionLabel: /reply/i.test(item.category || item.action || "") ? "Reply" : "Review",
+    target: "analytics",
+    targetId: "",
+    icon: /lead|booking|quote|pricing/i.test(item.category || item.action || "") ? "users" : "chat",
+    tone: item.priority <= 2 ? "amber" : "blue",
+  }));
+
+  if (!priorityRows.length && primaryPriority) {
+    priorityRows.push({
+      category: "",
+      title: primaryPriority.title,
+      copy: primaryPriority.why || primaryPriority.change || notAvailableLabel,
+      actionLabel: primaryPriority.action?.label || "Review",
+      action: primaryPriority.action,
+      target: primaryPriority.action?.value || "analytics",
+      targetId: "",
+      icon: "chat",
+      tone: primaryPriority.tone === "danger" ? "amber" : "blue",
+    });
+  }
+
+  const priorityOpenCount = Math.max(priorityRows.length, needsReplyOrFollowUpCount, attentionCount);
+  const sourceRows = getAnalyticsSourceRows(sourceBreakdown || {}).filter((item) =>
+    item.key !== "unknown" || Number(item.conversationCount || 0) > 0 || Number(item.messageCount || 0) > 0 || Number(item.leadsCaptured || 0) > 0
+  );
+  const sourceAnalyticsAvailable = Boolean(sourceBreakdown);
+  const readinessReadyCount = setupStatusItems.filter((item) => item.done).length;
+  const visibleReadinessRows = setupStatusItems.slice(0, 4);
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
       ${buildPageHeader({
         title: t("home.title"),
         copy: t("home.copy"),
+        actionsMarkup: homeHeaderActions,
       })}
       <div class="workspace-page-body">
-        <div class="workspace-section-stack home-surface">
-          <section class="home-daily-banner">
-            <div class="home-daily-banner-copy">
-              <p class="home-daily-banner-kicker">${escapeHtml(t("home.dailySnapshot"))}</p>
-              <h2 class="home-daily-banner-title">${escapeHtml(summarySentence)}</h2>
-            </div>
-            <div class="home-daily-banner-actions">
-              ${renderHomeAction(primaryHomeAction, { labelOverride: primaryHomeAction.label || "See next step" })}
-            </div>
+        <div class="workspace-section-stack home-surface dashboard-v2-home">
+          <section class="v2-grid v2-grid-4">
+            ${homeMetrics.map((metric) => buildV2MetricCard(metric)).join("")}
           </section>
 
-          <div class="overview-command-strip" aria-label="Home command center">
-            <div class="overview-command-primary">
-              <span class="eyebrow">Do this now</span>
-              <h3 class="overview-card-title">${escapeHtml(primaryActionTitle)}</h3>
-              <p class="overview-card-copy">${escapeHtml(primaryActionCopy)}</p>
-              <div class="overview-action-row">
-                ${renderHomeAction(primaryHomeAction, { primary: true, labelOverride: primaryHomeAction.label || "Open next step" })}
-              </div>
-            </div>
-            <div class="overview-command-links" aria-label="Command center links">
-              ${commandLinks.map((item) => `
-                <button
-                  class="overview-command-link"
-                  type="button"
-                  data-overview-target="${escapeHtml(item.target)}"
-                  data-target-id="${escapeHtml(item.targetId)}"
-                >
-                  <span>${escapeHtml(item.label)}</span>
-                  <strong>${escapeHtml(item.count ? String(item.count) : "Open")}</strong>
-                  <small>${escapeHtml(item.copy)}</small>
-                </button>
-              `).join("")}
-            </div>
-          </div>
-
-          ${setupNeedsAttention ? `
-            <section class="home-setup-progress" aria-label="Setup progress">
-              <div class="home-setup-progress-head">
+          <section class="v2-home-two-col v2-section">
+            <article class="v2-card v2-home-priority-card">
+              <div class="v2-section-header">
                 <div>
-                  <p class="studio-kicker">Setup progress</p>
-                  <h3 class="workspace-panel-title">${escapeHtml(activeSetupStep?.label || "Finish the activation path")}</h3>
-                  <p class="workspace-panel-copy">${escapeHtml(activeSetupStep?.copy || "New workspaces stay useful while setup finishes. Complete the next activation step, then return to Home for live customer priorities.")}</p>
+                  <h2 class="v2-section-title">Today's priority</h2>
+                  <p class="v2-section-subtitle">Focused work that needs owner attention.</p>
                 </div>
-                <div class="home-setup-progress-action">
-                  ${renderHomeAction(overview.primaryAction || primaryHomeAction, { primary: true, labelOverride: overview.primaryAction?.label || "Continue setup" })}
+                <span class="v2-pill ${priorityOpenCount ? "amber" : "green"}">${escapeHtml(`${priorityOpenCount} open`)}</span>
+              </div>
+              <div class="v2-list">
+                ${priorityRows.length ? priorityRows.map((item) => `
+                  <div class="v2-home-row">
+                    ${buildV2IconBadge(item.icon, item.tone)}
+                    <div>
+                      ${item.category ? `<div class="v2-row-meta">${escapeHtml(item.category)}</div>` : ""}
+                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
+                      <div class="v2-row-copy">${escapeHtml(item.copy)}</div>
+                    </div>
+                    ${item.action ? renderHomeAction(item.action, { labelOverride: item.actionLabel }) : `<button class="v2-button" type="button" data-overview-target="${escapeHtml(item.target)}" ${item.targetId ? `data-target-id="${escapeHtml(item.targetId)}"` : ""}>${buildV2Icon("chevronDown")} ${escapeHtml(item.actionLabel)}</button>`}
+                  </div>
+                `).join("") : `<div class="v2-empty-note">${escapeHtml(notAvailableLabel)}</div>`}
+              </div>
+            </article>
+            <article class="v2-card">
+              <div class="v2-section-header">
+                <div>
+                  <h2 class="v2-section-title">Recent activity</h2>
+                  <p class="v2-section-subtitle">Latest events across entry points.</p>
+                </div>
+                <button class="v2-button" type="button" data-overview-target="analytics">View all</button>
+              </div>
+              <div class="v2-list">
+                ${recentActivityItems.length ? recentActivityItems.map((item) => `
+                  <div class="v2-home-row">
+                    ${buildV2IconBadge(item.title === "Assistant reply" ? "sparkle" : "chat", item.title === "Assistant reply" ? "teal" : "blue")}
+                    <div>
+                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
+                      <div class="v2-row-copy">${escapeHtml(item.copy)}</div>
+                    </div>
+                    <div class="v2-row-meta">${escapeHtml(item.meta)}</div>
+                  </div>
+                `).join("") : `<div class="v2-empty-note">${escapeHtml(notAvailableLabel)}</div>`}
+              </div>
+            </article>
+          </section>
+
+          <section class="v2-home-two-col v2-section">
+            <article class="v2-card">
+              <div class="v2-section-header">
+                <div>
+                  <h2 class="v2-section-title">Assistant readiness</h2>
+                  <p class="v2-section-subtitle">Compact launch health for daily operations.</p>
+                </div>
+                <span class="v2-pill ${readinessReadyCount === visibleReadinessRows.length ? "green" : "amber"}">${escapeHtml(`${readinessReadyCount} of ${visibleReadinessRows.length} ready`)}</span>
+              </div>
+              <div class="v2-list">
+                ${visibleReadinessRows.map((item) => `
+                  <div class="v2-home-readiness-row">
+                    <span class="v2-home-check ${item.done ? "ready" : "pending"}">${buildV2Icon(item.done ? "check" : "clock")}</span>
+                    <div>
+                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
+                      <div class="v2-row-copy">${escapeHtml(item.copy || notAvailableLabel)}</div>
+                    </div>
+                    <span class="v2-pill ${item.done ? "green" : "amber"}">${escapeHtml(item.done ? "Ready" : "Needs setup")}</span>
+                  </div>
+                `).join("")}
+              </div>
+            </article>
+            <article class="v2-card">
+              <div class="v2-section-header">
+                <div>
+                  <h2 class="v2-section-title">Source activity</h2>
+                  <p class="v2-section-subtitle">Where conversations started today.</p>
                 </div>
               </div>
-              <div class="home-setup-step-list">
-                ${setupStatusItems.map((item) => `
-                  <div class="home-setup-step ${item.done ? "complete" : "pending"}">
-                    <span class="home-setup-dot" aria-hidden="true"></span>
-                    <div>
-                      <strong>${escapeHtml(item.title)}</strong>
-                      <p>${escapeHtml(item.copy)}</p>
+              <div class="v2-home-source-summary">
+                ${sourceRows.map((item) => `
+                  <div class="v2-source-tile">
+                    <div class="v2-source-label">${buildV2IconBadge(item.icon || "window", item.tone || "blue")}<span>${escapeHtml(item.label)}</span></div>
+                    <div class="v2-source-value">${escapeHtml(sourceAnalyticsAvailable && !item.unavailable ? formatAnalyticsReportNumber(item.conversationCount) : "0")}</div>
+                    <div class="v2-metric-change">
+                      <span>${escapeHtml(item.unavailable || !sourceAnalyticsAvailable ? notAvailableLabel : `${formatAnalyticsReportNumber(item.messageCount)} message${Number(item.messageCount || 0) === 1 ? "" : "s"}`)}</span>
                     </div>
                   </div>
                 `).join("")}
               </div>
+            </article>
+          </section>
+
+          ${(setupNeedsAttention || secondaryPriorityCards.length || improvementRecommendation) ? `
+            <section class="v2-card v2-section v2-home-improve-card">
+              <div class="v2-section-header">
+                <div>
+                  <h2 class="v2-section-title">${escapeHtml(t("home.improveNext"))}</h2>
+                  <p class="v2-section-subtitle">${escapeHtml(t("home.improveCopy"))}</p>
+                </div>
+              </div>
+              <div class="v2-list">
+                ${secondaryPriorityCards.length ? secondaryPriorityCards.map((priority) => `
+                  <div class="v2-home-row">
+                    ${buildV2IconBadge(priority.tone === "danger" ? "bell" : "review", priority.tone === "danger" ? "amber" : "blue")}
+                    <div>
+                      <div class="v2-row-title">${escapeHtml(priority.title)}</div>
+                      <div class="v2-row-copy">${escapeHtml([priority.why, priority.change].filter(Boolean).join(" ") || notAvailableLabel)}</div>
+                    </div>
+                    ${renderHomeAction(priority.action, { labelOverride: priority.action?.label || "Review" })}
+                  </div>
+                `).join("") : `
+                  <div class="v2-home-row">
+                    ${buildV2IconBadge("review", setupNeedsAttention ? "amber" : "teal")}
+                    <div>
+                      <div class="v2-row-title">${escapeHtml(improvementRecommendation.title || notAvailableLabel)}</div>
+                      <div class="v2-row-copy">${escapeHtml(improvementRecommendation.copy || notAvailableLabel)}</div>
+                    </div>
+                    ${renderHomeAction(improvementRecommendation.action, { labelOverride: improvementRecommendation.action?.label || "Review" })}
+                  </div>
+                `}
+              </div>
             </section>
           ` : ""}
-
-          <div class="home-daily-strip">
-            ${dailyStats.map((stat) => `
-              <article class="home-daily-card home-daily-card-${escapeHtml(stat.tone)}">
-                <p class="home-daily-card-label">${escapeHtml(stat.label)}</p>
-                <strong class="home-daily-card-value">${escapeHtml(stat.value)}</strong>
-                <p class="home-daily-card-copy">${escapeHtml(stat.copy)}</p>
-              </article>
-            `).join("")}
-          </div>
-
-          <div class="home-command-grid">
-            <section class="workspace-card-soft home-priority-panel">
-              <div class="workspace-panel-header">
-                <div>
-                  <p class="studio-kicker">${escapeHtml(t("home.aiPriorities"))}</p>
-                  <h3 class="workspace-panel-title">${escapeHtml(t("home.improveNext"))}</h3>
-                  <p class="workspace-panel-copy">${escapeHtml(t("home.improveCopy"))}</p>
-                </div>
-              </div>
-              <div class="home-priority-list">
-                ${secondaryPriorityCards.length ? secondaryPriorityCards.map((priority) => `
-                  <article class="home-priority-card home-priority-card-${escapeHtml(priority.tone || "slate")}">
-                    <div class="home-priority-copy">
-                      <h4 class="home-priority-title">${escapeHtml(priority.title)}</h4>
-                      <p class="home-priority-why">${escapeHtml(priority.why)}</p>
-                      ${priority.change ? `<p class="home-priority-change">${escapeHtml(priority.change)}</p>` : ""}
-                    </div>
-                    <div class="home-priority-action">
-                      ${renderHomeAction(priority.action, { primary: true })}
-                    </div>
-                  </article>
-                `).join("") : `<div class="placeholder-card">${escapeHtml(primaryPriority ? "After the primary action, no other urgent improvements are competing for attention right now." : "No urgent improvements right now. Keep watching new questions and update weak answers as they appear.")}</div>`}
-              </div>
-              <div class="home-attention-list">
-                <div class="home-attention-heading">
-                  <h4>Who needs attention</h4>
-                  <p>Prioritized from the queue, customer records, and today’s workspace signals.</p>
-                </div>
-                ${attentionItems.length ? attentionItems.map((item) => `
-                  <article class="home-attention-item">
-                    <div>
-                      <span class="home-attention-category">${escapeHtml(item.category)}</span>
-                      <strong>${escapeHtml(item.title)}</strong>
-                      <p>${escapeHtml(item.reason)}</p>
-                    </div>
-                    <p class="home-attention-action">${escapeHtml(item.action)}</p>
-                  </article>
-                `).join("") : `<div class="placeholder-card">No specific customer needs are waiting right now. Home will stay honest until real queue or customer signals arrive.</div>`}
-              </div>
-            </section>
-
-            <div class="home-side-stack">
-              <section class="workspace-card-soft home-mini-panel">
-                <div class="workspace-panel-header">
-                  <div>
-                    <p class="studio-kicker">Recent activity</p>
-                    <h3 class="workspace-panel-title">Latest real conversation activity</h3>
-                    <p class="workspace-panel-copy">Only stored messages appear here. If there are no conversations yet, Home stays empty instead of showing sample people.</p>
-                  </div>
-                </div>
-                ${recentActivityItems.length ? `
-                  <div class="home-win-list">
-                    ${recentActivityItems.map((item) => `
-                      <div class="home-win-row">
-                        <span class="home-win-dot" aria-hidden="true"></span>
-                        <div>
-                          <strong>${escapeHtml(item.title)}</strong>
-                          <p>${escapeHtml(item.copy)}</p>
-                          <span>${escapeHtml(item.meta)}</span>
-                        </div>
-                      </div>
-                    `).join("")}
-                  </div>
-                ` : `<div class="placeholder-card">No conversations yet. Recent customer questions and assistant replies will appear here once real visitors start using Vonza.</div>`}
-              </section>
-
-              <section class="workspace-card-soft home-mini-panel">
-                <div class="workspace-panel-header">
-                  <div>
-                    <p class="studio-kicker">Assistant readiness</p>
-                    <h3 class="workspace-panel-title">Setup and install status</h3>
-                    <p class="workspace-panel-copy">Readiness is based on the current assistant, install, and website knowledge state.</p>
-                  </div>
-                </div>
-                <div class="home-win-list">
-                  ${setupStatusItems.slice(0, 4).map((item) => `
-                    <div class="home-win-row">
-                      <span class="home-win-dot" aria-hidden="true"></span>
-                      <div>
-                        <strong>${escapeHtml(item.title)}</strong>
-                        <p>${escapeHtml(item.copy)}</p>
-                        <span>${escapeHtml(item.done ? "Ready" : "Needs setup")}</span>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              </section>
-
-              <section class="workspace-card-soft home-mini-panel">
-                <div class="workspace-panel-header">
-                  <div>
-                    <p class="studio-kicker">Source activity</p>
-                    <h3 class="workspace-panel-title">Widget, full-page, and QR</h3>
-                    <p class="workspace-panel-copy">Source counts use existing analytics only. QR scan tracking is not available yet.</p>
-                  </div>
-                </div>
-                ${sourceActivityItems.length ? `
-                  <div class="home-win-list">
-                    ${sourceActivityItems.map((item) => `
-                      <div class="home-win-row">
-                        <span class="home-win-dot" aria-hidden="true"></span>
-                        <div>
-                          <strong>${escapeHtml(item.label)}</strong>
-                          <p>${escapeHtml(`${formatAnalyticsReportNumber(item.conversationCount)} conversation${Number(item.conversationCount || 0) === 1 ? "" : "s"} and ${formatAnalyticsReportNumber(item.messageCount)} message${Number(item.messageCount || 0) === 1 ? "" : "s"}`)}</p>
-                          <span>${escapeHtml(Number(item.leadsCaptured || 0) > 0 ? `${formatAnalyticsReportNumber(item.leadsCaptured)} lead${Number(item.leadsCaptured || 0) === 1 ? "" : "s"}` : "No leads from this source yet")}</span>
-                        </div>
-                      </div>
-                    `).join("")}
-                    <div class="placeholder-card">QR is available for the full-page assistant, but QR scan tracking is not tracked yet.</div>
-                  </div>
-                ` : `<div class="placeholder-card">No source analytics are available yet. Widget and full-page counts will appear here when real activity is recorded. QR scans are not tracked yet.</div>`}
-              </section>
-
-              <section class="workspace-card-soft home-improve-panel">
-                <div class="workspace-panel-header">
-                  <div>
-                    <p class="studio-kicker">${escapeHtml(t("home.serviceQuality"))}</p>
-                    <h3 class="workspace-panel-title">${escapeHtml(t("home.improveService"))}</h3>
-                    <p class="workspace-panel-copy">${escapeHtml(improvementRecommendation.title)}</p>
-                  </div>
-                </div>
-                <p class="home-improve-copy">${escapeHtml(improvementRecommendation.copy)}</p>
-                <div class="home-improve-actions">
-                  ${renderHomeAction(improvementRecommendation.action, { primary: true })}
-                </div>
-              </section>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -8561,7 +8612,7 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
   `;
 }
 
-function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
   const settingsShell = window.VonzaSettingsShell;
 
   if (!settingsShell || typeof settingsShell.buildSettingsPanel !== "function") {
@@ -8580,6 +8631,8 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
     agent,
     setup,
     operatorWorkspace,
+    actionQueue,
+    authUser,
     escapeHtml,
     trimText,
     getBadgeClass,
@@ -11168,7 +11221,7 @@ function buildV2AnalyticsSourceBreakdown(sourceRows = [], totalConversations = 0
   const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
 
   return `
-    <article class="v2-card">
+    <article class="v2-card v2-analytics-source-card">
       <div class="v2-section-header">
         <h2 class="v2-section-title">${escapeHtml(t("analytics.entrySourceBreakdown"))}</h2>
       </div>
@@ -11207,7 +11260,7 @@ function buildV2TopQuestions(topQuestionItems = []) {
   const maxCount = Math.max(...topQuestionItems.map((item) => Number(item.count || 0)), 1);
 
   return `
-    <article class="v2-card">
+    <article class="v2-card v2-analytics-top-questions-card">
       <div class="v2-section-header">
         <h2 class="v2-section-title">${escapeHtml(t("analytics.topCustomerQuestions"))}</h2>
         ${buildV2Button(t("analytics.viewAll"), "")}
@@ -11270,7 +11323,7 @@ function buildV2Heatmap(userMessages = []) {
   }).join("");
 
   return `
-    <article class="v2-card">
+    <article class="v2-card v2-analytics-heatmap-card">
       <div class="v2-section-header">
         <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsByHour"))}</h2>
         <span class="v2-info-dot">i</span>
@@ -11296,7 +11349,7 @@ function buildV2HandlingCard(report = {}) {
   const dashOffset = 236 - (236 * rate) / 100;
 
   return `
-    <article class="v2-card">
+    <article class="v2-card v2-analytics-handling-card">
       <div class="v2-section-header">
         <h2 class="v2-section-title">${escapeHtml(t("analytics.aiVsHumanHandling"))}</h2>
       </div>
@@ -11318,7 +11371,7 @@ function buildV2HandlingCard(report = {}) {
 
 function buildV2ConversionCard(report = {}) {
   return `
-    <article class="v2-card">
+    <article class="v2-card v2-analytics-conversion-card">
       <div class="v2-split-stat">
         <div class="v2-split-stat-item">
           ${buildV2IconBadge("users", "teal")}
@@ -11440,25 +11493,29 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
       <section class="v2-grid v2-grid-6">
         ${metrics.map(buildV2MetricCard).join("")}
       </section>
-      <section class="v2-three-col-wide v2-section">
-        <article class="v2-card v2-chart-card">
-          <div class="v2-section-header">
-            <div>
-              <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsOverTime"))}</h2>
-              <div class="v2-metric-value v2-chart-total">${escapeHtml(formatAnalyticsReportNumber(report.conversationCount))} <span class="v2-subtext">${escapeHtml(t("analytics.totalConversationLabel"))}</span></div>
-              <div class="v2-metric-change"><span>${escapeHtml(t("analytics.liveCurrentWorkspace"))}</span></div>
+      <section class="v2-analytics-columns v2-section">
+        <div class="v2-analytics-column v2-analytics-column-main">
+          <article class="v2-card v2-chart-card v2-analytics-chart-card">
+            <div class="v2-section-header">
+              <div>
+                <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsOverTime"))}</h2>
+                <div class="v2-metric-value v2-chart-total">${escapeHtml(formatAnalyticsReportNumber(report.conversationCount))} <span class="v2-subtext">${escapeHtml(t("analytics.totalConversationLabel"))}</span></div>
+                <div class="v2-metric-change"><span>${escapeHtml(t("analytics.liveCurrentWorkspace"))}</span></div>
+              </div>
+              <button class="v2-button" type="button">${escapeHtml(t("analytics.daily"))} ${buildV2Icon("chevronDown")}</button>
             </div>
-            <button class="v2-button" type="button">${escapeHtml(t("analytics.daily"))} ${buildV2Icon("chevronDown")}</button>
-          </div>
-          ${buildV2LineChart(report.conversationSeries)}
-        </article>
-        ${buildV2AnalyticsSourceBreakdown(sourceRows, sourceTotal)}
-        ${buildV2TopQuestions(topQuestionItems)}
-      </section>
-      <section class="v2-analytics-second v2-section">
-        ${buildV2Heatmap(userMessages)}
-        ${buildV2HandlingCard(report)}
-        ${buildV2ConversionCard(report)}
+            ${buildV2LineChart(report.conversationSeries)}
+          </article>
+          ${buildV2Heatmap(userMessages)}
+        </div>
+        <div class="v2-analytics-column">
+          ${buildV2AnalyticsSourceBreakdown(sourceRows, sourceTotal)}
+          ${buildV2HandlingCard(report)}
+        </div>
+        <div class="v2-analytics-column">
+          ${buildV2TopQuestions(topQuestionItems)}
+          ${buildV2ConversionCard(report)}
+        </div>
       </section>
       ${buildV2PerformanceBySource(sourceRows, report)}
       ${buildV2ContactMixCard(report)}
@@ -12056,207 +12113,6 @@ function buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
             </div>
           </article>
         `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function getHumanFollowUpStatusLabel(status = "") {
-  switch (trimText(status).toLowerCase()) {
-    case "reviewing":
-      return "Reviewing";
-    case "replied":
-      return "Replied";
-    case "follow_up_later":
-      return "Follow up later";
-    case "dismissed":
-      return "Dismissed";
-    default:
-      return "New";
-  }
-}
-
-function getHumanFollowUpBadgeClass(status = "") {
-  switch (trimText(status).toLowerCase()) {
-    case "replied":
-      return "badge success";
-    case "dismissed":
-      return "badge muted";
-    case "follow_up_later":
-      return "badge pending";
-    case "reviewing":
-      return "badge";
-    default:
-      return "badge pending";
-  }
-}
-
-function buildHumanFollowUpWorkflowMarkup(actionQueue = createEmptyActionQueue()) {
-  const workflow = actionQueue.humanFollowUps || createEmptyActionQueue().humanFollowUps;
-  const items = Array.isArray(workflow.items) ? workflow.items : [];
-  const openItems = items.filter((item) => !["replied", "dismissed"].includes(trimText(item.status).toLowerCase()));
-  const summary = {
-    ...createEmptyActionQueue().humanFollowUps.summary,
-    ...(workflow.summary || {}),
-  };
-  const notificationState = actionQueue.ownerNotifications || createEmptyActionQueue().ownerNotifications;
-  const notifications = Array.isArray(notificationState.records) ? notificationState.records : [];
-
-  const itemMarkup = openItems.slice(0, 8).map((item) => {
-    const reasons = Array.isArray(item.whyItMatters) ? item.whyItMatters : [];
-    const hasKnowledgeAction = trimText(item.related?.knowledgeFixId);
-    const formKey = escapeHtml(item.itemKey || item.actionKey || "");
-    const followUpId = trimText(item.related?.followUpId || item.followUpId);
-    const knowledgeFixId = trimText(item.related?.knowledgeFixId || item.knowledgeFixId);
-
-    return `
-      <article class="action-queue-item human-follow-up-item" data-human-follow-up-item data-human-follow-up-key="${formKey}">
-        <div class="action-queue-item-top">
-          <div class="action-queue-headline">
-            <div class="action-queue-badges">
-              <span class="${getHumanFollowUpBadgeClass(item.status)}">${escapeHtml(getHumanFollowUpStatusLabel(item.status))}</span>
-              <span class="pill">${escapeHtml(item.priority || "medium")} priority</span>
-              ${reasons.slice(0, 2).map((reason) => `<span class="pill">${escapeHtml(reason.label || reason.key)}</span>`).join("")}
-            </div>
-            <h4 class="action-queue-title">${escapeHtml(item.customerLabel || "Guest visitor")}</h4>
-            <p class="action-queue-copy">${escapeHtml(item.latestQuestion || item.safeSummary || "Customer context is sparse.")}</p>
-          </div>
-        </div>
-        <div class="action-queue-handoff-summary">
-          <div class="action-queue-handoff-item">
-            <span class="action-queue-detail-label">Why it matters</span>
-            <strong class="action-queue-detail-value">${escapeHtml(reasons.map((reason) => reason.label).filter(Boolean).join(", ") || "Needs human review")}</strong>
-            <p class="action-queue-copy">${escapeHtml(reasons[0]?.copy || item.safeSummary || "Review this customer before it goes stale.")}</p>
-          </div>
-          <div class="action-queue-handoff-item">
-            <span class="action-queue-detail-label">Recommended next action</span>
-            <strong class="action-queue-detail-value">${escapeHtml(item.recommendedNextAction || "Review and reply.")}</strong>
-          </div>
-        </div>
-        ${trimText(item.suggestedReplyDraft) ? `
-          <div class="field">
-            <label>Suggested reply draft</label>
-            <textarea rows="4" name="owner_reply" data-human-follow-up-reply>${escapeHtml(item.suggestedReplyDraft)}</textarea>
-          </div>
-        ` : `<div class="placeholder-card">No draft is available yet. Review the conversation and write the owner reply outside Vonza.</div>`}
-        <div class="action-queue-form-actions">
-          ${followUpId ? `<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(followUpId)}">Open follow-up draft</button>` : ""}
-          ${hasKnowledgeAction ? `<button class="ghost-button" type="button" data-shell-target="analytics" data-target-id="${escapeHtml(item.related?.actionKey || item.actionKey || "")}">Improve knowledge</button>` : ""}
-          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="reviewing" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Mark reviewing</button>
-          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="follow_up_later" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Follow up later</button>
-          <button class="primary-button" type="button" data-human-follow-up-status-action data-next-status="replied" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Mark replied</button>
-          <button class="ghost-button" type="button" data-human-follow-up-status-action data-next-status="dismissed" data-item-key="${formKey}" data-action-key="${escapeHtml(item.related?.actionKey || item.actionKey || "")}" data-follow-up-id="${escapeHtml(followUpId)}" data-knowledge-fix-id="${escapeHtml(knowledgeFixId)}">Dismiss</button>
-        </div>
-      </article>
-    `;
-  }).join("");
-
-  return `
-    <section id="human-follow-ups" class="workspace-card-soft human-follow-up-workflow" data-human-follow-up-workflow>
-      <div class="flat-section-header">
-        <div>
-          <p class="overview-label">Human Follow-Up Workflow</p>
-          <h3 class="flat-section-title">Customers who need a human reply</h3>
-          <p class="analytics-report-section-copy">High-intent leads, unhappy customers, not-helpful replies, repeated unanswered questions, missing contact details, and due follow-ups stay in one owner-facing list.</p>
-        </div>
-        <div class="analytics-report-overview-pills">
-          <span class="pill">${escapeHtml(`${summary.open || 0} open`)}</span>
-          <span class="pill">${escapeHtml(`${summary.highPriority || 0} high priority`)}</span>
-          <span class="pill">${escapeHtml(`${notifications.filter((item) => item.status === "unread").length} unread notices`)}</span>
-        </div>
-      </div>
-      ${workflow.migrationRequired ? `<div class="placeholder-card">Human follow-up status changes are read-only until this workspace finishes the customer value and trust migration.</div>` : ""}
-      ${itemMarkup || `<div class="placeholder-card">${escapeHtml(workflow.emptyState || "No customers need a human reply right now. Keep the live widget installed and watch this area after high-intent, unhappy, not-helpful, or repeated unanswered customer moments appear.")}</div>`}
-      ${notifications.length ? `
-        <div class="knowledge-improvement-list">
-          ${notifications.filter((item) => item.status !== "dismissed").slice(0, 4).map((item) => `
-            <article class="overview-list-item">
-              <p class="overview-list-title">${escapeHtml(item.title || "Owner notification")}</p>
-              <p class="overview-list-copy">${escapeHtml(item.reason || "")}</p>
-              <p class="overview-list-copy">${escapeHtml(item.recommendedNextAction || "Review this customer moment.")}</p>
-            </article>
-          `).join("")}
-        </div>
-      ` : ""}
-    </section>
-  `;
-}
-
-function buildPrivacyControlsMarkup(actionQueue = createEmptyActionQueue()) {
-  const workflow = actionQueue.humanFollowUps || createEmptyActionQueue().humanFollowUps;
-
-  return `
-    <section id="privacy-controls" class="workspace-card-soft privacy-controls-panel" data-privacy-controls>
-      <div class="flat-section-header">
-        <div>
-          <p class="overview-label">Data Privacy Controls</p>
-          <h3 class="flat-section-title">Export, delete, and retention preferences</h3>
-          <p class="analytics-report-section-copy">Owner-scoped controls for conversations, leads, customer records, retention preferences, and visitor identity guidance.</p>
-        </div>
-        <div class="analytics-report-overview-pills">
-          <span class="pill">${escapeHtml(`${workflow.summary?.total || 0} follow-up records`)}</span>
-          <span class="pill">Owner scoped</span>
-        </div>
-      </div>
-      <div class="analytics-report-grid">
-        <article class="analytics-report-card">
-          <span>Export customer data</span>
-          <p class="analytics-report-section-copy">Download owner-scoped conversations, leads, follow-ups, knowledge fixes, and action statuses. Billing, auth, and account records stay out of this export.</p>
-          <div class="action-queue-form-actions">
-            <button class="ghost-button" type="button" data-privacy-export="json">Export JSON</button>
-            <button class="ghost-button" type="button" data-privacy-export="csv">Export CSV</button>
-          </div>
-        </article>
-        <article class="analytics-report-card">
-          <span>Delete visitor/customer records</span>
-          <p class="analytics-report-section-copy">Delete by guest session, visitor email, contact id, person key, lead id, or action key. Deletes are scoped to this owner and agent.</p>
-          <form class="workspace-section-stack" data-privacy-delete-form>
-            <div class="field-grid two">
-              <div class="field">
-                <label>Session key</label>
-                <input name="session_key" type="text" placeholder="guest/session key">
-              </div>
-              <div class="field">
-                <label>Visitor email</label>
-                <input name="visitor_email" type="email" placeholder="customer@example.com">
-              </div>
-              <div class="field">
-                <label>Contact id</label>
-                <input name="contact_id" type="text" placeholder="optional">
-              </div>
-              <div class="field">
-                <label>Action key</label>
-                <input name="action_key" type="text" placeholder="optional queue item">
-              </div>
-            </div>
-            <div class="action-queue-form-actions">
-              <button class="ghost-button" type="submit">Delete matching records</button>
-            </div>
-          </form>
-        </article>
-        <article class="analytics-report-card">
-          <span>Retention preference</span>
-          <p class="analytics-report-section-copy">V1 stores the owner preference and surfaces the policy clearly. It does not delete billing, auth, or account records.</p>
-          <form class="workspace-section-stack" data-privacy-settings-form>
-            <div class="field-grid two">
-              <div class="field">
-                <label>Conversation retention days</label>
-                <input name="retention_days" type="number" min="1" value="365">
-              </div>
-              <div class="field">
-                <label>Guest visitor cleanup days</label>
-                <input name="delete_unidentified_visitors_after_days" type="number" min="1" value="90">
-              </div>
-            </div>
-            <div class="action-queue-form-actions">
-              <button class="ghost-button" type="submit">Save privacy preference</button>
-            </div>
-          </form>
-        </article>
-        <article class="analytics-report-card">
-          <span>Widget visitor identity</span>
-          <p class="analytics-report-section-copy">To disconnect a visitor identity, clear visitor email/name in the host site and remove local widget identity storage in that browser. Guest sessions remain safe labels until the visitor shares contact details.</p>
-        </article>
       </div>
     </section>
   `;
@@ -13359,7 +13215,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
       label: "Follow-Ups",
       copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "No human replies are waiting.",
       target: "analytics",
-      targetId: "human-follow-ups",
+      targetId: "",
       count: humanFollowUpOpen,
     },
     {
@@ -13368,13 +13224,6 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
       target: "analytics",
       targetId: "notifications",
       count: notificationUnread,
-    },
-    {
-      label: "Privacy Controls",
-      copy: "Export, delete, or update retention settings.",
-      target: "analytics",
-      targetId: "privacy-controls",
-      count: 0,
     },
     {
       label: "Install",
@@ -13773,8 +13622,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             </div>
           </section>
           ${customerSatisfactionMarkup}
-          ${buildHumanFollowUpWorkflowMarkup(actionQueue)}
-          ${buildPrivacyControlsMarkup(actionQueue)}
           <section class="settings-page" data-analytics-section="overview"></section>
           <section class="settings-page" data-analytics-section="questions" hidden></section>
           <section class="settings-page" data-analytics-section="outcomes" hidden></section>
@@ -14645,7 +14492,7 @@ function renderAssistantShell(
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
           ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue)}
         </div>
       </div>
     </div>
@@ -14686,7 +14533,7 @@ function renderDashboardV2Shell(
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
           ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue)}
         </div>
       </div>
     </div>
@@ -15606,31 +15453,38 @@ function normalizeOperatorWorkspace(data = null) {
 }
 
 async function loadOperatorWorkspace(agentId, options = {}) {
-  if (!isOperatorWorkspaceFlagEnabled()) {
-    return normalizeOperatorWorkspace({
-      ...createEmptyOperatorWorkspace(),
-      enabled: false,
-      featureEnabled: false,
-      briefing: {
-        title: "Customer service workspace is off",
-        text: "This deployment is running the front-desk launch core, so Vonza is keeping the lighter front-desk workspace active.",
-      },
-      status: {
-        ...createEmptyOperatorWorkspace().status,
-        enabled: false,
-        featureEnabled: false,
-        googleConnectReady: false,
-      },
-    });
-  }
-
   const url = new URL("/agents/operator-workspace", window.location.origin);
   url.searchParams.set("agent_id", agentId);
   url.searchParams.set("client_id", getClientId());
   url.searchParams.set("force_sync", options.forceSync === true ? "true" : "false");
   url.searchParams.set("dashboard_language", getDashboardLanguage());
   const data = await fetchJson(url.toString());
-  return normalizeOperatorWorkspace(data);
+  const workspace = normalizeOperatorWorkspace(data);
+
+  if (!isOperatorWorkspaceFlagEnabled()) {
+    return normalizeOperatorWorkspace({
+      ...workspace,
+      enabled: false,
+      featureEnabled: false,
+      status: {
+        ...workspace.status,
+        enabled: false,
+        featureEnabled: false,
+        googleConnectReady: false,
+      },
+      activation: {
+        ...workspace.activation,
+        operatorWorkspaceEnabled: false,
+      },
+      briefing: {
+        ...workspace.briefing,
+        title: workspace.briefing?.title || "Front-desk launch core",
+        text: workspace.briefing?.text || "Home, Customers, Front Desk, Analytics, Install, and Settings stay available.",
+      },
+    });
+  }
+
+  return workspace;
 }
 
 async function loadOperatorWorkspaceSafe(agentId, options = {}) {
@@ -16781,12 +16635,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
   const followUpForms = document.querySelectorAll("[data-follow-up-form]");
   const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
-  const humanFollowUpStatusButtons = document.querySelectorAll("[data-human-follow-up-status-action]");
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
   const knowledgeFixStatusButtons = document.querySelectorAll("[data-knowledge-fix-status-action]");
-  const privacyExportButtons = document.querySelectorAll("[data-privacy-export]");
-  const privacyDeleteForms = document.querySelectorAll("[data-privacy-delete-form]");
-  const privacySettingsForms = document.querySelectorAll("[data-privacy-settings-form]");
   const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
   const openInboxThreadButtons = document.querySelectorAll("[data-open-inbox-thread]");
@@ -17092,7 +16942,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       case "automations":
         return `[data-follow-up-card][data-follow-up-id="${targetId}"], [data-operator-task-card][data-task-id="${targetId}"], [data-campaign-card][data-campaign-id="${targetId}"]`;
       case "analytics":
-        if (["human-follow-ups", "notifications", "privacy-controls"].includes(targetId)) {
+        if (targetId === "notifications") {
           return `#${targetId}`;
         }
         return `[data-action-queue-item][data-action-key="${targetId}"]`;
@@ -17181,114 +17031,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       if (submitButton) {
         submitButton.disabled = false;
       }
-    }
-  };
-
-  const updateHumanFollowUp = async (button) => {
-    const itemKey = trimText(button.dataset.itemKey);
-    const card = button.closest("[data-human-follow-up-item]");
-    const ownerReply = trimText(card?.querySelector("[data-human-follow-up-reply]")?.value || "");
-    const nextStatus = trimText(button.dataset.nextStatus);
-
-    if (!itemKey || !nextStatus) {
-      return;
-    }
-
-    button.disabled = true;
-    setStatus(`Updating human follow-up to ${getHumanFollowUpStatusLabel(nextStatus).toLowerCase()}...`);
-
-    try {
-      const result = await fetchJson("/agents/human-follow-ups/status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          client_id: getClientId(),
-          agent_id: agent.id,
-          item_key: itemKey,
-          action_key: button.dataset.actionKey || itemKey,
-          follow_up_id: button.dataset.followUpId || "",
-          knowledge_fix_id: button.dataset.knowledgeFixId || "",
-          status: nextStatus,
-          owner_reply: ownerReply,
-        }),
-      });
-
-      setStatus(result.message || "Human follow-up updated.");
-      await boot();
-      setDashboardFocus("analytics");
-    } catch (error) {
-      setStatus(error.message || "We couldn't update that human follow-up.");
-    } finally {
-      button.disabled = false;
-    }
-  };
-
-  const exportPrivacyData = (format = "json") => {
-    const url = new URL("/agents/privacy/export", window.location.origin);
-    url.searchParams.set("agent_id", agent.id);
-    url.searchParams.set("client_id", getClientId());
-    url.searchParams.set("format", format);
-    window.location.assign(url.toString());
-  };
-
-  const savePrivacyPreference = async (form) => {
-    const formData = new FormData(form);
-    const submitButton = form.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    setStatus("Saving privacy preference...");
-
-    try {
-      await fetchJson("/agents/privacy/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          client_id: getClientId(),
-          agent_id: agent.id,
-          retention_days: formData.get("retention_days"),
-          delete_unidentified_visitors_after_days: formData.get("delete_unidentified_visitors_after_days"),
-        }),
-      });
-      setStatus("Privacy preference saved.");
-    } catch (error) {
-      setStatus(error.message || "We couldn't save privacy preferences.");
-    } finally {
-      submitButton.disabled = false;
-    }
-  };
-
-  const deletePrivacyRecords = async (form) => {
-    const formData = new FormData(form);
-    const submitButton = form.querySelector('button[type="submit"]');
-    submitButton.disabled = true;
-    setStatus("Deleting matching visitor/customer records...");
-
-    try {
-      const result = await fetchJson("/agents/privacy/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          client_id: getClientId(),
-          agent_id: agent.id,
-          session_key: trimText(formData.get("session_key")),
-          visitor_email: trimText(formData.get("visitor_email")),
-          contact_id: trimText(formData.get("contact_id")),
-          action_key: trimText(formData.get("action_key")),
-        }),
-      });
-      const deletedCount = Object.values(result.deleted || {}).reduce((total, value) => total + Number(value || 0), 0);
-      setStatus(deletedCount ? `${deletedCount} matching record${deletedCount === 1 ? "" : "s"} deleted.` : "No matching records were found for this owner and agent.");
-      await boot();
-      setDashboardFocus("analytics");
-    } catch (error) {
-      setStatus(error.message || "We couldn't delete those records.");
-    } finally {
-      submitButton.disabled = false;
     }
   };
 
@@ -18574,32 +18316,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
-  humanFollowUpStatusButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      await updateHumanFollowUp(button);
-    });
-  });
-
-  privacyExportButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      exportPrivacyData(button.dataset.privacyExport || "json");
-    });
-  });
-
-  privacySettingsForms.forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      await savePrivacyPreference(form);
-    });
-  });
-
-  privacyDeleteForms.forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      await deletePrivacyRecords(form);
-    });
-  });
-
   knowledgeFixForms.forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -18951,7 +18667,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         test_quality: "needs_improvement",
         route_target: "analytics",
       });
-      showSectionAndHighlight("analytics", "#human-follow-ups");
+      showSectionAndHighlight("analytics", "[data-action-queue-section]");
       setStatus("Opened Analytics for the weak answer.");
       button.disabled = false;
     });

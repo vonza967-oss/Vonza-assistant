@@ -474,7 +474,7 @@ test("dashboard hash routes open the matching interior section", async () => {
   }
 });
 
-test("dashboard Home renders one command-center action strip with workflow links", async () => {
+test("dashboard Home renders the real-data V2 snapshot without command-center placeholders", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],
     customFetch: async ({ pathname, buildResponse }) => {
@@ -514,12 +514,15 @@ test("dashboard Home renders one command-center action strip with workflow links
 
   const html = harness.getRootHtml();
 
-  assert.match(html, /Home command center/);
-  assert.match(html, /Do this now/);
-  assert.match(html, /Customers \/ Follow-Ups/);
+  assert.match(html, /Review replies/);
+  assert.match(html, /View analytics/);
+  assert.match(html, /Conversations today/);
+  assert.match(html, /Leads captured/);
+  assert.match(html, /Needs reply/);
+  assert.match(html, /AI handled/);
+  assert.match(html, /Today.?s priority/);
+  assert.match(html, /not available yet/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
-  assert.match(html, /Settings \/ Privacy/);
-  assert.match(html, /Review customers, replies, and follow-up status/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
 });
 
@@ -697,16 +700,17 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
   assert.match(harness.getRootHtml(), /Home/);
+  assert.match(harness.getRootHtml(), /Customers/);
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Analytics/);
-  assert.match(harness.getRootHtml(), /Your core workspace is ready/i);
-  assert.match(harness.getRootHtml(), /Connected tools are beta/i);
+  assert.match(harness.getRootHtml(), /Your AI customer service snapshot for today/i);
+  assert.match(harness.getRootHtml(), /Workspace unlocked/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);
   assert.equal(
     harness.fetchCalls.some((call) => call.pathname === "/agents/operator-workspace"),
-    false
+    true
   );
 });
 
@@ -917,7 +921,6 @@ test("Home surfaces weak pricing guidance as an AI priority", async () => {
 
   assert.match(harness.getRootHtml(), /Clarify pricing guidance/);
   assert.match(harness.getRootHtml(), /Pricing questions usually come from customers who are close to deciding/);
-  assert.match(harness.getRootHtml(), /Add clearer pricing ranges, quote guidance, or the exact details customers should share/);
 });
 
 test("customer filters and summaries no longer render Helped", async () => {

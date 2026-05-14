@@ -378,12 +378,12 @@ test("privacy exports and deletes are owner scoped and keep empty states safe", 
   assert.equal(supabase.state.agent_owner_notifications.some((row) => row.owner_user_id === "owner-2"), true);
 });
 
-test("dashboard exposes human follow-up, notification, and privacy controls", () => {
+test("dashboard keeps removed analytics sections out of the frontend", () => {
   const dashboard = readFileSync(new URL("../frontend/dashboard.js", import.meta.url), "utf8");
 
-  assert.match(dashboard, /Human Follow-Up Workflow/);
-  assert.match(dashboard, /data-human-follow-up-status-action/);
-  assert.match(dashboard, /Data Privacy Controls/);
-  assert.match(dashboard, /data-privacy-export/);
+  assert.doesNotMatch(dashboard, /Human Follow-Up Workflow/);
+  assert.doesNotMatch(dashboard, /data-human-follow-up-status-action/);
+  assert.doesNotMatch(dashboard, /Data Privacy Controls/);
+  assert.doesNotMatch(dashboard, /data-privacy-export/);
   assert.match(dashboard, /Owner notification/);
 });
