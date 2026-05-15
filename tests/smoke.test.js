@@ -1356,20 +1356,44 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboardV2Preview.text, /dashboard-v2-preview\.css/);
         assert.match(dashboardV2Preview.text, /dashboard-v2-preview\.js/);
 
+        const fullPageAssistantV2Preview = await getText(server.baseUrl, "/full-page-assistant-v2-preview");
+        assert.equal(fullPageAssistantV2Preview.status, 200);
+        assert.match(fullPageAssistantV2Preview.text, /variant-stage/);
+        assert.match(fullPageAssistantV2Preview.text, /Business Help Page/);
+        assert.match(fullPageAssistantV2Preview.text, /Quote \/ Booking Assistant/);
+        assert.match(fullPageAssistantV2Preview.text, /Minimal Embedded Page/);
+        assert.match(fullPageAssistantV2Preview.text, /full-page-assistant-v2-preview\.css/);
+        assert.match(fullPageAssistantV2Preview.text, /full-page-assistant-v2-preview\.js/);
+
+        const fullPageAssistantV2PreviewScript = await getText(server.baseUrl, "/full-page-assistant-v2-preview.js");
+        assert.equal(fullPageAssistantV2PreviewScript.status, 200);
+        assert.match(fullPageAssistantV2PreviewScript.text, /Smith & Co\./);
+        assert.match(fullPageAssistantV2PreviewScript.text, /data-variant="business-help"/);
+        assert.match(fullPageAssistantV2PreviewScript.text, /data-variant="quote-booking"/);
+        assert.match(fullPageAssistantV2PreviewScript.text, /data-variant="minimal-embedded"/);
+
         const widget = await getText(server.baseUrl, "/widget");
         assert.equal(widget.status, 200);
         assert.match(widget.text, /chat-container/);
         assert.match(widget.text, /Powered by Vonza/);
         assert.match(widget.text, /vonza-mode-/);
+        assert.doesNotMatch(widget.text, /Smith & Co\./);
 
         const pageModeWidget = await getText(server.baseUrl, "/widget?agent_id=agent-1&mode=page");
         assert.equal(pageModeWidget.status, 200);
         assert.match(pageModeWidget.text, /page-assistant-hero/);
         assert.match(pageModeWidget.text, /assistant-unavailable-state/);
+        assert.doesNotMatch(pageModeWidget.text, /Smith & Co\./);
 
         const assistantPage = await getText(server.baseUrl, "/a/agent-key");
         assert.equal(assistantPage.status, 200);
         assert.match(assistantPage.text, /page-assistant-hero/);
+        assert.doesNotMatch(assistantPage.text, /Smith & Co\./);
+
+        const assistantAliasPage = await getText(server.baseUrl, "/assistant/agent-key");
+        assert.equal(assistantAliasPage.status, 200);
+        assert.match(assistantAliasPage.text, /page-assistant-hero/);
+        assert.doesNotMatch(assistantAliasPage.text, /Smith & Co\./);
 
         const authScript = await getText(server.baseUrl, "/supabase-auth.js");
         assert.equal(authScript.status, 200);

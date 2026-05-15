@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full-page Assistant V2 Preview</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="/icon-192.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/full-page-assistant-v2-preview.css">
+</head>
+<body>
+  <main class="preview-shell" id="preview-root">
+    <nav class="variant-switcher" aria-label="Full-page assistant preview variants">
+      <a class="variant-tab" href="#business-help" data-variant-link="business-help">Business Help Page</a>
+      <a class="variant-tab" href="#quote-booking" data-variant-link="quote-booking">Quote / Booking Assistant</a>
+      <a class="variant-tab" href="#minimal-embedded" data-variant-link="minimal-embedded">Minimal Embedded Page</a>
+    </nav>
+
+    <section class="preview-stage" id="variant-stage" aria-live="polite"></section>
+  </main>
+
+  <script src="/full-page-assistant-v2-preview.js"></script>
+</body>
+</html>

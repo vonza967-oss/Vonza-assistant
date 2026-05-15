@@ -584,6 +584,10 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "frontend", "dashboard-v2-preview.html"));
   });
 
+  router.get("/full-page-assistant-v2-preview", (_req, res) => {
+    res.sendFile(path.join(rootDir, "frontend", "full-page-assistant-v2-preview.html"));
+  });
+
   router.get("/aszf", (_req, res) => {
     res.type("html");
     res.send(renderLegalPage("terms"));
