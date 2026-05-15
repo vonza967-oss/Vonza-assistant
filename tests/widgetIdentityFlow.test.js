@@ -469,20 +469,22 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
   assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
-  assert.match(harness.elements.get("page-business-name").textContent, /Ask Acme Co anything/);
-  assert.equal(harness.elements.get("page-business-domain").textContent, "Business assistant");
+  assert.equal(harness.elements.get("page-business-domain").textContent, "");
+  assert.equal(harness.elements.get("page-business-domain").hidden, true);
   assert.equal(harness.elements.get("page-help-title").textContent, "How can we help?");
   assert.equal(
     harness.elements.get("page-assistant-subtitle").textContent,
     "Ask about services, pricing, bookings, quotes, or contact details."
   );
-  assert.match(harness.elements.get("page-action-list").innerHTML, /What services do you offer\?/);
-  assert.match(harness.elements.get("page-action-list").innerHTML, /Can I request a quote\?/);
-  assert.match(harness.elements.get("page-question-examples").innerHTML, /Tell me which service fits my situation\./);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Request a quote/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Book a time/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Ask about pricing/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Contact details/);
   assert.equal(harness.elements.get("assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("launcher-text").textContent, "Online now");
   assert.equal(harness.elements.get("welcome-title").textContent, "Start a conversation");
   assert.equal(harness.elements.get("welcome-message").textContent, "Ask us anything about Acme.");
+  assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Smith &amp; Co\.|Smith & Co\./);
 });
 
 test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
@@ -514,7 +516,11 @@ test("assistant slug route defaults to page mode and missing assistant shows una
   assert.equal(harness.elements.get("assistant-loading-state").hidden, true);
   assert.equal(harness.elements.get("page-assistant-hero").hidden, true);
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, false);
-  assert.equal(harness.elements.get("assistant-unavailable-title").textContent, "This assistant is not available right now.");
+  assert.equal(harness.elements.get("assistant-unavailable-title").textContent, "Assistant unavailable");
+  assert.equal(
+    harness.elements.get("assistant-unavailable-copy").textContent,
+    "This assistant is not available right now. Please contact the business directly."
+  );
   assert.doesNotMatch(harness.elements.get("assistant-unavailable-copy").textContent, /agent_id|widget config|API/i);
 });
 
@@ -578,6 +584,120 @@ test("assistant alias route uses hosted page mode and personalized default greet
     harness.elements.get("page-assistant-subtitle").textContent,
     harness.elements.get("welcome-message").textContent
   );
+});
+
+test("page mode falls back to Assistant when business and assistant names are missing", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+              },
+              widgetConfig: {},
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Assistant");
+  assert.equal(harness.elements.get("assistant-name").textContent, "Assistant");
+  assert.equal(harness.elements.get("welcome-assistant-name").textContent, "Assistant");
+  assert.doesNotMatch(harness.elements.get("page-assistant-name").textContent, /^Vonza/i);
+});
+
+test("embedded page mode keeps page display tracking and compact production hooks", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        assert.match(url, /mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We can help with that.",
+              visitorIdentity: {
+                mode: "guest",
+                email: "",
+                name: "",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.elements.get("input").value = "Can I request a quote?";
+  await harness.hooks.sendMessage();
+
+  const chatCall = harness.fetchCalls.find((call) => call.input === "/chat");
+  assert.ok(chatCall);
+  assert.equal(JSON.parse(chatCall.options.body).display_mode, "page");
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
 });
 
 test("fresh widget does not render the chat intro or composer before identity is chosen", () => {
@@ -907,6 +1027,7 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="assistant-loading-state"/);
   assert.match(widget, /id="assistant-unavailable-state"/);
   assert.match(widget, /id="page-assistant-hero"/);
+  assert.match(widget, /id="page-powered-by"/);
   assert.match(widget, /id="page-action-list"/);
   assert.match(widget, /href="\/style\.css"/);
   assert.match(widget, /src="\/script\.js"/);
@@ -930,4 +1051,32 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(embed, /launcher\.addEventListener\("click", openModal\)/);
   assert.match(embed, /closeButton\.addEventListener\("click", closeModal\)/);
   assert.match(embed, /event\.key === "Escape"/);
+});
+
+test("production page mode keeps preview mock data isolated", () => {
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
+  const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
+  const preview = readFileSync(path.join(repoRoot, "frontend", "full-page-assistant-v2-preview.js"), "utf8");
+
+  assert.match(preview, /Smith & Co\./);
+  assert.doesNotMatch(widget, /Smith & Co\.|smithco\.com/);
+  assert.doesNotMatch(script, /Smith & Co\.|smithco\.com/);
+});
+
+test("production page mode has one quick action row and no launcher controls", () => {
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
+
+  assert.equal((widget.match(/id="quick-replies"/g) || []).length, 1);
+  assert.doesNotMatch(widget, /launcher-button|widget-launcher/i);
+  assert.doesNotMatch(widget, /close-modal|minimize/i);
+});
+
+test("dashboard install iframe uses compact embedded page mode while QR stays hosted", () => {
+  const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+
+  assert.match(dashboard, /function buildFullPageAssistantUrl/);
+  assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
+  assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
+  assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
+  assert.match(dashboard, /Use this as a support page, booking\/help page, menu link, or QR destination\./);
 });

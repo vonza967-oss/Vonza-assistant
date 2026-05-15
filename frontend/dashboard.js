@@ -2678,6 +2678,18 @@ function buildFullPageAssistantUrl(agent = {}) {
   return url.toString();
 }
 
+function buildEmbeddedFullPageAssistantUrl(agent = {}) {
+  const url = new URL("/widget", getPublicAppUrl());
+  if (trimText(agent.id)) {
+    url.searchParams.set("agent_id", agent.id);
+  } else if (trimText(agent.publicAgentKey)) {
+    url.searchParams.set("agent_key", agent.publicAgentKey);
+  }
+  url.searchParams.set("mode", "page");
+  url.searchParams.set("embedded", "1");
+  return url.toString();
+}
+
 function buildFullPageQrEndpoint(agent = {}) {
   const agentId = trimText(agent.id);
 
@@ -2693,7 +2705,7 @@ function buildFullPageQrEndpoint(agent = {}) {
 
 function buildFullPageAssistantIframe(agent = {}) {
   return `<iframe
-  src="${buildFullPageAssistantUrl(agent)}"
+  src="${buildEmbeddedFullPageAssistantUrl(agent)}"
   title="${escapeHtml(trimText(agent.assistantName || agent.name) || "Business assistant")}"
   style="width:100%;min-height:760px;border:0;background:transparent;"
   loading="lazy"
@@ -14692,7 +14704,7 @@ function buildInstallSection(agent, options = {}) {
       key: "page",
       icon: "frontdesk",
       title: "Full-page assistant",
-      copy: "Share a support, booking, help, or quote page.",
+      copy: "Share a support, booking, help, menu, or QR page.",
     },
     {
       key: "qr",
@@ -14787,7 +14799,7 @@ function buildInstallSection(agent, options = {}) {
       <section class="install-option-card" id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden>
         <p class="install-option-eyebrow">Full-page assistant</p>
         <h3 class="install-option-title">Full-page assistant</h3>
-        <p class="install-option-copy">Use this as a support page, booking/help page, menu link, quote page, or QR destination.</p>
+        <p class="install-option-copy">Use this as a support page, booking/help page, menu link, or QR destination.</p>
         <div class="install-copy-field">
           <label for="full-page-assistant-url">Full-page URL</label>
           <textarea id="full-page-assistant-url" class="full-page-url-output" rows="2" readonly>${escapeHtml(fullPageUrl)}</textarea>

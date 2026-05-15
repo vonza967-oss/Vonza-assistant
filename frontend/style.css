@@ -1337,6 +1337,10 @@ input:focus-visible {
   font-size: 0.78rem;
 }
 
+.page-powered-by {
+  display: none;
+}
+
 .identity-reset-button {
   justify-self: center;
   min-height: 30px;
@@ -1533,4 +1537,341 @@ body.embedded .composer-shell {
 html.embedded-mode .composer-hint,
 body.embedded .composer-hint {
   display: none;
+}
+
+html.vonza-mode-page body {
+  color: #14201f;
+  background: linear-gradient(180deg, #fbfcfc 0%, #f6f7f7 100%);
+}
+
+html.vonza-mode-page .app-shell {
+  max-width: 1240px;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+  gap: 20px;
+  padding: clamp(18px, 3vw, 34px) 18px 22px;
+}
+
+html.vonza-mode-page .page-assistant-hero:not([hidden]) {
+  gap: 20px;
+}
+
+html.vonza-mode-page .page-business-header,
+html.vonza-mode-page .page-context-panel,
+html.vonza-mode-page .chat-container,
+html.vonza-mode-page .assistant-state {
+  border: 1px solid rgba(15, 31, 29, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 42px rgba(18, 32, 31, 0.08);
+}
+
+html.vonza-mode-page .page-business-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.page-business-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+html.vonza-mode-page .page-business-mark {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--brand-primary) 11%, #ffffff 89%);
+  border-color: color-mix(in srgb, var(--brand-primary) 22%, #e5e7eb 78%);
+  color: var(--brand-ink);
+  font-size: 1rem;
+}
+
+html.vonza-mode-page .page-business-heading h1 {
+  margin: 2px 0 0;
+  color: #14201f;
+  font-size: clamp(1.08rem, 2vw, 1.32rem);
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+html.vonza-mode-page .page-assistant-eyebrow {
+  color: #63706e;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.page-online-status {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 18%, #e5e7eb 82%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary) 8%, #ffffff 92%);
+  color: color-mix(in srgb, var(--brand-primary) 70%, #14201f 30%);
+  font-size: 0.79rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+html.vonza-mode-page .page-context-panel {
+  align-content: start;
+  gap: clamp(18px, 3vw, 26px);
+  min-height: 620px;
+  padding: clamp(24px, 4vw, 42px);
+}
+
+html.vonza-mode-page .page-context-panel h2 {
+  max-width: 680px;
+  color: #14201f;
+  font-size: clamp(2.35rem, 6vw, 4.25rem);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+html.vonza-mode-page .page-context-panel #page-assistant-subtitle {
+  max-width: 640px;
+  color: #63706e;
+  font-size: clamp(1rem, 2vw, 1.12rem);
+}
+
+html.vonza-mode-page .page-action-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+html.vonza-mode-page .page-action-card {
+  min-height: 78px;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  padding: 17px;
+  background: #fbfcfc;
+  border-color: rgba(15, 31, 29, 0.1);
+}
+
+html.vonza-mode-page .page-action-card:hover,
+html.vonza-mode-page .page-action-card:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-primary) 34%, #d0d5dd 66%);
+  background: color-mix(in srgb, var(--brand-primary) 5%, #ffffff 95%);
+}
+
+html.vonza-mode-page .page-action-label {
+  color: #14201f;
+  font-size: 0.98rem;
+  font-weight: 900;
+}
+
+.page-action-copy {
+  color: #63706e;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+html.vonza-mode-page .page-trust-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: auto;
+}
+
+html.vonza-mode-page .page-trust-row span {
+  justify-content: center;
+  min-height: 48px;
+  border: 1px solid rgba(15, 31, 29, 0.1);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #40504e;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+html.vonza-mode-page .chat-container {
+  min-height: 720px;
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+html.vonza-mode-page .chat-container::before {
+  display: none;
+}
+
+html.vonza-mode-page .chat-header {
+  background: #ffffff;
+  color: #14201f;
+}
+
+html.vonza-mode-page .brand {
+  align-items: center;
+}
+
+html.vonza-mode-page h1 {
+  letter-spacing: 0;
+}
+
+html.vonza-mode-page .brand-copy {
+  gap: 3px;
+}
+
+html.vonza-mode-page .brand-copy h1 {
+  color: #14201f;
+  font-size: 1.08rem;
+  line-height: 1.18;
+}
+
+html.vonza-mode-page .status-pill {
+  font-size: 0.8rem;
+  font-weight: 750;
+}
+
+html.vonza-mode-page .chat-feed {
+  background: linear-gradient(180deg, #fbfcfc, #f6f8f8);
+}
+
+html.vonza-mode-page .welcome-panel {
+  background: #ffffff;
+}
+
+html.vonza-mode-page .welcome-title {
+  letter-spacing: 0;
+}
+
+html.vonza-mode-page .bubble {
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+html.vonza-mode-page .message.bot .bubble,
+html.vonza-mode-page .message.intro .bubble,
+html.vonza-mode-page .message.user .bubble {
+  border-radius: 8px;
+}
+
+html.vonza-mode-page .message.user .bubble {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+html.vonza-mode-page .message.user .message-label {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+html.vonza-mode-page .quick-replies {
+  padding-bottom: 4px;
+}
+
+html.vonza-mode-page .quick-reply-chip {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary) 6%, #ffffff 94%);
+  border-color: color-mix(in srgb, var(--brand-primary) 18%, #e5e7eb 82%);
+  color: color-mix(in srgb, var(--brand-primary) 65%, #14201f 35%);
+}
+
+html.vonza-mode-page .identity-reset-button {
+  justify-self: center;
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+}
+
+html.vonza-mode-page .powered-by {
+  font-weight: 700;
+}
+
+html.vonza-mode-page .page-powered-by {
+  display: block;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #8a9492;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+html.vonza-mode-page.embedded-mode body,
+html.vonza-mode-page body.embedded {
+  background: #ffffff;
+  overflow: hidden;
+}
+
+html.vonza-mode-page.embedded-mode .app-shell,
+html.vonza-mode-page body.embedded .app-shell {
+  min-height: 100%;
+  height: 100%;
+  max-width: none;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+html.vonza-mode-page.embedded-mode .page-assistant-hero:not([hidden]),
+html.vonza-mode-page body.embedded .page-assistant-hero:not([hidden]) {
+  display: block;
+}
+
+html.vonza-mode-page.embedded-mode .page-context-panel,
+html.vonza-mode-page body.embedded .page-context-panel {
+  display: none;
+}
+
+html.vonza-mode-page.embedded-mode .page-business-header,
+html.vonza-mode-page body.embedded .page-business-header {
+  border: 0;
+  border-bottom: 1px solid rgba(15, 31, 29, 0.1);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.vonza-mode-page.embedded-mode .chat-container,
+html.vonza-mode-page body.embedded .chat-container {
+  min-height: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+html.vonza-mode-page.embedded-mode .chat-header,
+html.vonza-mode-page body.embedded .chat-header {
+  display: none;
+}
+
+html.vonza-mode-page.embedded-mode .page-powered-by,
+html.vonza-mode-page body.embedded .page-powered-by {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  html.vonza-mode-page .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  html.vonza-mode-page .page-context-panel {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  html.vonza-mode-page .page-business-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  html.vonza-mode-page .page-trust-row {
+    grid-template-columns: 1fr;
+  }
+
+  html.vonza-mode-page .chat-container {
+    min-height: min(680px, calc(100vh - 32px));
+  }
 }

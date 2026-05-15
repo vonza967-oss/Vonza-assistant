@@ -80,10 +80,11 @@ const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
   "How can I contact you?",
   "Can I book a time?",
 ]);
-const PAGE_EXAMPLE_QUESTIONS = Object.freeze([
-  "Tell me which service fits my situation.",
-  "Share pricing, availability, or booking details.",
-  "Help me leave my contact details for follow-up.",
+const PAGE_ACTION_CARDS = Object.freeze([
+  ["Request a quote", "Share what you need so the business can follow up with the right details."],
+  ["Book a time", "Ask about appointments, calls, visits, or the best next step."],
+  ["Ask about pricing", "Get guidance on typical costs, scope, and what affects price."],
+  ["Contact details", "Find the best way to reach the team or leave your details."],
 ]);
 
 const conversationHistory = [];
@@ -423,7 +424,15 @@ function getBusinessDisplayName(business = null, config = widgetConfig) {
   );
   const assistantName = trimText(config.assistantName);
 
-  return configuredBusinessName || assistantName || DEFAULT_WIDGET_CONFIG.assistantName;
+  if (configuredBusinessName) {
+    return configuredBusinessName;
+  }
+
+  if (assistantName && (config._hasExplicitAssistantName || !isPageMode())) {
+    return assistantName;
+  }
+
+  return isPageMode() ? "Assistant" : DEFAULT_WIDGET_CONFIG.assistantName;
 }
 
 function getBusinessDomainLabel(business = null) {
@@ -460,9 +469,11 @@ function hasAssistantConfig() {
 }
 
 function normalizeWidgetConfig(input = {}) {
+  const explicitAssistantName = trimText(input.assistantName || input.assistant_name);
   const next = {
     ...DEFAULT_WIDGET_CONFIG,
     ...input,
+    _hasExplicitAssistantName: Boolean(explicitAssistantName),
   };
   const primaryColor = normalizeHexColor(next.primaryColor);
   const secondaryColor = normalizeHexColor(next.secondaryColor);
@@ -558,10 +569,10 @@ function setPageShellState(state, details = {}) {
     const titleEl = document.getElementById("assistant-unavailable-title");
     const copyEl = document.getElementById("assistant-unavailable-copy");
     if (titleEl) {
-      titleEl.textContent = details.title || "This assistant is not available right now.";
+      titleEl.textContent = details.title || "Assistant unavailable";
     }
     if (copyEl) {
-      copyEl.textContent = details.copy || "Please check the link or try again later.";
+      copyEl.textContent = details.copy || "This assistant is not available right now. Please contact the business directly.";
     }
   }
 }
@@ -571,28 +582,28 @@ function getFriendlyUnavailableState(error = null) {
 
   if (statusCode === 404) {
     return {
-      title: "This assistant is not available right now.",
-      copy: "The link may have changed, or the assistant may not be available yet.",
+      title: "Assistant unavailable",
+      copy: "This assistant is not available right now. Please contact the business directly.",
     };
   }
 
   if (statusCode === 403) {
     return {
-      title: "This assistant cannot open here.",
-      copy: "Please use the assistant page provided by the business.",
+      title: "Assistant unavailable",
+      copy: "This assistant is not available right now. Please contact the business directly.",
     };
   }
 
   if (statusCode === 400) {
     return {
-      title: "This assistant link is incomplete.",
-      copy: "Please check the link and try again.",
+      title: "Assistant unavailable",
+      copy: "This assistant is not available right now. Please contact the business directly.",
     };
   }
 
   return {
-    title: "We couldn't open this assistant.",
-    copy: "Please refresh the page or try again later.",
+    title: "Assistant unavailable",
+    copy: "This assistant is not available right now. Please contact the business directly.",
   };
 }
 
@@ -603,13 +614,11 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   const displayName = getBusinessDisplayName(business, config);
   const assistantName = trimText(config.assistantName) || displayName || DEFAULT_WIDGET_CONFIG.assistantName;
-  const assistantDisplayName = assistantName === DEFAULT_WIDGET_CONFIG.assistantName ? displayName : assistantName;
+  const assistantDisplayName = config._hasExplicitAssistantName ? assistantName : displayName;
   const domain = getBusinessDomainLabel(business);
-  const hasNamedBrand = displayName && displayName !== DEFAULT_WIDGET_CONFIG.assistantName;
   const customLogoUrl = trimText(config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
   const subtitle = "Ask about services, pricing, bookings, quotes, or contact details.";
-  const businessNameEl = document.getElementById("page-business-name");
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
   const domainEl = document.getElementById("page-business-domain");
@@ -618,7 +627,6 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const pageLogo = document.getElementById("page-business-logo");
   const pageInitial = document.getElementById("page-business-initial");
   const pageActionList = document.getElementById("page-action-list");
-  const pageQuestionExamples = document.getElementById("page-question-examples");
   const chatAssistantNameEl = document.getElementById("assistant-name");
   const launcherTextEl = document.getElementById("launcher-text");
   const welcomeAssistantNameEl = document.getElementById("welcome-assistant-name");
@@ -637,12 +645,6 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   document.title = displayName;
 
-  if (businessNameEl) {
-    businessNameEl.textContent = hasNamedBrand
-      ? `Ask ${displayName} anything, or leave your details for follow-up.`
-      : "Ask us anything, or leave your details for follow-up.";
-  }
-
   if (assistantNameEl) {
     assistantNameEl.textContent = displayName;
   }
@@ -652,7 +654,8 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (domainEl) {
-    domainEl.textContent = domain || "Business assistant";
+    domainEl.textContent = domain || "";
+    domainEl.hidden = !domain;
   }
 
   if (helpTitleEl) {
@@ -671,18 +674,11 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (pageActionList) {
-    const labels = getQuickReplyTopics(config).slice(0, 4);
-    pageActionList.innerHTML = labels.map((topic) => `
+    pageActionList.innerHTML = PAGE_ACTION_CARDS.map(([topic, copy]) => `
       <button class="page-action-card" type="button" data-page-quick-action="${escapeHtml(topic)}">
         <span class="page-action-label">${escapeHtml(topic)}</span>
-        <span class="page-action-arrow" aria-hidden="true">›</span>
+        <span class="page-action-copy">${escapeHtml(copy)}</span>
       </button>
-    `).join("");
-  }
-
-  if (pageQuestionExamples) {
-    pageQuestionExamples.innerHTML = PAGE_EXAMPLE_QUESTIONS.map((question) => `
-      <li>${escapeHtml(question)}</li>
     `).join("");
   }
 
@@ -1492,8 +1488,8 @@ async function loadWidgetBootstrap() {
   if (!hasAssistantConfig()) {
     if (isPageMode()) {
       setPageShellState("unavailable", {
-        title: "This assistant link is incomplete.",
-        copy: "Please check the link and try again.",
+        title: "Assistant unavailable",
+        copy: "This assistant is not available right now. Please contact the business directly.",
       });
       return;
     }
@@ -1920,8 +1916,8 @@ syncWidgetPhaseWithIdentity(visitorIdentity);
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 if (isPageMode()) {
   setPageShellState(hasAssistantConfig() ? "loading" : "unavailable", {
-    title: "This assistant link is incomplete.",
-    copy: "Please check the link and try again.",
+    title: "Assistant unavailable",
+    copy: "This assistant is not available right now. Please contact the business directly.",
   });
 }
 loadWidgetBootstrap();

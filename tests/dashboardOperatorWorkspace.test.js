@@ -3201,8 +3201,8 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(markup, /id="install-panel-widget"/);
   assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
-  assert.match(markup, /Use this as a support page, booking\/help page, menu link, quote page, or QR destination\./);
-  assert.match(markup, /Share a support, booking, help, or quote page\./);
+  assert.match(markup, /Use this as a support page, booking\/help page, menu link, or QR destination\./);
+  assert.match(markup, /Share a support, booking, help, menu, or QR page\./);
   assert.match(markup, /Use the full-page assistant QR code on menus, reception desks, flyers, and signs\./);
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
