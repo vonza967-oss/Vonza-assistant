@@ -6811,7 +6811,7 @@ body {
 
 .install-options-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-top: 18px;
 }
@@ -6825,6 +6825,10 @@ body {
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
   box-shadow: var(--surface-highlight);
+}
+
+.install-option-card[hidden] {
+  display: none;
 }
 
 .install-option-eyebrow {
@@ -14233,11 +14237,31 @@ select:focus-visible {
   gap: 14px;
   align-items: center;
   padding: 18px;
+  width: 100%;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  box-shadow: none;
 }
 
 .install-method-card.active {
   border-color: rgba(15, 143, 127, 0.42);
   background: linear-gradient(180deg, #ffffff, #f4fbf9);
+}
+
+.install-method-card:focus-visible {
+  outline: 3px solid rgba(15, 143, 127, 0.22);
+  outline-offset: 2px;
+}
+
+.install-method-card:hover {
+  border-color: rgba(15, 143, 127, 0.3);
+  background: #f8fcfb;
 }
 
 .install-method-icon {
@@ -14267,11 +14291,6 @@ select:focus-visible {
 .install-method-copy small {
   color: var(--dashboard-muted);
   line-height: 1.4;
-}
-
-.install-method-copy em {
-  width: fit-content;
-  font-style: normal;
 }
 
 .install-status-card {
@@ -18083,12 +18102,17 @@ html[data-dashboard-theme="dark"] select {
   }
 
   .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-meta-grid,
-  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-checklist,
-  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-options-grid {
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-checklist {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     align-items: start;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-options-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-step {

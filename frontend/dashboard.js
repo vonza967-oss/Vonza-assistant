@@ -4368,15 +4368,6 @@ function buildSidebarShell(
 ) {
   const availableSections = getAvailableShellSections(operatorWorkspace);
   const installStatus = getDefaultInstallStatus(agent);
-  const billing = operatorWorkspace.billing || createEmptyOperatorWorkspace().billing;
-  const billingUsage = billing.usage || createEmptyOperatorWorkspace().billing.usage;
-  const billingUsagePercent = Math.min(100, Math.max(0, Number(billingUsage.percentUsed || 0) || 0));
-  const hasRealBillingData = billing.hasActiveSubscription === true;
-  const billingUsageLabel = billingUsage.includedCents
-    ? `${formatAnalyticsReportNumber(Math.round(Number(billingUsage.usedCents || 0) / 100))} / ${formatAnalyticsReportNumber(Math.round(Number(billingUsage.includedCents || 0) / 100))} AI credits`
-    : billingUsage.statusLabel || "Monthly usage will appear here";
-  const billingPlanLabel = trimText(billing.displayName || "Current plan");
-  const billingPlanTitle = /\bplan\b/i.test(billingPlanLabel) ? billingPlanLabel : `${billingPlanLabel} Plan`;
   const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
   const accountInitials = trimText(accountLabel)
     ? trimText(accountLabel).slice(0, 2).toUpperCase()
@@ -4391,21 +4382,6 @@ function buildSidebarShell(
     : setup.knowledgeLimited
       ? "Website learning"
       : "Add website details";
-  const billingPlanMarkup = hasRealBillingData
-    ? `
-        <div class="sidebar-plan-card">
-          <div class="sidebar-plan-card-head">
-            <strong>${escapeHtml(billingPlanTitle)}</strong>
-            <span class="${getBadgeClass("Ready")}">Active</span>
-          </div>
-          <p>${escapeHtml(billingUsage.statusLabel || billing.monthlyPriceLabel || "Monthly AI capacity")}</p>
-          <div class="sidebar-plan-meter" aria-label="Monthly AI usage">
-            <span style="width:${escapeHtml(String(billingUsagePercent))}%"></span>
-          </div>
-          <small>${escapeHtml(billingUsageLabel)}</small>
-        </div>
-      `
-    : "";
   const coreItems = [
     {
       key: "overview",
@@ -4474,7 +4450,6 @@ function buildSidebarShell(
             <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
           </div>
         </div>
-        ${billingPlanMarkup}
         ${buildSidebarGroup(t("nav.utilities"), utilityItems, activeSection)}
         <div class="sidebar-user-card">
           <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
@@ -6019,7 +5994,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
           ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
           ${!contacts.length ? buildOperatorEmptyState({
             title: "No customer conversations yet.",
-            copy: "Install Vonza or open your assistant preview to start testing.",
+            copy: "Customer conversations, leads, and follow-up context will appear here after visitors contact the business.",
           }) : peopleWorkspaceMarkup}
         </div>
       </div>
@@ -9060,28 +9035,37 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
         </section>
         <div class="frontdesk-side-stack">
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">Before you go live</h3>
+            <h3 class="studio-group-title">Install help</h3>
             <div class="overview-list">
               <div class="overview-list-item">
-                <p class="overview-list-title">Preview confidence</p>
-                <p class="overview-list-copy">${escapeHtml(trimText(agent.publicAgentKey) ? "Preview is available, so you can test the customer-facing flow before launch." : "Preview will appear as soon as the front desk has a public key.")}</p>
+                <p class="overview-list-title">Website widget</p>
+                <p class="overview-list-copy">Paste the snippet into the live site head or global custom code area, then verify the install.</p>
               </div>
               <div class="overview-list-item">
-                <p class="overview-list-title">Website knowledge</p>
-                <p class="overview-list-copy">${escapeHtml(setup.knowledgeDescription)}</p>
+                <p class="overview-list-title">Full-page assistant</p>
+                <p class="overview-list-copy">Use the full-page URL for menus, support links, booking pages, or a standalone help page.</p>
               </div>
               <div class="overview-list-item">
-                <p class="overview-list-title">Allowed domains</p>
-                <p class="overview-list-copy">${escapeHtml((installStatus.allowedDomains || []).length ? installStatus.allowedDomains.join(", ") : "No domains saved yet.")}</p>
+                <p class="overview-list-title">QR code</p>
+                <p class="overview-list-copy">Download the QR code after the full-page assistant URL is available.</p>
               </div>
             </div>
           </section>
           <section class="workspace-card-soft">
-            <h3 class="studio-group-title">After install is detected</h3>
-            <p class="studio-group-copy">Home and Analytics become more trustworthy once live page loads, customer questions, and real conversion paths start flowing through the same shell.</p>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" data-shell-target="overview">Open Home</button>
-              <button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>
+            <h3 class="studio-group-title">Domain checks</h3>
+            <div class="overview-list">
+              <div class="overview-list-item">
+                <p class="overview-list-title">Allowed domains</p>
+                <p class="overview-list-copy">${escapeHtml((installStatus.allowedDomains || []).length ? installStatus.allowedDomains.join(", ") : "No domains saved yet.")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Detected domain</p>
+                <p class="overview-list-copy">${escapeHtml(installStatus.host || "No live domain detected yet.")}</p>
+              </div>
+              <div class="overview-list-item">
+                <p class="overview-list-title">Verification target</p>
+                <p class="overview-list-copy">${escapeHtml(installStatus.verificationTargetUrl || agent.websiteUrl || "Add a website URL before verification.")}</p>
+              </div>
             </div>
           </section>
         </div>
@@ -13276,7 +13260,7 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
     }
 
     if (action.type === "install") {
-      return `<button class="${options.primary ? "primary-button" : "ghost-button"}" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${action.label}</button>`;
+      return `<button class="${options.primary ? "primary-button" : "ghost-button"}" type="button" data-overview-focus="install">${escapeHtml(action.label || "Open install")}</button>`;
     }
 
     if (action.type === "preview") {
@@ -14643,9 +14627,6 @@ function buildPreviewSection(agent, setup) {
 function buildInstallSection(agent, options = {}) {
   const {
     upcoming = false,
-    messages = [],
-    actionQueue = createEmptyActionQueue(),
-    setup = {},
   } = options;
   const hasInstall = Boolean(trimText(agent.installId));
   const progress = getInstallProgress(agent.id);
@@ -14655,12 +14636,6 @@ function buildInstallSection(agent, options = {}) {
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
-  const normalizedMessages = Array.isArray(messages) ? messages : [];
-  const hasUserMessage = normalizedMessages.some((message) => trimText(message.role).toLowerCase() === "user");
-  const hasAssistantMessage = normalizedMessages.some((message) => trimText(message.role).toLowerCase() === "assistant");
-  const firstTestConversationDone = hasUserMessage && hasAssistantMessage;
-  const widgetConfigured = Boolean(trimText(agent.assistantName || agent.name) && trimText(agent.welcomeMessage) && trimText(agent.buttonLabel));
-  const knowledgeImported = setup.knowledgeReady === true || ["ready", "limited"].includes(trimText(agent.knowledge?.state).toLowerCase());
   const statusCopy = installStatus.state === "seen_recently"
     ? `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`
     : installStatus.state === "seen_stale"
@@ -14674,84 +14649,29 @@ function buildInstallSection(agent, options = {}) {
             : "Not installed yet. Paste the head snippet onto the live site, then run verification.";
   const publishDone = isInstallDetected(installStatus) || progress.installed;
   const verifyDone = isInstallSeen(installStatus) || installStatus.state === "installed_unseen";
-  const checklist = [
-    {
-      title: "Assistant created",
-      copy: trimText(agent.publicAgentKey) ? "The customer-facing assistant exists and has a preview key." : "Finish setup so Vonza can create the assistant preview.",
-      done: Boolean(trimText(agent.id || agent.publicAgentKey)),
-      doneLabel: "Ready",
-    },
-    {
-      title: "Website knowledge imported",
-      copy: knowledgeImported ? setup.knowledgeDescription || "Website knowledge is available." : "Import website knowledge before launch so answers stay grounded.",
-      done: knowledgeImported,
-      doneLabel: "Imported",
-    },
-    {
-      title: "Widget configured",
-      copy: widgetConfigured ? "Assistant name, welcome message, and launcher text are set." : "Set the visible assistant name, welcome message, and launcher text.",
-      done: widgetConfigured,
-      doneLabel: "Configured",
-    },
-    {
-      title: "Install snippet available",
-      copy: hasInstall ? "The current install snippet is ready to copy." : "Vonza will show the snippet once the assistant has an install id.",
-      done: hasInstall,
-      doneLabel: "Available",
-    },
-    {
-      title: "Widget detected / verified",
-      copy: verifyDone ? installStatus.label || "The live install has been detected." : "Run verification after publishing the snippet.",
-      done: verifyDone,
-      doneLabel: isInstallSeen(installStatus) ? "Live" : "Verified",
-    },
-    {
-      title: "First test conversation complete",
-      copy: firstTestConversationDone ? "A stored visitor and assistant exchange exists." : "Ask one sample question in preview or on the live widget after install.",
-      done: firstTestConversationDone,
-      doneLabel: "Complete",
-    },
-  ];
-  const nextBestStep = !hasInstall
+  const nextInstallStep = !hasInstall
     ? {
-      title: "Next best step: finish assistant setup",
-      copy: "Complete the Front Desk setup so Vonza can generate the install snippet.",
+      title: "Install code is not ready yet",
+      copy: "Finish the Front Desk setup so Vonza can generate the install id and snippet.",
       action: `<button class="ghost-button" type="button" data-shell-target="customize">Open Front Desk</button>`,
     }
     : !publishDone
       ? {
-        title: "Next best step: publish the snippet",
+        title: "Publish the widget snippet",
         copy: "Copy the install code and paste it into the live site head or global custom code area.",
         action: `<button class="primary-button" type="button" data-action="copy-install">Copy install code</button>`,
       }
       : !verifyDone
         ? {
-          title: "Next best step: verify install",
+          title: "Verify the live install",
           copy: "Run the server-side verification so the dashboard can confirm the snippet on the expected website.",
           action: `<button class="primary-button" type="button" data-action="verify-install">Verify installation</button>`,
         }
-        : !firstTestConversationDone
-          ? {
-            title: "Next best step: ask a sample question",
-            copy: "Open the widget and ask a realistic customer question so Home and Analytics have the first conversation to review.",
-            action: `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Test widget</a>`,
-          }
-          : Number(actionQueue.summary?.attentionNeeded || 0) > 0
-            ? {
-              title: "Next best step: review first customer conversations",
-              copy: "Home already has conversations needing owner attention. Review them before adding more setup changes.",
-              action: `<button class="ghost-button" type="button" data-shell-target="overview">Open Home</button>`,
-            }
-            : {
-              title: "Next best step: improve knowledge if answers get weak",
-              copy: "Install is live. Watch Analytics for weak-answer feedback and review repeated gaps in the follow-up workflow.",
-              action: `<button class="ghost-button" type="button" data-shell-target="analytics">Open Analytics</button>`,
-            };
-  const liveConfirmationMarkup = isInstallSeen(installStatus)
-    ? `<div class="placeholder-card">You are live. Vonza has received a real widget ping from ${escapeHtml(installStatus.host || "your website")}; next, test one customer question and watch Home for weak answers, leads, and follow-up needs.</div>`
-    : installStatus.state === "installed_unseen"
-      ? `<div class="placeholder-card">Snippet verified. Open the live site once with the widget visible so Vonza can receive its first real page-load ping.</div>`
-      : `<div class="placeholder-card">Setup path: copy the code, publish it in the live site head, run verification, then test the front desk as a customer.</div>`;
+        : {
+          title: "Test the installed assistant",
+          copy: "Open the installed widget or full-page assistant and confirm the public experience loads from the expected domain.",
+          action: `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Test install</a>`,
+        };
   const recentSeenMarkup = installStatus.lastSeenUrl
     ? `<p class="install-help">Last seen page: ${escapeHtml(installStatus.lastSeenUrl)}</p>`
     : "";
@@ -14763,40 +14683,43 @@ function buildInstallSection(agent, options = {}) {
     : "";
   const methodCards = [
     {
+      key: "widget",
       icon: "install",
       title: "Widget",
       copy: "Embed the Vonza widget on your website.",
-      tag: hasInstall ? "Recommended" : "Waiting for setup",
-      tone: hasInstall ? "Ready" : "Pending",
     },
     {
+      key: "page",
       icon: "frontdesk",
       title: "Full-page assistant",
       copy: "Share a support, booking, help, or quote page.",
-      tag: fullPageUrl ? "Ready to share" : "Needs assistant URL",
-      tone: fullPageUrl ? "Ready" : "Pending",
     },
     {
+      key: "qr",
       icon: "review",
       title: "QR code",
       copy: "Create QR touchpoints for any channel.",
-      tag: fullPageUrl ? "Print and download" : "Needs assistant URL",
-      tone: fullPageUrl ? "Ready" : "Pending",
     },
   ];
 
   return `
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
-    <div class="install-method-grid" aria-label="Installation methods">
+    <div class="install-method-grid" role="tablist" aria-label="Installation methods">
       ${methodCards.map((item, index) => `
-        <article class="install-method-card ${index === 0 ? "active" : ""}">
+        <button
+          class="install-method-card ${index === 0 ? "active" : ""}"
+          type="button"
+          role="tab"
+          aria-selected="${index === 0 ? "true" : "false"}"
+          aria-controls="install-panel-${escapeHtml(item.key)}"
+          data-install-method-tab="${escapeHtml(item.key)}"
+        >
           <span class="install-method-icon" aria-hidden="true">${getUiIconMarkup(item.icon)}</span>
           <span class="install-method-copy">
             <strong>${escapeHtml(item.title)}</strong>
             <small>${escapeHtml(item.copy)}</small>
-            <em class="${getBadgeClass(item.tone)}">${escapeHtml(item.tag)}</em>
           </span>
-        </article>
+        </button>
       `).join("")}
     </div>
     <section class="install-status-card">
@@ -14807,7 +14730,6 @@ function buildInstallSection(agent, options = {}) {
       </div>
       <span class="${getBadgeClass(isInstallSeen(installStatus) ? "Ready" : verifyDone ? "Limited" : "Pending")}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : verifyDone ? "Verified" : "Not live yet")}</span>
     </section>
-    ${liveConfirmationMarkup}
     <div class="install-meta-grid">
       ${allowedDomains.length ? `<p class="install-help"><strong>Allowed domains</strong>${escapeHtml(allowedDomains.join(", "))}</p>` : ""}
       ${recentSeenMarkup}
@@ -14815,25 +14737,13 @@ function buildInstallSection(agent, options = {}) {
       ${mismatchMarkup}
     </div>
     <div class="install-next-step">
-      <p class="install-next-step-title">${escapeHtml(nextBestStep.title)}</p>
-      <p class="install-next-step-copy">${escapeHtml(nextBestStep.copy)}</p>
-      <div class="install-cta-row">${nextBestStep.action}</div>
-    </div>
-    <div class="install-checklist" aria-label="Setup checklist">
-      ${checklist.map((item, index) => `
-        <div class="install-step">
-          <div class="install-step-number">${index + 1}</div>
-          <div>
-            <p class="install-step-title">${escapeHtml(item.title)}</p>
-            <p class="install-step-copy">${escapeHtml(item.copy)}</p>
-          </div>
-          <div class="step-check ${item.done ? "done" : ""}">${escapeHtml(item.done ? item.doneLabel : "Pending")}</div>
-        </div>
-      `).join("")}
+      <p class="install-next-step-title">${escapeHtml(nextInstallStep.title)}</p>
+      <p class="install-next-step-copy">${escapeHtml(nextInstallStep.copy)}</p>
+      <div class="install-cta-row">${nextInstallStep.action}</div>
     </div>
     <div class="install-options-grid">
-      <section class="install-option-card">
-        <p class="install-option-eyebrow">A. Website widget</p>
+      <section class="install-option-card active" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget">
+        <p class="install-option-eyebrow">Website widget</p>
         <h3 class="install-option-title">Website widget</h3>
         <p class="install-option-copy">Add the Vonza launcher to your website so visitors can ask questions while they browse.</p>
         <div class="install-steps" aria-label="Website widget install actions">
@@ -14874,8 +14784,8 @@ function buildInstallSection(agent, options = {}) {
           <textarea id="install-script-output" readonly>${script}</textarea>
         </details>
       </section>
-      <section class="install-option-card">
-        <p class="install-option-eyebrow">B. Full-page assistant</p>
+      <section class="install-option-card" id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden>
+        <p class="install-option-eyebrow">Full-page assistant</p>
         <h3 class="install-option-title">Full-page assistant</h3>
         <p class="install-option-copy">Use this as a support page, booking/help page, menu link, quote page, or QR destination.</p>
         <div class="install-copy-field">
@@ -14889,8 +14799,8 @@ function buildInstallSection(agent, options = {}) {
           <button class="ghost-button" type="button" data-action="copy-full-page-iframe" ${fullPageIframe ? "" : "disabled"}>Copy iframe snippet</button>
         </div>
       </section>
-      <section class="install-option-card install-option-card-qr">
-        <p class="install-option-eyebrow">C. QR code</p>
+      <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
+        <p class="install-option-eyebrow">QR code</p>
         <h3 class="install-option-title">QR touchpoints</h3>
         <p class="install-option-copy">Use the full-page assistant QR code on menus, reception desks, flyers, and signs.</p>
         <div class="install-qr-section">
@@ -16225,6 +16135,35 @@ function downloadFullPageAssistantQr(button) {
   link.click();
   link.remove();
   setStatus("QR code download started.");
+}
+
+function bindInstallMethodTabs() {
+  const tabs = document.querySelectorAll("[data-install-method-tab]");
+  const panels = document.querySelectorAll("[data-install-method-panel]");
+
+  if (!tabs.length || !panels.length) {
+    return;
+  }
+
+  const activateMethod = (method) => {
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.installMethodTab === method;
+      tab.classList.toggle("active", isActive);
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    panels.forEach((panel) => {
+      const isActive = panel.dataset.installMethodPanel === method;
+      panel.hidden = !isActive;
+      panel.classList.toggle("active", isActive);
+    });
+  };
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      activateMethod(tab.dataset.installMethodTab || "widget");
+    });
+  });
 }
 
 function getPreviewFrame() {
@@ -19048,6 +18987,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", () => downloadFullPageAssistantQr(button));
   });
 
+  bindInstallMethodTabs();
   loadFullPageAssistantQr(agent);
 
   verifyInstallButtons.forEach((button) => {

@@ -336,7 +336,55 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
   assert.match(markup, /data-full-page-qr-preview/);
   assert.match(markup, /data-action="download-full-page-qr"/);
   assert.match(markup, /QR scan tracking is not tracked yet/);
+  assert.match(markup, /Install help/);
+  assert.match(markup, /Domain checks/);
+  assert.doesNotMatch(markup, /Open Home/);
+  assert.doesNotMatch(markup, /Open Analytics/);
+  assert.doesNotMatch(markup, /Home already has conversations/);
+  assert.doesNotMatch(markup, /weak-answer feedback/);
+  assert.doesNotMatch(markup, /Setup checklist/);
+  assert.doesNotMatch(markup, /First test conversation complete/);
   assert.doesNotMatch(markup, /cdn\.vonza\.com/);
+});
+
+test("dashboard sections keep section-specific content boundaries", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_PUBLIC_APP_URL: "https://app.example.com",
+    },
+  });
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "public-agent-key",
+    installId: "install-1",
+    websiteUrl: "https://example.com",
+    assistantName: "Example assistant",
+    welcomeMessage: "Welcome",
+    buttonLabel: "Chat",
+    accessStatus: "active",
+    installStatus: {
+      state: "seen_recently",
+      label: "Live install detected",
+      host: "example.com",
+      allowedDomains: ["example.com"],
+      lastSeenAt: "2026-05-10T08:00:00.000Z",
+    },
+  };
+  const setup = harness.inferSetup(agent);
+  const workspace = harness.createEmptyOperatorWorkspace();
+  const actionQueue = harness.createEmptyActionQueue();
+  const home = harness.buildOverviewPanel(agent, [], setup, actionQueue, workspace);
+  const customers = harness.buildContactsPanel(agent, workspace);
+  const analytics = harness.buildAnalyticsPanel(agent, [], setup, actionQueue, workspace);
+  const install = harness.buildInstallPanel(agent, setup, workspace, [], actionQueue);
+  const settings = harness.buildSettingsPanel(agent, setup, workspace);
+
+  assert.doesNotMatch(home, /install-script-output|full-page-assistant-iframe|download-full-page-qr|data-action="copy-install"/);
+  assert.doesNotMatch(customers, /install-script-output|copy-install|download-full-page-qr|Verify installation/);
+  assert.doesNotMatch(analytics, /install-script-output|copy-install|download-full-page-qr|Verify installation/);
+  assert.doesNotMatch(install, /Open Home|Open Analytics|First test conversation complete|Website knowledge imported|weak-answer feedback/);
+  assert.doesNotMatch(settings, /Team access|Invite member|Integrations|No active billing plan data|data-privacy-export|Save privacy preference|install-script-output/);
 });
 
 test("dashboard V2 Analytics source cards render real widget, page, and legacy counts only", () => {
@@ -789,7 +837,7 @@ test("Hungarian dashboard completeness covers Home, Customers, Front Desk, Analy
 
   assert.match(pages.Home, /Nyitott igények áttekintése|Szolgáltatásválaszok javítása/);
   assert.match(pages.Analytics, /Beszélgetések időben/);
-  assert.match(pages.Install, /Élesítés előtt/);
+  assert.match(pages.Install, /Telepítés|Telepítőkód másolása/);
   assert.match(pages.Settings, /Vállalkozási profil/);
 });
 
@@ -807,7 +855,7 @@ test("English dashboard still renders the supported dashboard UI in English", ()
 
   assert.match(settings, /Business profile/);
   assert.match(settings, /Setup status/);
-  assert.match(install, /Before you go live/);
+  assert.match(install, /Install help/);
   assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
 });
@@ -1584,7 +1632,11 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(settings, /Lead capture \/ contact/);
   assert.match(settings, /Booking \/ next step guidance/);
   assert.match(settings, /Assistant behavior/);
-  assert.match(settings, /Account and billing/);
+  assert.doesNotMatch(settings, /Account and billing/);
+  assert.doesNotMatch(settings, /Billing & plan/);
+  assert.doesNotMatch(settings, /No active billing plan data/);
+  assert.doesNotMatch(settings, /data-privacy-export/);
+  assert.doesNotMatch(settings, /Save privacy preference/);
   assert.doesNotMatch(settings, /Primary color/);
   assert.doesNotMatch(settings, /Secondary color/);
   assert.doesNotMatch(settings, /assistant-primary-color/);
@@ -3040,7 +3092,8 @@ test("customers panel uses a polished empty state with no preview customer data"
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
   assert.match(contactsPanel, /No customer conversations yet/);
-  assert.match(contactsPanel, /Install Vonza or open your assistant preview to start testing/);
+  assert.match(contactsPanel, /Customer conversations, leads, and follow-up context will appear here/);
+  assert.doesNotMatch(contactsPanel, /Install Vonza or open your assistant preview to start testing/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
   assert.doesNotMatch(contactsPanel, /fake|mock/i);
 });
@@ -3105,7 +3158,7 @@ test("analytics panel omits standalone knowledge improvement center", () => {
   assert.doesNotMatch(analyticsPanel, /How much does emergency service cost/);
 });
 
-test("install section shows live confirmation and customer-loop next step", () => {
+test("install section stays focused on install methods and verification", () => {
   const harness = createDashboardHarness();
   const markup = harness.buildInstallSection({
     id: "agent-1",
@@ -3120,20 +3173,16 @@ test("install section shows live confirmation and customer-loop next step", () =
     },
   });
 
-  assert.match(markup, /You are live/);
-  assert.match(markup, /test one customer question/);
-  assert.match(markup, /weak answers, leads, and follow-up needs/);
-  assert.match(markup, /Setup checklist/);
-  assert.match(markup, /Assistant created/);
-  assert.match(markup, /Website knowledge imported/);
-  assert.match(markup, /Widget configured/);
-  assert.match(markup, /Install snippet available/);
-  assert.match(markup, /Widget detected \/ verified/);
-  assert.match(markup, /First test conversation complete/);
-  assert.match(markup, /Verify installation/);
-  assert.match(markup, /A\. Website widget/);
-  assert.match(markup, /B\. Full-page assistant/);
-  assert.match(markup, /C\. QR code/);
+  assert.match(markup, /Installation status/);
+  assert.match(markup, /Allowed domains/);
+  assert.match(markup, /Test the installed assistant/);
+  assert.match(markup, /role="tablist"/);
+  assert.match(markup, /data-install-method-tab="widget"/);
+  assert.match(markup, /data-install-method-tab="page"/);
+  assert.match(markup, /data-install-method-tab="qr"/);
+  assert.match(markup, /id="install-panel-widget"/);
+  assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden/);
+  assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
   assert.match(markup, /Use this as a support page, booking\/help page, menu link, quote page, or QR destination\./);
   assert.match(markup, /Share a support, booking, help, or quote page\./);
   assert.match(markup, /Use the full-page assistant QR code on menus, reception desks, flyers, and signs\./);
@@ -3143,6 +3192,15 @@ test("install section shows live confirmation and customer-loop next step", () =
   assert.match(markup, /data-full-page-qr-preview/);
   assert.match(markup, /Download QR code/);
   assert.match(markup, /Print this QR code or place it on menus, reception desks, flyers, and signs\./);
+  assert.doesNotMatch(markup, /You are live/);
+  assert.doesNotMatch(markup, /weak answers, leads, and follow-up needs/);
+  assert.doesNotMatch(markup, /Setup checklist/);
+  assert.doesNotMatch(markup, /Assistant created/);
+  assert.doesNotMatch(markup, /Website knowledge imported/);
+  assert.doesNotMatch(markup, /Widget configured/);
+  assert.doesNotMatch(markup, /First test conversation complete/);
+  assert.doesNotMatch(markup, /Open Home/);
+  assert.doesNotMatch(markup, /Open Analytics/);
   assert.doesNotMatch(markup, /QR code option coming soon\./);
   assert.doesNotMatch(markup, /TODO/);
 });
@@ -3158,9 +3216,9 @@ test("install section falls back to widget page URL when public slug is missing"
     },
   });
 
-  assert.match(markup, /A\. Website widget/);
-  assert.match(markup, /B\. Full-page assistant/);
-  assert.match(markup, /C\. QR code/);
+  assert.match(markup, /data-install-method-tab="widget"/);
+  assert.match(markup, /data-install-method-tab="page"/);
+  assert.match(markup, /data-install-method-tab="qr"/);
   assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/widget\?agent_id=agent-1&amp;mode=page/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);

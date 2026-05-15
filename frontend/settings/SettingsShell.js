@@ -2,22 +2,39 @@
   const SETTINGS_STORAGE_KEY = "vonza_dashboard_settings_section";
   const SETTINGS_SECTION_DETAILS = [
     {
-      key: "business",
-      label: "Business profile",
-      note: "Services, pricing, policies, and customer-service context.",
+      key: "general",
+      label: "General",
+      note: "Assistant name, tone, launcher text, and basic branding.",
     },
     {
       key: "front_desk",
-      label: "Assistant behavior",
-      note: "Identity, routing, website knowledge, and customer-facing behavior.",
+      label: "Front Desk",
+      note: "Customer-facing behavior, welcome, routing, and launch readiness.",
     },
     {
-      key: "workspace",
-      label: "Account and billing",
-      note: "Access, billing, language, theme, and legal links.",
+      key: "business_profile",
+      label: "Business Profile",
+      note: "Business facts Vonza uses to answer customer questions.",
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
+  const SETTINGS_SECTION_ALIASES = Object.freeze({
+    assistant: "general",
+    branding: "general",
+    workspace_preferences: "general",
+    customize: "front_desk",
+    widget: "front_desk",
+    business: "business_profile",
+    business_context: "business_profile",
+    profile: "business_profile",
+    workspace: "business_profile",
+    account: "business_profile",
+    account_billing: "business_profile",
+    privacy: "business_profile",
+    privacy_controls: "business_profile",
+    connected_tools: "front_desk",
+    integrations: "front_desk",
+  });
   const DEFAULT_TRANSLATIONS = Object.freeze({
     "language.settingsTitle": "Dashboard language",
     "language.settingsCopy": "Choose the language used by the logged-in dashboard.",
@@ -25,7 +42,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Manage the real business profile, assistant behavior, account status, billing, language, and legal links.",
+    "settings.copy": "Control assistant branding, business context, billing, privacy, and workspace access.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
     "settings.light": "Light",
@@ -307,8 +324,18 @@
     };
   }
 
+  function normalizeSettingsSection(sectionKey) {
+    const normalized = defaultTrimText(sectionKey).toLowerCase();
+
+    if (SETTINGS_SECTIONS.includes(normalized)) {
+      return normalized;
+    }
+
+    return SETTINGS_SECTION_ALIASES[normalized] || SETTINGS_SECTIONS[0];
+  }
+
   function getSectionByKey(sectionKey) {
-    return SETTINGS_SECTION_DETAILS.find((section) => section.key === sectionKey) || SETTINGS_SECTION_DETAILS[0];
+    return SETTINGS_SECTION_DETAILS.find((section) => section.key === normalizeSettingsSection(sectionKey)) || SETTINGS_SECTION_DETAILS[0];
   }
 
   function buildLegalLinksMarkup() {
@@ -322,38 +349,47 @@
   }
 
   function getActiveSettingsSection() {
-    const storedSection = defaultTrimText(global.localStorage?.getItem(SETTINGS_STORAGE_KEY)).toLowerCase();
-
-    if (SETTINGS_SECTIONS.includes(storedSection)) {
-      return storedSection;
-    }
-
-    return SETTINGS_SECTIONS[0];
+    return normalizeSettingsSection(global.localStorage?.getItem(SETTINGS_STORAGE_KEY));
   }
 
   function setActiveSettingsSection(section) {
-    if (!SETTINGS_SECTIONS.includes(section)) {
-      return;
-    }
+    global.localStorage?.setItem(SETTINGS_STORAGE_KEY, normalizeSettingsSection(section));
+  }
 
-    global.localStorage?.setItem(SETTINGS_STORAGE_KEY, section);
+  function renderSettingsIcon(name) {
+    const icons = {
+      general: '<path d="M12 3v2.2M12 18.8V21M4.64 4.64l1.56 1.56M17.8 17.8l1.56 1.56M3 12h2.2M18.8 12H21M4.64 19.36l1.56-1.56M17.8 6.2l1.56-1.56"/><circle cx="12" cy="12" r="3.2"/>',
+      team: '<path d="M16 19c0-2.2-1.8-4-4-4H7c-2.2 0-4 1.8-4 4"/><circle cx="9.5" cy="7" r="4"/><path d="M22 19c0-2-1.2-3.4-3-3.8"/><path d="M16 3.4a4 4 0 0 1 0 7.2"/>',
+      notifications: '<path d="M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+      billing: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/>',
+      privacy: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
+      integrations: '<path d="M12 2v5M12 17v5M4.93 4.93l3.54 3.54M15.54 15.54l3.53 3.53M2 12h5M17 12h5M4.93 19.07l3.54-3.53M15.54 8.46l3.53-3.53"/>',
+      front_desk: '<path d="M4 6h16v10H7l-3 3V6Z"/><path d="M8 10h8M8 13h5"/>',
+      business_profile: '<path d="M4 21V5a2 2 0 0 1 2-2h9l5 5v13"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h8"/>',
+      external: '<path d="M14 3h7v7"/><path d="m10 14 11-11"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
+      chevron: '<path d="m9 18 6-6-6-6"/>',
+      check: '<path d="m20 6-11 11-5-5"/>',
+      alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+    };
+
+    return `<svg class="settings-shell-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.general}</svg>`;
   }
 
   function buildDesktopSettingsNav(activeSettingsSection, helpers) {
     const { escapeHtml, t, translateDashboardText } = helpers;
 
     return `
-      <div class="settings-shell-nav-group" data-settings-nav="desktop">
-        <p class="settings-shell-nav-heading">${escapeHtml(t("settings.title"))}</p>
+      <div class="settings-shell-nav-group settings-shell-top-nav-group" data-settings-nav="desktop">
         <div class="settings-shell-nav">
           ${SETTINGS_SECTION_DETAILS.map((section) => `
             <button
               class="settings-shell-nav-button ${activeSettingsSection === section.key ? "active" : ""}"
               type="button"
               data-settings-target="${escapeHtml(section.key)}"
+              data-settings-scroll-target="settings-section-${escapeHtml(section.key)}"
               aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
               title="${escapeHtml(translateDashboardText(section.note))}"
-            >${escapeHtml(translateDashboardText(section.label))}</button>
+            >${renderSettingsIcon(section.key)}<span>${escapeHtml(translateDashboardText(section.label))}</span></button>
           `).join("")}
         </div>
       </div>
@@ -387,7 +423,7 @@
     const profile = getBusinessProfileViewModel(operatorWorkspace);
 
     return `
-      <form data-settings-form data-form-kind="business-context" class="settings-shell-form settings-shell-form--system">
+      <form data-settings-form data-form-kind="business-context" data-settings-section="business_profile" class="settings-shell-form settings-shell-form--system" id="settings-section-business_profile">
         <header class="settings-shell-page-header" id="business-context-setup">
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
@@ -495,7 +531,7 @@
     const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
 
     return `
-      <form data-settings-form data-form-kind="customize" class="settings-shell-form settings-shell-form--system">
+      <form data-settings-form data-form-kind="customize" data-settings-section="front_desk" class="settings-shell-form settings-shell-form--system" id="settings-section-front_desk">
         <header class="settings-shell-page-header">
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Front Desk</p>
@@ -1013,39 +1049,413 @@
     `;
   }
 
-  function buildSettingsPanel(options = {}) {
-    const helpers = getHelpers(options);
-    const emptyWorkspace = helpers.createEmptyOperatorWorkspace();
+  function getOwnerAccount(agent = {}, authUser = null) {
+    const email = defaultTrimText(authUser?.email || agent.ownerEmail || agent.email || agent.contactEmail);
+    const name = defaultTrimText(agent.ownerName || agent.businessName || agent.name || "Workspace owner");
+    const initials = name
+      .split(/\s+/)
+      .map((part) => part.charAt(0))
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "VO";
+
+    return {
+      email,
+      initials,
+      name,
+    };
+  }
+
+  function formatAiCreditAmount(cents) {
+    const amount = Math.round(Number(cents || 0) / 100);
+    return Number.isFinite(amount) ? amount.toLocaleString("en-US") : "0";
+  }
+
+  function buildAssistantBrandingCard(agent, helpers) {
+    const { escapeHtml } = helpers;
+    const assistantName = agent.assistantName || agent.name || "Vonza Assistant";
+    const primaryColor = agent.primaryColor || "#14b8a6";
+    const welcomeMessage = agent.welcomeMessage || `Hi! I'm ${assistantName}. How can I help you today?`;
+
+    return `
+      <form data-settings-form data-form-kind="customize" class="settings-overview-card settings-overview-card--brand">
+        <div class="settings-card-heading">
+          <div class="settings-card-logo" style="--settings-card-logo-bg:${escapeHtml(primaryColor)}">${escapeHtml(defaultTrimText(assistantName).charAt(0).toUpperCase() || "V")}</div>
+          <div>
+            <h2 class="settings-card-title">Assistant branding</h2>
+            <p class="settings-card-copy">Assistant behavior and branding for how your AI Front Desk shows up to customers.</p>
+          </div>
+        </div>
+        <div class="settings-field-grid settings-field-grid--two">
+          <div class="field">
+            <label for="settings-assistant-name">Assistant name</label>
+            <input id="settings-assistant-name" name="assistant_name" type="text" value="${escapeHtml(assistantName)}">
+          </div>
+          <div class="field">
+            <label for="settings-assistant-tone">Tone of voice</label>
+            <select id="settings-assistant-tone" name="tone">
+              ${["friendly", "professional", "sales", "support"].map((tone) => `
+                <option value="${escapeHtml(tone)}" ${defaultTrimText(agent.tone || "friendly") === tone ? "selected" : ""}>${escapeHtml(tone)}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="settings-primary-color">Accent color</label>
+            <input id="settings-primary-color" name="primary_color" type="color" value="${escapeHtml(primaryColor)}">
+          </div>
+          <div class="field">
+            <label for="settings-button-label">Launcher text</label>
+            <input id="settings-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}" placeholder="Chat">
+          </div>
+        </div>
+        <div class="settings-brand-preview">
+          <span class="settings-card-logo settings-card-logo--small" style="--settings-card-logo-bg:${escapeHtml(primaryColor)}">${escapeHtml(defaultTrimText(assistantName).charAt(0).toUpperCase() || "V")}</span>
+          <strong>${escapeHtml(welcomeMessage)}</strong>
+        </div>
+        <div class="settings-card-actions">
+          <span data-save-state class="save-state">No changes yet.</span>
+          <button class="primary-button" type="submit">Save branding</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function buildGeneralSettingsSection(agent, operatorWorkspace, helpers) {
+    return `
+      <section id="settings-section-general" data-settings-section="general" class="settings-general-section">
+        ${buildAssistantBrandingCard(agent, helpers)}
+        ${buildWorkspacePreferencesCard(helpers)}
+        ${buildBillingCard(operatorWorkspace, helpers)}
+        ${buildPrivacyCard(helpers)}
+      </section>
+    `;
+  }
+
+  function buildBusinessProfileCard(agent, operatorWorkspace, helpers) {
+    const { escapeHtml, getBadgeClass, getBusinessProfileViewModel } = helpers;
+    const profile = getBusinessProfileViewModel(operatorWorkspace);
+    const missingCount = Number(profile.readiness?.missingCount || 0);
+
+    return `
+      <form data-settings-form data-form-kind="customize" class="settings-overview-card">
+        <div class="settings-card-heading settings-card-heading--split">
+          <div>
+            <h2 class="settings-card-title">Business profile</h2>
+            <p class="settings-card-copy">Update business information used in conversations.</p>
+          </div>
+          <span class="${getBadgeClass(missingCount ? "Limited" : "Ready")}">${missingCount ? "Needs details" : "Profile looks good"}</span>
+        </div>
+        <div class="settings-field-stack">
+          <div class="field">
+            <label for="settings-website-url">Website URL</label>
+            <input id="settings-website-url" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}" placeholder="https://example.com">
+          </div>
+          <div class="field">
+            <label for="settings-contact-email">Support email</label>
+            <input id="settings-contact-email" name="contact_email" type="email" value="${escapeHtml(agent.contactEmail || "")}" placeholder="team@example.com">
+          </div>
+          <div class="field">
+            <label for="settings-contact-phone">Phone number</label>
+            <input id="settings-contact-phone" name="contact_phone" type="tel" value="${escapeHtml(agent.contactPhone || "")}" placeholder="+1 555 555 5555">
+          </div>
+        </div>
+        <div class="settings-card-footer">
+          <span>${renderSettingsIcon(missingCount ? "alert" : "check")} ${escapeHtml(profile.readiness?.summary || (missingCount ? "Business profile needs more detail." : "Profile looks good."))}</span>
+          <button class="ghost-button" type="submit">Save changes</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function buildTeamAccessCard(agent, authUser, helpers) {
+    const { escapeHtml, normalizeAccessStatus } = helpers;
+    const owner = getOwnerAccount(agent, authUser);
+    const accessStatus = normalizeAccessStatus(agent.accessStatus);
+
+    return `
+      <article id="settings-section-team" data-settings-section="team" class="settings-overview-card">
+        <div class="settings-card-heading settings-card-heading--split">
+          <div>
+            <h2 class="settings-card-title">Team access</h2>
+            <p class="settings-card-copy">Workspace access currently follows the signed-in owner account.</p>
+          </div>
+          <button class="ghost-button" type="button" disabled title="Team invitations are not a self-serve workflow yet.">Invite member</button>
+        </div>
+        <div class="settings-member-list">
+          <div class="settings-member-row">
+            <span class="settings-member-avatar">${escapeHtml(owner.initials)}</span>
+            <span>
+              <strong>${escapeHtml(owner.name)}</strong>
+              <small>${escapeHtml(owner.email || "Owner email unavailable")}</small>
+            </span>
+            <span class="settings-role-pill">Owner</span>
+            <span class="${accessStatus === "active" ? "badge success" : "badge pending"}">${escapeHtml(accessStatus)}</span>
+          </div>
+        </div>
+        <p class="settings-card-note">Additional team-role management is not rendered here until a real invite/member workflow exists.</p>
+      </article>
+    `;
+  }
+
+  function buildNotificationsCard(actionQueue, helpers) {
+    const { escapeHtml } = helpers;
+    const notificationState = actionQueue?.ownerNotifications || {};
+    const records = Array.isArray(notificationState.records) ? notificationState.records : [];
+    const visibleRecords = records.filter((item) => item.status !== "dismissed").slice(0, 3);
+    const unreadCount = Number(notificationState.summary?.unread || visibleRecords.filter((item) => item.status === "unread").length || 0);
+
+    return `
+      <article id="settings-section-notifications" data-settings-section="notifications" class="settings-overview-card">
+        <div class="settings-card-heading settings-card-heading--split">
+          <div>
+            <h2 class="settings-card-title">Notifications</h2>
+            <p class="settings-card-copy">Owner notices created from real customer signals.</p>
+          </div>
+          <span class="${unreadCount ? "badge warning" : "badge success"}">${escapeHtml(unreadCount ? `${unreadCount} unread` : "No unread notices")}</span>
+        </div>
+        <div class="settings-status-list">
+          ${visibleRecords.length ? visibleRecords.map((item) => `
+            <div class="settings-status-row">
+              <strong>${escapeHtml(item.title || "Owner notification")}</strong>
+              <span>${escapeHtml(item.reason || item.recommendedNextAction || "Review this customer moment.")}</span>
+            </div>
+          `).join("") : `
+            <div class="settings-status-row">
+              <strong>No owner notifications yet</strong>
+              <span>Notifications appear after high-intent, unhappy, not-helpful, or repeated unanswered customer moments exist.</span>
+            </div>
+          `}
+        </div>
+        <div class="settings-card-footer">
+          <span>Notification read/dismiss actions stay in the Analytics workflow.</span>
+          <button class="ghost-button" type="button" data-shell-target="analytics">View notifications</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function buildBillingCard(operatorWorkspace, helpers) {
+    const { escapeHtml } = helpers;
+    const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
+    const usage = billing.usage || defaultBillingSnapshot().usage;
+    const hasPlan = billing.hasActiveSubscription === true
+      || Boolean(defaultTrimText(billing.displayName || billing.monthlyPriceLabel || billing.planKey));
+    const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
+
+    if (!hasPlan && !upgradeOptions.length) {
+      return "";
+    }
+
+    const planLabel = hasPlan
+      ? [billing.displayName, billing.monthlyPriceLabel].map(defaultTrimText).filter(Boolean).join(" · ") || "Current plan"
+      : "No active billing plan data";
+    const usagePercent = formatBillingPercent(usage.percentUsed);
+    const usageLabel = Number(usage.includedCents || 0) > 0
+      ? `${formatAiCreditAmount(usage.usedCents)} / ${formatAiCreditAmount(usage.includedCents)} AI credits`
+      : (usage.statusLabel || "Monthly usage appears after billing sync.");
+
+    return `
+      <article id="settings-section-billing" data-settings-section="billing" class="settings-overview-card">
+        <div class="settings-card-heading settings-card-heading--split">
+          <div>
+            <h2 class="settings-card-title">Billing & plan</h2>
+            <p class="settings-card-copy">Billing and monthly usage for the current workspace plan.</p>
+            <p class="settings-card-note">Account and billing status follows the existing checkout and activation flow.</p>
+          </div>
+          <span class="${billing.hasActiveSubscription ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
+        </div>
+        <div class="settings-billing-panel">
+          <div class="settings-billing-head">
+            <strong>${renderSettingsIcon("billing")}${escapeHtml(planLabel)}</strong>
+            ${upgradeOptions.length === 1 ? `<button class="ghost-button" type="button" data-billing-plan-key="${escapeHtml(upgradeOptions[0].planKey)}">${escapeHtml(upgradeOptions[0].checkoutLabel || `Move to ${upgradeOptions[0].displayName}`)}</button>` : ""}
+          </div>
+          <div class="settings-billing-meta"><span>Usage this month</span><span>${escapeHtml(`${usagePercent} used`)}</span></div>
+          <div class="settings-billing-meta"><span>Capacity readout</span><span>${escapeHtml(usageLabel)}</span></div>
+          <div class="settings-shell-billing-progress" aria-label="Monthly usage progress">
+            <div class="settings-shell-billing-progress-bar settings-shell-billing-progress-bar--${escapeHtml(defaultTrimText(usage.tone).toLowerCase() || "ok")}">
+              <span style="width:${escapeHtml(usagePercent)}"></span>
+            </div>
+          </div>
+          <div class="settings-billing-meta settings-billing-meta--border">
+            <span>Current billing period</span>
+            <span>${escapeHtml(billing.currentPeriodStart && billing.currentPeriodEnd ? `${formatBillingDate(billing.currentPeriodStart)} - ${formatBillingDate(billing.currentPeriodEnd)}` : "Current monthly period begins after activation.")}</span>
+          </div>
+          <div class="settings-billing-meta"><span>Subscription</span><span>${escapeHtml(defaultTrimText(billing.subscriptionStatus) ? `Subscription status: ${billing.subscriptionStatus}.` : "Subscription status will appear here after checkout.")}</span></div>
+        </div>
+        ${upgradeOptions.length > 1 ? `
+          <div class="settings-shell-billing-upgrade-grid">
+            ${upgradeOptions.map((plan) => `
+              <button type="button" class="settings-shell-billing-plan-card" data-billing-plan-key="${escapeHtml(plan.planKey)}">
+                <strong>${escapeHtml(plan.displayName)}</strong>
+                <span>${escapeHtml(plan.monthlyPriceLabel || "")}</span>
+                <small>${escapeHtml(plan.checkoutLabel || `Move to ${plan.displayName}`)}</small>
+              </button>
+            `).join("")}
+          </div>
+        ` : ""}
+        <p class="settings-card-note">${escapeHtml(usage.ownerMessage || (billing.hasActiveSubscription ? "Customer-facing usage is still available." : "Billing details will appear after checkout or subscription sync."))}</p>
+      </article>
+    `;
+  }
+
+  function buildPrivacyCard(helpers) {
+    const { escapeHtml } = helpers;
+
+    return `
+      <article id="settings-section-privacy" data-settings-section="privacy" class="settings-overview-card">
+        <div class="settings-card-heading">
+          <div>
+            <h2 class="settings-card-title">Privacy & compliance</h2>
+            <p class="settings-card-copy">Legal and trust. These public pages cover the website, app, widget, and hosted checkout legal surface.</p>
+          </div>
+        </div>
+        <div class="settings-card-actions settings-card-actions--wrap">
+          ${LEGAL_LINKS.map((link) => `
+            <a class="settings-link-button" href="${escapeHtml(link.href)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}${renderSettingsIcon("external")}</a>
+          `).join("")}
+        </div>
+      </article>
+    `;
+  }
+
+  function buildIntegrationsCard(agent, setup, operatorWorkspace, helpers) {
+    const { escapeHtml, getDefaultInstallStatus, getGoogleWorkspaceCapabilities, getWorkspaceMode } = helpers;
+    const installStatus = getDefaultInstallStatus(agent);
+    const google = getGoogleWorkspaceCapabilities(operatorWorkspace);
+    const workspaceMode = getWorkspaceMode(operatorWorkspace);
+    const knowledgeDescription = setup.knowledgeDescription || "";
+    const knowledgeSummary = knowledgeDescription && !(setup.knowledgeState === "ready" && /not (available|imported)|missing/i.test(knowledgeDescription))
+      ? knowledgeDescription
+      : setup.knowledgeState === "ready"
+        ? "Website knowledge is ready for the assistant."
+        : setup.knowledgeState === "limited"
+          ? "Website import needs review before the assistant can rely on it fully."
+          : "Website knowledge status appears after import.";
+    const capabilities = [
+      { label: "Workspace mode", value: `${workspaceMode.title} ${workspaceMode.copy}`.trim() },
+      { label: "Website knowledge", value: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing" },
+      { label: "Widget install", value: installStatus.label || "Not installed yet" },
+      { label: "Gmail read", value: google.gmailRead ? "Connected" : "Not connected" },
+      { label: "Calendar write", value: google.calendarWrite ? "Connected" : "Not connected" },
+    ];
+
+    return `
+      <article id="settings-section-integrations" data-settings-section="integrations" class="settings-overview-card">
+        <div class="settings-card-heading settings-card-heading--split">
+          <div>
+            <h2 class="settings-card-title">Integrations</h2>
+            <p class="settings-card-copy">Real install, website knowledge, and connected workspace status.</p>
+          </div>
+          <button class="ghost-button" type="button" data-action="import-knowledge">${escapeHtml(setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge")}</button>
+        </div>
+        <div class="settings-status-list">
+          ${capabilities.map((item) => `
+            <div class="settings-status-row">
+              <strong>${escapeHtml(item.label)}</strong>
+              <span>${escapeHtml(item.value)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="settings-card-footer">
+          <span>${escapeHtml(knowledgeSummary)}</span>
+          <button class="ghost-button" type="button" data-shell-target="install">Open install</button>
+        </div>
+      </article>
+    `;
+  }
+
+  function buildWorkspacePreferencesCard(helpers) {
+    const {
+      escapeHtml,
+      getDashboardLanguage,
+      getSupportedDashboardLanguages,
+      t,
+    } = helpers;
+    const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
+      ? "dark"
+      : "light";
+    const dashboardLanguage = getDashboardLanguage();
+    const supportedDashboardLanguages = getSupportedDashboardLanguages();
+
+    return `
+      <article class="settings-overview-card settings-overview-card--wide">
+        <div class="settings-card-heading">
+          <div>
+            <h2 class="settings-card-title">Workspace preferences</h2>
+            <p class="settings-card-copy">Dashboard language and theme are real workspace preferences for this browser/session.</p>
+          </div>
+        </div>
+        <div class="settings-preferences-grid">
+          <form data-dashboard-language-form>
+            <div class="field">
+              <label for="dashboard-language-select">${escapeHtml(t("language.settingsTitle"))}</label>
+              <select id="dashboard-language-select" name="dashboard_language">
+                ${supportedDashboardLanguages.map((language) => `
+                  <option value="${escapeHtml(language.code)}" ${dashboardLanguage === language.code ? "selected" : ""}>${escapeHtml(language.nativeLabel || language.label)}</option>
+                `).join("")}
+              </select>
+            </div>
+            <div class="settings-card-actions">
+              <span data-save-state class="save-state">${escapeHtml(t("language.noChanges"))}</span>
+              <button class="ghost-button" type="submit">${escapeHtml(t("language.save"))}</button>
+            </div>
+          </form>
+          <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
+            ${[
+              { value: "light", label: t("settings.light"), copy: helpers.translateDashboardText("Default dashboard theme.") },
+              { value: "dark", label: t("settings.dark"), copy: helpers.translateDashboardText("Lower-light dashboard theme for the app shell.") },
+            ].map((theme) => `
+              <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
+                <input
+                  type="radio"
+                  name="dashboard_theme"
+                  value="${escapeHtml(theme.value)}"
+                  data-dashboard-theme-choice
+                  ${dashboardTheme === theme.value ? "checked" : ""}
+                >
+                <span>
+                  <strong>${escapeHtml(theme.label)}</strong>
+                  <small>${escapeHtml(theme.copy)}</small>
+                </span>
+              </label>
+            `).join("")}
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  function buildSettingsOverviewPanel(options, helpers) {
     const agent = options.agent || {};
     const setup = options.setup || {};
-    const operatorWorkspace = options.operatorWorkspace || emptyWorkspace;
+    const operatorWorkspace = options.operatorWorkspace || helpers.createEmptyOperatorWorkspace();
+    const actionQueue = options.actionQueue || {};
     const activeSettingsSection = getActiveSettingsSection();
+
+    return `
+      <div class="settings-shell-overview">
+        ${buildDesktopSettingsNav(activeSettingsSection, helpers)}
+        ${buildMobileSettingsNav(activeSettingsSection, helpers)}
+        <div class="settings-details-stack">
+          ${buildGeneralSettingsSection(agent, operatorWorkspace, helpers)}
+          ${buildFrontDeskSettingsForm(agent, setup, helpers)}
+          ${buildBusinessContextSetupPanel(operatorWorkspace, helpers)}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildSettingsPanel(options = {}) {
+    const helpers = getHelpers(options);
 
     const html = `
       <section class="workspace-page settings-shell-root" data-shell-section="settings" hidden>
         ${helpers.buildPageHeader({
-          eyebrow: helpers.t("nav.utilities"),
           title: helpers.t("settings.title"),
           copy: helpers.t("settings.copy"),
         })}
         <div class="workspace-page-body settings-shell-layout">
-          <aside class="settings-shell-sidebar">
-            ${buildDesktopSettingsNav(activeSettingsSection, helpers)}
-          </aside>
-          <div class="settings-shell-main">
-            ${buildMobileSettingsNav(activeSettingsSection, helpers)}
-            <div class="settings-shell-main-panel">
-              <section class="settings-shell-panel" data-settings-section="business" ${activeSettingsSection === "business" ? "" : "hidden"}>
-                ${buildBusinessContextSetupPanel(operatorWorkspace, helpers)}
-              </section>
-              <section class="settings-shell-panel" data-settings-section="front_desk" ${activeSettingsSection === "front_desk" ? "" : "hidden"}>
-                ${buildFrontDeskSettingsForm(agent, setup, helpers)}
-              </section>
-              <section class="settings-shell-panel" data-settings-section="workspace" ${activeSettingsSection === "workspace" ? "" : "hidden"}>
-                ${buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace, helpers)}
-              </section>
-            </div>
-          </div>
+          ${buildSettingsOverviewPanel(options, helpers)}
         </div>
       </section>
     `;
@@ -1070,14 +1480,13 @@
     const settingsForms = Array.from(root.querySelectorAll("form[data-settings-form]"));
     const settingsTargets = Array.from(root.querySelectorAll("[data-settings-target]"));
     const settingsSections = Array.from(root.querySelectorAll("[data-settings-section]"));
+    const overviewMode = Boolean(root.querySelector(".settings-shell-overview"));
     const mobileNote = typeof root.querySelector === "function"
       ? root.querySelector("[data-settings-mobile-note]")
       : null;
 
     const showSettingsSection = (targetSection = getActiveSettingsSection()) => {
-      const normalizedSection = SETTINGS_SECTIONS.includes(targetSection)
-        ? targetSection
-        : SETTINGS_SECTIONS[0];
+      const normalizedSection = normalizeSettingsSection(targetSection);
 
       setActiveSettingsSection(normalizedSection);
 
@@ -1092,9 +1501,14 @@
         target.setAttribute("aria-current", isActive ? "page" : "false");
       });
 
-      settingsSections.forEach((section) => {
-        section.hidden = section.dataset.settingsSection !== normalizedSection;
-      });
+      if (overviewMode) {
+        const target = root.querySelector?.(`#settings-section-${normalizedSection}`);
+        target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+      } else {
+        settingsSections.forEach((section) => {
+          section.hidden = normalizeSettingsSection(section.dataset.settingsSection) !== normalizedSection;
+        });
+      }
 
       if (mobileNote) {
         const helpers = getHelpers(options);
@@ -1120,17 +1534,21 @@
     settingsTargets.forEach((target) => {
       if (target.tagName === "SELECT") {
         target.addEventListener("change", () => {
-          showSettingsSection(target.value || SETTINGS_SECTIONS[0]);
+          showSettingsSection(normalizeSettingsSection(target.value || SETTINGS_SECTIONS[0]));
           const settingsPanel = root.querySelector?.('[data-shell-section="settings"]');
-          settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+          if (!overviewMode) {
+            settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+          }
         });
         return;
       }
 
       target.addEventListener("click", () => {
-        showSettingsSection(target.dataset.settingsTarget || SETTINGS_SECTIONS[0]);
+        showSettingsSection(normalizeSettingsSection(target.dataset.settingsTarget || SETTINGS_SECTIONS[0]));
         const settingsPanel = root.querySelector?.('[data-shell-section="settings"]');
-        settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        if (!overviewMode) {
+          settingsPanel?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        }
       });
     });
 

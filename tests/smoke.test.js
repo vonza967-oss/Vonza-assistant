@@ -1679,10 +1679,13 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open follow-up note/);
         assert.match(dashboardScript.text, /Save follow-up note/);
-        assert.match(dashboardScript.text, /Setup checklist/);
-        assert.match(dashboardScript.text, /You are live/);
-        assert.match(dashboardScript.text, /First test conversation complete/);
-        assert.match(dashboardScript.text, /Next best step: ask a sample question/);
+        assert.match(dashboardScript.text, /Installation methods/);
+        assert.match(dashboardScript.text, /Full-page assistant/);
+        assert.match(dashboardScript.text, /QR code/);
+        assert.match(dashboardScript.text, /Install help/);
+        assert.match(dashboardScript.text, /Domain checks/);
+        assert.match(dashboardScript.text, /Copy code/);
+        assert.match(dashboardScript.text, /Verify installation/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");
