@@ -7,6 +7,11 @@
   align-items: start;
 }
 
+.workspace-page.settings-shell-root {
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
 /* V2 settings overview overrides must win over the older settings shell layers above. */
 .settings-shell-root .settings-shell-layout {
   display: block;

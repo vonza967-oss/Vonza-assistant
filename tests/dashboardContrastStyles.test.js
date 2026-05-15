@@ -141,6 +141,14 @@ test("dashboard contrast pass covers analytics, chips, active rows, and settings
   assert.match(settingsCss, /\.settings-shell-chip-option\s*\{[^}]*border-color:\s*#c7d3e3;[^}]*color:\s*#334963;/i);
 });
 
+test("settings shell rows stay top-aligned across short and tall tabs", () => {
+  const settingsCss = readSettingsCss();
+  const settingsRoot = getCssBlock(settingsCss, ".workspace-page.settings-shell-root");
+
+  assert.match(settingsRoot, /align-content:\s*start/i);
+  assert.match(settingsRoot, /grid-auto-rows:\s*max-content/i);
+});
+
 test("dashboard dark mode has scoped tokens and settings controls", () => {
   const dashboardCss = readDashboardCss();
   const settingsCss = readSettingsCss();
