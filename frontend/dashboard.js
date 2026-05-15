@@ -2359,7 +2359,7 @@ function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
   const hashParams = rawHash.includes("=") ? new URLSearchParams(rawHash) : null;
   const hashKey = hashParams
     ? trimText(hashParams.get("section") || hashParams.get("tab") || hashParams.get("page"))
-    : rawHash.split(/[?&]/)[0];
+    : rawHash.split(/[?&]/)[0].split("/")[0];
 
   const normalizedHash = hashKey
     .trim()
@@ -17821,6 +17821,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     onSubmitForm: (event) => saveAssistant(event, agent),
     bindStudioState: (form) => bindStudioState(form, agent),
     bindSimpleDirtyState,
+    onRequestRerender: renderWorkspaceFromState,
   }) || null;
   applyDashboardTheme(getDashboardTheme());
 

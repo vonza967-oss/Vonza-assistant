@@ -161,6 +161,12 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   return context;
 }
 
+function buildSettingsSection(harness, section, agent = {}, setup = {}, workspace = harness.createEmptyOperatorWorkspace()) {
+  harness.window.location.hash = "";
+  harness.window.localStorage.setItem("vonza_dashboard_settings_section", section);
+  return harness.buildSettingsPanel(agent, setup, workspace);
+}
+
 test("dashboard flag resolver prefers the canonical browser flag and falls back safely", () => {
   const canonicalHarness = createDashboardHarness({
     windowFlags: {
@@ -838,7 +844,7 @@ test("Hungarian dashboard completeness covers Home, Customers, Front Desk, Analy
   assert.match(pages.Home, /Nyitott igények áttekintése|Szolgáltatásválaszok javítása/);
   assert.match(pages.Analytics, /Beszélgetések időben/);
   assert.match(pages.Install, /Telepítés|Telepítőkód másolása/);
-  assert.match(pages.Settings, /Vállalkozási profil/);
+  assert.match(pages.Settings, /Irányítópult nyelve/);
 });
 
 test("English dashboard still renders the supported dashboard UI in English", () => {
@@ -853,8 +859,8 @@ test("English dashboard still renders the supported dashboard UI in English", ()
   const install = harness.buildInstallPanel(agent, setup, workspace);
   const analytics = harness.buildAnalyticsPanel(agent, [], setup, actionQueue, workspace);
 
-  assert.match(settings, /Business profile/);
-  assert.match(settings, /Setup status/);
+  assert.match(settings, /Workspace preferences/);
+  assert.match(settings, /Dashboard language/);
   assert.match(install, /Install help/);
   assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
@@ -1611,49 +1617,61 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(overview, /Show supporting detail/);
   assert.match(overview, /Draft follow-up for Taylor Reed/);
   assert.match(overview, /Create draft/);
-  const settings = harness.buildSettingsPanel(
-    { name: "Vonza" },
-    {
-      knowledgeState: "missing",
-      knowledgeDescription: "Add a real website to import knowledge.",
-    },
-    workspace
-  );
-  assert.match(settings, /Business profile/);
-  assert.match(settings, /Front Desk/);
-  assert.match(settings, /Widget purpose/);
-  assert.match(settings, /Widget logo/);
-  assert.match(settings, /Upload the icon\/logo shown at the top of your widget/);
-  assert.match(settings, /Website knowledge and widget logo/);
-  assert.match(settings, /What should your widget mainly help visitors do/);
-  assert.match(settings, /Guidance/);
-  assert.match(settings, /Support/);
-  assert.match(settings, /Make a decision/);
-  assert.match(settings, /Lead capture \/ contact/);
-  assert.match(settings, /Booking \/ next step guidance/);
-  assert.match(settings, /Assistant behavior/);
-  assert.doesNotMatch(settings, /Account and billing/);
-  assert.doesNotMatch(settings, /Billing & plan/);
-  assert.doesNotMatch(settings, /No active billing plan data/);
-  assert.doesNotMatch(settings, /data-privacy-export/);
-  assert.doesNotMatch(settings, /Save privacy preference/);
-  assert.doesNotMatch(settings, /Primary color/);
-  assert.doesNotMatch(settings, /Secondary color/);
-  assert.doesNotMatch(settings, /assistant-primary-color/);
-  assert.doesNotMatch(settings, /assistant-secondary-color/);
-  assert.doesNotMatch(settings, /studio-swatch/i);
-  assert.doesNotMatch(settings, /<h2[^>]*>Connected tools<\/h2>/);
-  assert.doesNotMatch(settings, /data-settings-section="connected_tools"/);
-  assert.doesNotMatch(settings, /Beta/);
-  assert.doesNotMatch(settings, /Connect Google/);
-  assert.doesNotMatch(settings, /Team management/);
-  assert.doesNotMatch(settings, /Export controls/);
-  assert.match(settings, /Business profile/);
-  assert.match(settings, /Save Business Profile/);
-  assert.doesNotMatch(settings, /Approved owner path/i);
-  assert.doesNotMatch(settings, /approval_follow_up_drafts/);
-  assert.match(settings, /data-settings-nav="desktop"/);
-  assert.doesNotMatch(settings, /local-section-nav/);
+  const agent = {
+    name: "Vonza",
+    assistantName: "Vonza Front Desk",
+    welcomeMessage: "Welcome to Vonza.",
+    tone: "friendly",
+    buttonLabel: "Chat",
+    websiteUrl: "https://example.com",
+    accessStatus: "active",
+  };
+  const setup = {
+    knowledgeState: "missing",
+    knowledgeDescription: "Add a real website to import knowledge.",
+  };
+  const general = buildSettingsSection(harness, "general", agent, setup, workspace);
+  const frontDesk = buildSettingsSection(harness, "front_desk", agent, setup, workspace);
+  const businessProfile = buildSettingsSection(harness, "business_profile", agent, setup, workspace);
+  const accountBilling = buildSettingsSection(harness, "account_billing", agent, setup, workspace);
+  const privacyLegal = buildSettingsSection(harness, "privacy_legal", agent, setup, workspace);
+
+  assert.match(general, /Workspace preferences/);
+  assert.match(general, /data-dashboard-language-form/);
+  assert.match(general, /data-dashboard-theme-choice/);
+  assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
+  assert.doesNotMatch(general, /Widget purpose|business-summary|assistant-welcome|Website knowledge/);
+
+  assert.match(frontDesk, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.match(frontDesk, /Widget purpose/);
+  assert.match(frontDesk, /assistant-welcome/);
+  assert.match(frontDesk, /assistant-tone/);
+  assert.match(frontDesk, /settings-primary-color/);
+  assert.match(frontDesk, /Current live readout/);
+  assert.match(frontDesk, /data-settings-form data-form-kind="customize"/);
+  assert.doesNotMatch(frontDesk, /business-summary|business-services|Save Business Profile|Website knowledge/);
+
+  assert.match(businessProfile, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
+  assert.match(businessProfile, /Website knowledge/);
+  assert.match(businessProfile, /business-website-url/);
+  assert.match(businessProfile, /business-summary/);
+  assert.match(businessProfile, /business-services/);
+  assert.match(businessProfile, /Save Business Profile/);
+  assert.match(businessProfile, /data-form-kind="business-context"/);
+  assert.match(businessProfile, /data-form-kind="customize"/);
+  assert.doesNotMatch(businessProfile, /assistant-welcome|assistant-tone|Widget purpose|Launcher text/);
+
+  assert.match(accountBilling, /<h2 class="settings-shell-page-title">Account &amp; Billing<\/h2>|<h2 class="settings-shell-page-title">Account & Billing<\/h2>/);
+  assert.match(accountBilling, /Billing and usage/);
+  assert.doesNotMatch(accountBilling, /Team access|Invite member|Integrations|Pro Plan|\$50\/month|View billing history/);
+
+  assert.match(privacyLegal, /Privacy &amp; Legal|Privacy & Legal/);
+  assert.match(privacyLegal, /ÁSZF|Impresszum|Adatkezelési tájékoztató|Cookie tájékoztató/);
+  assert.doesNotMatch(privacyLegal, /business-summary|assistant-welcome|Billing and usage|Invite member|Integrations/);
+
+  assert.match(general, /data-settings-nav="desktop"/);
+  assert.doesNotMatch(`${general}${frontDesk}${businessProfile}${accountBilling}${privacyLegal}`, /Team management|Connected tools<\/h2>|data-settings-section="connected_tools"|Save privacy preference|data-privacy-export|install-script-output/);
 });
 
 test("today workspace render uses a dominant queue and support rail shell", () => {

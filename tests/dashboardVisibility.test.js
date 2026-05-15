@@ -474,6 +474,19 @@ test("dashboard hash routes open the matching interior section", async () => {
   }
 });
 
+test("settings hash routes open the matching Settings tab content", async () => {
+  const harness = createDashboardHarness({
+    hash: "#settings/front-desk",
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
+  assert.match(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.match(harness.getRootHtml(), /Widget purpose/);
+  assert.doesNotMatch(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
+});
+
 test("dashboard Home renders the real-data V2 snapshot without command-center placeholders", async () => {
   const harness = createDashboardHarness({
     agents: () => [createActiveAgent()],
@@ -543,12 +556,13 @@ test("access-locked checkout view renders Starter, Growth, and Pro plan choices"
 
 test("workspace settings keep legal pages reachable from the logged-in app", async () => {
   const harness = createDashboardHarness({
+    hash: "#settings/privacy-legal",
     agents: () => [createActiveAgent()],
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Legal and trust/);
-  assert.match(harness.getRootHtml(), /These public pages cover the website, app, widget, and hosted checkout legal surface/);
+  assert.match(harness.getRootHtml(), /Privacy &amp; Legal|Privacy & Legal/);
+  assert.match(harness.getRootHtml(), /public legal and privacy pages/);
   assert.match(harness.getRootHtml(), /href="\/aszf"/);
   assert.match(harness.getRootHtml(), /href="\/impresszum"/);
   assert.match(harness.getRootHtml(), /href="\/adatkezelesi-tajekoztato"/);
@@ -670,6 +684,7 @@ test("signed-out auth shell honors Hungarian dashboard language across auth copy
 
 test("one failed sub-request keeps the dashboard visible and surfaces an explicit warning", async () => {
   const harness = createDashboardHarness({
+    hash: "#settings/account-billing",
     agents: () => [createActiveAgent()],
     customFetch: async ({ pathname, buildResponse }) => {
       if (pathname === "/agents/action-queue") {
@@ -716,6 +731,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
 
 test("workspace settings show current plan, usage progress, and upgrade actions", async () => {
   const harness = createDashboardHarness({
+    hash: "#settings/account-billing",
     agents: () => [createActiveAgent()],
     customFetch: async ({ pathname, buildResponse }) => {
       if (pathname === "/agents/operator-workspace") {
@@ -756,7 +772,7 @@ test("workspace settings show current plan, usage progress, and upgrade actions"
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /Billing and monthly usage/);
+  assert.match(harness.getRootHtml(), /Billing and usage/);
   assert.match(harness.getRootHtml(), /Growth · \$50\/month/);
   assert.match(harness.getRootHtml(), /82% used/);
   assert.match(harness.getRootHtml(), /Approaching the monthly capacity/);
