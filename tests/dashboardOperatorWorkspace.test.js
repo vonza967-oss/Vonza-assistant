@@ -2026,6 +2026,7 @@ test("home review actions route to customers while analytics keeps analytics lab
   assert.match(overviewPanel, /data-overview-target="analytics"[\s\S]*View analytics/);
   assert.match(overviewPanel, /data-overview-target="contacts"[\s\S]*data-contact-filter="needs_review"[\s\S]*Review/);
   assert.doesNotMatch(overviewPanel, /data-overview-target="analytics"[^>]*>[\s\S]{0,80}Review<\/button>/);
+  assert.doesNotMatch(overviewPanel, /data-overview-target="analytics"[^>]*>[\s\S]{0,120}Review pricing questions<\/button>/);
 });
 
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
@@ -2882,11 +2883,12 @@ test("customer detail actions prepare replies and explain unavailable guest chat
     },
   }, workspace, true);
 
-  assert.match(identifiedPanel, /Prepare reply/);
+  assert.match(identifiedPanel, /Review suggested reply/);
   assert.doesNotMatch(identifiedPanel, /Send AI draft/);
   assert.match(guestPanel, /Review conversation/);
   assert.match(guestPanel, /Mark reviewed/);
   assert.match(guestPanel, /Guest visitor only\. No contact details captured yet\./);
+  assert.doesNotMatch(guestPanel, /Review suggested reply/);
   assert.doesNotMatch(guestPanel, /Prepare reply/);
 });
 
@@ -3292,6 +3294,8 @@ test("customer filters separate needs review from follow-up possible counts", ()
 
   assert.match(contactsPanel, /Needs review \(2\)/);
   assert.match(contactsPanel, /Follow-up possible \(1\)/);
+  assert.match(contactsPanel, /data-contact-id="guest-review"[\s\S]*data-contact-follow-up-possible="false"/);
+  assert.match(contactsPanel, /data-contact-id="identified-follow-up"[\s\S]*data-contact-follow-up-possible="true"/);
   assert.match(contactsPanel, /Guests \(1\)/);
   assert.match(contactsPanel, /Identified \(1\)/);
   assert.match(contactsPanel, /data-contact-filter="website_widget"/);

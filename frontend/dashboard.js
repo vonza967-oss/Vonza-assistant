@@ -4897,11 +4897,7 @@ function customerHasReplyableChannel(contact = {}) {
     || Boolean(trimText(contact.primaryFollowUpId));
 }
 
-function customerMissingContactDetails(contact = {}) {
-  return isGuestCustomerRow(contact) && !customerHasContactDetails(contact);
-}
-
-function customerNeedsOwnerReview(contact = {}) {
+function customerNeedsOwnerReviewRaw(contact = {}) {
   const lifecycleState = trimText(contact.lifecycleState);
 
   return contactNeedsReply(contact)
@@ -4912,8 +4908,29 @@ function customerNeedsOwnerReview(contact = {}) {
     || ["draft", "ready", "failed", "missing_contact"].includes(trimText(contact.followUpStatus).toLowerCase());
 }
 
+function getCustomerActionState(contact = {}) {
+  const needsOwnerReview = customerNeedsOwnerReviewRaw(contact);
+  const replyPossible = customerHasReplyableChannel(contact);
+  const missingContactDetails = isGuestCustomerRow(contact) && !replyPossible;
+
+  return {
+    needs_owner_review: needsOwnerReview,
+    follow_up_possible: needsOwnerReview && replyPossible,
+    missing_contact_details: missingContactDetails,
+    reply_possible: replyPossible,
+  };
+}
+
+function customerMissingContactDetails(contact = {}) {
+  return getCustomerActionState(contact).missing_contact_details;
+}
+
+function customerNeedsOwnerReview(contact = {}) {
+  return getCustomerActionState(contact).needs_owner_review;
+}
+
 function customerNeedsFollowUp(contact = {}) {
-  return customerNeedsOwnerReview(contact) && customerHasReplyableChannel(contact);
+  return getCustomerActionState(contact).follow_up_possible;
 }
 
 function isComplaintContact(contact = {}) {
@@ -5618,7 +5635,7 @@ function buildContactQuickActions(
     } else if (contact.id) {
       actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id)}">Open customer</button>`);
     }
-  } else if ((contact.email || contact.phone) && automationsVisible && includeDraftFollowUp) {
+  } else if (customerHasContactDetails(contact) && automationsVisible && includeDraftFollowUp) {
     actions.push(`
       <button
         class="ghost-button"
@@ -5631,7 +5648,7 @@ function buildContactQuickActions(
         data-person-key="${escapeHtml(contact.personKey || "")}"
         data-lead-id="${escapeHtml(contact.leadId || "")}"
         data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      >${escapeHtml(localizeDashboardCopy("Prepare reply", "Válasz előkészítése"))}</button>
+      >${escapeHtml(localizeDashboardCopy("Review suggested reply", "Javasolt válasz áttekintése"))}</button>
     `);
   }
 
@@ -5789,6 +5806,7 @@ function buildCustomerChatPanel(contact = {}) {
 
 function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
+  const actionState = getCustomerActionState(contact);
   const rowIdentifier = getCustomerRowIdentifier(contact);
   const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
@@ -5813,6 +5831,10 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
       data-contact-source-labels="${escapeHtml((sourceLabels.length ? sourceLabels : ["Legacy/unknown"]).join("|"))}"
       data-contact-statuses="${escapeHtml(statusKeys)}"
       data-contact-identity="${escapeHtml(guestRow ? "guest" : "identified")}"
+      data-contact-needs-owner-review="${actionState.needs_owner_review ? "true" : "false"}"
+      data-contact-follow-up-possible="${actionState.follow_up_possible ? "true" : "false"}"
+      data-contact-missing-contact-details="${actionState.missing_contact_details ? "true" : "false"}"
+      data-contact-reply-possible="${actionState.reply_possible ? "true" : "false"}"
       data-contact-last-activity="${escapeHtml(visibleLastActivityAt)}"
     >
       <div class="contact-row-main">
@@ -5883,7 +5905,7 @@ function buildContactDetailPanel(
       data-lead-id="${escapeHtml(contact.leadId || "")}"
       data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
       ${customerHasContactDetails(contact) ? "" : "disabled"}
-    >${escapeHtml(localizeDashboardCopy("Prepare reply", "Válasz előkészítése"))}</button>
+    >${escapeHtml(localizeDashboardCopy("Review suggested reply", "Javasolt válasz áttekintése"))}</button>
   ` : customerMissingContactDetails(contact) ? reviewConversationActionMarkup : contact.latestMessageId ? `
     <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
   ` : contact.primaryThreadId ? `
@@ -12979,25 +13001,30 @@ function buildOverviewActionMarkup(agent, action = null, { primary = false } = {
   }
 
   const buttonClass = primary ? "primary-button" : "ghost-button";
+  const actionLabel = action.type === "section"
+    && trimText(action.value) === "analytics"
+    && /^review\b/i.test(trimText(action.label))
+      ? localizeDashboardCopy("View analytics", "Elemzések megtekintése")
+      : trimText(action.label);
 
   if (action.type === "section") {
-    return `<button class="${buttonClass}" type="button" data-overview-target="${action.value}" ${action.filter ? `data-contact-filter="${escapeHtml(action.filter)}"` : ""} ${action.targetId ? `data-target-id="${escapeHtml(action.targetId)}"` : ""}>${action.label}</button>`;
+    return `<button class="${buttonClass}" type="button" data-overview-target="${escapeHtml(action.value)}" ${action.filter ? `data-contact-filter="${escapeHtml(action.filter)}"` : ""} ${action.targetId ? `data-target-id="${escapeHtml(action.targetId)}"` : ""}>${escapeHtml(actionLabel)}</button>`;
   }
 
   if (action.type === "focus") {
-    return `<button class="${buttonClass}" type="button" data-overview-focus="${action.value}">${action.label}</button>`;
+    return `<button class="${buttonClass}" type="button" data-overview-focus="${escapeHtml(action.value)}">${escapeHtml(actionLabel)}</button>`;
   }
 
   if (action.type === "import") {
-    return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${action.label}</button>`;
+    return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${escapeHtml(actionLabel)}</button>`;
   }
 
   if (action.type === "install") {
-    return `<button class="${buttonClass}" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${action.label}</button>`;
+    return `<button class="${buttonClass}" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(actionLabel)}</button>`;
   }
 
   if (action.type === "preview") {
-    return `<a class="${primary ? "primary-button" : "test-link"}" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">${action.label}</a>`;
+    return `<a class="${primary ? "primary-button" : "test-link"}" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">${escapeHtml(actionLabel)}</a>`;
   }
 
   return "";
@@ -17503,15 +17530,17 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const identity = trimText(row.dataset.contactIdentity);
       const sourceLabels = trimText(row.dataset.contactSourceLabels).split("|").filter(Boolean);
       const searchText = trimText(row.textContent || "").toLowerCase();
+      const needsOwnerReview = row.dataset.contactNeedsOwnerReview === "true";
+      const followUpPossible = row.dataset.contactFollowUpPossible === "true";
       let visible = true;
 
       switch (filterKey) {
         case "unresolved":
         case "needs_review":
-          visible = statuses.some((status) => ["needs_reply", "needs_review", "complaint", "follow_up"].includes(status));
+          visible = needsOwnerReview || statuses.some((status) => ["needs_reply", "needs_review", "complaint", "follow_up"].includes(status));
           break;
         case "needs_follow_up":
-          visible = statuses.includes("follow_up");
+          visible = followUpPossible;
           break;
         case "needs_reply":
           visible = statuses.includes("needs_reply");
@@ -17958,7 +17987,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   };
 
   const draftContactFollowUp = async (button) => {
-    setStatus("Preparing customer follow-up draft...");
+    setStatus("Preparing suggested reply...");
 
     try {
       const result = await fetchJson("/agents/operator/contacts/follow-up/draft", {
@@ -17980,7 +18009,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         }),
       });
 
-      setStatus("Customer follow-up draft prepared.");
+      setStatus("Suggested reply prepared for review.");
       await boot();
       showSectionAndHighlight("automations", `[data-follow-up-card][data-follow-up-id="${result.followUp?.id || ""}"]`);
     } catch (error) {
@@ -19912,11 +19941,40 @@ function renderLocalDashboardV2Fixture() {
             { at: now, label: "Full-page assistant", summary: "Pricing question needs a clearer follow-up path." },
           ],
         },
+        {
+          id: "fixture-contact-3",
+          customerRowKey: "fixture-contact-3",
+          name: "Anonymous visitor",
+          partialIdentity: true,
+          lifecycleState: "needs_review",
+          sources: ["chat"],
+          flags: ["follow up due"],
+          latestMessageId: "fixture-message-3",
+          latestSummary: "Asked for quote details but did not leave contact details.",
+          lastMessageAt: now,
+          nextAction: {
+            title: "Review open question",
+            description: "Review the conversation before deciding whether more contact details are needed.",
+          },
+          counts: {
+            leads: 0,
+            inboxThreads: 0,
+            calendarEvents: 0,
+            followUps: 0,
+            outcomes: 0,
+          },
+          chatMessages: [
+            { role: "customer", label: "Customer", content: "Can you send a quote?", createdAt: now },
+          ],
+          timeline: [
+            { at: now, label: "Visitor message", source: "chat", summary: "Asked for quote details without leaving email or phone." },
+          ],
+        },
       ],
       summary: {
         ...createEmptyOperatorWorkspace().contacts.summary,
-        totalContacts: 2,
-        contactsNeedingAttention: 1,
+        totalContacts: 3,
+        contactsNeedingAttention: 2,
         leadsWithoutNextStep: 1,
         contactsWithOutcomes: 1,
         lifecycleCounts: {
