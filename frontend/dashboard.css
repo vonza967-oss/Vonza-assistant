@@ -4442,6 +4442,14 @@ body {
   color: #9a6b10;
 }
 
+.customer-status-chip--needs_review,
+.customer-status-chip--missing_contact,
+.customer-status-chip--follow_up {
+  border-color: #efd7a6;
+  background: #fff7e2;
+  color: #9a6b10;
+}
+
 .customer-status-chip--resolved {
   border-color: #c7e4d4;
   background: #edf8f2;
@@ -4477,6 +4485,14 @@ body {
 
 .customer-chat-toggle {
   min-width: 112px;
+}
+
+.customer-chat-unavailable-reason {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .customer-chat-panel {
@@ -12330,6 +12346,9 @@ textarea::placeholder {
 }
 
 .customer-status-chip--needs_reply,
+.customer-status-chip--needs_review,
+.customer-status-chip--missing_contact,
+.customer-status-chip--follow_up,
 .workspace-page[data-shell-section="contacts"] .customer-status-chip--needs_reply {
   border-color: #e7c37b;
   background: #fff5dd;
@@ -15724,6 +15743,12 @@ html[data-dashboard-theme="dark"] select {
   border-color: #d8e1ee;
   background: #f6f8fb;
   color: #7a8aa1;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-chat-unavailable-reason {
+  max-width: 160px;
+  color: #5f7087;
+  text-align: right;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-chat-panel {

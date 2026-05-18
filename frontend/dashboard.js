@@ -2059,7 +2059,8 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Recent": "Nemrég",
   "Activity": "Aktivitás",
   "No additional note stored for this interaction.": "Ehhez az interakcióhoz nincs további tárolt megjegyzés.",
-  "Send AI draft": "AI piszkozat küldése",
+  "Prepare reply": "Válasz előkészítése",
+  "Review suggested reply": "Javasolt válasz áttekintése",
   "Open conversation": "Beszélgetés megnyitása",
   "Review customer": "Ügyfél áttekintése",
   "Mark resolved": "Megoldottnak jelölés",
@@ -2368,6 +2369,58 @@ function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
   const section = DASHBOARD_SECTION_HASH_ALIASES[normalizedHash] || "";
 
   return availableSections.includes(section) ? section : "";
+}
+
+function getDashboardHashSearchParams() {
+  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
+  const queryIndex = rawHash.indexOf("?");
+
+  if (queryIndex === -1) {
+    return new URLSearchParams();
+  }
+
+  return new URLSearchParams(rawHash.slice(queryIndex + 1));
+}
+
+function normalizeCustomerFilterKey(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/-/g, "_");
+  const aliases = {
+    needs_review: "needs_review",
+    needs_reply: "needs_review",
+    needs_follow_up: "needs_follow_up",
+    follow_up_possible: "needs_follow_up",
+  };
+
+  return aliases[normalized] || normalized;
+}
+
+function getContactFilterFromHash() {
+  return normalizeCustomerFilterKey(getDashboardHashSearchParams().get("filter") || "");
+}
+
+function getContactIdFromHash() {
+  return trimText(getDashboardHashSearchParams().get("customer") || getDashboardHashSearchParams().get("contact"));
+}
+
+function syncCustomerHash(filterKey = "", contactId = "") {
+  if (!window.history?.replaceState) {
+    return;
+  }
+
+  const nextUrl = new URL(window.location.href);
+  const params = new URLSearchParams();
+  const normalizedFilter = normalizeCustomerFilterKey(filterKey);
+
+  if (normalizedFilter && normalizedFilter !== "all") {
+    params.set("filter", normalizedFilter.replace(/_/g, "-"));
+  }
+
+  if (trimText(contactId)) {
+    params.set("customer", trimText(contactId));
+  }
+
+  nextUrl.hash = `customers${params.toString() ? `?${params.toString()}` : ""}`;
+  window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
 }
 
 function syncShellSectionHash(section) {
@@ -4833,12 +4886,34 @@ function contactNeedsReply(contact = {}) {
   return Boolean(trimText(contact.nextAction?.title) || trimText(contact.nextAction?.description));
 }
 
-function customerNeedsFollowUp(contact = {}) {
+function customerHasContactDetails(contact = {}) {
+  return Boolean(getCustomerEmailLabel(contact.email) || trimText(contact.phone));
+}
+
+function customerHasReplyableChannel(contact = {}) {
+  return customerHasContactDetails(contact)
+    || Boolean(trimText(contact.primaryThreadId))
+    || Boolean(trimText(contact.nextAction?.followUpId))
+    || Boolean(trimText(contact.primaryFollowUpId));
+}
+
+function customerMissingContactDetails(contact = {}) {
+  return isGuestCustomerRow(contact) && !customerHasContactDetails(contact);
+}
+
+function customerNeedsOwnerReview(contact = {}) {
+  const lifecycleState = trimText(contact.lifecycleState);
+
   return contactNeedsReply(contact)
     || isComplaintContact(contact)
+    || ["needs_reply", "needs_review"].includes(lifecycleState)
     || buildContactFlags(contact).some((flag) => /follow.?up|reply|attention|due/i.test(trimText(flag)))
     || Boolean(trimText(contact.nextAction?.followUpId))
     || ["draft", "ready", "failed", "missing_contact"].includes(trimText(contact.followUpStatus).toLowerCase());
+}
+
+function customerNeedsFollowUp(contact = {}) {
+  return customerNeedsOwnerReview(contact) && customerHasReplyableChannel(contact);
 }
 
 function isComplaintContact(contact = {}) {
@@ -5178,6 +5253,13 @@ function getCustomerSituationSummary(contact = {}) {
 }
 
 function getCustomerRiskSummary(contact = {}) {
+  if (customerMissingContactDetails(contact)) {
+    return localizeDashboardCopy(
+      "No contact details captured yet. This guest can’t be followed up outside the chat.",
+      "Még nincs rögzített elérhetőség. Ezt a vendéget a chaten kívül nem lehet utánkövetni."
+    );
+  }
+
   if (isComplaintContact(contact)) {
     return localizeDashboardCopy(
       "Risk is elevated. This customer may lose trust if the issue stays unanswered.",
@@ -5219,6 +5301,13 @@ function getCustomerRiskSummary(contact = {}) {
 function getCustomerSuggestedAction(contact = {}) {
   const nextActionDescription = trimText(contact.nextAction?.description);
   const nextActionTitle = trimText(contact.nextAction?.title);
+
+  if (customerMissingContactDetails(contact)) {
+    return localizeDashboardCopy(
+      "Open the conversation to review what they asked. Ask for contact details before follow-up.",
+      "Nyisd meg a beszélgetést, hogy lásd, mit kérdezett. Utánkövetés előtt kérj elérhetőséget."
+    );
+  }
 
   return (!isGenericCustomerNoActionCopy(nextActionDescription) ? nextActionDescription : "")
     || (!isGenericCustomerNoActionTitle(nextActionTitle) ? nextActionTitle : "")
@@ -5308,10 +5397,13 @@ function getCustomerStatusList(contact = {}) {
     pushStatus("lead", translateDashboardText("Lead"));
   }
 
-  if (contactNeedsReply(contact)) {
+  if (customerMissingContactDetails(contact) && customerNeedsOwnerReview(contact)) {
+    pushStatus("needs_review", translateDashboardText("Needs review"));
+    pushStatus("missing_contact", translateDashboardText("Missing contact details"));
+  } else if (contactNeedsReply(contact)) {
     pushStatus("needs_reply", t("customers.needsReply"));
   } else if (customerNeedsFollowUp(contact)) {
-    pushStatus("follow_up", translateDashboardText("Follow-up"));
+    pushStatus("follow_up", translateDashboardText("Needs follow-up"));
   }
 
   if (isResolvedContact(contact)) {
@@ -5341,7 +5433,7 @@ function buildCustomerStatusMarkup(contact = {}, limit = 2) {
 
 function getPrimaryCustomerStatus(contact = {}) {
   const statuses = getCustomerStatusList(contact);
-  return statuses.find((status) => status.key !== "needs_reply")
+  return statuses.find((status) => !["guest", "missing_contact"].includes(status.key))
     || statuses[0]
     || { key: "resolved", label: translateDashboardText("Resolved") };
 }
@@ -5354,8 +5446,13 @@ function buildCustomerFilterDefinitions(contacts = []) {
     { key: "identified", label: translateDashboardText("Identified"), count: countMatching((contact) => !isGuestCustomerRow(contact)) },
     { key: "guests", label: translateDashboardText("Guests"), count: countMatching((contact) => isGuestCustomerRow(contact)) },
     {
+      key: "needs_review",
+      label: translateDashboardText("Needs review"),
+      count: countMatching((contact) => customerNeedsOwnerReview(contact)),
+    },
+    {
       key: "needs_follow_up",
-      label: translateDashboardText("Needs follow-up"),
+      label: translateDashboardText("Follow-up possible"),
       count: countMatching((contact) => customerNeedsFollowUp(contact)),
     },
     {
@@ -5388,13 +5485,13 @@ function buildCustomerSummaryItems(contacts = []) {
       copy: translateDashboardText("Live count from saved customer records."),
     },
     {
-      label: t("customers.needsReply"),
-      value: countMatching((contact) => contactNeedsReply(contact)),
-      copy: translateDashboardText("Customers or guests waiting on a reply, decision, or next step."),
+      label: translateDashboardText("Needs review"),
+      value: countMatching((contact) => customerNeedsOwnerReview(contact)),
+      copy: translateDashboardText("Customers or guests waiting on a reply, decision, or review."),
     },
     {
       label: translateDashboardText("Missing contact details"),
-      value: countMatching((contact) => isGuestCustomerRow(contact) || contact.partialIdentity === true),
+      value: countMatching((contact) => customerMissingContactDetails(contact) || contact.partialIdentity === true),
       copy: translateDashboardText("Chat unavailable on guest visitor rows until identity is captured."),
     },
   ];
@@ -5534,7 +5631,7 @@ function buildContactQuickActions(
         data-person-key="${escapeHtml(contact.personKey || "")}"
         data-lead-id="${escapeHtml(contact.leadId || "")}"
         data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      >${escapeHtml(localizeDashboardCopy("Draft follow-up", "Utánkövetés piszkozat"))}</button>
+      >${escapeHtml(localizeDashboardCopy("Prepare reply", "Válasz előkészítése"))}</button>
     `);
   }
 
@@ -5637,6 +5734,27 @@ function buildContactCountsSummary(contact = {}) {
   ].join(" · ");
 }
 
+function getCustomerChatUnavailableReason(contact = {}) {
+  if (customerMissingContactDetails(contact)) {
+    return localizeDashboardCopy(
+      "Guest visitor only. No contact details captured yet.",
+      "Csak vendég látogató. Még nincs rögzített elérhetőség."
+    );
+  }
+
+  if (!customerHasContactDetails(contact) && !trimText(contact.primaryThreadId)) {
+    return localizeDashboardCopy(
+      "No contact details captured yet.",
+      "Még nincs rögzített elérhetőség."
+    );
+  }
+
+  return localizeDashboardCopy(
+    "Conversation closed or no saved chat messages.",
+    "A beszélgetés lezárult, vagy nincs mentett chatüzenet."
+  );
+}
+
 function buildCustomerChatPanel(contact = {}) {
   if (isGuestCustomerRow(contact)) {
     return "";
@@ -5670,7 +5788,6 @@ function buildCustomerChatPanel(contact = {}) {
 }
 
 function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const primaryStatus = getPrimaryCustomerStatus(contact);
   const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
   const rowIdentifier = getCustomerRowIdentifier(contact);
   const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
@@ -5678,9 +5795,10 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
   const guestRow = isGuestCustomerRow(contact);
   const canShowChat = !guestRow && chatMessages.length > 0;
-  const needsReply = contactNeedsReply(contact);
   const sourceLabels = getCustomerSourceLabels(contact);
   const identityTone = guestRow ? "guest" : "identified";
+  const rowStatuses = getCustomerStatusList(contact).filter((status) => !["guest", "lead"].includes(status.key)).slice(0, 2);
+  const chatUnavailableReason = getCustomerChatUnavailableReason(contact);
 
   return `
     <article
@@ -5713,8 +5831,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
           <strong class="customer-row-last-seen">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
           <div class="customer-row-statuses">
             <span class="customer-identity-chip customer-identity-chip--${escapeHtml(identityTone)}">${escapeHtml(guestRow ? t("common.guestVisitor") : translateDashboardText("Identified"))}</span>
-            ${needsReply ? `<span class="customer-status-chip customer-status-chip--needs_reply">${escapeHtml(translateDashboardText("Needs follow-up"))}</span>` : ""}
-            ${primaryStatus && primaryStatus.key !== "needs_reply" ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
+            ${rowStatuses.map((status) => `<span class="customer-status-chip customer-status-chip--${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>`).join("")}
           </div>
         </div>
         <div class="customer-row-meta">
@@ -5726,6 +5843,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
             aria-expanded="false"
             ${canShowChat ? "" : "disabled"}
           >${canShowChat ? t("common.viewChat") : t("common.chatUnavailable")}</button>
+          ${!canShowChat && chatUnavailableReason ? `<span class="customer-chat-unavailable-reason">${escapeHtml(chatUnavailableReason)}</span>` : ""}
         </div>
       </div>
       ${buildCustomerChatPanel(contact)}
@@ -5744,7 +5862,13 @@ function buildContactDetailPanel(
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
   const canShowChat = !guestRow && chatMessages.length > 0;
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
-  const canDraftReply = automationsVisible && Boolean(contact.email || contact.phone);
+  const canDraftReply = automationsVisible && customerHasContactDetails(contact);
+  const chatUnavailableReason = getCustomerChatUnavailableReason(contact);
+  const reviewConversationActionMarkup = contact.latestMessageId ? `
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
+  ` : `
+    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
+  `;
   const primaryActionMarkup = canDraftReply ? `
     <button
       class="primary-button"
@@ -5758,10 +5882,10 @@ function buildContactDetailPanel(
       data-person-key="${escapeHtml(contact.personKey || "")}"
       data-lead-id="${escapeHtml(contact.leadId || "")}"
       data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      ${contact.email || contact.phone ? "" : "disabled"}
-    >${escapeHtml(localizeDashboardCopy("Send AI draft", "AI piszkozat küldése"))}</button>
-  ` : contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Open conversation", "Beszélgetés megnyitása"))}</button>
+      ${customerHasContactDetails(contact) ? "" : "disabled"}
+    >${escapeHtml(localizeDashboardCopy("Prepare reply", "Válasz előkészítése"))}</button>
+  ` : customerMissingContactDetails(contact) ? reviewConversationActionMarkup : contact.latestMessageId ? `
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
   ` : contact.primaryThreadId ? `
     <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>
   ` : contact.primaryEventId ? `
@@ -5778,6 +5902,7 @@ function buildContactDetailPanel(
       aria-expanded="false"
       ${canShowChat ? "" : "disabled"}
     >${escapeHtml(canShowChat ? t("common.viewChat") : t("common.chatUnavailable"))}</button>
+    ${!canShowChat && chatUnavailableReason ? `<span class="customer-chat-unavailable-reason">${escapeHtml(chatUnavailableReason)}</span>` : ""}
   `;
   const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
     <div class="timeline-list customer-timeline-list">
@@ -5904,7 +6029,7 @@ function buildContactDetailPanel(
           data-contact-quick-status="customer"
           data-contact-id="${escapeHtml(contact.id || "")}"
           ${contact.id ? "" : "disabled"}
-        >${escapeHtml(localizeDashboardCopy("Mark resolved", "Megoldottnak jelölés"))}</button>
+        >${escapeHtml(localizeDashboardCopy("Mark reviewed", "Áttekintettnek jelölés"))}</button>
       </div>
       <div class="customer-risk-note">${escapeHtml(getCustomerRiskSummary(contact))}</div>
       ${detailDisclosureMarkup}
@@ -5972,7 +6097,7 @@ function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorW
             <h3 class="flat-section-title">${escapeHtml(translateDashboardText("All customers"))}</h3>
             <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
           </div>
-          <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_follow_up">${escapeHtml(t("customers.showNeedsHelp"))}</button>
+          <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_review">${escapeHtml(localizeDashboardCopy("Show customers needing review", "Áttekintésre váró ügyfelek mutatása"))}</button>
         </div>
         <div class="customer-table-head" aria-hidden="true">
           <span></span>
@@ -7622,12 +7747,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   };
 
   topHumanFollowUps.slice(0, 2).forEach((item) => {
+    const contactId = trimText(item.contactId || item.contact_id || item.customerId || item.personKey);
     addPriority({
       tone: item.priority === "high" ? "danger" : "brand",
       title: `${item.customerLabel || "Customer"} needs a human reply`,
       why: item.whyItMatters?.[0]?.copy || item.safeSummary || "Vonza found a customer moment that should not be left only to AI.",
       change: item.recommendedNextAction || "Review the customer context, reply outside Vonza, and mark the follow-up replied.",
-      action: { type: "section", value: "analytics", label: "Open follow-ups" },
+      action: { type: "section", value: "contacts", label: "Review conversation", filter: "needs_review", targetId: contactId },
     });
   });
 
@@ -7637,7 +7763,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       title: `${countLabel(openIssueCount, "customer issue")} could hurt satisfaction`,
       why: "Unresolved complaints or service problems can turn a fixable moment into a lost customer or negative word of mouth.",
       change: "Review the affected customers, add clearer complaint-handling guidance, and make the follow-up path easier to trust.",
-      action: { type: "section", value: "contacts", label: "Review customers" },
+      action: { type: "section", value: "contacts", label: "Review customers", filter: "needs_review" },
     });
   }
 
@@ -7647,7 +7773,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       title: "Give open customer needs a clear next step",
       why: "Open needs create friction when a customer is waiting on an answer, booking path, contact route, or owner decision.",
       change: "Review the affected customers and confirm the useful answer, handoff, or next-step guidance each one still needs.",
-      action: { type: "section", value: "contacts", label: "Review open needs" },
+      action: { type: "section", value: "contacts", label: "Review open needs", filter: "needs_review" },
     });
   }
 
@@ -7677,7 +7803,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       title: "Strengthen quote or booking guidance",
       why: "Visitors who ask about quotes, bookings, or contact are close to taking action, but interest cools quickly without an obvious path.",
       change: "Make the quote, booking, or contact route more direct and follow up on high-intent customers before they drift away.",
-      action: { type: "section", value: "contacts", label: "Follow up" },
+      action: { type: "section", value: "contacts", label: "Review leads", filter: "needs_review" },
     });
   }
 
@@ -7898,6 +8024,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         title,
         reason: getTodayQueueItemWhyLabel(item),
         action: getTodayQueueItemCopilotSummary(item) || category.action,
+        contactId: trimText(item.contactId || item.linkedContactId || item.source?.contactId || item.contactInfo?.id),
       };
     })
     .filter((item, index, items) => items.findIndex((candidate) => candidate.key === item.key) === index)
@@ -7920,7 +8047,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const sourceBreakdown = ownerAnalyticsDashboard?.assistantSource || null;
   const notAvailableLabel = "not available yet";
   const homeHeaderActions = `
-    <button class="v2-button v2-button-primary" type="button" data-overview-target="analytics">${buildV2Icon("chat")}Review replies</button>
+    <button class="v2-button v2-button-primary" type="button" data-overview-target="contacts" data-contact-filter="needs_review">${buildV2Icon("chat")}Review replies</button>
     <button class="v2-button" type="button" data-overview-target="analytics">${buildV2Icon("outcomes")}View analytics</button>
   `;
   const homeMetrics = [
@@ -7957,9 +8084,10 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     category: item.category || "",
     title: item.title || item.category || "Customer needs attention",
     copy: [item.reason, item.action].filter(Boolean).join(" ") || notAvailableLabel,
-    actionLabel: /reply/i.test(item.category || item.action || "") ? "Reply" : "Review",
-    target: "analytics",
-    targetId: "",
+    actionLabel: "Review",
+    target: "contacts",
+    targetId: item.contactId || "",
+    contactFilter: "needs_review",
     icon: /lead|booking|quote|pricing/i.test(item.category || item.action || "") ? "users" : "chat",
     tone: item.priority <= 2 ? "amber" : "blue",
   }));
@@ -7972,7 +8100,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       actionLabel: primaryPriority.action?.label || "Review",
       action: primaryPriority.action,
       target: primaryPriority.action?.value || "analytics",
-      targetId: "",
+      targetId: primaryPriority.action?.targetId || "",
+      contactFilter: primaryPriority.action?.filter || "",
       icon: "chat",
       tone: primaryPriority.tone === "danger" ? "amber" : "blue",
     });
@@ -8017,7 +8146,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                       <div class="v2-row-title">${escapeHtml(item.title)}</div>
                       <div class="v2-row-copy">${escapeHtml(item.copy)}</div>
                     </div>
-                    ${item.action ? renderHomeAction(item.action, { labelOverride: item.actionLabel }) : `<button class="v2-button" type="button" data-overview-target="${escapeHtml(item.target)}" ${item.targetId ? `data-target-id="${escapeHtml(item.targetId)}"` : ""}>${buildV2Icon("chevronDown")} ${escapeHtml(item.actionLabel)}</button>`}
+                    ${item.action ? renderHomeAction(item.action, { labelOverride: item.actionLabel }) : `<button class="v2-button" type="button" data-overview-target="${escapeHtml(item.target)}" ${item.contactFilter ? `data-contact-filter="${escapeHtml(item.contactFilter)}"` : ""} ${item.targetId ? `data-target-id="${escapeHtml(item.targetId)}"` : ""}>${buildV2Icon("chevronDown")} ${escapeHtml(item.actionLabel)}</button>`}
                   </div>
                 `).join("") : `<div class="v2-empty-note">${escapeHtml(notAvailableLabel)}</div>`}
               </div>
@@ -12852,7 +12981,7 @@ function buildOverviewActionMarkup(agent, action = null, { primary = false } = {
   const buttonClass = primary ? "primary-button" : "ghost-button";
 
   if (action.type === "section") {
-    return `<button class="${buttonClass}" type="button" data-overview-target="${action.value}">${action.label}</button>`;
+    return `<button class="${buttonClass}" type="button" data-overview-target="${action.value}" ${action.filter ? `data-contact-filter="${escapeHtml(action.filter)}"` : ""} ${action.targetId ? `data-target-id="${escapeHtml(action.targetId)}"` : ""}>${action.label}</button>`;
   }
 
   if (action.type === "focus") {
@@ -16940,7 +17069,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const activationCompleteButtons = document.querySelectorAll("[data-activation-complete]");
   const activationImproveButtons = document.querySelectorAll("[data-activation-open-improvement]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
-  let activeContactFilter = "all";
+  let activeContactFilter = getContactFilterFromHash() || "all";
   let activeTodayFilter = "all";
   let activeTodayQueueKey = getActiveTodayQueueSelection(buildTodayQueueItems(actionQueue, operatorWorkspace));
   let settingsShellController = null;
@@ -17377,8 +17506,11 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       switch (filterKey) {
         case "unresolved":
+        case "needs_review":
+          visible = statuses.some((status) => ["needs_reply", "needs_review", "complaint", "follow_up"].includes(status));
+          break;
         case "needs_follow_up":
-          visible = statuses.some((status) => ["needs_reply", "complaint", "follow_up"].includes(status));
+          visible = statuses.includes("follow_up");
           break;
         case "needs_reply":
           visible = statuses.includes("needs_reply");
@@ -18360,8 +18492,27 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", () => {
       const targetSection = button.dataset.overviewTarget;
       const targetId = button.dataset.targetId || "";
+      const contactFilter = normalizeCustomerFilterKey(button.dataset.contactFilter || "");
 
-      showShellSection(targetSection);
+      if (targetSection === "contacts" && contactFilter) {
+        activeContactFilter = contactFilter;
+      }
+
+      showSectionAndHighlight(
+        targetSection,
+        getCopilotTargetSelector(targetSection, targetId),
+        {
+          targetId,
+        }
+      );
+
+      if (targetSection === "contacts" && (contactFilter || targetId)) {
+        if (contactFilter) {
+          applyContactFilter(contactFilter);
+        }
+        syncCustomerHash(contactFilter || activeContactFilter, targetId);
+        return;
+      }
 
       const sectionEl = targetId
         ? document.getElementById(targetId)
@@ -18612,6 +18763,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", () => {
       activeContactFilter = button.dataset.contactFilter || "all";
       applyContactFilter(button.dataset.contactFilter || "all");
+      syncCustomerHash(activeContactFilter);
     });
   });
 
@@ -19440,12 +19592,16 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   });
   showFrontDeskSection(getActiveFrontDeskSection());
 
-  if (contactRows.length) {
-    selectContact(contactRows[0].dataset.contactId || "");
-  }
-
   if (contactFilterButtons.length || contactSearchInput) {
     applyContactFilter(activeContactFilter);
+  }
+
+  if (contactRows.length) {
+    const hashContactId = getContactIdFromHash();
+    const hashContactRow = hashContactId
+      ? [...contactRows].find((row) => row.dataset.contactId === hashContactId && !row.hidden)
+      : null;
+    selectContact(hashContactRow?.dataset.contactId || [...contactRows].find((row) => !row.hidden)?.dataset.contactId || contactRows[0].dataset.contactId || "");
   }
 
   if (todayFilterButtons.length) {

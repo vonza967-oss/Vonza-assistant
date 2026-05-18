@@ -1975,6 +1975,59 @@ test("today overview dedupes repeated queue and review items by stable keys", ()
   assert.equal(overviewPanel.match(/Missing follow-up after the appointment ended/g)?.length || 0, 1);
 });
 
+test("home review actions route to customers while analytics keeps analytics label", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const overviewPanel = harness.buildOverviewPanel(
+    { installId: "install-1", publicAgentKey: "agent-key" },
+    [],
+    {
+      isReady: true,
+      knowledgeDescription: "Knowledge ready.",
+      knowledgeReady: true,
+      knowledgeLimited: false,
+    },
+    {
+      ...harness.createEmptyActionQueue(),
+      humanFollowUps: {
+        ...harness.createEmptyActionQueue().humanFollowUps,
+        summary: {
+          ...harness.createEmptyActionQueue().humanFollowUps.summary,
+          open: 1,
+        },
+        topItems: [
+          {
+            contactId: "contact-home-1",
+            customerLabel: "Taylor Reed",
+            priority: "high",
+            safeSummary: "Taylor asked for pricing.",
+            recommendedNextAction: "Review the conversation and prepare the reply.",
+          },
+        ],
+      },
+    },
+    harness.normalizeOperatorWorkspace({
+      enabled: true,
+      featureEnabled: true,
+      contacts: {
+        summary: {
+          contactsNeedingAttention: 1,
+        },
+      },
+    })
+  );
+
+  assert.match(overviewPanel, /Review replies/);
+  assert.match(overviewPanel, /Review replies<\/button>/);
+  assert.match(overviewPanel, /data-overview-target="contacts" data-contact-filter="needs_review"[\s\S]*Review replies/);
+  assert.match(overviewPanel, /data-overview-target="analytics"[\s\S]*View analytics/);
+  assert.match(overviewPanel, /data-overview-target="contacts"[\s\S]*data-contact-filter="needs_review"[\s\S]*Review/);
+  assert.doesNotMatch(overviewPanel, /data-overview-target="analytics"[^>]*>[\s\S]{0,80}Review<\/button>/);
+});
+
 test("today and contacts avoid dead automations CTAs when Google beta is hidden", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -2190,12 +2243,14 @@ test("customers render as a polished workspace without inactive controls", () =>
   assert.match(contactsPanel, /New leads/);
   assert.match(contactsPanel, /Warm leads/);
   assert.match(contactsPanel, /Guests/);
-  assert.match(contactsPanel, /Needs follow-up/);
+  assert.match(contactsPanel, /Needs review/);
+  assert.match(contactsPanel, /Follow-up possible/);
   assert.match(contactsPanel, /Missing contact details/);
   assert.match(contactsPanel, /Trend unavailable/);
-  assert.match(contactsPanel, /Show customers needing help/);
+  assert.match(contactsPanel, /Show customers needing review/);
   assert.match(contactsPanel, /data-contact-filter="identified"/);
   assert.match(contactsPanel, /data-contact-filter="guests"/);
+  assert.match(contactsPanel, /data-contact-filter="needs_review"/);
   assert.match(contactsPanel, /data-contact-filter="needs_follow_up"/);
   assert.match(contactsPanel, /data-contact-filter="website_widget"/);
   assert.match(contactsPanel, /data-contact-filter="full_page_assistant"/);
@@ -2734,6 +2789,107 @@ test("guest customer rows stay summary-only even if chat messages are present in
   assert.doesNotMatch(row, /data-customer-chat-panel/);
 });
 
+test("guest customer rows with no contact details use review and missing-contact labels", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const row = harness.buildContactRow({
+    id: "contact-guest-review",
+    name: "Anonymous visitor",
+    partialIdentity: true,
+    sources: ["chat"],
+    flags: ["follow up due"],
+    latestCustomerMessageSummary: "Can you send pricing?",
+    lastCustomerMessageAt: "2026-04-16T09:47:46.000Z",
+    timeline: [
+      {
+        label: "Visitor message",
+        source: "chat",
+        summary: "Can you send pricing?",
+        at: "2026-04-16T09:47:46.000Z",
+      },
+    ],
+  });
+
+  assert.match(row, /Guest visitor/);
+  assert.match(row, /Needs review/);
+  assert.match(row, /Missing contact details/);
+  assert.match(row, /Guest visitor only\. No contact details captured yet\./);
+  assert.doesNotMatch(row, /Needs follow-up/);
+});
+
+test("identified customer rows can show follow-up while guests without contact cannot", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const identifiedRow = harness.buildContactRow({
+    id: "contact-follow-up",
+    name: "Riley Hart",
+    email: "riley@example.com",
+    sources: ["chat"],
+    flags: ["follow up due"],
+    latestCustomerMessageSummary: "Please send the quote.",
+  });
+  const guestRow = harness.buildContactRow({
+    id: "contact-guest-follow-up",
+    name: "Anonymous visitor",
+    partialIdentity: true,
+    sources: ["chat"],
+    flags: ["follow up due"],
+    latestCustomerMessageSummary: "Please send the quote.",
+  });
+
+  assert.match(identifiedRow, /Needs follow-up/);
+  assert.doesNotMatch(guestRow, /Needs follow-up/);
+  assert.match(guestRow, /Needs review/);
+});
+
+test("customer detail actions prepare replies and explain unavailable guest chat", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    status: {
+      googleConfigReady: true,
+      googleConnected: true,
+    },
+  });
+  const identifiedPanel = harness.buildContactDetailPanel({}, {
+    id: "contact-identified-reply",
+    name: "Jordan Lee",
+    email: "jordan@example.com",
+    sources: ["chat"],
+    latestCustomerMessageSummary: "Can you confirm pricing?",
+  }, workspace, true);
+  const guestPanel = harness.buildContactDetailPanel({}, {
+    id: "contact-guest-detail",
+    name: "Anonymous visitor",
+    partialIdentity: true,
+    sources: ["chat"],
+    latestMessageId: "message-1",
+    latestCustomerMessageSummary: "Can you confirm pricing?",
+    nextAction: {
+      title: "Review open question",
+      description: "A reply is still needed.",
+    },
+  }, workspace, true);
+
+  assert.match(identifiedPanel, /Prepare reply/);
+  assert.doesNotMatch(identifiedPanel, /Send AI draft/);
+  assert.match(guestPanel, /Review conversation/);
+  assert.match(guestPanel, /Mark reviewed/);
+  assert.match(guestPanel, /Guest visitor only\. No contact details captured yet\./);
+  assert.doesNotMatch(guestPanel, /Prepare reply/);
+});
+
 test("contacts panel still renders rows when a contact only has the needs-reply state", () => {
   const harness = createDashboardHarness({
     windowFlags: {
@@ -3083,7 +3239,8 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /New leads/);
   assert.match(contactsPanel, /Warm leads/);
   assert.match(contactsPanel, /Guests/);
-  assert.match(contactsPanel, /Needs follow-up/);
+  assert.match(contactsPanel, /Needs review/);
+  assert.match(contactsPanel, /Follow-up possible/);
   assert.match(contactsPanel, /Missing contact details/);
   assert.match(contactsPanel, /Identified/);
   assert.match(contactsPanel, /Guest visitor/);
@@ -3100,6 +3257,45 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /Chat unavailable/);
   assert.doesNotMatch(contactsPanel, /display_mode/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
+});
+
+test("customer filters separate needs review from follow-up possible counts", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const workspace = harness.normalizeOperatorWorkspace({
+    enabled: true,
+    featureEnabled: true,
+    contacts: {
+      list: [
+        {
+          id: "guest-review",
+          name: "Anonymous visitor",
+          partialIdentity: true,
+          sources: ["chat"],
+          flags: ["follow up due"],
+          latestCustomerMessageSummary: "Can you send pricing?",
+        },
+        {
+          id: "identified-follow-up",
+          name: "Avery Customer",
+          email: "avery@example.com",
+          sources: ["chat"],
+          flags: ["follow up due"],
+        },
+      ],
+    },
+  });
+  const contactsPanel = harness.buildContactsPanel({}, workspace);
+
+  assert.match(contactsPanel, /Needs review \(2\)/);
+  assert.match(contactsPanel, /Follow-up possible \(1\)/);
+  assert.match(contactsPanel, /Guests \(1\)/);
+  assert.match(contactsPanel, /Identified \(1\)/);
+  assert.match(contactsPanel, /data-contact-filter="website_widget"/);
+  assert.match(contactsPanel, /data-contact-filter="full_page_assistant"/);
 });
 
 test("customers panel uses a polished empty state with no preview customer data", () => {
