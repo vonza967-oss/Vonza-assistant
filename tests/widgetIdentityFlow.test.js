@@ -142,6 +142,13 @@ function createWidgetHarness({
     "input",
     "send-button",
     "composer-status",
+    "page-identity-inline",
+    "page-identity-note",
+    "page-identity-email-button",
+    "page-identity-email-form",
+    "page-identity-name",
+    "page-identity-email",
+    "page-identity-email-cancel",
     "identity-reset-button",
     "assistant-name",
     "welcome-assistant-name",
@@ -180,6 +187,8 @@ function createWidgetHarness({
     "assistant-loading-state",
     "assistant-unavailable-state",
     "page-assistant-hero",
+    "page-identity-inline",
+    "page-identity-email-form",
   ].forEach((id) => {
     getElement(id).hidden = true;
   });
@@ -460,6 +469,12 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.hooks.getDisplayMode(), "page");
   assert.equal(harness.elements.get("assistant-loading-state").hidden, false);
   assert.equal(harness.elements.get("chat-container").hidden, true);
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
+  assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
+    mode: "guest",
+    email: "",
+    name: "",
+  });
 
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -471,19 +486,34 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-business-domain").textContent, "");
   assert.equal(harness.elements.get("page-business-domain").hidden, true);
-  assert.equal(harness.elements.get("page-help-title").textContent, "How can we help?");
+  assert.equal(harness.elements.get("page-help-title").textContent, "Ask this business anything");
   assert.equal(
     harness.elements.get("page-assistant-subtitle").textContent,
-    "Ask about services, pricing, bookings, quotes, or contact details."
+    "Ask about services, pricing, quotes, or contact details."
   );
   assert.match(harness.elements.get("page-action-list").innerHTML, /Request a quote/);
-  assert.match(harness.elements.get("page-action-list").innerHTML, /Book a time/);
   assert.match(harness.elements.get("page-action-list").innerHTML, /Ask about pricing/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Ask about services/);
   assert.match(harness.elements.get("page-action-list").innerHTML, /Contact details/);
-  assert.equal(harness.elements.get("assistant-name").textContent, "Acme Co");
+  assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Book a time/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /I&#39;d like to request a quote\./);
+  assert.equal(harness.elements.get("assistant-name").textContent, "Acme Assistant");
   assert.equal(harness.elements.get("launcher-text").textContent, "Online now");
-  assert.equal(harness.elements.get("welcome-title").textContent, "Start a conversation");
   assert.equal(harness.elements.get("welcome-message").textContent, "Ask us anything about Acme.");
+  assert.equal(harness.elements.get("entry-state").hidden, true);
+  assert.equal(harness.elements.get("chat-state").hidden, false);
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(harness.elements.get("welcome-panel").hidden, true);
+  assert.equal(harness.elements.get("intro-message").hidden, false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("page-identity-inline").hidden, false);
+  assert.equal(
+    harness.elements.get("page-identity-note").textContent,
+    "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details."
+  );
+  assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
+  assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Smith &amp; Co\.|Smith & Co\./);
 });
 
@@ -522,6 +552,67 @@ test("assistant slug route defaults to page mode and missing assistant shows una
     "This assistant is not available right now. Please contact the business directly."
   );
   assert.doesNotMatch(harness.elements.get("assistant-unavailable-copy").textContent, /agent_id|widget config|API/i);
+});
+
+test("assistant slug route renders a chat-first hosted page", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/a/acme-desk",
+      href: "https://example.com/a/acme-desk",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        assert.match(url, /agent_key=acme-desk/);
+        assert.match(url, /mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Ask us anything about Acme.",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(harness.elements.get("intro-message").hidden, false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("welcome-message").textContent, "Ask us anything about Acme.");
+  assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
+    mode: "guest",
+    email: "",
+    name: "",
+  });
 });
 
 test("assistant alias route uses hosted page mode and personalized default greeting", async () => {
@@ -573,13 +664,18 @@ test("assistant alias route uses hosted page mode and personalized default greet
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
   assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("assistant-name").textContent, "Acme Assistant");
   assert.equal(harness.elements.get("page-business-domain").textContent, "acme.test");
   assert.equal(
     harness.elements.get("welcome-message").textContent,
     "Hi, I can help with questions about Acme Co. What would you like to know?"
   );
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
   assert.notEqual(
     harness.elements.get("page-assistant-subtitle").textContent,
     harness.elements.get("welcome-message").textContent
@@ -628,6 +724,59 @@ test("page mode falls back to Assistant when business and assistant names are mi
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Assistant");
   assert.equal(harness.elements.get("assistant-name").textContent, "Assistant");
   assert.equal(harness.elements.get("welcome-assistant-name").textContent, "Assistant");
+  assert.doesNotMatch(harness.elements.get("page-assistant-name").textContent, /^Vonza/i);
+});
+
+test("page mode does not treat default Vonza assistant copy as business branding", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Vonza AI",
+                welcomeMessage: "Hi! How can we help today?",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("assistant-name").textContent, "Acme Co");
+  assert.equal(
+    harness.elements.get("welcome-message").textContent,
+    "Hi, I can help with questions about Acme Co. What would you like to know?"
+  );
+  assert.equal(harness.elements.get("send-button")["aria-label"], "Send a message to Acme Co");
   assert.doesNotMatch(harness.elements.get("page-assistant-name").textContent, /^Vonza/i);
 });
 
@@ -689,7 +838,17 @@ test("embedded page mode keeps page display tracking and compact production hook
 
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
-  harness.hooks.continueIntoChat({ mode: "guest" });
+  assert.equal(harness.hooks.getWidgetPhase(), "chat");
+  assert.equal(harness.elements.get("entry-state").hidden, true);
+  assert.equal(harness.elements.get("chat-state").hidden, false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(harness.elements.get("page-identity-inline").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /I&#39;d like to request a quote\./);
+  assert.doesNotMatch(harness.elements.get("quick-replies").innerHTML, /Book a time|book a time/i);
+
   harness.elements.get("input").value = "Can I request a quote?";
   await harness.hooks.sendMessage();
 
@@ -698,6 +857,108 @@ test("embedded page mode keeps page display tracking and compact production hook
   assert.equal(JSON.parse(chatCall.options.body).display_mode, "page");
   assert.equal(harness.hooks.getDisplayMode(), "page");
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+});
+
+test("page action cards use safe prompts and only show booking when configured", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We can help with that.",
+              visitorIdentity: {
+                mode: "guest",
+                email: "",
+                name: "",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  let labels = plain(harness.hooks.getPageActionCards().map((card) => card.label));
+  assert.deepEqual(labels, [
+    "Request a quote",
+    "Ask about pricing",
+    "Ask about services",
+    "Contact details",
+  ]);
+  assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Book a time/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /data-page-starter-prompt="How much does it cost\?"/);
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Acme Assistant",
+    businessName: "Acme Co",
+    bookingUrl: "https://example.com/book",
+  });
+
+  labels = plain(harness.hooks.getPageActionCards().map((card) => card.label));
+  assert.ok(labels.includes("Book a time"));
+  assert.match(harness.elements.get("page-action-list").innerHTML, /Book a time/);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /I&#39;d like to book a time\./);
+
+  harness.elements.get("page-action-list").dispatch("click", {
+    target: {
+      closest(selector) {
+        assert.equal(selector, "[data-page-quick-action]");
+        return {
+          dataset: {
+            pageStarterPrompt: "How much does it cost?",
+          },
+          textContent: "Ask about pricing",
+        };
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const chatCall = harness.fetchCalls.find((call) => call.input === "/chat");
+  assert.ok(chatCall);
+  const payload = JSON.parse(chatCall.options.body);
+  assert.equal(payload.message, "How much does it cost?");
+  assert.equal(payload.display_mode, "page");
+  assert.equal(payload.visitor_identity_mode, "guest");
 });
 
 test("fresh widget does not render the chat intro or composer before identity is chosen", () => {
@@ -966,6 +1227,7 @@ test("widget send flow keeps identity payloads and stays in the chat state after
   assert.ok(chatCall);
   const payload = JSON.parse(chatCall.options.body);
   assert.equal(payload.message, "What services do you offer?");
+  assert.equal(payload.display_mode, "widget");
   assert.equal(payload.visitor_identity_mode, "guest");
   assert.equal(payload.visitor_email, "");
   assert.equal(harness.hooks.isWelcomePanelHidden(), true);

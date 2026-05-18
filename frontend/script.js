@@ -74,17 +74,38 @@ const QUICK_REPLY_TOPICS = Object.freeze([
   "Booking",
 ]);
 const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
-  "What services do you offer?",
+  "I'd like to request a quote.",
   "How much does it cost?",
-  "Can I request a quote?",
+  "What services do you offer?",
   "How can I contact you?",
-  "Can I book a time?",
 ]);
 const PAGE_ACTION_CARDS = Object.freeze([
-  ["Request a quote", "Share what you need so the business can follow up with the right details."],
-  ["Book a time", "Ask about appointments, calls, visits, or the best next step."],
-  ["Ask about pricing", "Get guidance on typical costs, scope, and what affects price."],
-  ["Contact details", "Find the best way to reach the team or leave your details."],
+  {
+    label: "Request a quote",
+    prompt: "I'd like to request a quote.",
+    copy: "Share what you need so the business can follow up with the right details.",
+  },
+  {
+    label: "Ask about pricing",
+    prompt: "How much does it cost?",
+    copy: "Ask what affects price, scope, and the next step.",
+  },
+  {
+    label: "Ask about services",
+    prompt: "What services do you offer?",
+    copy: "Get a quick overview of what this business can help with.",
+  },
+  {
+    label: "Contact details",
+    prompt: "How can I contact you?",
+    copy: "Find the best way to reach the team or leave your details.",
+  },
+  {
+    label: "Book a time",
+    prompt: "I'd like to book a time.",
+    copy: "Ask about appointments, calls, visits, or the best next step.",
+    requiresBooking: true,
+  },
 ]);
 
 const conversationHistory = [];
@@ -280,10 +301,19 @@ function loadStoredVisitorIdentity() {
 }
 
 function clearVisitorIdentity() {
-  visitorIdentity = normalizeVisitorIdentityState();
   try {
     window.localStorage.removeItem(getVisitorIdentityStorageKey());
   } catch {}
+
+  if (isPageMode()) {
+    visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+    syncWidgetPhaseWithIdentity(visitorIdentity);
+    setComposerStatus("You're asking as a guest. Leave contact details only if follow-up is needed.");
+    getPageIdentityEmailForm()?.setAttribute("hidden", "");
+    return visitorIdentity;
+  }
+
+  visitorIdentity = normalizeVisitorIdentityState();
   syncWidgetPhaseWithIdentity(visitorIdentity);
   setComposerStatus("Choose email or guest to start a fresh visitor identity.");
   return visitorIdentity;
@@ -405,6 +435,21 @@ function getConfiguredQuickReplies(config = widgetConfig) {
   return [];
 }
 
+function hasBookingSupport(config = widgetConfig) {
+  return Boolean(
+    trimText(config.bookingUrl || config.booking_url)
+    || trimText(config.bookingStartUrl || config.booking_start_url)
+    || trimText(config.bookingSuccessUrl || config.booking_success_url)
+    || trimText(config.primaryCtaMode || config.primary_cta_mode).toLowerCase() === "booking"
+    || trimText(config.fallbackCtaMode || config.fallback_cta_mode).toLowerCase() === "booking"
+  );
+}
+
+function getPageActionCards(config = widgetConfig) {
+  const bookingEnabled = hasBookingSupport(config);
+  return PAGE_ACTION_CARDS.filter((card) => !card.requiresBooking || bookingEnabled);
+}
+
 function getQuickReplyTopics(config = widgetConfig) {
   const configured = getConfiguredQuickReplies(config);
 
@@ -412,7 +457,12 @@ function getQuickReplyTopics(config = widgetConfig) {
     return configured;
   }
 
-  return isPageMode() ? PAGE_QUICK_REPLY_TOPICS : QUICK_REPLY_TOPICS;
+  if (isPageMode()) {
+    const topics = getPageActionCards(config).map((card) => card.prompt);
+    return topics.length ? topics : PAGE_QUICK_REPLY_TOPICS;
+  }
+
+  return QUICK_REPLY_TOPICS;
 }
 
 function getBusinessDisplayName(business = null, config = widgetConfig) {
@@ -470,10 +520,14 @@ function hasAssistantConfig() {
 
 function normalizeWidgetConfig(input = {}) {
   const explicitAssistantName = trimText(input.assistantName || input.assistant_name);
+  const hasExplicitAssistantName = Boolean(
+    explicitAssistantName
+    && explicitAssistantName !== DEFAULT_WIDGET_CONFIG.assistantName
+  );
   const next = {
     ...DEFAULT_WIDGET_CONFIG,
     ...input,
-    _hasExplicitAssistantName: Boolean(explicitAssistantName),
+    _hasExplicitAssistantName: hasExplicitAssistantName,
   };
   const primaryColor = normalizeHexColor(next.primaryColor);
   const secondaryColor = normalizeHexColor(next.secondaryColor);
@@ -618,7 +672,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const domain = getBusinessDomainLabel(business);
   const customLogoUrl = trimText(config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
-  const subtitle = "Ask about services, pricing, bookings, quotes, or contact details.";
+  const subtitle = "Ask about services, pricing, quotes, or contact details.";
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
   const domainEl = document.getElementById("page-business-domain");
@@ -629,6 +683,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const pageActionList = document.getElementById("page-action-list");
   const chatAssistantNameEl = document.getElementById("assistant-name");
   const launcherTextEl = document.getElementById("launcher-text");
+  const sendButton = document.getElementById("send-button");
   const welcomeAssistantNameEl = document.getElementById("welcome-assistant-name");
   const welcomeBrandSubtitleEl = document.querySelector(".welcome-brand-subtitle");
   const welcomeBadgeEl = document.getElementById("welcome-badge");
@@ -659,7 +714,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (helpTitleEl) {
-    helpTitleEl.textContent = "How can we help?";
+    helpTitleEl.textContent = "Ask this business anything";
   }
 
   if (pageMark && pageLogo && pageInitial) {
@@ -669,21 +724,35 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   applyBrandMark(brandMark, brandLogo, brandInitial, customLogoUrl, mark);
   applyBrandMark(welcomeBrandMark, welcomeBrandLogo, welcomeBrandInitial, customLogoUrl, mark);
 
+  if (brandMark) {
+    brandMark.setAttribute("aria-label", `${assistantDisplayName} logo`);
+  }
+
   if (introAvatar) {
     introAvatar.textContent = mark;
   }
 
   if (pageActionList) {
-    pageActionList.innerHTML = PAGE_ACTION_CARDS.map(([topic, copy]) => `
-      <button class="page-action-card" type="button" data-page-quick-action="${escapeHtml(topic)}">
-        <span class="page-action-label">${escapeHtml(topic)}</span>
-        <span class="page-action-copy">${escapeHtml(copy)}</span>
+    pageActionList.innerHTML = getPageActionCards(config).map((card) => `
+      <button
+        class="page-action-card"
+        type="button"
+        data-page-quick-action="${escapeHtml(card.label)}"
+        data-page-starter-prompt="${escapeHtml(card.prompt)}"
+      >
+        <span class="page-action-label">${escapeHtml(card.label)}</span>
+        <span class="page-action-copy">${escapeHtml(card.copy)}</span>
       </button>
     `).join("");
   }
 
   if (chatAssistantNameEl) {
-    chatAssistantNameEl.textContent = displayName;
+    chatAssistantNameEl.textContent = assistantDisplayName;
+  }
+
+  if (sendButton) {
+    sendButton.setAttribute("aria-label", `Send a message to ${assistantDisplayName}`);
+    sendButton.setAttribute("title", `Send a message to ${assistantDisplayName}`);
   }
 
   if (launcherTextEl) {
@@ -747,7 +816,50 @@ function getQuickReplies() {
   return document.getElementById("quick-replies");
 }
 
+function getPageIdentityInline() {
+  return document.getElementById("page-identity-inline");
+}
+
+function getPageIdentityEmailForm() {
+  return document.getElementById("page-identity-email-form");
+}
+
+function syncPageIdentityInline() {
+  const inline = getPageIdentityInline();
+
+  if (!inline) {
+    return;
+  }
+
+  const shouldShow = isPageMode() && widgetPhase === WIDGET_PHASES.CHAT;
+  inline.hidden = !shouldShow;
+
+  if (!shouldShow) {
+    return;
+  }
+
+  const note = document.getElementById("page-identity-note");
+  const button = document.getElementById("page-identity-email-button");
+  const normalized = normalizeVisitorIdentityState(visitorIdentity);
+
+  if (note) {
+    note.textContent = normalized.mode === "identified" && normalized.email
+      ? `Using ${normalized.email} for follow-up if the business needs it.`
+      : "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.";
+  }
+
+  if (button) {
+    button.textContent = normalized.mode === "identified" && normalized.email
+      ? "Update contact details"
+      : "Leave contact details";
+  }
+}
+
 function shouldShowQuickReplies() {
+  if (isPageMode() && !EMBEDDED_MODE) {
+    return false;
+  }
+
   return widgetPhase === WIDGET_PHASES.CHAT && !quickRepliesDismissed && conversationHistory.length < 2;
 }
 
@@ -836,6 +948,7 @@ function renderWidgetPhase() {
   }
 
   updateComposerAvailability();
+  syncPageIdentityInline();
 }
 
 function syncWidgetPhaseWithIdentity(identity = visitorIdentity) {
@@ -1469,6 +1582,10 @@ function applyWidgetConfig(config = {}) {
   }
   syncPageAssistantHeader({ config: widgetConfig });
 
+  if (isPageMode() && !hasChosenVisitorIdentity()) {
+    visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+  }
+
   if (hasChosenVisitorIdentity()) {
     continueIntoChat(visitorIdentity, {
       persist: false,
@@ -1482,6 +1599,7 @@ function applyWidgetConfig(config = {}) {
     .querySelector('meta[name="apple-mobile-web-app-title"]')
     ?.setAttribute("content", widgetConfig.assistantName);
   syncWidgetPhaseWithIdentity(visitorIdentity);
+  syncPageIdentityInline();
 }
 
 async function loadWidgetBootstrap() {
@@ -1532,14 +1650,14 @@ async function loadWidgetBootstrap() {
     applyWidgetConfig(data.widgetConfig || {});
     syncPageAssistantHeader({
       business: pageBusinessContext,
-      config: {
-        ...widgetConfig,
-        ...(data.widgetConfig || {}),
-      },
+      config: widgetConfig,
     });
     resolvedAgentId = trimText(data.agent?.id || resolvedAgentId);
     resolvedAgentKey = trimText(data.agent?.publicAgentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.business?.id || resolvedBusinessId);
+    if (isPageMode() && !hasChosenVisitorIdentity()) {
+      visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+    }
     if (hasChosenVisitorIdentity()) {
       continueIntoChat(visitorIdentity, {
         persist: false,
@@ -1665,6 +1783,11 @@ async function sendMessage(messageOverride = "") {
   const historySnapshot = conversationHistory.slice(-6);
 
   if (!message) return;
+
+  if (isPageMode() && !hasChosenVisitorIdentity()) {
+    visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+    syncWidgetPhaseWithIdentity(visitorIdentity);
+  }
 
   if (!hasChosenVisitorIdentity()) {
     renderWidgetPhase();
@@ -1826,6 +1949,43 @@ document.getElementById("identity-email-form")?.addEventListener("submit", (even
   form.setAttribute("hidden", "");
 });
 
+document.getElementById("page-identity-email-button")?.addEventListener("click", () => {
+  const form = getPageIdentityEmailForm();
+
+  if (!form) {
+    return;
+  }
+
+  form.hidden = false;
+  document.getElementById("page-identity-name")?.focus();
+  setComposerStatus("Add your email if you want the business to follow up.");
+});
+
+document.getElementById("page-identity-email-cancel")?.addEventListener("click", () => {
+  getPageIdentityEmailForm()?.setAttribute("hidden", "");
+  setComposerStatus("No problem. You can keep asking as a guest.");
+});
+
+document.getElementById("page-identity-email-form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const identity = normalizeVisitorIdentityState({
+    mode: "identified",
+    name: formData.get("name"),
+    email: formData.get("email"),
+  });
+
+  if (!identity.email) {
+    setComposerStatus("Enter a valid email address to continue with email.");
+    document.getElementById("page-identity-email")?.focus();
+    return;
+  }
+
+  continueIntoChat(identity);
+  form.setAttribute("hidden", "");
+});
+
 document.getElementById("identity-reset-button")?.addEventListener("click", () => {
   clearVisitorIdentity();
 });
@@ -1887,10 +2047,15 @@ document.getElementById("page-action-list")?.addEventListener("click", (event) =
     return;
   }
 
-  const topic = trimText(button.dataset.pageQuickAction || button.textContent);
+  const topic = trimText(button.dataset.pageStarterPrompt || button.dataset.pageQuickAction || button.textContent);
 
   if (!topic) {
     return;
+  }
+
+  if (isPageMode() && !hasChosenVisitorIdentity()) {
+    visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+    syncWidgetPhaseWithIdentity(visitorIdentity);
   }
 
   if (hasChosenVisitorIdentity()) {
@@ -1912,6 +2077,9 @@ if (EMBEDDED_MODE) {
 
 applyDisplayModeClasses();
 visitorIdentity = loadStoredVisitorIdentity();
+if (isPageMode() && !hasChosenVisitorIdentity()) {
+  visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
+}
 syncWidgetPhaseWithIdentity(visitorIdentity);
 applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
 if (isPageMode()) {
@@ -1938,6 +2106,8 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
   formatAssistantMessageHtml,
   renderQuickReplies,
+  getPageActionCards: () => getPageActionCards(),
+  hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
   saveVisitorIdentity,

@@ -1275,6 +1275,68 @@ html.vonza-mode-page .composer-status {
   font-size: 0.78rem;
 }
 
+html.vonza-mode-page .page-identity-inline {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 31, 29, 0.08);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+html.vonza-mode-page .page-identity-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+html.vonza-mode-page .page-identity-summary p,
+html.vonza-mode-page .page-identity-legal {
+  margin: 0;
+  color: #667085;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+html.vonza-mode-page .page-identity-link {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in srgb, var(--brand-primary) 70%, #14201f 30%);
+  box-shadow: none;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+html.vonza-mode-page .page-identity-link:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+html.vonza-mode-page .page-identity-email-form {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+html.vonza-mode-page .page-identity-email-form .identity-email-actions button {
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+
+html.vonza-mode-page .page-identity-legal a {
+  color: #667085;
+  text-underline-offset: 2px;
+}
+
 html.vonza-mode-page .identity-reset-button {
   background: transparent;
   border: none;
@@ -1283,9 +1345,7 @@ html.vonza-mode-page .identity-reset-button {
 }
 
 html.vonza-mode-page .powered-by {
-  margin-top: 2px;
-  color: #98a2b3;
-  font-size: 0.74rem;
+  display: none;
 }
 
 .ghost-button,
@@ -1851,6 +1911,14 @@ html.vonza-mode-page body.embedded .page-powered-by {
   display: none;
 }
 
+html.vonza-mode-page.embedded-mode .powered-by,
+html.vonza-mode-page body.embedded .powered-by {
+  display: block;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 0.74rem;
+}
+
 @media (max-width: 900px) {
   html.vonza-mode-page .app-shell {
     grid-template-columns: 1fr;
@@ -1873,5 +1941,10 @@ html.vonza-mode-page body.embedded .page-powered-by {
 
   html.vonza-mode-page .chat-container {
     min-height: min(680px, calc(100vh - 32px));
+  }
+
+  html.vonza-mode-page .page-identity-summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
