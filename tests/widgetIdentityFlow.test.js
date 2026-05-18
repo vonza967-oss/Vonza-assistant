@@ -28,6 +28,7 @@ function createStorage() {
 function createFakeElement(id = "") {
   const listeners = new Map();
   const classes = new Set();
+  const styleProperties = new Map();
 
   return {
     id,
@@ -38,8 +39,14 @@ function createFakeElement(id = "") {
     innerHTML: "",
     dataset: {},
     children: [],
+    styleProperties,
     style: {
-      setProperty() {},
+      setProperty(name, value) {
+        styleProperties.set(name, String(value));
+      },
+      getPropertyValue(name) {
+        return styleProperties.get(name) || "";
+      },
     },
     classList: {
       add(...tokens) {
@@ -217,7 +224,12 @@ function createWidgetHarness({
         },
       },
       style: {
-        setProperty() {},
+        setProperty(name, value) {
+          documentElement.style.setProperty(name, value);
+        },
+        getPropertyValue(name) {
+          return documentElement.style.getPropertyValue(name);
+        },
       },
     },
     getElementById(id) {
@@ -312,6 +324,8 @@ function createWidgetHarness({
     elements,
     fetchCalls,
     localStorage,
+    documentElement,
+    body: document.body,
   };
 }
 
@@ -623,6 +637,276 @@ test("embedded page mode uses compact customized prompts once", async () => {
   assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="How do I contact Acme\?"/);
   assert.doesNotMatch(harness.elements.get("quick-replies").innerHTML, /How quickly can you reply\?/);
   assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
+});
+
+test("embedded page mode applies configured accent and business-owned fallback copy", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Hi! How can we help today?",
+                secondaryColor: "#7c4dff",
+                fullPageConfig: {
+                  accentColor: "#0f8f83",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.documentElement.style.getPropertyValue("--brand-primary"), "#0f8f83");
+  assert.equal(harness.documentElement.style.getPropertyValue("--brand-secondary"), "#0f8f83");
+  assert.match(
+    harness.documentElement.style.getPropertyValue("--brand-ink"),
+    /#0f8f83/
+  );
+  assert.equal(
+    harness.elements.get("welcome-message").textContent,
+    "Hi, I can help with Acme Co's services, pricing, quotes, and contact details. What would you like to know?"
+  );
+  assert.doesNotMatch(harness.elements.get("welcome-message").textContent, /my name is Vonza/i);
+});
+
+test("embedded page fallback stays business-owned without a business name", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(
+    harness.elements.get("welcome-message").textContent,
+    "Hi, I can help with services, pricing, quotes, and contact details. What would you like to know?"
+  );
+  assert.doesNotMatch(harness.elements.get("welcome-message").textContent, /my name is Vonza/i);
+});
+
+test("embedded page mode uses configured action card labels for quick chips", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                fullPageConfig: {
+                  actionCards: [
+                    {
+                      label: "Compare plans",
+                      description: "Plan help",
+                      prompt: "Can you compare plans for me?",
+                      type: "pricing",
+                      enabled: true,
+                    },
+                    {
+                      label: "Start my estimate",
+                      description: "Quote help",
+                      prompt: "I need a custom estimate.",
+                      type: "quote",
+                      enabled: true,
+                    },
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const items = plain(harness.hooks.getQuickReplyItems());
+  assert.deepEqual(items.slice(0, 2).map((item) => item.label), [
+    "Compare plans",
+    "Start my estimate",
+  ]);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Compare plans/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Start my estimate/);
+});
+
+test("embedded page mode honors Hungarian welcome copy over English fallback", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Szia, miben segithetek ma?",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("welcome-message").textContent, "Szia, miben segithetek ma?");
+});
+
+test("embedded page mode supports flat surface query class", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&surface=flat",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&surface=flat",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getEmbeddedSurface(), "flat");
+  assert.equal(harness.documentElement.classList.contains("embedded-surface-flat"), true);
+  assert.equal(harness.body.classList.contains("embedded-surface-flat"), true);
 });
 
 test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
@@ -1015,7 +1299,7 @@ test("assistant alias route uses hosted page mode and personalized default greet
   assert.equal(harness.elements.get("page-business-domain").textContent, "acme.test");
   assert.equal(
     harness.elements.get("welcome-message").textContent,
-    "Hi, I can help with questions about Acme Co. What would you like to know?"
+    "Hi, I can help with Acme Co's services, pricing, quotes, and contact details. What would you like to know?"
   );
   assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
   assert.equal(harness.elements.get("composer-shell").hidden, false);
@@ -1118,7 +1402,7 @@ test("page mode does not treat default Vonza assistant copy as business branding
   assert.equal(harness.elements.get("assistant-name").textContent, "Acme Co");
   assert.equal(
     harness.elements.get("welcome-message").textContent,
-    "Hi, I can help with questions about Acme Co. What would you like to know?"
+    "Hi, I can help with Acme Co's services, pricing, quotes, and contact details. What would you like to know?"
   );
   assert.equal(harness.elements.get("send-button")["aria-label"], "Send a message to Acme Co");
   assert.doesNotMatch(harness.elements.get("page-assistant-name").textContent, /^Vonza/i);
@@ -1791,12 +2075,14 @@ test("dashboard install iframe uses compact embedded page mode while QR stays ho
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
   assert.match(dashboard, /inside a website section like Support, Contact, or Request a quote/);
+  assert.match(dashboard, /surface=flat/);
   assert.match(dashboard, /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(dashboard, /min-height:760px|100vh;border:0/);
   assert.match(widget, /page-identity-powered/);
   assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
+  assert.match(styles, /embedded-surface-flat[\s\S]*box-shadow: none/);
   assert.match(script, /vonza:embedded-height/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);

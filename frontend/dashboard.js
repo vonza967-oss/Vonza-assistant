@@ -15128,6 +15128,7 @@ function buildInstallSection(agent, options = {}) {
           disabled: !fullPageIframe,
           className: "full-page-iframe-output",
         })}
+        <p class="install-help">Use <code>surface=flat</code> for a more minimal website embed.</p>
       </section>
       <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
         <div class="install-option-header">

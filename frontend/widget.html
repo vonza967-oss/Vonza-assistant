@@ -19,6 +19,9 @@
     document.documentElement.classList.add(`vonza-mode-${vonzaInitialMode}`);
     if (vonzaInitialParams.get("embedded") === "1") {
       document.documentElement.classList.add("embedded-mode");
+      document.documentElement.classList.add(vonzaInitialParams.get("surface") === "flat"
+        ? "embedded-surface-flat"
+        : "embedded-surface-card");
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">

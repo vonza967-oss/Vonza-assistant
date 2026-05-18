@@ -4,6 +4,7 @@ const DISPLAY_MODE = normalizeDisplayMode(
   searchParams.get("mode") || (ROUTE_AGENT_KEY ? "page" : "widget")
 );
 const EMBEDDED_MODE = searchParams.get("embedded") === "1";
+const EMBEDDED_SURFACE = normalizeEmbeddedSurface(searchParams.get("surface"));
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
   searchParams.get("install_id") ||
@@ -167,6 +168,10 @@ let embeddedHeightFrame = 0;
 
 function normalizeDisplayMode(value) {
   return trimText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
+function normalizeEmbeddedSurface(value) {
+  return trimText(value).toLowerCase() === "flat" ? "flat" : "card";
 }
 
 function getRouteAgentKey() {
@@ -577,6 +582,11 @@ function getFullPageConfig(config = widgetConfig) {
   };
 }
 
+function hasConfiguredFullPageActionCards(config = widgetConfig) {
+  const rawConfig = getRawFullPageConfig(config);
+  return Array.isArray(rawConfig.actionCards) || Array.isArray(rawConfig.action_cards);
+}
+
 function getConfiguredQuickReplies(config = widgetConfig) {
   const fullPageConfig = getFullPageConfig(config);
   const limit = EMBEDDED_MODE ? 4 : 5;
@@ -639,6 +649,7 @@ function dedupeQuickReplyItems(items = [], limit = 4) {
 
 function getEmbeddedQuickReplyItems(config = widgetConfig) {
   const fullPageConfig = getFullPageConfig(config);
+  const hasCustomActionCards = hasConfiguredFullPageActionCards(config);
   const configuredQuestions = Array.isArray(fullPageConfig.suggestedQuestions)
     ? fullPageConfig.suggestedQuestions
     : [];
@@ -647,7 +658,9 @@ function getEmbeddedQuickReplyItems(config = widgetConfig) {
     prompt: question,
   }));
   const actionItems = getPageActionCards(config).map((card) => ({
-    label: compactEmbeddedPromptLabel(card.prompt || card.label, card.type),
+    label: hasCustomActionCards
+      ? normalizeLimitedText(card.label, 40)
+      : compactEmbeddedPromptLabel(card.prompt || card.label, card.type),
     prompt: card.prompt,
     type: card.type,
   }));
@@ -774,8 +787,18 @@ function getPageWelcomeMessage({ business = null, config = widgetConfig } = {}) 
     return configuredWelcome || DEFAULT_WIDGET_CONFIG.welcomeMessage;
   }
 
-  const businessName = getBusinessDisplayName(business, config);
-  return `Hi, I can help with questions about ${businessName}. What would you like to know?`;
+  const businessName = trimText(
+    business?.name
+    || business?.businessName
+    || config.businessName
+    || config.business_name
+  );
+
+  if (businessName) {
+    return `Hi, I can help with ${businessName}'s services, pricing, quotes, and contact details. What would you like to know?`;
+  }
+
+  return "Hi, I can help with services, pricing, quotes, and contact details. What would you like to know?";
 }
 
 function hasAssistantConfig() {
@@ -839,8 +862,12 @@ function getFingerprint() {
 function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("vonza-mode-page", isPageMode());
   document.documentElement.classList.toggle("vonza-mode-widget", !isPageMode());
+  document.documentElement.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
+  document.documentElement.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
   document.body?.classList.toggle("vonza-mode-page", isPageMode());
   document.body?.classList.toggle("vonza-mode-widget", !isPageMode());
+  document.body?.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
+  document.body?.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
 }
 
 function getAssistantLoadingState() {
@@ -1872,9 +1899,20 @@ function applyWidgetConfig(config = {}) {
   const brandLogo = document.getElementById("brand-mark-logo");
   const welcomeBrandLogo = document.getElementById("welcome-brand-logo");
   const fullPageConfig = getFullPageConfig(widgetConfig);
+  const rawFullPageConfig = getRawFullPageConfig(widgetConfig);
+  const configuredPageAccentColor = normalizeFullPageAccentColor(
+    rawFullPageConfig.accentColor || rawFullPageConfig.accent_color
+  );
   const customLogoUrl = trimText(isPageMode() ? fullPageConfig.logoUrl || widgetConfig.widgetLogoUrl : widgetConfig.widgetLogoUrl);
   const assistantMark = getAssistantMark(widgetConfig.assistantName);
-  const pageAccentColor = isPageMode() ? fullPageConfig.accentColor : "";
+  const pageAccentColor = isPageMode() ? configuredPageAccentColor || fullPageConfig.accentColor : "";
+  const brandPrimary = normalizeFullPageAccentColor(
+    pageAccentColor || widgetConfig.primaryColor,
+    DEFAULT_WIDGET_CONFIG.primaryColor
+  ) || DEFAULT_WIDGET_CONFIG.primaryColor;
+  const brandSecondary = isPageMode() && EMBEDDED_MODE && configuredPageAccentColor
+    ? brandPrimary
+    : normalizeFullPageAccentColor(widgetConfig.secondaryColor, DEFAULT_WIDGET_CONFIG.secondaryColor) || DEFAULT_WIDGET_CONFIG.secondaryColor;
   const sendButton = document.getElementById("send-button");
   const poweredBy = document.getElementById("powered-by");
   const welcomeBadge = document.getElementById("welcome-badge");
@@ -1882,8 +1920,13 @@ function applyWidgetConfig(config = {}) {
   const welcomeCopy = document.getElementById("welcome-copy");
 
   document.title = widgetConfig.assistantName;
-  document.documentElement.style.setProperty("--brand-primary", pageAccentColor || widgetConfig.primaryColor);
-  document.documentElement.style.setProperty("--brand-secondary", widgetConfig.secondaryColor);
+  document.documentElement.style.setProperty("--brand-primary", brandPrimary);
+  document.documentElement.style.setProperty("--brand-secondary", brandSecondary);
+  if (isPageMode()) {
+    document.documentElement.style.setProperty("--brand-ink", `color-mix(in srgb, ${brandPrimary} 72%, #14201f 28%)`);
+    document.documentElement.style.setProperty("--brand-surface", `color-mix(in srgb, ${brandPrimary} 9%, #ffffff 91%)`);
+    document.documentElement.style.setProperty("--brand-surface-strong", `color-mix(in srgb, ${brandPrimary} 16%, #ffffff 84%)`);
+  }
   document.getElementById("assistant-name").textContent = widgetConfig.assistantName;
   document.getElementById("welcome-assistant-name").textContent = widgetConfig.assistantName;
   document.getElementById("launcher-text").textContent = widgetConfig.launcherText;
@@ -2415,6 +2458,7 @@ document.getElementById("page-action-list")?.addEventListener("click", (event) =
 
 if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
+  document.body.classList.add(`embedded-surface-${EMBEDDED_SURFACE}`);
   window.addEventListener("load", queueEmbeddedHeightUpdate);
   window.addEventListener("resize", queueEmbeddedHeightUpdate);
 }
@@ -2452,6 +2496,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   renderQuickReplies,
   getQuickReplyItems: () => getQuickReplyItems(),
   getPageActionCards: () => getPageActionCards(),
+  getEmbeddedSurface: () => EMBEDDED_SURFACE,
   hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
