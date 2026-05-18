@@ -2731,7 +2731,7 @@ function buildFullPageAssistantUrl(agent = {}) {
   return url.toString();
 }
 
-function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard") {
+function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", options = {}) {
   const normalizedSize = ["compact", "standard", "tall", "full"].includes(trimText(size).toLowerCase())
     ? trimText(size).toLowerCase()
     : "standard";
@@ -2744,6 +2744,9 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard") {
   url.searchParams.set("mode", "page");
   url.searchParams.set("embedded", "1");
   url.searchParams.set("size", normalizedSize);
+  if (trimText(options.surface)) {
+    url.searchParams.set("surface", trimText(options.surface));
+  }
   return url.toString();
 }
 
@@ -2769,11 +2772,20 @@ function buildSectionAssistantIframe(agent = {}) {
 ></iframe>`;
 }
 
-function buildFullPageAssistantIframe(agent = {}) {
+function normalizeWebsiteHeaderHeight(value = 120) {
+  const numericValue = Number.parseInt(value, 10);
+  if (!Number.isFinite(numericValue)) {
+    return 120;
+  }
+  return Math.min(Math.max(numericValue, 0), 400);
+}
+
+function buildFullPageAssistantIframe(agent = {}, headerHeight = 120) {
+  const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
   return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent, "full")}"
+  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat" })}"
   title="AI assistant"
-  style="width:100%;height:calc(100vh - 120px);min-height:760px;border:0;display:block;"
+  style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
   loading="lazy"
 ></iframe>`;
 }
@@ -15140,49 +15152,73 @@ function buildInstallSection(agent, options = {}) {
           <div>
             <p class="install-option-eyebrow">Selected method</p>
             <h3 class="install-option-title">Full-page assistant</h3>
-            <p class="install-option-copy">Use the hosted Vonza URL for sharing and QR codes, or use an iframe when the assistant should live on your own website.</p>
+            <p class="install-option-copy">Choose how customers should open the assistant. Vonza will generate the right link or website code automatically.</p>
           </div>
           <span class="${getBadgeClass(fullPageUrl ? "Ready" : "Pending")}">${escapeHtml(fullPageUrl ? "Ready to share" : "Not ready")}</span>
         </div>
-        <div class="install-cta-row">
-          <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
-          <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open full-page assistant</a>
-          <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize full-page assistant</button>
+        <div class="full-page-install-selector" role="tablist" aria-label="Full-page assistant install options">
+          <button class="full-page-install-choice active" type="button" role="tab" aria-selected="true" aria-controls="full-page-option-share" data-full-page-option="share">
+            <strong>Shareable link</strong>
+            <span>Use this for QR codes, buttons, menus, emails, and direct links.</span>
+          </button>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-section" data-full-page-option="section">
+            <strong>Section embed</strong>
+            <span>Place the assistant inside part of an existing website page.</span>
+          </button>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
+            <strong>Full-page iframe</strong>
+            <span>Make a dedicated page on your own website become the assistant page.</span>
+          </button>
         </div>
-        ${buildInstallCopyBlock({
-          id: "full-page-assistant-url",
-          label: "Full-page assistant URL",
-          value: fullPageUrl,
-          rows: 2,
-          buttonAction: "copy-full-page-url",
-          buttonLabel: "Copy full-page URL",
-          disabled: !fullPageUrl,
-          className: "full-page-url-output",
-        })}
-        ${buildInstallCopyBlock({
-          id: "section-assistant-iframe",
-          label: "Section embed",
-          value: sectionIframe,
-          rows: 7,
-          buttonAction: "copy-section-assistant-iframe",
-          buttonLabel: "Copy section embed",
-          disabled: !sectionIframe,
-          className: "full-page-iframe-output",
-        })}
-        <p class="install-help">Section embed: Use this inside a page section.</p>
-        ${buildInstallCopyBlock({
-          id: "full-page-assistant-iframe",
-          label: "Full-page iframe embed",
-          value: fullPageIframe,
-          rows: 7,
-          buttonAction: "copy-full-page-iframe",
-          buttonLabel: "Copy full-page iframe",
-          disabled: !fullPageIframe,
-          className: "full-page-iframe-output",
-        })}
-        <p class="install-help">Full-page iframe: Use this when the assistant is the main content of a dedicated page.</p>
-        <p class="install-help">If your website has a sticky header, adjust the <code>120px</code> value to match your header height. Example: <code>height: calc(100vh - 96px)</code>.</p>
-        <p class="install-help">Use <code>size=compact</code> for smaller page sections, <code>size=standard</code> for normal sections, <code>size=tall</code> for a larger assistant section, and <code>size=full</code> for a full-page iframe. Use <code>surface=flat</code> for a more minimal website embed.</p>
+        <div class="full-page-install-output active" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share">
+          <div class="install-cta-row">
+            <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
+            <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open full-page assistant</a>
+            <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize full-page assistant</button>
+          </div>
+          ${buildInstallCopyBlock({
+            id: "full-page-assistant-url",
+            label: "Full-page assistant URL",
+            value: fullPageUrl,
+            rows: 2,
+            buttonAction: "copy-full-page-url",
+            buttonLabel: "Copy full-page URL",
+            disabled: !fullPageUrl,
+            className: "full-page-url-output",
+          })}
+        </div>
+        <div class="full-page-install-output" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" hidden>
+          <p class="install-help">Best for adding the assistant inside an existing page section.</p>
+          ${buildInstallCopyBlock({
+            id: "section-assistant-iframe",
+            label: "Section embed",
+            value: sectionIframe,
+            rows: 7,
+            buttonAction: "copy-section-assistant-iframe",
+            buttonLabel: "Copy section embed code",
+            disabled: !sectionIframe,
+            className: "full-page-iframe-output",
+          })}
+        </div>
+        <div class="full-page-install-output" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" hidden>
+          <p class="install-help">Best when the assistant is the main content of a dedicated page on your website.</p>
+          <div class="field compact-field">
+            <label for="full-page-header-height">Website header height</label>
+            <input id="full-page-header-height" type="number" min="0" max="400" step="1" value="120" data-full-page-header-height>
+            <p class="field-help">Optional. Default is 120.</p>
+          </div>
+          ${buildInstallCopyBlock({
+            id: "full-page-assistant-iframe",
+            label: "Full-page iframe",
+            value: fullPageIframe,
+            rows: 7,
+            buttonAction: "copy-full-page-iframe",
+            buttonLabel: "Copy full-page iframe code",
+            disabled: !fullPageIframe,
+            className: "full-page-iframe-output",
+          })}
+          <p class="install-help">If your site header is taller or shorter, adjust the 120px value.</p>
+        </div>
       </section>
       <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
         <div class="install-option-header">
@@ -16531,16 +16567,18 @@ async function copyFullPageAssistantUrl(agent) {
 }
 
 async function copySectionAssistantIframe(agent) {
+  const textarea = document.getElementById("section-assistant-iframe");
   await copyDashboardText(
-    buildSectionAssistantIframe(agent),
+    textarea?.value || buildSectionAssistantIframe(agent),
     "Section embed copied.",
     "section-assistant-iframe"
   );
 }
 
 async function copyFullPageAssistantIframe(agent) {
+  const textarea = document.getElementById("full-page-assistant-iframe");
   await copyDashboardText(
-    buildFullPageAssistantIframe(agent),
+    textarea?.value || buildFullPageAssistantIframe(agent),
     "Full-page iframe copied.",
     "full-page-assistant-iframe"
   );
@@ -16657,6 +16695,48 @@ function bindInstallMethodTabs() {
       activateMethod(jump.dataset.installMethodJump || "widget", { scroll: true });
     });
   });
+}
+
+function bindFullPageAssistantInstallOptions(agent = {}) {
+  const optionButtons = document.querySelectorAll("[data-full-page-option]");
+  const optionPanels = document.querySelectorAll("[data-full-page-option-panel]");
+  const headerHeightInput = document.querySelector("[data-full-page-header-height]");
+  const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
+  const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
+
+  const activateOption = (option) => {
+    optionButtons.forEach((button) => {
+      const isActive = button.dataset.fullPageOption === option;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+
+    optionPanels.forEach((panel) => {
+      const isActive = panel.dataset.fullPageOptionPanel === option;
+      panel.hidden = !isActive;
+      panel.classList.toggle("active", isActive);
+    });
+  };
+
+  const syncFullPageIframe = () => {
+    if (!fullPageIframeOutput) {
+      return;
+    }
+
+    fullPageIframeOutput.value = hasFullPageTarget
+      ? buildFullPageAssistantIframe(agent, headerHeightInput?.value || 120)
+      : "";
+  };
+
+  optionButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      activateOption(button.dataset.fullPageOption || "share");
+    });
+  });
+
+  headerHeightInput?.addEventListener("input", syncFullPageIframe);
+  headerHeightInput?.addEventListener("change", syncFullPageIframe);
+  syncFullPageIframe();
 }
 
 function getPreviewFrame() {
@@ -19512,6 +19592,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   });
 
   bindInstallMethodTabs();
+  bindFullPageAssistantInstallOptions(agent);
   loadFullPageAssistantQr(agent);
 
   verifyInstallButtons.forEach((button) => {
