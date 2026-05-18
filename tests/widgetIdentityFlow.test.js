@@ -2064,7 +2064,79 @@ test("production page mode has one quick action row and no launcher controls", (
   assert.doesNotMatch(widget, /close-modal|minimize/i);
 });
 
-test("dashboard install iframe uses compact embedded page mode while QR stays hosted", () => {
+test("embedded page mode defaults to standard size and supports compact and tall classes", () => {
+  const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
+  const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
+
+  assert.match(widget, /embedded-size-\$\{vonzaEmbeddedSize\}/);
+  assert.match(script, /function normalizeEmbeddedSize/);
+  assert.match(script, /return \["compact", "standard", "tall"\]\.includes\(normalized\) \? normalized : "standard"/);
+  assert.match(script, /embedded-size-\$\{size\}/);
+  assert.match(styles, /embedded-size-compact[\s\S]*--embedded-card-min-height: 520px/);
+  assert.match(styles, /--embedded-card-min-height: 640px/);
+  assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-min-height: 720px/);
+  assert.match(styles, /--embedded-card-max-width: 920px/);
+  assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-max-width: 980px/);
+});
+
+test("embedded page mode exposes size variants in runtime classes", async () => {
+  const createHarnessForSize = async (search) => {
+    const harness = createWidgetHarness({
+      location: {
+        search,
+        pathname: "/widget",
+        href: `https://example.com/widget${search}`,
+      },
+      customFetch: async (input) => {
+        if (String(input).includes("/widget/bootstrap")) {
+          return {
+            ok: true,
+            async json() {
+              return {
+                agent: { id: "agent-1" },
+                business: { id: "business-1", name: "Acme Co" },
+                widgetConfig: { assistantName: "Acme Assistant" },
+              };
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          async json() {
+            return {};
+          },
+        };
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return harness;
+  };
+
+  const defaultHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1");
+  const standardHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=standard");
+  const compactHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=compact");
+  const tallHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=tall");
+
+  assert.equal(defaultHarness.hooks.getEmbeddedSize(), "standard");
+  assert.equal(defaultHarness.documentElement.classList.contains("embedded-size-standard"), true);
+  assert.equal(standardHarness.hooks.getEmbeddedSize(), "standard");
+  assert.equal(standardHarness.documentElement.classList.contains("embedded-size-standard"), true);
+  assert.equal(compactHarness.hooks.getEmbeddedSize(), "compact");
+  assert.equal(compactHarness.documentElement.classList.contains("embedded-size-compact"), true);
+  assert.equal(tallHarness.hooks.getEmbeddedSize(), "tall");
+  assert.equal(tallHarness.documentElement.classList.contains("embedded-size-tall"), true);
+
+  assert.equal(defaultHarness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(defaultHarness.elements.get("page-identity-inline").hidden, false);
+  assert.equal(defaultHarness.elements.get("composer-shell").hidden, false);
+  assert.equal(defaultHarness.hooks.getWidgetPhase(), "chat");
+});
+
+test("dashboard install iframe uses standard embedded page mode while QR stays hosted", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
@@ -2074,10 +2146,13 @@ test("dashboard install iframe uses compact embedded page mode while QR stays ho
   assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
+  assert.match(dashboard, /url\.searchParams\.set\("size", "standard"\)/);
   assert.match(dashboard, /inside a website section like Support, Contact, or Request a quote/);
+  assert.match(dashboard, /size=compact/);
+  assert.match(dashboard, /size=tall/);
   assert.match(dashboard, /surface=flat/);
-  assert.match(dashboard, /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
-  assert.doesNotMatch(dashboard, /min-height:760px|100vh;border:0/);
+  assert.match(dashboard, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
+  assert.doesNotMatch(dashboard, /min-height:520px;border:0|100vh;border:0/);
   assert.match(widget, /page-identity-powered/);
   assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);

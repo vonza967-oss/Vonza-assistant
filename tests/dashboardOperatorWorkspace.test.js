@@ -3432,9 +3432,11 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
   assert.match(pagePanel, /data-action="copy-full-page-url"/);
   assert.match(pagePanel, /data-action="copy-full-page-iframe"/);
-  assert.match(pagePanel, /mode=page&amp;embedded=1|mode=page&embedded=1/);
-  assert.match(pagePanel, /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
-  assert.doesNotMatch(pagePanel, /min-height:760px|100vh/);
+  assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=standard|mode=page&embedded=1&size=standard/);
+  assert.match(pagePanel, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
+  assert.match(pagePanel, /size=compact/);
+  assert.match(pagePanel, /size=tall/);
+  assert.doesNotMatch(pagePanel, /min-height:520px|100vh/);
   assert.match(pagePanel, /Customize full-page assistant/);
   assert.doesNotMatch(pagePanel, /install-script-output|Website widget code|Allowed domains/);
   assert.match(qrPanel, /data-full-page-qr-preview/);
@@ -3568,9 +3570,9 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[0], /data-install-id="install-1"/);
   assert.equal(copied[1], "http://127.0.0.1:3000/a/agent-key");
   assert.match(copied[2], /<iframe/);
-  assert.match(copied[2], /\/widget\?agent_id=agent-1&mode=page&embedded=1/);
-  assert.match(copied[2], /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
-  assert.doesNotMatch(copied[2], /100vh|min-height:760px/);
+  assert.match(copied[2], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=standard/);
+  assert.match(copied[2], /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
+  assert.doesNotMatch(copied[2], /100vh|min-height:520px/);
 });
 
 test("install section falls back to widget page URL when public slug is missing", () => {

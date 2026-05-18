@@ -2740,6 +2740,7 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}) {
   }
   url.searchParams.set("mode", "page");
   url.searchParams.set("embedded", "1");
+  url.searchParams.set("size", "standard");
   return url.toString();
 }
 
@@ -2760,7 +2761,7 @@ function buildFullPageAssistantIframe(agent = {}) {
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent)}"
   title="AI assistant"
-  style="width:100%;min-height:520px;border:0;border-radius:18px;overflow:hidden;"
+  style="width:100%;min-height:640px;border:0;border-radius:18px;overflow:hidden;"
   loading="lazy"
 ></iframe>`;
 }
@@ -15155,7 +15156,7 @@ function buildInstallSection(agent, options = {}) {
           disabled: !fullPageIframe,
           className: "full-page-iframe-output",
         })}
-        <p class="install-help">Use <code>surface=flat</code> for a more minimal website embed.</p>
+        <p class="install-help">Use <code>size=compact</code> for smaller page sections. Use <code>size=tall</code> for a dedicated assistant page. Use <code>surface=flat</code> for a more minimal website embed.</p>
       </section>
       <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
         <div class="install-option-header">

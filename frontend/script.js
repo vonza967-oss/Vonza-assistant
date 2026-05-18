@@ -5,6 +5,7 @@ const DISPLAY_MODE = normalizeDisplayMode(
 );
 const EMBEDDED_MODE = searchParams.get("embedded") === "1";
 const EMBEDDED_SURFACE = normalizeEmbeddedSurface(searchParams.get("surface"));
+const EMBEDDED_SIZE = normalizeEmbeddedSize(searchParams.get("size"));
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
   searchParams.get("install_id") ||
@@ -172,6 +173,11 @@ function normalizeDisplayMode(value) {
 
 function normalizeEmbeddedSurface(value) {
   return trimText(value).toLowerCase() === "flat" ? "flat" : "card";
+}
+
+function normalizeEmbeddedSize(value) {
+  const normalized = trimText(value).toLowerCase();
+  return ["compact", "standard", "tall"].includes(normalized) ? normalized : "standard";
 }
 
 function getRouteAgentKey() {
@@ -864,10 +870,16 @@ function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("vonza-mode-widget", !isPageMode());
   document.documentElement.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
   document.documentElement.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
+  ["compact", "standard", "tall"].forEach((size) => {
+    document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
+  });
   document.body?.classList.toggle("vonza-mode-page", isPageMode());
   document.body?.classList.toggle("vonza-mode-widget", !isPageMode());
   document.body?.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
   document.body?.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
+  ["compact", "standard", "tall"].forEach((size) => {
+    document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
+  });
 }
 
 function getAssistantLoadingState() {
@@ -2459,6 +2471,7 @@ document.getElementById("page-action-list")?.addEventListener("click", (event) =
 if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
   document.body.classList.add(`embedded-surface-${EMBEDDED_SURFACE}`);
+  document.body.classList.add(`embedded-size-${EMBEDDED_SIZE}`);
   window.addEventListener("load", queueEmbeddedHeightUpdate);
   window.addEventListener("resize", queueEmbeddedHeightUpdate);
 }
@@ -2497,6 +2510,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getQuickReplyItems: () => getQuickReplyItems(),
   getPageActionCards: () => getPageActionCards(),
   getEmbeddedSurface: () => EMBEDDED_SURFACE,
+  getEmbeddedSize: () => EMBEDDED_SIZE,
   hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
