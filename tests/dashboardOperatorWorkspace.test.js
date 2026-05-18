@@ -3429,7 +3429,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /data-action="copy-full-page-url"/);
   assert.match(pagePanel, /data-action="copy-full-page-iframe"/);
   assert.match(pagePanel, /mode=page&amp;embedded=1|mode=page&embedded=1/);
-  assert.match(pagePanel, /min-height:620px;border:0;border-radius:18px;overflow:hidden/);
+  assert.match(pagePanel, /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(pagePanel, /min-height:760px|100vh/);
   assert.match(pagePanel, /Customize full-page assistant/);
   assert.doesNotMatch(pagePanel, /install-script-output|Website widget code|Allowed domains/);
@@ -3565,7 +3565,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.equal(copied[1], "http://127.0.0.1:3000/a/agent-key");
   assert.match(copied[2], /<iframe/);
   assert.match(copied[2], /\/widget\?agent_id=agent-1&mode=page&embedded=1/);
-  assert.match(copied[2], /min-height:620px;border:0;border-radius:18px;overflow:hidden/);
+  assert.match(copied[2], /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(copied[2], /100vh|min-height:760px/);
 });
 

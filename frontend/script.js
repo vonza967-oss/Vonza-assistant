@@ -79,6 +79,19 @@ const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
   "What services do you offer?",
   "How can I contact you?",
 ]);
+const EMBEDDED_QUICK_REPLY_LABELS = Object.freeze({
+  services: "Services",
+  pricing: "Pricing",
+  quote: "Request a quote",
+  contact: "Contact details",
+  booking: "Booking",
+});
+const EMBEDDED_DEFAULT_QUICK_REPLIES = Object.freeze([
+  { label: "Services", prompt: "What services do you offer?", type: "services" },
+  { label: "Pricing", prompt: "How much does it cost?", type: "pricing" },
+  { label: "Request a quote", prompt: "I'd like to request a quote.", type: "quote" },
+  { label: "Contact details", prompt: "How can I contact you?", type: "contact" },
+]);
 const PAGE_ACTION_CARDS = Object.freeze([
   {
     label: "Ask about services",
@@ -150,6 +163,7 @@ const OUTCOME_DETECTION_STORAGE_PREFIX = "vonza_detected_outcome_";
 const VISITOR_IDENTITY_STORAGE_PREFIX = "vonza_visitor_identity_";
 const VISITOR_IDENTITY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 let widgetPhase = WIDGET_PHASES.ENTRY;
+let embeddedHeightFrame = 0;
 
 function normalizeDisplayMode(value) {
   return trimText(value).toLowerCase() === "page" ? "page" : "widget";
@@ -464,6 +478,38 @@ function normalizeLimitedText(value, maxLength) {
   return trimText(value).slice(0, maxLength);
 }
 
+function compactEmbeddedPromptLabel(value = "", fallbackType = "") {
+  const normalizedType = trimText(fallbackType).toLowerCase();
+  if (EMBEDDED_QUICK_REPLY_LABELS[normalizedType]) {
+    return EMBEDDED_QUICK_REPLY_LABELS[normalizedType];
+  }
+
+  const text = trimText(value);
+  const lower = text.toLowerCase();
+
+  if (/\b(service|offer|do you do|help with)\b/.test(lower)) {
+    return EMBEDDED_QUICK_REPLY_LABELS.services;
+  }
+
+  if (/\b(price|pricing|cost|rate|fee|charge)\b/.test(lower)) {
+    return EMBEDDED_QUICK_REPLY_LABELS.pricing;
+  }
+
+  if (/\b(quote|estimate|proposal)\b/.test(lower)) {
+    return EMBEDDED_QUICK_REPLY_LABELS.quote;
+  }
+
+  if (/\b(contact|email|phone|call|reach|get in touch)\b/.test(lower)) {
+    return EMBEDDED_QUICK_REPLY_LABELS.contact;
+  }
+
+  if (/\b(book|booking|appointment|schedule)\b/.test(lower)) {
+    return EMBEDDED_QUICK_REPLY_LABELS.booking;
+  }
+
+  return normalizeLimitedText(text, 24);
+}
+
 function getRawFullPageConfig(config = widgetConfig) {
   const rawConfig = config.fullPageConfig || config.full_page_config || {};
   return rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig) ? rawConfig : {};
@@ -562,6 +608,72 @@ function getConfiguredQuickReplies(config = widgetConfig) {
   }
 
   return [];
+}
+
+function dedupeQuickReplyItems(items = [], limit = 4) {
+  const seenPrompts = new Set();
+  const seenLabels = new Set();
+  const results = [];
+
+  items.forEach((item) => {
+    const prompt = normalizeLimitedText(item?.prompt || item?.label, 200);
+    const label = normalizeLimitedText(item?.label || prompt, 40);
+    const promptKey = prompt.toLowerCase();
+    const labelKey = label.toLowerCase();
+
+    if (!prompt || !label || seenPrompts.has(promptKey) || seenLabels.has(labelKey)) {
+      return;
+    }
+
+    seenPrompts.add(promptKey);
+    seenLabels.add(labelKey);
+    results.push({
+      label,
+      prompt,
+      type: normalizeLimitedText(item?.type || "", 24),
+    });
+  });
+
+  return results.slice(0, limit);
+}
+
+function getEmbeddedQuickReplyItems(config = widgetConfig) {
+  const fullPageConfig = getFullPageConfig(config);
+  const configuredQuestions = Array.isArray(fullPageConfig.suggestedQuestions)
+    ? fullPageConfig.suggestedQuestions
+    : [];
+  const configuredItems = configuredQuestions.map((question) => ({
+    label: compactEmbeddedPromptLabel(question),
+    prompt: question,
+  }));
+  const actionItems = getPageActionCards(config).map((card) => ({
+    label: compactEmbeddedPromptLabel(card.prompt || card.label, card.type),
+    prompt: card.prompt,
+    type: card.type,
+  }));
+  const fallbackItems = EMBEDDED_DEFAULT_QUICK_REPLIES.filter((item) => {
+    if (item.type === "booking") {
+      return hasBookingSupport(config);
+    }
+    return true;
+  });
+
+  return dedupeQuickReplyItems([
+    ...configuredItems,
+    ...actionItems,
+    ...fallbackItems,
+  ], 4);
+}
+
+function getQuickReplyItems(config = widgetConfig) {
+  if (isPageMode() && EMBEDDED_MODE) {
+    return getEmbeddedQuickReplyItems(config);
+  }
+
+  return getQuickReplyTopics(config).map((topic) => ({
+    label: topic,
+    prompt: topic,
+  }));
 }
 
 function hasBookingSupport(config = widgetConfig) {
@@ -1003,6 +1115,7 @@ function syncPageIdentityInline() {
 
   const note = document.getElementById("page-identity-note");
   const button = document.getElementById("page-identity-email-button");
+  const resetButton = document.getElementById("identity-reset-button");
   const normalized = normalizeVisitorIdentityState(visitorIdentity);
 
   if (note) {
@@ -1022,6 +1135,12 @@ function syncPageIdentityInline() {
       ? "Update contact details"
       : "Leave contact details";
   }
+
+  if (resetButton && EMBEDDED_MODE) {
+    resetButton.hidden = !(normalized.mode === "identified" && normalized.email);
+  }
+
+  queueEmbeddedHeightUpdate();
 }
 
 function isMobilePagePromptMode() {
@@ -1054,9 +1173,15 @@ function renderQuickReplies() {
     return;
   }
 
-  container.innerHTML = getQuickReplyTopics().map((topic) => `
-    <button class="quick-reply-chip" type="button" data-quick-reply="${escapeHtml(topic)}">${escapeHtml(topic)}</button>
+  container.innerHTML = getQuickReplyItems().map((item) => `
+    <button
+      class="quick-reply-chip"
+      type="button"
+      data-quick-reply="${escapeHtml(item.prompt)}"
+    >${escapeHtml(item.label)}</button>
   `).join("");
+
+  queueEmbeddedHeightUpdate();
 }
 
 function updateComposerAvailability() {
@@ -1125,6 +1250,7 @@ function renderWidgetPhase() {
 
   updateComposerAvailability();
   syncPageIdentityInline();
+  queueEmbeddedHeightUpdate();
 }
 
 function syncWidgetPhaseWithIdentity(identity = visitorIdentity) {
@@ -1682,6 +1808,43 @@ function setComposerStatus(message) {
   }
 }
 
+function queueEmbeddedHeightUpdate() {
+  if (!EMBEDDED_MODE || typeof window.requestAnimationFrame !== "function") {
+    return;
+  }
+
+  if (embeddedHeightFrame) {
+    window.cancelAnimationFrame?.(embeddedHeightFrame);
+  }
+
+  embeddedHeightFrame = window.requestAnimationFrame(() => {
+    embeddedHeightFrame = 0;
+    postEmbeddedHeightUpdate();
+  });
+}
+
+function postEmbeddedHeightUpdate() {
+  if (!EMBEDDED_MODE || !window.parent || window.parent === window) {
+    return;
+  }
+
+  const height = Math.ceil(Math.max(
+    document.documentElement?.scrollHeight || 0,
+    document.body?.scrollHeight || 0,
+    document.querySelector(".chat-container")?.scrollHeight || 0
+  ));
+
+  if (!height) {
+    return;
+  }
+
+  window.parent.postMessage({
+    type: "vonza:embedded-height",
+    source: "vonza-assistant",
+    height,
+  }, "*");
+}
+
 function applyBrandMark(markElement, logoElement, textElement, customLogoUrl, fallbackCharacter) {
   if (!markElement || !logoElement || !textElement) {
     return;
@@ -1900,6 +2063,7 @@ function appendMessage(chat, role, text, options = {}) {
 
   chat.appendChild(wrapper);
   chat.scrollTop = chat.scrollHeight;
+  queueEmbeddedHeightUpdate();
   return wrapper;
 }
 
@@ -2211,7 +2375,7 @@ getQuickReplies()?.addEventListener("click", (event) => {
     return;
   }
 
-  const topic = trimText(button.textContent);
+  const topic = trimText(button.dataset.quickReply || button.textContent);
 
   if (topic) {
     sendMessage(topic);
@@ -2251,6 +2415,8 @@ document.getElementById("page-action-list")?.addEventListener("click", (event) =
 
 if (EMBEDDED_MODE) {
   document.body.classList.add("embedded");
+  window.addEventListener("load", queueEmbeddedHeightUpdate);
+  window.addEventListener("resize", queueEmbeddedHeightUpdate);
 }
 
 applyDisplayModeClasses();
@@ -2284,6 +2450,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   hasChosenVisitorIdentity: () => hasChosenVisitorIdentity(),
   formatAssistantMessageHtml,
   renderQuickReplies,
+  getQuickReplyItems: () => getQuickReplyItems(),
   getPageActionCards: () => getPageActionCards(),
   hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,

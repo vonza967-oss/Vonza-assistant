@@ -2760,7 +2760,7 @@ function buildFullPageAssistantIframe(agent = {}) {
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent)}"
   title="AI assistant"
-  style="width:100%;min-height:620px;border:0;border-radius:18px;overflow:hidden;"
+  style="width:100%;min-height:520px;border:0;border-radius:18px;overflow:hidden;"
   loading="lazy"
 ></iframe>`;
 }

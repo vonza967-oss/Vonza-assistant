@@ -1904,22 +1904,23 @@ html.vonza-mode-page body.embedded .chat-container {
   height: auto;
   border: 1px solid rgba(15, 31, 29, 0.1);
   border-radius: 18px;
-  box-shadow: 0 14px 36px rgba(18, 32, 31, 0.08);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 24px rgba(18, 32, 31, 0.07);
 }
 
 html.vonza-mode-page.embedded-mode .chat-header,
 html.vonza-mode-page body.embedded .chat-header {
   display: flex;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid rgba(15, 31, 29, 0.08);
 }
 
 html.vonza-mode-page.embedded-mode .chat-feed,
 html.vonza-mode-page body.embedded .chat-feed {
   flex: 0 1 auto;
-  gap: 12px;
-  max-height: min(300px, 44vh);
-  padding: 14px 16px;
+  gap: 10px;
+  max-height: min(260px, 44vh);
+  padding: 12px 14px;
   overflow-y: auto;
 }
 
@@ -1930,8 +1931,8 @@ html.vonza-mode-page body.embedded .widget-phase-chat {
 
 html.vonza-mode-page.embedded-mode .brand-mark,
 html.vonza-mode-page body.embedded .brand-mark {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 12px;
 }
 
@@ -1943,14 +1944,14 @@ html.vonza-mode-page body.embedded .brand-mark::before {
 
 html.vonza-mode-page.embedded-mode .brand-copy h1,
 html.vonza-mode-page body.embedded .brand-copy h1 {
-  font-size: 1rem;
+  font-size: 0.98rem;
 }
 
 html.vonza-mode-page.embedded-mode .status-pill,
 html.vonza-mode-page body.embedded .status-pill,
 html.vonza-mode-page.embedded-mode .eyebrow,
 html.vonza-mode-page body.embedded .eyebrow {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
 }
 
 html.vonza-mode-page.embedded-mode .message,
@@ -1960,24 +1961,32 @@ html.vonza-mode-page body.embedded .message {
 
 html.vonza-mode-page.embedded-mode .bubble,
 html.vonza-mode-page body.embedded .bubble {
-  padding: 12px 14px;
+  padding: 11px 13px;
 }
 
 html.vonza-mode-page.embedded-mode .composer-shell,
 html.vonza-mode-page body.embedded .composer-shell {
   gap: 8px;
-  padding: 12px 16px 14px;
+  padding: 10px 14px 12px;
 }
 
 html.vonza-mode-page.embedded-mode .quick-replies,
 html.vonza-mode-page body.embedded .quick-replies {
   gap: 7px;
   padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+html.vonza-mode-page.embedded-mode .quick-replies::-webkit-scrollbar,
+html.vonza-mode-page body.embedded .quick-replies::-webkit-scrollbar {
+  display: none;
 }
 
 html.vonza-mode-page.embedded-mode .quick-reply-chip,
 html.vonza-mode-page body.embedded .quick-reply-chip {
-  padding: 8px 10px;
+  flex: 0 0 auto;
+  padding: 7px 10px;
   font-size: 0.75rem;
 }
 
@@ -2042,6 +2051,16 @@ html.vonza-mode-page body.embedded .page-identity-email-form {
   border: 1px solid rgba(15, 31, 29, 0.08);
   border-radius: 12px;
   background: #fbfcfc;
+}
+
+html.vonza-mode-page.embedded-mode .page-identity-email-form .identity-email-grid,
+html.vonza-mode-page body.embedded .page-identity-email-form .identity-email-grid {
+  gap: 8px;
+}
+
+html.vonza-mode-page.embedded-mode .page-identity-email-form input,
+html.vonza-mode-page body.embedded .page-identity-email-form input {
+  padding: 9px 10px;
 }
 
 html.vonza-mode-page.embedded-mode .identity-reset-button,

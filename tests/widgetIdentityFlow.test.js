@@ -611,13 +611,16 @@ test("embedded page mode uses compact customized prompts once", async () => {
   assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
   assert.equal(harness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
   assert.equal(harness.elements.get("page-identity-email-form").hidden, true);
+  assert.equal(harness.elements.get("identity-reset-button").hidden, true);
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-help-title").textContent, "Acme support");
   assert.equal(harness.elements.get("quick-replies").hidden, false);
-  assert.match(harness.elements.get("quick-replies").innerHTML, /Can I get a quote\?/);
-  assert.match(harness.elements.get("quick-replies").innerHTML, /How do I contact Acme\?/);
-  assert.match(harness.elements.get("quick-replies").innerHTML, /What services do you offer\?/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Request a quote/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Contact details/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Services/);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Do you serve my area\?/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="Can I get a quote\?"/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="How do I contact Acme\?"/);
   assert.doesNotMatch(harness.elements.get("quick-replies").innerHTML, /How quickly can you reply\?/);
   assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
 });
@@ -1187,7 +1190,8 @@ test("embedded page mode keeps page display tracking and compact production hook
   assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
   assert.equal(harness.elements.get("page-identity-inline").hidden, false);
   assert.equal(harness.elements.get("quick-replies").hidden, false);
-  assert.match(harness.elements.get("quick-replies").innerHTML, /I&#39;d like to request a quote\./);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Request a quote/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="I&#39;d like to request a quote\."/);
   assert.doesNotMatch(harness.elements.get("quick-replies").innerHTML, /Book a time|book a time/i);
 
   harness.elements.get("input").value = "Can I request a quote?";
@@ -1198,6 +1202,107 @@ test("embedded page mode keeps page display tracking and compact production hook
   assert.equal(JSON.parse(chatCall.options.body).display_mode, "page");
   assert.equal(harness.hooks.getDisplayMode(), "page");
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+});
+
+test("embedded quick chips keep compact labels while submitting full prompts", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                fullPageConfig: {
+                  suggestedQuestions: [
+                    "What services do you offer?",
+                    "How much does it cost?",
+                    "I'd like to request a quote.",
+                    "How can I contact you?",
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.message, "How much does it cost?");
+        assert.equal(payload.display_mode, "page");
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Pricing depends on scope.",
+              visitorIdentity: {
+                mode: "guest",
+                email: "",
+                name: "",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const items = plain(harness.hooks.getQuickReplyItems());
+  assert.deepEqual(items.map((item) => item.label), [
+    "Services",
+    "Pricing",
+    "Request a quote",
+    "Contact details",
+  ]);
+  assert.deepEqual(items.map((item) => item.prompt), [
+    "What services do you offer?",
+    "How much does it cost?",
+    "I'd like to request a quote.",
+    "How can I contact you?",
+  ]);
+
+  harness.elements.get("quick-replies").dispatch("click", {
+    target: {
+      closest(selector) {
+        assert.equal(selector, "[data-quick-reply]");
+        return {
+          dataset: {
+            quickReply: "How much does it cost?",
+          },
+          textContent: "Pricing",
+        };
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(harness.fetchCalls.some((call) => call.input === "/chat"));
 });
 
 test("page action cards use safe prompts and only show booking when configured", async () => {
@@ -1639,6 +1744,7 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.doesNotMatch(widget, /close-modal/i);
   assert.match(script, /QUICK_REPLY_TOPICS/);
   assert.match(script, /PAGE_QUICK_REPLY_TOPICS/);
+  assert.match(script, /EMBEDDED_DEFAULT_QUICK_REPLIES/);
   assert.match(script, /data-page-quick-action/);
   assert.match(script, /DISPLAY_MODE/);
   assert.match(script, /display_mode: DISPLAY_MODE/);
@@ -1678,18 +1784,20 @@ test("dashboard install iframe uses compact embedded page mode while QR stays ho
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
+  const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
 
   assert.match(dashboard, /function buildFullPageAssistantUrl/);
   assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
   assert.match(dashboard, /inside a website section like Support, Contact, or Request a quote/);
-  assert.match(dashboard, /min-height:620px;border:0;border-radius:18px;overflow:hidden/);
+  assert.match(dashboard, /min-height:520px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(dashboard, /min-height:760px|100vh;border:0/);
   assert.match(widget, /page-identity-powered/);
   assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
+  assert.match(script, /vonza:embedded-height/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);
 });
