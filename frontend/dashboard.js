@@ -11103,20 +11103,6 @@ function getAnalyticsSourceRows(sourceBreakdown = {}) {
     });
   }
 
-  rows.push({
-    key: "qr",
-    label: "QR code",
-    conversationCount: 0,
-    messageCount: 0,
-    visitorQuestionCount: 0,
-    leadsCaptured: 0,
-    icon: "qr",
-    tone: "teal",
-    color: "soft-blue",
-    visits: "",
-    unavailable: true,
-  });
-
   return rows;
 }
 
@@ -11185,14 +11171,6 @@ function buildV2AnalyticsSourceBreakdown(sourceRows = [], totalConversations = 0
               </div>
             `;
           }).join("")}
-          ${sourceRows.some((row) => row.unavailable) ? `
-            <div class="v2-legend-row">
-              <span class="v2-legend-color soft-blue"></span>
-              <span>${escapeHtml(t("analytics.qrCode"))}</span>
-              <strong>-</strong>
-              <span class="v2-subtext">${escapeHtml(t("analytics.notTracked"))}</span>
-            </div>
-          ` : ""}
           <div class="v2-legend-row v2-legend-total">
             <span></span><strong>${escapeHtml(t("analytics.total"))}</strong><strong></strong><strong>${escapeHtml(formatAnalyticsReportNumber(total))}</strong>
           </div>
@@ -11431,7 +11409,6 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
     { label: t("analytics.humanFollowUps"), value: formatAnalyticsReportNumber(humanFollowUps), compare: t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
     { label: t("analytics.leadsCaptured"), value: formatAnalyticsReportNumber(report.contactsCaptured), compare: t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
     { label: t("analytics.fullPageActivity"), value: formatAnalyticsReportNumber(fullPageRow.conversationCount || 0), compare: t("analytics.fullPageConversationsRecorded"), icon: "window", tone: "blue" },
-    { label: t("analytics.qrScans"), value: t("analytics.notTracked"), compare: t("analytics.qrScanAnalyticsUnavailable"), icon: "qr", tone: "teal" },
   ];
 
   return `

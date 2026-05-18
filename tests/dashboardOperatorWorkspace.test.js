@@ -455,8 +455,9 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
   assert.match(markup, /Full-page assistant/);
   assert.match(markup, /Legacy\/unknown/);
   assert.match(markup, /Performance by source/);
-  assert.match(markup, /QR scans/);
-  assert.match(markup, /Not tracked/);
+  assert.doesNotMatch(markup, /QR scans/);
+  assert.doesNotMatch(markup, /QR code/);
+  assert.doesNotMatch(markup, /QR scan analytics unavailable/);
 
   const emptyMarkup = harness.buildAnalyticsPanel(
     agent,
@@ -466,7 +467,9 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyOperatorWorkspace()
   );
   assert.match(emptyMarkup, /Full-page assistant/);
-  assert.match(emptyMarkup, /Not tracked/);
+  assert.doesNotMatch(emptyMarkup, /QR scans/);
+  assert.doesNotMatch(emptyMarkup, /QR code/);
+  assert.doesNotMatch(emptyMarkup, /QR scan analytics unavailable/);
   assert.doesNotMatch(emptyMarkup, /Legacy\/unknown/);
 });
 

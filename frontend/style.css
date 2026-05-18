@@ -1870,6 +1870,7 @@ html.vonza-mode-page body.embedded .app-shell {
   height: 100%;
   max-width: none;
   grid-template-columns: 1fr;
+  align-content: start;
   gap: 0;
   padding: 0;
 }
@@ -1895,7 +1896,7 @@ html.vonza-mode-page body.embedded .page-business-header {
 html.vonza-mode-page.embedded-mode .chat-container,
 html.vonza-mode-page body.embedded .chat-container {
   min-height: 0;
-  height: 100%;
+  height: auto;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -1904,6 +1905,18 @@ html.vonza-mode-page body.embedded .chat-container {
 html.vonza-mode-page.embedded-mode .chat-header,
 html.vonza-mode-page body.embedded .chat-header {
   display: none;
+}
+
+html.vonza-mode-page.embedded-mode .chat-feed,
+html.vonza-mode-page body.embedded .chat-feed {
+  flex: 0 1 auto;
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+}
+
+html.vonza-mode-page.embedded-mode .widget-phase-chat,
+html.vonza-mode-page body.embedded .widget-phase-chat {
+  flex: 0 1 auto;
 }
 
 html.vonza-mode-page.embedded-mode .page-powered-by,
