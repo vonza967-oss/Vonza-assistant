@@ -2064,20 +2064,25 @@ test("production page mode has one quick action row and no launcher controls", (
   assert.doesNotMatch(widget, /close-modal|minimize/i);
 });
 
-test("embedded page mode defaults to standard size and supports compact and tall classes", () => {
+test("embedded page mode defaults to standard size and supports compact, tall, and full classes", () => {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
 
   assert.match(widget, /embedded-size-\$\{vonzaEmbeddedSize\}/);
+  assert.match(widget, /\["compact", "standard", "tall", "full"\]/);
   assert.match(script, /function normalizeEmbeddedSize/);
-  assert.match(script, /return \["compact", "standard", "tall"\]\.includes\(normalized\) \? normalized : "standard"/);
+  assert.match(script, /return \["compact", "standard", "tall", "full"\]\.includes\(normalized\) \? normalized : "standard"/);
   assert.match(script, /embedded-size-\$\{size\}/);
   assert.match(styles, /embedded-size-compact[\s\S]*--embedded-card-min-height: 520px/);
   assert.match(styles, /--embedded-card-min-height: 640px/);
   assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-min-height: 720px/);
   assert.match(styles, /--embedded-card-max-width: 920px/);
   assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-max-width: 980px/);
+  assert.match(styles, /embedded-size-full[\s\S]*min-height: 100dvh/);
+  assert.match(styles, /embedded-size-full[\s\S]*grid-template-columns: minmax\(280px, 0\.9fr\) minmax\(420px, 720px\)/);
+  assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
+  assert.match(styles, /embedded-size-full \.chat-container[\s\S]*height: 100%/);
 });
 
 test("embedded page mode exposes size variants in runtime classes", async () => {
@@ -2120,6 +2125,7 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   const standardHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=standard");
   const compactHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=compact");
   const tallHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=tall");
+  const fullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full");
 
   assert.equal(defaultHarness.hooks.getEmbeddedSize(), "standard");
   assert.equal(defaultHarness.documentElement.classList.contains("embedded-size-standard"), true);
@@ -2129,14 +2135,29 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(compactHarness.documentElement.classList.contains("embedded-size-compact"), true);
   assert.equal(tallHarness.hooks.getEmbeddedSize(), "tall");
   assert.equal(tallHarness.documentElement.classList.contains("embedded-size-tall"), true);
+  assert.equal(fullHarness.hooks.getEmbeddedSize(), "full");
+  assert.equal(fullHarness.hooks.isFullEmbeddedPageMode(), true);
+  assert.equal(fullHarness.documentElement.classList.contains("embedded-size-full"), true);
+  assert.equal(fullHarness.body.classList.contains("embedded-size-full"), true);
 
   assert.equal(defaultHarness.elements.get("identity-choice-panel").hidden, true);
   assert.equal(defaultHarness.elements.get("page-identity-inline").hidden, false);
   assert.equal(defaultHarness.elements.get("composer-shell").hidden, false);
   assert.equal(defaultHarness.hooks.getWidgetPhase(), "chat");
+  assert.equal(fullHarness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(fullHarness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(fullHarness.elements.get("welcome-panel").hidden, true);
+  assert.equal(fullHarness.elements.get("chat-state").hidden, false);
+  assert.equal(fullHarness.elements.get("composer-shell").hidden, false);
+  assert.equal(fullHarness.elements.get("input").disabled, false);
+  assert.equal(fullHarness.elements.get("page-identity-inline").hidden, false);
+  assert.equal(fullHarness.hooks.hasChosenVisitorIdentity(), true);
+  assert.equal(fullHarness.hooks.getVisitorIdentity().mode, "guest");
+  assert.match(fullHarness.elements.get("page-action-list").innerHTML, /Request a quote/);
+  assert.match(fullHarness.elements.get("quick-replies").innerHTML, /Request a quote/);
 });
 
-test("dashboard install iframe uses standard embedded page mode while QR stays hosted", () => {
+test("dashboard install iframes separate section embed and full-page iframe while QR stays hosted", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
   const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
@@ -2146,19 +2167,29 @@ test("dashboard install iframe uses standard embedded page mode while QR stays h
   assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
-  assert.match(dashboard, /url\.searchParams\.set\("size", "standard"\)/);
-  assert.match(dashboard, /inside a website section like Support, Contact, or Request a quote/);
+  assert.match(dashboard, /url\.searchParams\.set\("size", normalizedSize\)/);
+  assert.match(dashboard, /function buildSectionAssistantIframe/);
+  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
+  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full"\)/);
+  assert.match(dashboard, /Use this inside a page section/);
+  assert.match(dashboard, /Use this when the assistant is the main content of a dedicated page/);
   assert.match(dashboard, /size=compact/);
+  assert.match(dashboard, /size=standard/);
   assert.match(dashboard, /size=tall/);
+  assert.match(dashboard, /size=full/);
   assert.match(dashboard, /surface=flat/);
   assert.match(dashboard, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
-  assert.doesNotMatch(dashboard, /min-height:520px;border:0|100vh;border:0/);
+  assert.match(dashboard, /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
+  assert.match(dashboard, /height: calc\(100vh - 96px\)/);
+  assert.doesNotMatch(dashboard, /min-height:520px;border:0/);
   assert.match(widget, /page-identity-powered/);
   assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
+  assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
   assert.match(styles, /embedded-surface-flat[\s\S]*box-shadow: none/);
   assert.match(script, /vonza:embedded-height/);
+  assert.match(script, /isFullEmbeddedPageMode/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);
 });

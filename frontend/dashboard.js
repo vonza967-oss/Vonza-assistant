@@ -2731,7 +2731,10 @@ function buildFullPageAssistantUrl(agent = {}) {
   return url.toString();
 }
 
-function buildEmbeddedFullPageAssistantUrl(agent = {}) {
+function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard") {
+  const normalizedSize = ["compact", "standard", "tall", "full"].includes(trimText(size).toLowerCase())
+    ? trimText(size).toLowerCase()
+    : "standard";
   const url = new URL("/widget", getPublicAppUrl());
   if (trimText(agent.id)) {
     url.searchParams.set("agent_id", agent.id);
@@ -2740,7 +2743,7 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}) {
   }
   url.searchParams.set("mode", "page");
   url.searchParams.set("embedded", "1");
-  url.searchParams.set("size", "standard");
+  url.searchParams.set("size", normalizedSize);
   return url.toString();
 }
 
@@ -2757,11 +2760,20 @@ function buildFullPageQrEndpoint(agent = {}) {
   return `${url.pathname}${url.search}`;
 }
 
-function buildFullPageAssistantIframe(agent = {}) {
+function buildSectionAssistantIframe(agent = {}) {
   return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent)}"
+  src="${buildEmbeddedFullPageAssistantUrl(agent, "standard")}"
   title="AI assistant"
   style="width:100%;min-height:640px;border:0;border-radius:18px;overflow:hidden;"
+  loading="lazy"
+></iframe>`;
+}
+
+function buildFullPageAssistantIframe(agent = {}) {
+  return `<iframe
+  src="${buildEmbeddedFullPageAssistantUrl(agent, "full")}"
+  title="AI assistant"
+  style="width:100%;height:calc(100vh - 120px);min-height:760px;border:0;display:block;"
   loading="lazy"
 ></iframe>`;
 }
@@ -15013,6 +15025,7 @@ function buildInstallSection(agent, options = {}) {
   const hasInstall = Boolean(trimText(agent.installId));
   const script = hasInstall ? buildScript(agent) : "";
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+  const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
   const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
@@ -15045,7 +15058,7 @@ function buildInstallSection(agent, options = {}) {
       key: "page",
       icon: "frontdesk",
       title: "Full-page assistant",
-      copy: "Share a hosted page or embed it inside a website section.",
+      copy: "Share a hosted page or embed it on your own site.",
       status: fullPageUrl ? "Ready to share" : "",
       tone: "ready",
     },
@@ -15127,7 +15140,7 @@ function buildInstallSection(agent, options = {}) {
           <div>
             <p class="install-option-eyebrow">Selected method</p>
             <h3 class="install-option-title">Full-page assistant</h3>
-            <p class="install-option-copy">Use the link for a standalone assistant, or embed the iframe inside a website section like Support, Contact, or Request a quote.</p>
+            <p class="install-option-copy">Use the hosted Vonza URL for sharing and QR codes, or use an iframe when the assistant should live on your own website.</p>
           </div>
           <span class="${getBadgeClass(fullPageUrl ? "Ready" : "Pending")}">${escapeHtml(fullPageUrl ? "Ready to share" : "Not ready")}</span>
         </div>
@@ -15147,16 +15160,29 @@ function buildInstallSection(agent, options = {}) {
           className: "full-page-url-output",
         })}
         ${buildInstallCopyBlock({
+          id: "section-assistant-iframe",
+          label: "Section embed",
+          value: sectionIframe,
+          rows: 7,
+          buttonAction: "copy-section-assistant-iframe",
+          buttonLabel: "Copy section embed",
+          disabled: !sectionIframe,
+          className: "full-page-iframe-output",
+        })}
+        <p class="install-help">Section embed: Use this inside a page section.</p>
+        ${buildInstallCopyBlock({
           id: "full-page-assistant-iframe",
-          label: "Iframe snippet",
+          label: "Full-page iframe embed",
           value: fullPageIframe,
           rows: 7,
           buttonAction: "copy-full-page-iframe",
-          buttonLabel: "Copy iframe snippet",
+          buttonLabel: "Copy full-page iframe",
           disabled: !fullPageIframe,
           className: "full-page-iframe-output",
         })}
-        <p class="install-help">Use <code>size=compact</code> for smaller page sections. Use <code>size=tall</code> for a dedicated assistant page. Use <code>surface=flat</code> for a more minimal website embed.</p>
+        <p class="install-help">Full-page iframe: Use this when the assistant is the main content of a dedicated page.</p>
+        <p class="install-help">If your website has a sticky header, adjust the <code>120px</code> value to match your header height. Example: <code>height: calc(100vh - 96px)</code>.</p>
+        <p class="install-help">Use <code>size=compact</code> for smaller page sections, <code>size=standard</code> for normal sections, <code>size=tall</code> for a larger assistant section, and <code>size=full</code> for a full-page iframe. Use <code>surface=flat</code> for a more minimal website embed.</p>
       </section>
       <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
         <div class="install-option-header">
@@ -16504,10 +16530,18 @@ async function copyFullPageAssistantUrl(agent) {
   );
 }
 
+async function copySectionAssistantIframe(agent) {
+  await copyDashboardText(
+    buildSectionAssistantIframe(agent),
+    "Section embed copied.",
+    "section-assistant-iframe"
+  );
+}
+
 async function copyFullPageAssistantIframe(agent) {
   await copyDashboardText(
     buildFullPageAssistantIframe(agent),
-    "Full-page assistant iframe copied.",
+    "Full-page iframe copied.",
     "full-page-assistant-iframe"
   );
 }
@@ -17020,6 +17054,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
   const copyFullPageUrlButtons = document.querySelectorAll('[data-action="copy-full-page-url"]');
+  const copySectionIframeButtons = document.querySelectorAll('[data-action="copy-section-assistant-iframe"]');
   const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
   const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
   const verifyInstallButtons = document.querySelectorAll('[data-action="verify-install"]');
@@ -19462,6 +19497,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   copyFullPageUrlButtons.forEach((button) => {
     button.addEventListener("click", () => copyFullPageAssistantUrl(agent));
+  });
+
+  copySectionIframeButtons.forEach((button) => {
+    button.addEventListener("click", () => copySectionAssistantIframe(agent));
   });
 
   copyFullPageIframeButtons.forEach((button) => {

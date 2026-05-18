@@ -177,7 +177,7 @@ function normalizeEmbeddedSurface(value) {
 
 function normalizeEmbeddedSize(value) {
   const normalized = trimText(value).toLowerCase();
-  return ["compact", "standard", "tall"].includes(normalized) ? normalized : "standard";
+  return ["compact", "standard", "tall", "full"].includes(normalized) ? normalized : "standard";
 }
 
 function getRouteAgentKey() {
@@ -196,6 +196,10 @@ function getRouteAgentKey() {
 
 function isPageMode() {
   return DISPLAY_MODE === "page";
+}
+
+function isFullEmbeddedPageMode() {
+  return isPageMode() && EMBEDDED_MODE && EMBEDDED_SIZE === "full";
 }
 
 function getWidgetStorageScope() {
@@ -870,14 +874,14 @@ function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("vonza-mode-widget", !isPageMode());
   document.documentElement.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
   document.documentElement.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
-  ["compact", "standard", "tall"].forEach((size) => {
+  ["compact", "standard", "tall", "full"].forEach((size) => {
     document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
   document.body?.classList.toggle("vonza-mode-page", isPageMode());
   document.body?.classList.toggle("vonza-mode-widget", !isPageMode());
   document.body?.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
   document.body?.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
-  ["compact", "standard", "tall"].forEach((size) => {
+  ["compact", "standard", "tall", "full"].forEach((size) => {
     document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
 }
@@ -916,7 +920,7 @@ function setPageShellState(state, details = {}) {
   }
 
   if (hero) {
-    hero.hidden = !isReady || EMBEDDED_MODE;
+    hero.hidden = !isReady || (EMBEDDED_MODE && !isFullEmbeddedPageMode());
   }
 
   if (chatContainer) {
@@ -2511,6 +2515,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getPageActionCards: () => getPageActionCards(),
   getEmbeddedSurface: () => EMBEDDED_SURFACE,
   getEmbeddedSize: () => EMBEDDED_SIZE,
+  isFullEmbeddedPageMode,
   hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,

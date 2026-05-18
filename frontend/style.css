@@ -2201,6 +2201,165 @@ html.vonza-mode-page body.embedded .powered-by {
   display: none;
 }
 
+html.vonza-mode-page.embedded-mode.embedded-size-full,
+html.vonza-mode-page.embedded-mode.embedded-size-full body,
+html.vonza-mode-page body.embedded.embedded-size-full {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100%;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full body,
+html.vonza-mode-page body.embedded.embedded-size-full {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--brand-primary) 5%, #ffffff 95%) 0%, #ffffff 48%, #f7f9fc 100%);
+  overflow: auto;
+  --embedded-card-max-width: none;
+  --embedded-card-min-height: 100vh;
+  --embedded-card-padding: clamp(14px, 2vw, 24px);
+  --embedded-header-padding: 18px 20px;
+  --embedded-feed-padding: 20px 22px;
+  --embedded-composer-padding: 14px 22px 16px;
+  --embedded-feed-gap: 16px;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .app-shell,
+html.vonza-mode-page body.embedded.embedded-size-full .app-shell {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 720px);
+  align-items: stretch;
+  justify-items: stretch;
+  gap: clamp(16px, 2vw, 28px);
+  padding: var(--embedded-card-padding);
+  overflow: hidden;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-assistant-hero:not([hidden]),
+html.vonza-mode-page body.embedded.embedded-size-full .page-assistant-hero:not([hidden]) {
+  display: grid;
+  min-height: 0;
+  align-content: start;
+  gap: 14px;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-business-header,
+html.vonza-mode-page body.embedded.embedded-size-full .page-business-header,
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-context-panel,
+html.vonza-mode-page body.embedded.embedded-size-full .page-context-panel {
+  display: grid;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 12%, rgba(15, 23, 42, 0.08) 88%);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 42px rgba(15, 23, 42, 0.07);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-business-header,
+html.vonza-mode-page body.embedded.embedded-size-full .page-business-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-primary) 12%, rgba(15, 23, 42, 0.08) 88%);
+  padding: clamp(16px, 2vw, 22px);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-online-status,
+html.vonza-mode-page body.embedded.embedded-size-full .page-online-status {
+  justify-self: end;
+  width: max-content;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-context-panel,
+html.vonza-mode-page body.embedded.embedded-size-full .page-context-panel {
+  min-height: 0;
+  align-content: start;
+  padding: clamp(18px, 2.4vw, 28px);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-action-list,
+html.vonza-mode-page body.embedded.embedded-size-full .page-action-list {
+  display: grid;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-action-card,
+html.vonza-mode-page body.embedded.embedded-size-full .page-action-card {
+  min-height: 66px;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-action-copy,
+html.vonza-mode-page body.embedded.embedded-size-full .page-action-copy {
+  display: block;
+  color: #667085;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .chat-container,
+html.vonza-mode-page body.embedded.embedded-size-full .chat-container {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 12%, rgba(15, 31, 29, 0.1) 88%);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 42px rgba(15, 23, 42, 0.1);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .chat-header,
+html.vonza-mode-page body.embedded.embedded-size-full .chat-header {
+  flex: 0 0 auto;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .widget-phase-chat,
+html.vonza-mode-page body.embedded.embedded-size-full .widget-phase-chat {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .chat-feed,
+html.vonza-mode-page body.embedded.embedded-size-full .chat-feed {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .composer-shell,
+html.vonza-mode-page body.embedded.embedded-size-full .composer-shell {
+  margin-top: auto;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .quick-replies,
+html.vonza-mode-page body.embedded.embedded-size-full .quick-replies {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .composer-status,
+html.vonza-mode-page body.embedded.embedded-size-full .composer-status {
+  display: block;
+  font-size: 0.76rem;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .page-identity-summary,
+html.vonza-mode-page body.embedded.embedded-size-full .page-identity-summary {
+  justify-content: space-between;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full .powered-by,
+html.vonza-mode-page body.embedded.embedded-size-full .powered-by {
+  display: block;
+  margin: 0;
+  color: #8a9492;
+  font-size: 0.7rem;
+}
+
 @media (max-width: 900px) {
   html.vonza-mode-page .app-shell {
     grid-template-columns: 1fr;
@@ -2244,5 +2403,42 @@ html.vonza-mode-page body.embedded .powered-by {
   html.vonza-mode-page body.embedded .page-identity-summary {
     align-items: center;
     flex-direction: row;
+  }
+}
+
+@media (max-width: 860px) {
+  html.vonza-mode-page.embedded-mode.embedded-size-full .app-shell,
+  html.vonza-mode-page body.embedded.embedded-size-full .app-shell {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full .chat-container,
+  html.vonza-mode-page body.embedded.embedded-size-full .chat-container {
+    order: 1;
+    min-height: min(720px, calc(100dvh - 28px));
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full .page-assistant-hero,
+  html.vonza-mode-page body.embedded.embedded-size-full .page-assistant-hero {
+    order: 2;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full .page-action-list,
+  html.vonza-mode-page body.embedded.embedded-size-full .page-action-list {
+    grid-template-columns: 1fr;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full .page-business-header,
+  html.vonza-mode-page body.embedded.embedded-size-full .page-business-header {
+    grid-template-columns: 1fr;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full .page-online-status,
+  html.vonza-mode-page body.embedded.embedded-size-full .page-online-status {
+    justify-self: start;
   }
 }

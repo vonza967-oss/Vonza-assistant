@@ -18,7 +18,7 @@
       : "widget";
     document.documentElement.classList.add(`vonza-mode-${vonzaInitialMode}`);
     if (vonzaInitialParams.get("embedded") === "1") {
-      const vonzaEmbeddedSize = ["compact", "tall"].includes((vonzaInitialParams.get("size") || "").toLowerCase())
+      const vonzaEmbeddedSize = ["compact", "standard", "tall", "full"].includes((vonzaInitialParams.get("size") || "").toLowerCase())
         ? vonzaInitialParams.get("size").toLowerCase()
         : "standard";
       document.documentElement.classList.add("embedded-mode");
