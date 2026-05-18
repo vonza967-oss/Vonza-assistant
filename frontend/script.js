@@ -533,6 +533,7 @@ function getFullPageConfig(config = widgetConfig) {
 
 function getConfiguredQuickReplies(config = widgetConfig) {
   const fullPageConfig = getFullPageConfig(config);
+  const limit = EMBEDDED_MODE ? 4 : 5;
   const candidates = [
     ...(isPageMode() ? [fullPageConfig.suggestedQuestions] : []),
     config.suggestedQuestions,
@@ -543,19 +544,19 @@ function getConfiguredQuickReplies(config = widgetConfig) {
 
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
-      const values = candidate.map((entry) => trimText(entry)).filter(Boolean);
+      const values = [...new Set(candidate.map((entry) => trimText(entry)).filter(Boolean))];
       if (values.length) {
-        return values.slice(0, 5);
+        return values.slice(0, limit);
       }
     }
 
     if (typeof candidate === "string") {
-      const values = candidate
+      const values = [...new Set(candidate
         .split(/\n|,/)
         .map((entry) => trimText(entry))
-        .filter(Boolean);
+        .filter(Boolean))];
       if (values.length) {
-        return values.slice(0, 5);
+        return values.slice(0, limit);
       }
     }
   }
@@ -608,8 +609,9 @@ function getQuickReplyTopics(config = widgetConfig) {
   }
 
   if (isPageMode()) {
-    const topics = getPageActionCards(config).map((card) => card.prompt);
-    return topics.length ? topics : PAGE_QUICK_REPLY_TOPICS;
+    const topics = [...new Set(getPageActionCards(config).map((card) => card.prompt).filter(Boolean))];
+    const fallbackTopics = [...new Set(PAGE_QUICK_REPLY_TOPICS)];
+    return (topics.length ? topics : fallbackTopics).slice(0, EMBEDDED_MODE ? 4 : PAGE_QUICK_REPLY_TOPICS.length);
   }
 
   return QUICK_REPLY_TOPICS;
@@ -763,7 +765,7 @@ function setPageShellState(state, details = {}) {
   }
 
   if (hero) {
-    hero.hidden = !isReady;
+    hero.hidden = !isReady || EMBEDDED_MODE;
   }
 
   if (chatContainer) {
@@ -1004,9 +1006,15 @@ function syncPageIdentityInline() {
   const normalized = normalizeVisitorIdentityState(visitorIdentity);
 
   if (note) {
-    note.textContent = normalized.mode === "identified" && normalized.email
-      ? `Using ${normalized.email} for follow-up if the business needs it.`
-      : "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.";
+    if (normalized.mode === "identified" && normalized.email) {
+      note.textContent = EMBEDDED_MODE
+        ? `Using ${normalized.email}`
+        : `Using ${normalized.email} for follow-up if the business needs it.`;
+    } else {
+      note.textContent = EMBEDDED_MODE
+        ? "Asking as guest"
+        : "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.";
+    }
   }
 
   if (button) {

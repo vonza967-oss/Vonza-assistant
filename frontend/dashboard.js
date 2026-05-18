@@ -2759,8 +2759,8 @@ function buildFullPageQrEndpoint(agent = {}) {
 function buildFullPageAssistantIframe(agent = {}) {
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent)}"
-  title="${escapeHtml(trimText(agent.assistantName || agent.name) || "Business assistant")}"
-  style="width:100%;min-height:760px;border:0;background:transparent;"
+  title="AI assistant"
+  style="width:100%;min-height:620px;border:0;border-radius:18px;overflow:hidden;"
   loading="lazy"
 ></iframe>`;
 }
@@ -15017,7 +15017,7 @@ function buildInstallSection(agent, options = {}) {
       key: "page",
       icon: "frontdesk",
       title: "Full-page assistant",
-      copy: "Share one hosted assistant page anywhere.",
+      copy: "Share a hosted page or embed it inside a website section.",
       status: fullPageUrl ? "Ready to share" : "",
       tone: "ready",
     },
@@ -15099,7 +15099,7 @@ function buildInstallSection(agent, options = {}) {
           <div>
             <p class="install-option-eyebrow">Selected method</p>
             <h3 class="install-option-title">Full-page assistant</h3>
-            <p class="install-option-copy">Share this link from your website, menu, email, or QR code.</p>
+            <p class="install-option-copy">Use the link for a standalone assistant, or embed the iframe inside a website section like Support, Contact, or Request a quote.</p>
           </div>
           <span class="${getBadgeClass(fullPageUrl ? "Ready" : "Pending")}">${escapeHtml(fullPageUrl ? "Ready to share" : "Not ready")}</span>
         </div>

@@ -149,6 +149,7 @@ function createWidgetHarness({
     "page-identity-name",
     "page-identity-email",
     "page-identity-email-cancel",
+    "page-identity-powered",
     "identity-reset-button",
     "assistant-name",
     "welcome-assistant-name",
@@ -193,6 +194,7 @@ function createWidgetHarness({
   ].forEach((id) => {
     getElement(id).hidden = true;
   });
+  getElement("page-identity-powered").textContent = "Powered by Vonza";
 
   const documentElement = createFakeElement("documentElement");
   const document = {
@@ -571,6 +573,10 @@ test("embedded page mode uses compact customized prompts once", async () => {
                   suggestedQuestions: [
                     "Can I get a quote?",
                     "How do I contact Acme?",
+                    "Can I get a quote?",
+                    "What services do you offer?",
+                    "Do you serve my area?",
+                    "How quickly can you reply?",
                   ],
                 },
               },
@@ -592,12 +598,28 @@ test("embedded page mode uses compact customized prompts once", async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, true);
+  assert.equal(harness.elements.get("entry-state").hidden, true);
+  assert.equal(harness.elements.get("chat-state").hidden, false);
+  assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
+  assert.equal(harness.elements.get("welcome-panel").hidden, true);
+  assert.equal(harness.elements.get("intro-message").hidden, false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("page-identity-inline").hidden, false);
+  assert.equal(harness.elements.get("page-identity-note").textContent, "Asking as guest");
+  assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
+  assert.equal(harness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
+  assert.equal(harness.elements.get("page-identity-email-form").hidden, true);
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-help-title").textContent, "Acme support");
   assert.equal(harness.elements.get("quick-replies").hidden, false);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Can I get a quote\?/);
   assert.match(harness.elements.get("quick-replies").innerHTML, /How do I contact Acme\?/);
-  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 2);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /What services do you offer\?/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Do you serve my area\?/);
+  assert.doesNotMatch(harness.elements.get("quick-replies").innerHTML, /How quickly can you reply\?/);
+  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
 });
 
 test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
@@ -1654,12 +1676,20 @@ test("production page mode has one quick action row and no launcher controls", (
 
 test("dashboard install iframe uses compact embedded page mode while QR stays hosted", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
+  const styles = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
 
   assert.match(dashboard, /function buildFullPageAssistantUrl/);
   assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
-  assert.match(dashboard, /Share this link from your website, menu, email, or QR code\./);
+  assert.match(dashboard, /inside a website section like Support, Contact, or Request a quote/);
+  assert.match(dashboard, /min-height:620px;border:0;border-radius:18px;overflow:hidden/);
+  assert.doesNotMatch(dashboard, /min-height:760px|100vh;border:0/);
+  assert.match(widget, /page-identity-powered/);
+  assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
+  assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
+  assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);
 });
