@@ -1659,7 +1659,7 @@ test("dashboard install iframe uses compact embedded page mode while QR stays ho
   assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
-  assert.match(dashboard, /Use this as a support page, booking\/help page, menu link, or QR destination\./);
+  assert.match(dashboard, /Share this link from your website, menu, email, or QR code\./);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);
 });

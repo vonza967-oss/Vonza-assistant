@@ -1706,8 +1706,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Installation methods/);
         assert.match(dashboardScript.text, /Full-page assistant/);
         assert.match(dashboardScript.text, /QR code/);
-        assert.match(dashboardScript.text, /Install help/);
-        assert.match(dashboardScript.text, /Domain checks/);
+        assert.match(dashboardScript.text, /Setup progress/);
+        assert.match(dashboardScript.text, /Domain status/);
+        assert.match(dashboardScript.text, /View website instructions/);
         assert.match(dashboardScript.text, /Copy code/);
         assert.match(dashboardScript.text, /Verify installation/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);

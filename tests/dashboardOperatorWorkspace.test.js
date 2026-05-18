@@ -333,17 +333,18 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
   assert.match(markup, /data-action="copy-install"/);
   assert.match(markup, /data-action="verify-install"/);
   assert.match(markup, /https:\/\/app\.example\.com\/embed\.js/);
-  assert.match(markup, /data-install-id="install-1"/);
+  assert.match(markup, /data-install-id=(?:"|&quot;)install-1(?:"|&quot;)/);
   assert.match(markup, /Full-page assistant/);
   assert.match(markup, /https:\/\/app\.example\.com\/a\/public-agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
-  assert.match(markup, /QR touchpoints/);
+  assert.match(markup, /QR code/);
   assert.match(markup, /data-full-page-qr-preview/);
   assert.match(markup, /data-action="download-full-page-qr"/);
-  assert.match(markup, /QR scan tracking is not tracked yet/);
-  assert.match(markup, /Install help/);
-  assert.match(markup, /Domain checks/);
+  assert.match(markup, /Scan tracking is not available yet/);
+  assert.match(markup, /Status/);
+  assert.match(markup, /Domain status/);
+  assert.match(markup, /Resources/);
   assert.doesNotMatch(markup, /Open Home/);
   assert.doesNotMatch(markup, /Open Analytics/);
   assert.doesNotMatch(markup, /Home already has conversations/);
@@ -389,7 +390,7 @@ test("dashboard sections keep section-specific content boundaries", () => {
   assert.doesNotMatch(home, /install-script-output|full-page-assistant-iframe|download-full-page-qr|data-action="copy-install"/);
   assert.doesNotMatch(customers, /install-script-output|copy-install|download-full-page-qr|Verify installation/);
   assert.doesNotMatch(analytics, /install-script-output|copy-install|download-full-page-qr|Verify installation/);
-  assert.doesNotMatch(install, /Open Home|Open Analytics|First test conversation complete|Website knowledge imported|weak-answer feedback/);
+  assert.doesNotMatch(install, /Open Home|Open Analytics|First test conversation complete|weak-answer feedback/);
   assert.doesNotMatch(settings, /Team access|Invite member|Integrations|No active billing plan data|data-privacy-export|Save privacy preference|install-script-output/);
 });
 
@@ -861,7 +862,7 @@ test("English dashboard still renders the supported dashboard UI in English", ()
 
   assert.match(settings, /Workspace preferences/);
   assert.match(settings, /Dashboard language/);
-  assert.match(install, /Install help/);
+  assert.match(install, /View website instructions/);
   assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
 });
@@ -3190,37 +3191,179 @@ test("install section stays focused on install methods and verification", () => 
       lastSeenAt: "2026-05-10T08:00:00.000Z",
     },
   });
+  const widgetPanel = markup.slice(
+    markup.indexOf('id="install-panel-widget"'),
+    markup.indexOf('id="install-panel-page"')
+  );
+  const pagePanel = markup.slice(
+    markup.indexOf('id="install-panel-page"'),
+    markup.indexOf('id="install-panel-qr"')
+  );
+  const qrPanel = markup.slice(markup.indexOf('id="install-panel-qr"'));
 
-  assert.match(markup, /Installation status/);
+  assert.match(markup, /Install setup stages/);
+  assert.match(markup, /Choose method/);
+  assert.match(markup, /Configure/);
+  assert.match(markup, /Verify/);
+  assert.match(markup, /Go live/);
   assert.match(markup, /Allowed domains/);
-  assert.match(markup, /Test the installed assistant/);
   assert.match(markup, /role="tablist"/);
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
+  assert.match(markup, />Website widget</);
+  assert.match(markup, />Full-page assistant</);
+  assert.match(markup, />QR code</);
   assert.match(markup, /id="install-panel-widget"/);
   assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
-  assert.match(markup, /Use this as a support page, booking\/help page, menu link, or QR destination\./);
-  assert.match(markup, /Share a support, booking, help, menu, or QR page\./);
-  assert.match(markup, /Use the full-page assistant QR code on menus, reception desks, flyers, and signs\./);
-  assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
-  assert.match(markup, /data-action="copy-full-page-url"/);
-  assert.match(markup, /data-action="copy-full-page-iframe"/);
-  assert.match(markup, /data-full-page-qr-preview/);
-  assert.match(markup, /Download QR code/);
-  assert.match(markup, /Print this QR code or place it on menus, reception desks, flyers, and signs\./);
+  assert.match(widgetPanel, /Website widget code/);
+  assert.match(widgetPanel, /data-action="copy-install"/);
+  assert.match(widgetPanel, /Paste this once into your site header\./);
+  assert.match(widgetPanel, /Detected install status/);
+  assert.match(widgetPanel, /example\.com/);
+  assert.match(widgetPanel, /data-action="verify-install"/);
+  assert.match(widgetPanel, /Test front desk/);
+  assert.doesNotMatch(widgetPanel, /full-page-assistant-iframe|Iframe snippet|data-full-page-qr-preview|Target URL/);
+  assert.match(pagePanel, /Share this link from your website, menu, email, or QR code\./);
+  assert.match(pagePanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
+  assert.match(pagePanel, /data-action="copy-full-page-url"/);
+  assert.match(pagePanel, /data-action="copy-full-page-iframe"/);
+  assert.match(pagePanel, /mode=page&amp;embedded=1|mode=page&embedded=1/);
+  assert.match(pagePanel, /Customize full-page assistant/);
+  assert.doesNotMatch(pagePanel, /install-script-output|Website widget code|Allowed domains/);
+  assert.match(qrPanel, /data-full-page-qr-preview/);
+  assert.match(qrPanel, /Download QR code/);
+  assert.match(qrPanel, /Copy full-page URL/);
+  assert.match(qrPanel, /Target URL/);
+  assert.match(qrPanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
+  assert.match(qrPanel, /Scan tracking is not available yet\./);
+  assert.doesNotMatch(qrPanel, /\d+\s+scans|scan rate|scans today/i);
   assert.doesNotMatch(markup, /You are live/);
   assert.doesNotMatch(markup, /weak answers, leads, and follow-up needs/);
-  assert.doesNotMatch(markup, /Setup checklist/);
-  assert.doesNotMatch(markup, /Assistant created/);
-  assert.doesNotMatch(markup, /Website knowledge imported/);
-  assert.doesNotMatch(markup, /Widget configured/);
-  assert.doesNotMatch(markup, /First test conversation complete/);
   assert.doesNotMatch(markup, /Open Home/);
   assert.doesNotMatch(markup, /Open Analytics/);
   assert.doesNotMatch(markup, /QR code option coming soon\./);
   assert.doesNotMatch(markup, /TODO/);
+});
+
+test("install panel shows real status, progress, and resources without unrelated workspace content", () => {
+  const harness = createDashboardHarness();
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    assistantName: "Acme assistant",
+    welcomeMessage: "How can we help?",
+    tone: "professional",
+    websiteUrl: "https://example.com",
+    knowledge: {
+      state: "ready",
+      description: "Website knowledge is ready.",
+    },
+    fullPageConfig: {
+      headline: "Ask Acme",
+      suggestedQuestions: ["What services do you offer?"],
+    },
+    installStatus: {
+      state: "seen_recently",
+      label: "Seen recently",
+      host: "example.com",
+      allowedDomains: ["example.com"],
+      lastSeenAt: "2026-05-10T08:00:00.000Z",
+      lastSeenUrl: "https://example.com/contact",
+    },
+  };
+  const panel = harness.buildInstallPanel(
+    agent,
+    harness.inferSetup(agent),
+    harness.createEmptyOperatorWorkspace(),
+    [{ role: "user", content: "Can I book?" }],
+    harness.createEmptyActionQueue()
+  );
+
+  assert.match(panel, />Install</);
+  assert.match(panel, /Add Vonza to your website, assistant page, or QR touchpoint\./);
+  assert.match(panel, /data-action="verify-install"/);
+  assert.match(panel, /data-install-method-jump="widget"/);
+  assert.match(panel, /Installation status/);
+  assert.match(panel, /Seen recently/);
+  assert.match(panel, /Domain status/);
+  assert.match(panel, /Detected domain/);
+  assert.match(panel, /Last seen/);
+  assert.match(panel, /https:\/\/example\.com\/contact/);
+  assert.match(panel, /Full-page assistant/);
+  assert.match(panel, /Ready to share/);
+  assert.match(panel, /QR code/);
+  assert.match(panel, /Downloadable/);
+  assert.match(panel, /Setup progress/);
+  assert.match(panel, /Assistant created/);
+  assert.match(panel, /Website knowledge imported/);
+  assert.match(panel, /Widget configured/);
+  assert.match(panel, /Install detected/);
+  assert.match(panel, /First test conversation/);
+  assert.match(panel, /Full-page assistant customized/);
+  assert.match(panel, /Copy widget instructions/);
+  assert.match(panel, /Customize full-page assistant/);
+  assert.doesNotMatch(panel, /Open Home|Open Analytics|Customers dashboard|Front Desk inbox|Settings content/);
+  assert.doesNotMatch(panel, /\d+\s+scans|scan rate|scans today/i);
+});
+
+test("install copy helpers write the current install code and full-page sharing values", async () => {
+  const copied = [];
+  const agent = {
+    id: "agent-1",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    assistantName: "Acme assistant",
+    welcomeMessage: "How can we help?",
+    tone: "professional",
+    websiteUrl: "https://example.com",
+    installStatus: {
+      state: "not_installed",
+      label: "Not installed yet",
+      allowedDomains: ["example.com"],
+    },
+  };
+  const harness = createDashboardHarness({
+    fetchImpl: async (url) => ({
+      ok: true,
+      async json() {
+        const requestUrl = String(url);
+        if (requestUrl.includes("/agents/install-status")) {
+          return { agent };
+        }
+        if (requestUrl.includes("/agents/messages")) {
+          return { messages: [] };
+        }
+        if (requestUrl.includes("/agents/activation-wizard")) {
+          return { wizard: null };
+        }
+        return {};
+      },
+    }),
+  });
+  harness.navigator = harness.window.navigator;
+  harness.window.navigator.clipboard.writeText = async (value) => {
+    copied.push(value);
+  };
+
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  await harness.copyInstallCode(agent);
+  await harness.copyFullPageAssistantUrl(agent);
+  await harness.copyFullPageAssistantIframe(agent);
+
+  assert.match(copied[0], /\/embed\.js/);
+  assert.match(copied[0], /data-install-id="install-1"/);
+  assert.equal(copied[1], "http://127.0.0.1:3000/a/agent-key");
+  assert.match(copied[2], /<iframe/);
+  assert.match(copied[2], /\/widget\?agent_id=agent-1&mode=page&embedded=1/);
 });
 
 test("install section falls back to widget page URL when public slug is missing", () => {
