@@ -425,6 +425,27 @@ test("explicit widget mode keeps the widget shell as the default display", () =>
   assert.equal(harness.elements.get("launcher-text").textContent, "AI front desk for your website");
 });
 
+test("normal widget quick replies ignore full-page suggested questions", () => {
+  const harness = createWidgetHarness();
+
+  harness.hooks.applyWidgetConfig({
+    assistantName: "Acme Assistant",
+    fullPageConfig: {
+      suggestedQuestions: [
+        "Full-page only question",
+        "Another hosted page prompt",
+      ],
+    },
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+
+  const quickRepliesHtml = harness.elements.get("quick-replies").innerHTML;
+  assert.match(quickRepliesHtml, /Services/);
+  assert.match(quickRepliesHtml, /Pricing/);
+  assert.doesNotMatch(quickRepliesHtml, /Full-page only question/);
+  assert.doesNotMatch(quickRepliesHtml, /Another hosted page prompt/);
+});
+
 test("page mode waits for a real assistant before showing the chat shell", async () => {
   const harness = createWidgetHarness({
     location: {

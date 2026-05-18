@@ -534,7 +534,7 @@ function getFullPageConfig(config = widgetConfig) {
 function getConfiguredQuickReplies(config = widgetConfig) {
   const fullPageConfig = getFullPageConfig(config);
   const candidates = [
-    fullPageConfig.suggestedQuestions,
+    ...(isPageMode() ? [fullPageConfig.suggestedQuestions] : []),
     config.suggestedQuestions,
     config.suggested_questions,
     config.quickReplies,
