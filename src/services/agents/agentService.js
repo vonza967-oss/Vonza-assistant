@@ -13,10 +13,15 @@ import {
 } from "../install/installPresenceService.js";
 import {
   DEFAULT_AGENT_NAME,
+  DEFAULT_FULL_PAGE_ACTION_CARDS,
+  DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD,
+  DEFAULT_FULL_PAGE_CONFIG,
+  DEFAULT_FULL_PAGE_TRUST_ITEMS,
   DEFAULT_LANGUAGE,
   DEFAULT_PURPOSE,
   DEFAULT_TONE,
   DEFAULT_WIDGET_CONFIG,
+  FULL_PAGE_ACTION_CARD_TYPES,
 } from "./agentDefaults.js";
 import { normalizeWidgetPurpose } from "./widgetPurpose.js";
 import { isTempInstantWorkspaceAccessEnabled } from "../../config/env.js";
@@ -46,6 +51,9 @@ const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "business_hours_note",
   "widget_logo_url",
 ];
+const FULL_PAGE_WIDGET_CONFIG_COLUMNS = [
+  "full_page_config",
+];
 const ROUTING_WIDGET_CONFIG_KEYS = [
   "bookingUrl",
   "quoteUrl",
@@ -62,6 +70,9 @@ const ROUTING_WIDGET_CONFIG_KEYS = [
   "primaryCtaMode",
   "fallbackCtaMode",
   "businessHoursNote",
+];
+const FULL_PAGE_WIDGET_CONFIG_KEYS = [
+  "fullPageConfig",
 ];
 const LEGACY_WIDGET_CONFIG_SELECT = [
   "id",
@@ -82,6 +93,41 @@ const LEGACY_WIDGET_CONFIG_SELECT = [
   "last_verification_details",
 ].join(", ");
 const WIDGET_CONFIG_SELECT = [
+  "id",
+  "agent_id",
+  "assistant_name",
+  "welcome_message",
+  "button_label",
+  "primary_color",
+  "secondary_color",
+  "launcher_text",
+  "widget_logo_url",
+  "theme_mode",
+  "booking_url",
+  "quote_url",
+  "checkout_url",
+  "booking_start_url",
+  "quote_start_url",
+  "booking_success_url",
+  "quote_success_url",
+  "checkout_success_url",
+  "success_url_match_mode",
+  "manual_outcome_mode",
+  "contact_email",
+  "contact_phone",
+  "primary_cta_mode",
+  "fallback_cta_mode",
+  "business_hours_note",
+  "install_id",
+  "allowed_domains",
+  "last_verification_status",
+  "last_verified_at",
+  "last_verification_origin",
+  "last_verification_target_url",
+  "last_verification_details",
+  "full_page_config",
+].join(", ");
+const WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE = [
   "id",
   "agent_id",
   "assistant_name",
@@ -256,6 +302,233 @@ function normalizeOptionalImageSource(value) {
   return normalizedUrl || "";
 }
 
+function normalizeLimitedText(value, maxLength) {
+  return cleanText(value).slice(0, maxLength);
+}
+
+function normalizeFullPageConfigInput(value) {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+function readConfigField(config, camelCaseKey, snakeCaseKey) {
+  if (Object.prototype.hasOwnProperty.call(config, camelCaseKey)) {
+    return config[camelCaseKey];
+  }
+
+  if (snakeCaseKey && Object.prototype.hasOwnProperty.call(config, snakeCaseKey)) {
+    return config[snakeCaseKey];
+  }
+
+  return undefined;
+}
+
+function normalizeConfigBoolean(value, fallbackValue) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value === 1 ? true : value === 0 ? false : fallbackValue;
+  }
+
+  const normalized = cleanText(value).toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallbackValue;
+}
+
+function normalizeAccentColor(value) {
+  const normalized = cleanText(value).toLowerCase();
+  const tokenColors = {
+    blue: "#2563eb",
+    green: "#16a34a",
+    purple: "#7c3aed",
+    slate: "#334155",
+    teal: "#0f766e",
+  };
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    return `#${normalized
+      .slice(1)
+      .split("")
+      .map((character) => `${character}${character}`)
+      .join("")}`;
+  }
+
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized;
+  }
+
+  return tokenColors[normalized] || null;
+}
+
+function hasBookingSupportInWidgetConfig(config = {}) {
+  return Boolean(
+    normalizeOptionalUrl(config.bookingUrl || config.booking_url)
+    || normalizeOptionalUrl(config.bookingStartUrl || config.booking_start_url)
+    || normalizeOptionalUrl(config.bookingSuccessUrl || config.booking_success_url)
+    || cleanText(config.primaryCtaMode || config.primary_cta_mode).toLowerCase() === "booking"
+    || cleanText(config.fallbackCtaMode || config.fallback_cta_mode).toLowerCase() === "booking"
+  );
+}
+
+function buildDefaultFullPageActionCards({ bookingSupport = false } = {}) {
+  const cards = DEFAULT_FULL_PAGE_ACTION_CARDS.map((card) => ({ ...card }));
+
+  if (bookingSupport) {
+    cards.push({ ...DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD });
+  }
+
+  return cards;
+}
+
+function normalizeFullPageActionType(value) {
+  const normalized = cleanText(value).toLowerCase();
+  return FULL_PAGE_ACTION_CARD_TYPES.includes(normalized) ? normalized : "custom";
+}
+
+function normalizeFullPageActionCard(card = {}, fallbackCard = {}) {
+  const label = normalizeLimitedText(
+    readConfigField(card, "label") ?? fallbackCard.label,
+    40
+  );
+  const description = normalizeLimitedText(
+    readConfigField(card, "description") ?? readConfigField(card, "copy") ?? fallbackCard.description,
+    120
+  );
+  const prompt = normalizeLimitedText(
+    readConfigField(card, "prompt") ?? fallbackCard.prompt,
+    200
+  );
+  const type = normalizeFullPageActionType(
+    readConfigField(card, "type") ?? fallbackCard.type
+  );
+  const enabled = normalizeConfigBoolean(
+    readConfigField(card, "enabled"),
+    fallbackCard.enabled !== false
+  );
+
+  if (!label || !prompt) {
+    return null;
+  }
+
+  return {
+    label,
+    description,
+    prompt,
+    type,
+    enabled,
+  };
+}
+
+export function normalizeFullPageConfig(input = {}, options = {}) {
+  const config = normalizeFullPageConfigInput(input);
+  const bookingSupport = Boolean(options.bookingSupport);
+  const defaultCards = buildDefaultFullPageActionCards({ bookingSupport });
+  const rawCards =
+    readConfigField(config, "actionCards", "action_cards")
+    || readConfigField(config, "cards");
+  const showBooking = bookingSupport && normalizeConfigBoolean(
+    readConfigField(config, "showBooking", "show_booking"),
+    bookingSupport
+  );
+  const showQuote = normalizeConfigBoolean(
+    readConfigField(config, "showQuote", "show_quote"),
+    DEFAULT_FULL_PAGE_CONFIG.showQuote
+  );
+  const showContact = normalizeConfigBoolean(
+    readConfigField(config, "showContact", "show_contact"),
+    DEFAULT_FULL_PAGE_CONFIG.showContact
+  );
+  const actionCards = (Array.isArray(rawCards) && rawCards.length ? rawCards : defaultCards)
+    .slice(0, 6)
+    .map((card, index) => normalizeFullPageActionCard(card, defaultCards[index] || {}))
+    .filter(Boolean)
+    .map((card) => ({
+      ...card,
+      enabled:
+        (card.type === "booking" && !showBooking)
+        || (card.type === "quote" && !showQuote)
+        || (card.type === "contact" && !showContact)
+          ? false
+          : card.enabled,
+    }));
+  const rawSuggestedQuestions =
+    readConfigField(config, "suggestedQuestions", "suggested_questions")
+    || readConfigField(config, "quickReplies", "quick_replies")
+    || [];
+  const suggestedQuestions = (Array.isArray(rawSuggestedQuestions)
+    ? rawSuggestedQuestions
+    : String(rawSuggestedQuestions || "").split(/\n|,/)
+  )
+    .map((question) => normalizeLimitedText(question, 120))
+    .filter(Boolean)
+    .slice(0, 5);
+  const rawTrustItems = readConfigField(config, "trustItems", "trust_items") || [];
+  const trustItems = (Array.isArray(rawTrustItems) ? rawTrustItems : String(rawTrustItems || "").split(/\n|,/))
+    .map((item) => normalizeLimitedText(item, 60))
+    .filter(Boolean)
+    .slice(0, 3);
+  const logoUrl = normalizeOptionalImageSource(
+    readConfigField(config, "logoUrl", "logo_url")
+  ) || null;
+
+  return {
+    headline: normalizeLimitedText(readConfigField(config, "headline"), 80) || null,
+    subtitle: normalizeLimitedText(readConfigField(config, "subtitle"), 180) || null,
+    actionCards: actionCards.length ? actionCards : defaultCards,
+    suggestedQuestions,
+    accentColor: normalizeAccentColor(readConfigField(config, "accentColor", "accent_color")),
+    logoUrl,
+    showBooking,
+    showQuote,
+    showContact,
+    trustItems: trustItems.length ? trustItems : [...DEFAULT_FULL_PAGE_TRUST_ITEMS],
+  };
+}
+
+function serializeFullPageConfig(config = {}) {
+  const normalized = normalizeFullPageConfig(config, {
+    bookingSupport: config.showBooking === true,
+  });
+
+  return {
+    headline: normalized.headline,
+    subtitle: normalized.subtitle,
+    action_cards: normalized.actionCards.map((card) => ({ ...card })),
+    suggested_questions: normalized.suggestedQuestions,
+    accent_color: normalized.accentColor,
+    logo_url: normalized.logoUrl,
+    show_booking: normalized.showBooking,
+    show_quote: normalized.showQuote,
+    show_contact: normalized.showContact,
+    trust_items: normalized.trustItems,
+  };
+}
+
 function buildInvalidWidgetLogoError() {
   return buildAgentSettingsError("Upload a small PNG, JPG, WebP, or GIF logo image.", 400);
 }
@@ -291,6 +564,16 @@ function isMissingWidgetRoutingColumnError(error) {
   );
 }
 
+function isMissingFullPageConfigColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+
+  return (
+    error?.code === "42703"
+    || error?.code === "PGRST204"
+    || FULL_PAGE_WIDGET_CONFIG_COLUMNS.some((columnName) => message.includes(columnName))
+  );
+}
+
 function isMissingBusinessVerticalColumnError(error) {
   const message = cleanText(error?.message || "").toLowerCase();
   return (
@@ -316,6 +599,10 @@ function buildWidgetConfigUpsertPayload(agentId, config, options = {}) {
 
   if (options.includeWidgetLogoField !== false) {
     payload.widget_logo_url = config.widgetLogoUrl || null;
+  }
+
+  if (options.includeFullPageConfigField !== false) {
+    payload.full_page_config = serializeFullPageConfig(config.fullPageConfig || {});
   }
 
   if (options.includeRoutingFields !== false) {
@@ -446,9 +733,19 @@ function mapAgentRow(row) {
 
 function mapWidgetConfigRow(row) {
   const outcomeSettings = normalizeOutcomeSettings(row || {});
+  const normalizedFullPageConfig = normalizeFullPageConfig(row?.full_page_config, {
+    bookingSupport: hasBookingSupportInWidgetConfig(row || {}),
+  });
+  const widgetLogoUrl = normalizeOptionalImageSource(row?.widget_logo_url) || "";
+  const fullPageConfig = {
+    ...normalizedFullPageConfig,
+    logoUrl: normalizedFullPageConfig.logoUrl || widgetLogoUrl || null,
+  };
 
   return {
     ...DEFAULT_WIDGET_CONFIG,
+    fullPageConfig,
+    full_page_config: serializeFullPageConfig(fullPageConfig),
     ...(row
       ? {
           assistantName: row.assistant_name ?? DEFAULT_WIDGET_CONFIG.assistantName,
@@ -457,7 +754,7 @@ function mapWidgetConfigRow(row) {
           primaryColor: row.primary_color ?? DEFAULT_WIDGET_CONFIG.primaryColor,
           secondaryColor: row.secondary_color ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
           launcherText: row.launcher_text ?? DEFAULT_WIDGET_CONFIG.launcherText,
-          widgetLogoUrl: normalizeOptionalImageSource(row.widget_logo_url) || "",
+          widgetLogoUrl,
           themeMode: row.theme_mode ?? DEFAULT_WIDGET_CONFIG.themeMode,
           bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
           quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
@@ -494,6 +791,10 @@ function mapWidgetConfigRow(row) {
 
 function mapPersistedWidgetConfigRow(row) {
   const outcomeSettings = normalizeOutcomeSettings(row || {});
+  const normalizedFullPageConfig = normalizeFullPageConfig(row?.full_page_config, {
+    bookingSupport: hasBookingSupportInWidgetConfig(row || {}),
+  });
+  const widgetLogoUrl = normalizeOptionalImageSource(row?.widget_logo_url) || "";
 
   return {
     assistantName: cleanText(row?.assistant_name),
@@ -502,7 +803,7 @@ function mapPersistedWidgetConfigRow(row) {
     primaryColor: cleanText(row?.primary_color),
     secondaryColor: cleanText(row?.secondary_color),
     launcherText: cleanText(row?.launcher_text),
-    widgetLogoUrl: normalizeOptionalImageSource(row?.widget_logo_url) || "",
+    widgetLogoUrl,
     themeMode: cleanText(row?.theme_mode),
     bookingUrl: normalizeOptionalUrl(row?.booking_url) || "",
     quoteUrl: normalizeOptionalUrl(row?.quote_url) || "",
@@ -531,6 +832,10 @@ function mapPersistedWidgetConfigRow(row) {
       DEFAULT_WIDGET_CONFIG.fallbackCtaMode
     ),
     businessHoursNote: cleanText(row?.business_hours_note) || "",
+    fullPageConfig: {
+      ...normalizedFullPageConfig,
+      logoUrl: normalizedFullPageConfig.logoUrl || widgetLogoUrl || null,
+    },
     installId: cleanText(row?.install_id),
     allowedDomainsRaw: normalizeAllowedDomains(row?.allowed_domains, {
       allowEmpty: true,
@@ -596,6 +901,14 @@ async function getWidgetConfigRowForAgent(supabase, agentId) {
     .eq("agent_id", agentId)
     .maybeSingle();
 
+  if (error && isMissingFullPageConfigColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+      .eq("agent_id", agentId)
+      .maybeSingle());
+  }
+
   if (error && isMissingWidgetRoutingColumnError(error)) {
     ({ data, error } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
@@ -633,12 +946,23 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
     .select(WIDGET_CONFIG_SELECT)
     .single();
 
+  if (error && isMissingFullPageConfigColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, {
+        includeFullPageConfigField: false,
+      }), { onConflict: "agent_id" })
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+      .single());
+  }
+
   if (error && isMissingWidgetRoutingColumnError(error)) {
     ({ data, error } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
       .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, {
         includeRoutingFields: false,
         includeWidgetLogoField: false,
+        includeFullPageConfigField: false,
       }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
@@ -1199,6 +1523,13 @@ export async function listAgents(supabase, options = {}) {
       .select(WIDGET_CONFIG_SELECT)
       .in("agent_id", agentIds);
 
+    if (widgetError && isMissingFullPageConfigColumnError(widgetError)) {
+      ({ data: widgetRows, error: widgetError } = await supabase
+        .from(WIDGET_CONFIGS_TABLE)
+        .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+        .in("agent_id", agentIds));
+    }
+
     if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
       ({ data: widgetRows, error: widgetError } = await supabase
         .from(WIDGET_CONFIGS_TABLE)
@@ -1336,6 +1667,8 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.fallbackCtaMode || DEFAULT_WIDGET_CONFIG.fallbackCtaMode,
       businessHoursNote:
         widgetConfig?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
+      fullPageConfig:
+        widgetConfig?.fullPageConfig || normalizeFullPageConfig(null),
       hasWidgetConfig: Boolean(widgetConfig),
       knowledge,
       installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(widgetConfig, websiteUrl),
@@ -1399,6 +1732,13 @@ export async function listAllAgents(supabase) {
       .from(WIDGET_CONFIGS_TABLE)
       .select(WIDGET_CONFIG_SELECT)
       .in("agent_id", agentIds);
+
+    if (widgetError && isMissingFullPageConfigColumnError(widgetError)) {
+      ({ data: widgetRows, error: widgetError } = await supabase
+        .from(WIDGET_CONFIGS_TABLE)
+        .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+        .in("agent_id", agentIds));
+    }
 
     if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
       ({ data: widgetRows, error: widgetError } = await supabase
@@ -1511,6 +1851,8 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.fallbackCtaMode || DEFAULT_WIDGET_CONFIG.fallbackCtaMode,
     businessHoursNote:
       widgetConfigsByAgentId.get(row.id)?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
+    fullPageConfig:
+      widgetConfigsByAgentId.get(row.id)?.fullPageConfig || normalizeFullPageConfig(null),
     installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(
       widgetConfigsByAgentId.get(row.id),
       businessesById.get(row.business_id)?.website_url || ""
@@ -1591,10 +1933,12 @@ export async function updateAgentSettings(
     primaryCtaMode,
     fallbackCtaMode,
     businessHoursNote,
+    fullPageConfig,
     vertical,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
   const hasSubmittedRoutingField = ROUTING_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
+  const hasSubmittedFullPageConfig = FULL_PAGE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
   const normalizedAgentId = cleanText(agentId);
   const providedWebsiteUrl = hasField("websiteUrl") ? cleanText(websiteUrl) : "";
   const normalizedWebsiteUrl = providedWebsiteUrl
@@ -1737,6 +2081,7 @@ export async function updateAgentSettings(
         primaryCtaMode: currentWidgetConfig.primaryCtaMode,
         fallbackCtaMode: currentWidgetConfig.fallbackCtaMode,
         businessHoursNote: currentWidgetConfig.businessHoursNote || "",
+        fullPageConfig: currentWidgetConfig.fullPageConfig || normalizeFullPageConfig(null),
         installId: currentWidgetConfig.installId || "",
         allowedDomainsRaw: normalizeAllowedDomains(currentWidgetConfig.allowedDomains, {
           allowEmpty: true,
@@ -1808,6 +2153,23 @@ export async function updateAgentSettings(
   const nextBusinessHoursNote = hasField("businessHoursNote")
     ? cleanText(businessHoursNote)
     : persistedWidgetConfig.businessHoursNote;
+  const nextFullPageConfig = hasField("fullPageConfig")
+    ? normalizeFullPageConfig(fullPageConfig, {
+        bookingSupport: hasBookingSupportInWidgetConfig({
+          ...persistedWidgetConfig,
+          bookingUrl: nextBookingUrl,
+          booking_url: nextBookingUrl,
+          bookingStartUrl: nextBookingStartUrl,
+          booking_start_url: nextBookingStartUrl,
+          bookingSuccessUrl: nextBookingSuccessUrl,
+          booking_success_url: nextBookingSuccessUrl,
+          primaryCtaMode: nextPrimaryCtaMode,
+          primary_cta_mode: nextPrimaryCtaMode,
+          fallbackCtaMode: nextFallbackCtaMode,
+          fallback_cta_mode: nextFallbackCtaMode,
+        }),
+      })
+    : persistedWidgetConfig.fullPageConfig;
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
     : null;
@@ -1929,10 +2291,54 @@ export async function updateAgentSettings(
       primaryCtaMode: nextPrimaryCtaMode,
       fallbackCtaMode: nextFallbackCtaMode,
       businessHoursNote: nextBusinessHoursNote,
+      fullPageConfig: nextFullPageConfig,
       allowedDomains: nextAllowedDomainsRaw,
     }), { onConflict: "agent_id" })
     .select(WIDGET_CONFIG_SELECT)
     .single();
+
+  if (widgetError && isMissingFullPageConfigColumnError(widgetError)) {
+    if (hasSubmittedFullPageConfig) {
+      throw buildAgentSettingsError(
+        "Full-page assistant customization could not be saved because the server schema is missing the full_page_config field. Apply the full-page assistant config migration and try again.",
+        503,
+        widgetError?.code || "full_page_config_persistence_unavailable"
+      );
+    }
+
+    ({ data: persistedWidgetRow, error: widgetError } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
+        assistantName: nextAssistantName,
+        welcomeMessage: nextWelcomeMessage,
+        buttonLabel: nextButtonLabel,
+        primaryColor: nextPrimaryColor,
+        secondaryColor: nextSecondaryColor,
+        launcherText: currentWidgetConfig.launcherText,
+        widgetLogoUrl: nextWidgetLogoUrl,
+        themeMode: currentWidgetConfig.themeMode,
+        bookingUrl: nextBookingUrl,
+        quoteUrl: nextQuoteUrl,
+        checkoutUrl: nextCheckoutUrl,
+        bookingStartUrl: nextBookingStartUrl,
+        quoteStartUrl: nextQuoteStartUrl,
+        bookingSuccessUrl: nextBookingSuccessUrl,
+        quoteSuccessUrl: nextQuoteSuccessUrl,
+        checkoutSuccessUrl: nextCheckoutSuccessUrl,
+        successUrlMatchMode: nextSuccessUrlMatchMode,
+        manualOutcomeMode: nextManualOutcomeMode,
+        contactEmail: nextContactEmail,
+        contactPhone: nextContactPhone,
+        primaryCtaMode: nextPrimaryCtaMode,
+        fallbackCtaMode: nextFallbackCtaMode,
+        businessHoursNote: nextBusinessHoursNote,
+        allowedDomains: nextAllowedDomainsRaw,
+      }, {
+        includeFullPageConfigField: false,
+      }), { onConflict: "agent_id" })
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+      .single());
+  }
 
   if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
     if (hasSubmittedRoutingField) {
@@ -1954,6 +2360,7 @@ export async function updateAgentSettings(
       }, {
         includeRoutingFields: false,
         includeWidgetLogoField: false,
+        includeFullPageConfigField: false,
       }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
@@ -2011,6 +2418,7 @@ export async function updateAgentSettings(
     primaryCtaMode: savedWidgetConfig.primaryCtaMode,
     fallbackCtaMode: savedWidgetConfig.fallbackCtaMode,
     businessHoursNote: savedWidgetConfig.businessHoursNote,
+    fullPageConfig: savedWidgetConfig.fullPageConfig,
     installId: savedWidgetConfig.installId || persistedWidgetConfig.installId || currentWidgetConfig.installId,
     allowedDomains: deriveAllowedDomains(savedAllowedDomainsRaw, resolvedWebsiteUrl) || resolvedAllowedDomains,
   };
@@ -2092,6 +2500,7 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
     buttonLabel: widgetConfig.buttonLabel ?? DEFAULT_WIDGET_CONFIG.buttonLabel,
     primaryColor: widgetConfig.primaryColor ?? DEFAULT_WIDGET_CONFIG.primaryColor,
     secondaryColor: widgetConfig.secondaryColor ?? DEFAULT_WIDGET_CONFIG.secondaryColor,
+    fullPageConfig: widgetConfig.fullPageConfig || normalizeFullPageConfig(null),
   };
 }
 

@@ -484,7 +484,22 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
   assert.match(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.match(harness.getRootHtml(), /Widget purpose/);
+  assert.match(harness.getRootHtml(), /Full-page assistant/);
+  assert.match(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
   assert.doesNotMatch(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
+});
+
+test("General settings tab does not show full-page assistant customization", async () => {
+  const harness = createDashboardHarness({
+    hash: "#settings/general",
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
+  assert.match(harness.getRootHtml(), /Workspace status/);
+  assert.doesNotMatch(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
+  assert.doesNotMatch(harness.getRootHtml(), /Action cards/);
 });
 
 test("dashboard Home renders the real-data V2 snapshot without command-center placeholders", async () => {

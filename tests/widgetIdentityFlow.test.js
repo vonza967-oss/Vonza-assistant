@@ -177,6 +177,7 @@ function createWidgetHarness({
     "page-assistant-subtitle",
     "page-help-title",
     "page-action-list",
+    "page-trust-row",
     "page-question-examples",
     "welcome-badge",
     "welcome-title",
@@ -486,7 +487,7 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-business-domain").textContent, "");
   assert.equal(harness.elements.get("page-business-domain").hidden, true);
-  assert.equal(harness.elements.get("page-help-title").textContent, "Ask this business anything");
+  assert.equal(harness.elements.get("page-help-title").textContent, "How can we help?");
   assert.equal(
     harness.elements.get("page-assistant-subtitle").textContent,
     "Ask about services, pricing, quotes, or contact details."
@@ -515,6 +516,67 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
   assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Smith &amp; Co\.|Smith & Co\./);
+});
+
+test("embedded page mode uses compact customized prompts once", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        assert.match(url, /mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                fullPageConfig: {
+                  headline: "Acme support",
+                  subtitle: "Ask Acme anything.",
+                  suggestedQuestions: [
+                    "Can I get a quote?",
+                    "How do I contact Acme?",
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+  assert.equal(harness.elements.get("page-help-title").textContent, "Acme support");
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /Can I get a quote\?/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /How do I contact Acme\?/);
+  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 2);
 });
 
 test("assistant slug route defaults to page mode and missing assistant shows unavailable state", async () => {
@@ -613,6 +675,242 @@ test("assistant slug route renders a chat-first hosted page", async () => {
     email: "",
     name: "",
   });
+});
+
+test("hosted /a page applies custom full-page headline and subtitle", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/a/acme-desk",
+      href: "https://example.com/a/acme-desk",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                primaryColor: "#14b8a6",
+                fullPageConfig: {
+                  headline: "Get help from Acme",
+                  subtitle: "Ask about repairs, pricing, quotes, or contact details.",
+                  trustItems: ["Usually instant", "Acme assistant", "Contact capture available"],
+                  actionCards: [
+                    {
+                      label: "Repairs",
+                      description: "Ask about repair options.",
+                      prompt: "What repairs do you offer?",
+                      type: "services",
+                      enabled: true,
+                    },
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("page-help-title").textContent, "Get help from Acme");
+  assert.equal(
+    harness.elements.get("page-assistant-subtitle").textContent,
+    "Ask about repairs, pricing, quotes, or contact details."
+  );
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /Usually instant/);
+});
+
+test("hosted /assistant page uses custom action cards and escapes saved text", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/assistant/acme-desk",
+      href: "https://example.com/assistant/acme-desk",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                full_page_config: {
+                  action_cards: [
+                    {
+                      label: "<img src=x onerror=alert(1)>",
+                      description: "Ask for a custom estimate.",
+                      prompt: "I need a custom estimate.",
+                      type: "quote",
+                      enabled: true,
+                    },
+                    {
+                      label: "Book a time",
+                      description: "Booking should stay hidden without support.",
+                      prompt: "I'd like to book a time.",
+                      type: "booking",
+                      enabled: true,
+                    },
+                    {
+                      label: "Hidden card",
+                      description: "Disabled",
+                      prompt: "Hidden prompt",
+                      type: "custom",
+                      enabled: false,
+                    },
+                  ],
+                  show_booking: true,
+                  show_quote: true,
+                  show_contact: true,
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const actionHtml = harness.elements.get("page-action-list").innerHTML;
+  assert.match(actionHtml, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(actionHtml, /<img/i);
+  assert.match(actionHtml, /I need a custom estimate\./);
+  assert.doesNotMatch(actionHtml, /Book a time/);
+  assert.doesNotMatch(actionHtml, /Hidden card/);
+});
+
+test("page action card prompt submits the configured starter prompt", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                fullPageConfig: {
+                  actionCards: [
+                    {
+                      label: "Start quote",
+                      description: "Quote prompt",
+                      prompt: "Please start a quote for my project.",
+                      type: "quote",
+                      enabled: true,
+                    },
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.message, "Please start a quote for my project.");
+        assert.equal(payload.display_mode, "page");
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "I can help with that.",
+              agentId: "agent-1",
+              agentKey: "acme-desk",
+              businessId: "business-1",
+              visitorIdentity: {
+                mode: "guest",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  harness.elements.get("page-action-list").dispatch("click", {
+    target: {
+      closest() {
+        return {
+          dataset: {
+            pageStarterPrompt: "Please start a quote for my project.",
+          },
+        };
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(harness.fetchCalls.some((call) => call.input === "/chat"));
 });
 
 test("assistant alias route uses hosted page mode and personalized default greeting", async () => {
@@ -919,9 +1217,9 @@ test("page action cards use safe prompts and only show booking when configured",
 
   let labels = plain(harness.hooks.getPageActionCards().map((card) => card.label));
   assert.deepEqual(labels, [
-    "Request a quote",
-    "Ask about pricing",
     "Ask about services",
+    "Ask about pricing",
+    "Request a quote",
     "Contact details",
   ]);
   assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Book a time/);
@@ -1341,4 +1639,6 @@ test("dashboard install iframe uses compact embedded page mode while QR stays ho
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);
   assert.match(dashboard, /Use this as a support page, booking\/help page, menu link, or QR destination\./);
+  assert.match(dashboard, /Customize full-page assistant/);
+  assert.match(dashboard, /data-settings-target="front_desk"/);
 });

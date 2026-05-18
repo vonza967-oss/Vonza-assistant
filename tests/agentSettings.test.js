@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   getAgentWorkspaceSnapshot,
+  normalizeFullPageConfig,
   updateAgentSettings,
 } from "../src/services/agents/agentService.js";
 
@@ -239,6 +240,118 @@ test("updateAgentSettings normalizes website URLs and reuses an existing busines
   assert.equal(state.businesses[0].website_url, "https://old-example.com");
   assert.equal(state.widget_configs[0].assistant_name, "Vonza Pro");
   assert.equal(state.widget_configs[0].button_label, "Ask Vonza");
+});
+
+test("updateAgentSettings persists sanitized full-page assistant config", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Acme",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Welcome",
+        button_label: "Chat",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    assistantName: "Vonza",
+    fullPageConfig: {
+      headline: `${"Custom support headline ".repeat(6)}<script>alert(1)</script>`,
+      subtitle: "Ask us about service plans, estimates, support, or the best next step.",
+      accent_color: "not-a-color",
+      logo_url: "https://cdn.example.com/logo.png",
+      action_cards: [
+        {
+          label: "Service help that is much too long for the UI control",
+          description: "A".repeat(150),
+          prompt: "P".repeat(240),
+          type: "services",
+          enabled: true,
+        },
+        {
+          label: "Book a time",
+          description: "Book",
+          prompt: "I'd like to book a time.",
+          type: "booking",
+          enabled: true,
+        },
+      ],
+      suggested_questions: ["Q".repeat(140)],
+      show_booking: true,
+      show_quote: true,
+      show_contact: true,
+      trust_items: ["Instant help", "Real team follow-up", "Private"],
+    },
+  });
+
+  assert.equal(result.fullPageConfig.headline.length, 80);
+  assert.equal(result.fullPageConfig.accentColor, null);
+  assert.equal(result.fullPageConfig.logoUrl, "https://cdn.example.com/logo.png");
+  assert.equal(result.fullPageConfig.actionCards[0].label.length, 40);
+  assert.equal(result.fullPageConfig.actionCards[0].description.length, 120);
+  assert.equal(result.fullPageConfig.actionCards[0].prompt.length, 200);
+  assert.equal(result.fullPageConfig.showBooking, false);
+  assert.equal(result.fullPageConfig.actionCards[1].enabled, false);
+  assert.equal(result.fullPageConfig.suggestedQuestions[0].length, 120);
+  assert.equal(state.widget_configs[0].full_page_config.headline.length, 80);
+  assert.equal(state.widget_configs[0].full_page_config.accent_color, null);
+  assert.equal(state.widget_configs[0].full_page_config.show_booking, false);
+});
+
+test("normalizeFullPageConfig allows booking only when booking support exists", () => {
+  const withoutBooking = normalizeFullPageConfig({
+    show_booking: true,
+    action_cards: [
+      {
+        label: "Book a time",
+        prompt: "I'd like to book a time.",
+        type: "booking",
+        enabled: true,
+      },
+    ],
+  });
+
+  assert.equal(withoutBooking.showBooking, false);
+  assert.equal(withoutBooking.actionCards[0].enabled, false);
+
+  const withBooking = normalizeFullPageConfig({
+    show_booking: true,
+  }, {
+    bookingSupport: true,
+  });
+
+  assert.equal(withBooking.showBooking, true);
+  assert.ok(withBooking.actionCards.some((card) => card.type === "booking" && card.enabled));
 });
 
 test("updateAgentSettings persists a website-only change without disturbing other customize fields", async () => {

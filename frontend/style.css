@@ -1935,6 +1935,10 @@ html.vonza-mode-page body.embedded .powered-by {
     flex-direction: column;
   }
 
+  html.vonza-mode-page .page-action-list {
+    display: none;
+  }
+
   html.vonza-mode-page .page-trust-row {
     grid-template-columns: 1fr;
   }

@@ -93,9 +93,167 @@
       description: "Help visitors book, request a quote, or move forward.",
     },
   ]);
+  const DEFAULT_FULL_PAGE_ACTION_CARDS = Object.freeze([
+    Object.freeze({
+      label: "Ask about services",
+      description: "See what this business can help with.",
+      prompt: "What services do you offer?",
+      type: "services",
+      enabled: true,
+    }),
+    Object.freeze({
+      label: "Ask about pricing",
+      description: "Ask what affects price, scope, and next steps.",
+      prompt: "How much does it cost?",
+      type: "pricing",
+      enabled: true,
+    }),
+    Object.freeze({
+      label: "Request a quote",
+      description: "Share what you need so the business can follow up.",
+      prompt: "I'd like to request a quote.",
+      type: "quote",
+      enabled: true,
+    }),
+    Object.freeze({
+      label: "Contact details",
+      description: "Find the best way to reach the team.",
+      prompt: "How can I contact you?",
+      type: "contact",
+      enabled: true,
+    }),
+  ]);
+  const DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD = Object.freeze({
+    label: "Book a time",
+    description: "Ask about appointments, calls, visits, or the next step.",
+    prompt: "I'd like to book a time.",
+    type: "booking",
+    enabled: true,
+  });
+  const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
+    "Typically replies instantly",
+    "AI assistant",
+    "Leave your details if needed",
+  ]);
 
   function defaultTrimText(value) {
     return String(value || "").trim();
+  }
+
+  function limitText(value, maxLength) {
+    return defaultTrimText(value).slice(0, maxLength);
+  }
+
+  function normalizeFullPageColor(value, fallbackValue = "#14b8a6") {
+    const normalized = defaultTrimText(value).toLowerCase();
+
+    if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+      return normalized;
+    }
+
+    if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+      return `#${normalized
+        .slice(1)
+        .split("")
+        .map((character) => `${character}${character}`)
+        .join("")}`;
+    }
+
+    return /^#[0-9a-f]{6}$/i.test(defaultTrimText(fallbackValue)) ? defaultTrimText(fallbackValue) : "#14b8a6";
+  }
+
+  function normalizeBoolean(value, fallbackValue = false) {
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    const normalized = defaultTrimText(value).toLowerCase();
+    if (["true", "1", "yes", "on"].includes(normalized)) {
+      return true;
+    }
+
+    if (["false", "0", "no", "off"].includes(normalized)) {
+      return false;
+    }
+
+    return fallbackValue;
+  }
+
+  function hasBookingSupport(agent = {}) {
+    return Boolean(
+      defaultTrimText(agent.bookingUrl || agent.booking_url)
+      || defaultTrimText(agent.bookingStartUrl || agent.booking_start_url)
+      || defaultTrimText(agent.bookingSuccessUrl || agent.booking_success_url)
+      || defaultTrimText(agent.primaryCtaMode || agent.primary_cta_mode).toLowerCase() === "booking"
+      || defaultTrimText(agent.fallbackCtaMode || agent.fallback_cta_mode).toLowerCase() === "booking"
+    );
+  }
+
+  function getDefaultFullPageActionCards(agent = {}) {
+    const cards = DEFAULT_FULL_PAGE_ACTION_CARDS.map((card) => ({ ...card }));
+
+    if (hasBookingSupport(agent)) {
+      cards.push({ ...DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD });
+    }
+
+    return cards;
+  }
+
+  function normalizeActionCard(card = {}, fallbackCard = {}) {
+    const label = limitText(card.label || fallbackCard.label, 40);
+    const prompt = limitText(card.prompt || fallbackCard.prompt, 200);
+
+    if (!label || !prompt) {
+      return null;
+    }
+
+    return {
+      label,
+      description: limitText(card.description || card.copy || fallbackCard.description, 120),
+      prompt,
+      type: limitText(card.type || fallbackCard.type || "custom", 24).toLowerCase() || "custom",
+      enabled: normalizeBoolean(card.enabled, fallbackCard.enabled !== false),
+    };
+  }
+
+  function normalizeFullPageConfig(agent = {}) {
+    const config = agent.fullPageConfig || agent.full_page_config || {};
+    const defaults = getDefaultFullPageActionCards(agent);
+    const rawCards = Array.isArray(config.actionCards)
+      ? config.actionCards
+      : Array.isArray(config.action_cards)
+        ? config.action_cards
+        : defaults;
+    const cards = rawCards
+      .slice(0, 6)
+      .map((card, index) => normalizeActionCard(card, defaults[index] || {}))
+      .filter(Boolean);
+    const suggestedQuestions = (Array.isArray(config.suggestedQuestions)
+      ? config.suggestedQuestions
+      : Array.isArray(config.suggested_questions)
+        ? config.suggested_questions
+        : []
+    ).map((question) => limitText(question, 120)).filter(Boolean).slice(0, 5);
+    const trustItems = (Array.isArray(config.trustItems)
+      ? config.trustItems
+      : Array.isArray(config.trust_items)
+        ? config.trust_items
+        : DEFAULT_FULL_PAGE_TRUST_ITEMS
+    ).map((item) => limitText(item, 60)).filter(Boolean).slice(0, 3);
+    const bookingSupported = hasBookingSupport(agent);
+
+    return {
+      headline: limitText(config.headline, 80),
+      subtitle: limitText(config.subtitle, 180),
+      actionCards: cards.length ? cards : defaults,
+      suggestedQuestions,
+      accentColor: normalizeFullPageColor(config.accentColor || config.accent_color, agent.primaryColor || "#14b8a6"),
+      logoUrl: defaultTrimText(config.logoUrl || config.logo_url || agent.widgetLogoUrl),
+      showBooking: bookingSupported && normalizeBoolean(config.showBooking ?? config.show_booking, bookingSupported),
+      showQuote: normalizeBoolean(config.showQuote ?? config.show_quote, true),
+      showContact: normalizeBoolean(config.showContact ?? config.show_contact, true),
+      trustItems: trustItems.length ? trustItems : [...DEFAULT_FULL_PAGE_TRUST_ITEMS],
+    };
   }
 
   function defaultEscapeHtml(value) {
@@ -619,6 +777,21 @@
     const selectedPurpose = normalizeWidgetPurpose(agent.purpose);
     const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
     const primaryColor = agent.primaryColor || "#14b8a6";
+    const fullPageConfig = normalizeFullPageConfig(agent);
+    const fullPageHeadline = fullPageConfig.headline || "How can we help?";
+    const fullPageSubtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
+    const fullPageAccentColor = fullPageConfig.accentColor || primaryColor;
+    const fullPageSuggestedQuestionsText = fullPageConfig.suggestedQuestions.join("\n");
+    const fullPageTrustItemsText = fullPageConfig.trustItems.join("\n");
+    const bookingSupported = hasBookingSupport(agent);
+    const enabledPreviewCards = fullPageConfig.actionCards
+      .filter((card) => {
+        if (card.type === "booking" && (!bookingSupported || !fullPageConfig.showBooking)) return false;
+        if (card.type === "quote" && !fullPageConfig.showQuote) return false;
+        if (card.type === "contact" && !fullPageConfig.showContact) return false;
+        return card.enabled !== false;
+      })
+      .slice(0, 4);
 
     return `
       <form data-settings-form data-form-kind="customize" data-settings-section="front_desk" class="settings-shell-form settings-shell-form--system settings-frontdesk-form" id="settings-section-front_desk">
@@ -689,6 +862,113 @@
                   <label for="assistant-welcome">Welcome message</label>
                   <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
                 </div>
+              </div>
+            </section>
+
+            <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page">
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Full-page assistant</h3>
+                  <p class="settings-shell-section-copy">Customize the hosted page used for support links, booking/help pages, QR codes, and iframe embeds.</p>
+                </div>
+              </div>
+              <div class="settings-full-page-grid">
+                <div class="settings-shell-field-stack">
+                  <div class="field">
+                    <label for="full-page-headline">Headline</label>
+                    <input id="full-page-headline" name="full_page_headline" type="text" maxlength="80" value="${escapeHtml(fullPageConfig.headline || "")}" placeholder="How can we help?">
+                  </div>
+                  <div class="field">
+                    <label for="full-page-subtitle">Subtitle</label>
+                    <textarea id="full-page-subtitle" name="full_page_subtitle" maxlength="180" placeholder="Ask about services, pricing, quotes, or contact details.">${escapeHtml(fullPageConfig.subtitle || "")}</textarea>
+                  </div>
+                  <div class="settings-field-grid settings-field-grid--two">
+                    <div class="field">
+                      <label for="full-page-accent-color">Accent color</label>
+                      <input id="full-page-accent-color" name="full_page_accent_color" type="color" value="${escapeHtml(fullPageAccentColor)}">
+                    </div>
+                    <div class="field">
+                      <label for="full-page-logo-url">Logo/avatar URL</label>
+                      <input id="full-page-logo-url" name="full_page_logo_url" type="url" value="${escapeHtml(fullPageConfig.logoUrl || "")}" placeholder="https://example.com/logo.png">
+                      <p class="field-help">Optional. Leave blank to use the assistant initial or widget logo.</p>
+                    </div>
+                  </div>
+                  <div class="settings-full-page-toggle-row">
+                    ${bookingSupported ? `
+                      <label class="settings-toggle-pill">
+                        <input name="full_page_show_booking" type="checkbox" ${fullPageConfig.showBooking ? "checked" : ""}>
+                        <span>Show booking card</span>
+                      </label>
+                    ` : ""}
+                    <label class="settings-toggle-pill">
+                      <input name="full_page_show_quote" type="checkbox" ${fullPageConfig.showQuote ? "checked" : ""}>
+                      <span>Show quote card</span>
+                    </label>
+                    <label class="settings-toggle-pill">
+                      <input name="full_page_show_contact" type="checkbox" ${fullPageConfig.showContact ? "checked" : ""}>
+                      <span>Show contact card</span>
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label for="full-page-suggested-questions">Suggested questions</label>
+                    <textarea id="full-page-suggested-questions" name="full_page_suggested_questions" maxlength="700" placeholder="One question per line">${escapeHtml(fullPageSuggestedQuestionsText)}</textarea>
+                    <p class="field-help">Shown as compact chips when action cards are not taking the same space.</p>
+                  </div>
+                  <div class="field">
+                    <label for="full-page-trust-items">Trust/status copy</label>
+                    <textarea id="full-page-trust-items" name="full_page_trust_items" maxlength="220" placeholder="One short item per line">${escapeHtml(fullPageTrustItemsText)}</textarea>
+                  </div>
+                </div>
+                <aside class="settings-full-page-preview-card" aria-label="Full-page assistant preview" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)}">
+                  <div class="settings-full-page-preview-header">
+                    <span class="settings-full-page-preview-logo" aria-hidden="true">
+                      ${fullPageConfig.logoUrl ? `<img src="${escapeHtml(fullPageConfig.logoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
+                    </span>
+                    <div>
+                      <p>${escapeHtml(agent.assistantName || agent.name || "Business assistant")}</p>
+                      <strong>${escapeHtml(fullPageHeadline)}</strong>
+                    </div>
+                  </div>
+                  <p class="settings-full-page-preview-subtitle">${escapeHtml(fullPageSubtitle)}</p>
+                  <div class="settings-full-page-preview-actions">
+                    ${(enabledPreviewCards.length ? enabledPreviewCards : fullPageConfig.actionCards.slice(0, 4)).map((card) => `
+                      <span>${escapeHtml(card.label)}</span>
+                    `).join("")}
+                  </div>
+                  <div class="settings-full-page-preview-trust">
+                    ${fullPageConfig.trustItems.slice(0, 3).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+                  </div>
+                </aside>
+              </div>
+
+              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards">
+                <div class="settings-full-page-action-editor-head">
+                  <h4 class="settings-shell-section-title settings-shell-section-title--compact">Action cards</h4>
+                  <p class="settings-shell-section-copy">Edit the starter prompts customers can click on the hosted page.</p>
+                </div>
+                ${fullPageConfig.actionCards
+                  .filter((card) => card.type !== "booking" || bookingSupported)
+                  .map((card, index) => `
+                    <div class="settings-full-page-action-card" data-full-page-action-card="${index}">
+                      <input type="hidden" name="full_page_action_${index}_type" value="${escapeHtml(card.type || "custom")}">
+                      <label class="settings-toggle-pill settings-full-page-action-toggle">
+                        <input name="full_page_action_${index}_enabled" type="checkbox" ${card.enabled !== false ? "checked" : ""}>
+                        <span>Enabled</span>
+                      </label>
+                      <div class="field">
+                        <label for="full-page-action-${index}-label">Label</label>
+                        <input id="full-page-action-${index}-label" name="full_page_action_${index}_label" type="text" maxlength="40" value="${escapeHtml(card.label)}">
+                      </div>
+                      <div class="field">
+                        <label for="full-page-action-${index}-prompt">Prompt</label>
+                        <input id="full-page-action-${index}-prompt" name="full_page_action_${index}_prompt" type="text" maxlength="200" value="${escapeHtml(card.prompt)}">
+                      </div>
+                      <div class="field settings-field-wide">
+                        <label for="full-page-action-${index}-description">Description</label>
+                        <input id="full-page-action-${index}-description" name="full_page_action_${index}_description" type="text" maxlength="120" value="${escapeHtml(card.description || "")}">
+                      </div>
+                    </div>
+                  `).join("")}
               </div>
             </section>
 

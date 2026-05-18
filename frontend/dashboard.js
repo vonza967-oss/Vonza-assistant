@@ -14800,6 +14800,9 @@ function buildInstallSection(agent, options = {}) {
         <p class="install-option-eyebrow">Full-page assistant</p>
         <h3 class="install-option-title">Full-page assistant</h3>
         <p class="install-option-copy">Use this as a support page, booking/help page, menu link, or QR destination.</p>
+        <div class="install-cta-row">
+          <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize full-page assistant</button>
+        </div>
         <div class="install-copy-field">
           <label for="full-page-assistant-url">Full-page URL</label>
           <textarea id="full-page-assistant-url" class="full-page-url-output" rows="2" readonly>${escapeHtml(fullPageUrl)}</textarea>
@@ -15817,6 +15820,77 @@ async function readWidgetLogoUpload(form) {
   return readFileAsDataUrl(file);
 }
 
+function normalizeFullPageFormText(value, maxLength) {
+  return trimText(value).slice(0, maxLength);
+}
+
+function parseFullPageListField(value, maxItems, maxLength) {
+  return String(value || "")
+    .split(/\n|,/)
+    .map((entry) => normalizeFullPageFormText(entry, maxLength))
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+function normalizeFullPageAccentColor(value) {
+  const normalized = trimText(value).toLowerCase();
+
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized;
+  }
+
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    return `#${normalized
+      .slice(1)
+      .split("")
+      .map((character) => `${character}${character}`)
+      .join("")}`;
+  }
+
+  return "";
+}
+
+function parseFullPageConfigPayload(formData) {
+  const actionCards = [];
+
+  for (let index = 0; index < 6; index += 1) {
+    const labelKey = `full_page_action_${index}_label`;
+    const promptKey = `full_page_action_${index}_prompt`;
+
+    if (!formData.has(labelKey) && !formData.has(promptKey)) {
+      continue;
+    }
+
+    const label = normalizeFullPageFormText(formData.get(labelKey), 40);
+    const prompt = normalizeFullPageFormText(formData.get(promptKey), 200);
+
+    if (!label || !prompt) {
+      continue;
+    }
+
+    actionCards.push({
+      label,
+      description: normalizeFullPageFormText(formData.get(`full_page_action_${index}_description`), 120),
+      prompt,
+      type: normalizeFullPageFormText(formData.get(`full_page_action_${index}_type`), 24) || "custom",
+      enabled: formData.has(`full_page_action_${index}_enabled`),
+    });
+  }
+
+  return {
+    headline: normalizeFullPageFormText(formData.get("full_page_headline"), 80) || null,
+    subtitle: normalizeFullPageFormText(formData.get("full_page_subtitle"), 180) || null,
+    action_cards: actionCards,
+    suggested_questions: parseFullPageListField(formData.get("full_page_suggested_questions"), 5, 120),
+    accent_color: normalizeFullPageAccentColor(formData.get("full_page_accent_color")) || null,
+    logo_url: normalizeFullPageFormText(formData.get("full_page_logo_url"), 90000) || null,
+    show_booking: formData.has("full_page_show_booking"),
+    show_quote: formData.has("full_page_show_quote"),
+    show_contact: formData.has("full_page_show_contact"),
+    trust_items: parseFullPageListField(formData.get("full_page_trust_items"), 3, 60),
+  };
+}
+
 async function saveAssistant(event, agent) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -15915,6 +15989,10 @@ async function saveAssistant(event, agent) {
       payload[fieldName] = formData.get(fieldName);
     }
   });
+
+  if (formData.has("full_page_headline")) {
+    payload.full_page_config = parseFullPageConfigPayload(formData);
+  }
 
   try {
     const widgetLogoUrl = await readWidgetLogoUpload(form);

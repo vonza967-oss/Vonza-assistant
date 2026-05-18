@@ -81,31 +81,51 @@ const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
 ]);
 const PAGE_ACTION_CARDS = Object.freeze([
   {
-    label: "Request a quote",
-    prompt: "I'd like to request a quote.",
-    copy: "Share what you need so the business can follow up with the right details.",
+    label: "Ask about services",
+    prompt: "What services do you offer?",
+    copy: "Get a quick overview of what this business can help with.",
+    description: "Get a quick overview of what this business can help with.",
+    type: "services",
+    enabled: true,
   },
   {
     label: "Ask about pricing",
     prompt: "How much does it cost?",
     copy: "Ask what affects price, scope, and the next step.",
+    description: "Ask what affects price, scope, and the next step.",
+    type: "pricing",
+    enabled: true,
   },
   {
-    label: "Ask about services",
-    prompt: "What services do you offer?",
-    copy: "Get a quick overview of what this business can help with.",
+    label: "Request a quote",
+    prompt: "I'd like to request a quote.",
+    copy: "Share what you need so the business can follow up with the right details.",
+    description: "Share what you need so the business can follow up with the right details.",
+    type: "quote",
+    enabled: true,
   },
   {
     label: "Contact details",
     prompt: "How can I contact you?",
     copy: "Find the best way to reach the team or leave your details.",
+    description: "Find the best way to reach the team or leave your details.",
+    type: "contact",
+    enabled: true,
   },
   {
     label: "Book a time",
     prompt: "I'd like to book a time.",
     copy: "Ask about appointments, calls, visits, or the best next step.",
+    description: "Ask about appointments, calls, visits, or the best next step.",
+    type: "booking",
+    enabled: true,
     requiresBooking: true,
   },
+]);
+const PAGE_TRUST_ITEMS = Object.freeze([
+  "Typically replies instantly",
+  "AI assistant",
+  "Leave your details if needed",
 ]);
 
 const conversationHistory = [];
@@ -405,8 +425,116 @@ function isDefaultWelcomeMessage(message) {
   return !normalized || normalized === DEFAULT_WIDGET_CONFIG.welcomeMessage;
 }
 
+function normalizeBoolean(value, fallbackValue = false) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalized = trimText(value).toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["false", "0", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return fallbackValue;
+}
+
+function normalizeFullPageAccentColor(value, fallbackValue = "") {
+  const normalized = trimText(value).toLowerCase();
+
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    return normalized;
+  }
+
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    return `#${normalized
+      .slice(1)
+      .split("")
+      .map((character) => `${character}${character}`)
+      .join("")}`;
+  }
+
+  return /^#[0-9a-f]{6}$/i.test(trimText(fallbackValue)) ? trimText(fallbackValue) : "";
+}
+
+function normalizeLimitedText(value, maxLength) {
+  return trimText(value).slice(0, maxLength);
+}
+
+function getRawFullPageConfig(config = widgetConfig) {
+  const rawConfig = config.fullPageConfig || config.full_page_config || {};
+  return rawConfig && typeof rawConfig === "object" && !Array.isArray(rawConfig) ? rawConfig : {};
+}
+
+function getDefaultPageActionCards(config = widgetConfig) {
+  const bookingEnabled = hasBookingSupport(config);
+  return PAGE_ACTION_CARDS.filter((card) => !card.requiresBooking || bookingEnabled)
+    .map((card) => ({ ...card }));
+}
+
+function normalizePageActionCard(card = {}, fallbackCard = {}) {
+  const label = normalizeLimitedText(card.label || fallbackCard.label, 40);
+  const prompt = normalizeLimitedText(card.prompt || fallbackCard.prompt, 200);
+
+  if (!label || !prompt) {
+    return null;
+  }
+
+  return {
+    label,
+    description: normalizeLimitedText(card.description || card.copy || fallbackCard.description || fallbackCard.copy, 120),
+    prompt,
+    type: normalizeLimitedText(card.type || fallbackCard.type || "custom", 24).toLowerCase() || "custom",
+    enabled: normalizeBoolean(card.enabled, fallbackCard.enabled !== false),
+  };
+}
+
+function getFullPageConfig(config = widgetConfig) {
+  const rawConfig = getRawFullPageConfig(config);
+  const defaults = getDefaultPageActionCards(config);
+  const rawCards = Array.isArray(rawConfig.actionCards)
+    ? rawConfig.actionCards
+    : Array.isArray(rawConfig.action_cards)
+      ? rawConfig.action_cards
+      : defaults;
+  const suggestedQuestions = (Array.isArray(rawConfig.suggestedQuestions)
+    ? rawConfig.suggestedQuestions
+    : Array.isArray(rawConfig.suggested_questions)
+      ? rawConfig.suggested_questions
+      : []
+  ).map((question) => normalizeLimitedText(question, 120)).filter(Boolean).slice(0, 5);
+  const trustItems = (Array.isArray(rawConfig.trustItems)
+    ? rawConfig.trustItems
+    : Array.isArray(rawConfig.trust_items)
+      ? rawConfig.trust_items
+      : PAGE_TRUST_ITEMS
+  ).map((item) => normalizeLimitedText(item, 60)).filter(Boolean).slice(0, 3);
+  const bookingSupported = hasBookingSupport(config);
+
+  return {
+    headline: normalizeLimitedText(rawConfig.headline, 80),
+    subtitle: normalizeLimitedText(rawConfig.subtitle, 180),
+    actionCards: rawCards
+      .slice(0, 6)
+      .map((card, index) => normalizePageActionCard(card, defaults[index] || {}))
+      .filter(Boolean),
+    suggestedQuestions,
+    accentColor: normalizeFullPageAccentColor(rawConfig.accentColor || rawConfig.accent_color, config.primaryColor),
+    logoUrl: trimText(rawConfig.logoUrl || rawConfig.logo_url || config.widgetLogoUrl),
+    showBooking: bookingSupported && normalizeBoolean(rawConfig.showBooking ?? rawConfig.show_booking, bookingSupported),
+    showQuote: normalizeBoolean(rawConfig.showQuote ?? rawConfig.show_quote, true),
+    showContact: normalizeBoolean(rawConfig.showContact ?? rawConfig.show_contact, true),
+    trustItems: trustItems.length ? trustItems : [...PAGE_TRUST_ITEMS],
+  };
+}
+
 function getConfiguredQuickReplies(config = widgetConfig) {
+  const fullPageConfig = getFullPageConfig(config);
   const candidates = [
+    fullPageConfig.suggestedQuestions,
     config.suggestedQuestions,
     config.suggested_questions,
     config.quickReplies,
@@ -446,8 +574,30 @@ function hasBookingSupport(config = widgetConfig) {
 }
 
 function getPageActionCards(config = widgetConfig) {
-  const bookingEnabled = hasBookingSupport(config);
-  return PAGE_ACTION_CARDS.filter((card) => !card.requiresBooking || bookingEnabled);
+  const fullPageConfig = getFullPageConfig(config);
+  const cards = fullPageConfig.actionCards.length
+    ? fullPageConfig.actionCards
+    : getDefaultPageActionCards(config);
+
+  return cards.filter((card) => {
+    if (card.enabled === false) {
+      return false;
+    }
+
+    if (card.type === "booking") {
+      return fullPageConfig.showBooking && hasBookingSupport(config);
+    }
+
+    if (card.type === "quote") {
+      return fullPageConfig.showQuote;
+    }
+
+    if (card.type === "contact") {
+      return fullPageConfig.showContact;
+    }
+
+    return true;
+  });
 }
 
 function getQuickReplyTopics(config = widgetConfig) {
@@ -529,6 +679,7 @@ function normalizeWidgetConfig(input = {}) {
     ...input,
     _hasExplicitAssistantName: hasExplicitAssistantName,
   };
+  next.fullPageConfig = getFullPageConfig(next);
   const primaryColor = normalizeHexColor(next.primaryColor);
   const secondaryColor = normalizeHexColor(next.secondaryColor);
   const hasLegacyColors =
@@ -670,9 +821,11 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const assistantName = trimText(config.assistantName) || displayName || DEFAULT_WIDGET_CONFIG.assistantName;
   const assistantDisplayName = config._hasExplicitAssistantName ? assistantName : displayName;
   const domain = getBusinessDomainLabel(business);
-  const customLogoUrl = trimText(config.widgetLogoUrl);
+  const fullPageConfig = getFullPageConfig(config);
+  const customLogoUrl = trimText(fullPageConfig.logoUrl || config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
-  const subtitle = "Ask about services, pricing, quotes, or contact details.";
+  const headline = fullPageConfig.headline || "How can we help?";
+  const subtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
   const domainEl = document.getElementById("page-business-domain");
@@ -681,6 +834,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const pageLogo = document.getElementById("page-business-logo");
   const pageInitial = document.getElementById("page-business-initial");
   const pageActionList = document.getElementById("page-action-list");
+  const pageTrustRow = document.getElementById("page-trust-row");
   const chatAssistantNameEl = document.getElementById("assistant-name");
   const launcherTextEl = document.getElementById("launcher-text");
   const sendButton = document.getElementById("send-button");
@@ -714,7 +868,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (helpTitleEl) {
-    helpTitleEl.textContent = "Ask this business anything";
+    helpTitleEl.textContent = headline;
   }
 
   if (pageMark && pageLogo && pageInitial) {
@@ -741,9 +895,16 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
         data-page-starter-prompt="${escapeHtml(card.prompt)}"
       >
         <span class="page-action-label">${escapeHtml(card.label)}</span>
-        <span class="page-action-copy">${escapeHtml(card.copy)}</span>
+        <span class="page-action-copy">${escapeHtml(card.description || card.copy || "")}</span>
       </button>
     `).join("");
+  }
+
+  if (pageTrustRow) {
+    pageTrustRow.innerHTML = fullPageConfig.trustItems
+      .slice(0, 3)
+      .map((item) => `<span>${escapeHtml(item)}</span>`)
+      .join("");
   }
 
   if (chatAssistantNameEl) {
@@ -855,8 +1016,15 @@ function syncPageIdentityInline() {
   }
 }
 
+function isMobilePagePromptMode() {
+  return isPageMode()
+    && !EMBEDDED_MODE
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(max-width: 720px)").matches;
+}
+
 function shouldShowQuickReplies() {
-  if (isPageMode() && !EMBEDDED_MODE) {
+  if (isPageMode() && !EMBEDDED_MODE && !isMobilePagePromptMode()) {
     return false;
   }
 
@@ -1532,8 +1700,10 @@ function applyWidgetConfig(config = {}) {
   const welcomeBrandMark = document.querySelector(".welcome-brand-mark");
   const brandLogo = document.getElementById("brand-mark-logo");
   const welcomeBrandLogo = document.getElementById("welcome-brand-logo");
-  const customLogoUrl = trimText(widgetConfig.widgetLogoUrl);
+  const fullPageConfig = getFullPageConfig(widgetConfig);
+  const customLogoUrl = trimText(isPageMode() ? fullPageConfig.logoUrl || widgetConfig.widgetLogoUrl : widgetConfig.widgetLogoUrl);
   const assistantMark = getAssistantMark(widgetConfig.assistantName);
+  const pageAccentColor = isPageMode() ? fullPageConfig.accentColor : "";
   const sendButton = document.getElementById("send-button");
   const poweredBy = document.getElementById("powered-by");
   const welcomeBadge = document.getElementById("welcome-badge");
@@ -1541,7 +1711,7 @@ function applyWidgetConfig(config = {}) {
   const welcomeCopy = document.getElementById("welcome-copy");
 
   document.title = widgetConfig.assistantName;
-  document.documentElement.style.setProperty("--brand-primary", widgetConfig.primaryColor);
+  document.documentElement.style.setProperty("--brand-primary", pageAccentColor || widgetConfig.primaryColor);
   document.documentElement.style.setProperty("--brand-secondary", widgetConfig.secondaryColor);
   document.getElementById("assistant-name").textContent = widgetConfig.assistantName;
   document.getElementById("welcome-assistant-name").textContent = widgetConfig.assistantName;

@@ -76,6 +76,7 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "last_verification_origin",
       "last_verification_target_url",
       "last_verification_details",
+      "full_page_config",
       "created_at",
       "updated_at",
     ],
@@ -83,6 +84,7 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       SUPABASE_MIGRATION_FILE_BY_ID.direct_conversion_routing,
       SUPABASE_MIGRATION_FILE_BY_ID.conversion_outcomes,
       SUPABASE_MIGRATION_FILE_BY_ID.install_verification_activation_loop,
+      SUPABASE_MIGRATION_FILE_BY_ID.full_page_assistant_config,
     ],
     migrationColumns: [
       "booking_url",
@@ -107,6 +109,7 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "last_verification_origin",
       "last_verification_target_url",
       "last_verification_details",
+      "full_page_config",
     ],
   },
   messages: {

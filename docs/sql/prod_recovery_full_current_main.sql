@@ -1547,3 +1547,7 @@ alter table public.messages
 
 create index if not exists messages_agent_display_mode_created_at_idx
   on public.messages (agent_id, display_mode, created_at desc);
+
+-- Source: supabase/migrations/20260518000000_full_page_assistant_config.sql
+alter table if exists public.widget_configs
+  add column if not exists full_page_config jsonb not null default '{}'::jsonb;

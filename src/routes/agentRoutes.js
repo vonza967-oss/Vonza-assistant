@@ -1027,7 +1027,7 @@ export function createAgentRouter(deps = {}) {
           clientId: req.body.client_id || req.body.clientId,
         });
       }
-      const result = await updateAgentSettingsImpl(supabase, {
+      const updateOptions = {
         agentId: req.body.agent_id || req.body.agentId,
         name: readBodyField(req.body, "name"),
         assistantName: readBodyField(req.body, "assistant_name", "assistantName"),
@@ -1071,7 +1071,13 @@ export function createAgentRouter(deps = {}) {
           "businessHoursNote"
         ),
         vertical: readBodyField(req.body, "vertical"),
-      });
+      };
+      const fullPageConfig = readBodyField(req.body, "full_page_config", "fullPageConfig");
+      if (fullPageConfig !== undefined) {
+        updateOptions.fullPageConfig = fullPageConfig;
+      }
+
+      const result = await updateAgentSettingsImpl(supabase, updateOptions);
 
       res.json({ ok: true, agent: result });
     } catch (err) {

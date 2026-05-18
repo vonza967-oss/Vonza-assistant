@@ -188,6 +188,26 @@ function createInstallState() {
         secondary_color: "#0c7f75",
         launcher_text: "Chat",
         theme_mode: "dark",
+        full_page_config: {
+          headline: "Acme help desk",
+          subtitle: "Ask Acme about services.",
+          action_cards: [
+            {
+              label: "Custom service card",
+              description: "Ask about Acme services.",
+              prompt: "Tell me about Acme services.",
+              type: "services",
+              enabled: true,
+            },
+          ],
+          suggested_questions: ["What do you offer?"],
+          accent_color: "#123abc",
+          logo_url: null,
+          show_booking: false,
+          show_quote: true,
+          show_contact: true,
+          trust_items: ["Acme replies fast"],
+        },
         install_id: "11111111-1111-1111-1111-111111111111",
         allowed_domains: ["example.com"],
       },
@@ -258,6 +278,10 @@ test("full-page assistant bootstrap reuses config without weakening installed wi
 
   assert.equal(page.agent.id, "agent-1");
   assert.equal(page.widgetConfig.assistantName, "Vonza");
+  assert.equal(page.widgetConfig.fullPageConfig.headline, "Acme help desk");
+  assert.equal(page.widgetConfig.fullPageConfig.subtitle, "Ask Acme about services.");
+  assert.equal(page.widgetConfig.fullPageConfig.actionCards[0].label, "Custom service card");
+  assert.equal(page.widgetConfig.fullPageConfig.accentColor, "#123abc");
 
   const installedSupabase = createInstallState();
   await assert.rejects(

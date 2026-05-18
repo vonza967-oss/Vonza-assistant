@@ -235,6 +235,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds page/widget display mode metadata to persisted public assistant messages.",
   }),
+  Object.freeze({
+    id: "full_page_assistant_config",
+    version: "20260518000000",
+    name: "full_page_assistant_config",
+    file: "supabase/migrations/20260518000000_full_page_assistant_config.sql",
+    legacySources: Object.freeze(["db/full_page_assistant_config.sql"]),
+    tier: "feature-gated",
+    note: "Adds full-page assistant owner customization config on widget_configs with runtime fallback for old assistants.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
