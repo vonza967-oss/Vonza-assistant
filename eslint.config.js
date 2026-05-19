@@ -44,7 +44,7 @@ export default [
     },
   },
   {
-    files: ["frontend/**/*.js", "embed.js", "embed-lite.js", "service-worker.js"],
+    files: ["frontend/**/*.js", "embed.js", "embed-lite.js", "assistant-embed.js", "service-worker.js"],
     languageOptions: {
       globals: {
         ...globals.browser,

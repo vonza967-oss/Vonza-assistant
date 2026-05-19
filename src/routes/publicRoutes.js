@@ -508,6 +508,165 @@ function renderMarketingPage(rootDir, pageKey = "home") {
     .replace("<!-- VONZA_MARKETING_PAGE_BODY -->", page.body());
 }
 
+function renderAssistantEmbedMatrixPage() {
+  const mockAgentId = "00000000-0000-0000-0000-000000000001";
+  const smartSection = `
+    <div
+      data-vonza-assistant
+      data-agent-id="${mockAgentId}"
+      data-layout="section"
+      data-title="Matrix section assistant"
+    ></div>
+  `;
+  const smartFullPage = `
+    <div
+      data-vonza-assistant
+      data-agent-id="${mockAgentId}"
+      data-layout="full-page"
+      data-surface="flat"
+      data-title="Matrix full-page assistant"
+    ></div>
+  `;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vonza assistant embed matrix</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #17202a;
+      background: #f5f7fb;
+    }
+    header {
+      padding: 24px clamp(16px, 4vw, 48px);
+      border-bottom: 1px solid #d9e0ea;
+      background: #ffffff;
+    }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: clamp(1.4rem, 3vw, 2.1rem); }
+    h2 { margin-bottom: 10px; font-size: 1.05rem; }
+    p { color: #5c6878; line-height: 1.55; }
+    .matrix-grid {
+      display: grid;
+      gap: 28px;
+      padding: 28px clamp(16px, 4vw, 48px) 48px;
+    }
+    .matrix-case {
+      min-width: 0;
+      padding: 18px;
+      border: 1px solid #dbe2ec;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    .narrow-page { max-width: 760px; margin: 0 auto; }
+    .landing-page { width: 100%; }
+    .sticky-shell { padding-top: 72px; }
+    .sticky-bar {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      border: 1px solid #cfd8e3;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+    .dark-page {
+      border-color: #263241;
+      background: #111827;
+      color: #f8fafc;
+    }
+    .dark-page p { color: #cbd5e1; }
+    .footer-close {
+      display: grid;
+      gap: 14px;
+    }
+    .test-footer {
+      min-height: 96px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #e8edf5;
+      color: #536070;
+      font-weight: 700;
+    }
+    .mobile-frame {
+      max-width: 390px;
+      margin: 0 auto;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #f8fafc;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Vonza assistant embed matrix</h1>
+    <p>Local-only layout matrix for the smart assistant embed. The mock agent id is only used on this test route.</p>
+  </header>
+  <main class="matrix-grid">
+    <section class="matrix-case narrow-page">
+      <h2>Narrow centered content page</h2>
+      <p>Section embed inside a constrained article-style page.</p>
+      ${smartSection}
+    </section>
+    <section class="matrix-case landing-page">
+      <h2>Full-width landing page</h2>
+      <p>Full-page assistant as the primary page content.</p>
+      ${smartFullPage}
+    </section>
+    <section class="matrix-case sticky-shell">
+      <div class="sticky-bar">Sticky customer website header</div>
+      <h2>Sticky header page</h2>
+      <p>Full-page smart embed with an explicit header offset.</p>
+      <div
+        data-vonza-assistant
+        data-agent-id="${mockAgentId}"
+        data-layout="full-page"
+        data-surface="flat"
+        data-header-offset="72"
+        data-title="Matrix sticky header assistant"
+      ></div>
+    </section>
+    <section class="matrix-case dark-page">
+      <h2>Dark background page</h2>
+      <p>Section embed with transparent surface requested by the host layout.</p>
+      <div
+        data-vonza-assistant
+        data-agent-id="${mockAgentId}"
+        data-layout="section"
+        data-surface="transparent"
+        data-title="Matrix transparent assistant"
+      ></div>
+    </section>
+    <section class="matrix-case footer-close">
+      <h2>Page with footer close below</h2>
+      <p>Section embed followed immediately by footer content.</p>
+      ${smartSection}
+      <div class="test-footer">Customer website footer</div>
+    </section>
+    <section class="matrix-case">
+      <div class="mobile-frame">
+        <h2>Mobile-like narrow container</h2>
+        <p>Section embed inside a phone-width website builder column.</p>
+        ${smartSection}
+      </div>
+    </section>
+  </main>
+  <script async src="/assistant-embed.js"></script>
+</body>
+</html>`;
+}
+
 export function createPublicRouter({ rootDir }) {
   const router = express.Router();
 
@@ -561,6 +720,12 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "embed-lite.js"));
   });
 
+  router.get("/assistant-embed.js", (_req, res) => {
+    res.type("application/javascript");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
+    res.sendFile(path.join(rootDir, "assistant-embed.js"));
+  });
+
   router.get("/generator", (_req, res) => {
     res.redirect("/dashboard");
   });
@@ -586,6 +751,15 @@ export function createPublicRouter({ rootDir }) {
 
   router.get("/full-page-assistant-v2-preview", (_req, res) => {
     res.sendFile(path.join(rootDir, "frontend", "full-page-assistant-v2-preview.html"));
+  });
+
+  router.get("/assistant-embed-matrix", (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
+    res.type("html").send(renderAssistantEmbedMatrixPage());
   });
 
   router.get("/aszf", (_req, res) => {

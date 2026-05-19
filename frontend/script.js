@@ -173,7 +173,8 @@ function normalizeDisplayMode(value) {
 }
 
 function normalizeEmbeddedSurface(value) {
-  return trimText(value).toLowerCase() === "flat" ? "flat" : "card";
+  const normalized = trimText(value).toLowerCase();
+  return ["card", "flat", "transparent"].includes(normalized) ? normalized : "card";
 }
 
 function normalizeEmbeddedSize(value) {
@@ -877,8 +878,9 @@ function getFingerprint() {
 function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("vonza-mode-page", isPageMode());
   document.documentElement.classList.toggle("vonza-mode-widget", !isPageMode());
-  document.documentElement.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
-  document.documentElement.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
+  ["card", "flat", "transparent"].forEach((surface) => {
+    document.documentElement.classList.toggle(`embedded-surface-${surface}`, EMBEDDED_MODE && EMBEDDED_SURFACE === surface);
+  });
   document.documentElement.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
   document.documentElement.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
   ["compact", "standard", "tall", "full"].forEach((size) => {
@@ -886,8 +888,9 @@ function applyDisplayModeClasses() {
   });
   document.body?.classList.toggle("vonza-mode-page", isPageMode());
   document.body?.classList.toggle("vonza-mode-widget", !isPageMode());
-  document.body?.classList.toggle("embedded-surface-flat", EMBEDDED_MODE && EMBEDDED_SURFACE === "flat");
-  document.body?.classList.toggle("embedded-surface-card", EMBEDDED_MODE && EMBEDDED_SURFACE !== "flat");
+  ["card", "flat", "transparent"].forEach((surface) => {
+    document.body?.classList.toggle(`embedded-surface-${surface}`, EMBEDDED_MODE && EMBEDDED_SURFACE === surface);
+  });
   document.body?.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
   document.body?.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
   ["compact", "standard", "tall", "full"].forEach((size) => {

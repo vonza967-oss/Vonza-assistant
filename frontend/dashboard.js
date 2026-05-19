@@ -2750,6 +2750,26 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", option
   return url.toString();
 }
 
+function buildSmartAssistantEmbed(agent = {}, layout = "section") {
+  const agentId = trimText(agent.id);
+
+  if (!agentId) {
+    return "";
+  }
+
+  const normalizedLayout = trimText(layout).toLowerCase() === "full-page" ? "full-page" : "section";
+  const surfaceLine = normalizedLayout === "full-page"
+    ? '\n  data-surface="flat"'
+    : "";
+
+  return `<div
+  data-vonza-assistant
+  data-agent-id="${agentId}"
+  data-layout="${normalizedLayout}"${surfaceLine}
+></div>
+<script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
+}
+
 function buildFullPageQrEndpoint(agent = {}) {
   const agentId = trimText(agent.id);
 
@@ -2782,19 +2802,16 @@ function normalizeWebsiteHeaderHeight(value = 120) {
 
 function buildFullPageAssistantIframe(agent = {}, headerHeight = 120) {
   const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
-  return `<div style="width:100vw;margin-left:calc(50% - 50vw);">
-  ${buildSimpleFullPageAssistantIframe(agent, normalizedHeaderHeight)}
-</div>`;
-}
-
-function buildSimpleFullPageAssistantIframe(agent = {}, headerHeight = 120) {
-  const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat" })}"
   title="AI assistant"
   style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
   loading="lazy"
 ></iframe>`;
+}
+
+function buildSimpleFullPageAssistantIframe(agent = {}, headerHeight = 120) {
+  return buildFullPageAssistantIframe(agent, headerHeight);
 }
 
 function buildPreviewMarkup(installId) {
@@ -15044,9 +15061,10 @@ function buildInstallSection(agent, options = {}) {
   const hasInstall = Boolean(trimText(agent.installId));
   const script = hasInstall ? buildScript(agent) : "";
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+  const sectionSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
   const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
+  const fullPageSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "full-page") : "";
   const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
-  const simpleFullPageIframe = fullPageUrl ? buildSimpleFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
@@ -15171,11 +15189,11 @@ function buildInstallSection(agent, options = {}) {
           </button>
           <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-section" data-full-page-option="section">
             <strong>Section embed</strong>
-            <span>Place the assistant inside part of an existing website page.</span>
+            <span>Place the assistant inside part of an existing page.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
-            <strong>Full-page iframe</strong>
-            <span>Make a dedicated page on your own website become the assistant page.</span>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-embed" data-full-page-option="embed">
+            <strong>Full-page embed</strong>
+            <span>Use this when the assistant is the main content of a dedicated page on your website.</span>
           </button>
         </div>
         <div class="full-page-install-output active" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share">
@@ -15196,44 +15214,52 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" hidden>
-          <p class="install-help">Best for adding the assistant inside an existing page section.</p>
+          <p class="install-help">Place the assistant inside part of an existing page.</p>
+          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts sizing for most websites.</p>
+          ${buildInstallCopyBlock({
+            id: "section-assistant-smart-embed",
+            label: "Recommended smart snippet",
+            value: sectionSmartEmbed,
+            rows: 7,
+            buttonAction: "copy-section-assistant-smart-embed",
+            buttonLabel: "Copy smart snippet",
+            disabled: !sectionSmartEmbed,
+            className: "full-page-iframe-output",
+          })}
+          <p class="install-help"><strong>Raw iframe:</strong> Advanced fallback. Use if your website builder does not allow scripts.</p>
           ${buildInstallCopyBlock({
             id: "section-assistant-iframe",
-            label: "Section embed",
+            label: "Advanced iframe snippet",
             value: sectionIframe,
             rows: 7,
             buttonAction: "copy-section-assistant-iframe",
-            buttonLabel: "Copy section embed code",
+            buttonLabel: "Copy iframe snippet",
             disabled: !sectionIframe,
             className: "full-page-iframe-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" hidden>
-          <p class="install-help">Use this when the assistant is the main content of a dedicated page.</p>
-          <div class="field compact-field">
-            <label for="full-page-header-height">Website header height</label>
-            <input id="full-page-header-height" type="number" min="0" max="400" step="1" value="120" data-full-page-header-height>
-            <p class="field-help">If your website has a sticky header, adjust the 120px value.</p>
-          </div>
+        <div class="full-page-install-output" id="full-page-option-embed" role="tabpanel" data-full-page-option-panel="embed" hidden>
+          <p class="install-help">Use this when the assistant is the main content of a dedicated page on your website.</p>
+          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts sizing for most websites.</p>
+          ${buildInstallCopyBlock({
+            id: "full-page-assistant-smart-embed",
+            label: "Recommended smart snippet",
+            value: fullPageSmartEmbed,
+            rows: 8,
+            buttonAction: "copy-full-page-assistant-smart-embed",
+            buttonLabel: "Copy smart snippet",
+            disabled: !fullPageSmartEmbed,
+            className: "full-page-iframe-output",
+          })}
+          <p class="install-help"><strong>Raw iframe:</strong> Advanced fallback. Use if your website builder does not allow scripts.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
-            label: "Full-width page snippet",
+            label: "Advanced iframe snippet",
             value: fullPageIframe,
             rows: 9,
             buttonAction: "copy-full-page-iframe",
-            buttonLabel: "Copy full-width page snippet",
+            buttonLabel: "Copy iframe snippet",
             disabled: !fullPageIframe,
-            className: "full-page-iframe-output",
-          })}
-          <p class="install-help">If your website builder constrains content width, use the full-width wrapper snippet.</p>
-          ${buildInstallCopyBlock({
-            id: "full-page-assistant-simple-iframe",
-            label: "Simple iframe alternative",
-            value: simpleFullPageIframe,
-            rows: 7,
-            buttonAction: "copy-simple-full-page-iframe",
-            buttonLabel: "Copy simple iframe",
-            disabled: !simpleFullPageIframe,
             className: "full-page-iframe-output",
           })}
         </div>
@@ -16584,12 +16610,30 @@ async function copyFullPageAssistantUrl(agent) {
   );
 }
 
+async function copySectionAssistantSmartEmbed(agent) {
+  const textarea = document.getElementById("section-assistant-smart-embed");
+  await copyDashboardText(
+    textarea?.value || buildSmartAssistantEmbed(agent, "section"),
+    "Section smart snippet copied.",
+    "section-assistant-smart-embed"
+  );
+}
+
 async function copySectionAssistantIframe(agent) {
   const textarea = document.getElementById("section-assistant-iframe");
   await copyDashboardText(
     textarea?.value || buildSectionAssistantIframe(agent),
-    "Section embed copied.",
+    "Section iframe snippet copied.",
     "section-assistant-iframe"
+  );
+}
+
+async function copyFullPageAssistantSmartEmbed(agent) {
+  const textarea = document.getElementById("full-page-assistant-smart-embed");
+  await copyDashboardText(
+    textarea?.value || buildSmartAssistantEmbed(agent, "full-page"),
+    "Full-page smart snippet copied.",
+    "full-page-assistant-smart-embed"
   );
 }
 
@@ -16597,7 +16641,7 @@ async function copyFullPageAssistantIframe(agent) {
   const textarea = document.getElementById("full-page-assistant-iframe");
   await copyDashboardText(
     textarea?.value || buildFullPageAssistantIframe(agent),
-    "Full-width page snippet copied.",
+    "Full-page iframe snippet copied.",
     "full-page-assistant-iframe"
   );
 }
@@ -16727,9 +16771,9 @@ function bindInstallMethodTabs() {
 function bindFullPageAssistantInstallOptions(agent = {}) {
   const optionButtons = document.querySelectorAll("[data-full-page-option]");
   const optionPanels = document.querySelectorAll("[data-full-page-option-panel]");
-  const headerHeightInput = document.querySelector("[data-full-page-header-height]");
+  const sectionSmartEmbedOutput = document.getElementById("section-assistant-smart-embed");
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
-  const simpleFullPageIframeOutput = document.getElementById("full-page-assistant-simple-iframe");
+  const fullPageSmartEmbedOutput = document.getElementById("full-page-assistant-smart-embed");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -16747,21 +16791,25 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   };
 
   const syncFullPageIframe = () => {
-    if (!fullPageIframeOutput && !simpleFullPageIframeOutput) {
+    if (!sectionSmartEmbedOutput && !fullPageIframeOutput && !fullPageSmartEmbedOutput) {
       return;
     }
 
-    const headerHeight = headerHeightInput?.value || 120;
-
-    if (fullPageIframeOutput) {
-      fullPageIframeOutput.value = hasFullPageTarget
-        ? buildFullPageAssistantIframe(agent, headerHeight)
+    if (sectionSmartEmbedOutput) {
+      sectionSmartEmbedOutput.value = trimText(agent.id)
+        ? buildSmartAssistantEmbed(agent, "section")
         : "";
     }
 
-    if (simpleFullPageIframeOutput) {
-      simpleFullPageIframeOutput.value = hasFullPageTarget
-        ? buildSimpleFullPageAssistantIframe(agent, headerHeight)
+    if (fullPageSmartEmbedOutput) {
+      fullPageSmartEmbedOutput.value = trimText(agent.id)
+        ? buildSmartAssistantEmbed(agent, "full-page")
+        : "";
+    }
+
+    if (fullPageIframeOutput) {
+      fullPageIframeOutput.value = hasFullPageTarget
+        ? buildFullPageAssistantIframe(agent)
         : "";
     }
   };
@@ -16772,8 +16820,6 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
     });
   });
 
-  headerHeightInput?.addEventListener("input", syncFullPageIframe);
-  headerHeightInput?.addEventListener("change", syncFullPageIframe);
   syncFullPageIframe();
 }
 
@@ -17172,7 +17218,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copyButtons = document.querySelectorAll('[data-action="copy-install"]');
   const copyInstructionsButtons = document.querySelectorAll('[data-action="copy-install-instructions"]');
   const copyFullPageUrlButtons = document.querySelectorAll('[data-action="copy-full-page-url"]');
+  const copySectionSmartEmbedButtons = document.querySelectorAll('[data-action="copy-section-assistant-smart-embed"]');
   const copySectionIframeButtons = document.querySelectorAll('[data-action="copy-section-assistant-iframe"]');
+  const copyFullPageSmartEmbedButtons = document.querySelectorAll('[data-action="copy-full-page-assistant-smart-embed"]');
   const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
   const copySimpleFullPageIframeButtons = document.querySelectorAll('[data-action="copy-simple-full-page-iframe"]');
   const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
@@ -19618,8 +19666,16 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     button.addEventListener("click", () => copyFullPageAssistantUrl(agent));
   });
 
+  copySectionSmartEmbedButtons.forEach((button) => {
+    button.addEventListener("click", () => copySectionAssistantSmartEmbed(agent));
+  });
+
   copySectionIframeButtons.forEach((button) => {
     button.addEventListener("click", () => copySectionAssistantIframe(agent));
+  });
+
+  copyFullPageSmartEmbedButtons.forEach((button) => {
+    button.addEventListener("click", () => copyFullPageAssistantSmartEmbed(agent));
   });
 
   copyFullPageIframeButtons.forEach((button) => {

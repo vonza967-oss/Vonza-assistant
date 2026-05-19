@@ -1203,6 +1203,7 @@ html.vonza-mode-page .composer-shell {
 }
 
 .input-area {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1219,6 +1220,7 @@ html.vonza-mode-page .input-area {
 }
 
 input {
+  min-width: 0;
   flex: 1;
   border: none;
   padding: 10px 8px;
@@ -2191,6 +2193,16 @@ html.vonza-mode-page body.embedded.embedded-surface-flat .chat-feed {
   background: #ffffff;
 }
 
+html.vonza-mode-page.embedded-mode.embedded-surface-transparent body,
+html.vonza-mode-page body.embedded.embedded-surface-transparent {
+  background: transparent;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-surface-transparent .app-shell,
+html.vonza-mode-page body.embedded.embedded-surface-transparent .app-shell {
+  background: transparent;
+}
+
 html.vonza-mode-page.embedded-mode .page-powered-by,
 html.vonza-mode-page body.embedded .page-powered-by {
   display: none;
@@ -2204,9 +2216,12 @@ html.vonza-mode-page body.embedded .powered-by {
 html.vonza-mode-page.embedded-mode.embedded-size-full,
 html.vonza-mode-page.embedded-mode.embedded-size-full body,
 html.vonza-mode-page body.embedded.embedded-size-full {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   height: 100%;
+  overflow-x: hidden;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full body,
@@ -2227,6 +2242,8 @@ html.vonza-mode-page body.embedded.embedded-size-full {
 html.vonza-mode-page.embedded-mode.embedded-size-full .app-shell,
 html.vonza-mode-page body.embedded.embedded-size-full .app-shell {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
   height: 100vh;
@@ -2240,12 +2257,15 @@ html.vonza-mode-page body.embedded.embedded-size-full .app-shell {
   gap: clamp(10px, 1.5vw, 16px);
   padding: var(--embedded-card-padding);
   overflow: hidden;
+  overflow-x: hidden;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full .page-assistant-hero:not([hidden]),
 html.vonza-mode-page body.embedded.embedded-size-full .page-assistant-hero:not([hidden]) {
   display: grid;
   width: min(100%, var(--full-page-shell-max-width));
+  max-width: 100%;
+  min-width: 0;
   min-height: 0;
   align-self: start;
   align-content: start;
@@ -2328,6 +2348,8 @@ html.vonza-mode-page body.embedded.embedded-size-full .page-trust-row span {
 html.vonza-mode-page.embedded-mode.embedded-size-full .chat-container,
 html.vonza-mode-page body.embedded.embedded-size-full .chat-container {
   width: min(100%, var(--full-page-shell-max-width));
+  max-width: 100%;
+  min-width: 0;
   min-height: 0;
   height: 100%;
   align-self: stretch;

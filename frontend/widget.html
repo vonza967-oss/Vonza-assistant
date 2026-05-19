@@ -28,9 +28,10 @@
           ? "split"
           : "chat"
       }`);
-      document.documentElement.classList.add(vonzaInitialParams.get("surface") === "flat"
-        ? "embedded-surface-flat"
-        : "embedded-surface-card");
+      const vonzaEmbeddedSurface = ["flat", "transparent"].includes((vonzaInitialParams.get("surface") || "").toLowerCase())
+        ? vonzaInitialParams.get("surface").toLowerCase()
+        : "card";
+      document.documentElement.classList.add(`embedded-surface-${vonzaEmbeddedSurface}`);
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">

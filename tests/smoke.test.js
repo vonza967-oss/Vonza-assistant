@@ -1372,6 +1372,18 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(fullPageAssistantV2PreviewScript.text, /data-variant="quote-booking"/);
         assert.match(fullPageAssistantV2PreviewScript.text, /data-variant="minimal-embedded"/);
 
+        const assistantEmbedScript = await getText(server.baseUrl, "/assistant-embed.js");
+        assert.equal(assistantEmbedScript.status, 200);
+        assert.match(assistantEmbedScript.text, /data-vonza-assistant/);
+        assert.match(assistantEmbedScript.text, /vonza:embedded-height/);
+
+        const assistantEmbedMatrix = await getText(server.baseUrl, "/assistant-embed-matrix");
+        assert.equal(assistantEmbedMatrix.status, 200);
+        assert.match(assistantEmbedMatrix.text, /Vonza assistant embed matrix/);
+        assert.match(assistantEmbedMatrix.text, /data-layout="section"/);
+        assert.match(assistantEmbedMatrix.text, /data-layout="full-page"/);
+        assert.match(assistantEmbedMatrix.text, /\/assistant-embed\.js/);
+
         const widget = await getText(server.baseUrl, "/widget");
         assert.equal(widget.status, 200);
         assert.match(widget.text, /chat-container/);
