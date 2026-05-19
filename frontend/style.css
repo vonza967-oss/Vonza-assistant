@@ -2470,10 +2470,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
   --canvas-title-offset: clamp(92px, 12dvh, 140px);
   --canvas-title-gap: clamp(32px, 6dvh, 78px);
   --canvas-title-hidden-offset: 56px;
-  --canvas-composer-lift: clamp(84px, 12dvh, 148px);
+  --canvas-composer-lift: clamp(104px, 14dvh, 168px);
   --canvas-chat-stage-height: clamp(420px, 58dvh, 640px);
-  --canvas-status-top: clamp(72px, 9dvh, 112px);
+  --canvas-status-top: calc(var(--canvas-title-offset) + clamp(8px, 1.5dvh, 18px));
   --canvas-status-edge: clamp(0px, 3vw, 48px);
+  --canvas-status-offset: clamp(330px, 31vw, 440px);
   --embedded-header-padding: 0;
   --embedded-feed-padding: 0;
   --embedded-composer-padding: 0;
@@ -2548,34 +2549,37 @@ html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .pa
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row {
   position: absolute;
   top: var(--canvas-status-top);
-  right: var(--canvas-status-edge);
+  right: auto;
+  left: calc(50% + var(--canvas-status-offset));
   display: flex;
   justify-content: flex-end;
   margin-top: 0;
+  width: auto;
+  max-width: min(34vw, 260px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row > span,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row > span {
-  min-height: 28px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 9px;
-  border-color: #edf0f4;
-  background: #ffffff;
+  gap: 6px;
+  padding: 3px 7px;
+  border-color: rgba(152, 162, 179, 0.22);
+  background: rgba(255, 255, 255, 0.88);
   color: #667085;
-  font-size: 0.7rem;
-  font-weight: 760;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+  font-size: 0.66rem;
+  font-weight: 720;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.025);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   min-width: 0;
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 999px;
   text-align: left;
   white-space: nowrap;
@@ -2587,29 +2591,37 @@ html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .ca
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-status-instant {
   display: inline-flex;
   align-items: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-status-title,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-status-title {
-  color: #0f172a;
-  font-size: 0.72rem;
-  font-weight: 740;
+  color: #344054;
+  font-size: 0.66rem;
+  font-weight: 720;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-status-instant,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-status-instant {
-  gap: 7px;
+  gap: 5px;
   color: #667085;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.64rem;
+  font-weight: 680;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-status-instant .status-dot,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-status-instant .status-dot {
-  width: 6px;
-  height: 6px;
+  min-height: 0;
+  width: 5px;
+  height: 5px;
+  padding: 0;
+  border: 0;
   background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.08);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .chat-container,
@@ -2736,8 +2748,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .qu
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-reply-chip:hover,
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-reply-chip:focus-visible,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-reply-chip:active,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-reply-chip:hover,
-html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-reply-chip:focus-visible {
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-reply-chip:focus-visible,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-reply-chip:active {
   border-color: color-mix(in srgb, var(--brand-primary) 42%, #d0d5dd 58%);
   background: color-mix(in srgb, var(--brand-primary) 5%, #ffffff 95%);
   color: color-mix(in srgb, var(--brand-primary) 72%, #111827 28%);
@@ -2890,6 +2904,22 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   }
 }
 
+@media (max-width: 1199px) {
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row {
+    position: static;
+    justify-content: center;
+    max-width: 100%;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill {
+    flex-wrap: wrap;
+    justify-content: center;
+    white-space: normal;
+  }
+}
+
 @media (max-width: 720px) {
   html.vonza-mode-page .page-business-header {
     align-items: flex-start;
@@ -2938,16 +2968,18 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     --canvas-title-offset: clamp(76px, 11dvh, 118px);
     --canvas-title-gap: clamp(30px, 5.5dvh, 62px);
     --canvas-title-hidden-offset: 48px;
-    --canvas-composer-lift: clamp(64px, 10dvh, 110px);
+    --canvas-composer-lift: clamp(78px, 11dvh, 128px);
     --canvas-chat-stage-height: clamp(380px, 58dvh, 540px);
-    --canvas-status-top: clamp(62px, 8dvh, 92px);
+    --canvas-status-top: calc(var(--canvas-title-offset) + clamp(6px, 1.2dvh, 14px));
     --canvas-status-edge: clamp(0px, 2.5vw, 28px);
+    --canvas-status-offset: clamp(260px, 30vw, 330px);
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row {
     position: static;
     justify-content: center;
+    max-width: 100%;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill,
@@ -3019,7 +3051,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     --canvas-title-offset: clamp(42px, 8dvh, 58px);
     --canvas-title-gap: clamp(18px, 4dvh, 34px);
     --canvas-title-hidden-offset: 36px;
-    --canvas-composer-lift: clamp(22px, 6dvh, 46px);
+    --canvas-composer-lift: clamp(28px, 7dvh, 56px);
     --canvas-chat-stage-height: clamp(300px, 48dvh, 380px);
     --canvas-status-top: auto;
     --canvas-status-edge: auto;
@@ -3048,6 +3080,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     position: static;
     display: flex;
     justify-content: center;
+    max-width: 100%;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row .canvas-status-pill,
@@ -3068,7 +3101,8 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-reply-chip {
     width: 100%;
     min-width: 0;
-    white-space: nowrap;
+    line-height: 1.18;
+    white-space: normal;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .input-area,

@@ -2121,6 +2121,7 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="assistant-unavailable-state"/);
   assert.match(widget, /id="page-assistant-hero"/);
   assert.match(widget, /class="page-context-panel canvas-title-group" id="page-context-panel"/);
+  assert.match(widget, /class="page-trust-row canvas-status-slot" id="page-trust-row"/);
   assert.match(widget, /<h2 id="page-help-title" class="page-help-title canvas-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(widget, /<h2 id="page-help-title">How can we help\?<\/h2>/);
   assert.match(widget, /id="page-powered-by"/);
@@ -2202,19 +2203,24 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-size-full \.composer-shell[\s\S]*margin-top: auto/);
   assert.match(styles, /embedded-layout-canvas \.chat-container[\s\S]*border: 0[\s\S]*box-shadow: none/);
   assert.match(styles, /embedded-layout-canvas \.chat-header[\s\S]*display: none/);
-  assert.match(styles, /embedded-layout-canvas \.page-trust-row[\s\S]*position: absolute[\s\S]*right: var\(--canvas-status-edge\)/);
+  assert.match(styles, /embedded-layout-canvas \.page-trust-row[\s\S]*position: absolute[\s\S]*left: calc\(50% \+ var\(--canvas-status-offset\)\)[\s\S]*width: auto/);
   assert.match(styles, /--canvas-title-offset: clamp\(92px, 12dvh, 140px\)/);
   assert.match(styles, /--canvas-title-gap: clamp\(32px, 6dvh, 78px\)/);
-  assert.match(styles, /--canvas-composer-lift: clamp\(84px, 12dvh, 148px\)/);
+  assert.match(styles, /--canvas-composer-lift: clamp\(104px, 14dvh, 168px\)/);
   assert.match(styles, /--canvas-chat-stage-height: clamp\(420px, 58dvh, 640px\)/);
+  assert.match(styles, /--canvas-status-top: calc\(var\(--canvas-title-offset\) \+ clamp\(8px, 1\.5dvh, 18px\)\)/);
+  assert.match(styles, /--canvas-status-offset: clamp\(330px, 31vw, 440px\)/);
   assert.match(styles, /--canvas-title-offset: clamp\(76px, 11dvh, 118px\)/);
   assert.match(styles, /--canvas-title-offset: clamp\(42px, 8dvh, 58px\)/);
+  assert.match(styles, /embedded-layout-canvas \.quick-reply-chip[\s\S]*line-height: 1\.18[\s\S]*white-space: normal/);
   assert.match(styles, /vonza-canvas-title-hidden \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /vonza-canvas-title-hidden \.chat-container[\s\S]*padding-top: var\(--canvas-title-hidden-offset\)/);
   assert.match(styles, /embedded-layout-canvas \.page-context-panel h2[\s\S]*font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif[\s\S]*font-size: clamp\(3\.5rem, 7vw, 4\.5rem\)/);
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-empty \.widget-phase-chat[\s\S]*justify-content: end[\s\S]*padding-bottom: var\(--canvas-composer-lift\)/);
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-empty \.chat-container[\s\S]*height: min\(100%, var\(--canvas-chat-stage-height\)\)/);
   assert.match(styles, /embedded-layout-canvas \.page-trust-row \.canvas-status-pill[\s\S]*border-radius: 999px/);
+  assert.match(styles, /embedded-layout-canvas \.canvas-status-title[\s\S]*padding: 0[\s\S]*background: transparent[\s\S]*box-shadow: none/);
+  assert.match(styles, /embedded-layout-canvas \.quick-reply-chip:active[\s\S]*color-mix\(in srgb, var\(--brand-primary\) 72%, #111827 28%\)/);
   assert.doesNotMatch(script, /canvas-status-card/);
   assert.match(styles, /embedded-layout-canvas \.input-area[\s\S]*min-height: 80px[\s\S]*box-shadow: 0 20px 52px/);
   assert.match(styles, /embedded-layout-canvas \.send-button[\s\S]*background: var\(--canvas-send-color, #111827\)/);
@@ -2225,11 +2231,13 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
 
   const heroIndex = widget.indexOf('id="page-assistant-hero"');
   const titleGroupIndex = widget.indexOf('class="page-context-panel canvas-title-group"');
+  const statusSlotIndex = widget.indexOf('class="page-trust-row canvas-status-slot"');
   const mainIndex = widget.indexOf('<main class="chat-container">');
   const composerGroupIndex = widget.indexOf('class="composer-shell canvas-composer-group"');
   const mainCloseIndex = widget.indexOf("</main>");
   const pageFooterIndex = widget.indexOf('id="page-powered-by"');
   assert.ok(heroIndex >= 0 && titleGroupIndex > heroIndex);
+  assert.ok(statusSlotIndex > titleGroupIndex && statusSlotIndex < mainIndex);
   assert.ok(mainIndex > titleGroupIndex);
   assert.ok(composerGroupIndex > mainIndex && composerGroupIndex < mainCloseIndex);
   assert.ok(pageFooterIndex > mainCloseIndex);
@@ -2359,6 +2367,7 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
   assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
   assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /canvas-status-pill/);
+  assert.equal(canvasFullHarness.elements.get("page-trust-row").id, "page-trust-row");
   assert.doesNotMatch(canvasFullHarness.elements.get("page-trust-row").innerHTML, /canvas-status-card/);
   assert.equal((canvasFullHarness.elements.get("page-help-title").textContent.match(/Front Desk/g) || []).length, 1);
   assert.doesNotMatch(canvasFullHarness.elements.get("page-help-title").textContent, /How can we help/i);
@@ -2623,6 +2632,56 @@ test("canvas full embedded page mode uses a composer-first layout without duplic
   assert.equal(harness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
 });
 
+test("canvas full embedded page mode send color uses configured accent and dark fallback", async () => {
+  const createCanvasHarness = async (fullPageConfig = {}) => {
+    const harness = createWidgetHarness({
+      location: {
+        search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+        pathname: "/widget",
+        href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      },
+      customFetch: async (input) => {
+        if (String(input).includes("/widget/bootstrap")) {
+          return {
+            ok: true,
+            async json() {
+              return {
+                agent: { id: "agent-1" },
+                business: { id: "business-1", name: "Acme Studio" },
+                widgetConfig: {
+                  assistantName: "Acme Assistant",
+                  primaryColor: "#7c4dff",
+                  full_page_config: fullPageConfig,
+                },
+              };
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          async json() {
+            return {};
+          },
+        };
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return harness;
+  };
+
+  const accentedHarness = await createCanvasHarness({ accent_color: "#0f8f83" });
+  const fallbackHarness = await createCanvasHarness();
+
+  assert.equal(accentedHarness.documentElement.style.getPropertyValue("--canvas-send-color"), "#0f8f83");
+  assert.equal(accentedHarness.documentElement.style.getPropertyValue("--canvas-accent-color"), "#0f8f83");
+  assert.equal(accentedHarness.documentElement.style.getPropertyValue("--brand-primary"), "#0f8f83");
+  assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--canvas-send-color"), "#111827");
+  assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--brand-primary"), "#7c4dff");
+});
+
 test("canvas full embedded page mode keeps empty state clean and renders messages after send", async () => {
   const harness = createWidgetHarness({
     location: {
@@ -2749,7 +2808,7 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-size-full \.page-action-list[\s\S]*display: flex/);
   assert.match(styles, /embedded-smart \.page-action-list[\s\S]*display: none/);
-  assert.match(widget, /page-context-panel[\s\S]*<\/div>\s*<div class="page-trust-row" id="page-trust-row"/);
+  assert.match(widget, /page-context-panel[\s\S]*<\/div>\s*<div class="page-trust-row canvas-status-slot" id="page-trust-row"/);
   assert.match(widget, /composer-shell[\s\S]*id="quick-replies"[\s\S]*class="input-area"/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);

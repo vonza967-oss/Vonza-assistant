@@ -871,10 +871,19 @@ function normalizeWidgetConfig(input = {}) {
     explicitAssistantName
     && explicitAssistantName !== DEFAULT_WIDGET_CONFIG.assistantName
   );
+  const rawInputFullPageConfig =
+    input.fullPageConfig && typeof input.fullPageConfig === "object" && !Array.isArray(input.fullPageConfig)
+      ? input.fullPageConfig
+      : input.full_page_config && typeof input.full_page_config === "object" && !Array.isArray(input.full_page_config)
+        ? input.full_page_config
+        : {};
   const next = {
     ...DEFAULT_WIDGET_CONFIG,
     ...input,
     _hasExplicitAssistantName: hasExplicitAssistantName,
+    _configuredFullPageAccentColor: normalizeFullPageAccentColor(
+      rawInputFullPageConfig.accentColor || rawInputFullPageConfig.accent_color
+    ),
   };
   next.fullPageConfig = getFullPageConfig(next);
   const primaryColor = normalizeHexColor(next.primaryColor);
@@ -2023,10 +2032,7 @@ function applyWidgetConfig(config = {}) {
   const brandLogo = document.getElementById("brand-mark-logo");
   const welcomeBrandLogo = document.getElementById("welcome-brand-logo");
   const fullPageConfig = getFullPageConfig(widgetConfig);
-  const rawFullPageConfig = getRawFullPageConfig(widgetConfig);
-  const configuredPageAccentColor = normalizeFullPageAccentColor(
-    rawFullPageConfig.accentColor || rawFullPageConfig.accent_color
-  );
+  const configuredPageAccentColor = normalizeFullPageAccentColor(widgetConfig._configuredFullPageAccentColor);
   const customLogoUrl = trimText(isPageMode() ? fullPageConfig.logoUrl || widgetConfig.widgetLogoUrl : widgetConfig.widgetLogoUrl);
   const assistantMark = getAssistantMark(widgetConfig.assistantName);
   const pageAccentColor = isPageMode() ? configuredPageAccentColor || fullPageConfig.accentColor : "";
@@ -2049,6 +2055,7 @@ function applyWidgetConfig(config = {}) {
   document.documentElement.style.setProperty("--canvas-send-color", isCanvasEmbeddedPageMode()
     ? configuredPageAccentColor || "#111827"
     : brandPrimary);
+  document.documentElement.style.setProperty("--canvas-accent-color", configuredPageAccentColor || brandPrimary);
   if (isPageMode()) {
     document.documentElement.style.setProperty("--brand-ink", `color-mix(in srgb, ${brandPrimary} 72%, #14201f 28%)`);
     document.documentElement.style.setProperty("--brand-surface", `color-mix(in srgb, ${brandPrimary} 9%, #ffffff 91%)`);
