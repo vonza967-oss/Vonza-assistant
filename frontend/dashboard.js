@@ -52,7 +52,7 @@ const trackedEventKeys = new Set();
 let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
-const FRONT_DESK_SECTIONS = ["overview", "preview", "context", "launch"];
+const FRONT_DESK_SECTIONS = ["overview", "knowledge", "approved", "queue", "test", "launch"];
 const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
   home: "overview",
   today: "overview",
@@ -93,8 +93,10 @@ const DASHBOARD_HELP_SECTION_LABELS = {
 const DASHBOARD_HELP_SUBSECTION_LABELS = {
   customize: {
     overview: "Overview",
-    preview: "Test",
-    context: "Knowledge",
+    knowledge: "Knowledge",
+    approved: "Approved answers",
+    queue: "Training queue",
+    test: "Test",
     launch: "Launch",
   },
 };
@@ -1950,7 +1952,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Open Front Desk settings": "Front Desk beállítások megnyitása",
   "Test the customer experience before you launch it.": "Teszteld az ügyfélélményt, mielőtt élesítenéd.",
   "Ask realistic questions, check the next step, and make sure the next step feels helpful and on-brand.": "Tegyél fel valósághű kérdéseket, ellenőrizd a következő lépést, és győződj meg róla, hogy hasznosnak és márkához illőnek hat.",
-  "Open full preview": "Teljes előnézet megnyitása",
+  "Open full-page assistant": "Teljes oldalas asszisztens megnyitása",
   "Reset conversation": "Beszélgetés visszaállítása",
   "Refresh website details": "Weboldal részleteinek frissítése",
   "Website connected": "Weboldal kapcsolódva",
@@ -2012,9 +2014,9 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Added": "Hozzáadva",
   "Not added yet": "Még nincs hozzáadva",
   "Business grounding": "Üzleti megalapozás",
-  "Run a real preview conversation": "Futtass egy valódi előnézeti beszélgetést",
+  "Run a real test conversation": "Futtass egy valódi tesztbeszélgetést",
   "Needs setup": "Beállítás szükséges",
-  "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd az Előnézetet annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
+  "Use Test to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd a Tesztet annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
   "Finish the Front Desk setup first so Vonza can generate a live preview for testing.": "Előbb fejezd be a Front Desk beállítását, hogy a Vonza élő előnézetet tudjon generálni a teszteléshez.",
   "Move into the install flow": "Lépj tovább a telepítési folyamatba",
   "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong.": "Az alapbeállítás már elég erős ahhoz, hogy átadd a Telepítésnek, ahol a kódrészlet, az ellenőrzés és az élő domain részletei vannak a helyükön.",
@@ -2469,20 +2471,26 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
 
 function getActiveFrontDeskSection() {
   const storedSection = trimText(window.localStorage.getItem(DASHBOARD_FRONTDESK_SECTION_KEY)).toLowerCase();
+  const normalizedStoredSection = storedSection === "context"
+    ? "knowledge"
+    : storedSection === "preview"
+      ? "test"
+      : storedSection;
 
-  if (FRONT_DESK_SECTIONS.includes(storedSection)) {
-    return storedSection;
+  if (FRONT_DESK_SECTIONS.includes(normalizedStoredSection)) {
+    return normalizedStoredSection;
   }
 
   return "overview";
 }
 
 function setActiveFrontDeskSection(section) {
-  if (!FRONT_DESK_SECTIONS.includes(section)) {
+  const normalizedSection = section === "context" ? "knowledge" : section === "preview" ? "test" : section;
+  if (!FRONT_DESK_SECTIONS.includes(normalizedSection)) {
     return;
   }
 
-  window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, section);
+  window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, normalizedSection);
 }
 
 function createDashboardHelpState() {
@@ -5848,15 +5856,27 @@ function buildCustomerChatPanel(contact = {}) {
   return `
     <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
       <div class="customer-chat-list">
-        ${messages.map((message) => `
+        ${messages.map((message, index) => {
+          const previousCustomer = message.role === "vonza"
+            ? messages.slice(0, index).reverse().find((candidate) => candidate.role !== "vonza")
+            : null;
+          const canTrain = message.role === "vonza" && previousCustomer && trimText(previousCustomer.content) && trimText(message.content);
+          return `
           <div class="customer-chat-message customer-chat-message--${escapeHtml(message.role === "vonza" ? "vonza" : "customer")}">
             <div class="customer-chat-message-meta">
               <strong>${escapeHtml(message.label === "Vonza" ? t("common.vonza") : t("common.customer"))}</strong>
               ${message.createdAt ? `<span>${escapeHtml(formatSeenAt(message.createdAt))}</span>` : ""}
             </div>
             <p>${escapeHtml(trimText(message.content) || t("common.noMessageText"))}</p>
+            ${canTrain ? `
+              <div class="inline-actions customer-training-actions">
+                <button class="ghost-button" type="button" data-conversation-improve-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}">Improve this answer</button>
+                <button class="ghost-button" type="button" data-conversation-save-approved-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}">Save as approved answer</button>
+                <button class="ghost-button" type="button" data-conversation-not-helpful>Mark not helpful</button>
+              </div>
+            ` : ""}
           </div>
-        `).join("")}
+        `; }).join("")}
       </div>
     </div>
   `;
@@ -8917,17 +8937,146 @@ function getBusinessProfileContentSummary(operatorWorkspace = createEmptyOperato
   return "No approved business profile summary is saved yet.";
 }
 
-function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function getApprovedAnswerItems(frontDeskTraining = createEmptyFrontDeskTraining()) {
+  return (frontDeskTraining.items || [])
+    .filter((item) => trimText(item.type) === "approved_answer" && trimText(item.status) !== "archived");
+}
+
+function buildApprovedAnswersSection(frontDeskTraining = createEmptyFrontDeskTraining(), activeFrontDeskSection = "overview") {
+  const approvedAnswers = getApprovedAnswerItems(frontDeskTraining);
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="approved" ${activeFrontDeskSection === "approved" ? "" : "hidden"}>
+      <div class="frontdesk-section-intro">
+        <div>
+          <p class="studio-kicker">Approved answers</p>
+          <h2 class="frontdesk-section-title">Teach Front Desk exact answers for repeated questions.</h2>
+          <p class="frontdesk-section-copy">Use owner-approved wording for common questions. Archived answers stay out of customer replies.</p>
+        </div>
+      </div>
+      <div class="frontdesk-section-divider"></div>
+      ${approvedAnswers.length ? `
+        <div class="analytics-list">
+          ${approvedAnswers.map((item) => `
+            <article class="analytics-item" data-frontdesk-training-item="${escapeHtml(item.id || "")}">
+              <div class="workspace-record-detail-header">
+                <div>
+                  <p class="analytics-item-title">${escapeHtml(item.title || item.triggerText || "Approved answer")}</p>
+                  <p class="analytics-item-copy">${escapeHtml(trimText(item.answerText).slice(0, 180))}</p>
+                  <p class="analytics-subtle">${escapeHtml([
+                    item.triggerText ? `Use when visitors ask about ${item.triggerText}` : "",
+                    Array.isArray(item.tags) && item.tags.length ? `Tags: ${item.tags.join(", ")}` : "",
+                    item.sourceType ? `Source: ${item.sourceType}` : "",
+                    item.updatedAt ? `Updated ${formatSeenAt(item.updatedAt)}` : "",
+                  ].filter(Boolean).join(" · "))}</p>
+                </div>
+                <span class="${getBadgeClass(item.status === "active" ? "Ready" : "Limited")}">${escapeHtml(item.status || "active")}</span>
+              </div>
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" data-frontdesk-edit-approved-answer data-item-id="${escapeHtml(item.id || "")}">Edit</button>
+                <button class="ghost-button" type="button" data-frontdesk-archive-approved-answer data-item-id="${escapeHtml(item.id || "")}">Archive</button>
+                <button class="ghost-button" type="button" data-frontdesk-test-answer="${escapeHtml(item.triggerText || item.title || "")}">Test this answer</button>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : buildOperatorEmptyState({
+        title: "No approved answers yet.",
+        copy: "Add an answer for questions Front Desk should handle the same way every time.",
+      })}
+      <div class="frontdesk-section-divider"></div>
+      <form class="workspace-card-soft frontdesk-approved-answer-form" data-frontdesk-approved-answer-form>
+        <h3 class="studio-group-title">Add approved answer</h3>
+        <div class="form-grid">
+          <div class="field">
+            <label>Question or situation</label>
+            <input name="trigger_text" type="text" placeholder="What do visitors ask?">
+          </div>
+          <div class="field">
+            <label>Approved answer</label>
+            <textarea name="answer_text" placeholder="Write the answer Front Desk should use."></textarea>
+          </div>
+          <div class="field">
+            <label>Use when visitors ask about...</label>
+            <input name="tags" type="text" placeholder="pricing, refunds, booking">
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button class="primary-button" type="submit">Save</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "overview") {
+  const queueItems = (actionQueue.items || [])
+    .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
+    .slice(0, 12);
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="queue" ${activeFrontDeskSection === "queue" ? "" : "hidden"}>
+      <div class="frontdesk-section-intro">
+        <div>
+          <p class="studio-kicker">Training queue</p>
+          <h2 class="frontdesk-section-title">Review customer questions that need a better answer.</h2>
+          <p class="frontdesk-section-copy">Only real review signals appear here.</p>
+        </div>
+      </div>
+      <div class="frontdesk-section-divider"></div>
+      ${queueItems.length ? `
+        <div class="analytics-list">
+          ${queueItems.map((item) => `
+            <article class="analytics-item">
+              <p class="analytics-item-title">${escapeHtml(item.question || item.label || "Question needs review")}</p>
+              <p class="analytics-item-copy">${escapeHtml(item.reply || item.snippet || item.whyFlagged || "Review the conversation and improve the answer.")}</p>
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" data-frontdesk-improve-queue-item>Improve answer</button>
+                <button class="ghost-button" type="button" data-frontdesk-save-queue-approved data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}">Save as approved answer</button>
+                ${item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Mark resolved</button>` : ""}
+                ${item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : buildOperatorEmptyState({
+        title: "Nothing needs training right now.",
+        copy: "Customer questions that need a better answer will appear here.",
+      })}
+    </section>
+  `;
+}
+
+function buildFrontDeskTestSection(agent, setup, activeFrontDeskSection = "overview") {
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="test" ${activeFrontDeskSection === "test" ? "" : "hidden"}>
+      ${buildPreviewSection(agent, setup)}
+      <div class="frontdesk-section-divider"></div>
+      <form class="workspace-card-soft" data-frontdesk-test-form>
+        <div class="field">
+          <label>Ask a test question</label>
+          <textarea name="message" placeholder="Ask a test question"></textarea>
+        </div>
+        <div class="inline-actions">
+          <button class="primary-button" type="submit">Test Front Desk</button>
+        </div>
+        <div class="placeholder-card" data-frontdesk-test-result>Test response will appear here.</div>
+      </form>
+    </section>
+  `;
+}
+
+function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
   const installStatus = getDefaultInstallStatus(agent);
-  const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
-  const purposeOption = getWidgetPurposeOption(agent.purpose);
   const activeFrontDeskSection = getActiveFrontDeskSection();
   const hasPreview = Boolean(trimText(agent.publicAgentKey));
   const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
   const frontDeskSections = [
     { key: "overview", label: "Overview" },
-    { key: "context", label: "Knowledge" },
-    { key: "preview", label: "Test" },
+    { key: "knowledge", label: "Knowledge" },
+    { key: "approved", label: "Approved answers" },
+    { key: "queue", label: "Training queue" },
+    { key: "test", label: "Test" },
     { key: "launch", label: "Launch" },
   ];
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
@@ -8946,7 +9095,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
       title: "Website knowledge imported",
       copy: setup.knowledgeDescription,
       tone: setup.knowledgeReady || hasWebsite ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
-      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="context">Review knowledge</button>`,
+      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="knowledge">Review knowledge</button>`,
     },
     {
       title: "Widget installed",
@@ -8979,7 +9128,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const missingSetupFields = getFrontDeskMissingSetupFields(agent, setup, operatorWorkspace);
   const profileContentSummary = getBusinessProfileContentSummary(operatorWorkspace);
   const overviewPrimaryAction = hasPreview
-    ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+        ? `<button class="primary-button" type="button" data-frontdesk-open="test">Test Front Desk</button>`
     : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open Front Desk settings</button>`;
   const businessContextSummary = businessReadiness.summary || "Business context readiness will appear here once the owner starts reviewing the profile.";
   const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
@@ -8999,6 +9148,10 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const pageHeaderActions = `
     <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
   `;
+  const approvedAnswerCount = getApprovedAnswerItems(frontDeskTraining).filter((item) => trimText(item.status) === "active").length;
+  const trainingQueueCount = (actionQueue.items || [])
+    .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
+    .length;
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="customize" hidden>
@@ -9021,6 +9174,29 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             <div class="frontdesk-section-actions">
               ${overviewPrimaryAction}
             </div>
+          </div>
+          <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-detail-stack">
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Website knowledge status</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(formatKnowledgeState(setup.knowledgeState))}</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(setup.knowledgeDescription)}</p>
+            </section>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Approved answers count</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(String(approvedAnswerCount))}</h3>
+              <p class="frontdesk-detail-copy">Owner-approved answers available for repeated questions.</p>
+            </section>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Training queue count</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(String(trainingQueueCount))}</h3>
+              <p class="frontdesk-detail-copy">Real customer answer-review signals waiting right now.</p>
+            </section>
+          </div>
+          <div class="inline-actions" style="margin:14px 0 4px;">
+            <button class="ghost-button" type="button" data-frontdesk-open="approved">Add approved answer</button>
+            <button class="ghost-button" type="button" data-frontdesk-open="queue">Review training queue</button>
+            <button class="ghost-button" type="button" data-frontdesk-open="test">Test Front Desk</button>
           </div>
           <div class="frontdesk-section-divider"></div>
           <div class="frontdesk-readiness-list">
@@ -9046,10 +9222,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           </div>
         </section>
 
-        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-preview-shell frontdesk-preview-panel" data-frontdesk-section="preview" ${activeFrontDeskSection === "preview" ? "" : "hidden"}>
-          ${buildPreviewSection(agent, setup)}
-        </section>
-        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="context" ${activeFrontDeskSection === "context" ? "" : "hidden"}>
+        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="knowledge" ${activeFrontDeskSection === "knowledge" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
               <p class="studio-kicker">Knowledge</p>
@@ -9058,7 +9231,6 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             </div>
             <div class="frontdesk-section-actions">
               <button class="primary-button" type="button" data-shell-target="settings" data-settings-target="business">Review business context</button>
-              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit Front Desk behavior</button>
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
@@ -9087,25 +9259,17 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
               </div>
             </section>
             <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">Front Desk behavior</p>
-              <h3 class="frontdesk-detail-title">${escapeHtml(behaviorSummary.title)}</h3>
-              <p class="frontdesk-detail-copy">${escapeHtml(behaviorSummary.copy)}</p>
+              <p class="frontdesk-detail-kicker">Business knowledge</p>
+              <h3 class="frontdesk-detail-title">Services, pricing, policies, hours, and location</h3>
+              <p class="frontdesk-detail-copy">${escapeHtml(profileContentSummary)}</p>
               <div class="frontdesk-detail-list">
                 <div class="frontdesk-detail-row">
-                  <span class="frontdesk-detail-row-label">Launcher</span>
-                  <strong class="frontdesk-detail-row-value">${escapeHtml(agent.buttonLabel || "Chat")}</strong>
+                  <span class="frontdesk-detail-row-label">Business profile</span>
+                  <strong class="frontdesk-detail-row-value">${escapeHtml(businessContextStatus)}</strong>
                 </div>
                 <div class="frontdesk-detail-row">
-                  <span class="frontdesk-detail-row-label">Purpose</span>
-                  <strong class="frontdesk-detail-row-value">${escapeHtml(purposeOption.label)} - ${escapeHtml(purposeOption.description)}</strong>
-                </div>
-                <div class="frontdesk-detail-row">
-                  <span class="frontdesk-detail-row-label">Primary route</span>
-                  <strong class="frontdesk-detail-row-value">${escapeHtml(getFriendlyRouteLabel(agent.primaryCtaMode))}</strong>
-                </div>
-                <div class="frontdesk-detail-row">
-                  <span class="frontdesk-detail-row-label">Advanced guidance</span>
-                  <strong class="frontdesk-detail-row-value">${escapeHtml(trimText(agent.systemPrompt) ? "Added" : "Not added yet")}</strong>
+                  <span class="frontdesk-detail-row-label">Edit deeper facts</span>
+                  <strong class="frontdesk-detail-row-value">Open Settings → Business Profile</strong>
                 </div>
               </div>
             </section>
@@ -9126,6 +9290,9 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             </section>
           </div>
         </section>
+        ${buildApprovedAnswersSection(frontDeskTraining, activeFrontDeskSection)}
+        ${buildTrainingQueueSection(actionQueue, activeFrontDeskSection)}
+        ${buildFrontDeskTestSection(agent, setup, activeFrontDeskSection)}
         <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
@@ -9136,7 +9303,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             <div class="frontdesk-section-actions">
               <button class="primary-button" type="button" data-shell-target="install">Open install</button>
               ${hasPreview
-                ? `<button class="ghost-button" type="button" data-frontdesk-open="preview">Test preview first</button>`
+                ? `<button class="ghost-button" type="button" data-frontdesk-open="test">Test response</button>`
                 : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
             </div>
           </div>
@@ -9167,11 +9334,11 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 <div class="frontdesk-step-head">
                   <div>
                     <p class="frontdesk-step-label">Step 1</p>
-                    <h3 class="frontdesk-step-title">Run a real preview conversation</h3>
+                    <h3 class="frontdesk-step-title">Run a real test conversation</h3>
                   </div>
                   <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
                 </div>
-                <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Preview to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live preview for testing.")}</p>
+                <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Test to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live assistant page for testing.")}</p>
               </div>
             </article>
             <article class="frontdesk-step">
@@ -9245,8 +9412,8 @@ function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperator
   `);
 }
 
-function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  return buildFrontDeskPanel(agent, setup, operatorWorkspace);
+function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
+  return buildFrontDeskPanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue);
 }
 
 // Workspace sections
@@ -14595,10 +14762,11 @@ function renderAssistantShell(
   messages,
   setup,
   actionQueue = createEmptyActionQueue(),
-  operatorWorkspace = createEmptyOperatorWorkspace()
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  frontDeskTraining = createEmptyFrontDeskTraining()
 ) {
   if (DASHBOARD_V2_ENABLED) {
-    renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace);
+    renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
     return;
   }
 
@@ -14623,7 +14791,7 @@ function renderAssistantShell(
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
-          ${buildCustomizePanel(agent, setup, operatorWorkspace)}
+          ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
@@ -14643,7 +14811,8 @@ function renderDashboardV2Shell(
   messages,
   setup,
   actionQueue = createEmptyActionQueue(),
-  operatorWorkspace = createEmptyOperatorWorkspace()
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  frontDeskTraining = createEmptyFrontDeskTraining()
 ) {
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
@@ -14664,7 +14833,7 @@ function renderDashboardV2Shell(
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
-          ${buildCustomizePanel(agent, setup, operatorWorkspace)}
+          ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
@@ -14679,19 +14848,20 @@ function renderDashboardV2Shell(
   bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace);
 }
 
-function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace) {
+function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   workspaceState = {
     agent,
     messages,
     setup,
     actionQueue,
     operatorWorkspace,
+    frontDeskTraining,
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
 }
 
-function renderReadyState(agent, messages, actionQueue, operatorWorkspace) {
+function renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   const setup = inferSetup(agent);
   workspaceState = {
     agent,
@@ -14699,9 +14869,10 @@ function renderReadyState(agent, messages, actionQueue, operatorWorkspace) {
     setup,
     actionQueue,
     operatorWorkspace,
+    frontDeskTraining,
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
 }
 
 function buildPreviewSection(agent, setup) {
@@ -14734,7 +14905,7 @@ function buildPreviewSection(agent, setup) {
       </div>
       <div class="frontdesk-section-actions">
         ${hasPreview
-          ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full preview</a>`
+          ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full-page assistant</a>`
           : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`}
         <button class="ghost-button" type="button" data-action="reset-preview" ${hasPreview ? "" : "disabled"}>Reset conversation</button>
         ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Refresh website details</button>` : ""}
@@ -15501,6 +15672,27 @@ async function loadAgentMessages(agentId) {
   return data.messages || [];
 }
 
+function createEmptyFrontDeskTraining() {
+  return {
+    items: [],
+    persistenceAvailable: true,
+    migrationRequired: false,
+    lastTest: null,
+  };
+}
+
+async function loadFrontDeskTraining(agentId) {
+  const url = new URL("/agents/front-desk/training-items", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  const data = await fetchJson(url.toString());
+  return {
+    ...createEmptyFrontDeskTraining(),
+    ...data,
+    items: Array.isArray(data.items) ? data.items : [],
+  };
+}
+
 async function loadAgentInstallSnapshot(agentId) {
   const url = new URL("/agents/install-status", window.location.origin);
   url.searchParams.set("agent_id", agentId);
@@ -15908,11 +16100,12 @@ async function loadOperatorWorkspaceSafe(agentId, options = {}) {
 
 function coalesceWorkspaceLoadState({
   messagesResult,
+  trainingResult,
   actionQueueResult,
   ownerAnalyticsResult,
   operatorResult,
 } = {}) {
-  const partialErrors = [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult]
+  const partialErrors = [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult]
     .filter((result) => result?.status === "rejected")
     .map((result) => trimText(result.reason?.message || result.reason))
     .filter(Boolean);
@@ -15922,6 +16115,7 @@ function coalesceWorkspaceLoadState({
 
   return {
     messages: messagesResult?.status === "fulfilled" ? messagesResult.value : [],
+    frontDeskTraining: trainingResult?.status === "fulfilled" ? trainingResult.value : createEmptyFrontDeskTraining(),
     actionQueue: {
       ...actionQueue,
       ownerAnalyticsDashboard: ownerAnalyticsResult?.status === "fulfilled"
@@ -15937,7 +16131,7 @@ function coalesceWorkspaceLoadState({
           globalError: "We couldn't load the customer service workspace.",
         },
       },
-    hasPartialFailure: [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
+    hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
     partialErrors,
   };
 }
@@ -15953,7 +16147,8 @@ function renderWorkspaceFromState() {
       workspaceState.agent,
       workspaceState.messages || [],
       workspaceState.actionQueue || createEmptyActionQueue(),
-      workspaceState.operatorWorkspace || createEmptyOperatorWorkspace()
+      workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
+      workspaceState.frontDeskTraining || createEmptyFrontDeskTraining()
     );
     return;
   }
@@ -15963,7 +16158,8 @@ function renderWorkspaceFromState() {
     workspaceState.messages || [],
     setup,
     workspaceState.actionQueue || createEmptyActionQueue(),
-    workspaceState.operatorWorkspace || createEmptyOperatorWorkspace()
+    workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
+    workspaceState.frontDeskTraining || createEmptyFrontDeskTraining()
   );
 }
 
@@ -15973,9 +16169,10 @@ async function refreshAgentInstallState(agentId, options = {}) {
     return;
   }
 
-  const [agentResult, messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
+  const [agentResult, messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
     loadAgentInstallSnapshot(agentId),
     loadAgentMessages(agentId),
+    loadFrontDeskTraining(agentId),
     loadActionQueue(agentId),
     loadOwnerAnalyticsDashboard(agentId),
     loadOperatorWorkspaceSafe(agentId, {
@@ -15984,6 +16181,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
   ]);
   const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
   const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
+  const frontDeskTraining = trainingResult.status === "fulfilled" ? trainingResult.value : createEmptyFrontDeskTraining();
   const actionQueue = actionQueueResult.status === "fulfilled"
     ? {
       ...actionQueueResult.value,
@@ -16020,13 +16218,14 @@ async function refreshAgentInstallState(agentId, options = {}) {
     ...workspaceState,
     agent: nextAgent,
     messages,
+    frontDeskTraining,
     actionQueue,
     operatorWorkspace,
     setup: inferSetup(nextAgent),
   };
   renderWorkspaceFromState();
 
-  if (messagesResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
+  if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
     setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
   }
 }
@@ -16858,7 +17057,7 @@ function resetPreview(agent) {
   }
 
   previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
-  setStatus("Preview reset.");
+  setStatus("Test conversation reset.");
 }
 
 async function sendPromptToPreview(agent, prompt) {
@@ -16869,7 +17068,7 @@ async function sendPromptToPreview(agent, prompt) {
   const previewFrame = getPreviewFrame();
 
   if (!previewFrame) {
-    setStatus("Preview is not available yet.");
+    setStatus("Front Desk test is not available yet.");
     return;
   }
 
@@ -16916,7 +17115,7 @@ async function sendPromptToPreview(agent, prompt) {
   if (!previewFrame.getAttribute("src")) {
     previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
   } else {
-    setStatus("Preview is still loading. Try the starter again in a moment.");
+    setStatus("Front Desk test is still loading. Try the starter again in a moment.");
   }
 }
 
@@ -17303,6 +17502,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskSectionButtons = document.querySelectorAll("[data-frontdesk-target]");
   const frontDeskOpenButtons = document.querySelectorAll("[data-frontdesk-open]");
   const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
+  const frontDeskApprovedAnswerForms = document.querySelectorAll("[data-frontdesk-approved-answer-form]");
+  const frontDeskArchiveApprovedAnswerButtons = document.querySelectorAll("[data-frontdesk-archive-approved-answer]");
+  const frontDeskTestAnswerButtons = document.querySelectorAll("[data-frontdesk-test-answer]");
+  const frontDeskSaveQueueApprovedButtons = document.querySelectorAll("[data-frontdesk-save-queue-approved]");
+  const frontDeskTestForms = document.querySelectorAll("[data-frontdesk-test-form]");
+  const conversationSaveApprovedButtons = document.querySelectorAll("[data-conversation-save-approved-answer]");
+  const conversationImproveAnswerButtons = document.querySelectorAll("[data-conversation-improve-answer]");
+  const conversationNotHelpfulButtons = document.querySelectorAll("[data-conversation-not-helpful]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
@@ -18106,6 +18313,54 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
     syncDashboardHelpUi();
     return normalizedTarget;
+  };
+
+  const saveApprovedAnswer = async ({ triggerText, answerText, tags, sourceType = "manual", sourceMessageId = "" } = {}) => {
+    const normalizedTrigger = trimText(triggerText);
+    const normalizedAnswer = trimText(answerText);
+
+    if (!normalizedTrigger || !normalizedAnswer) {
+      setStatus("Add the question or situation and the approved answer.");
+      return;
+    }
+
+    setStatus("Saving approved answer...");
+    await fetchJson("/agents/front-desk/training-items", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        client_id: getClientId(),
+        agent_id: agent.id,
+        type: "approved_answer",
+        title: normalizedTrigger,
+        trigger_text: normalizedTrigger,
+        answer_text: normalizedAnswer,
+        tags,
+        source_type: sourceType,
+        source_message_id: sourceMessageId || undefined,
+        status: "active",
+      }),
+    });
+    setStatus("Approved answer saved.");
+    await boot();
+    showFrontDeskSection("approved");
+  };
+
+  const fillApprovedAnswerForm = ({ question = "", answer = "" } = {}) => {
+    showFrontDeskSection("approved");
+    const form = document.querySelector("[data-frontdesk-approved-answer-form]");
+    if (!form) {
+      return;
+    }
+
+    const questionInput = form.querySelector('[name="trigger_text"]');
+    const answerInput = form.querySelector('[name="answer_text"]');
+    if (questionInput) questionInput.value = trimText(question);
+    if (answerInput) answerInput.value = trimText(answer);
+    form.scrollIntoView({ behavior: "smooth", block: "center" });
+    questionInput?.focus();
   };
 
   const saveContactLifecycle = async (form) => {
@@ -19170,7 +19425,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
       setActiveShellSection("customize", operatorWorkspace);
       showShellSection("customize");
-      showFrontDeskSection("preview");
+      showFrontDeskSection("test");
       await sendPromptToPreview(agent, question);
       await completeActivationStep("test_improve", {
         test_question: question,
@@ -19824,6 +20079,139 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
+  frontDeskApprovedAnswerForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+
+      try {
+        await saveApprovedAnswer({
+          triggerText: formData.get("trigger_text"),
+          answerText: formData.get("answer_text"),
+          tags: formData.get("tags"),
+        });
+      } catch (error) {
+        setStatus(error.message || "We couldn't save that approved answer.");
+      }
+    });
+  });
+
+  frontDeskArchiveApprovedAnswerButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const itemId = trimText(button.dataset.itemId);
+      if (!itemId) return;
+
+      setStatus("Archiving approved answer...");
+      try {
+        await fetchJson("/agents/front-desk/training-items/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            item_id: itemId,
+            status: "archived",
+          }),
+        });
+        setStatus("Approved answer archived.");
+        await boot();
+        showFrontDeskSection("approved");
+      } catch (error) {
+        setStatus(error.message || "We couldn't archive that approved answer.");
+      }
+    });
+  });
+
+  frontDeskTestAnswerButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      showFrontDeskSection("test");
+      const input = document.querySelector('[data-frontdesk-test-form] [name="message"]');
+      if (input) {
+        input.value = button.dataset.frontdeskTestAnswer || "";
+        input.focus();
+      }
+    });
+  });
+
+  frontDeskSaveQueueApprovedButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      fillApprovedAnswerForm({
+        question: button.dataset.question || "",
+        answer: button.dataset.answer || "",
+      });
+    });
+  });
+
+  frontDeskTestForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const formData = new FormData(form);
+      const resultEl = form.querySelector("[data-frontdesk-test-result]");
+      const message = trimText(formData.get("message"));
+
+      if (!message) {
+        setStatus("Ask a test question first.");
+        return;
+      }
+
+      setStatus("Testing Front Desk...");
+      if (resultEl) {
+        resultEl.textContent = "Testing Front Desk...";
+      }
+
+      try {
+        const result = await fetchJson("/agents/front-desk/test", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            message,
+          }),
+        });
+        if (resultEl) {
+          resultEl.textContent = trimText(result.reply) || "No test response returned.";
+        }
+        setStatus("Test response ready.");
+      } catch (error) {
+        if (resultEl) {
+          resultEl.textContent = error.message || "We couldn't test Front Desk right now.";
+        }
+        setStatus(error.message || "We couldn't test Front Desk right now.");
+      }
+    });
+  });
+
+  conversationSaveApprovedButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      fillApprovedAnswerForm({
+        question: button.dataset.question || "",
+        answer: button.dataset.answer || "",
+      });
+    });
+  });
+
+  conversationImproveAnswerButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      fillApprovedAnswerForm({
+        question: button.dataset.question || "",
+        answer: button.dataset.answer || "",
+      });
+      setStatus("Edit the improved answer, then save it as an approved answer.");
+    });
+  });
+
+  conversationNotHelpfulButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setStatus("Marked for review. Use Improve this answer to save a better answer.");
+      button.disabled = true;
+    });
+  });
+
   automationFocusButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const target = button.dataset.automationFocus || "";
@@ -20399,8 +20787,9 @@ async function boot() {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, actionQueueResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
+    const [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
+      loadFrontDeskTraining(agent.id),
       loadActionQueue(agent.id),
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
@@ -20408,12 +20797,14 @@ async function boot() {
     ]);
     const {
       messages,
+      frontDeskTraining,
       actionQueue,
       operatorWorkspace,
       hasPartialFailure,
       partialErrors,
     } = coalesceWorkspaceLoadState({
       messagesResult,
+      trainingResult,
       actionQueueResult,
       ownerAnalyticsResult,
       operatorResult,
@@ -20431,11 +20822,11 @@ async function boot() {
     }
 
     if (setup.isReady) {
-      renderReadyState(agent, messages, actionQueue, operatorWorkspace);
+      renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining);
       return;
     }
 
-    renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace);
+    renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
   } catch (error) {
     clearLaunchState();
     setStatus(error.message || "We couldn't load your Vonza workspace right now.");

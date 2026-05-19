@@ -136,6 +136,12 @@ import {
   PRODUCT_HELP_UNAVAILABLE_MESSAGE,
   answerVonzaProductHelp,
 } from "../services/support/productHelpService.js";
+import { handleChatRequest } from "../services/chat/chatService.js";
+import {
+  listFrontDeskTrainingItems,
+  saveFrontDeskTrainingItem,
+  updateFrontDeskTrainingItemStatus,
+} from "../services/training/frontDeskTrainingService.js";
 import {
   getDashboardPreferences,
   normalizeDashboardLanguage,
@@ -257,6 +263,13 @@ export function createAgentRouter(deps = {}) {
     deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
+  const listFrontDeskTrainingItemsImpl =
+    deps.listFrontDeskTrainingItems || listFrontDeskTrainingItems;
+  const saveFrontDeskTrainingItemImpl =
+    deps.saveFrontDeskTrainingItem || saveFrontDeskTrainingItem;
+  const updateFrontDeskTrainingItemStatusImpl =
+    deps.updateFrontDeskTrainingItemStatus || updateFrontDeskTrainingItemStatus;
+  const handleChatRequestImpl = deps.handleChatRequest || handleChatRequest;
   const getActivationWizardStateImpl = deps.getActivationWizardState || getActivationWizardState;
   const updateActivationWizardProgressImpl =
     deps.updateActivationWizardProgress || updateActivationWizardProgress;
@@ -851,6 +864,146 @@ export function createAgentRouter(deps = {}) {
         req.query.agent_id || req.query.agentId
       );
       res.json({ messages });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/agents/front-desk/training-items", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.query.agent_id || req.query.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const result = await listFrontDeskTrainingItemsImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        type: req.query.type,
+        status: req.query.status,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/front-desk/training-items", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await saveFrontDeskTrainingItemImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        itemId: req.body.item_id || req.body.itemId,
+        type: req.body.type,
+        title: req.body.title,
+        triggerText: req.body.trigger_text || req.body.triggerText,
+        answerText: req.body.answer_text || req.body.answerText,
+        tags: req.body.tags,
+        sourceType: req.body.source_type || req.body.sourceType,
+        sourceMessageId: req.body.source_message_id || req.body.sourceMessageId,
+        status: req.body.status,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/front-desk/training-items/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateFrontDeskTrainingItemStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        itemId: req.body.item_id || req.body.itemId,
+        status: req.body.status,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/front-desk/test", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await handleChatRequestImpl({
+        supabase,
+        openai: getOpenAI(),
+        body: {
+          agent_id: agentId,
+          message: req.body.message,
+          history: req.body.history,
+          visitor_session_key: `internal-test:${agentId}:${Date.now()}`,
+          display_mode: "widget",
+        },
+      }, {
+        processLiveChatLeadCapture: async () => null,
+        listRecentWidgetEvents: async () => [],
+        buildChatResponse: async ({ reply, agent, businessId, widgetConfig, leadCapture, directRouting }) => ({
+          reply,
+          agentId: agent.id,
+          agentKey: agent.publicAgentKey,
+          businessId,
+          widgetConfig,
+          leadCapture,
+          directRouting,
+          internalTest: true,
+        }),
+      });
+
+      res.json({
+        ok: true,
+        reply: result.reply,
+      });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

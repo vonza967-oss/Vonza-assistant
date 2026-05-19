@@ -1298,7 +1298,7 @@ test("legacy public admin page source is removed", () => {
 test("dashboard preview starter prompts do not force-reset a loaded iframe", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
-  assert.match(dashboard, /Preview is still loading\. Try the starter again in a moment\./);
+  assert.match(dashboard, /Front Desk test is still loading\. Try the starter again in a moment\./);
   assert.match(dashboard, /if \(!previewFrame\.getAttribute\("src"\)\)/);
 });
 

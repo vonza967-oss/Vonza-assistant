@@ -807,9 +807,16 @@
           </div>
         </header>
 
+        <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
+          <button class="settings-frontdesk-subnav-button active" type="button" data-frontdesk-settings-tab="identity">Identity & welcome</button>
+          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="full_page">Full-page assistant</button>
+          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="routing">Routing</button>
+          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="appearance">Widget appearance</button>
+        </div>
+
         <div class="settings-frontdesk-layout">
           <div class="settings-frontdesk-editor">
-            <section class="settings-shell-section">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="identity">
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Widget purpose</h3>
@@ -829,7 +836,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="identity">
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Identity and welcome</h3>
@@ -865,7 +872,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page">
+            <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" hidden>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Full-page assistant</h3>
@@ -973,7 +980,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" hidden>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Routing defaults</h3>
@@ -1026,7 +1033,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" hidden>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Outcome routing</h3>
@@ -1086,7 +1093,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" hidden>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Widget logo</h3>
@@ -1127,7 +1134,7 @@
             ` : ""}
           </div>
 
-          <aside class="settings-frontdesk-preview" aria-label="Front Desk live readout">
+          <aside class="settings-frontdesk-preview" aria-label="Front Desk live readout" data-frontdesk-settings-preview hidden>
             <section class="settings-shell-section">
               <div class="settings-shell-section-header">
                 <div>
@@ -2023,6 +2030,9 @@
     const settingsForms = Array.from(root.querySelectorAll("form[data-settings-form]"));
     const settingsTargets = Array.from(root.querySelectorAll("[data-settings-target]"));
     const settingsSections = Array.from(root.querySelectorAll("[data-settings-section]"));
+    const frontDeskTabButtons = Array.from(root.querySelectorAll("[data-frontdesk-settings-tab]"));
+    const frontDeskPanels = Array.from(root.querySelectorAll("[data-frontdesk-settings-panel]"));
+    const frontDeskPreview = root.querySelector?.("[data-frontdesk-settings-preview]") || null;
     const settingsOverview = root.querySelector?.(".settings-shell-overview") || null;
     const mobileNote = typeof root.querySelector === "function"
       ? root.querySelector("[data-settings-mobile-note]")
@@ -2094,7 +2104,34 @@
       });
     });
 
+    const showFrontDeskSettingsPanel = (targetPanel = "identity") => {
+      const normalizedPanel = ["identity", "full_page", "routing", "appearance"].includes(targetPanel)
+        ? targetPanel
+        : "identity";
+
+      frontDeskTabButtons.forEach((button) => {
+        const active = button.dataset.frontdeskSettingsTab === normalizedPanel;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      frontDeskPanels.forEach((panel) => {
+        panel.hidden = panel.dataset.frontdeskSettingsPanel !== normalizedPanel;
+      });
+
+      if (frontDeskPreview) {
+        frontDeskPreview.hidden = !["identity", "appearance"].includes(normalizedPanel);
+      }
+    };
+
+    frontDeskTabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        showFrontDeskSettingsPanel(button.dataset.frontdeskSettingsTab || "identity");
+      });
+    });
+
     showSettingsSection(getActiveSettingsSection(), { rerender: false, syncHash: false });
+    showFrontDeskSettingsPanel("identity");
 
     return {
       getActiveSettingsSection,

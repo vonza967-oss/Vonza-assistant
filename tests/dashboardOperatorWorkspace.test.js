@@ -2428,12 +2428,16 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Configure, test, and improve the assistant customers see/);
   assert.match(panel, />Overview<\/button>/);
   assert.match(panel, />Knowledge<\/button>/);
+  assert.match(panel, />Approved answers<\/button>/);
+  assert.match(panel, />Training queue<\/button>/);
   assert.match(panel, />Test<\/button>/);
   assert.match(panel, />Launch<\/button>/);
   assert.match(panel, /Open settings/);
-  assert.match(panel, /Try front desk/);
+  assert.match(panel, /Test Front Desk/);
   assert.match(panel, /Assistant configured/);
   assert.match(panel, /Website knowledge imported/);
+  assert.match(panel, /Approved answers count/);
+  assert.match(panel, /Training queue count/);
   assert.match(panel, /Widget installed/);
   assert.match(panel, /Full-page assistant available/);
   assert.match(panel, /QR available/);
@@ -2448,8 +2452,10 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.doesNotMatch(panel, /display_mode/);
   assert.doesNotMatch(panel, /primaryCtaMode/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-overview-panel/);
-  assert.match(panel, /frontdesk-polished-panel frontdesk-preview-shell frontdesk-preview-panel/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-context-panel/);
+  assert.match(panel, /data-frontdesk-section="approved"/);
+  assert.match(panel, /data-frontdesk-section="queue"/);
+  assert.match(panel, /data-frontdesk-section="test"/);
   assert.match(panel, /class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch"/);
   assert.match(panel, /data-frontdesk-section="launch"/);
   assert.match(panel, /frontdesk-main-panel/);
@@ -2457,7 +2463,7 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.doesNotMatch(panel, /frontdesk-context-grid/);
 });
 
-test("front desk preview CTAs use the same primary treatment as open install", () => {
+test("front desk test and launch CTAs use primary treatment", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -2480,11 +2486,11 @@ test("front desk preview CTAs use the same primary treatment as open install", (
 
   harness.setActiveFrontDeskSection("overview");
   const overviewPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
-  assert.match(overviewPanel, /<a class="primary-button"[^>]*>Try front desk<\/a>/);
+  assert.match(overviewPanel, /<button class="primary-button"[^>]*>Test Front Desk<\/button>/);
 
-  harness.setActiveFrontDeskSection("preview");
-  const previewPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
-  assert.match(previewPanel, /<a class="primary-button"[^>]*>Open full preview<\/a>/);
+  harness.setActiveFrontDeskSection("test");
+  const testPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
+  assert.match(testPanel, /<button class="primary-button"[^>]*>Test Front Desk<\/button>/);
 
   harness.setActiveFrontDeskSection("launch");
   const launchPanel = harness.buildFrontDeskPanel(agent, setup, workspace);

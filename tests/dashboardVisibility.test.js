@@ -203,6 +203,15 @@ function createDashboardHarness({
       });
     }
 
+    if (resolvedUrl.pathname === "/agents/front-desk/training-items") {
+      return buildResponse({
+        status: 200,
+        body: {
+          items: [],
+        },
+      });
+    }
+
     if (resolvedUrl.pathname === "/agents/operator-workspace") {
       return buildResponse({
         status: 200,

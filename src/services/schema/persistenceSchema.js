@@ -342,6 +342,24 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "last_error",
     ],
   },
+  front_desk_training_items: {
+    requiredColumns: [
+      "id",
+      "owner_id",
+      "agent_id",
+      "type",
+      "title",
+      "trigger_text",
+      "answer_text",
+      "tags",
+      "source_type",
+      "source_message_id",
+      "status",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.front_desk_training_items],
+  },
   agent_human_follow_up_statuses: {
     requiredColumns: [
       "id",

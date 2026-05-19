@@ -31,6 +31,10 @@ import {
 import { evaluateLiveConversionRouting } from "../conversion/liveConversionRoutingService.js";
 import { listRecentWidgetEvents } from "../analytics/widgetTelemetryService.js";
 import {
+  buildApprovedAnswersPrompt,
+  selectRelevantApprovedAnswers,
+} from "../training/frontDeskTrainingService.js";
+import {
   buildEffectiveUserText,
   cleanText,
   detectResponseLanguage,
@@ -260,6 +264,8 @@ export async function handleChatRequest({
     deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
   const recordEstimatedUsageImpl = deps.recordEstimatedUsage || recordEstimatedUsage;
   const storeMessagesImpl = deps.storeAgentMessages || storeAgentMessages;
+  const selectRelevantApprovedAnswersImpl =
+    deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers;
   const message = body.message;
   const agentId = body.agent_id || body.agentId;
   const agentKey = body.agent_key || body.agentKey;
@@ -418,7 +424,22 @@ export async function handleChatRequest({
     businessContextLength: businessContext.length,
   });
 
-  const systemPrompt = buildChatSystemPromptImpl(language, agentWithBusinessContext);
+  const relevantApprovedAnswers = cleanText(agentWithBusinessContext.ownerUserId)
+    ? await selectRelevantApprovedAnswersImpl(supabase, {
+      agentId: agent.id,
+      ownerUserId: agentWithBusinessContext.ownerUserId,
+      queryText: effectiveUserText,
+      limit: 5,
+    }).catch((error) => {
+      console.warn("[front-desk training] Could not load approved answers:", error?.message || error);
+      return [];
+    })
+    : [];
+  const approvedAnswersPrompt = buildApprovedAnswersPrompt(relevantApprovedAnswers);
+  const systemPrompt = [
+    buildChatSystemPromptImpl(language, agentWithBusinessContext),
+    approvedAnswersPrompt,
+  ].filter(Boolean).join("\n\n");
   const openaiClient = typeof openai === "function" ? openai() : openai;
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,

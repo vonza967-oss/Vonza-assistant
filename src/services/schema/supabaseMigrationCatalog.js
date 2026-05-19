@@ -244,6 +244,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds full-page assistant owner customization config on widget_configs with runtime fallback for old assistants.",
   }),
+  Object.freeze({
+    id: "front_desk_training_items",
+    version: "20260520000000",
+    name: "front_desk_training_items",
+    file: "supabase/migrations/20260520000000_front_desk_training_items.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-approved Front Desk training items used by the dashboard workspace and chat context retrieval.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
