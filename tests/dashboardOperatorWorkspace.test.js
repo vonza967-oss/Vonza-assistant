@@ -3452,15 +3452,18 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /Copy smart snippet/);
   assert.match(pagePanel, /Copy iframe snippet/);
   assert.match(pagePanel, /Recommended\. Automatically adjusts to most website layouts\./);
+  assert.match(pagePanel, /automatically sizes itself and uses the clean canvas layout/);
   assert.match(pagePanel, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(pagePanel, /Recommended smart snippet/);
+  assert.match(pagePanel, /Recommended full-page embed/);
   assert.match(pagePanel, /Advanced iframe snippet/);
+  assert.match(pagePanel, /Advanced iframe fallback/);
   assert.match(pagePanel, /data-vonza-assistant/);
   assert.match(pagePanel, /data-agent-id=(?:"|&quot;)agent-1(?:"|&quot;)/);
   assert.match(pagePanel, /assistant-embed\.js/);
   assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=standard|mode=page&embedded=1&size=standard/);
   assert.match(pagePanel, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
-  assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=full&amp;surface=flat|mode=page&embedded=1&size=full&surface=flat/);
+  assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=full&amp;surface=flat&amp;layout=canvas|mode=page&embedded=1&size=full&surface=flat&layout=canvas/);
   assert.match(pagePanel, /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
   assert.doesNotMatch(pagePanel, /Website header height/);
   assert.doesNotMatch(pagePanel, /If your website has a sticky header, adjust the 120px value\./);
@@ -3617,7 +3620,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[4], /\/assistant-embed\.js/);
   assert.match(copied[5], /^<iframe/);
   assert.doesNotMatch(copied[5], /width:100vw;margin-left/);
-  assert.match(copied[5], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat/);
+  assert.match(copied[5], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas/);
   assert.match(copied[5], /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
 });
 

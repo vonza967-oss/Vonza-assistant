@@ -110,7 +110,7 @@
     return normalizeOptionalNumber(element.getAttribute("data-min-height"), 280, 5000) || fallback;
   }
 
-  function buildAssistantUrl({ agentId, size, surface }) {
+  function buildAssistantUrl({ agentId, layout, size, surface }) {
     const url = new URL("/widget", vonzaOrigin);
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("mode", "page");
@@ -120,6 +120,10 @@
 
     if (surface) {
       url.searchParams.set("surface", surface);
+    }
+
+    if (layout === "full-page") {
+      url.searchParams.set("layout", "canvas");
     }
 
     return url.toString();
@@ -303,7 +307,7 @@
       : null;
     const iframe = document.createElement("iframe");
 
-    iframe.src = buildAssistantUrl({ agentId, size, surface });
+    iframe.src = buildAssistantUrl({ agentId, layout, size, surface });
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
     iframe.allowTransparency = surface === "transparent";

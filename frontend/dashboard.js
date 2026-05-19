@@ -2747,6 +2747,9 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", option
   if (trimText(options.surface)) {
     url.searchParams.set("surface", trimText(options.surface));
   }
+  if (trimText(options.layout)) {
+    url.searchParams.set("layout", trimText(options.layout));
+  }
   return url.toString();
 }
 
@@ -2803,7 +2806,7 @@ function normalizeWebsiteHeaderHeight(value = 120) {
 function buildFullPageAssistantIframe(agent = {}, headerHeight = 120) {
   const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
   return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat" })}"
+  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat", layout: "canvas" })}"
   title="AI assistant"
   style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
   loading="lazy"
@@ -15239,11 +15242,10 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output" id="full-page-option-embed" role="tabpanel" data-full-page-option-panel="embed" hidden>
-          <p class="install-help">Use this when the assistant is the main content of a dedicated page on your website.</p>
-          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
+          <p class="install-help">Use this when the assistant is the main content of a dedicated page on your website. It automatically sizes itself and uses the clean canvas layout.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
-            label: "Recommended smart snippet",
+            label: "Recommended full-page embed",
             value: fullPageSmartEmbed,
             rows: 8,
             buttonAction: "copy-full-page-assistant-smart-embed",
@@ -15251,10 +15253,10 @@ function buildInstallSection(agent, options = {}) {
             disabled: !fullPageSmartEmbed,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help"><strong>Iframe:</strong> Advanced fallback. Use this if your website builder does not allow scripts.</p>
+          <p class="install-help"><strong>Advanced iframe fallback:</strong> Use this if your website builder does not allow scripts.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
-            label: "Advanced iframe snippet",
+            label: "Advanced iframe fallback",
             value: fullPageIframe,
             rows: 9,
             buttonAction: "copy-full-page-iframe",

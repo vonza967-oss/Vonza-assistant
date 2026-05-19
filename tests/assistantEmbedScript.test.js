@@ -148,6 +148,7 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(url.searchParams.get("variant"), "smart");
   assert.equal(url.searchParams.get("size"), "full");
   assert.equal(url.searchParams.get("surface"), "flat");
+  assert.equal(url.searchParams.get("layout"), "canvas");
   assert.equal(harness.iframe.style.width, "100%");
   assert.equal(harness.iframe.style.minHeight, "760px");
   assert.equal(harness.iframe.style.height, "900px");

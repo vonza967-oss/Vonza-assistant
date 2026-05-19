@@ -23,11 +23,15 @@
         : "standard";
       document.documentElement.classList.add("embedded-mode");
       document.documentElement.classList.add(`embedded-size-${vonzaEmbeddedSize}`);
-      document.documentElement.classList.add(`embedded-layout-${
-        vonzaEmbeddedSize === "full" && (vonzaInitialParams.get("layout") || "").toLowerCase() === "split"
-          ? "split"
-          : "chat"
-      }`);
+      const vonzaEmbeddedLayoutParam = (vonzaInitialParams.get("layout") || "").toLowerCase();
+      const vonzaEmbeddedLayout = vonzaEmbeddedSize === "full" && ["canvas", "split"].includes(vonzaEmbeddedLayoutParam)
+        ? vonzaEmbeddedLayoutParam
+        : "chat";
+      document.documentElement.classList.add(`embedded-layout-${vonzaEmbeddedLayout}`);
+      if (vonzaEmbeddedLayout === "canvas") {
+        document.documentElement.classList.add("vonza-page-layout-canvas");
+        document.documentElement.classList.add("vonza-canvas-empty");
+      }
       const vonzaEmbeddedSurface = ["flat", "transparent"].includes((vonzaInitialParams.get("surface") || "").toLowerCase())
         ? vonzaInitialParams.get("surface").toLowerCase()
         : "card";
@@ -199,6 +203,7 @@
         <section id="direct-routing-slot" class="lead-capture-slot" hidden></section>
 
         <div class="composer-shell" id="composer-shell" hidden>
+          <p id="canvas-intro-line" class="canvas-intro-line" hidden></p>
           <div id="quick-replies" class="quick-replies" aria-label="Common questions"></div>
           <div class="input-area">
             <input id="input" placeholder="Type your question..." autocomplete="off" />

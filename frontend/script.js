@@ -186,7 +186,8 @@ function normalizeEmbeddedSize(value) {
 }
 
 function normalizeEmbeddedLayout(value) {
-  return trimText(value).toLowerCase() === "split" ? "split" : "chat";
+  const normalized = trimText(value).toLowerCase();
+  return ["canvas", "split"].includes(normalized) ? normalized : "chat";
 }
 
 function normalizeEmbeddedVariant(value) {
@@ -217,6 +218,10 @@ function isFullEmbeddedPageMode() {
 
 function isSmartEmbeddedPageMode() {
   return isPageMode() && EMBEDDED_MODE && EMBEDDED_VARIANT === "smart";
+}
+
+function isCanvasEmbeddedPageMode() {
+  return isFullEmbeddedPageMode() && EMBEDDED_LAYOUT === "canvas";
 }
 
 function getWidgetStorageScope() {
@@ -674,6 +679,16 @@ function dedupeQuickReplyItems(items = [], limit = 4) {
   return results.slice(0, limit);
 }
 
+function getCanvasQuickReplyLabel(card = {}, hasCustomActionCards = false) {
+  const configuredLabel = normalizeLimitedText(card.label, 40);
+
+  if (hasCustomActionCards && configuredLabel && !/^ask about\s+/i.test(configuredLabel)) {
+    return configuredLabel;
+  }
+
+  return compactEmbeddedPromptLabel(card.prompt || configuredLabel, card.type);
+}
+
 function getEmbeddedQuickReplyItems(config = widgetConfig) {
   const fullPageConfig = getFullPageConfig(config);
   const hasCustomActionCards = hasConfiguredFullPageActionCards(config);
@@ -685,9 +700,11 @@ function getEmbeddedQuickReplyItems(config = widgetConfig) {
     prompt: question,
   }));
   const actionItems = getPageActionCards(config).map((card) => ({
-    label: hasCustomActionCards
-      ? normalizeLimitedText(card.label, 40)
-      : compactEmbeddedPromptLabel(card.prompt || card.label, card.type),
+    label: isCanvasEmbeddedPageMode()
+      ? getCanvasQuickReplyLabel(card, hasCustomActionCards)
+      : hasCustomActionCards
+        ? normalizeLimitedText(card.label, 40)
+        : compactEmbeddedPromptLabel(card.prompt || card.label, card.type),
     prompt: card.prompt,
     type: card.type,
   }));
@@ -893,7 +910,9 @@ function applyDisplayModeClasses() {
     document.documentElement.classList.toggle(`embedded-surface-${surface}`, EMBEDDED_MODE && EMBEDDED_SURFACE === surface);
   });
   document.documentElement.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
+  document.documentElement.classList.toggle("embedded-layout-canvas", EMBEDDED_MODE && EMBEDDED_LAYOUT === "canvas");
   document.documentElement.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
+  document.documentElement.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
   document.documentElement.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
@@ -904,7 +923,9 @@ function applyDisplayModeClasses() {
     document.body?.classList.toggle(`embedded-surface-${surface}`, EMBEDDED_MODE && EMBEDDED_SURFACE === surface);
   });
   document.body?.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
+  document.body?.classList.toggle("embedded-layout-canvas", EMBEDDED_MODE && EMBEDDED_LAYOUT === "canvas");
   document.body?.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
+  document.body?.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
   document.body?.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
@@ -1069,7 +1090,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (pageActionList) {
-    const showPageActionList = !isSmartEmbeddedPageMode();
+    const showPageActionList = !isSmartEmbeddedPageMode() && !isCanvasEmbeddedPageMode();
     pageActionList.hidden = !showPageActionList;
     pageActionList.innerHTML = showPageActionList ? getPageActionCards(config).map((card) => `
       <button
@@ -1126,6 +1147,15 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   if (welcomeMessageEl) {
     welcomeMessageEl.textContent = getPageWelcomeMessage({ business, config });
+  }
+
+  const canvasIntroLine = document.getElementById("canvas-intro-line");
+  if (canvasIntroLine) {
+    const welcomeMessage = trimText(getPageWelcomeMessage({ business, config }));
+    const defaultWelcome = trimText(DEFAULT_WIDGET_CONFIG.welcomeMessage);
+    const shouldShowIntro = isCanvasEmbeddedPageMode() && welcomeMessage && welcomeMessage !== defaultWelcome;
+    canvasIntroLine.textContent = shouldShowIntro ? welcomeMessage : "";
+    canvasIntroLine.hidden = !shouldShowIntro;
   }
 }
 
@@ -1254,6 +1284,24 @@ function renderQuickReplies() {
   queueEmbeddedHeightUpdate();
 }
 
+function updateCanvasConversationState() {
+  if (!isCanvasEmbeddedPageMode()) {
+    document.documentElement.classList.remove("vonza-canvas-empty", "vonza-canvas-active");
+    document.body?.classList.remove("vonza-canvas-empty", "vonza-canvas-active");
+    return;
+  }
+
+  const chat = document.getElementById("chat");
+  const hasVisibleThread = Array.from(chat?.children || []).some((child) => {
+    const className = String(child.className || "");
+    return className.includes("message") && !className.includes("intro") && child.hidden !== true;
+  });
+  document.documentElement.classList.toggle("vonza-canvas-empty", !hasVisibleThread);
+  document.documentElement.classList.toggle("vonza-canvas-active", hasVisibleThread);
+  document.body?.classList.toggle("vonza-canvas-empty", !hasVisibleThread);
+  document.body?.classList.toggle("vonza-canvas-active", hasVisibleThread);
+}
+
 function updateComposerAvailability() {
   const composerShell = getComposerShell();
   const input = document.getElementById("input");
@@ -1268,7 +1316,7 @@ function updateComposerAvailability() {
   composerShell.hidden = !chatReady;
   input.disabled = !chatReady;
   button.disabled = !chatReady;
-  input.placeholder = "Type your question...";
+  input.placeholder = isCanvasEmbeddedPageMode() ? "Ask anything..." : "Type your question...";
   inputArea.classList.toggle("is-locked", !chatReady);
   renderQuickReplies();
 }
@@ -1311,7 +1359,7 @@ function renderWidgetPhase() {
   }
 
   if (introMessage) {
-    introMessage.hidden = !chatReady;
+    introMessage.hidden = !chatReady || isCanvasEmbeddedPageMode();
   }
 
   if (emailForm && chatReady) {
@@ -1320,6 +1368,7 @@ function renderWidgetPhase() {
 
   updateComposerAvailability();
   syncPageIdentityInline();
+  updateCanvasConversationState();
   queueEmbeddedHeightUpdate();
 }
 
@@ -2149,6 +2198,7 @@ function appendMessage(chat, role, text, options = {}) {
 
   chat.appendChild(wrapper);
   chat.scrollTop = chat.scrollHeight;
+  updateCanvasConversationState();
   queueEmbeddedHeightUpdate();
   return wrapper;
 }
@@ -2504,6 +2554,10 @@ if (EMBEDDED_MODE) {
   document.body.classList.add(`embedded-surface-${EMBEDDED_SURFACE}`);
   document.body.classList.add(`embedded-size-${EMBEDDED_SIZE}`);
   document.body.classList.add(`embedded-layout-${EMBEDDED_LAYOUT}`);
+  if (isCanvasEmbeddedPageMode()) {
+    document.body.classList.add("vonza-page-layout-canvas");
+    document.body.classList.add("vonza-canvas-empty");
+  }
   if (EMBEDDED_VARIANT === "smart") {
     document.body.classList.add("embedded-smart");
   }
@@ -2548,6 +2602,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getEmbeddedSize: () => EMBEDDED_SIZE,
   getEmbeddedLayout: () => EMBEDDED_LAYOUT,
   isFullEmbeddedPageMode,
+  isCanvasEmbeddedPageMode,
   hasBookingSupport: () => hasBookingSupport(),
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,

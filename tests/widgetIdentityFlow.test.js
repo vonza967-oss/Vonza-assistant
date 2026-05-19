@@ -145,6 +145,7 @@ function createWidgetHarness({
     "direct-routing-slot",
     "welcome-panel",
     "composer-shell",
+    "canvas-intro-line",
     "quick-replies",
     "input",
     "send-button",
@@ -2177,8 +2178,10 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(script, /function normalizeEmbeddedSize/);
   assert.match(script, /function normalizeEmbeddedLayout/);
   assert.match(script, /return \["compact", "standard", "tall", "full"\]\.includes\(normalized\) \? normalized : "standard"/);
+  assert.match(script, /return \["canvas", "split"\]\.includes\(normalized\) \? normalized : "chat"/);
   assert.match(script, /embedded-size-\$\{size\}/);
   assert.match(script, /embedded-layout-\$\{EMBEDDED_LAYOUT\}/);
+  assert.match(script, /vonza-page-layout-canvas/);
   assert.match(styles, /embedded-size-compact[\s\S]*--embedded-card-min-height: 520px/);
   assert.match(styles, /--embedded-card-min-height: 640px/);
   assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-min-height: 720px/);
@@ -2186,6 +2189,7 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-max-width: 980px/);
   assert.match(styles, /embedded-size-full[\s\S]*min-height: 100dvh/);
   assert.match(styles, /embedded-size-full[\s\S]*--full-page-shell-max-width: 1180px/);
+  assert.match(styles, /embedded-layout-canvas[\s\S]*--full-page-shell-max-width: 920px/);
   assert.match(styles, /embedded-size-full[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)/);
   assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-size-full \.page-business-header[\s\S]*display: none/);
@@ -2195,6 +2199,9 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /@media \(max-width: 1099px\)[\s\S]*embedded-size-full \.app-shell[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /embedded-size-full \.chat-container[\s\S]*height: 100%/);
   assert.match(styles, /embedded-size-full \.composer-shell[\s\S]*margin-top: auto/);
+  assert.match(styles, /embedded-layout-canvas \.chat-container[\s\S]*border: 0[\s\S]*box-shadow: none/);
+  assert.match(styles, /embedded-layout-canvas \.chat-header[\s\S]*display: none/);
+  assert.match(styles, /embedded-layout-canvas \.input-area[\s\S]*box-shadow: 0 14px 38px/);
   assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
   assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
 });
@@ -2240,6 +2247,7 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   const compactHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=compact");
   const tallHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=tall");
   const fullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full");
+  const canvasFullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas");
   const splitFullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full&layout=split");
 
   assert.equal(defaultHarness.hooks.getEmbeddedSize(), "standard");
@@ -2258,6 +2266,13 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(fullHarness.documentElement.classList.contains("embedded-layout-split"), false);
   assert.equal(fullHarness.body.classList.contains("embedded-size-full"), true);
   assert.equal(fullHarness.body.classList.contains("embedded-layout-chat"), true);
+  assert.equal(canvasFullHarness.hooks.getEmbeddedLayout(), "canvas");
+  assert.equal(canvasFullHarness.hooks.isCanvasEmbeddedPageMode(), true);
+  assert.equal(canvasFullHarness.documentElement.classList.contains("embedded-layout-canvas"), true);
+  assert.equal(canvasFullHarness.documentElement.classList.contains("vonza-page-layout-canvas"), true);
+  assert.equal(canvasFullHarness.documentElement.classList.contains("vonza-canvas-empty"), true);
+  assert.equal(canvasFullHarness.body.classList.contains("embedded-layout-canvas"), true);
+  assert.equal(canvasFullHarness.body.classList.contains("vonza-page-layout-canvas"), true);
   assert.equal(splitFullHarness.hooks.getEmbeddedLayout(), "split");
   assert.equal(splitFullHarness.documentElement.classList.contains("embedded-layout-split"), true);
   assert.equal(splitFullHarness.body.classList.contains("embedded-layout-split"), true);
@@ -2285,6 +2300,22 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(fullHarness.hooks.getVisitorIdentity().mode, "guest");
   assert.match(fullHarness.elements.get("page-action-list").innerHTML, /Request a quote/);
   assert.match(fullHarness.elements.get("quick-replies").innerHTML, /Request a quote/);
+  assert.equal(canvasFullHarness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(canvasFullHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.equal(canvasFullHarness.elements.get("page-action-list").hidden, true);
+  assert.equal(canvasFullHarness.elements.get("page-action-list").innerHTML, "");
+  assert.equal(canvasFullHarness.elements.get("intro-message").hidden, true);
+  assert.equal(canvasFullHarness.elements.get("composer-shell").hidden, false);
+  assert.equal(canvasFullHarness.elements.get("input").disabled, false);
+  assert.equal(canvasFullHarness.elements.get("input").placeholder, "Ask anything...");
+  assert.equal(canvasFullHarness.elements.get("page-identity-note").textContent, "Asking as guest");
+  assert.equal(canvasFullHarness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
+  assert.match(canvasFullHarness.elements.get("quick-replies").innerHTML, />Services</);
+  assert.match(canvasFullHarness.elements.get("quick-replies").innerHTML, />Pricing</);
+  assert.match(canvasFullHarness.elements.get("quick-replies").innerHTML, /Request a quote/);
+  assert.doesNotMatch(canvasFullHarness.elements.get("quick-replies").innerHTML, />Ask about services</);
+  assert.equal((canvasFullHarness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
+  assert.doesNotMatch(canvasFullHarness.elements.get("page-help-title").textContent, /How can we help/i);
 });
 
 test("full embedded page mode is chat-first, ungated, and uses configured full-page content", async () => {
@@ -2450,6 +2481,91 @@ test("smart full embedded page mode shows prompt chips only inside the assistant
   assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
 });
 
+test("canvas full embedded page mode uses a composer-first layout without duplicate prompt rows", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                welcomeMessage: "Welcome to Acme support.",
+                full_page_config: {
+                  headline: "Ask Acme",
+                  subtitle: "Clear answers for plans, services, and quotes.",
+                  suggested_questions: [
+                    "Can you compare the plans?",
+                    "Can I get a custom estimate?",
+                    "How can I contact the team?",
+                    "What services do you offer?",
+                    "Do you support booking?",
+                  ],
+                  action_cards: [
+                    {
+                      label: "Compare plans",
+                      prompt: "Can you compare the plans?",
+                      type: "pricing",
+                      enabled: true,
+                    },
+                    {
+                      label: "Start an estimate",
+                      prompt: "Can I get a custom estimate?",
+                      type: "quote",
+                      enabled: true,
+                    },
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const quickRepliesHtml = harness.elements.get("quick-replies").innerHTML;
+
+  assert.equal(harness.hooks.getEmbeddedLayout(), "canvas");
+  assert.equal(harness.hooks.isCanvasEmbeddedPageMode(), true);
+  assert.equal(harness.elements.get("page-help-title").textContent, "Ask Acme");
+  assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "Clear answers for plans, services, and quotes.");
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.equal(harness.elements.get("intro-message").hidden, true);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("canvas-intro-line").hidden, false);
+  assert.equal(harness.elements.get("canvas-intro-line").textContent, "Welcome to Acme support.");
+  assert.equal((quickRepliesHtml.match(/quick-reply-chip/g) || []).length, 4);
+  assert.match(quickRepliesHtml, /data-quick-reply="Can you compare the plans\?"/);
+  assert.match(quickRepliesHtml, /data-quick-reply="Can I get a custom estimate\?"/);
+  assert.match(quickRepliesHtml, /data-quick-reply="How can I contact the team\?"/);
+  assert.match(quickRepliesHtml, /data-quick-reply="What services do you offer\?"/);
+  assert.doesNotMatch(quickRepliesHtml, /Do you support booking\?/);
+  assert.equal(harness.elements.get("page-identity-note").textContent, "Asking as guest");
+  assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
+  assert.equal(harness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
+});
+
 test("dashboard install iframes separate section embed and full-page iframe while QR stays hosted", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
@@ -2466,11 +2582,15 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /assistant-embed\.js/);
   assert.match(dashboard, /data-vonza-assistant/);
   assert.match(dashboard, /Recommended smart snippet/);
+  assert.match(dashboard, /Recommended full-page embed/);
   assert.match(dashboard, /Advanced iframe snippet/);
+  assert.match(dashboard, /Advanced iframe fallback/);
   assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
+  assert.match(dashboard, /automatically sizes itself and uses the clean canvas layout/);
   assert.match(dashboard, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
+  assert.match(dashboard, /layout: "canvas"/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
-  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat" \}\)/);
+  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat", layout: "canvas" \}\)/);
   assert.match(dashboard, /Place the assistant inside part of an existing page/);
   assert.match(dashboard, /Use this when the assistant is the main content of a dedicated page on your website/);
   assert.match(dashboard, /\["compact", "standard", "tall", "full"\]/);
