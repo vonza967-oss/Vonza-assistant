@@ -131,7 +131,7 @@
     enabled: true,
   });
   const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
-    "Typically replies instantly",
+    "Replies instantly",
     "AI assistant",
     "Leave your details if needed",
   ]);

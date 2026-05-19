@@ -142,7 +142,7 @@ const PAGE_ACTION_CARDS = Object.freeze([
   },
 ]);
 const PAGE_TRUST_ITEMS = Object.freeze([
-  "Typically replies instantly",
+  "Replies instantly",
   "AI assistant",
   "Leave your details if needed",
 ]);
@@ -1151,11 +1151,8 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   const canvasIntroLine = document.getElementById("canvas-intro-line");
   if (canvasIntroLine) {
-    const welcomeMessage = trimText(getPageWelcomeMessage({ business, config }));
-    const defaultWelcome = trimText(DEFAULT_WIDGET_CONFIG.welcomeMessage);
-    const shouldShowIntro = isCanvasEmbeddedPageMode() && welcomeMessage && welcomeMessage !== defaultWelcome;
-    canvasIntroLine.textContent = shouldShowIntro ? welcomeMessage : "";
-    canvasIntroLine.hidden = !shouldShowIntro;
+    canvasIntroLine.textContent = "";
+    canvasIntroLine.hidden = true;
   }
 }
 

@@ -78,7 +78,7 @@ export const DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD = Object.freeze({
 });
 
 export const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
-  "Typically replies instantly",
+  "Replies instantly",
   "AI assistant",
   "Leave your details if needed",
 ]);
