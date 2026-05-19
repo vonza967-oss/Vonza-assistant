@@ -155,6 +155,18 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(harness.iframe.style.borderRadius, "0");
 });
 
+test("/assistant-embed.js forwards data-show-title false for full-page canvas", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+    "data-show-title": "false",
+  });
+  const url = new URL(harness.iframe.src);
+
+  assert.equal(url.searchParams.get("layout"), "canvas");
+  assert.equal(url.searchParams.get("show_title"), "0");
+});
+
 test("/assistant-embed.js supports explicit data-surface", () => {
   const harness = createHarness({
     "data-agent-id": "agent-1",

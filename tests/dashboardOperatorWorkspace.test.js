@@ -3452,7 +3452,12 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /Copy smart snippet/);
   assert.match(pagePanel, /Copy iframe snippet/);
   assert.match(pagePanel, /Recommended\. Automatically adjusts to most website layouts\./);
-  assert.match(pagePanel, /automatically sizes itself and uses the clean canvas layout/);
+  assert.match(pagePanel, /Use this on a dedicated assistant page\. The embed includes the Front Desk heading\./);
+  assert.match(pagePanel, /Paste this into a blank\/dedicated page area\. The assistant includes its own heading\./);
+  assert.match(pagePanel, /Do not add another assistant heading above it unless you hide the embed title\./);
+  assert.match(pagePanel, /Show embed title/);
+  assert.match(pagePanel, /data-full-page-title-toggle checked/);
+  assert.match(pagePanel, /If your website page already has its own heading, use the &quot;Hide embed title&quot; option\.|If your website page already has its own heading, use the "Hide embed title" option\./);
   assert.match(pagePanel, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(pagePanel, /Recommended smart snippet/);
   assert.match(pagePanel, /Recommended full-page embed/);

@@ -2202,6 +2202,11 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-layout-canvas \.chat-container[\s\S]*border: 0[\s\S]*box-shadow: none/);
   assert.match(styles, /embedded-layout-canvas \.chat-header[\s\S]*display: none/);
   assert.match(styles, /embedded-layout-canvas \.page-trust-row[\s\S]*position: absolute[\s\S]*right: 0/);
+  assert.match(styles, /--canvas-title-offset: 96px/);
+  assert.match(styles, /--canvas-title-offset: 72px/);
+  assert.match(styles, /--canvas-title-offset: 40px/);
+  assert.match(styles, /vonza-canvas-title-hidden \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
+  assert.match(styles, /vonza-canvas-title-hidden \.chat-container[\s\S]*padding-top: var\(--canvas-title-hidden-offset\)/);
   assert.match(styles, /embedded-layout-canvas \.input-area[\s\S]*min-height: 76px[\s\S]*box-shadow: 0 18px 48px/);
   assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
   assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
@@ -2249,6 +2254,7 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   const tallHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=tall");
   const fullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full");
   const canvasFullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas");
+  const hiddenTitleCanvasHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas&show_title=0");
   const splitFullHarness = await createHarnessForSize("?agent_id=agent-1&mode=page&embedded=1&size=full&layout=split");
 
   assert.equal(defaultHarness.hooks.getEmbeddedSize(), "standard");
@@ -2274,6 +2280,12 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(canvasFullHarness.documentElement.classList.contains("vonza-canvas-empty"), true);
   assert.equal(canvasFullHarness.body.classList.contains("embedded-layout-canvas"), true);
   assert.equal(canvasFullHarness.body.classList.contains("vonza-page-layout-canvas"), true);
+  assert.equal(canvasFullHarness.hooks.shouldShowPageTitle(), true);
+  assert.equal(canvasFullHarness.documentElement.classList.contains("vonza-canvas-title-hidden"), false);
+  assert.equal(hiddenTitleCanvasHarness.hooks.getEmbeddedLayout(), "canvas");
+  assert.equal(hiddenTitleCanvasHarness.hooks.shouldShowPageTitle(), false);
+  assert.equal(hiddenTitleCanvasHarness.documentElement.classList.contains("vonza-canvas-title-hidden"), true);
+  assert.equal(hiddenTitleCanvasHarness.body.classList.contains("vonza-canvas-title-hidden"), true);
   assert.equal(splitFullHarness.hooks.getEmbeddedLayout(), "split");
   assert.equal(splitFullHarness.documentElement.classList.contains("embedded-layout-split"), true);
   assert.equal(splitFullHarness.body.classList.contains("embedded-layout-split"), true);
@@ -2303,6 +2315,8 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.match(fullHarness.elements.get("quick-replies").innerHTML, /Request a quote/);
   assert.equal(canvasFullHarness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(canvasFullHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.equal(canvasFullHarness.elements.get("page-help-title").hidden, false);
+  assert.equal(canvasFullHarness.elements.get("page-assistant-subtitle").hidden, false);
   assert.equal(canvasFullHarness.elements.get("page-action-list").hidden, true);
   assert.equal(canvasFullHarness.elements.get("page-action-list").innerHTML, "");
   assert.equal(canvasFullHarness.elements.get("intro-message").hidden, true);
@@ -2321,6 +2335,13 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /Replies instantly|Instant replies|Typically replies instantly|AI assistant/i);
   assert.equal((canvasFullHarness.elements.get("page-help-title").textContent.match(/Front Desk/g) || []).length, 1);
   assert.doesNotMatch(canvasFullHarness.elements.get("page-help-title").textContent, /How can we help/i);
+  assert.equal(hiddenTitleCanvasHarness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(hiddenTitleCanvasHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.equal(hiddenTitleCanvasHarness.elements.get("page-help-title").hidden, true);
+  assert.equal(hiddenTitleCanvasHarness.elements.get("page-assistant-subtitle").hidden, true);
+  assert.equal(hiddenTitleCanvasHarness.elements.get("composer-shell").hidden, false);
+  assert.equal(hiddenTitleCanvasHarness.elements.get("quick-replies").hidden, false);
+  assert.match(hiddenTitleCanvasHarness.elements.get("quick-replies").innerHTML, />Services</);
 });
 
 test("full embedded page mode is chat-first, ungated, and uses configured full-page content", async () => {
@@ -2667,11 +2688,17 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /Advanced iframe snippet/);
   assert.match(dashboard, /Advanced iframe fallback/);
   assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
-  assert.match(dashboard, /automatically sizes itself and uses the clean canvas layout/);
+  assert.match(dashboard, /Use this on a dedicated assistant page\. The embed includes the Front Desk heading\./);
+  assert.match(dashboard, /Paste this into a blank\/dedicated page area\. The assistant includes its own heading\./);
+  assert.match(dashboard, /If your website page already has its own heading, use the "Hide embed title" option\./);
+  assert.match(dashboard, /data-full-page-title-toggle checked/);
+  assert.match(dashboard, /Show embed title/);
+  assert.match(dashboard, /data-show-title="false"/);
+  assert.match(dashboard, /show_title", "0"/);
   assert.match(dashboard, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(dashboard, /layout: "canvas"/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
-  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat", layout: "canvas" \}\)/);
+  assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat", layout: "canvas", showTitle: options\.showTitle \}\)/);
   assert.match(dashboard, /Place the assistant inside part of an existing page/);
   assert.match(dashboard, /Use this when the assistant is the main content of a dedicated page on your website/);
   assert.match(dashboard, /\["compact", "standard", "tall", "full"\]/);

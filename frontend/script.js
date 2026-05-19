@@ -8,6 +8,7 @@ const EMBEDDED_SURFACE = normalizeEmbeddedSurface(searchParams.get("surface"));
 const EMBEDDED_SIZE = normalizeEmbeddedSize(searchParams.get("size"));
 const EMBEDDED_LAYOUT = normalizeEmbeddedLayout(searchParams.get("layout"));
 const EMBEDDED_VARIANT = normalizeEmbeddedVariant(searchParams.get("variant"));
+const SHOW_EMBED_TITLE = normalizeShowEmbedTitle(searchParams.get("show_title"));
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
   searchParams.get("install_id") ||
@@ -194,6 +195,11 @@ function normalizeEmbeddedVariant(value) {
   return trimText(value).toLowerCase() === "smart" ? "smart" : "iframe";
 }
 
+function normalizeShowEmbedTitle(value) {
+  const normalized = trimText(value).toLowerCase();
+  return !["0", "false", "no", "off"].includes(normalized);
+}
+
 function getRouteAgentKey() {
   const match = window.location.pathname.match(/^\/(?:a|assistant)\/([^/?#]+)/);
 
@@ -222,6 +228,10 @@ function isSmartEmbeddedPageMode() {
 
 function isCanvasEmbeddedPageMode() {
   return isFullEmbeddedPageMode() && EMBEDDED_LAYOUT === "canvas";
+}
+
+function shouldShowPageTitle() {
+  return !isCanvasEmbeddedPageMode() || SHOW_EMBED_TITLE;
 }
 
 function getWidgetStorageScope() {
@@ -913,6 +923,7 @@ function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("embedded-layout-canvas", EMBEDDED_MODE && EMBEDDED_LAYOUT === "canvas");
   document.documentElement.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
   document.documentElement.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
+  document.documentElement.classList.toggle("vonza-canvas-title-hidden", isCanvasEmbeddedPageMode() && !SHOW_EMBED_TITLE);
   document.documentElement.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
@@ -926,6 +937,7 @@ function applyDisplayModeClasses() {
   document.body?.classList.toggle("embedded-layout-canvas", EMBEDDED_MODE && EMBEDDED_LAYOUT === "canvas");
   document.body?.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
   document.body?.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
+  document.body?.classList.toggle("vonza-canvas-title-hidden", isCanvasEmbeddedPageMode() && !SHOW_EMBED_TITLE);
   document.body?.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
@@ -1029,6 +1041,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const mark = getAssistantMark(displayName);
   const headline = fullPageConfig.headline || DEFAULT_FULL_PAGE_HEADLINE;
   const subtitle = fullPageConfig.subtitle || DEFAULT_FULL_PAGE_SUBTITLE;
+  const showPageTitle = shouldShowPageTitle();
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
   const domainEl = document.getElementById("page-business-domain");
@@ -1063,6 +1076,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   if (subtitleEl) {
     subtitleEl.textContent = subtitle;
+    subtitleEl.hidden = !showPageTitle;
   }
 
   if (domainEl) {
@@ -1072,6 +1086,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   if (helpTitleEl) {
     helpTitleEl.textContent = headline;
+    helpTitleEl.hidden = !showPageTitle;
   }
 
   if (pageMark && pageLogo && pageInitial) {
@@ -2598,6 +2613,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getEmbeddedSurface: () => EMBEDDED_SURFACE,
   getEmbeddedSize: () => EMBEDDED_SIZE,
   getEmbeddedLayout: () => EMBEDDED_LAYOUT,
+  shouldShowPageTitle,
   isFullEmbeddedPageMode,
   isCanvasEmbeddedPageMode,
   hasBookingSupport: () => hasBookingSupport(),

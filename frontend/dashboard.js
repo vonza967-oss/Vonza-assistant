@@ -2750,10 +2750,13 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", option
   if (trimText(options.layout)) {
     url.searchParams.set("layout", trimText(options.layout));
   }
+  if (options.showTitle === false) {
+    url.searchParams.set("show_title", "0");
+  }
   return url.toString();
 }
 
-function buildSmartAssistantEmbed(agent = {}, layout = "section") {
+function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) {
   const agentId = trimText(agent.id);
 
   if (!agentId) {
@@ -2764,11 +2767,14 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section") {
   const surfaceLine = normalizedLayout === "full-page"
     ? '\n  data-surface="flat"'
     : "";
+  const showTitleLine = normalizedLayout === "full-page" && options.showTitle === false
+    ? '\n  data-show-title="false"'
+    : "";
 
   return `<div
   data-vonza-assistant
   data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}
+  data-layout="${normalizedLayout}"${surfaceLine}${showTitleLine}
 ></div>
 <script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
 }
@@ -2803,10 +2809,10 @@ function normalizeWebsiteHeaderHeight(value = 120) {
   return Math.min(Math.max(numericValue, 0), 400);
 }
 
-function buildFullPageAssistantIframe(agent = {}, headerHeight = 120) {
+function buildFullPageAssistantIframe(agent = {}, headerHeight = 120, options = {}) {
   const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
   return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat", layout: "canvas" })}"
+  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat", layout: "canvas", showTitle: options.showTitle })}"
   title="AI assistant"
   style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
   loading="lazy"
@@ -15242,7 +15248,16 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output" id="full-page-option-embed" role="tabpanel" data-full-page-option-panel="embed" hidden>
-          <p class="install-help">Use this when the assistant is the main content of a dedicated page on your website. It automatically sizes itself and uses the clean canvas layout.</p>
+          <p class="install-help">Use this on a dedicated assistant page. The embed includes the Front Desk heading.</p>
+          <p class="install-help">Paste this into a blank/dedicated page area. The assistant includes its own heading.</p>
+          <p class="install-help">Do not add another assistant heading above it unless you hide the embed title.</p>
+          <label class="install-title-toggle">
+            <input type="checkbox" data-full-page-title-toggle checked>
+            <span>
+              <strong>Show embed title</strong>
+              <small>If your website page already has its own heading, turn this off.</small>
+            </span>
+          </label>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
             label: "Recommended full-page embed",
@@ -15254,6 +15269,7 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-iframe-output",
           })}
           <p class="install-help"><strong>Advanced iframe fallback:</strong> Use this if your website builder does not allow scripts.</p>
+          <p class="install-help">If your website page already has its own heading, use the "Hide embed title" option.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
             label: "Advanced iframe fallback",
@@ -16776,6 +16792,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const sectionSmartEmbedOutput = document.getElementById("section-assistant-smart-embed");
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
   const fullPageSmartEmbedOutput = document.getElementById("full-page-assistant-smart-embed");
+  const fullPageTitleToggle = document.querySelector("[data-full-page-title-toggle]");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -16803,15 +16820,17 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
         : "";
     }
 
+    const showTitle = fullPageTitleToggle?.checked !== false;
+
     if (fullPageSmartEmbedOutput) {
       fullPageSmartEmbedOutput.value = trimText(agent.id)
-        ? buildSmartAssistantEmbed(agent, "full-page")
+        ? buildSmartAssistantEmbed(agent, "full-page", { showTitle })
         : "";
     }
 
     if (fullPageIframeOutput) {
       fullPageIframeOutput.value = hasFullPageTarget
-        ? buildFullPageAssistantIframe(agent)
+        ? buildFullPageAssistantIframe(agent, 120, { showTitle })
         : "";
     }
   };
@@ -16821,6 +16840,8 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
       activateOption(button.dataset.fullPageOption || "share");
     });
   });
+
+  fullPageTitleToggle?.addEventListener("change", syncFullPageIframe);
 
   syncFullPageIframe();
 }

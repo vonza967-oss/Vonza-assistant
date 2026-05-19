@@ -110,7 +110,12 @@
     return normalizeOptionalNumber(element.getAttribute("data-min-height"), 280, 5000) || fallback;
   }
 
-  function buildAssistantUrl({ agentId, layout, size, surface }) {
+  function normalizeShowTitle(value) {
+    const normalized = trimText(value).toLowerCase();
+    return !["0", "false", "no", "off"].includes(normalized);
+  }
+
+  function buildAssistantUrl({ agentId, layout, size, surface, showTitle }) {
     const url = new URL("/widget", vonzaOrigin);
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("mode", "page");
@@ -124,6 +129,10 @@
 
     if (layout === "full-page") {
       url.searchParams.set("layout", "canvas");
+    }
+
+    if (showTitle === false) {
+      url.searchParams.set("show_title", "0");
     }
 
     return url.toString();
@@ -301,13 +310,14 @@
     const layout = normalizeLayout(element.getAttribute("data-layout"));
     const size = normalizeSize(element.getAttribute("data-size"), layout);
     const surface = normalizeSurface(element.getAttribute("data-surface"), layout);
+    const showTitle = normalizeShowTitle(element.getAttribute("data-show-title"));
     const minHeight = resolveMinHeight(element, layout, size);
     const headerOffset = layout === "full-page"
       ? normalizeOptionalNumber(element.getAttribute("data-header-offset"), 0, 2000)
       : null;
     const iframe = document.createElement("iframe");
 
-    iframe.src = buildAssistantUrl({ agentId, layout, size, surface });
+    iframe.src = buildAssistantUrl({ agentId, layout, size, surface, showTitle });
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
     iframe.allowTransparency = surface === "transparent";

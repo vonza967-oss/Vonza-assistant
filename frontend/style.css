@@ -2466,7 +2466,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas body,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
   --full-page-shell-max-width: 980px;
-  --embedded-card-padding: clamp(18px, 5vw, 50px);
+  --embedded-card-padding: 0 clamp(18px, 5vw, 50px) clamp(18px, 4vw, 42px);
+  --canvas-title-offset: 96px;
+  --canvas-title-gap: 28px;
+  --canvas-title-hidden-offset: 72px;
   --embedded-header-padding: 0;
   --embedded-feed-padding: 0;
   --embedded-composer-padding: 0;
@@ -2481,9 +2484,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .am
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .app-shell,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .app-shell {
-  grid-template-rows: minmax(min-content, 0.72fr) minmax(0, 1fr);
-  align-content: stretch;
-  gap: clamp(22px, 5vh, 58px);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--canvas-title-gap);
   padding: var(--embedded-card-padding);
   background: transparent;
 }
@@ -2492,10 +2495,15 @@ html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .pa
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-assistant-hero:not([hidden]) {
   width: min(100%, var(--full-page-shell-max-width));
   justify-items: center;
-  align-self: end;
-  align-content: end;
+  align-self: start;
+  align-content: start;
   gap: 10px;
-  padding-top: clamp(8px, 2vh, 20px);
+  padding-top: var(--canvas-title-offset);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-title-hidden .page-assistant-hero:not([hidden]),
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-title-hidden .page-assistant-hero:not([hidden]) {
+  display: none;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-context-panel,
@@ -2581,6 +2589,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ch
   box-shadow: none;
   backdrop-filter: none;
   overflow: visible;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-title-hidden .chat-container,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-title-hidden .chat-container {
+  padding-top: var(--canvas-title-hidden-offset);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .chat-container::before,
@@ -2878,6 +2891,13 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
   }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas body,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
+    --canvas-title-offset: 72px;
+    --canvas-title-gap: 24px;
+    --canvas-title-hidden-offset: 56px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -2937,20 +2957,23 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas body,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
-    --embedded-card-padding: 18px 14px;
+    --embedded-card-padding: 0 14px 18px;
+    --canvas-title-offset: 40px;
+    --canvas-title-gap: 16px;
+    --canvas-title-hidden-offset: 36px;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .app-shell,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .app-shell {
     grid-template-rows: auto minmax(0, 1fr);
-    gap: 16px;
+    gap: var(--canvas-title-gap);
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-assistant-hero:not([hidden]),
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-assistant-hero:not([hidden]) {
     align-self: start;
     align-content: start;
-    padding-top: 4px;
+    padding-top: var(--canvas-title-offset);
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-context-panel h2,
