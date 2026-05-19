@@ -524,7 +524,8 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-business-domain").textContent, "");
   assert.equal(harness.elements.get("page-business-domain").hidden, true);
-  assert.equal(harness.elements.get("page-help-title").textContent, "How can we help?");
+  assert.equal(harness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
   assert.equal(
     harness.elements.get("page-assistant-subtitle").textContent,
     "Ask about services, pricing, quotes, or contact details."
@@ -553,6 +554,104 @@ test("page mode waits for a real assistant before showing the chat shell", async
   assert.equal(harness.elements.get("page-identity-email-button").textContent, "Leave contact details");
   assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.doesNotMatch(harness.elements.get("page-action-list").innerHTML, /Smith &amp; Co\.|Smith & Co\./);
+});
+
+test("hosted /a page uses Front Desk as the default full-page title", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/a/acme-desk",
+      href: "https://example.com/a/acme-desk",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(harness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
+  assert.equal(
+    harness.elements.get("page-assistant-subtitle").textContent,
+    "Ask about services, pricing, quotes, or contact details."
+  );
+});
+
+test("hosted /assistant page uses Front Desk as the default full-page title", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "",
+      pathname: "/assistant/acme-desk",
+      href: "https://example.com/assistant/acme-desk",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: {
+                id: "agent-1",
+                publicAgentKey: "acme-desk",
+              },
+              business: {
+                id: "business-1",
+                name: "Acme Co",
+              },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(harness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
 });
 
 test("embedded page mode uses compact customized prompts once", async () => {
@@ -628,6 +727,7 @@ test("embedded page mode uses compact customized prompts once", async () => {
   assert.equal(harness.elements.get("identity-reset-button").hidden, true);
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("page-help-title").textContent, "Acme support");
+  assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
   assert.equal(harness.elements.get("quick-replies").hidden, false);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Request a quote/);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Contact details/);
@@ -2019,6 +2119,8 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="assistant-loading-state"/);
   assert.match(widget, /id="assistant-unavailable-state"/);
   assert.match(widget, /id="page-assistant-hero"/);
+  assert.match(widget, /<h2 id="page-help-title">Front Desk<\/h2>/);
+  assert.doesNotMatch(widget, /<h2 id="page-help-title">How can we help\?<\/h2>/);
   assert.match(widget, /id="page-powered-by"/);
   assert.match(widget, /id="page-action-list"/);
   assert.match(widget, /href="\/style\.css"/);
@@ -2087,11 +2189,14 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-size-full[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)/);
   assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-size-full \.page-business-header[\s\S]*display: none/);
-  assert.match(styles, /page-business-heading h1[\s\S]*overflow-wrap: break-word/);
-  assert.match(styles, /@media \(min-width: 1100px\)[\s\S]*embedded-layout-split[\s\S]*grid-template-columns: minmax\(320px, 360px\) minmax\(620px, 1fr\)/);
+  assert.match(styles, /page-business-heading h1[\s\S]*overflow-wrap: break-word[\s\S]*word-break: normal[\s\S]*hyphens: none/);
+  assert.match(styles, /@media \(min-width: 1100px\)[\s\S]*embedded-layout-split[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.doesNotMatch(styles, /embedded-layout-split[\s\S]*grid-template-columns: minmax\(320px, 360px\) minmax\(620px, 1fr\)/);
   assert.match(styles, /@media \(max-width: 1099px\)[\s\S]*embedded-size-full \.app-shell[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /embedded-size-full \.chat-container[\s\S]*height: 100%/);
   assert.match(styles, /embedded-size-full \.composer-shell[\s\S]*margin-top: auto/);
+  assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
+  assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
 });
 
 test("embedded page mode exposes size variants in runtime classes", async () => {
@@ -2161,7 +2266,15 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(defaultHarness.elements.get("page-identity-inline").hidden, false);
   assert.equal(defaultHarness.elements.get("composer-shell").hidden, false);
   assert.equal(defaultHarness.hooks.getWidgetPhase(), "chat");
+  assert.equal(defaultHarness.elements.get("page-assistant-hero").hidden, true);
+  assert.equal(defaultHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(defaultHarness.elements.get("page-help-title").textContent, /How can we help/i);
+  assert.equal(compactHarness.elements.get("page-assistant-hero").hidden, true);
+  assert.equal(compactHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(compactHarness.elements.get("page-help-title").textContent, /How can we help/i);
   assert.equal(fullHarness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(fullHarness.elements.get("page-help-title").textContent, "Front Desk");
+  assert.doesNotMatch(fullHarness.elements.get("page-help-title").textContent, /How can we help/i);
   assert.equal(fullHarness.elements.get("identity-choice-panel").hidden, true);
   assert.equal(fullHarness.elements.get("welcome-panel").hidden, true);
   assert.equal(fullHarness.elements.get("chat-state").hidden, false);

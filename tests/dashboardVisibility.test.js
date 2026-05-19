@@ -486,6 +486,9 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /Widget purpose/);
   assert.match(harness.getRootHtml(), /Full-page assistant/);
   assert.match(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
+  assert.match(harness.getRootHtml(), /placeholder="Front Desk"/);
+  assert.match(harness.getRootHtml(), /Leave blank to show the default title, Front Desk\./);
+  assert.doesNotMatch(harness.getRootHtml(), /placeholder="How can we help\?"/);
   assert.doesNotMatch(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
 });
 

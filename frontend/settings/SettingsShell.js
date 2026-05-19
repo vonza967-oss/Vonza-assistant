@@ -778,7 +778,7 @@
     const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
     const primaryColor = agent.primaryColor || "#14b8a6";
     const fullPageConfig = normalizeFullPageConfig(agent);
-    const fullPageHeadline = fullPageConfig.headline || "How can we help?";
+    const fullPageHeadline = fullPageConfig.headline || "Front Desk";
     const fullPageSubtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
     const fullPageAccentColor = fullPageConfig.accentColor || primaryColor;
     const fullPageSuggestedQuestionsText = fullPageConfig.suggestedQuestions.join("\n");
@@ -869,14 +869,15 @@
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Full-page assistant</h3>
-                  <p class="settings-shell-section-copy">Customize the hosted page used for support links, booking/help pages, QR codes, and iframe embeds.</p>
+                  <p class="settings-shell-section-copy">Customize the title, supporting copy, and starter actions for support links, booking/help pages, QR codes, and iframe embeds.</p>
                 </div>
               </div>
               <div class="settings-full-page-grid">
                 <div class="settings-shell-field-stack">
                   <div class="field">
                     <label for="full-page-headline">Headline</label>
-                    <input id="full-page-headline" name="full_page_headline" type="text" maxlength="80" value="${escapeHtml(fullPageConfig.headline || "")}" placeholder="How can we help?">
+                    <input id="full-page-headline" name="full_page_headline" type="text" maxlength="80" value="${escapeHtml(fullPageConfig.headline || "")}" placeholder="Front Desk">
+                    <p class="field-help">Leave blank to show the default title, Front Desk.</p>
                   </div>
                   <div class="field">
                     <label for="full-page-subtitle">Subtitle</label>

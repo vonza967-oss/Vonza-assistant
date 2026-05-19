@@ -123,8 +123,8 @@ function renderBusinessHelp() {
 
       <section class="help-hero">
         <div>
-          <h2>How can we help?</h2>
-          <p>Ask about services, pricing, bookings, quotes, or contact details.</p>
+          <h2>Front Desk</h2>
+          <p>Ask about services, pricing, quotes, or contact details.</p>
         </div>
       </section>
 

@@ -65,6 +65,8 @@ const DEFAULT_WIDGET_CONFIG = {
   secondaryColor: "#7c4dff",
   themeMode: "dark",
 };
+const DEFAULT_FULL_PAGE_HEADLINE = "Front Desk";
+const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
 
 const WIDGET_PHASES = Object.freeze({
   ENTRY: "entry",
@@ -1004,8 +1006,8 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const fullPageConfig = getFullPageConfig(config);
   const customLogoUrl = trimText(fullPageConfig.logoUrl || config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
-  const headline = fullPageConfig.headline || "How can we help?";
-  const subtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
+  const headline = fullPageConfig.headline || DEFAULT_FULL_PAGE_HEADLINE;
+  const subtitle = fullPageConfig.subtitle || DEFAULT_FULL_PAGE_SUBTITLE;
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
   const domainEl = document.getElementById("page-business-domain");

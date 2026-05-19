@@ -139,7 +139,7 @@ html.vonza-mode-page .ambient {
   width: 100%;
   min-width: 0;
   align-self: stretch;
-  text-align: left;
+  text-align: center;
 }
 
 html.vonza-mode-widget .page-assistant-hero {
@@ -223,7 +223,9 @@ html.vonza-mode-page .page-assistant-hero:not([hidden]) {
 }
 
 .page-business-heading h1 {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
 }
 
 #page-business-name {
@@ -1527,11 +1529,12 @@ input:focus-visible {
   }
 
   html.vonza-mode-page .page-assistant-hero {
-    text-align: left;
+    text-align: center;
   }
 
   html.vonza-mode-page .page-assistant-hero p:last-child {
-    margin-left: 0;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .page-action-list {
@@ -1611,14 +1614,17 @@ html.vonza-mode-page body {
 }
 
 html.vonza-mode-page .app-shell {
-  max-width: 1240px;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
-  gap: 20px;
-  padding: clamp(18px, 3vw, 34px) 18px 22px;
+  max-width: 980px;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: clamp(14px, 2.2vw, 22px);
+  padding: clamp(18px, 3vw, 32px) 18px 24px;
 }
 
 html.vonza-mode-page .page-assistant-hero:not([hidden]) {
-  gap: 20px;
+  width: min(100%, 940px);
+  justify-items: center;
+  gap: 14px;
 }
 
 html.vonza-mode-page .page-business-header,
@@ -1634,9 +1640,10 @@ html.vonza-mode-page .assistant-state {
 html.vonza-mode-page .page-business-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 16px;
-  padding: 18px 20px;
+  width: min(100%, 760px);
+  padding: 12px 16px;
 }
 
 .page-business-identity {
@@ -1688,39 +1695,49 @@ html.vonza-mode-page .page-assistant-eyebrow {
 }
 
 html.vonza-mode-page .page-context-panel {
+  width: min(100%, 880px);
+  justify-items: center;
+  text-align: center;
   align-content: start;
-  gap: clamp(18px, 3vw, 26px);
-  min-height: 620px;
-  padding: clamp(24px, 4vw, 42px);
+  gap: clamp(10px, 2vw, 16px);
+  min-height: 0;
+  padding: 4px 0 2px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 html.vonza-mode-page .page-context-panel h2 {
-  max-width: 680px;
+  max-width: min(100%, 680px);
   color: #14201f;
-  font-size: clamp(2.35rem, 6vw, 4.25rem);
-  line-height: 0.98;
+  font-size: clamp(1.7rem, 3.8vw, 2.45rem);
+  line-height: 1.08;
   letter-spacing: 0;
 }
 
 html.vonza-mode-page .page-context-panel #page-assistant-subtitle {
   max-width: 640px;
   color: #63706e;
-  font-size: clamp(1rem, 2vw, 1.12rem);
+  font-size: clamp(0.94rem, 1.8vw, 1.06rem);
 }
 
 html.vonza-mode-page .page-action-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  width: min(100%, 760px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
   margin-top: 4px;
 }
 
 html.vonza-mode-page .page-action-card {
-  min-height: 78px;
+  flex: 1 1 180px;
+  max-width: 240px;
+  min-height: 58px;
   display: grid;
   justify-items: start;
-  gap: 6px;
-  padding: 17px;
+  gap: 4px;
+  padding: 12px 14px;
   background: #fbfcfc;
   border-color: rgba(15, 31, 29, 0.1);
 }
@@ -1744,25 +1761,29 @@ html.vonza-mode-page .page-action-label {
 }
 
 html.vonza-mode-page .page-trust-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: auto;
+  width: min(100%, 760px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 0;
 }
 
 html.vonza-mode-page .page-trust-row span {
   justify-content: center;
-  min-height: 48px;
+  min-height: 30px;
+  padding: 5px 10px;
   border: 1px solid rgba(15, 31, 29, 0.1);
-  border-radius: 8px;
+  border-radius: 999px;
   background: #ffffff;
   color: #40504e;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   text-align: center;
 }
 
 html.vonza-mode-page .chat-container {
-  min-height: 720px;
+  width: min(100%, 900px);
+  min-height: min(680px, calc(100vh - 260px));
   background: #ffffff;
   backdrop-filter: none;
 }
@@ -2392,7 +2413,7 @@ html.vonza-mode-page.embedded-mode.embedded-size-full .page-business-heading h1,
 html.vonza-mode-page body.embedded.embedded-size-full .page-business-heading h1 {
   overflow-wrap: break-word;
   word-break: normal;
-  hyphens: auto;
+  hyphens: none;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full .widget-phase-chat,
@@ -2439,21 +2460,20 @@ html.vonza-mode-page body.embedded.embedded-size-full .powered-by {
 @media (min-width: 1100px) {
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .app-shell,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .app-shell {
-    max-width: 1360px;
+    max-width: none;
     margin: 0 auto;
-    grid-template-columns: minmax(320px, 360px) minmax(620px, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    justify-items: stretch;
-    gap: clamp(16px, 2vw, 24px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: center;
+    gap: clamp(10px, 1.5vw, 16px);
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-assistant-hero:not([hidden]),
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-assistant-hero:not([hidden]) {
-    width: 100%;
-    min-width: 320px;
-    height: 100%;
-    overflow-y: auto;
-    scrollbar-width: thin;
+    width: min(100%, var(--full-page-shell-max-width));
+    min-width: 0;
+    height: auto;
+    overflow-y: visible;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-business-header,
@@ -2484,38 +2504,36 @@ html.vonza-mode-page body.embedded.embedded-size-full .powered-by {
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-context-panel,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-context-panel {
-    gap: 12px;
-    padding: 16px;
-    border: 1px solid color-mix(in srgb, var(--brand-primary) 12%, rgba(15, 23, 42, 0.08) 88%);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.94);
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-context-panel h2,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-context-panel h2 {
-    font-size: clamp(1.35rem, 1.8vw, 1.75rem);
+    font-size: clamp(1.5rem, 2.5vw, 2.35rem);
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-action-list,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-action-list {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-action-card,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-action-card {
-    max-width: none;
+    max-width: 260px;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .page-trust-row,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .page-trust-row {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-split .chat-container,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-split .chat-container {
-    width: 100%;
+    width: min(100%, var(--full-page-shell-max-width));
   }
 }
 
