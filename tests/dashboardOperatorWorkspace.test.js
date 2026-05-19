@@ -3451,8 +3451,8 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /data-action="copy-full-page-iframe"/);
   assert.match(pagePanel, /Copy smart snippet/);
   assert.match(pagePanel, /Copy iframe snippet/);
-  assert.match(pagePanel, /Recommended\. Automatically adjusts sizing for most websites\./);
-  assert.match(pagePanel, /Advanced fallback\. Use if your website builder does not allow scripts\./);
+  assert.match(pagePanel, /Recommended\. Automatically adjusts to most website layouts\./);
+  assert.match(pagePanel, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(pagePanel, /Recommended smart snippet/);
   assert.match(pagePanel, /Advanced iframe snippet/);
   assert.match(pagePanel, /data-vonza-assistant/);

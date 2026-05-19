@@ -2298,6 +2298,11 @@ html.vonza-mode-page body.embedded.embedded-size-full .page-action-list {
   margin-top: 2px;
 }
 
+html.vonza-mode-page.embedded-mode.embedded-smart .page-action-list,
+html.vonza-mode-page body.embedded.embedded-smart .page-action-list {
+  display: none;
+}
+
 html.vonza-mode-page.embedded-mode.embedded-size-full .page-action-card,
 html.vonza-mode-page body.embedded.embedded-size-full .page-action-card {
   flex: 1 1 176px;

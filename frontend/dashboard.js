@@ -15215,7 +15215,7 @@ function buildInstallSection(agent, options = {}) {
         </div>
         <div class="full-page-install-output" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" hidden>
           <p class="install-help">Place the assistant inside part of an existing page.</p>
-          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts sizing for most websites.</p>
+          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
           ${buildInstallCopyBlock({
             id: "section-assistant-smart-embed",
             label: "Recommended smart snippet",
@@ -15226,7 +15226,7 @@ function buildInstallSection(agent, options = {}) {
             disabled: !sectionSmartEmbed,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help"><strong>Raw iframe:</strong> Advanced fallback. Use if your website builder does not allow scripts.</p>
+          <p class="install-help"><strong>Iframe:</strong> Advanced fallback. Use this if your website builder does not allow scripts.</p>
           ${buildInstallCopyBlock({
             id: "section-assistant-iframe",
             label: "Advanced iframe snippet",
@@ -15240,7 +15240,7 @@ function buildInstallSection(agent, options = {}) {
         </div>
         <div class="full-page-install-output" id="full-page-option-embed" role="tabpanel" data-full-page-option-panel="embed" hidden>
           <p class="install-help">Use this when the assistant is the main content of a dedicated page on your website.</p>
-          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts sizing for most websites.</p>
+          <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
             label: "Recommended smart snippet",
@@ -15251,7 +15251,7 @@ function buildInstallSection(agent, options = {}) {
             disabled: !fullPageSmartEmbed,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help"><strong>Raw iframe:</strong> Advanced fallback. Use if your website builder does not allow scripts.</p>
+          <p class="install-help"><strong>Iframe:</strong> Advanced fallback. Use this if your website builder does not allow scripts.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
             label: "Advanced iframe snippet",

@@ -7,6 +7,7 @@ const EMBEDDED_MODE = searchParams.get("embedded") === "1";
 const EMBEDDED_SURFACE = normalizeEmbeddedSurface(searchParams.get("surface"));
 const EMBEDDED_SIZE = normalizeEmbeddedSize(searchParams.get("size"));
 const EMBEDDED_LAYOUT = normalizeEmbeddedLayout(searchParams.get("layout"));
+const EMBEDDED_VARIANT = normalizeEmbeddedVariant(searchParams.get("variant"));
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
   searchParams.get("install_id") ||
@@ -186,6 +187,10 @@ function normalizeEmbeddedLayout(value) {
   return trimText(value).toLowerCase() === "split" ? "split" : "chat";
 }
 
+function normalizeEmbeddedVariant(value) {
+  return trimText(value).toLowerCase() === "smart" ? "smart" : "iframe";
+}
+
 function getRouteAgentKey() {
   const match = window.location.pathname.match(/^\/(?:a|assistant)\/([^/?#]+)/);
 
@@ -206,6 +211,10 @@ function isPageMode() {
 
 function isFullEmbeddedPageMode() {
   return isPageMode() && EMBEDDED_MODE && EMBEDDED_SIZE === "full";
+}
+
+function isSmartEmbeddedPageMode() {
+  return isPageMode() && EMBEDDED_MODE && EMBEDDED_VARIANT === "smart";
 }
 
 function getWidgetStorageScope() {
@@ -883,6 +892,7 @@ function applyDisplayModeClasses() {
   });
   document.documentElement.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
   document.documentElement.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
+  document.documentElement.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
@@ -893,6 +903,7 @@ function applyDisplayModeClasses() {
   });
   document.body?.classList.toggle("embedded-layout-chat", EMBEDDED_MODE && EMBEDDED_LAYOUT === "chat");
   document.body?.classList.toggle("embedded-layout-split", EMBEDDED_MODE && EMBEDDED_LAYOUT === "split");
+  document.body?.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
@@ -1056,7 +1067,9 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (pageActionList) {
-    pageActionList.innerHTML = getPageActionCards(config).map((card) => `
+    const showPageActionList = !isSmartEmbeddedPageMode();
+    pageActionList.hidden = !showPageActionList;
+    pageActionList.innerHTML = showPageActionList ? getPageActionCards(config).map((card) => `
       <button
         class="page-action-card"
         type="button"
@@ -1066,7 +1079,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
         <span class="page-action-label">${escapeHtml(card.label)}</span>
         <span class="page-action-copy">${escapeHtml(card.description || card.copy || "")}</span>
       </button>
-    `).join("");
+    `).join("") : "";
   }
 
   if (pageTrustRow) {
@@ -2489,6 +2502,9 @@ if (EMBEDDED_MODE) {
   document.body.classList.add(`embedded-surface-${EMBEDDED_SURFACE}`);
   document.body.classList.add(`embedded-size-${EMBEDDED_SIZE}`);
   document.body.classList.add(`embedded-layout-${EMBEDDED_LAYOUT}`);
+  if (EMBEDDED_VARIANT === "smart") {
+    document.body.classList.add("embedded-smart");
+  }
   window.addEventListener("load", queueEmbeddedHeightUpdate);
   window.addEventListener("resize", queueEmbeddedHeightUpdate);
 }

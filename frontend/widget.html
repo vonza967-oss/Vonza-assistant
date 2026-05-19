@@ -32,6 +32,9 @@
         ? vonzaInitialParams.get("surface").toLowerCase()
         : "card";
       document.documentElement.classList.add(`embedded-surface-${vonzaEmbeddedSurface}`);
+      if ((vonzaInitialParams.get("variant") || "").toLowerCase() === "smart") {
+        document.documentElement.classList.add("embedded-smart");
+      }
     }
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">

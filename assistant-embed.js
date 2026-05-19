@@ -115,6 +115,7 @@
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("mode", "page");
     url.searchParams.set("embedded", "1");
+    url.searchParams.set("variant", "smart");
     url.searchParams.set("size", size);
 
     if (surface) {

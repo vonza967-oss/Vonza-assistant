@@ -2271,6 +2271,72 @@ test("full embedded page mode is chat-first, ungated, and uses configured full-p
   });
 });
 
+test("smart full embedded page mode shows prompt chips only inside the assistant card", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&variant=smart",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&variant=smart",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                full_page_config: {
+                  headline: "Ask Acme",
+                  suggested_questions: [
+                    "Can you compare the plans?",
+                    "Can I get a custom estimate?",
+                  ],
+                  action_cards: [
+                    {
+                      label: "Compare plans",
+                      prompt: "Can you compare the plans?",
+                      type: "pricing",
+                      enabled: true,
+                    },
+                    {
+                      label: "Start an estimate",
+                      prompt: "Can I get a custom estimate?",
+                      type: "quote",
+                      enabled: true,
+                    },
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.documentElement.classList.contains("embedded-smart"), true);
+  assert.equal(harness.body.classList.contains("embedded-smart"), true);
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="Can you compare the plans\?"/);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /data-quick-reply="Can I get a custom estimate\?"/);
+  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
+});
+
 test("dashboard install iframes separate section embed and full-page iframe while QR stays hosted", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const widget = readFileSync(path.join(repoRoot, "frontend", "widget.html"), "utf8");
@@ -2288,8 +2354,8 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /data-vonza-assistant/);
   assert.match(dashboard, /Recommended smart snippet/);
   assert.match(dashboard, /Advanced iframe snippet/);
-  assert.match(dashboard, /Recommended\. Automatically adjusts sizing for most websites\./);
-  assert.match(dashboard, /Advanced fallback\. Use if your website builder does not allow scripts\./);
+  assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
+  assert.match(dashboard, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat" \}\)/);
   assert.match(dashboard, /Place the assistant inside part of an existing page/);
@@ -2308,12 +2374,14 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(styles, /embedded-mode \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-size-full \.page-action-list[\s\S]*display: flex/);
+  assert.match(styles, /embedded-smart \.page-action-list[\s\S]*display: none/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
   assert.match(styles, /embedded-surface-flat[\s\S]*box-shadow: none/);
   assert.match(styles, /embedded-surface-transparent[\s\S]*background: transparent/);
   assert.match(script, /vonza:embedded-height/);
   assert.match(script, /isFullEmbeddedPageMode/);
+  assert.match(script, /isSmartEmbeddedPageMode/);
   assert.match(script, /\["card", "flat", "transparent"\]/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);

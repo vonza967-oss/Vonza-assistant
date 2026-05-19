@@ -126,6 +126,7 @@ test("/assistant-embed.js smart script creates section iframe URL with standard 
   assert.equal(url.searchParams.get("agent_id"), "agent-1");
   assert.equal(url.searchParams.get("mode"), "page");
   assert.equal(url.searchParams.get("embedded"), "1");
+  assert.equal(url.searchParams.get("variant"), "smart");
   assert.equal(url.searchParams.get("size"), "standard");
   assert.equal(url.searchParams.get("surface"), null);
   assert.equal(harness.iframe.style.width, "100%");
@@ -144,6 +145,7 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(url.searchParams.get("agent_id"), "agent-1");
   assert.equal(url.searchParams.get("mode"), "page");
   assert.equal(url.searchParams.get("embedded"), "1");
+  assert.equal(url.searchParams.get("variant"), "smart");
   assert.equal(url.searchParams.get("size"), "full");
   assert.equal(url.searchParams.get("surface"), "flat");
   assert.equal(harness.iframe.style.width, "100%");
