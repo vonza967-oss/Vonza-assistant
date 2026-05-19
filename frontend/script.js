@@ -1134,7 +1134,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   if (pageTrustRow) {
     if (isCanvasEmbeddedPageMode()) {
       pageTrustRow.innerHTML = `
-        <span class="canvas-status-card">
+        <span class="canvas-status-pill">
           <span class="canvas-status-title">AI assistant online</span>
           <span class="canvas-status-instant"><span class="status-dot" aria-hidden="true"></span>Replies instantly</span>
         </span>
