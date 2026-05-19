@@ -23,6 +23,11 @@
         : "standard";
       document.documentElement.classList.add("embedded-mode");
       document.documentElement.classList.add(`embedded-size-${vonzaEmbeddedSize}`);
+      document.documentElement.classList.add(`embedded-layout-${
+        vonzaEmbeddedSize === "full" && (vonzaInitialParams.get("layout") || "").toLowerCase() === "split"
+          ? "split"
+          : "chat"
+      }`);
       document.documentElement.classList.add(vonzaInitialParams.get("surface") === "flat"
         ? "embedded-surface-flat"
         : "embedded-surface-card");

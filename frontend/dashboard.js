@@ -2782,6 +2782,13 @@ function normalizeWebsiteHeaderHeight(value = 120) {
 
 function buildFullPageAssistantIframe(agent = {}, headerHeight = 120) {
   const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
+  return `<div style="width:100vw;margin-left:calc(50% - 50vw);">
+  ${buildSimpleFullPageAssistantIframe(agent, normalizedHeaderHeight)}
+</div>`;
+}
+
+function buildSimpleFullPageAssistantIframe(agent = {}, headerHeight = 120) {
+  const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat" })}"
   title="AI assistant"
@@ -15039,6 +15046,7 @@ function buildInstallSection(agent, options = {}) {
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
   const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
   const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
+  const simpleFullPageIframe = fullPageUrl ? buildSimpleFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
@@ -15201,23 +15209,33 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" hidden>
-          <p class="install-help">Best when the assistant is the main content of a dedicated page on your website.</p>
+          <p class="install-help">Use this when the assistant is the main content of a dedicated page.</p>
           <div class="field compact-field">
             <label for="full-page-header-height">Website header height</label>
             <input id="full-page-header-height" type="number" min="0" max="400" step="1" value="120" data-full-page-header-height>
-            <p class="field-help">Optional. Default is 120.</p>
+            <p class="field-help">If your website has a sticky header, adjust the 120px value.</p>
           </div>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
-            label: "Full-page iframe",
+            label: "Full-width page snippet",
             value: fullPageIframe,
-            rows: 7,
+            rows: 9,
             buttonAction: "copy-full-page-iframe",
-            buttonLabel: "Copy full-page iframe code",
+            buttonLabel: "Copy full-width page snippet",
             disabled: !fullPageIframe,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help">If your site header is taller or shorter, adjust the 120px value.</p>
+          <p class="install-help">If your website builder constrains content width, use the full-width wrapper snippet.</p>
+          ${buildInstallCopyBlock({
+            id: "full-page-assistant-simple-iframe",
+            label: "Simple iframe alternative",
+            value: simpleFullPageIframe,
+            rows: 7,
+            buttonAction: "copy-simple-full-page-iframe",
+            buttonLabel: "Copy simple iframe",
+            disabled: !simpleFullPageIframe,
+            className: "full-page-iframe-output",
+          })}
         </div>
       </section>
       <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
@@ -16579,8 +16597,17 @@ async function copyFullPageAssistantIframe(agent) {
   const textarea = document.getElementById("full-page-assistant-iframe");
   await copyDashboardText(
     textarea?.value || buildFullPageAssistantIframe(agent),
-    "Full-page iframe copied.",
+    "Full-width page snippet copied.",
     "full-page-assistant-iframe"
+  );
+}
+
+async function copySimpleFullPageAssistantIframe(agent) {
+  const textarea = document.getElementById("full-page-assistant-simple-iframe");
+  await copyDashboardText(
+    textarea?.value || buildSimpleFullPageAssistantIframe(agent),
+    "Simple iframe copied.",
+    "full-page-assistant-simple-iframe"
   );
 }
 
@@ -16702,6 +16729,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const optionPanels = document.querySelectorAll("[data-full-page-option-panel]");
   const headerHeightInput = document.querySelector("[data-full-page-header-height]");
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
+  const simpleFullPageIframeOutput = document.getElementById("full-page-assistant-simple-iframe");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -16719,13 +16747,23 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   };
 
   const syncFullPageIframe = () => {
-    if (!fullPageIframeOutput) {
+    if (!fullPageIframeOutput && !simpleFullPageIframeOutput) {
       return;
     }
 
-    fullPageIframeOutput.value = hasFullPageTarget
-      ? buildFullPageAssistantIframe(agent, headerHeightInput?.value || 120)
-      : "";
+    const headerHeight = headerHeightInput?.value || 120;
+
+    if (fullPageIframeOutput) {
+      fullPageIframeOutput.value = hasFullPageTarget
+        ? buildFullPageAssistantIframe(agent, headerHeight)
+        : "";
+    }
+
+    if (simpleFullPageIframeOutput) {
+      simpleFullPageIframeOutput.value = hasFullPageTarget
+        ? buildSimpleFullPageAssistantIframe(agent, headerHeight)
+        : "";
+    }
   };
 
   optionButtons.forEach((button) => {
@@ -17136,6 +17174,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copyFullPageUrlButtons = document.querySelectorAll('[data-action="copy-full-page-url"]');
   const copySectionIframeButtons = document.querySelectorAll('[data-action="copy-section-assistant-iframe"]');
   const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
+  const copySimpleFullPageIframeButtons = document.querySelectorAll('[data-action="copy-simple-full-page-iframe"]');
   const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
   const verifyInstallButtons = document.querySelectorAll('[data-action="verify-install"]');
   const previewLinks = document.querySelectorAll('[data-action="open-preview"]');
@@ -19585,6 +19624,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   copyFullPageIframeButtons.forEach((button) => {
     button.addEventListener("click", () => copyFullPageAssistantIframe(agent));
+  });
+
+  copySimpleFullPageIframeButtons.forEach((button) => {
+    button.addEventListener("click", () => copySimpleFullPageAssistantIframe(agent));
   });
 
   downloadFullPageQrButtons.forEach((button) => {

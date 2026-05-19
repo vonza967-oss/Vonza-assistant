@@ -3442,16 +3442,22 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /data-action="copy-full-page-url"/);
   assert.match(pagePanel, /data-action="copy-section-assistant-iframe"/);
   assert.match(pagePanel, /data-action="copy-full-page-iframe"/);
+  assert.match(pagePanel, /data-action="copy-simple-full-page-iframe"/);
   assert.match(pagePanel, /Copy section embed code/);
-  assert.match(pagePanel, /Copy full-page iframe code/);
+  assert.match(pagePanel, /Copy full-width page snippet/);
+  assert.match(pagePanel, /Copy simple iframe/);
   assert.match(pagePanel, /Best for adding the assistant inside an existing page section\./);
-  assert.match(pagePanel, /Best when the assistant is the main content of a dedicated page on your website\./);
+  assert.match(pagePanel, /Use this when the assistant is the main content of a dedicated page\./);
+  assert.match(pagePanel, /Full-width page snippet/);
+  assert.match(pagePanel, /Simple iframe alternative/);
   assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=standard|mode=page&embedded=1&size=standard/);
   assert.match(pagePanel, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
   assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=full&amp;surface=flat|mode=page&embedded=1&size=full&surface=flat/);
+  assert.match(pagePanel, /width:100vw;margin-left:calc\(50% - 50vw\)/);
   assert.match(pagePanel, /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
   assert.match(pagePanel, /Website header height/);
-  assert.match(pagePanel, /If your site header is taller or shorter, adjust the 120px value\./);
+  assert.match(pagePanel, /If your website has a sticky header, adjust the 120px value\./);
+  assert.match(pagePanel, /If your website builder constrains content width, use the full-width wrapper snippet\./);
   assert.doesNotMatch(pagePanel, /Use <code>size=compact<\/code>|Use <code>surface=flat<\/code>/);
   assert.doesNotMatch(pagePanel, /min-height:520px/);
   assert.match(pagePanel, /Customize full-page assistant/);
@@ -3583,6 +3589,7 @@ test("install copy helpers write the current install code and full-page sharing 
   await harness.copyFullPageAssistantUrl(agent);
   await harness.copySectionAssistantIframe(agent);
   await harness.copyFullPageAssistantIframe(agent);
+  await harness.copySimpleFullPageAssistantIframe(agent);
 
   assert.match(copied[0], /\/embed\.js/);
   assert.match(copied[0], /data-install-id="install-1"/);
@@ -3592,8 +3599,12 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[2], /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(copied[2], /100vh|min-height:520px/);
   assert.match(copied[3], /<iframe/);
+  assert.match(copied[3], /<div style="width:100vw;margin-left:calc\(50% - 50vw\);">/);
   assert.match(copied[3], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat/);
   assert.match(copied[3], /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
+  assert.match(copied[4], /^<iframe/);
+  assert.doesNotMatch(copied[4], /width:100vw;margin-left/);
+  assert.match(copied[4], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat/);
 });
 
 test("install section falls back to widget page URL when public slug is missing", () => {
