@@ -2120,7 +2120,7 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(widget, /id="assistant-loading-state"/);
   assert.match(widget, /id="assistant-unavailable-state"/);
   assert.match(widget, /id="page-assistant-hero"/);
-  assert.match(widget, /<h2 id="page-help-title">Front Desk<\/h2>/);
+  assert.match(widget, /<h2 id="page-help-title" class="page-help-title canvas-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(widget, /<h2 id="page-help-title">How can we help\?<\/h2>/);
   assert.match(widget, /id="page-powered-by"/);
   assert.match(widget, /id="page-action-list"/);
@@ -2202,12 +2202,19 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-layout-canvas \.chat-container[\s\S]*border: 0[\s\S]*box-shadow: none/);
   assert.match(styles, /embedded-layout-canvas \.chat-header[\s\S]*display: none/);
   assert.match(styles, /embedded-layout-canvas \.page-trust-row[\s\S]*position: absolute[\s\S]*right: 0/);
-  assert.match(styles, /--canvas-title-offset: 96px/);
-  assert.match(styles, /--canvas-title-offset: 72px/);
-  assert.match(styles, /--canvas-title-offset: 40px/);
+  assert.match(styles, /--canvas-title-offset: clamp\(120px, 18dvh, 190px\)/);
+  assert.match(styles, /--canvas-title-gap: clamp\(56px, 10dvh, 120px\)/);
+  assert.match(styles, /--canvas-composer-lift: clamp\(44px, 9dvh, 108px\)/);
+  assert.match(styles, /--canvas-title-offset: clamp\(82px, 14dvh, 130px\)/);
+  assert.match(styles, /--canvas-title-offset: clamp\(38px, 10dvh, 64px\)/);
   assert.match(styles, /vonza-canvas-title-hidden \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: none/);
   assert.match(styles, /vonza-canvas-title-hidden \.chat-container[\s\S]*padding-top: var\(--canvas-title-hidden-offset\)/);
-  assert.match(styles, /embedded-layout-canvas \.input-area[\s\S]*min-height: 76px[\s\S]*box-shadow: 0 18px 48px/);
+  assert.match(styles, /embedded-layout-canvas \.page-context-panel h2[\s\S]*font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif[\s\S]*font-size: clamp\(3\.5rem, 7vw, 4\.5rem\)/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-empty \.widget-phase-chat[\s\S]*justify-content: end[\s\S]*padding-bottom: var\(--canvas-composer-lift\)/);
+  assert.match(styles, /embedded-layout-canvas \.input-area[\s\S]*min-height: 80px[\s\S]*box-shadow: 0 20px 52px/);
+  assert.match(styles, /embedded-layout-canvas \.send-button[\s\S]*background: var\(--canvas-send-color, #111827\)/);
+  assert.doesNotMatch(styles, /embedded-layout-canvas \.send-button[\s\S]*background: color-mix\(in srgb, var\(--brand-primary\) 76%/);
+  assert.match(styles, /embedded-layout-canvas \.page-identity-legal[\s\S]*display: block[\s\S]*font-size: 0\.64rem/);
   assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
   assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
 });
@@ -2316,7 +2323,8 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(canvasFullHarness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(canvasFullHarness.elements.get("page-help-title").textContent, "Front Desk");
   assert.equal(canvasFullHarness.elements.get("page-help-title").hidden, false);
-  assert.equal(canvasFullHarness.elements.get("page-assistant-subtitle").hidden, false);
+  assert.equal(canvasFullHarness.elements.get("page-assistant-subtitle").hidden, true);
+  assert.equal(canvasFullHarness.elements.get("page-assistant-subtitle").textContent, "");
   assert.equal(canvasFullHarness.elements.get("page-action-list").hidden, true);
   assert.equal(canvasFullHarness.elements.get("page-action-list").innerHTML, "");
   assert.equal(canvasFullHarness.elements.get("intro-message").hidden, true);
@@ -2332,7 +2340,9 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.match(canvasFullHarness.elements.get("quick-replies").innerHTML, /Request a quote/);
   assert.doesNotMatch(canvasFullHarness.elements.get("quick-replies").innerHTML, />Ask about services</);
   assert.equal((canvasFullHarness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
-  assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /Replies instantly|Instant replies|Typically replies instantly|AI assistant/i);
+  assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
+  assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
+  assert.match(canvasFullHarness.elements.get("page-trust-row").innerHTML, /canvas-status-card/);
   assert.equal((canvasFullHarness.elements.get("page-help-title").textContent.match(/Front Desk/g) || []).length, 1);
   assert.doesNotMatch(canvasFullHarness.elements.get("page-help-title").textContent, /How can we help/i);
   assert.equal(hiddenTitleCanvasHarness.elements.get("page-assistant-hero").hidden, false);
@@ -2574,6 +2584,7 @@ test("canvas full embedded page mode uses a composer-first layout without duplic
   assert.equal(harness.hooks.isCanvasEmbeddedPageMode(), true);
   assert.equal(harness.elements.get("page-help-title").textContent, "Ask Acme");
   assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "Clear answers for plans, services, and quotes.");
+  assert.equal(harness.elements.get("page-assistant-subtitle").hidden, false);
   assert.equal(harness.elements.get("page-action-list").hidden, true);
   assert.equal(harness.elements.get("page-action-list").innerHTML, "");
   assert.equal(harness.elements.get("intro-message").hidden, true);
@@ -2582,6 +2593,8 @@ test("canvas full embedded page mode uses a composer-first layout without duplic
   assert.equal(harness.elements.get("canvas-intro-line").hidden, true);
   assert.equal(harness.elements.get("canvas-intro-line").textContent, "");
   assert.equal(harness.elements.get("welcome-message").textContent, "Welcome to Acme support.");
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
   assert.equal((quickRepliesHtml.match(/quick-reply-chip/g) || []).length, 4);
   assert.match(quickRepliesHtml, /data-quick-reply="Can you compare the plans\?"/);
   assert.match(quickRepliesHtml, /data-quick-reply="Can I get a custom estimate\?"/);
@@ -2654,6 +2667,9 @@ test("canvas full embedded page mode keeps empty state clean and renders message
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), false);
   assert.equal(harness.elements.get("intro-message").hidden, true);
   assert.equal(harness.elements.get("canvas-intro-line").hidden, true);
+  assert.equal(harness.elements.get("page-assistant-subtitle").hidden, true);
+  assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "");
+  assert.doesNotMatch(harness.elements.get("page-trust-row").innerHTML, /Configured welcome should not render/);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("message") && !String(child.className || "").includes("intro")).length, 0);
 
   input.value = "What services do you offer?";
@@ -2716,6 +2732,8 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(styles, /embedded-size-full \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*display: grid/);
   assert.match(styles, /embedded-size-full \.page-action-list[\s\S]*display: flex/);
   assert.match(styles, /embedded-smart \.page-action-list[\s\S]*display: none/);
+  assert.match(widget, /page-context-panel[\s\S]*<\/div>\s*<div class="page-trust-row" id="page-trust-row"/);
+  assert.match(widget, /composer-shell[\s\S]*id="quick-replies"[\s\S]*class="input-area"/);
   assert.match(styles, /embedded-mode \.page-identity-inline[\s\S]*border: 0/);
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
   assert.match(styles, /embedded-surface-flat[\s\S]*box-shadow: none/);

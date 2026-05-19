@@ -624,6 +624,12 @@ function getFullPageConfig(config = widgetConfig) {
   };
 }
 
+function hasCustomFullPageSubtitle(config = widgetConfig) {
+  const rawConfig = getRawFullPageConfig(config);
+  const rawSubtitle = normalizeLimitedText(rawConfig.subtitle, 180);
+  return Boolean(rawSubtitle && rawSubtitle !== DEFAULT_FULL_PAGE_SUBTITLE);
+}
+
 function hasConfiguredFullPageActionCards(config = widgetConfig) {
   const rawConfig = getRawFullPageConfig(config);
   return Array.isArray(rawConfig.actionCards) || Array.isArray(rawConfig.action_cards);
@@ -1040,7 +1046,12 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const customLogoUrl = trimText(fullPageConfig.logoUrl || config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
   const headline = fullPageConfig.headline || DEFAULT_FULL_PAGE_HEADLINE;
-  const subtitle = fullPageConfig.subtitle || DEFAULT_FULL_PAGE_SUBTITLE;
+  const hasCanvasSubtitle = isCanvasEmbeddedPageMode() && hasCustomFullPageSubtitle(config);
+  const subtitle = isCanvasEmbeddedPageMode()
+    ? hasCanvasSubtitle
+      ? fullPageConfig.subtitle
+      : ""
+    : fullPageConfig.subtitle || DEFAULT_FULL_PAGE_SUBTITLE;
   const showPageTitle = shouldShowPageTitle();
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
@@ -1076,7 +1087,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   if (subtitleEl) {
     subtitleEl.textContent = subtitle;
-    subtitleEl.hidden = !showPageTitle;
+    subtitleEl.hidden = !showPageTitle || (isCanvasEmbeddedPageMode() && !hasCanvasSubtitle);
   }
 
   if (domainEl) {
@@ -1121,10 +1132,19 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (pageTrustRow) {
-    pageTrustRow.innerHTML = fullPageConfig.trustItems
-      .slice(0, 3)
-      .map((item) => `<span>${escapeHtml(item)}</span>`)
-      .join("");
+    if (isCanvasEmbeddedPageMode()) {
+      pageTrustRow.innerHTML = `
+        <span class="canvas-status-card">
+          <span class="canvas-status-title">AI assistant online</span>
+          <span class="canvas-status-instant"><span class="status-dot" aria-hidden="true"></span>Replies instantly</span>
+        </span>
+      `;
+    } else {
+      pageTrustRow.innerHTML = fullPageConfig.trustItems
+        .slice(0, 3)
+        .map((item) => `<span>${escapeHtml(item)}</span>`)
+        .join("");
+    }
   }
 
   if (chatAssistantNameEl) {
@@ -2026,6 +2046,9 @@ function applyWidgetConfig(config = {}) {
   document.title = widgetConfig.assistantName;
   document.documentElement.style.setProperty("--brand-primary", brandPrimary);
   document.documentElement.style.setProperty("--brand-secondary", brandSecondary);
+  document.documentElement.style.setProperty("--canvas-send-color", isCanvasEmbeddedPageMode()
+    ? configuredPageAccentColor || "#111827"
+    : brandPrimary);
   if (isPageMode()) {
     document.documentElement.style.setProperty("--brand-ink", `color-mix(in srgb, ${brandPrimary} 72%, #14201f 28%)`);
     document.documentElement.style.setProperty("--brand-surface", `color-mix(in srgb, ${brandPrimary} 9%, #ffffff 91%)`);
