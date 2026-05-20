@@ -2464,6 +2464,93 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.doesNotMatch(panel, /frontdesk-context-grid/);
 });
 
+test("front desk training queue renders feedback metadata with owner-friendly labels", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  const markup = harness.buildTrainingQueueSection({
+    items: [
+      {
+        key: "feedback:feedback-1",
+        type: "knowledge_gap",
+        actionType: "knowledge_gap",
+        question: "Do you offer Saturday appointments?",
+        reply: "Please contact the business.",
+        whyFlagged: "Flagged because visitor feedback marked this answer not helpful.",
+        feedbackId: "feedback-1",
+        feedbackReason: "missing_details",
+        feedbackNote: "Visitor needed the Saturday cutoff.",
+        source: "visitor_feedback",
+        displayMode: "widget",
+        sourceRoute: "public_widget",
+        lastSeenAt: "2026-05-20T10:00:00.000Z",
+      },
+    ],
+  }, "queue");
+
+  assert.match(markup, /Do you offer Saturday appointments\?/);
+  assert.match(markup, /Please contact the business\./);
+  assert.match(markup, /Reason: Missing details/);
+  assert.match(markup, /Note: Visitor needed the Saturday cutoff\./);
+  assert.match(markup, /Assistant source: Website widget/);
+  assert.match(markup, />Improve answer<\/button>/);
+  assert.match(markup, />Save as approved answer<\/button>/);
+  assert.match(markup, />Resolve<\/button>/);
+  assert.match(markup, />Ignore<\/button>/);
+  assert.doesNotMatch(markup, /display_mode|sourceRoute|public_widget/);
+});
+
+test("front desk training queue hides empty notes and maps page and embedded sources", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const noNoteMarkup = harness.buildTrainingQueueSection({
+    items: [
+      {
+        key: "feedback:feedback-2",
+        type: "knowledge_gap",
+        actionType: "knowledge_gap",
+        question: "Where are you located?",
+        reply: "Please contact the business.",
+        whyFlagged: "Flagged because visitor feedback marked this answer not helpful.",
+        feedbackId: "feedback-2",
+        feedbackReason: "incorrect",
+        displayMode: "page",
+        sourceRoute: "/assistant/agent-key",
+      },
+    ],
+  }, "queue");
+  const embeddedMarkup = harness.buildTrainingQueueSection({
+    items: [
+      {
+        key: "feedback:feedback-3",
+        type: "knowledge_gap",
+        actionType: "knowledge_gap",
+        question: "Can I book online?",
+        reply: "Please contact the business.",
+        whyFlagged: "Flagged because visitor feedback marked this answer not helpful.",
+        feedbackId: "feedback-3",
+        feedbackReason: "did_not_answer",
+        displayMode: "page",
+        sourceRoute: "/a/agent-key?embedded=1",
+      },
+    ],
+  }, "queue");
+
+  assert.match(noNoteMarkup, /Reason: Incorrect/);
+  assert.match(noNoteMarkup, /Assistant source: Full-page assistant/);
+  assert.doesNotMatch(noNoteMarkup, /Note:/);
+  assert.doesNotMatch(noNoteMarkup, /\/assistant\/agent-key|displayMode|sourceRoute/);
+  assert.match(embeddedMarkup, /Reason: Did not answer/);
+  assert.match(embeddedMarkup, /Assistant source: Embedded assistant/);
+  assert.doesNotMatch(embeddedMarkup, /embedded=1|displayMode|sourceRoute/);
+});
+
 test("front desk test and launch CTAs use primary treatment", () => {
   const harness = createDashboardHarness({
     windowFlags: {

@@ -820,6 +820,13 @@ function normalizeAdditionalActionItem(item = {}, persistedMap = new Map()) {
     weakAnswer: item.weakAnswer === true || item.weak_answer === true,
     intent: cleanText(item.intent) || "general",
     sessionKey: cleanText(item.sessionKey || item.session_key),
+    feedbackId: cleanText(item.feedbackId || item.feedback_id),
+    feedbackReason: cleanText(item.feedbackReason || item.feedback_reason),
+    feedbackNote: cleanText(item.feedbackNote || item.feedback_note),
+    source: cleanText(item.source || item.source_type),
+    sourceLabel: cleanText(item.sourceLabel || item.source_label),
+    displayMode: cleanText(item.displayMode || item.display_mode),
+    sourceRoute: cleanText(item.sourceRoute || item.source_route),
     relatedActionKeys: Array.isArray(item.relatedActionKeys || item.related_action_keys)
       ? item.relatedActionKeys || item.related_action_keys
       : [],

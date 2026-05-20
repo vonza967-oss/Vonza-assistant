@@ -6,6 +6,7 @@ import {
   recordOwnerAnswerFeedback,
   updateVisitorReplyFeedbackStatus,
 } from "../src/services/analytics/visitorReplyFeedbackService.js";
+import { buildActionQueue } from "../src/services/analytics/actionQueueService.js";
 
 function createFeedbackSupabase(rows = []) {
   const state = {
@@ -103,6 +104,57 @@ test("owner not-helpful feedback creates a reviewable training queue item", asyn
   assert.equal(queueItems[0].feedbackReason, "missing_details");
   assert.match(queueItems[0].question, /Saturday appointments/i);
   assert.match(queueItems[0].reply, /Please contact/i);
+});
+
+test("feedback-derived action queue item preserves feedback metadata through normalization", () => {
+  const feedbackItems = buildKnowledgeImprovementQueueItemsFromFeedback([], [
+    {
+      id: "feedback-1",
+      rating: "not_helpful",
+      status: "new",
+      reason: "missing_details",
+      note: "Visitor needed the Saturday cutoff.",
+      userQuestion: "Do you offer Saturday appointments?",
+      assistantAnswer: "Please contact the business.",
+      displayMode: "widget",
+      sourceRoute: "public_widget",
+      sourceType: "visitor_feedback",
+      createdAt: "2026-05-20T10:00:00.000Z",
+    },
+  ]);
+
+  const actionQueue = buildActionQueue([], [], {
+    additionalItems: feedbackItems,
+  });
+  const item = actionQueue.items.find((entry) => entry.feedbackId === "feedback-1");
+
+  assert.ok(item);
+  assert.equal(item.feedbackReason, "missing_details");
+  assert.equal(item.feedbackNote, "Visitor needed the Saturday cutoff.");
+  assert.equal(item.displayMode, "widget");
+  assert.equal(item.sourceRoute, "public_widget");
+});
+
+test("feedback-derived action queue normalization tolerates missing optional metadata", () => {
+  const actionQueue = buildActionQueue([], [], {
+    additionalItems: [
+      {
+        key: "feedback:feedback-2",
+        type: "knowledge_gap",
+        actionType: "knowledge_gap",
+        question: "What is your refund policy?",
+        reply: "Please contact us.",
+        feedbackId: "feedback-2",
+      },
+    ],
+  });
+  const item = actionQueue.items.find((entry) => entry.feedbackId === "feedback-2");
+
+  assert.ok(item);
+  assert.equal(item.feedbackReason, "");
+  assert.equal(item.feedbackNote, "");
+  assert.equal(item.displayMode, "");
+  assert.equal(item.sourceRoute, "");
 });
 
 test("resolved or ignored feedback is not added to the training queue", () => {

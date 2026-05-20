@@ -9014,6 +9014,18 @@ function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activ
   const queueItems = (actionQueue.items || [])
     .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
     .slice(0, 12);
+  const getFeedbackReasonLabel = (value = "") => {
+    const normalized = trimText(value).toLowerCase().replaceAll("-", "_");
+    const labels = {
+      incorrect: "Incorrect",
+      missing_details: "Missing details",
+      too_vague: "Too vague",
+      did_not_answer: "Did not answer",
+      other: "Other",
+    };
+
+    return labels[normalized] || "";
+  };
   const getQueueSourceLabel = (item = {}) => {
     const source = trimText(item.source || item.sourceType || item.sourceLabel).toLowerCase();
     if (source === "visitor_feedback") return "visitor feedback";
@@ -9023,10 +9035,24 @@ function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activ
   };
   const getDisplaySourceLabel = (item = {}) => {
     const mode = trimText(item.displayMode).toLowerCase();
+    const route = trimText(item.sourceRoute).toLowerCase();
+    const routeParams = route.includes("?") ? new URLSearchParams(route.split("?").slice(1).join("?")) : null;
+    const isEmbedded = route.includes("embedded")
+      || route.includes("embed")
+      || route.includes("iframe")
+      || routeParams?.get("embedded") === "1";
+    const isWidget = route.includes("public_widget") || route.includes("website_widget");
+    const isFullPage = route.includes("public_page_assistant")
+      || route.includes("full_page")
+      || route.includes("/a/")
+      || route.includes("/assistant/");
+
+    if (isEmbedded) return "Embedded assistant";
+    if (mode === "widget" || isWidget) return "Website widget";
+    if ((mode === "page" && isFullPage) || isFullPage) return "Full-page assistant";
     if (mode === "page") return "Full-page assistant";
-    if (trimText(item.sourceRoute).includes("embed")) return "Embedded assistant";
-    if (mode === "widget") return "Website widget";
-    return "";
+    if (route.includes("hosted")) return "Hosted assistant page";
+    return "Unknown source";
   };
 
   return `
@@ -9041,25 +9067,30 @@ function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activ
       <div class="frontdesk-section-divider"></div>
       ${queueItems.length ? `
         <div class="analytics-list">
-          ${queueItems.map((item) => `
+          ${queueItems.map((item) => {
+            const reasonLabel = getFeedbackReasonLabel(item.feedbackReason);
+            const note = trimText(item.feedbackNote);
+
+            return `
             <article class="analytics-item">
               <p class="analytics-item-title">${escapeHtml(item.question || item.label || "Question needs review")}</p>
               <p class="analytics-item-copy">${escapeHtml(item.reply || item.snippet || item.whyFlagged || "Review the conversation and improve the answer.")}</p>
               <p class="analytics-subtle">${escapeHtml([
                 `Source: ${getQueueSourceLabel(item)}`,
-                item.feedbackReason ? `Reason: ${String(item.feedbackReason).replaceAll("_", " ")}` : "",
-                item.feedbackNote ? `Note: ${item.feedbackNote}` : "",
-                getDisplaySourceLabel(item),
+                reasonLabel ? `Reason: ${reasonLabel}` : "",
+                `Assistant source: ${getDisplaySourceLabel(item)}`,
                 item.lastSeenAt ? `Created ${formatSeenAt(item.lastSeenAt)}` : "",
               ].filter(Boolean).join(" · "))}</p>
+              ${note ? `<p class="analytics-subtle">${escapeHtml(`Note: ${note}`)}</p>` : ""}
               <div class="inline-actions">
                 <button class="ghost-button" type="button" data-frontdesk-improve-queue-item data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Improve answer</button>
                 <button class="ghost-button" type="button" data-frontdesk-save-queue-approved data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Save as approved answer</button>
-                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="resolved" data-feedback-id="${escapeHtml(item.feedbackId)}">Mark resolved</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Mark resolved</button>` : ""}
+                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="resolved" data-feedback-id="${escapeHtml(item.feedbackId)}">Resolve</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Resolve</button>` : ""}
                 ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="ignored" data-feedback-id="${escapeHtml(item.feedbackId)}">Ignore</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
               </div>
             </article>
-          `).join("")}
+            `;
+          }).join("")}
         </div>
       ` : buildOperatorEmptyState({
         title: "Nothing needs training right now.",
