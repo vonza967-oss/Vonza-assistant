@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const dashboardScript = readFileSync("frontend/dashboard.js", "utf8");
 const settingsShellScript = readFileSync("frontend/settings/SettingsShell.js", "utf8");
+const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
 
 test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Identity & welcome/);
@@ -35,4 +36,13 @@ test("conversation detail exposes owner-friendly training actions", () => {
   assert.match(dashboardScript, /Save as approved answer/);
   assert.match(dashboardScript, /Mark not helpful/);
   assert.doesNotMatch(dashboardScript, /Send AI draft/);
+});
+
+test("public answer feedback uses owner-friendly review copy", () => {
+  assert.match(publicWidgetScript, /Was this helpful\?/);
+  assert.match(publicWidgetScript, /Helpful/);
+  assert.match(publicWidgetScript, /Not helpful/);
+  assert.match(publicWidgetScript, /The business can review this/);
+  assert.doesNotMatch(publicWidgetScript, /fine-tune/i);
+  assert.doesNotMatch(publicWidgetScript, /train model/i);
 });

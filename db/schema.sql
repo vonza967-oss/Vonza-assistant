@@ -500,14 +500,31 @@ create index if not exists agent_widget_events_created_at_idx
 create table if not exists public.agent_visitor_reply_feedback (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid references public.agents (id) on delete cascade,
+  owner_user_id uuid,
   install_id text,
   session_key text not null,
   assistant_message_key text not null,
   rating text not null,
+  reason text,
+  note text,
+  user_question text,
+  assistant_answer text,
+  display_mode text,
+  source_route text,
+  source_type text not null default 'visitor_feedback',
+  status text not null default 'new',
+  training_item_id uuid,
   message_context jsonb not null default '{}'::jsonb,
   created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
   constraint agent_visitor_reply_feedback_rating_check
-    check (rating in ('helpful', 'not_helpful'))
+    check (rating in ('helpful', 'not_helpful')),
+  constraint agent_visitor_reply_feedback_reason_check
+    check (reason is null or reason in ('incorrect', 'missing_details', 'too_vague', 'did_not_answer', 'other')),
+  constraint agent_visitor_reply_feedback_source_type_check
+    check (source_type in ('visitor_feedback', 'owner_feedback', 'test')),
+  constraint agent_visitor_reply_feedback_status_check
+    check (status in ('new', 'queued', 'resolved', 'ignored'))
 );
 
 create unique index if not exists agent_visitor_reply_feedback_message_idx
@@ -515,6 +532,13 @@ create unique index if not exists agent_visitor_reply_feedback_message_idx
 
 create index if not exists agent_visitor_reply_feedback_agent_created_idx
   on public.agent_visitor_reply_feedback (agent_id, created_at desc);
+
+create index if not exists agent_visitor_reply_feedback_agent_status_idx
+  on public.agent_visitor_reply_feedback (agent_id, status, created_at desc);
+
+create index if not exists agent_visitor_reply_feedback_training_item_idx
+  on public.agent_visitor_reply_feedback (training_item_id)
+  where training_item_id is not null;
 
 create table if not exists public.front_desk_training_items (
   id uuid primary key default gen_random_uuid(),
@@ -1296,6 +1320,30 @@ create policy "Owners can read reply feedback for their agents."
   for select
   to authenticated
   using (
+    (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.agents
+      where agents.id = agent_visitor_reply_feedback.agent_id
+        and agents.owner_user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Owners can manage reply feedback for their agents." on public.agent_visitor_reply_feedback;
+create policy "Owners can manage reply feedback for their agents."
+  on public.agent_visitor_reply_feedback
+  for all
+  to authenticated
+  using (
+    (select auth.uid()) is not null
+    and exists (
+      select 1
+      from public.agents
+      where agents.id = agent_visitor_reply_feedback.agent_id
+        and agents.owner_user_id = (select auth.uid())
+    )
+  )
+  with check (
     (select auth.uid()) is not null
     and exists (
       select 1

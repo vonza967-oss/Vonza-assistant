@@ -2198,16 +2198,33 @@ async function loadWidgetBootstrap() {
   }
 }
 
-function buildReplyFeedbackMarkup(messageKey) {
+function buildReplyFeedbackMarkup(messageKey, options = {}) {
   if (!trimText(messageKey)) {
     return "";
   }
 
   return `
-    <div class="reply-feedback" data-reply-feedback="${escapeHtml(messageKey)}">
-      <span>Was this helpful?</span>
+    <div class="reply-feedback" data-reply-feedback="${escapeHtml(messageKey)}" data-reply-question="${escapeHtml(options.question || "")}" data-reply-answer="${escapeHtml(options.answer || "")}">
+      <span data-reply-feedback-label>Was this helpful?</span>
       <button type="button" data-reply-feedback-rating="helpful" aria-label="Mark this reply helpful">Helpful</button>
-      <button type="button" data-reply-feedback-rating="not_helpful" aria-label="Mark this reply not helpful">Not helpful</button>
+      <button type="button" data-reply-feedback-open-reasons aria-label="Mark this reply not helpful">Not helpful</button>
+      <form class="reply-feedback-reasons" data-reply-feedback-reasons hidden>
+        <label>
+          <span>What should be better?</span>
+          <select name="reason">
+            <option value="incorrect">Incorrect</option>
+            <option value="missing_details">Missing details</option>
+            <option value="too_vague">Too vague</option>
+            <option value="did_not_answer">Did not answer</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>
+          <span>Optional note</span>
+          <input name="note" type="text" maxlength="600" autocomplete="off">
+        </label>
+        <button type="button" data-reply-feedback-rating="not_helpful">Submit</button>
+      </form>
     </div>
   `;
 }
@@ -2234,7 +2251,10 @@ function appendMessage(chat, role, text, options = {}) {
     <div class="bubble">
       <p class="message-label">${escapeHtml(label)}</p>
       ${body}
-      ${role === "bot" && options.feedbackKey ? buildReplyFeedbackMarkup(options.feedbackKey) : ""}
+      ${role === "bot" && options.feedbackKey ? buildReplyFeedbackMarkup(options.feedbackKey, {
+        question: options.feedbackQuestion || "",
+        answer: text || "",
+      }) : ""}
     </div>
   `;
 
@@ -2245,7 +2265,7 @@ function appendMessage(chat, role, text, options = {}) {
   return wrapper;
 }
 
-async function submitReplyFeedback(messageKey, rating) {
+async function submitReplyFeedback(messageKey, rating, options = {}) {
   const normalizedMessageKey = trimText(messageKey);
   const normalizedRating = trimText(rating).toLowerCase();
   const dedupeKey = `${getVisitorSessionKey()}::${normalizedMessageKey}`;
@@ -2273,8 +2293,15 @@ async function submitReplyFeedback(messageKey, rating) {
         session_key: getVisitorSessionKey(),
         assistant_message_key: normalizedMessageKey,
         rating: normalizedRating,
+        reason: options.reason || "",
+        note: options.note || "",
+        user_question: options.userQuestion || "",
+        assistant_answer: options.assistantAnswer || "",
+        source_route: document.body?.classList?.contains("embedded") ? "embedded_assistant" : isPageMode() ? "public_page_assistant" : "public_widget",
         message_context: {
           conversation_index: conversationHistory.length,
+          user_question: options.userQuestion || "",
+          assistant_answer: options.assistantAnswer || "",
         },
       }),
     });
@@ -2284,7 +2311,7 @@ async function submitReplyFeedback(messageKey, rating) {
       throw new Error(data.error || "Feedback request failed");
     }
 
-    setComposerStatus(normalizedRating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review that reply.");
+    setComposerStatus(normalizedRating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review this.");
     return data;
   } catch (error) {
     submittedReplyFeedbackKeys.delete(dedupeKey);
@@ -2384,7 +2411,10 @@ async function sendMessage(messageOverride = "") {
     }
 
     const feedbackKey = buildAssistantMessageKey(data.reply);
-    appendMessage(chat, "bot", data.reply, { feedbackKey });
+    appendMessage(chat, "bot", data.reply, {
+      feedbackKey,
+      feedbackQuestion: message,
+    });
     resolvedAgentId = trimText(data.agentId || resolvedAgentId);
     resolvedAgentKey = trimText(data.agentKey || resolvedAgentKey);
     resolvedBusinessId = trimText(data.businessId || resolvedBusinessId);
@@ -2511,6 +2541,20 @@ document.getElementById("identity-reset-button")?.addEventListener("click", () =
 });
 
 document.getElementById("chat")?.addEventListener("click", (event) => {
+  const openReasonsButton = event.target?.closest?.("[data-reply-feedback-open-reasons]");
+
+  if (openReasonsButton) {
+    const container = openReasonsButton.closest("[data-reply-feedback]");
+    const form = container?.querySelector("[data-reply-feedback-reasons]");
+    if (form) {
+      form.hidden = false;
+      openReasonsButton.disabled = true;
+      form.querySelector("select")?.focus();
+      queueEmbeddedHeightUpdate();
+    }
+    return;
+  }
+
   const button = event.target?.closest?.("[data-reply-feedback-rating]");
 
   if (!button) {
@@ -2520,10 +2564,17 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
   const container = button.closest("[data-reply-feedback]");
   const messageKey = container?.dataset?.replyFeedback || "";
   const rating = button.dataset.replyFeedbackRating || "";
+  const form = button.closest("[data-reply-feedback-reasons]");
+  const formData = form ? new FormData(form) : null;
   container?.querySelectorAll?.("button").forEach((feedbackButton) => {
     feedbackButton.disabled = true;
   });
-  void submitReplyFeedback(messageKey, rating).then((result) => {
+  void submitReplyFeedback(messageKey, rating, {
+    reason: formData?.get("reason") || "",
+    note: formData?.get("note") || "",
+    userQuestion: container?.dataset?.replyQuestion || "",
+    assistantAnswer: container?.dataset?.replyAnswer || "",
+  }).then((result) => {
     if (!result) {
       container?.querySelectorAll?.("button").forEach((feedbackButton) => {
         feedbackButton.disabled = false;
@@ -2534,9 +2585,19 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
     container?.classList.add("submitted");
     const label = container?.querySelector("span");
     if (label) {
-      label.textContent = "Feedback saved";
+      label.textContent = rating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review this.";
     }
   });
+});
+
+document.getElementById("chat")?.addEventListener("submit", (event) => {
+  const form = event.target?.closest?.("[data-reply-feedback-reasons]");
+  if (!form) {
+    return;
+  }
+
+  event.preventDefault();
+  form.querySelector('[data-reply-feedback-rating="not_helpful"]')?.click();
 });
 
 document.getElementById("input").addEventListener("keydown", (event) => {

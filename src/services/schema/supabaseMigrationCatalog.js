@@ -253,6 +253,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-approved Front Desk training items used by the dashboard workspace and chat context retrieval.",
   }),
+  Object.freeze({
+    id: "extend_reply_feedback_review_loop",
+    version: "20260520001000",
+    name: "extend_reply_feedback_review_loop",
+    file: "supabase/migrations/20260520001000_extend_reply_feedback_review_loop.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Extends assistant reply feedback with review status, owner/test sources, notes, and approved-answer linkage.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

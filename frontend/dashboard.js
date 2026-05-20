@@ -5870,9 +5870,9 @@ function buildCustomerChatPanel(contact = {}) {
             <p>${escapeHtml(trimText(message.content) || t("common.noMessageText"))}</p>
             ${canTrain ? `
               <div class="inline-actions customer-training-actions">
-                <button class="ghost-button" type="button" data-conversation-improve-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}">Improve this answer</button>
+                <button class="ghost-button" type="button" data-conversation-improve-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}" data-session-key="${escapeHtml(message.sessionKey || previousCustomer.sessionKey || "")}">Improve this answer</button>
                 <button class="ghost-button" type="button" data-conversation-save-approved-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}">Save as approved answer</button>
-                <button class="ghost-button" type="button" data-conversation-not-helpful>Mark not helpful</button>
+                <button class="ghost-button" type="button" data-conversation-not-helpful data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}" data-session-key="${escapeHtml(message.sessionKey || previousCustomer.sessionKey || "")}">Mark not helpful</button>
               </div>
             ` : ""}
           </div>
@@ -9001,6 +9001,7 @@ function buildApprovedAnswersSection(frontDeskTraining = createEmptyFrontDeskTra
             <input name="tags" type="text" placeholder="pricing, refunds, booking">
           </div>
         </div>
+        <input name="feedback_id" type="hidden">
         <div class="inline-actions">
           <button class="primary-button" type="submit">Save</button>
         </div>
@@ -9013,6 +9014,20 @@ function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activ
   const queueItems = (actionQueue.items || [])
     .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
     .slice(0, 12);
+  const getQueueSourceLabel = (item = {}) => {
+    const source = trimText(item.source || item.sourceType || item.sourceLabel).toLowerCase();
+    if (source === "visitor_feedback") return "visitor feedback";
+    if (source === "owner_feedback") return "owner feedback";
+    if (source === "test") return "test";
+    return trimText(item.sourceLabel) || "customer conversation";
+  };
+  const getDisplaySourceLabel = (item = {}) => {
+    const mode = trimText(item.displayMode).toLowerCase();
+    if (mode === "page") return "Full-page assistant";
+    if (trimText(item.sourceRoute).includes("embed")) return "Embedded assistant";
+    if (mode === "widget") return "Website widget";
+    return "";
+  };
 
   return `
     <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="queue" ${activeFrontDeskSection === "queue" ? "" : "hidden"}>
@@ -9030,11 +9045,18 @@ function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activ
             <article class="analytics-item">
               <p class="analytics-item-title">${escapeHtml(item.question || item.label || "Question needs review")}</p>
               <p class="analytics-item-copy">${escapeHtml(item.reply || item.snippet || item.whyFlagged || "Review the conversation and improve the answer.")}</p>
+              <p class="analytics-subtle">${escapeHtml([
+                `Source: ${getQueueSourceLabel(item)}`,
+                item.feedbackReason ? `Reason: ${String(item.feedbackReason).replaceAll("_", " ")}` : "",
+                item.feedbackNote ? `Note: ${item.feedbackNote}` : "",
+                getDisplaySourceLabel(item),
+                item.lastSeenAt ? `Created ${formatSeenAt(item.lastSeenAt)}` : "",
+              ].filter(Boolean).join(" · "))}</p>
               <div class="inline-actions">
-                <button class="ghost-button" type="button" data-frontdesk-improve-queue-item>Improve answer</button>
-                <button class="ghost-button" type="button" data-frontdesk-save-queue-approved data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}">Save as approved answer</button>
-                ${item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Mark resolved</button>` : ""}
-                ${item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
+                <button class="ghost-button" type="button" data-frontdesk-improve-queue-item data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Improve answer</button>
+                <button class="ghost-button" type="button" data-frontdesk-save-queue-approved data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Save as approved answer</button>
+                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="resolved" data-feedback-id="${escapeHtml(item.feedbackId)}">Mark resolved</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Mark resolved</button>` : ""}
+                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="ignored" data-feedback-id="${escapeHtml(item.feedbackId)}">Ignore</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
               </div>
             </article>
           `).join("")}
@@ -9152,6 +9174,9 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const trainingQueueCount = (actionQueue.items || [])
     .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
     .length;
+  const feedbackNeedingReviewCount = (actionQueue.items || [])
+    .filter((item) => trimText(item.feedbackId) && !["resolved", "ignored"].includes(trimText(item.status).toLowerCase()))
+    .length;
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="customize" hidden>
@@ -9188,9 +9213,14 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
               <p class="frontdesk-detail-copy">Owner-approved answers available for repeated questions.</p>
             </section>
             <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">Training queue count</p>
+              <p class="frontdesk-detail-kicker">New training items</p>
               <h3 class="frontdesk-detail-title">${escapeHtml(String(trainingQueueCount))}</h3>
               <p class="frontdesk-detail-copy">Real customer answer-review signals waiting right now.</p>
+            </section>
+            <section class="frontdesk-detail-block">
+              <p class="frontdesk-detail-kicker">Feedback needing review</p>
+              <h3 class="frontdesk-detail-title">${escapeHtml(String(feedbackNeedingReviewCount))}</h3>
+              <p class="frontdesk-detail-copy">Not-helpful answers waiting for an owner decision.</p>
             </section>
           </div>
           <div class="inline-actions" style="margin:14px 0 4px;">
@@ -9431,7 +9461,7 @@ function buildAppearanceStudio(agent) {
             <section class="studio-group">
               <p class="studio-kicker">Brand direction</p>
               <h3 class="studio-group-title">Choose the first impression your visitors feel.</h3>
-              <p class="studio-group-copy">These quick starting points only adjust real current appearance settings like wording and colors. You can fine-tune everything below.</p>
+              <p class="studio-group-copy">These quick starting points only adjust real current appearance settings like wording and colors. You can adjust every detail below.</p>
               <div class="preset-row">
                 <button class="preset-chip" type="button" data-appearance-preset="clean">Clean</button>
                 <button class="preset-chip" type="button" data-appearance-preset="bold">Bold</button>
@@ -15557,7 +15587,7 @@ function buildCustomizationForm(agent, compact) {
               <div class="field">
                 <label for="assistant-instructions">Advanced guidance</label>
                 <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
-                <p class="field-help">Use this only if you want to fine-tune behavior beyond the core brand settings.</p>
+                <p class="field-help">Use this only if you want to adjust behavior beyond the core brand settings.</p>
               </div>
             </div>
           </section>
@@ -17506,6 +17536,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskArchiveApprovedAnswerButtons = document.querySelectorAll("[data-frontdesk-archive-approved-answer]");
   const frontDeskTestAnswerButtons = document.querySelectorAll("[data-frontdesk-test-answer]");
   const frontDeskSaveQueueApprovedButtons = document.querySelectorAll("[data-frontdesk-save-queue-approved]");
+  const frontDeskImproveQueueItemButtons = document.querySelectorAll("[data-frontdesk-improve-queue-item]");
+  const frontDeskFeedbackStatusButtons = document.querySelectorAll("[data-frontdesk-feedback-status]");
   const frontDeskTestForms = document.querySelectorAll("[data-frontdesk-test-form]");
   const conversationSaveApprovedButtons = document.querySelectorAll("[data-conversation-save-approved-answer]");
   const conversationImproveAnswerButtons = document.querySelectorAll("[data-conversation-improve-answer]");
@@ -18315,7 +18347,56 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     return normalizedTarget;
   };
 
-  const saveApprovedAnswer = async ({ triggerText, answerText, tags, sourceType = "manual", sourceMessageId = "" } = {}) => {
+  const updateFrontDeskFeedbackStatus = async ({ feedbackId, status, trainingItemId = "" } = {}) => {
+    const normalizedFeedbackId = trimText(feedbackId);
+    if (!normalizedFeedbackId || !trimText(status)) {
+      return null;
+    }
+
+    return fetchJson("/agents/front-desk/feedback/status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        client_id: getClientId(),
+        agent_id: agent.id,
+        feedback_id: normalizedFeedbackId,
+        status,
+        training_item_id: trainingItemId || undefined,
+      }),
+    });
+  };
+
+  const recordOwnerFrontDeskFeedback = async ({
+    question = "",
+    answer = "",
+    messageId = "",
+    sessionKey = "",
+    sourceType = "owner_feedback",
+    reason = "other",
+    note = "",
+  } = {}) => fetchJson("/agents/front-desk/feedback", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: getClientId(),
+      agent_id: agent.id,
+      rating: "not_helpful",
+      reason,
+      note,
+      user_question: question,
+      assistant_answer: answer,
+      assistant_message_key: messageId,
+      session_key: sessionKey,
+      source_type: sourceType,
+      source_route: "dashboard",
+    }),
+  });
+
+  const saveApprovedAnswer = async ({ triggerText, answerText, tags, sourceType = "manual", sourceMessageId = "", feedbackId = "" } = {}) => {
     const normalizedTrigger = trimText(triggerText);
     const normalizedAnswer = trimText(answerText);
 
@@ -18325,7 +18406,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
 
     setStatus("Saving approved answer...");
-    await fetchJson("/agents/front-desk/training-items", {
+    const result = await fetchJson("/agents/front-desk/training-items", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -18343,12 +18424,20 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         status: "active",
       }),
     });
+    if (feedbackId && result?.item?.id) {
+      await updateFrontDeskFeedbackStatus({
+        feedbackId,
+        status: "resolved",
+        trainingItemId: result.item.id,
+      });
+    }
     setStatus("Approved answer saved.");
     await boot();
     showFrontDeskSection("approved");
+    return result;
   };
 
-  const fillApprovedAnswerForm = ({ question = "", answer = "" } = {}) => {
+  const fillApprovedAnswerForm = ({ question = "", answer = "", feedbackId = "" } = {}) => {
     showFrontDeskSection("approved");
     const form = document.querySelector("[data-frontdesk-approved-answer-form]");
     if (!form) {
@@ -18357,8 +18446,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
     const questionInput = form.querySelector('[name="trigger_text"]');
     const answerInput = form.querySelector('[name="answer_text"]');
+    const feedbackInput = form.querySelector('[name="feedback_id"]');
     if (questionInput) questionInput.value = trimText(question);
     if (answerInput) answerInput.value = trimText(answer);
+    if (feedbackInput) feedbackInput.value = trimText(feedbackId);
     form.scrollIntoView({ behavior: "smooth", block: "center" });
     questionInput?.focus();
   };
@@ -20089,6 +20180,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           triggerText: formData.get("trigger_text"),
           answerText: formData.get("answer_text"),
           tags: formData.get("tags"),
+          feedbackId: formData.get("feedback_id"),
         });
       } catch (error) {
         setStatus(error.message || "We couldn't save that approved answer.");
@@ -20140,7 +20232,39 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       fillApprovedAnswerForm({
         question: button.dataset.question || "",
         answer: button.dataset.answer || "",
+        feedbackId: button.dataset.feedbackId || "",
       });
+    });
+  });
+
+  frontDeskImproveQueueItemButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      fillApprovedAnswerForm({
+        question: button.dataset.question || "",
+        answer: button.dataset.answer || "",
+        feedbackId: button.dataset.feedbackId || "",
+      });
+      setStatus("Teach Front Desk how to answer this next time.");
+    });
+  });
+
+  frontDeskFeedbackStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const feedbackId = trimText(button.dataset.feedbackId);
+      const status = trimText(button.dataset.frontdeskFeedbackStatus);
+      if (!feedbackId || !status) return;
+
+      button.disabled = true;
+      setStatus(status === "ignored" ? "Ignoring feedback..." : "Marking feedback resolved...");
+      try {
+        await updateFrontDeskFeedbackStatus({ feedbackId, status });
+        setStatus(status === "ignored" ? "Feedback ignored." : "Feedback resolved.");
+        await boot();
+        showFrontDeskSection("queue");
+      } catch (error) {
+        button.disabled = false;
+        setStatus(error.message || "We couldn't update that feedback.");
+      }
     });
   });
 
@@ -20174,7 +20298,41 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           }),
         });
         if (resultEl) {
-          resultEl.textContent = trimText(result.reply) || "No test response returned.";
+          const reply = trimText(result.reply) || "No test response returned.";
+          resultEl.innerHTML = `
+            <p>${escapeHtml(reply)}</p>
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-frontdesk-test-looks-good>Looks good</button>
+              <button class="ghost-button" type="button" data-frontdesk-test-improve>Improve answer</button>
+              <button class="ghost-button" type="button" data-frontdesk-test-save-approved>Save as approved answer</button>
+            </div>
+          `;
+          resultEl.querySelector("[data-frontdesk-test-looks-good]")?.addEventListener("click", () => {
+            setStatus("Test answer marked helpful.");
+          });
+          resultEl.querySelector("[data-frontdesk-test-improve]")?.addEventListener("click", async () => {
+            try {
+              await recordOwnerFrontDeskFeedback({
+                question: message,
+                answer: reply,
+                sourceType: "test",
+                reason: "other",
+              });
+            } catch (error) {
+              console.warn("Could not queue test feedback", error);
+            }
+            fillApprovedAnswerForm({
+              question: message,
+              answer: reply,
+            });
+            setStatus("Teach Front Desk how to answer this next time.");
+          });
+          resultEl.querySelector("[data-frontdesk-test-save-approved]")?.addEventListener("click", () => {
+            fillApprovedAnswerForm({
+              question: message,
+              answer: reply,
+            });
+          });
         }
         setStatus("Test response ready.");
       } catch (error) {
@@ -20201,14 +20359,37 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         question: button.dataset.question || "",
         answer: button.dataset.answer || "",
       });
-      setStatus("Edit the improved answer, then save it as an approved answer.");
+      setStatus("Teach Front Desk how to answer this next time.");
     });
   });
 
   conversationNotHelpfulButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setStatus("Marked for review. Use Improve this answer to save a better answer.");
+    button.addEventListener("click", async () => {
+      const question = trimText(button.dataset.question);
+      const answer = trimText(button.dataset.answer);
+      if (!question || !answer) {
+        setStatus("This message needs a customer question and answer before it can be reviewed.");
+        return;
+      }
+
+      setStatus("Sending this answer to the Training queue...");
       button.disabled = true;
+      try {
+        await recordOwnerFrontDeskFeedback({
+          question,
+          answer,
+          messageId: button.dataset.messageId || "",
+          sessionKey: button.dataset.sessionKey || "",
+          sourceType: "owner_feedback",
+          reason: "other",
+        });
+        setStatus("Marked not helpful and sent to Training queue.");
+        await boot();
+        showFrontDeskSection("queue");
+      } catch (error) {
+        button.disabled = false;
+        setStatus(error.message || "We couldn't mark that answer not helpful.");
+      }
     });
   });
 

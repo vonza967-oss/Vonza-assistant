@@ -140,6 +140,11 @@ export function createChatRouter(deps = {}) {
         sessionKey: req.body.session_key || req.body.sessionKey,
         assistantMessageKey: req.body.assistant_message_key || req.body.assistantMessageKey,
         rating: req.body.rating,
+        reason: req.body.reason,
+        note: req.body.note,
+        userQuestion: req.body.user_question || req.body.userQuestion,
+        assistantAnswer: req.body.assistant_answer || req.body.assistantAnswer,
+        sourceRoute: req.body.source_route || req.body.sourceRoute,
         messageContext: req.body.message_context || req.body.messageContext,
       });
       if (result?.duplicate !== true) {

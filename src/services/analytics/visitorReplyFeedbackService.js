@@ -3,8 +3,13 @@ import { resolveAllowedPublicWidgetContext } from "../agents/agentService.js";
 import { cleanText } from "../../utils/text.js";
 
 const FEEDBACK_RATINGS = new Set(["helpful", "not_helpful"]);
+const FEEDBACK_REASONS = new Set(["incorrect", "missing_details", "too_vague", "did_not_answer", "other", ""]);
+const FEEDBACK_STATUSES = new Set(["new", "queued", "resolved", "ignored"]);
+const FEEDBACK_SOURCES = new Set(["visitor_feedback", "owner_feedback", "test"]);
 const MAX_FEEDBACK_KEY_LENGTH = 160;
 const MAX_FEEDBACK_PER_SESSION = 25;
+const MAX_FEEDBACK_NOTE_LENGTH = 600;
+const MAX_FEEDBACK_TEXT_LENGTH = 5000;
 
 function normalizeRating(value) {
   const normalized = cleanText(value).toLowerCase().replaceAll("-", "_");
@@ -16,6 +21,25 @@ function normalizeRating(value) {
   }
 
   return normalized;
+}
+
+function normalizeReason(value) {
+  const normalized = cleanText(value).toLowerCase().replaceAll("-", "_");
+  return FEEDBACK_REASONS.has(normalized) ? normalized : "";
+}
+
+function normalizeFeedbackStatus(value, fallback = "new") {
+  const normalized = cleanText(value).toLowerCase();
+  return FEEDBACK_STATUSES.has(normalized) ? normalized : fallback;
+}
+
+function normalizeFeedbackSource(value, fallback = "visitor_feedback") {
+  const normalized = cleanText(value).toLowerCase();
+  return FEEDBACK_SOURCES.has(normalized) ? normalized : fallback;
+}
+
+function limitFeedbackText(value, maxLength = MAX_FEEDBACK_TEXT_LENGTH) {
+  return cleanText(value).slice(0, maxLength);
 }
 
 function normalizeFeedbackKey(value, fieldName) {
@@ -60,12 +84,23 @@ function mapFeedbackRow(row = {}) {
   return {
     id: cleanText(row.id),
     agentId: cleanText(row.agent_id),
+    ownerUserId: cleanText(row.owner_user_id),
     installId: cleanText(row.install_id),
     sessionKey: cleanText(row.session_key),
     assistantMessageKey: cleanText(row.assistant_message_key),
     rating: cleanText(row.rating),
+    reason: cleanText(row.reason),
+    note: cleanText(row.note),
+    userQuestion: cleanText(row.user_question),
+    assistantAnswer: cleanText(row.assistant_answer),
+    displayMode: cleanText(row.display_mode),
+    sourceRoute: cleanText(row.source_route),
+    sourceType: cleanText(row.source_type || "visitor_feedback"),
+    status: cleanText(row.status || "new"),
+    trainingItemId: cleanText(row.training_item_id),
     messageContext: row.message_context && typeof row.message_context === "object" ? row.message_context : {},
     createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
   };
 }
 
@@ -159,6 +194,9 @@ export function buildKnowledgeImprovementQueueItemsFromFeedback(messages = [], f
     if (cleanText(feedback.rating).toLowerCase() !== "not_helpful") {
       return;
     }
+    if (["resolved", "ignored"].includes(cleanText(feedback.status).toLowerCase())) {
+      return;
+    }
 
     const sessionKey = cleanText(feedback.sessionKey || feedback.session_key);
     const assistantMessageKey = cleanText(feedback.assistantMessageKey || feedback.assistant_message_key);
@@ -170,9 +208,13 @@ export function buildKnowledgeImprovementQueueItemsFromFeedback(messages = [], f
     const questionMessage = assistantMessage
       ? findPreviousUserMessage(normalizedMessages, assistantMessage)
       : null;
-    const question = cleanText(questionMessage?.content) || "Visitor marked an answer not helpful.";
-    const reply = cleanText(assistantMessage?.content);
+    const question = cleanText(feedback.userQuestion || feedback.user_question || questionMessage?.content) || "Visitor marked an answer not helpful.";
+    const reply = cleanText(feedback.assistantAnswer || feedback.assistant_answer || assistantMessage?.content);
     const key = `feedback:${cleanText(feedback.id) || `${sessionKey}:${assistantMessageKey}`}`;
+    const sourceType = normalizeFeedbackSource(feedback.sourceType || feedback.source_type);
+    const sourceLabel = sourceType === "owner_feedback" ? "owner feedback" : sourceType === "test" ? "test" : "visitor feedback";
+    const reason = normalizeReason(feedback.reason);
+    const note = limitFeedbackText(feedback.note, MAX_FEEDBACK_NOTE_LENGTH);
 
     items.push({
       key,
@@ -182,11 +224,11 @@ export function buildKnowledgeImprovementQueueItemsFromFeedback(messages = [], f
       status: "new",
       count: 1,
       snippet: reply
-        ? `Visitor marked this Vonza answer not helpful: ${reply}`
-        : "Visitor marked an answer not helpful.",
+        ? `${sourceLabel === "visitor feedback" ? "Visitor" : sourceLabel === "owner feedback" ? "Owner" : "Test"} marked this answer not helpful: ${reply}`
+        : `${sourceLabel === "visitor feedback" ? "Visitor" : sourceLabel === "owner feedback" ? "Owner" : "Test"} marked an answer not helpful.`,
       question,
       reply,
-      whyFlagged: "Flagged because a visitor explicitly marked this answer not helpful.",
+      whyFlagged: `Flagged because ${sourceLabel} marked this answer not helpful.`,
       suggestedAction: "Review the answer, then add grounded guidance from verified business knowledge so future answers improve.",
       lastSeenAt: feedback.createdAt || feedback.created_at || null,
       messageId: assistantMessageKey,
@@ -195,6 +237,12 @@ export function buildKnowledgeImprovementQueueItemsFromFeedback(messages = [], f
       weakAnswer: true,
       unresolved: false,
       feedbackId: cleanText(feedback.id),
+      feedbackReason: reason,
+      feedbackNote: note,
+      source: sourceType,
+      sourceLabel,
+      displayMode: cleanText(feedback.displayMode || feedback.display_mode),
+      sourceRoute: cleanText(feedback.sourceRoute || feedback.source_route),
     });
   });
 
@@ -225,7 +273,7 @@ export async function recordVisitorReplyFeedback(supabase, options = {}) {
 
   const { data: existing, error: existingError } = await supabase
     .from(VISITOR_REPLY_FEEDBACK_TABLE)
-    .select("id, agent_id, install_id, session_key, assistant_message_key, rating, message_context, created_at")
+    .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
     .eq("agent_id", context.agent.id)
     .eq("session_key", sessionKey)
     .eq("assistant_message_key", assistantMessageKey)
@@ -271,16 +319,26 @@ export async function recordVisitorReplyFeedback(supabase, options = {}) {
 
   const payload = {
     agent_id: context.agent.id,
+    owner_user_id: context.agent.ownerUserId || context.agent.owner_user_id || null,
     install_id: installId || null,
     session_key: sessionKey,
     assistant_message_key: assistantMessageKey,
     rating,
+    reason: normalizeReason(options.reason) || null,
+    note: limitFeedbackText(options.note, MAX_FEEDBACK_NOTE_LENGTH) || null,
+    user_question: limitFeedbackText(options.userQuestion || options.user_question || options.messageContext?.userQuestion || options.message_context?.user_question, 1200) || null,
+    assistant_answer: limitFeedbackText(options.assistantAnswer || options.assistant_answer || options.messageContext?.assistantAnswer || options.message_context?.assistant_answer, 5000) || null,
+    display_mode: cleanText(options.displayMode || options.display_mode) || null,
+    source_route: cleanText(options.sourceRoute || options.source_route || "public_assistant").slice(0, 120) || null,
+    source_type: "visitor_feedback",
+    status: rating === "helpful" ? "resolved" : "new",
+    updated_at: new Date().toISOString(),
     message_context: cleanMessageContext(options.messageContext || options.message_context),
   };
   const { data, error } = await supabase
     .from(VISITOR_REPLY_FEEDBACK_TABLE)
     .insert(payload)
-    .select("id, agent_id, install_id, session_key, assistant_message_key, rating, message_context, created_at")
+    .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
     .single();
 
   if (error) {
@@ -325,7 +383,7 @@ export async function listVisitorReplyFeedbackForOwner(supabase, options = {}) {
 
   const { data, error } = await supabase
     .from(VISITOR_REPLY_FEEDBACK_TABLE)
-    .select("id, agent_id, install_id, session_key, assistant_message_key, rating, message_context, created_at")
+    .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -338,6 +396,7 @@ export async function listVisitorReplyFeedbackForOwner(supabase, options = {}) {
           total: 0,
           helpful: 0,
           notHelpful: 0,
+          needsReview: 0,
         },
         persistenceAvailable: false,
       };
@@ -354,7 +413,145 @@ export async function listVisitorReplyFeedbackForOwner(supabase, options = {}) {
       total: records.length,
       helpful: records.filter((record) => record.rating === "helpful").length,
       notHelpful: records.filter((record) => record.rating === "not_helpful").length,
+      needsReview: records.filter((record) =>
+        record.rating === "not_helpful" && !["resolved", "ignored"].includes(record.status)
+      ).length,
     },
     persistenceAvailable: true,
+  };
+}
+
+export async function recordOwnerAnswerFeedback(supabase, options = {}) {
+  const agentId = cleanText(options.agentId || options.agent_id);
+  const ownerUserId = cleanText(options.ownerUserId || options.owner_user_id);
+  const rating = normalizeRating(options.rating || "not_helpful");
+  const sourceType = normalizeFeedbackSource(options.sourceType || options.source_type, "owner_feedback");
+  const userQuestion = limitFeedbackText(options.userQuestion || options.user_question, 1200);
+  const assistantAnswer = limitFeedbackText(options.assistantAnswer || options.assistant_answer, 5000);
+  const assistantMessageKey = cleanText(options.assistantMessageKey || options.assistant_message_key || options.assistantMessageId || options.assistant_message_id);
+  const sessionKey = cleanText(options.sessionKey || options.session_key)
+    || (assistantMessageKey ? `owner-review:${assistantMessageKey}` : `owner-review:${Date.now()}`);
+
+  if (!agentId || !ownerUserId) {
+    const error = new Error("agent_id and owner context are required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (rating === "not_helpful" && (!userQuestion || !assistantAnswer)) {
+    const error = new Error("Add the customer question and answer before sending this to the Training queue.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const payload = {
+    agent_id: agentId,
+    owner_user_id: ownerUserId,
+    install_id: null,
+    session_key: sessionKey.slice(0, MAX_FEEDBACK_KEY_LENGTH),
+    assistant_message_key: (assistantMessageKey || `${sessionKey}::owner-feedback`).slice(0, MAX_FEEDBACK_KEY_LENGTH),
+    rating,
+    reason: normalizeReason(options.reason) || null,
+    note: limitFeedbackText(options.note, MAX_FEEDBACK_NOTE_LENGTH) || null,
+    user_question: userQuestion || null,
+    assistant_answer: assistantAnswer || null,
+    display_mode: cleanText(options.displayMode || options.display_mode) || null,
+    source_route: cleanText(options.sourceRoute || options.source_route || "dashboard").slice(0, 120) || null,
+    source_type: sourceType,
+    status: rating === "helpful" ? "resolved" : "queued",
+    message_context: cleanMessageContext(options.messageContext || options.message_context),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from(VISITOR_REPLY_FEEDBACK_TABLE)
+    .insert(payload)
+    .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
+    .single();
+
+  if (error) {
+    if (error?.code === "23505") {
+      const { data: updated, error: updateError } = await supabase
+        .from(VISITOR_REPLY_FEEDBACK_TABLE)
+        .update({
+          rating: payload.rating,
+          reason: payload.reason,
+          note: payload.note,
+          user_question: payload.user_question,
+          assistant_answer: payload.assistant_answer,
+          source_type: payload.source_type,
+          source_route: payload.source_route,
+          status: payload.status,
+          updated_at: payload.updated_at,
+        })
+        .eq("agent_id", agentId)
+        .eq("session_key", payload.session_key)
+        .eq("assistant_message_key", payload.assistant_message_key)
+        .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return {
+        ok: true,
+        feedback: mapFeedbackRow(updated || {}),
+      };
+    }
+
+    if (isMissingFeedbackSchemaError(error)) {
+      throw buildMissingFeedbackSchemaError();
+    }
+
+    throw error;
+  }
+
+  return {
+    ok: true,
+    feedback: mapFeedbackRow(data || {}),
+  };
+}
+
+export async function updateVisitorReplyFeedbackStatus(supabase, options = {}) {
+  const agentId = cleanText(options.agentId || options.agent_id);
+  const ownerUserId = cleanText(options.ownerUserId || options.owner_user_id);
+  const feedbackId = cleanText(options.feedbackId || options.feedback_id);
+  const status = normalizeFeedbackStatus(options.status, "");
+
+  if (!agentId || !ownerUserId || !feedbackId || !status) {
+    const error = new Error("feedback_id, agent_id, owner context, and status are required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const payload = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+  const trainingItemId = cleanText(options.trainingItemId || options.training_item_id);
+  if (trainingItemId) {
+    payload.training_item_id = trainingItemId;
+  }
+
+  const { data, error } = await supabase
+    .from(VISITOR_REPLY_FEEDBACK_TABLE)
+    .update(payload)
+    .eq("id", feedbackId)
+    .eq("agent_id", agentId)
+    .select("id, agent_id, owner_user_id, install_id, session_key, assistant_message_key, rating, reason, note, user_question, assistant_answer, display_mode, source_route, source_type, status, training_item_id, message_context, created_at, updated_at")
+    .single();
+
+  if (error) {
+    if (isMissingFeedbackSchemaError(error)) {
+      throw buildMissingFeedbackSchemaError();
+    }
+
+    throw error;
+  }
+
+  return {
+    ok: true,
+    feedback: mapFeedbackRow(data || {}),
   };
 }

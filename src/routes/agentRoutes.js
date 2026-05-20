@@ -35,6 +35,8 @@ import {
 import {
   buildKnowledgeImprovementQueueItemsFromFeedback,
   listVisitorReplyFeedbackForOwner,
+  recordOwnerAnswerFeedback,
+  updateVisitorReplyFeedbackStatus,
 } from "../services/analytics/visitorReplyFeedbackService.js";
 import {
   buildActionQueue,
@@ -261,6 +263,10 @@ export function createAgentRouter(deps = {}) {
     deps.listWidgetRoutingEventsByAgentId || listWidgetRoutingEventsByAgentId;
   const listVisitorReplyFeedbackForOwnerImpl =
     deps.listVisitorReplyFeedbackForOwner || listVisitorReplyFeedbackForOwner;
+  const recordOwnerAnswerFeedbackImpl =
+    deps.recordOwnerAnswerFeedback || recordOwnerAnswerFeedback;
+  const updateVisitorReplyFeedbackStatusImpl =
+    deps.updateVisitorReplyFeedbackStatus || updateVisitorReplyFeedbackStatus;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const listFrontDeskTrainingItemsImpl =
@@ -963,6 +969,71 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
+  router.post("/agents/front-desk/feedback", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await recordOwnerAnswerFeedbackImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        rating: req.body.rating,
+        reason: req.body.reason,
+        note: req.body.note,
+        userQuestion: req.body.user_question || req.body.userQuestion,
+        assistantAnswer: req.body.assistant_answer || req.body.assistantAnswer,
+        assistantMessageKey: req.body.assistant_message_key || req.body.assistantMessageKey,
+        sessionKey: req.body.session_key || req.body.sessionKey,
+        displayMode: req.body.display_mode || req.body.displayMode,
+        sourceRoute: req.body.source_route || req.body.sourceRoute,
+        sourceType: req.body.source_type || req.body.sourceType,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/agents/front-desk/feedback/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await updateVisitorReplyFeedbackStatusImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        feedbackId: req.body.feedback_id || req.body.feedbackId,
+        status: req.body.status,
+        trainingItemId: req.body.training_item_id || req.body.trainingItemId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
   router.post("/agents/front-desk/test", async (req, res) => {
     try {
       const supabase = getSupabase();
@@ -1305,6 +1376,7 @@ export function createAgentRouter(deps = {}) {
             total: 0,
             helpful: 0,
             notHelpful: 0,
+            needsReview: 0,
           },
           persistenceAvailable: false,
         })),
@@ -1493,6 +1565,7 @@ export function createAgentRouter(deps = {}) {
             total: 0,
             helpful: 0,
             notHelpful: 0,
+            needsReview: 0,
           },
           persistenceAvailable: false,
         })),

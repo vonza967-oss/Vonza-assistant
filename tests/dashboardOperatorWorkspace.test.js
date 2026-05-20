@@ -2437,7 +2437,8 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Assistant configured/);
   assert.match(panel, /Website knowledge imported/);
   assert.match(panel, /Approved answers count/);
-  assert.match(panel, /Training queue count/);
+  assert.match(panel, /New training items/);
+  assert.match(panel, /Feedback needing review/);
   assert.match(panel, /Widget installed/);
   assert.match(panel, /Full-page assistant available/);
   assert.match(panel, /QR available/);

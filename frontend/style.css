@@ -1038,6 +1038,43 @@ html.vonza-mode-page .bubble {
   display: none;
 }
 
+.reply-feedback.submitted .reply-feedback-reasons {
+  display: none;
+}
+
+.reply-feedback-reasons {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(140px, 1fr) auto;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.reply-feedback-reasons label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.reply-feedback-reasons select,
+.reply-feedback-reasons input {
+  min-height: 32px;
+  border: 1px solid rgba(94, 110, 152, 0.16);
+  border-radius: 10px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-main);
+  background: #ffffff;
+}
+
+@media (max-width: 520px) {
+  .reply-feedback-reasons {
+    grid-template-columns: 1fr;
+  }
+}
+
 .typing .bubble {
   min-width: 130px;
 }
