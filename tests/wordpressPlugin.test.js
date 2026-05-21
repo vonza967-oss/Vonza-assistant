@@ -38,8 +38,20 @@ test("Vonza Front Desk WordPress plugin registers admin settings and shortcodes 
   assert.match(admin, /wp_insert_post\(/);
   assert.match(admin, /update_post_meta\(/);
   assert.match(admin, /front_desk_page_mode/);
+  assert.match(admin, /front_desk_page_id/);
+  assert.match(admin, /get_pages\(/);
+  assert.match(admin, /post_status' => array\( 'publish', 'draft' \)/);
+  assert.match(admin, /None selected/);
+  assert.match(admin, /Create new page/);
+  assert.match(admin, /Page title/);
+  assert.match(admin, /Page slug/);
+  assert.match(admin, /get_permalink\(/);
+  assert.match(admin, /get_edit_post_link\(/);
+  assert.match(admin, /create_or_adopt_front_desk_page/);
+  assert.match(admin, /options\['front_desk_page_id'\] = absint\( \$result\['page_id'\] \)/);
   assert.match(admin, /\[vonza_front_desk layout="page-takeover"\]/);
-  assert.match(admin, /Template page is recommended\. It removes theme content boxes and lets Front Desk fill the page body\./);
+  assert.match(admin, /Template page mode is recommended\. It lets Vonza render Front Desk without your theme\\'s content box\./);
+  assert.match(admin, /Use an existing page if you already created an AI Assistant or support page\./);
   assert.match(admin, /esc_html/);
   assert.match(admin, /esc_attr/);
   assert.match(admin, /esc_url/);
@@ -59,9 +71,13 @@ test("Vonza Front Desk WordPress plugin registers admin settings and shortcodes 
   assert.match(plugin, /https:\/\/vonza-assistant\.onrender\.com/);
   assert.match(plugin, /add_filter\(\s*'template_include'/);
   assert.match(plugin, /add_filter\(\s*'body_class'/);
+  assert.match(plugin, /front_desk_page_id/);
   assert.match(plugin, /created_page_id/);
+  assert.match(plugin, /has_front_desk_page_id/);
+  assert.match(plugin, /front_desk_page_id'\] = \$options\['created_page_id'\]/);
   assert.match(plugin, /FRONT_DESK_PAGE_META/);
   assert.match(plugin, /front_desk_page_mode/);
+  assert.match(plugin, /sanitize_front_desk_page_id/);
   assert.match(plugin, /sanitize_text_field/);
   assert.match(plugin, /wp_http_validate_url/);
 });
@@ -75,6 +91,10 @@ test("Vonza Front Desk WordPress plugin provides a dedicated template page mode"
   assert.match(plugin, /templates\/front-desk-page-template\.php/);
   assert.match(plugin, /template_include/);
   assert.match(plugin, /get_queried_object_id\(\)/);
+  assert.match(plugin, /get_front_desk_page_ids/);
+  assert.match(plugin, /in_array\( \$current_page_id, \$this->get_front_desk_page_ids\(\), true \)/);
+  assert.match(plugin, /absint\( \$options\['front_desk_page_id'\] \)/);
+  assert.match(plugin, /absint\( \$options\['created_page_id'\] \)/);
   assert.match(plugin, /vonza-front-desk-page/);
   assert.match(plugin, /vonza-front-desk-template-active/);
 

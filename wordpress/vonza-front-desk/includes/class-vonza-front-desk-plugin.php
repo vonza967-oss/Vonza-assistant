@@ -58,7 +58,18 @@ class Vonza_Front_Desk_Plugin {
 
 	public function get_options() {
 		$stored = get_option( self::OPTION_NAME, array() );
-		return wp_parse_args( is_array( $stored ) ? $stored : array(), $this->get_default_options() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$has_front_desk_page_id = array_key_exists( 'front_desk_page_id', $stored );
+		$options = wp_parse_args( $stored, $this->get_default_options() );
+
+		$options['front_desk_page_id'] = absint( $options['front_desk_page_id'] );
+		$options['created_page_id'] = absint( $options['created_page_id'] );
+
+		if ( ! $has_front_desk_page_id && empty( $options['front_desk_page_id'] ) && ! empty( $options['created_page_id'] ) ) {
+			$options['front_desk_page_id'] = $options['created_page_id'];
+		}
+
+		return $options;
 	}
 
 	public function get_default_options() {
@@ -72,7 +83,10 @@ class Vonza_Front_Desk_Plugin {
 			'hide_page_footer'     => '1',
 			'hide_page_title'      => '1',
 			'front_desk_page_mode' => 'template',
+			'front_desk_page_id'   => 0,
 			'created_page_id'      => 0,
+			'front_desk_page_title' => __( 'Front Desk', 'vonza-front-desk' ),
+			'front_desk_page_slug' => 'front-desk',
 		);
 	}
 
@@ -89,6 +103,21 @@ class Vonza_Front_Desk_Plugin {
 			$app_url = self::DEFAULT_APP_URL;
 		}
 
+		$front_desk_page_id = $this->sanitize_front_desk_page_id( $input['front_desk_page_id'] ?? $current['front_desk_page_id'] );
+		$created_page_id = array_key_exists( 'front_desk_page_id', $input )
+			? $front_desk_page_id
+			: $this->sanitize_front_desk_page_id( $input['created_page_id'] ?? $current['created_page_id'] );
+
+		$page_title = sanitize_text_field( $input['front_desk_page_title'] ?? $current['front_desk_page_title'] );
+		if ( '' === $page_title ) {
+			$page_title = __( 'Front Desk', 'vonza-front-desk' );
+		}
+
+		$page_slug = sanitize_title( $input['front_desk_page_slug'] ?? $current['front_desk_page_slug'] );
+		if ( '' === $page_slug ) {
+			$page_slug = 'front-desk';
+		}
+
 		return array(
 			'agent_id'             => $this->sanitize_agent_id( $input['agent_id'] ?? $current['agent_id'] ),
 			'app_url'              => untrailingslashit( $app_url ),
@@ -99,7 +128,10 @@ class Vonza_Front_Desk_Plugin {
 			'hide_page_footer'     => empty( $input['hide_page_footer'] ) ? '0' : '1',
 			'hide_page_title'      => empty( $input['hide_page_title'] ) ? '0' : '1',
 			'front_desk_page_mode' => $this->sanitize_choice( $input['front_desk_page_mode'] ?? $current['front_desk_page_mode'], array( 'template', 'shortcode' ), 'template' ),
-			'created_page_id'      => absint( $input['created_page_id'] ?? $current['created_page_id'] ),
+			'front_desk_page_id'   => $front_desk_page_id,
+			'created_page_id'      => $created_page_id,
+			'front_desk_page_title' => $page_title,
+			'front_desk_page_slug' => $page_slug,
 		);
 	}
 
@@ -127,9 +159,27 @@ class Vonza_Front_Desk_Plugin {
 		return in_array( $value, $allowed, true ) ? $value : $fallback;
 	}
 
+	public function sanitize_front_desk_page_id( $value ) {
+		$page_id = absint( $value );
+		if ( empty( $page_id ) ) {
+			return 0;
+		}
+
+		$page = get_post( $page_id );
+		if ( ! $page || 'page' !== $page->post_type || ! in_array( $page->post_status, array( 'publish', 'draft' ), true ) ) {
+			return 0;
+		}
+
+		return $page_id;
+	}
+
 	public function get_created_page() {
+		return $this->get_front_desk_page();
+	}
+
+	public function get_front_desk_page() {
 		$options = $this->get_options();
-		$page_id = absint( $options['created_page_id'] );
+		$page_id = absint( $options['front_desk_page_id'] );
 
 		if ( $page_id ) {
 			$page = get_post( $page_id );
@@ -138,8 +188,7 @@ class Vonza_Front_Desk_Plugin {
 			}
 		}
 
-		$page = get_page_by_path( 'front-desk', OBJECT, 'page' );
-		return ( $page && 'trash' !== $page->post_status ) ? $page : null;
+		return null;
 	}
 
 	public function is_front_desk_page() {
@@ -147,10 +196,18 @@ class Vonza_Front_Desk_Plugin {
 			return false;
 		}
 
-		$options = $this->get_options();
-		$page_id = absint( $options['created_page_id'] );
+		$current_page_id = absint( get_queried_object_id() );
+		return $current_page_id && in_array( $current_page_id, $this->get_front_desk_page_ids(), true );
+	}
 
-		return $page_id && absint( get_queried_object_id() ) === $page_id;
+	private function get_front_desk_page_ids() {
+		$options = $this->get_options();
+		$page_ids = array(
+			absint( $options['front_desk_page_id'] ),
+			absint( $options['created_page_id'] ),
+		);
+
+		return array_values( array_unique( array_filter( $page_ids ) ) );
 	}
 
 	public function filter_template_include( $template ) {

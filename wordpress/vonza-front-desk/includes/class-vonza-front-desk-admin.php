@@ -74,8 +74,21 @@ class Vonza_Front_Desk_Admin {
 			? wp_unslash( $_POST['vonza_front_desk'] )
 			: array();
 
+		$status = 'settings-saved';
+		if ( isset( $input['front_desk_page_id'] ) && '__create_new__' === $input['front_desk_page_id'] ) {
+			$result = $this->create_or_adopt_front_desk_page( $input );
+
+			if ( is_wp_error( $result ) ) {
+				$this->redirect_with_status( 'page-error' );
+			}
+
+			$input['front_desk_page_id'] = absint( $result['page_id'] );
+			$input['created_page_id'] = absint( $result['page_id'] );
+			$status = $result['status'];
+		}
+
 		$this->plugin->save_options( $input );
-		$this->redirect_with_status( 'settings-saved' );
+		$this->redirect_with_status( $status );
 	}
 
 	public function handle_create_page() {
@@ -86,34 +99,16 @@ class Vonza_Front_Desk_Admin {
 		check_admin_referer( 'vonza_front_desk_create_page' );
 
 		$options = $this->plugin->get_options();
-		$page    = $this->plugin->get_created_page();
+		$result  = $this->create_or_adopt_front_desk_page( $options );
 
-		if ( $page ) {
-			$options['created_page_id'] = $page->ID;
-			$this->plugin->save_options( $options );
-			update_post_meta( $page->ID, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
-			$this->redirect_with_status( 'page-exists' );
-		}
-
-		$page_id = wp_insert_post(
-			array(
-				'post_title'   => __( 'Front Desk', 'vonza-front-desk' ),
-				'post_name'    => 'front-desk',
-				'post_type'    => 'page',
-				'post_status'  => 'publish',
-				'post_content' => '[vonza_front_desk layout="page-takeover"]',
-			),
-			true
-		);
-
-		if ( is_wp_error( $page_id ) ) {
+		if ( is_wp_error( $result ) ) {
 			$this->redirect_with_status( 'page-error' );
 		}
 
-		$options['created_page_id'] = absint( $page_id );
+		$options['front_desk_page_id'] = absint( $result['page_id'] );
+		$options['created_page_id'] = absint( $result['page_id'] );
 		$this->plugin->save_options( $options );
-		update_post_meta( $page_id, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
-		$this->redirect_with_status( 'page-created' );
+		$this->redirect_with_status( $result['status'] );
 	}
 
 	public function render_settings_page() {
@@ -122,7 +117,8 @@ class Vonza_Front_Desk_Admin {
 		}
 
 		$options = $this->plugin->get_options();
-		$page    = $this->plugin->get_created_page();
+		$page    = $this->plugin->get_front_desk_page();
+		$pages   = $this->get_selectable_pages();
 		$status  = isset( $_GET['vonza_status'] ) ? sanitize_key( wp_unslash( $_GET['vonza_status'] ) ) : '';
 
 		?>
@@ -174,6 +170,41 @@ class Vonza_Front_Desk_Admin {
 							<option value="template" <?php selected( 'template', $options['front_desk_page_mode'] ); ?>><?php echo esc_html__( 'Template page', 'vonza-front-desk' ); ?></option>
 							<option value="shortcode" <?php selected( 'shortcode', $options['front_desk_page_mode'] ); ?>><?php echo esc_html__( 'Shortcode fallback', 'vonza-front-desk' ); ?></option>
 						</select>
+						<p><?php echo esc_html__( 'Template page mode is recommended. It lets Vonza render Front Desk without your theme\'s content box.', 'vonza-front-desk' ); ?></p>
+
+						<label for="vonza-front-desk-page-id"><?php echo esc_html__( 'Front Desk page', 'vonza-front-desk' ); ?></label>
+						<select id="vonza-front-desk-page-id" name="vonza_front_desk[front_desk_page_id]">
+							<option value="0" <?php selected( 0, absint( $options['front_desk_page_id'] ) ); ?>><?php echo esc_html__( 'None selected', 'vonza-front-desk' ); ?></option>
+							<option value="__create_new__"><?php echo esc_html__( 'Create new page', 'vonza-front-desk' ); ?></option>
+							<?php foreach ( $pages as $selectable_page ) : ?>
+								<option value="<?php echo esc_attr( $selectable_page->ID ); ?>" <?php selected( absint( $selectable_page->ID ), absint( $options['front_desk_page_id'] ) ); ?>>
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: 1: page title, 2: page status. */
+											__( '%1$s (%2$s)', 'vonza-front-desk' ),
+											get_the_title( $selectable_page ),
+											$selectable_page->post_status
+										)
+									);
+									?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+						<p><?php echo esc_html__( 'Use an existing page if you already created an AI Assistant or support page.', 'vonza-front-desk' ); ?></p>
+
+						<label for="vonza-front-desk-page-title"><?php echo esc_html__( 'Page title', 'vonza-front-desk' ); ?></label>
+						<input id="vonza-front-desk-page-title" class="regular-text" type="text" name="vonza_front_desk[front_desk_page_title]" value="<?php echo esc_attr( $options['front_desk_page_title'] ); ?>">
+
+						<label for="vonza-front-desk-page-slug"><?php echo esc_html__( 'Page slug', 'vonza-front-desk' ); ?></label>
+						<input id="vonza-front-desk-page-slug" class="regular-text" type="text" name="vonza_front_desk[front_desk_page_slug]" value="<?php echo esc_attr( $options['front_desk_page_slug'] ); ?>">
+
+						<?php if ( $page ) : ?>
+							<p class="vonza-front-desk-page-links">
+								<a class="button" href="<?php echo esc_url( get_permalink( $page ) ); ?>" target="_blank" rel="noreferrer"><?php echo esc_html__( 'View page', 'vonza-front-desk' ); ?></a>
+								<a class="button" href="<?php echo esc_url( get_edit_post_link( $page->ID, '' ) ); ?>"><?php echo esc_html__( 'Edit page', 'vonza-front-desk' ); ?></a>
+							</p>
+						<?php endif; ?>
 
 						<label>
 							<input type="checkbox" name="vonza_front_desk[hide_page_footer]" value="1" <?php checked( '1', $options['hide_page_footer'] ); ?>>
@@ -193,8 +224,8 @@ class Vonza_Front_Desk_Admin {
 
 				<section class="vonza-front-desk-card">
 					<h2><?php echo esc_html__( 'Front Desk page', 'vonza-front-desk' ); ?></h2>
-					<p><?php echo esc_html__( 'Create a dedicated WordPress page that renders your Vonza Front Desk embed.', 'vonza-front-desk' ); ?></p>
-					<p><strong><?php echo esc_html__( 'Created Front Desk page:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( $page ? get_the_title( $page ) : __( 'Not created yet', 'vonza-front-desk' ) ); ?></p>
+					<p><?php echo esc_html__( 'Create or adopt a WordPress page that renders your Vonza Front Desk embed.', 'vonza-front-desk' ); ?></p>
+					<p><strong><?php echo esc_html__( 'Selected Front Desk page:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( $page ? get_the_title( $page ) : __( 'None selected', 'vonza-front-desk' ) ); ?></p>
 					<p><strong><?php echo esc_html__( 'Page mode:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( 'template' === $options['front_desk_page_mode'] ? __( 'Template page', 'vonza-front-desk' ) : __( 'Shortcode fallback', 'vonza-front-desk' ) ); ?></p>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="vonza_front_desk_create_page">
@@ -237,6 +268,58 @@ class Vonza_Front_Desk_Admin {
 
 		$class = 'page-error' === $status ? 'notice notice-error' : 'notice notice-success';
 		printf( '<div class="%1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $messages[ $status ] ) );
+	}
+
+	private function create_or_adopt_front_desk_page( $options ) {
+		$current_page = $this->plugin->get_front_desk_page();
+		if ( $current_page ) {
+			update_post_meta( $current_page->ID, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
+			return array(
+				'page_id' => absint( $current_page->ID ),
+				'status'  => 'page-exists',
+			);
+		}
+
+		$options = $this->plugin->sanitize_options( $options );
+		$existing_page = get_page_by_path( $options['front_desk_page_slug'], OBJECT, 'page' );
+		if ( $existing_page && in_array( $existing_page->post_status, array( 'publish', 'draft' ), true ) ) {
+			update_post_meta( $existing_page->ID, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
+			return array(
+				'page_id' => absint( $existing_page->ID ),
+				'status'  => 'page-exists',
+			);
+		}
+
+		$page_id = wp_insert_post(
+			array(
+				'post_title'   => $options['front_desk_page_title'],
+				'post_name'    => $options['front_desk_page_slug'],
+				'post_type'    => 'page',
+				'post_status'  => 'publish',
+				'post_content' => '[vonza_front_desk layout="page-takeover"]',
+			),
+			true
+		);
+
+		if ( is_wp_error( $page_id ) ) {
+			return $page_id;
+		}
+
+		update_post_meta( $page_id, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
+		return array(
+			'page_id' => absint( $page_id ),
+			'status'  => 'page-created',
+		);
+	}
+
+	private function get_selectable_pages() {
+		return get_pages(
+			array(
+				'post_status' => array( 'publish', 'draft' ),
+				'sort_column' => 'post_title',
+				'sort_order'  => 'ASC',
+			)
+		);
 	}
 
 	private function redirect_with_status( $status ) {
