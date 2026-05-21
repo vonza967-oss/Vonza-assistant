@@ -194,6 +194,7 @@ let visitorIdentity = {
 };
 let lastLeadReferenceMessage = "";
 let quickRepliesDismissed = false;
+let pendingCanvasTopicLabel = "";
 const sentTelemetryKeys = new Set();
 const leadCapturePromptShownKeys = new Set();
 const submittedReplyFeedbackKeys = new Set();
@@ -259,6 +260,15 @@ function isSmartEmbeddedPageMode() {
 
 function isCanvasEmbeddedPageMode() {
   return isFullEmbeddedPageMode() && EMBEDDED_LAYOUT === "canvas";
+}
+
+function isMobileViewport() {
+  if (typeof window.matchMedia === "function") {
+    return window.matchMedia("(max-width: 720px)").matches
+      || window.matchMedia("(pointer: coarse)").matches;
+  }
+
+  return Number(window.innerWidth || 0) > 0 && Number(window.innerWidth || 0) <= 720;
 }
 
 function shouldShowPageTitle() {
@@ -515,6 +525,18 @@ function getAssistantMark(name = widgetConfig.assistantName) {
 function isDefaultWelcomeMessage(message) {
   const normalized = trimText(message);
   return !normalized || normalized === DEFAULT_WIDGET_CONFIG.welcomeMessage;
+}
+
+function isUnsafeCanvasIntroMessage(message) {
+  const normalized = trimText(message);
+  const lower = normalized.toLowerCase();
+
+  return !normalized
+    || lower === DEFAULT_WIDGET_CONFIG.welcomeMessage.toLowerCase()
+    || lower === LEGACY_WIDGET_DEFAULTS.welcomeMessage.toLowerCase()
+    || /^hi[,!.\s]+my name is vonza\b/i.test(normalized)
+    || /^hi[,!.\s]+i'?m vonza\b/i.test(normalized)
+    || /^hi[,!.\s]+how can we help today\??$/i.test(normalized);
 }
 
 function normalizeBoolean(value, fallbackValue = false) {
@@ -783,6 +805,13 @@ function getFullPageConfig(config = widgetConfig) {
   return {
     headline: normalizeLimitedText(rawConfig.headline, 80),
     subtitle: normalizeLimitedText(rawConfig.subtitle, 180),
+    introMessage: normalizeLimitedText(
+      rawConfig.introMessage
+        || rawConfig.intro_message
+        || rawConfig.welcomeMessage
+        || rawConfig.welcome_message,
+      180
+    ),
     actionCards: rawCards
       .slice(0, 6)
       .map((card, index) => normalizePageActionCard(card, defaults[index] || {}))
@@ -1033,6 +1062,34 @@ function getPageWelcomeMessage({ business = null, config = widgetConfig } = {}) 
   }
 
   return "Hi, I can help with services, pricing, quotes, and contact details. What would you like to know?";
+}
+
+function getCanvasIcebreakerLine({ business = pageBusinessContext, config = widgetConfig } = {}) {
+  const fullPageConfig = getFullPageConfig(config);
+  const configuredIntro = trimText(fullPageConfig.introMessage);
+  const configuredSubtitle = trimText(fullPageConfig.subtitle);
+
+  if (
+    configuredIntro
+    && !isUnsafeCanvasIntroMessage(configuredIntro)
+    && configuredIntro.toLowerCase() !== configuredSubtitle.toLowerCase()
+    && configuredIntro !== DEFAULT_FULL_PAGE_SUBTITLE
+  ) {
+    return configuredIntro;
+  }
+
+  const businessName = trimText(
+    business?.name
+    || business?.businessName
+    || config.businessName
+    || config.business_name
+  );
+
+  if (businessName) {
+    return `Welcome to ${businessName}. Choose a topic below or ask anything to get started.`;
+  }
+
+  return "Choose a topic below or ask anything to get started.";
 }
 
 function hasAssistantConfig() {
@@ -1369,8 +1426,13 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
 
   const canvasIntroLine = document.getElementById("canvas-intro-line");
   if (canvasIntroLine) {
-    canvasIntroLine.textContent = "";
-    canvasIntroLine.hidden = true;
+    if (isCanvasEmbeddedPageMode()) {
+      canvasIntroLine.textContent = getCanvasIcebreakerLine({ business, config });
+      canvasIntroLine.hidden = false;
+    } else {
+      canvasIntroLine.textContent = "";
+      canvasIntroLine.hidden = true;
+    }
   }
 }
 
@@ -1458,6 +1520,21 @@ function syncPageIdentityInline() {
   queueEmbeddedHeightUpdate();
 }
 
+function focusComposerInputIfSafe(options = {}) {
+  const input = document.getElementById("input");
+
+  if (!input || input.disabled) {
+    return false;
+  }
+
+  if (isCanvasEmbeddedPageMode() && options.force !== true && isMobileViewport()) {
+    return false;
+  }
+
+  input.focus();
+  return true;
+}
+
 function isMobilePagePromptMode() {
   return isPageMode()
     && !EMBEDDED_MODE
@@ -1466,6 +1543,10 @@ function isMobilePagePromptMode() {
 }
 
 function shouldShowQuickReplies() {
+  if (isCanvasEmbeddedPageMode()) {
+    return widgetPhase === WIDGET_PHASES.CHAT;
+  }
+
   if (isPageMode() && !EMBEDDED_MODE && !isMobilePagePromptMode()) {
     return false;
   }
@@ -1493,6 +1574,7 @@ function renderQuickReplies() {
       class="quick-reply-chip"
       type="button"
       data-quick-reply="${escapeHtml(item.prompt)}"
+      data-quick-reply-label="${escapeHtml(item.label)}"
     >${escapeHtml(item.label)}</button>
   `).join("");
 
@@ -1629,7 +1711,7 @@ function continueIntoChat(identity, options = {}) {
     void persistVisitorIdentityChoice(normalized);
   }
 
-  document.getElementById("input")?.focus();
+  focusComposerInputIfSafe();
   return normalized;
 }
 
@@ -2429,6 +2511,7 @@ async function loadWidgetBootstrap() {
       setComposerStatus("Choose how to continue, then start chatting.");
     }
     setPageShellState("ready");
+    focusComposerInputIfSafe();
     await detectConversionOutcomesOnLoad();
   } catch (error) {
     console.error("Vonza assistant bootstrap failed:", error);
@@ -2472,9 +2555,44 @@ function buildReplyFeedbackMarkup(messageKey, options = {}) {
   `;
 }
 
+function getCanvasTopicLabelForPrompt(prompt = "") {
+  const normalizedPrompt = trimText(prompt).toLowerCase();
+
+  if (!isCanvasEmbeddedPageMode() || !normalizedPrompt) {
+    return "";
+  }
+
+  const item = getQuickReplyItems().find((entry) => trimText(entry.prompt).toLowerCase() === normalizedPrompt);
+  return trimText(item?.label);
+}
+
+function canShowCanvasQuoteAction() {
+  return isCanvasEmbeddedPageMode()
+    && getPageActionCards(widgetConfig).some((card) => card.type === "quote" && trimText(card.prompt));
+}
+
+function buildCanvasAnswerActionsMarkup() {
+  if (!isCanvasEmbeddedPageMode()) {
+    return "";
+  }
+
+  return `
+    <div class="canvas-answer-actions" aria-label="Next actions">
+      <button type="button" data-canvas-answer-action="ask">Ask another question</button>
+      <button type="button" data-canvas-answer-action="contact">Leave contact details</button>
+      ${canShowCanvasQuoteAction() ? '<button type="button" data-canvas-answer-action="quote">Request a quote</button>' : ""}
+    </div>
+  `;
+}
+
 function appendMessage(chat, role, text, options = {}) {
   const wrapper = document.createElement("div");
-  wrapper.className = `message ${role}${options.typing ? " typing" : ""}`;
+  const isCanvasAnswer = isCanvasEmbeddedPageMode()
+    && role === "bot"
+    && !options.typing
+    && !options.error
+    && trimText(text);
+  wrapper.className = `message ${role}${options.typing ? " typing" : ""}${isCanvasAnswer ? " canvas-answer-message" : ""}`;
   if (options.error) {
     wrapper.classList.add("error");
   }
@@ -2493,11 +2611,13 @@ function appendMessage(chat, role, text, options = {}) {
     <div class="avatar">${avatar}</div>
     <div class="bubble">
       <p class="message-label">${escapeHtml(label)}</p>
+      ${isCanvasAnswer && trimText(options.canvasTopicLabel) ? `<p class="canvas-answer-topic">${escapeHtml(trimText(options.canvasTopicLabel))}</p>` : ""}
       ${body}
       ${role === "bot" && options.feedbackKey ? buildReplyFeedbackMarkup(options.feedbackKey, {
         question: options.feedbackQuestion || "",
         answer: text || "",
       }) : ""}
+      ${isCanvasAnswer ? buildCanvasAnswerActionsMarkup() : ""}
     </div>
   `;
 
@@ -2571,6 +2691,10 @@ async function sendMessage(messageOverride = "") {
 
   const message = trimText(messageOverride || input.value);
   const historySnapshot = conversationHistory.slice(-6);
+  const canvasTopicLabel = isCanvasEmbeddedPageMode()
+    ? trimText(pendingCanvasTopicLabel) || getCanvasTopicLabelForPrompt(message)
+    : "";
+  pendingCanvasTopicLabel = "";
 
   if (!message) return;
 
@@ -2657,6 +2781,7 @@ async function sendMessage(messageOverride = "") {
     appendMessage(chat, "bot", data.reply, {
       feedbackKey,
       feedbackQuestion: message,
+      canvasTopicLabel,
     });
     resolvedAgentId = trimText(data.agentId || resolvedAgentId);
     resolvedAgentKey = trimText(data.agentKey || resolvedAgentKey);
@@ -2701,7 +2826,7 @@ async function sendMessage(messageOverride = "") {
   } finally {
     button.disabled = false;
     input.disabled = false;
-    input.focus();
+    focusComposerInputIfSafe();
   }
 }
 
@@ -2743,6 +2868,10 @@ document.getElementById("identity-email-form")?.addEventListener("submit", (even
 });
 
 document.getElementById("page-identity-email-button")?.addEventListener("click", () => {
+  openPageIdentityContactForm();
+});
+
+function openPageIdentityContactForm() {
   const form = getPageIdentityEmailForm();
 
   if (!form) {
@@ -2752,7 +2881,7 @@ document.getElementById("page-identity-email-button")?.addEventListener("click",
   form.hidden = false;
   document.getElementById("page-identity-name")?.focus();
   setComposerStatus("Add your email if you want the business to follow up.");
-});
+}
 
 document.getElementById("page-identity-email-cancel")?.addEventListener("click", () => {
   getPageIdentityEmailForm()?.setAttribute("hidden", "");
@@ -2784,6 +2913,30 @@ document.getElementById("identity-reset-button")?.addEventListener("click", () =
 });
 
 document.getElementById("chat")?.addEventListener("click", (event) => {
+  const canvasActionButton = event.target?.closest?.("[data-canvas-answer-action]");
+
+  if (canvasActionButton) {
+    const action = trimText(canvasActionButton.dataset.canvasAnswerAction);
+
+    if (action === "ask") {
+      focusComposerInputIfSafe({ force: true });
+      setComposerStatus("Ask anything else about the business.");
+      return;
+    }
+
+    if (action === "contact") {
+      openPageIdentityContactForm();
+      return;
+    }
+
+    if (action === "quote") {
+      const quoteCard = getPageActionCards(widgetConfig).find((card) => card.type === "quote" && trimText(card.prompt));
+      pendingCanvasTopicLabel = trimText(quoteCard?.label) || "Request a quote";
+      sendMessage(trimText(quoteCard?.prompt) || "I'd like to request a quote.");
+      return;
+    }
+  }
+
   const openReasonsButton = event.target?.closest?.("[data-reply-feedback-open-reasons]");
 
   if (openReasonsButton) {
@@ -2860,6 +3013,9 @@ getQuickReplies()?.addEventListener("click", (event) => {
   const topic = trimText(button.dataset.quickReply || button.textContent);
 
   if (topic) {
+    pendingCanvasTopicLabel = isCanvasEmbeddedPageMode()
+      ? trimText(button.dataset.quickReplyLabel || button.textContent)
+      : "";
     sendMessage(topic);
   }
 });

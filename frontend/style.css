@@ -2675,6 +2675,12 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.ful
   text-shadow: 0 10px 32px rgba(2, 6, 23, 0.28);
 }
 
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-intro-line,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-intro-line {
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 10px 32px rgba(2, 6, 23, 0.24);
+}
+
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-action-list,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-action-list {
   display: none;
@@ -2816,6 +2822,7 @@ html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .wi
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .widget-phase-chat {
   min-height: 0;
   height: 100%;
+  gap: 18px;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .widget-phase-chat,
@@ -2826,10 +2833,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .chat-feed,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .chat-feed {
-  width: min(100%, 860px);
+  width: min(100%, 780px);
   margin: 0 auto;
   background: transparent;
-  padding: 0 0 18px;
+  padding: 0 0 10px;
   overflow-y: auto;
 }
 
@@ -2840,7 +2847,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message {
-  max-width: min(100%, 780px);
+  max-width: min(100%, 760px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.intro,
@@ -2851,6 +2858,83 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .me
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .bubble,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .bubble {
   box-shadow: none;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message {
+  width: min(100%, 760px);
+  align-self: center;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .avatar,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .avatar {
+  display: none;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .bubble,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .bubble {
+  width: 100%;
+  padding: 6px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #111827;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .message-label,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .message-label {
+  display: none;
+}
+
+.canvas-answer-topic {
+  margin: 0 0 10px;
+  color: color-mix(in srgb, var(--canvas-accent-color, #111827) 62%, #667085 38%);
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-answer-message .vonza-message-body,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-answer-message .vonza-message-body {
+  color: #111827;
+  font-size: clamp(1rem, 1.8vw, 1.16rem);
+  line-height: 1.65;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-message .vonza-message-body,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-message .vonza-message-body,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-topic,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-topic {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.canvas-answer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.canvas-answer-actions button {
+  appearance: none;
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid #d7dce5;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #344054;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.canvas-answer-actions button:hover,
+.canvas-answer-actions button:focus-visible {
+  border-color: color-mix(in srgb, var(--brand-primary) 42%, #d0d5dd 58%);
+  color: color-mix(in srgb, var(--brand-primary) 72%, #111827 28%);
+  outline: none;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .composer-shell,
@@ -2880,6 +2964,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-intro-line:not([hidden]),
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-intro-line:not([hidden]) {
+  display: block;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .canvas-intro-line,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .canvas-intro-line {
   display: none;
 }
 
@@ -2901,6 +2990,14 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .qu
   font-size: 0.9rem;
   font-weight: 760;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-reply-chip,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-reply-chip {
+  min-height: 34px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  box-shadow: none;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-chip-soft .quick-reply-chip,
@@ -2953,6 +3050,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.ful
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas input,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas input {
+  caret-color: var(--canvas-send-color, #111827);
   font-size: 1.04rem;
 }
 

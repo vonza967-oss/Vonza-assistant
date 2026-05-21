@@ -88,7 +88,9 @@ function createFakeElement(id = "") {
         ...event,
       });
     },
-    focus() {},
+    focus() {
+      this.focused = true;
+    },
     appendChild(child) {
       this.children.push(child);
       return child;
@@ -114,6 +116,8 @@ function createWidgetHarness({
   widgetRuntimeConfig = {},
   initialLocalStorage = {},
   location = {},
+  mobileViewport = false,
+  innerWidth = 1024,
 } = {}) {
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const elements = new Map();
@@ -311,6 +315,19 @@ function createWidgetHarness({
       },
       VonzaWidgetConfig: widgetRuntimeConfig,
       addEventListener() {},
+      innerWidth,
+      matchMedia(query) {
+        const isMobile = mobileViewport === true;
+        return {
+          matches: isMobile && (
+            query.includes("max-width: 720px")
+            || query.includes("pointer: coarse")
+          ),
+          media: query,
+          addEventListener() {},
+          removeEventListener() {},
+        };
+      },
     },
     globalThis: null,
   };
@@ -2352,11 +2369,15 @@ test("embedded page mode exposes size variants in runtime classes", async () => 
   assert.equal(canvasFullHarness.elements.get("page-action-list").hidden, true);
   assert.equal(canvasFullHarness.elements.get("page-action-list").innerHTML, "");
   assert.equal(canvasFullHarness.elements.get("intro-message").hidden, true);
-  assert.equal(canvasFullHarness.elements.get("canvas-intro-line").hidden, true);
-  assert.equal(canvasFullHarness.elements.get("canvas-intro-line").textContent, "");
+  assert.equal(canvasFullHarness.elements.get("canvas-intro-line").hidden, false);
+  assert.equal(
+    canvasFullHarness.elements.get("canvas-intro-line").textContent,
+    "Welcome to Acme Co. Choose a topic below or ask anything to get started."
+  );
   assert.equal(canvasFullHarness.elements.get("composer-shell").hidden, false);
   assert.equal(canvasFullHarness.elements.get("input").disabled, false);
   assert.equal(canvasFullHarness.elements.get("input").placeholder, "Ask anything...");
+  assert.equal(canvasFullHarness.elements.get("input").focused, true);
   assert.equal(canvasFullHarness.elements.get("page-identity-note").textContent, "Asking as guest");
   assert.equal(canvasFullHarness.elements.get("page-identity-powered").textContent, "Powered by Vonza");
   assert.match(canvasFullHarness.elements.get("quick-replies").innerHTML, />Services</);
@@ -2616,8 +2637,8 @@ test("canvas full embedded page mode uses a composer-first layout without duplic
   assert.equal(harness.elements.get("intro-message").hidden, true);
   assert.equal(harness.elements.get("composer-shell").hidden, false);
   assert.equal(harness.elements.get("input").disabled, false);
-  assert.equal(harness.elements.get("canvas-intro-line").hidden, true);
-  assert.equal(harness.elements.get("canvas-intro-line").textContent, "");
+  assert.equal(harness.elements.get("canvas-intro-line").hidden, false);
+  assert.equal(harness.elements.get("canvas-intro-line").textContent, "Welcome to Acme Studio. Choose a topic below or ask anything to get started.");
   assert.equal(harness.elements.get("welcome-message").textContent, "Welcome to Acme support.");
   assert.match(harness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
   assert.match(harness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
@@ -2680,6 +2701,263 @@ test("canvas full embedded page mode send color uses configured accent and dark 
   assert.equal(accentedHarness.documentElement.style.getPropertyValue("--brand-primary"), "#0f8f83");
   assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--canvas-send-color"), "#111827");
   assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--brand-primary"), "#7c4dff");
+});
+
+test("canvas icebreaker falls back without business name and uses safe configured intro", async () => {
+  const createCanvasHarness = async ({ business = {}, fullPageConfig = {} } = {}) => {
+    const harness = createWidgetHarness({
+      location: {
+        search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+        pathname: "/widget",
+        href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      },
+      customFetch: async (input) => {
+        if (String(input).includes("/widget/bootstrap")) {
+          return {
+            ok: true,
+            async json() {
+              return {
+                agent: { id: "agent-1" },
+                business: { id: "business-1", ...business },
+                widgetConfig: {
+                  assistantName: "Acme Assistant",
+                  full_page_config: fullPageConfig,
+                },
+              };
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          async json() {
+            return {};
+          },
+        };
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return harness;
+  };
+
+  const fallbackHarness = await createCanvasHarness();
+  const customHarness = await createCanvasHarness({
+    business: { name: "Acme Studio" },
+    fullPageConfig: {
+      welcome_message: "Start with a topic below, or ask the front desk anything.",
+    },
+  });
+  const unsafeHarness = await createCanvasHarness({
+    business: { name: "Acme Studio" },
+    fullPageConfig: {
+      intro_message: "Hi, my name is Vonza. How can I help?",
+    },
+  });
+
+  assert.equal(
+    fallbackHarness.elements.get("canvas-intro-line").textContent,
+    "Choose a topic below or ask anything to get started."
+  );
+  assert.equal(
+    customHarness.elements.get("canvas-intro-line").textContent,
+    "Start with a topic below, or ask the front desk anything."
+  );
+  assert.equal(customHarness.elements.get("chat").children.length, 0);
+  assert.equal(
+    unsafeHarness.elements.get("canvas-intro-line").textContent,
+    "Welcome to Acme Studio. Choose a topic below or ask anything to get started."
+  );
+  assert.doesNotMatch(unsafeHarness.elements.get("canvas-intro-line").textContent, /Hi, my name is Vonza/i);
+});
+
+test("canvas input autofocuses on desktop but does not force mobile keyboard", async () => {
+  const createHarness = async (mobileViewport = false) => {
+    const harness = createWidgetHarness({
+      mobileViewport,
+      innerWidth: mobileViewport ? 390 : 1024,
+      location: {
+        search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+        pathname: "/widget",
+      },
+      customFetch: async () => ({
+        ok: true,
+        async json() {
+          return {
+            agent: { id: "agent-1" },
+            business: { id: "business-1", name: "Acme Studio" },
+            widgetConfig: { assistantName: "Acme Assistant" },
+          };
+        },
+      }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return harness;
+  };
+
+  const desktopHarness = await createHarness(false);
+  const mobileHarness = await createHarness(true);
+
+  assert.equal(desktopHarness.elements.get("input").focused, true);
+  assert.notEqual(mobileHarness.elements.get("input").focused, true);
+});
+
+test("clicking a canvas prompt opens the answer workspace with the selected topic", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+    },
+    customFetch: async (input, options = {}) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                full_page_config: {
+                  suggested_questions: [
+                    "What services do you offer?",
+                    "How much does it cost?",
+                    "I'd like to request a quote.",
+                    "How can I contact you?",
+                    "Do you have a calendar?",
+                  ],
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        assert.equal(JSON.parse(options.body).message, "How much does it cost?");
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Pricing depends on the scope. Share what you need and the team can follow up.",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const quickRepliesHtml = harness.elements.get("quick-replies").innerHTML;
+  assert.equal((quickRepliesHtml.match(/quick-reply-chip/g) || []).length, 4);
+  assert.equal((quickRepliesHtml.match(/>Pricing</g) || []).length, 1);
+
+  harness.elements.get("quick-replies").dispatch("click", {
+    target: {
+      closest(selector) {
+        assert.equal(selector, "[data-quick-reply]");
+        return {
+          dataset: {
+            quickReply: "How much does it cost?",
+            quickReplyLabel: "Pricing",
+          },
+          textContent: "Pricing",
+        };
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const chat = harness.elements.get("chat");
+  const renderedChat = chat.children.map((child) => child.innerHTML).join("\n");
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
+  assert.match(renderedChat, /canvas-answer-topic/);
+  assert.match(renderedChat, /Pricing/);
+  assert.match(renderedChat, /Pricing depends on the scope/);
+  assert.equal(chat.children.filter((child) => String(child.className || "").includes("message user")).length, 1);
+  assert.equal(chat.children.filter((child) => String(child.className || "").includes("canvas-answer-message")).length, 1);
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+});
+
+test("canvas answer contact action opens the compact inline contact form", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: { assistantName: "Acme Assistant" },
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "You can leave contact details if you want the team to follow up.",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.elements.get("input").value = "Can someone contact me?";
+  await harness.hooks.sendMessage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("page-identity-email-form").hidden, true);
+  harness.elements.get("chat").dispatch("click", {
+    target: {
+      closest(selector) {
+        if (selector !== "[data-canvas-answer-action]") {
+          return null;
+        }
+
+        return {
+          dataset: { canvasAnswerAction: "contact" },
+        };
+      },
+    },
+  });
+
+  assert.equal(harness.elements.get("page-identity-email-form").hidden, false);
+  assert.equal(harness.elements.get("page-identity-name").focused, true);
 });
 
 test("canvas full embedded page mode applies full-page design settings", async () => {
@@ -2833,10 +3111,12 @@ test("canvas full embedded page mode keeps empty state clean and renders message
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), true);
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), false);
   assert.equal(harness.elements.get("intro-message").hidden, true);
-  assert.equal(harness.elements.get("canvas-intro-line").hidden, true);
+  assert.equal(harness.elements.get("canvas-intro-line").hidden, false);
+  assert.equal(harness.elements.get("canvas-intro-line").textContent, "Welcome to Acme Studio. Choose a topic below or ask anything to get started.");
   assert.equal(harness.elements.get("page-assistant-subtitle").hidden, true);
   assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "");
   assert.doesNotMatch(harness.elements.get("page-trust-row").innerHTML, /Configured welcome should not render/);
+  assert.doesNotMatch(harness.elements.get("canvas-intro-line").textContent, /Configured welcome should not render|Hi, my name is Vonza/i);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("message") && !String(child.className || "").includes("intro")).length, 0);
 
   input.value = "What services do you offer?";
@@ -2847,8 +3127,15 @@ test("canvas full embedded page mode keeps empty state clean and renders message
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), false);
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message user")), true);
-  assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot")), true);
-  assert.match(chat.children.map((child) => child.innerHTML).join("\n"), /We can help with services/);
+  assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot canvas-answer-message")), true);
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  const renderedChat = chat.children.map((child) => child.innerHTML).join("\n");
+  assert.match(renderedChat, /We can help with services/);
+  assert.match(renderedChat, /Was this helpful\?/);
+  assert.match(renderedChat, /Ask another question/);
+  assert.match(renderedChat, /Leave contact details/);
+  assert.match(renderedChat, /Request a quote/);
+  assert.doesNotMatch(renderedChat, /pricing-table|package-card|calendar-grid|booking slot/i);
 });
 
 test("dashboard install iframes separate section embed and full-page iframe while QR stays hosted", () => {
