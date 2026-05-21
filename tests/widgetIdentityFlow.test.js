@@ -3239,12 +3239,16 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /normalizeFullPageBackgroundScope/);
   assert.match(dashboard, /Recommended smart snippet/);
   assert.match(dashboard, /Dedicated page embed snippet/);
+  assert.match(dashboard, /True page takeover snippet/);
   assert.match(dashboard, /Advanced iframe snippet/);
   assert.match(dashboard, /Raw iframe fallback/);
   assert.match(dashboard, /Dedicated page embed makes the assistant the page body below your site header/);
+  assert.match(dashboard, /Use this on a blank assistant page\. It may hide the page footer and remove extra page spacing\./);
   assert.match(dashboard, /Raw iframe backgrounds stay inside the iframe\. Use the smart dedicated page embed when you want the background to fill the page area\./);
   assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
-  assert.match(dashboard, /Use this when Front Desk is the main content of a page on your own website/);
+  assert.match(dashboard, /Use this when Front Desk is the main content of a page on your website/);
+  assert.match(dashboard, /data-page-reset="true"/);
+  assert.match(dashboard, /data-hide-page-footer="true"/);
   assert.doesNotMatch(dashboard, /data-full-page-title-toggle checked/);
   assert.doesNotMatch(dashboard, /Assistant area height/);
   assert.doesNotMatch(dashboard, /Show embed title/);
@@ -3255,7 +3259,7 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat", layout: "canvas", showTitle: options\.showTitle \}\)/);
   assert.match(dashboard, /Place the assistant inside part of an existing page/);
-  assert.match(dashboard, /Use this when Front Desk is the main content of a page on your own website/);
+  assert.match(dashboard, /Use this when Front Desk is the main content of a page on your website/);
   assert.match(dashboard, /\["compact", "standard", "tall", "full"\]/);
   assert.match(dashboard, /surface: "flat"/);
   assert.match(dashboard, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);

@@ -102,7 +102,7 @@ const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
 const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
 const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
 const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
-const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe", "viewport"]);
+const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe", "viewport", "page"]);
 const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
   backgroundType: "color",
@@ -253,7 +253,7 @@ function normalizeEmbeddedVariant(value) {
 
 function normalizeEmbeddedBackgroundScope(value) {
   const normalized = trimText(value).toLowerCase();
-  return ["section", "iframe"].includes(normalized) ? normalized : "iframe";
+  return ["section", "iframe", "viewport", "page"].includes(normalized) ? normalized : "iframe";
 }
 
 function normalizeShowEmbedTitle(value) {

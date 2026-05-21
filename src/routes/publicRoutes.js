@@ -508,8 +508,35 @@ function renderMarketingPage(rootDir, pageKey = "home") {
     .replace("<!-- VONZA_MARKETING_PAGE_BODY -->", page.body());
 }
 
-function renderAssistantEmbedMatrixPage() {
-  const mockAgentId = "00000000-0000-0000-0000-000000000001";
+function renderAssistantEmbedMatrixPage(options = {}) {
+  const requestedAgentId = String(options.agentId || "").trim();
+  const mockAgentId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestedAgentId)
+    ? requestedAgentId
+    : "00000000-0000-0000-0000-000000000001";
+  const mockBackgroundScript = options.mockBackground === true
+    ? `
+  <script>
+    const vonzaMatrixRealFetch = window.fetch.bind(window);
+    window.fetch = (url, options) => String(url).includes("/widget/bootstrap")
+      ? Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          widgetConfig: {
+            full_page_config: {
+              design: {
+                background_type: "gradient",
+                background_color: "#111827",
+                background_gradient_to: "#2563eb",
+                background_overlay_color: "#020617",
+                background_overlay_opacity: 0.15
+              }
+            }
+          }
+        })
+      })
+      : vonzaMatrixRealFetch(url, options);
+  </script>`
+    : "";
   const smartSection = `
     <div
       data-vonza-assistant
@@ -547,6 +574,19 @@ function renderAssistantEmbedMatrixPage() {
       data-surface="flat"
       data-background-scope="viewport"
       data-title="Matrix dedicated page assistant"
+    ></div>
+  `;
+  const smartTruePageTakeover = `
+    <div
+      data-vonza-assistant
+      data-agent-id="${mockAgentId}"
+      data-layout="page-takeover"
+      data-surface="flat"
+      data-background-scope="page"
+      data-page-reset="true"
+      data-hide-page-footer="true"
+      data-hide-page-title="true"
+      data-title="Matrix true page takeover assistant"
     ></div>
   `;
 
@@ -628,6 +668,12 @@ function renderAssistantEmbedMatrixPage() {
       border-radius: 8px;
       background: #f8fafc;
     }
+    .wp-site-blocks {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 36px 28px;
+      background: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -657,6 +703,17 @@ function renderAssistantEmbedMatrixPage() {
       <p>Page takeover smart embed fills the visible page area below the website header.</p>
       ${smartPageTakeover}
       <div class="test-footer">Customer website footer</div>
+    </section>
+    <section class="matrix-case landing-page footer-close">
+      <h2>True page takeover with fake WordPress title and footer</h2>
+      <p>Advanced opt-in mode resets the nearest WordPress-like content wrapper and can hide scoped page chrome.</p>
+      <div class="wp-site-blocks">
+        <h1 class="wp-block-post-title">Book with our front desk</h1>
+        <div class="entry-content">
+          ${smartTruePageTakeover}
+        </div>
+      </div>
+      <footer class="site-footer test-footer">Customer website footer</footer>
     </section>
     <section class="matrix-case sticky-shell">
       <div class="sticky-bar">Sticky customer website header</div>
@@ -696,7 +753,8 @@ function renderAssistantEmbedMatrixPage() {
       </div>
     </section>
   </main>
-  <script async src="/assistant-embed.js"></script>
+  ${mockBackgroundScript}
+  <script async src="/assistant-embed.js?matrix=4"></script>
 </body>
 </html>`;
 }
@@ -793,7 +851,10 @@ export function createPublicRouter({ rootDir }) {
       return;
     }
 
-    res.type("html").send(renderAssistantEmbedMatrixPage());
+    res.type("html").send(renderAssistantEmbedMatrixPage({
+      agentId: req.query.agent_id,
+      mockBackground: req.query.mock_background === "1",
+    }));
   });
 
   router.get("/aszf", (_req, res) => {

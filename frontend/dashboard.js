@@ -2799,7 +2799,7 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
       : "section";
   const isCanvasSmartEmbed = normalizedLayout === "full-page" || normalizedLayout === "page-takeover";
   const backgroundScope = normalizedLayout === "page-takeover"
-    ? "viewport"
+    ? (trimText(options.backgroundScope).toLowerCase() === "page" ? "page" : "viewport")
     : normalizedLayout === "full-page"
     ? normalizeFullPageBackgroundScope(agent?.fullPageConfig?.design?.backgroundScope || agent?.full_page_config?.design?.background_scope)
     : "";
@@ -2816,11 +2816,20 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   const showTitleLine = normalizedLayout === "full-page" && options.showTitle === false
     ? '\n  data-show-title="false"'
     : "";
+  const pageResetLine = normalizedLayout === "page-takeover" && options.pageReset === true
+    ? '\n  data-page-reset="true"'
+    : "";
+  const hidePageFooterLine = normalizedLayout === "page-takeover" && options.hidePageFooter === true
+    ? '\n  data-hide-page-footer="true"'
+    : "";
+  const hidePageTitleLine = normalizedLayout === "page-takeover" && options.hidePageTitle === true
+    ? '\n  data-hide-page-title="true"'
+    : "";
 
   return `<div
   data-vonza-assistant
   data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}
+  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}${pageResetLine}${hidePageFooterLine}${hidePageTitleLine}
 ></div>
 <script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
 }
@@ -15319,6 +15328,13 @@ function buildInstallSection(agent, options = {}) {
   const sectionSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
   const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
   const dedicatedPageSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
+  const truePageTakeoverSmartEmbed = trimText(agent.id)
+    ? buildSmartAssistantEmbed(agent, "page-takeover", {
+      backgroundScope: "page",
+      pageReset: true,
+      hidePageFooter: true,
+    })
+    : "";
   const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
@@ -15448,7 +15464,11 @@ function buildInstallSection(agent, options = {}) {
           </button>
           <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
             <strong>Dedicated page embed</strong>
-            <span>Use this when Front Desk is the main content of a page on your own website.</span>
+            <span>Use this when Front Desk is the main content of a page on your website.</span>
+          </button>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-takeover" data-full-page-option="takeover">
+            <strong>True page takeover</strong>
+            <span>Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</span>
           </button>
           <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
             <strong>Raw iframe fallback</strong>
@@ -15498,7 +15518,7 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" hidden>
-          <p class="install-help"><strong>Dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your own website.</p>
+          <p class="install-help"><strong>Dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your website.</p>
           <p class="install-help">Dedicated page embed makes the assistant the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
@@ -15508,6 +15528,20 @@ function buildInstallSection(agent, options = {}) {
             buttonAction: "copy-full-page-assistant-smart-embed",
             buttonLabel: "Copy dedicated page embed",
             disabled: !dedicatedPageSmartEmbed,
+            className: "full-page-iframe-output",
+          })}
+        </div>
+        <div class="full-page-install-output" id="full-page-option-takeover" role="tabpanel" data-full-page-option-panel="takeover" hidden>
+          <p class="install-help"><strong>True page takeover:</strong> Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</p>
+          <p class="install-help install-warning">Use this on a blank assistant page. It may hide the page footer and remove extra page spacing.</p>
+          ${buildInstallCopyBlock({
+            id: "full-page-assistant-true-page-takeover",
+            label: "True page takeover snippet",
+            value: truePageTakeoverSmartEmbed,
+            rows: 11,
+            buttonAction: "copy-full-page-assistant-true-page-takeover",
+            buttonLabel: "Copy true page takeover",
+            disabled: !truePageTakeoverSmartEmbed,
             className: "full-page-iframe-output",
           })}
         </div>
@@ -17083,6 +17117,19 @@ async function copyFullPageAssistantSmartEmbed(agent) {
   );
 }
 
+async function copyFullPageAssistantTruePageTakeover(agent) {
+  const textarea = document.getElementById("full-page-assistant-true-page-takeover");
+  await copyDashboardText(
+    textarea?.value || buildSmartAssistantEmbed(agent, "page-takeover", {
+      backgroundScope: "page",
+      pageReset: true,
+      hidePageFooter: true,
+    }),
+    "True page takeover snippet copied.",
+    "full-page-assistant-true-page-takeover"
+  );
+}
+
 async function copyFullPageAssistantIframe(agent) {
   const textarea = document.getElementById("full-page-assistant-iframe");
   await copyDashboardText(
@@ -17220,6 +17267,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const sectionSmartEmbedOutput = document.getElementById("section-assistant-smart-embed");
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
   const fullPageSmartEmbedOutput = document.getElementById("full-page-assistant-smart-embed");
+  const truePageTakeoverOutput = document.getElementById("full-page-assistant-true-page-takeover");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -17237,7 +17285,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   };
 
   const syncFullPageIframe = () => {
-    if (!sectionSmartEmbedOutput && !fullPageIframeOutput && !fullPageSmartEmbedOutput) {
+    if (!sectionSmartEmbedOutput && !fullPageIframeOutput && !fullPageSmartEmbedOutput && !truePageTakeoverOutput) {
       return;
     }
 
@@ -17250,6 +17298,16 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
     if (fullPageSmartEmbedOutput) {
       fullPageSmartEmbedOutput.value = trimText(agent.id)
         ? buildSmartAssistantEmbed(agent, "page-takeover")
+        : "";
+    }
+
+    if (truePageTakeoverOutput) {
+      truePageTakeoverOutput.value = trimText(agent.id)
+        ? buildSmartAssistantEmbed(agent, "page-takeover", {
+          backgroundScope: "page",
+          pageReset: true,
+          hidePageFooter: true,
+        })
         : "";
     }
 
@@ -17593,6 +17651,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const copySectionSmartEmbedButtons = document.querySelectorAll('[data-action="copy-section-assistant-smart-embed"]');
   const copySectionIframeButtons = document.querySelectorAll('[data-action="copy-section-assistant-iframe"]');
   const copyFullPageSmartEmbedButtons = document.querySelectorAll('[data-action="copy-full-page-assistant-smart-embed"]');
+  const copyTruePageTakeoverButtons = document.querySelectorAll('[data-action="copy-full-page-assistant-true-page-takeover"]');
   const copyFullPageIframeButtons = document.querySelectorAll('[data-action="copy-full-page-iframe"]');
   const copySimpleFullPageIframeButtons = document.querySelectorAll('[data-action="copy-simple-full-page-iframe"]');
   const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
@@ -20321,6 +20380,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   copyFullPageSmartEmbedButtons.forEach((button) => {
     button.addEventListener("click", () => copyFullPageAssistantSmartEmbed(agent));
+  });
+
+  copyTruePageTakeoverButtons.forEach((button) => {
+    button.addEventListener("click", () => copyFullPageAssistantTruePageTakeover(agent));
   });
 
   copyFullPageIframeButtons.forEach((button) => {

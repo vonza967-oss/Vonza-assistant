@@ -15,6 +15,9 @@ class FakeElement {
     this.attributes = new Map();
     this.children = [];
     this.style = {};
+    this.className = "";
+    this.parentElement = null;
+    this.parentNode = null;
     this.textContent = "";
     this.title = "";
     this.loading = "";
@@ -22,7 +25,31 @@ class FakeElement {
     this.allowTransparency = false;
     this.contentWindow = {};
     this.rectTop = 0;
+    this.rectBottom = 0;
+    this.previousElementSibling = null;
     this.nextElementSibling = null;
+    this.classList = {
+      add: (...tokens) => {
+        const classes = new Set(this.className.split(/\s+/).filter(Boolean));
+        tokens.filter(Boolean).forEach((token) => classes.add(token));
+        this.className = Array.from(classes).join(" ");
+      },
+      remove: (...tokens) => {
+        const classes = new Set(this.className.split(/\s+/).filter(Boolean));
+        tokens.forEach((token) => classes.delete(token));
+        this.className = Array.from(classes).join(" ");
+      },
+      contains: (token) => this.className.split(/\s+/).includes(token),
+      toggle: (token, force) => {
+        const shouldAdd = force === undefined ? !this.classList.contains(token) : Boolean(force);
+        if (shouldAdd) {
+          this.classList.add(token);
+        } else {
+          this.classList.remove(token);
+        }
+        return shouldAdd;
+      },
+    };
 
     Object.entries(attributes).forEach(([name, value]) => {
       this.setAttribute(name, value);
@@ -31,6 +58,9 @@ class FakeElement {
 
   setAttribute(name, value) {
     this.attributes.set(name, String(value));
+    if (name === "class") {
+      this.className = String(value);
+    }
   }
 
   getAttribute(name) {
@@ -42,13 +72,75 @@ class FakeElement {
   }
 
   appendChild(child) {
+    const previous = this.children[this.children.length - 1] || null;
+    if (previous) {
+      previous.nextElementSibling = child;
+      child.previousElementSibling = previous;
+    }
+    child.parentElement = this;
+    child.parentNode = this;
     this.children.push(child);
     return child;
   }
 
-  getBoundingClientRect() {
-    return { top: this.rectTop };
+  contains(child) {
+    if (child === this) {
+      return true;
+    }
+
+    return this.children.some((descendant) => descendant.contains(child));
   }
+
+  matches(selector) {
+    const normalized = String(selector || "").trim();
+
+    if (!normalized) {
+      return false;
+    }
+
+    if (normalized.includes(",")) {
+      return normalized.split(",").some((part) => this.matches(part));
+    }
+
+    const tagAndClass = normalized.match(/^([a-z0-9-]+)?\.([a-z0-9_-]+)$/i);
+    if (tagAndClass) {
+      const [, tagName, className] = tagAndClass;
+      return (!tagName || this.tagName.toLowerCase() === tagName.toLowerCase()) && this.classList.contains(className);
+    }
+
+    if (normalized.startsWith(".")) {
+      return this.classList.contains(normalized.slice(1));
+    }
+
+    if (normalized.startsWith("#")) {
+      return this.getAttribute("id") === normalized.slice(1);
+    }
+
+    if (/^\[[^\]]+\]$/.test(normalized)) {
+      return this.getAttribute(normalized.slice(1, -1)) !== null;
+    }
+
+    return this.tagName.toLowerCase() === normalized.toLowerCase();
+  }
+
+  querySelectorAll(selector) {
+    return findAllDescendants(this, (child) => child.matches(selector));
+  }
+
+  getBoundingClientRect() {
+    return { top: this.rectTop, bottom: this.rectBottom || this.rectTop };
+  }
+}
+
+function findAllDescendants(element, predicate, results = []) {
+  for (const child of element.children) {
+    if (predicate(child)) {
+      results.push(child);
+    }
+    findAllDescendants(child, predicate, results);
+  }
+
+  return results;
 }
 
 function findDescendant(element, predicate) {
@@ -79,6 +171,18 @@ function createHarness(rootAttributes, options = {}) {
   let frameId = 0;
   const body = new FakeElement("body");
   const documentElement = new FakeElement("html");
+  const rootParent = options.rootParentAttributes
+    ? new FakeElement(options.rootParentTag || "div", options.rootParentAttributes)
+    : body;
+  const beforeRootElements = options.beforeRootElements || [];
+  const afterRootElements = options.afterRootElements || [];
+
+  if (rootParent !== body) {
+    body.appendChild(rootParent);
+  }
+  beforeRootElements.forEach((element) => rootParent.appendChild(element));
+  rootParent.appendChild(root);
+  afterRootElements.forEach((element) => rootParent.appendChild(element));
 
   const document = {
     currentScript,
@@ -86,7 +190,10 @@ function createHarness(rootAttributes, options = {}) {
     documentElement,
     readyState: "complete",
     querySelectorAll(selector) {
-      return selector === "[data-vonza-assistant]" ? [root] : [];
+      if (selector === "[data-vonza-assistant]") {
+        return [root];
+      }
+      return body.querySelectorAll(selector);
     },
     createElement(tagName) {
       return new FakeElement(tagName);
@@ -149,6 +256,7 @@ function createHarness(rootAttributes, options = {}) {
 
   return {
     root,
+    rootParent,
     iframe: findDescendant(root, (child) => child.tagName === "IFRAME"),
     listeners,
     window,
@@ -256,6 +364,152 @@ test("/assistant-embed.js supports page-takeover layout with viewport wrapper", 
   assert.equal(harness.iframe.style.minHeight, "804px");
   assert.equal(harness.iframe.style.borderRadius, "0");
   assert.equal(harness.iframe.allowTransparency, true);
+});
+
+test("/assistant-embed.js data-page-reset true adds dedicated page classes and resets nearest page-builder wrapper", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "page",
+    "data-page-reset": "true",
+  }, {
+    rootParentAttributes: {
+      class: "entry-content",
+    },
+  });
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+  const url = new URL(harness.iframe.src);
+
+  assert.equal(url.searchParams.get("background_scope"), "page");
+  assert.equal(harness.root.classList.contains("vonza-page-takeover-active"), true);
+  assert.equal(harness.root.classList.contains("vonza-dedicated-page-active"), true);
+  assert.equal(wrapper.classList.contains("vonza-dedicated-page-active"), true);
+  assert.equal(harness.document.body.classList.contains("vonza-dedicated-page-active"), true);
+  assert.equal(harness.document.documentElement.classList.contains("vonza-dedicated-page-active"), true);
+  assert.equal(harness.rootParent.classList.contains("vonza-dedicated-page-container"), true);
+  assert.equal(harness.rootParent.style.maxWidth, "none");
+  assert.equal(harness.rootParent.style.paddingLeft, "0");
+  assert.equal(harness.root.style.width, "100vw");
+  assert.equal(wrapper.style.minHeight, "max(0px, calc(100vh - 0px))");
+  assert.equal(harness.iframe.style.height, "900px");
+  assert.equal(harness.iframe.style.minHeight, "900px");
+  assert.equal(harness.iframe.style.background, "transparent");
+});
+
+test("/assistant-embed.js page background scope applies takeover and safe body background with page reset", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "page",
+    "data-page-reset": "true",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "gradient",
+            background_color: "#111827",
+            background_gradient_to: "#2563eb",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+  assert.match(wrapper.style.background, /linear-gradient\(135deg, #111827, #2563eb\)/);
+  assert.match(harness.document.body.style.background, /linear-gradient\(135deg, #111827, #2563eb\)/);
+  assert.equal(harness.document.documentElement.style.backgroundColor, "#111827");
+});
+
+test("/assistant-embed.js page background scope does not change body without page reset", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "color",
+            background_color: "#123456",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+  assert.equal(wrapper.style.backgroundColor, "#123456");
+  assert.equal(harness.document.body.style.backgroundColor || "", "");
+  assert.equal(harness.document.body.classList.contains("vonza-dedicated-page-active"), false);
+});
+
+test("/assistant-embed.js hides scoped footer selectors only when requested", () => {
+  const footer = new FakeElement("div", { class: "site-footer" });
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-page-reset": "true",
+    "data-hide-page-footer": "true",
+  }, {
+    afterRootElements: [footer],
+  });
+
+  assert.equal(footer.hidden, true);
+  assert.equal(footer.style.display, "none");
+  assert.equal(footer.getAttribute("data-vonza-assistant-hidden-footer"), "");
+  assert.equal(harness.root.classList.contains("vonza-dedicated-page-active"), true);
+});
+
+test("/assistant-embed.js hides scoped WordPress title selectors only when requested", () => {
+  const title = new FakeElement("h1", { class: "wp-block-post-title" });
+  createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-page-reset": "true",
+    "data-hide-page-title": "true",
+  }, {
+    beforeRootElements: [title],
+  });
+
+  assert.equal(title.hidden, true);
+  assert.equal(title.style.display, "none");
+  assert.equal(title.getAttribute("data-vonza-assistant-hidden-title"), "");
+});
+
+test("/assistant-embed.js page reset does not run without explicit attribute", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+  }, {
+    rootParentAttributes: {
+      class: "entry-content",
+    },
+  });
+
+  assert.equal(harness.root.classList.contains("vonza-page-takeover-active"), true);
+  assert.equal(harness.root.classList.contains("vonza-dedicated-page-active"), false);
+  assert.equal(harness.document.body.classList.contains("vonza-dedicated-page-active"), false);
+  assert.equal(harness.rootParent.classList.contains("vonza-dedicated-page-container"), false);
+  assert.equal(harness.root.style.width, "100%");
+});
+
+test("/assistant-embed.js section embed does not receive takeover reset behavior", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "section",
+    "data-page-reset": "true",
+    "data-hide-page-footer": "true",
+  });
+
+  assert.equal(harness.root.classList.contains("vonza-page-takeover-active"), false);
+  assert.equal(harness.root.classList.contains("vonza-dedicated-page-active"), false);
+  assert.equal(harness.root.children.some((child) => child.getAttribute("data-vonza-assistant-takeover") !== null), false);
+  assert.equal(harness.iframe.style.borderRadius, "18px");
 });
 
 test("/assistant-embed.js page-takeover respects header offset and min height", () => {
