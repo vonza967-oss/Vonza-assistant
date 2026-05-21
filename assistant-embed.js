@@ -11,6 +11,7 @@
     full: 760,
   });
   const BACKGROUND_SCOPES = Object.freeze(["section", "iframe"]);
+  const HEIGHT_MODES = Object.freeze(["auto", "full-page"]);
   const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
     backgroundType: "color",
     backgroundColor: "#ffffff",
@@ -106,6 +107,11 @@
     return BACKGROUND_SCOPES.includes(normalized) ? normalized : "section";
   }
 
+  function normalizeHeightMode(value, layout) {
+    const normalized = trimText(value).toLowerCase();
+    return layout === "full-page" && HEIGHT_MODES.includes(normalized) ? normalized : "auto";
+  }
+
   function normalizeOptionalNumber(value, min, max) {
     const cleaned = trimText(value);
 
@@ -160,7 +166,7 @@
     return url.toString();
   }
 
-  function applyMountStyles(element, { layout, minHeight, headerOffset }) {
+  function applyMountStyles(element, { layout, minHeight, headerOffset, heightMode }) {
     element.style.display = "block";
     element.style.boxSizing = "border-box";
     element.style.overflowX = "hidden";
@@ -173,10 +179,11 @@
     }
 
     element.style.width = "100vw";
-    element.style.maxWidth = "none";
+    element.style.maxWidth = "100vw";
     element.style.marginLeft = "calc(50% - 50vw)";
-    element.style.minHeight = headerOffset !== null
-      ? `calc(100vh - ${headerOffset}px)`
+    element.style.marginRight = "calc(50% - 50vw)";
+    element.style.minHeight = heightMode === "full-page" && headerOffset !== null
+      ? `max(${minHeight}px, calc(100vh - ${headerOffset}px))`
       : `${minHeight}px`;
     element.style.position = "relative";
     element.style.overflow = "hidden";
@@ -531,27 +538,53 @@
     applySectionHeight(entry, postedHeight);
   }
 
-  function calculateFullPageHeight(entry) {
-    const viewportHeight = window.visualViewport?.height || window.innerHeight || FULL_PAGE_DEFAULT_MIN_HEIGHT;
+  function resolveViewportHeight() {
+    return window.visualViewport?.height || window.innerHeight || FULL_PAGE_DEFAULT_MIN_HEIGHT;
+  }
 
+  function calculateFullPageTopOffset(entry) {
     if (entry.headerOffset !== null) {
-      return Math.max(entry.minHeight, Math.floor(viewportHeight - entry.headerOffset));
+      return entry.headerOffset;
     }
 
-    const rect = entry.iframe.getBoundingClientRect?.() || { top: 0 };
-    const top = Math.max(0, Math.floor(rect.top || 0));
+    const rect = entry.mount.getBoundingClientRect?.() || entry.iframe.getBoundingClientRect?.() || { top: 0 };
+    return Math.max(0, Math.floor(rect.top || 0));
+  }
+
+  function calculateFullPageHeight(entry) {
+    const viewportHeight = resolveViewportHeight();
+
+    const top = calculateFullPageTopOffset(entry);
     return Math.max(entry.minHeight, Math.floor(viewportHeight - top));
+  }
+
+  function syncFullPageWrapperMinHeight(entry) {
+    if (entry.heightMode !== "full-page") {
+      return;
+    }
+
+    const topOffset = calculateFullPageTopOffset(entry);
+    entry.mount.style.minHeight = `max(${entry.minHeight}px, calc(100vh - ${topOffset}px))`;
   }
 
   function applyFullPageHeight(entry) {
     const nextHeight = calculateFullPageHeight(entry);
 
-    if (Math.abs(nextHeight - entry.currentHeight) < 4) {
+    if (Math.abs(nextHeight - entry.currentHeight) < 4 && entry.iframe.style.height) {
+      syncFullPageWrapperMinHeight(entry);
       return;
     }
 
     entry.currentHeight = nextHeight;
     entry.iframe.style.height = `${nextHeight}px`;
+
+    if (entry.heightMode === "full-page") {
+      entry.iframe.style.minHeight = `${nextHeight}px`;
+      entry.mount.style.height = "";
+      syncFullPageWrapperMinHeight(entry);
+      return;
+    }
+
     entry.mount.style.height = `${nextHeight}px`;
   }
 
@@ -605,6 +638,7 @@
     const headerOffset = layout === "full-page"
       ? normalizeOptionalNumber(element.getAttribute("data-header-offset"), 0, 2000)
       : null;
+    const heightMode = normalizeHeightMode(element.getAttribute("data-height"), layout);
     const iframe = document.createElement("iframe");
 
     iframe.src = buildAssistantUrl({ agentId, layout, size, surface, showTitle, backgroundScope });
@@ -614,7 +648,7 @@
     iframe.setAttribute("data-vonza-assistant-frame", "");
     iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     applyIframeStyles(iframe, { layout, surface, minHeight, backgroundScope });
-    applyMountStyles(element, { layout, minHeight, headerOffset });
+    applyMountStyles(element, { layout, minHeight, headerOffset, heightMode });
 
     element.textContent = "";
     element.appendChild(iframe);
@@ -627,6 +661,7 @@
       agentId,
       layout,
       backgroundScope,
+      heightMode,
       minHeight,
       headerOffset,
       currentHeight: minHeight,

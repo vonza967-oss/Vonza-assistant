@@ -56,13 +56,18 @@ function createHarness(rootAttributes, options = {}) {
     "data-vonza-assistant": "",
     ...rootAttributes,
   });
+  root.rectTop = options.rootTop || 0;
   const currentScript = new FakeElement("script");
   currentScript.src = options.scriptSrc || "https://vonza-assistant.onrender.com/assistant-embed.js";
   const listeners = new Map();
   let frameId = 0;
+  const body = new FakeElement("body");
+  const documentElement = new FakeElement("html");
 
   const document = {
     currentScript,
+    body,
+    documentElement,
     readyState: "complete",
     querySelectorAll(selector) {
       return selector === "[data-vonza-assistant]" ? [root] : [];
@@ -130,6 +135,7 @@ function createHarness(rootAttributes, options = {}) {
     iframe: root.children.find((child) => child.tagName === "IFRAME"),
     listeners,
     window,
+    document,
   };
 }
 
@@ -179,16 +185,64 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(url.searchParams.get("layout"), "canvas");
   assert.equal(url.searchParams.get("background_scope"), "section");
   assert.equal(harness.root.style.width, "100vw");
-  assert.equal(harness.root.style.maxWidth, "none");
+  assert.equal(harness.root.style.maxWidth, "100vw");
   assert.equal(harness.root.style.marginLeft, "calc(50% - 50vw)");
+  assert.equal(harness.root.style.marginRight, "calc(50% - 50vw)");
   assert.equal(harness.root.style.position, "relative");
   assert.equal(harness.root.style.overflow, "hidden");
+  assert.equal(harness.root.style.minHeight, "760px");
   assert.equal(harness.iframe.style.width, "100%");
   assert.equal(harness.iframe.style.background, "transparent");
   assert.equal(harness.iframe.style.minHeight, "760px");
   assert.equal(harness.iframe.style.height, "900px");
   assert.equal(harness.iframe.style.borderRadius, "0");
   assert.equal(harness.iframe.allowTransparency, true);
+});
+
+test("/assistant-embed.js supports data-height full-page wrapper min-height", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+    "data-background-scope": "section",
+    "data-height": "full-page",
+  }, {
+    innerHeight: 900,
+    rootTop: 80,
+  });
+
+  assert.equal(harness.root.style.height || "", "");
+  assert.equal(harness.root.style.minHeight, "max(760px, calc(100vh - 80px))");
+  assert.equal(harness.iframe.style.height, "820px");
+  assert.equal(harness.iframe.style.minHeight, "820px");
+});
+
+test("/assistant-embed.js data-height full-page respects header offset", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+    "data-background-scope": "section",
+    "data-height": "full-page",
+    "data-header-offset": "120",
+  }, { innerHeight: 900 });
+
+  assert.equal(harness.root.style.height || "", "");
+  assert.equal(harness.root.style.minHeight, "max(760px, calc(100vh - 120px))");
+  assert.equal(harness.iframe.style.height, "780px");
+  assert.equal(harness.iframe.style.minHeight, "780px");
+});
+
+test("/assistant-embed.js does not change global body or html backgrounds by default", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+    "data-background-scope": "section",
+    "data-height": "full-page",
+  });
+
+  assert.equal(harness.document.body.style.background || "", "");
+  assert.equal(harness.document.body.style.backgroundColor || "", "");
+  assert.equal(harness.document.documentElement.style.background || "", "");
+  assert.equal(harness.document.documentElement.style.backgroundColor || "", "");
 });
 
 test("/assistant-embed.js applies full-page section color background from public bootstrap", async () => {

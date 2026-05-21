@@ -3234,6 +3234,8 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /assistant-embed\.js/);
   assert.match(dashboard, /data-vonza-assistant/);
   assert.match(dashboard, /data-background-scope="\$\{backgroundScope\}"/);
+  assert.match(dashboard, /function normalizeFullPageAssistantHeight/);
+  assert.match(dashboard, /data-height="full-page"/);
   assert.match(dashboard, /normalizeFullPageBackgroundScope/);
   assert.match(dashboard, /Recommended smart snippet/);
   assert.match(dashboard, /Recommended full-page embed/);
@@ -3246,6 +3248,9 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /Paste this into a blank\/dedicated page area\. The assistant includes its own heading\./);
   assert.match(dashboard, /If your website page already has its own heading, use the "Hide embed title" option\./);
   assert.match(dashboard, /data-full-page-title-toggle checked/);
+  assert.match(dashboard, /Assistant area height/);
+  assert.match(dashboard, /data-full-page-height-mode checked/);
+  assert.match(dashboard, /value="full-page" data-full-page-height-mode/);
   assert.match(dashboard, /Show embed title/);
   assert.match(dashboard, /data-show-title="false"/);
   assert.match(dashboard, /show_title", "0"/);

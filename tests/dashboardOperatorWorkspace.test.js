@@ -3544,6 +3544,9 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /Do not add another assistant heading above it unless you hide the embed title\./);
   assert.match(pagePanel, /Show embed title/);
   assert.match(pagePanel, /data-full-page-title-toggle checked/);
+  assert.match(pagePanel, /Assistant area height/);
+  assert.match(pagePanel, /value=(?:"|&quot;)auto(?:"|&quot;) data-full-page-height-mode checked/);
+  assert.match(pagePanel, /value=(?:"|&quot;)full-page(?:"|&quot;) data-full-page-height-mode/);
   assert.match(pagePanel, /If your website page already has its own heading, use the &quot;Hide embed title&quot; option\.|If your website page already has its own heading, use the "Hide embed title" option\./);
   assert.match(pagePanel, /Advanced fallback\. Use this if your website builder does not allow scripts\./);
   assert.match(pagePanel, /Recommended smart snippet/);
@@ -3709,6 +3712,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[4], /data-agent-id="agent-1"/);
   assert.match(copied[4], /data-layout="full-page"/);
   assert.match(copied[4], /data-surface="flat"/);
+  assert.doesNotMatch(copied[4], /data-height="full-page"/);
   assert.match(copied[4], /\/assistant-embed\.js/);
   assert.match(copied[5], /^<iframe/);
   assert.doesNotMatch(copied[5], /width:100vw;margin-left/);

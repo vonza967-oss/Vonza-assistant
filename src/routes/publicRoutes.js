@@ -524,7 +524,19 @@ function renderAssistantEmbedMatrixPage() {
       data-agent-id="${mockAgentId}"
       data-layout="full-page"
       data-surface="flat"
+      data-background-scope="section"
       data-title="Matrix full-page assistant"
+    ></div>
+  `;
+  const smartFullPageHeight = `
+    <div
+      data-vonza-assistant
+      data-agent-id="${mockAgentId}"
+      data-layout="full-page"
+      data-surface="flat"
+      data-background-scope="section"
+      data-height="full-page"
+      data-title="Matrix full-page height assistant"
     ></div>
   `;
 
@@ -623,6 +635,12 @@ function renderAssistantEmbedMatrixPage() {
       <h2>Full-width landing page</h2>
       <p>Full-page assistant as the primary page content.</p>
       ${smartFullPage}
+    </section>
+    <section class="matrix-case landing-page footer-close">
+      <h2>Full-page height mode with footer</h2>
+      <p>Full-page smart embed fills the visible page area below where it is inserted.</p>
+      ${smartFullPageHeight}
+      <div class="test-footer">Customer website footer</div>
     </section>
     <section class="matrix-case sticky-shell">
       <div class="sticky-bar">Sticky customer website header</div>

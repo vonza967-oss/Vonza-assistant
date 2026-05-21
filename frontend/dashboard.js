@@ -2780,6 +2780,10 @@ function normalizeFullPageBackgroundScope(value) {
   return ["section", "iframe"].includes(normalized) ? normalized : "section";
 }
 
+function normalizeFullPageAssistantHeight(value) {
+  return trimText(value).toLowerCase().replace(/_/g, "-") === "full-page" ? "full-page" : "auto";
+}
+
 function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) {
   const agentId = trimText(agent.id);
 
@@ -2797,6 +2801,10 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   const backgroundScopeLine = normalizedLayout === "full-page"
     ? `\n  data-background-scope="${backgroundScope}"`
     : "";
+  const heightMode = normalizeFullPageAssistantHeight(options.heightMode);
+  const heightLine = normalizedLayout === "full-page" && heightMode === "full-page"
+    ? '\n  data-height="full-page"'
+    : "";
   const showTitleLine = normalizedLayout === "full-page" && options.showTitle === false
     ? '\n  data-show-title="false"'
     : "";
@@ -2804,7 +2812,7 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   return `<div
   data-vonza-assistant
   data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${showTitleLine}
+  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}
 ></div>
 <script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
 }
@@ -15488,11 +15496,28 @@ function buildInstallSection(agent, options = {}) {
               <small>If your website page already has its own heading, turn this off.</small>
             </span>
           </label>
+          <fieldset class="install-height-options">
+            <legend>Assistant area height</legend>
+            <label>
+              <input type="radio" name="full_page_assistant_height" value="auto" data-full-page-height-mode checked>
+              <span>
+                <strong>Auto</strong>
+                <small>Fits normal website sections.</small>
+              </span>
+            </label>
+            <label>
+              <input type="radio" name="full_page_assistant_height" value="full-page" data-full-page-height-mode>
+              <span>
+                <strong>Full page</strong>
+                <small>Fills the visible page area below where it is inserted.</small>
+              </span>
+            </label>
+          </fieldset>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
             label: "Recommended full-page embed",
             value: fullPageSmartEmbed,
-            rows: 8,
+            rows: 9,
             buttonAction: "copy-full-page-assistant-smart-embed",
             buttonLabel: "Copy smart snippet",
             disabled: !fullPageSmartEmbed,
@@ -17208,6 +17233,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
   const fullPageSmartEmbedOutput = document.getElementById("full-page-assistant-smart-embed");
   const fullPageTitleToggle = document.querySelector("[data-full-page-title-toggle]");
+  const fullPageHeightOptions = document.querySelectorAll("[data-full-page-height-mode]");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -17236,10 +17262,11 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
     }
 
     const showTitle = fullPageTitleToggle?.checked !== false;
+    const selectedHeightMode = Array.from(fullPageHeightOptions).find((input) => input.checked)?.value || "auto";
 
     if (fullPageSmartEmbedOutput) {
       fullPageSmartEmbedOutput.value = trimText(agent.id)
-        ? buildSmartAssistantEmbed(agent, "full-page", { showTitle })
+        ? buildSmartAssistantEmbed(agent, "full-page", { showTitle, heightMode: selectedHeightMode })
         : "";
     }
 
@@ -17257,6 +17284,9 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   });
 
   fullPageTitleToggle?.addEventListener("change", syncFullPageIframe);
+  fullPageHeightOptions.forEach((input) => {
+    input.addEventListener("change", syncFullPageIframe);
+  });
 
   syncFullPageIframe();
 }
