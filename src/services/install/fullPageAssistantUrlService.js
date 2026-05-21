@@ -11,7 +11,12 @@ export function buildFullPageAssistantUrl(agent = {}, publicAppUrl = "") {
 
   const agentSlug = cleanText(agent.publicAgentKey || agent.agentSlug || agent.slug);
   if (agentSlug) {
-    return `${baseUrl}/a/${encodeURIComponent(agentSlug)}`;
+    const url = new URL(`/a/${encodeURIComponent(agentSlug)}`, baseUrl);
+    const publicPageKey = cleanText(agent.fullPageConfig?.publicPageKey || agent.full_page_config?.public_page_key);
+    if (publicPageKey) {
+      url.searchParams.set("k", publicPageKey);
+    }
+    return url.toString();
   }
 
   const url = new URL("/widget", baseUrl);
@@ -20,5 +25,9 @@ export function buildFullPageAssistantUrl(agent = {}, publicAppUrl = "") {
     url.searchParams.set("agent_id", agentId);
   }
   url.searchParams.set("mode", "page");
+  const publicPageKey = cleanText(agent.fullPageConfig?.publicPageKey || agent.full_page_config?.public_page_key);
+  if (publicPageKey) {
+    url.searchParams.set("k", publicPageKey);
+  }
   return url.toString();
 }

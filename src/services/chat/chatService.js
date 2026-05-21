@@ -275,6 +275,7 @@ export async function handleChatRequest({
   const installId = cleanText(body.install_id || body.installId || "");
   const pageUrl = cleanText(body.page_url || body.pageUrl || "");
   const origin = cleanText(body.origin || "");
+  const publicPageKey = cleanText(body.public_page_key || body.publicPageKey || body.k || "");
   const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
   const history = sanitizeChatHistory(body.history);
   const visitorIdentity = normalizeVisitorIdentity({
@@ -309,6 +310,7 @@ export async function handleChatRequest({
     websiteUrl,
     origin,
     pageUrl,
+    publicPageKey,
     businessName: body.name,
     displayMode,
   });
@@ -596,6 +598,7 @@ export async function handleLeadCaptureRequest({
   const installId = cleanText(body.install_id || body.installId || "");
   const pageUrl = cleanText(body.page_url || body.pageUrl || "");
   const origin = cleanText(body.origin || "");
+  const publicPageKey = cleanText(body.public_page_key || body.publicPageKey || body.k || "");
   const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
   const action = cleanText(body.action).toLowerCase();
   const referenceMessage = cleanText(body.reference_message || body.referenceMessage || "");
@@ -627,6 +630,7 @@ export async function handleLeadCaptureRequest({
     websiteUrl,
     origin,
     pageUrl,
+    publicPageKey,
     businessName: body.name,
     displayMode,
   });

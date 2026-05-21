@@ -1470,6 +1470,10 @@ test("full-page assistant QR endpoint uses clean URL target and enforces owner a
           id: agentId,
           publicAgentKey: "agent-key",
           ownerUserId: "owner-1",
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key-1",
+          },
         }),
       };
       const server = await startServer(createTestApp(deps));
@@ -1478,7 +1482,7 @@ test("full-page assistant QR endpoint uses clean URL target and enforces owner a
         const response = await getText(server.baseUrl, "/agents/full-page-assistant-qr.svg?agent_id=agent-1&client_id=client-1");
         assert.equal(response.status, 200);
         assert.match(response.headers.get("content-type"), /image\/svg\+xml/);
-        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/a/agent-key");
+        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/a/agent-key?k=page-key-1");
         assert.match(response.text, /<svg[^>]+/);
         assert.ok(accessChecks.some((check) =>
           check.agentId === "agent-1" &&
@@ -1506,6 +1510,10 @@ test("full-page assistant QR endpoint uses clean URL target and enforces owner a
           id: agentId,
           publicAgentKey: "",
           ownerUserId: "owner-1",
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key-2",
+          },
         }),
       };
       const server = await startServer(createTestApp(deps));
@@ -1513,7 +1521,7 @@ test("full-page assistant QR endpoint uses clean URL target and enforces owner a
       try {
         const response = await getText(server.baseUrl, "/agents/full-page-assistant-qr.svg?agent_id=agent-1&client_id=client-1");
         assert.equal(response.status, 200);
-        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/widget?agent_id=agent-1&mode=page");
+        assert.equal(response.headers.get("x-vonza-qr-target"), "https://app.example.com/widget?agent_id=agent-1&mode=page&k=page-key-2");
         assert.match(response.text, /<svg[^>]+/);
       } finally {
         await server.close();

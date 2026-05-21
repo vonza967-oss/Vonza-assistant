@@ -107,6 +107,7 @@ import {
   verifyAgentInstallation,
 } from "../services/install/installPresenceService.js";
 import { buildFullPageAssistantUrl } from "../services/install/fullPageAssistantUrlService.js";
+import { createRateLimitMiddleware } from "../utils/rateLimiter.js";
 import {
   approveCalendarAction,
   approveCampaignDraft,
@@ -385,6 +386,14 @@ export function createAgentRouter(deps = {}) {
       return null;
     });
   };
+  const limitWidgetBootstrap =
+    deps.limitWidgetBootstrap || createRateLimitMiddleware("widget_bootstrap");
+  const limitPublicInstallSignal =
+    deps.limitPublicInstallSignal || createRateLimitMiddleware("public_install_signal");
+  const limitAuthAdjacent =
+    deps.limitAuthAdjacent || createRateLimitMiddleware("auth_adjacent");
+  const limitInstallVerify =
+    deps.limitInstallVerify || createRateLimitMiddleware("install_verify");
   const getAdminToken = (req) => {
     const bearerToken =
       typeof req.headers.authorization === "string" &&
@@ -592,7 +601,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.get("/widget/bootstrap", async (req, res) => {
+  router.get("/widget/bootstrap", limitWidgetBootstrap, async (req, res) => {
     try {
       const result = await getWidgetBootstrap(getSupabase(), {
         installId: req.query.install_id || req.query.installId,
@@ -603,6 +612,7 @@ export function createAgentRouter(deps = {}) {
         origin: req.query.origin,
         pageUrl: req.query.page_url || req.query.pageUrl,
         displayMode: req.query.display_mode || req.query.displayMode || req.query.mode,
+        publicPageKey: req.query.public_page_key || req.query.publicPageKey || req.query.k,
       });
 
       res.setHeader("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
@@ -615,7 +625,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/install/ping", async (req, res) => {
+  router.post("/install/ping", limitPublicInstallSignal, async (req, res) => {
     try {
       const result = await recordInstallPing(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
@@ -642,7 +652,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/install/events", async (req, res) => {
+  router.post("/install/events", limitPublicInstallSignal, async (req, res) => {
     try {
       const result = await trackWidgetEvent(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
@@ -710,7 +720,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/install/outcomes/detect", async (req, res) => {
+  router.post("/install/outcomes/detect", limitPublicInstallSignal, async (req, res) => {
     try {
       const result = await detectConversionOutcomesForPageImpl(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
@@ -746,7 +756,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/install/outcomes/ping", async (req, res) => {
+  router.post("/install/outcomes/ping", limitPublicInstallSignal, async (req, res) => {
     try {
       const result = await detectConversionOutcomesForPageImpl(getSupabase(), {
         installId: req.body.install_id || req.body.installId,
@@ -818,7 +828,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/agents/create", async (req, res) => {
+  router.post("/agents/create", limitAuthAdjacent, async (req, res) => {
     try {
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req).catch((error) => {
@@ -1477,6 +1487,14 @@ export function createAgentRouter(deps = {}) {
       if (fullPageConfig !== undefined) {
         updateOptions.fullPageConfig = fullPageConfig;
       }
+      const regeneratePublicPageKey = readBodyField(
+        req.body,
+        "regenerate_public_page_key",
+        "regeneratePublicPageKey"
+      );
+      if (regeneratePublicPageKey !== undefined) {
+        updateOptions.regeneratePublicPageKey = regeneratePublicPageKey;
+      }
 
       const result = await updateAgentSettingsImpl(supabase, updateOptions);
 
@@ -1884,6 +1902,11 @@ export function createAgentRouter(deps = {}) {
       });
 
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      if (agent?.fullPageConfig?.publicPageEnabled !== true || !cleanText(agent?.fullPageConfig?.publicPageKey)) {
+        const error = new Error("Enable the public full-page assistant before downloading a QR code.");
+        error.statusCode = 409;
+        throw error;
+      }
       const fullPageUrl = buildFullPageAssistantUrl(agent, getPublicAppUrl());
       const svg = await QRCode.toString(fullPageUrl, {
         type: "svg",
@@ -1908,7 +1931,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.post("/agents/install/verify", async (req, res) => {
+  router.post("/agents/install/verify", limitInstallVerify, async (req, res) => {
     try {
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req).catch((error) => {

@@ -189,6 +189,8 @@ function createInstallState() {
         launcher_text: "Chat",
         theme_mode: "dark",
         full_page_config: {
+          public_page_enabled: true,
+          public_page_key: "page-key-1",
           headline: "Acme help desk",
           subtitle: "Ask Acme about services.",
           action_cards: [
@@ -269,9 +271,10 @@ test("widget bootstrap enforces allowlists across install_id, website_url, agent
 
 test("full-page assistant bootstrap reuses config without weakening installed widget validation", async () => {
   const pageSupabase = createInstallState();
-  const page = await getWidgetBootstrap(pageSupabase, {
+    const page = await getWidgetBootstrap(pageSupabase, {
     agentKey: "agent-key",
     displayMode: "page",
+    publicPageKey: "page-key-1",
     origin: "https://bad.example.net",
     pageUrl: "https://bad.example.net/help",
   });
@@ -294,6 +297,32 @@ test("full-page assistant bootstrap reuses config without weakening installed wi
       }),
     (error) => error.statusCode === 403,
     "install_id validation should stay allowlist-bound"
+  );
+});
+
+test("full-page assistant bootstrap requires owner enablement and revocable public key", async () => {
+  const disabledSupabase = createInstallState();
+  disabledSupabase.state.widget_configs[0].full_page_config.public_page_enabled = false;
+
+  await assert.rejects(
+    () =>
+      getWidgetBootstrap(disabledSupabase, {
+        agentKey: "agent-key",
+        displayMode: "page",
+        publicPageKey: "page-key-1",
+      }),
+    (error) => error.statusCode === 404 && error.code === "public_full_page_unavailable"
+  );
+
+  const enabledSupabase = createInstallState();
+  await assert.rejects(
+    () =>
+      getWidgetBootstrap(enabledSupabase, {
+        agentKey: "agent-key",
+        displayMode: "page",
+        publicPageKey: "old-key",
+      }),
+    (error) => error.statusCode === 404 && error.code === "public_full_page_unavailable"
   );
 });
 

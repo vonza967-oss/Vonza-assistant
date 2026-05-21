@@ -472,6 +472,8 @@
     const bookingSupported = hasBookingSupport(agent);
 
     return {
+      publicPageEnabled: normalizeBoolean(config.publicPageEnabled ?? config.public_page_enabled, false),
+      publicPageKey: defaultTrimText(config.publicPageKey || config.public_page_key),
       headline: limitText(config.headline, 80),
       subtitle: limitText(config.subtitle, 180),
       actionCards: cards.length ? cards : defaults,
@@ -1117,6 +1119,14 @@
               </div>
               <div class="settings-full-page-grid">
                 <div class="settings-shell-field-stack" data-full-page-settings-panel="content">
+                  <div class="settings-shell-choice-row">
+                    <div class="settings-shell-choice-main">
+                      <p class="settings-shell-choice-title">Public full-page access</p>
+                      <p class="settings-shell-key-value-copy">When enabled, anyone with the protected public link can open this hosted assistant page.</p>
+                    </div>
+                    <input name="full_page_public_enabled" type="checkbox" ${fullPageConfig.publicPageEnabled ? "checked" : ""}>
+                  </div>
+                  <input type="hidden" name="full_page_public_page_key" value="${escapeHtml(fullPageConfig.publicPageKey || "")}">
                   <div class="field">
                     <label for="full-page-headline">Headline</label>
                     <input id="full-page-headline" name="full_page_headline" type="text" maxlength="80" value="${escapeHtml(fullPageConfig.headline || "")}" placeholder="Front Desk">

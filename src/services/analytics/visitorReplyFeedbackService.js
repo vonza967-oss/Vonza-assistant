@@ -266,6 +266,7 @@ export async function recordVisitorReplyFeedback(supabase, options = {}) {
     websiteUrl: options.websiteUrl || options.website_url,
     origin: options.origin,
     pageUrl: options.pageUrl || options.page_url,
+    publicPageKey: options.publicPageKey || options.public_page_key || options.k,
     displayMode: options.displayMode || options.display_mode,
   });
 

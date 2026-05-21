@@ -161,6 +161,8 @@ export const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
 });
 
 export const DEFAULT_FULL_PAGE_CONFIG = Object.freeze({
+  publicPageEnabled: false,
+  publicPageKey: "",
   headline: null,
   subtitle: null,
   actionCards: DEFAULT_FULL_PAGE_ACTION_CARDS,

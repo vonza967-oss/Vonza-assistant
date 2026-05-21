@@ -319,6 +319,10 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
     welcomeMessage: "Welcome",
     buttonLabel: "Chat",
     accessStatus: "active",
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key-1",
+    },
   };
   const setup = harness.inferSetup(agent);
   const markup = harness.buildInstallPanel(
@@ -3478,6 +3482,10 @@ test("install section stays focused on install methods and verification", () => 
     id: "agent-1",
     publicAgentKey: "agent-key",
     installId: "install-1",
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key-1",
+    },
     installStatus: {
       state: "seen_recently",
       label: "Seen recently",
@@ -3606,6 +3614,8 @@ test("install panel shows real status, progress, and resources without unrelated
       description: "Website knowledge is ready.",
     },
     fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key-1",
       headline: "Ask Acme",
       suggestedQuestions: ["What services do you offer?"],
     },
@@ -3663,6 +3673,10 @@ test("install copy helpers write the current install code and full-page sharing 
     welcomeMessage: "How can we help?",
     tone: "professional",
     websiteUrl: "https://example.com",
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key-1",
+    },
     installStatus: {
       state: "not_installed",
       label: "Not installed yet",
@@ -3709,17 +3723,19 @@ test("install copy helpers write the current install code and full-page sharing 
 
   assert.match(copied[0], /\/embed\.js/);
   assert.match(copied[0], /data-install-id="install-1"/);
-  assert.equal(copied[1], "http://127.0.0.1:3000/a/agent-key");
+  assert.equal(copied[1], "http://127.0.0.1:3000/a/agent-key?k=page-key-1");
   assert.match(copied[2], /data-vonza-assistant/);
   assert.match(copied[2], /data-agent-id="agent-1"/);
+  assert.match(copied[2], /data-public-page-key="page-key-1"/);
   assert.match(copied[2], /data-layout="section"/);
   assert.match(copied[2], /\/assistant-embed\.js/);
   assert.match(copied[3], /<iframe/);
-  assert.match(copied[3], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=standard/);
+  assert.match(copied[3], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=standard&k=page-key-1/);
   assert.match(copied[3], /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(copied[3], /100vh|min-height:520px/);
   assert.match(copied[4], /data-vonza-assistant/);
   assert.match(copied[4], /data-agent-id="agent-1"/);
+  assert.match(copied[4], /data-public-page-key="page-key-1"/);
   assert.match(copied[4], /data-layout="page-takeover"/);
   assert.match(copied[4], /data-surface="flat"/);
   assert.match(copied[4], /data-background-scope="viewport"/);
@@ -3728,6 +3744,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[4], /\/assistant-embed\.js/);
   assert.match(copied[5], /data-vonza-assistant/);
   assert.match(copied[5], /data-agent-id="agent-1"/);
+  assert.match(copied[5], /data-public-page-key="page-key-1"/);
   assert.match(copied[5], /data-layout="page-takeover"/);
   assert.match(copied[5], /data-surface="flat"/);
   assert.match(copied[5], /data-background-scope="page"/);
@@ -3736,7 +3753,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[5], /\/assistant-embed\.js/);
   assert.match(copied[6], /^<iframe/);
   assert.doesNotMatch(copied[6], /width:100vw;margin-left/);
-  assert.match(copied[6], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas/);
+  assert.match(copied[6], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas&k=page-key-1/);
   assert.match(copied[6], /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
 });
 
@@ -3745,6 +3762,10 @@ test("install section falls back to widget page URL when public slug is missing"
   const markup = harness.buildInstallSection({
     id: "agent-1",
     installId: "install-1",
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key-2",
+    },
     installStatus: {
       state: "not_installed",
       label: "Not installed yet",
@@ -3754,7 +3775,7 @@ test("install section falls back to widget page URL when public slug is missing"
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
-  assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/widget\?agent_id=agent-1&amp;mode=page/);
+  assert.match(markup, /http:\/\/127\.0\.0\.1:3000\/widget\?agent_id=agent-1&amp;mode=page&amp;k=page-key-2/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /data-action="copy-full-page-iframe"/);
   assert.match(markup, /data-action="download-full-page-qr"/);

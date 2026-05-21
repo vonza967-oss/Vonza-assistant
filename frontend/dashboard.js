@@ -2728,18 +2728,39 @@ function buildScript(agent) {
     return "";
   }
 
-  return `<script async defer src="${getPublicAppUrl()}/embed.js" data-install-id="${installId}"><\/script>`;
+  return `<script async defer src="${getPublicAppUrl()}/embed.js" data-install-id="${installId}"></script>`;
 }
 
 function buildWidgetUrl(agentKey) {
   return `${getPublicAppUrl()}/widget?agent_key=${encodeURIComponent(agentKey)}`;
 }
 
+function getPublicFullPageConfig(agent = {}) {
+  return agent.fullPageConfig || agent.full_page_config || {};
+}
+
+function getPublicPageKey(agent = {}) {
+  const config = getPublicFullPageConfig(agent);
+  return trimText(config.publicPageKey || config.public_page_key);
+}
+
+function isPublicFullPageEnabled(agent = {}) {
+  const config = getPublicFullPageConfig(agent);
+  return (config.publicPageEnabled === true || config.public_page_enabled === true) && Boolean(getPublicPageKey(agent));
+}
+
 function buildFullPageAssistantUrl(agent = {}) {
   const agentKey = trimText(agent.publicAgentKey);
+  const publicPageKey = getPublicPageKey(agent);
+
+  if (!isPublicFullPageEnabled(agent)) {
+    return "";
+  }
 
   if (agentKey) {
-    return `${getPublicAppUrl()}/a/${encodeURIComponent(agentKey)}`;
+    const url = new URL(`/a/${encodeURIComponent(agentKey)}`, getPublicAppUrl());
+    url.searchParams.set("k", publicPageKey);
+    return url.toString();
   }
 
   const url = new URL("/widget", getPublicAppUrl());
@@ -2747,6 +2768,7 @@ function buildFullPageAssistantUrl(agent = {}) {
     url.searchParams.set("agent_id", agent.id);
   }
   url.searchParams.set("mode", "page");
+  url.searchParams.set("k", publicPageKey);
   return url.toString();
 }
 
@@ -2771,6 +2793,9 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", option
   }
   if (options.showTitle === false) {
     url.searchParams.set("show_title", "0");
+  }
+  if (getPublicPageKey(agent)) {
+    url.searchParams.set("k", getPublicPageKey(agent));
   }
   return url.toString();
 }
@@ -2809,6 +2834,9 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   const backgroundScopeLine = isCanvasSmartEmbed
     ? `\n  data-background-scope="${backgroundScope}"`
     : "";
+  const publicPageKeyLine = getPublicPageKey(agent)
+    ? `\n  data-public-page-key="${escapeHtml(getPublicPageKey(agent))}"`
+    : "";
   const heightMode = normalizeFullPageAssistantHeight(options.heightMode);
   const heightLine = normalizedLayout === "full-page" && heightMode === "full-page"
     ? '\n  data-height="full-page"'
@@ -2829,15 +2857,15 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   return `<div
   data-vonza-assistant
   data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}${pageResetLine}${hidePageFooterLine}${hidePageTitleLine}
+  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}${pageResetLine}${hidePageFooterLine}${hidePageTitleLine}${publicPageKeyLine}
 ></div>
-<script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
+<script async src="${getPublicAppUrl()}/assistant-embed.js"></script>`;
 }
 
 function buildFullPageQrEndpoint(agent = {}) {
   const agentId = trimText(agent.id);
 
-  if (!agentId) {
+  if (!agentId || !isPublicFullPageEnabled(agent)) {
     return "";
   }
 
@@ -15253,7 +15281,7 @@ function buildInstallCopyBlock({ id, label, value, rows = 5, buttonAction, butto
 function buildInstallSidePanel(agent, setup, messages = []) {
   const installStatus = getDefaultInstallStatus(agent);
   const hasInstall = Boolean(trimText(agent.installId));
-  const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+  const fullPageEnabled = isPublicFullPageEnabled(agent);
   const qrEndpoint = buildFullPageQrEndpoint(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const statusRows = [
@@ -15274,12 +15302,12 @@ function buildInstallSidePanel(agent, setup, messages = []) {
     },
     {
       label: "Full-page assistant",
-      value: fullPageUrl ? "Ready to share" : "Available after the assistant is saved.",
-      tone: fullPageUrl ? "Ready" : "Pending",
+      value: fullPageEnabled ? "Ready to share" : "Disabled until enabled by the owner.",
+      tone: fullPageEnabled ? "Ready" : "Pending",
     },
     {
       label: "QR code",
-      value: qrEndpoint ? "Downloadable" : "Available after the assistant is saved.",
+      value: qrEndpoint ? "Downloadable" : "Enable the public page first.",
       tone: qrEndpoint ? "Ready" : "Pending",
     },
   ];
@@ -15342,10 +15370,11 @@ function buildInstallSection(agent, options = {}) {
   const hasInstall = Boolean(trimText(agent.installId));
   const script = hasInstall ? buildScript(agent) : "";
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
-  const sectionSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
+  const fullPageEnabled = isPublicFullPageEnabled(agent);
+  const sectionSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
   const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
-  const dedicatedPageSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
-  const truePageTakeoverSmartEmbed = trimText(agent.id)
+  const dedicatedPageSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
+  const truePageTakeoverSmartEmbed = fullPageEnabled && trimText(agent.id)
     ? buildSmartAssistantEmbed(agent, "page-takeover", {
       backgroundScope: "page",
       pageReset: true,
@@ -15385,16 +15414,16 @@ function buildInstallSection(agent, options = {}) {
       icon: "frontdesk",
       title: "Full-page assistant",
       copy: "Share a hosted page or embed it on your own site.",
-      status: fullPageUrl ? "Ready to share" : "",
-      tone: "ready",
+      status: fullPageEnabled ? "Enabled" : "Disabled",
+      tone: fullPageEnabled ? "ready" : "warning",
     },
     {
       key: "qr",
       icon: "review",
       title: "QR code",
       copy: "Print a code that opens the assistant page.",
-      status: qrEndpoint ? "Print/download" : "",
-      tone: "neutral",
+      status: qrEndpoint ? "Print/download" : "Enable page first",
+      tone: qrEndpoint ? "neutral" : "warning",
     },
   ];
 
@@ -15468,8 +15497,16 @@ function buildInstallSection(agent, options = {}) {
             <h3 class="install-option-title">Full-page assistant</h3>
             <p class="install-option-copy">Choose how customers should open the assistant. Vonza will generate the right link or website code automatically.</p>
           </div>
-          <span class="${getBadgeClass(fullPageUrl ? "Ready" : "Pending")}">${escapeHtml(fullPageUrl ? "Ready to share" : "Not ready")}</span>
+          <span class="${getBadgeClass(fullPageEnabled ? "Ready" : "Pending")}">${escapeHtml(fullPageEnabled ? "Enabled" : "Disabled")}</span>
         </div>
+        ${!fullPageEnabled ? `
+          <div class="operator-inline-alert">
+            Enable the public full-page assistant in Front Desk settings before sharing links, embeds, or QR codes.
+            <div class="inline-actions">
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable in settings</button>
+            </div>
+          </div>
+        ` : ""}
         <div class="full-page-install-selector" role="tablist" aria-label="Full-page assistant install options">
           <button class="full-page-install-choice active" type="button" role="tab" aria-selected="true" aria-controls="full-page-option-share" data-full-page-option="share">
             <strong>Shareable link</strong>
@@ -15584,7 +15621,7 @@ function buildInstallSection(agent, options = {}) {
             <h3 class="install-option-title">QR code</h3>
             <p class="install-option-copy">Use this QR code on menus, flyers, signs, invoices, and reception desks.</p>
           </div>
-          <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Not ready")}</span>
+          <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
         </div>
         <div class="install-qr-section">
           <div class="install-qr-preview" data-full-page-qr-preview aria-label="Full-page assistant QR code">
@@ -15595,10 +15632,11 @@ function buildInstallSection(agent, options = {}) {
               <span>Target URL</span>
               <strong>${escapeHtml(fullPageUrl || "Available after the assistant is saved.")}</strong>
             </div>
-            <p class="install-help">Use this QR code on menus, flyers, signs, invoices, and reception desks.</p>
+            <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public full-page assistant before downloading or sharing a QR code.")}</p>
             <p class="install-help">Scan tracking is not available yet.</p>
             <div class="install-cta-row">
               <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
+              ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public page</button>' : ""}
               <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
             </div>
           </div>
@@ -16819,6 +16857,8 @@ function parseFullPageConfigPayload(formData) {
   }
 
   return {
+    public_page_enabled: formData.has("full_page_public_enabled"),
+    public_page_key: normalizeFullPageFormText(formData.get("full_page_public_page_key"), 80) || null,
     headline: normalizeFullPageFormText(formData.get("full_page_headline"), 80) || null,
     subtitle: normalizeFullPageFormText(formData.get("full_page_subtitle"), 180) || null,
     action_cards: actionCards,

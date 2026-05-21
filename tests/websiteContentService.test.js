@@ -133,6 +133,18 @@ test("pricing and contact guidance encourages structured business-specific answe
   assert.match(contactGuidance, /most practical next action/i);
 });
 
+test("assistant system prompt forbids unsupported launch-sensitive claims", () => {
+  const prompt = buildChatSystemPrompt("English", {
+    name: "Acme Front Desk",
+    purpose: "support",
+  });
+
+  assert.match(prompt, /Do not invent facts, services, prices, or guarantees/i);
+  assert.match(prompt, /policies, availability, legal claims, discounts/i);
+  assert.match(prompt, /not in the approved answers or business context/i);
+  assert.match(prompt, /Prefer owner-approved answers over website excerpts/i);
+});
+
 test("assistant reply generation preserves paragraph spacing through post-processing", async () => {
   const reply = await generateAssistantReply({
     openai: {

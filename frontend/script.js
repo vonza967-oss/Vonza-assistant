@@ -25,6 +25,11 @@ const AGENT_KEY =
   STORED_AGENT_KEY ||
   window.VonzaWidgetConfig?.agentKey ||
   "";
+const PUBLIC_PAGE_KEY =
+  searchParams.get("k") ||
+  searchParams.get("public_page_key") ||
+  window.VonzaWidgetConfig?.publicPageKey ||
+  "";
 const BUSINESS_ID =
   searchParams.get("business_id") ||
   window.VonzaWidgetConfig?.businessId ||
@@ -1816,6 +1821,7 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
         visitor_session_key: getVisitorSessionKey(),
         reference_message: normalized.mode === "guest"
@@ -2170,6 +2176,7 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
         visitor_session_key: getVisitorSessionKey(),
         reference_message: lastLeadReferenceMessage,
@@ -2559,6 +2566,7 @@ async function loadWidgetBootstrap() {
   if (WEBSITE_URL) bootstrapUrl.searchParams.set("website_url", WEBSITE_URL);
   if (getPageOrigin()) bootstrapUrl.searchParams.set("origin", getPageOrigin());
   if (getPageUrl()) bootstrapUrl.searchParams.set("page_url", getPageUrl());
+  if (PUBLIC_PAGE_KEY) bootstrapUrl.searchParams.set("k", PUBLIC_PAGE_KEY);
   bootstrapUrl.searchParams.set("mode", DISPLAY_MODE);
 
   try {
@@ -2740,6 +2748,7 @@ async function submitReplyFeedback(messageKey, rating, options = {}) {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
         session_key: getVisitorSessionKey(),
         assistant_message_key: normalizedMessageKey,
@@ -2843,6 +2852,7 @@ async function sendMessage(messageOverride = "") {
         website_url: WEBSITE_URL,
         page_url: getPageUrl(),
         origin: getPageOrigin(),
+        public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
         visitor_session_key: sessionKey,
         history: historySnapshot,

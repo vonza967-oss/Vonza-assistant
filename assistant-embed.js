@@ -181,7 +181,7 @@
     return !["0", "false", "no", "off"].includes(normalized);
   }
 
-  function buildAssistantUrl({ agentId, layout, size, surface, showTitle, backgroundScope }) {
+  function buildAssistantUrl({ agentId, publicPageKey, layout, size, surface, showTitle, backgroundScope }) {
     const url = new URL("/widget", vonzaOrigin);
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("mode", "page");
@@ -203,6 +203,9 @@
 
     if (showTitle === false) {
       url.searchParams.set("show_title", "0");
+    }
+    if (publicPageKey) {
+      url.searchParams.set("k", publicPageKey);
     }
 
     return url.toString();
@@ -542,12 +545,15 @@
     return normalizePublicDesign(fullPageConfig.design || {});
   }
 
-  function buildBootstrapUrl(agentId) {
+  function buildBootstrapUrl(agentId, publicPageKey = "") {
     const url = new URL("/widget/bootstrap", vonzaOrigin);
     url.searchParams.set("agent_id", agentId);
     url.searchParams.set("display_mode", "page");
     url.searchParams.set("origin", window.location.origin || "");
     url.searchParams.set("page_url", window.location.href || "");
+    if (publicPageKey) {
+      url.searchParams.set("k", publicPageKey);
+    }
     return url.toString();
   }
 
@@ -710,7 +716,7 @@
       return;
     }
 
-    window.fetch(buildBootstrapUrl(entry.agentId))
+    window.fetch(buildBootstrapUrl(entry.agentId, entry.publicPageKey))
       .then((response) => (response?.ok ? response.json() : null))
       .then((payload) => {
         if (!payload) {
@@ -1022,6 +1028,7 @@
     }
 
     const layout = normalizeLayout(element.getAttribute("data-layout"));
+    const publicPageKey = trimText(element.getAttribute("data-public-page-key"));
     const size = normalizeSize(element.getAttribute("data-size"), layout);
     const surface = normalizeSurface(element.getAttribute("data-surface"), layout);
     const backgroundScope = isCanvasLayout(layout)
@@ -1045,7 +1052,7 @@
     const iframe = document.createElement("iframe");
     const takeoverWrapper = isPageTakeover(layout) ? document.createElement("div") : null;
 
-    iframe.src = buildAssistantUrl({ agentId, layout, size, surface, showTitle, backgroundScope });
+    iframe.src = buildAssistantUrl({ agentId, publicPageKey, layout, size, surface, showTitle, backgroundScope });
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
     iframe.allowTransparency = surface === "transparent" || ["section", "viewport"].includes(backgroundScope);
@@ -1084,6 +1091,7 @@
       mount: element,
       backgroundTarget: takeoverWrapper || element,
       agentId,
+      publicPageKey,
       layout,
       backgroundScope,
       heightMode,

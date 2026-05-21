@@ -393,7 +393,7 @@ export function buildApprovedAnswersPrompt(approvedAnswers = []) {
 
   return [
     "Owner-approved answers:",
-    "Use these only when they match the visitor's question. Treat them as trusted owner guidance, but still answer naturally and do not mention internal labels.",
+    "Use these only when they match the visitor's question. Treat matching approved answers as the highest-priority trusted business source and prefer them over weaker website excerpts. Answer naturally and do not mention internal labels.",
     ...items.map((item) => [
       `${item.number}. Use when: ${item.trigger}`,
       item.tags ? `Tags: ${item.tags}` : "",

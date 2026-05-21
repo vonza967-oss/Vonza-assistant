@@ -3225,7 +3225,8 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
 
   assert.match(dashboard, /function buildFullPageAssistantUrl/);
-  assert.match(dashboard, /return `\$\{getPublicAppUrl\(\)\}\/a\/\$\{encodeURIComponent\(agentKey\)\}`/);
+  assert.match(dashboard, /function getPublicPageKey/);
+  assert.match(dashboard, /url\.searchParams\.set\("k", publicPageKey\)/);
   assert.match(dashboard, /function buildEmbeddedFullPageAssistantUrl/);
   assert.match(dashboard, /function buildSmartAssistantEmbed/);
   assert.match(dashboard, /url\.searchParams\.set\("embedded", "1"\)/);

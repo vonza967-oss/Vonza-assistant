@@ -1,78 +1,167 @@
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_MAX_REQUESTS = 20;
-const chatRequestLog = new Map();
+import {
+  clearRateLimitForTests as clearRateLimitBucketsForTests,
+  createRateLimitMiddleware,
+  getClientIp,
+} from "./rateLimiter.js";
+import { cleanText } from "./text.js";
 
-function normalizeIpAddress(value = "") {
-  return String(value || "").trim().replace(/^::ffff:/i, "");
+const repeatedPayloads = new Map();
+const MAX_PUBLIC_CHAT_MESSAGE_LENGTH = 2000;
+const MAX_PUBLIC_CHAT_HISTORY_ITEMS = 20;
+const MAX_PUBLIC_FEEDBACK_TEXT_LENGTH = 6000;
+const BOT_USER_AGENT_PATTERN = /\b(?:bot|crawler|spider|scraper|headless|curl|wget|python-requests|httpclient|libwww|phantomjs)\b/i;
+
+export const enforceChatRateLimit = createRateLimitMiddleware("public_chat");
+
+export function clearChatRateLimitForTests() {
+  clearRateLimitBucketsForTests();
+  repeatedPayloads.clear();
 }
 
-function listTrustedProxyIps() {
-  return String(process.env.TRUSTED_PROXY_IPS || "")
-    .split(",")
-    .map((value) => normalizeIpAddress(value))
-    .filter(Boolean);
+function getBodyText(body, keys = []) {
+  return keys.map((key) => cleanText(body?.[key])).find(Boolean) || "";
 }
 
-function isTrustedProxyRequest(req) {
-  const remoteAddress = normalizeIpAddress(req.socket?.remoteAddress || req.connection?.remoteAddress || "");
+function buildPayloadRepeatKey(req, text) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const identity = [
+    body.install_id || body.installId,
+    body.agent_id || body.agentId,
+    body.agent_key || body.agentKey,
+    body.visitor_session_key || body.visitorSessionKey || body.session_key || body.sessionKey,
+  ].map((value) => cleanText(value)).filter(Boolean).join(":");
 
-  if (!remoteAddress) {
+  return `${getClientIp(req)}:${identity || "anonymous"}:${text.toLowerCase()}`;
+}
+
+function reject(res, statusCode, message) {
+  res.status(statusCode).json({ error: message });
+}
+
+function isTurnstileRequired() {
+  return cleanText(process.env.REQUIRE_PUBLIC_CHAT_TURNSTILE).toLowerCase() === "true"
+    && cleanText(process.env.TURNSTILE_SECRET_KEY);
+}
+
+async function verifyTurnstile(req) {
+  if (!isTurnstileRequired()) {
+    return true;
+  }
+
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const token = cleanText(
+    req.headers["x-turnstile-token"]
+    || body.turnstile_token
+    || body.turnstileToken
+    || body.cf_turnstile_response
+  );
+
+  if (!token) {
     return false;
   }
 
-  return listTrustedProxyIps().includes(remoteAddress);
+  const params = new URLSearchParams();
+  params.set("secret", cleanText(process.env.TURNSTILE_SECRET_KEY));
+  params.set("response", token);
+  params.set("remoteip", getClientIp(req));
+
+  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+  });
+  const result = await response.json().catch(() => ({}));
+  return response.ok && result.success === true;
 }
 
-function getClientIp(req) {
-  const forwardedFor = req.headers["x-forwarded-for"];
-
-  if (isTrustedProxyRequest(req) && typeof forwardedFor === "string" && forwardedFor.trim()) {
-    return normalizeIpAddress(forwardedFor.split(",")[0]);
-  }
-
-  return normalizeIpAddress(req.ip || req.socket?.remoteAddress || "unknown") || "unknown";
-}
-
-function getRequestIdentityPart(req) {
+export function enforcePublicChatAbuseGuards(req, res, next) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
-  const identityParts = [
-    body.install_id || body.installId,
-    body.session_id || body.sessionId || body.session_key || body.sessionKey,
-    body.agent_id || body.agentId,
-    body.agent_key || body.agentKey,
-    body.website_url || body.websiteUrl,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean)
-    .slice(0, 5);
+  const message = getBodyText(body, ["message"]);
+  const userAgent = cleanText(req.headers["user-agent"]);
+  const history = Array.isArray(body.history) ? body.history : [];
 
-  return identityParts.length ? identityParts.join("|") : "anonymous";
-}
-
-function getClientKey(req) {
-  return `${getClientIp(req)}:${getRequestIdentityPart(req)}`;
-}
-
-export function enforceChatRateLimit(req, res, next) {
-  const clientKey = getClientKey(req);
-  const now = Date.now();
-  const recentRequests = (chatRequestLog.get(clientKey) || []).filter(
-    (timestamp) => now - timestamp < RATE_LIMIT_WINDOW_MS
-  );
-
-  if (recentRequests.length >= RATE_LIMIT_MAX_REQUESTS) {
-    return res.status(429).json({
-      error: "Too many chat requests. Please wait a moment and try again.",
-    });
+  if (BOT_USER_AGENT_PATTERN.test(userAgent) && !cleanText(body.install_id || body.installId || body.agent_key || body.agentKey)) {
+    reject(res, 403, "Public chat is not available for automated clients.");
+    return;
   }
 
-  recentRequests.push(now);
-  chatRequestLog.set(clientKey, recentRequests);
+  if (!message) {
+    reject(res, 400, "Message cannot be empty.");
+    return;
+  }
+
+  if (message.length > MAX_PUBLIC_CHAT_MESSAGE_LENGTH) {
+    reject(res, 413, "Message is too long. Please send a shorter question.");
+    return;
+  }
+
+  if (history.length > MAX_PUBLIC_CHAT_HISTORY_ITEMS) {
+    reject(res, 413, "Conversation history is too long. Please start a new message.");
+    return;
+  }
+
+  const compactMessage = message.toLowerCase().replace(/\s+/g, " ").trim();
+  if (/^(.)\1{24,}$/.test(compactMessage.replace(/\s/g, ""))) {
+    reject(res, 400, "Message looks like repeated spam.");
+    return;
+  }
+
+  const repeatKey = buildPayloadRepeatKey(req, compactMessage);
+  const now = Date.now();
+  const recent = (repeatedPayloads.get(repeatKey) || []).filter((timestamp) => now - timestamp < 60_000);
+  if (recent.length >= 2) {
+    reject(res, 429, "Too many chat requests. Repeated messages are temporarily limited.");
+    return;
+  }
+
+  recent.push(now);
+  repeatedPayloads.set(repeatKey, recent);
+  verifyTurnstile(req)
+    .then((allowed) => {
+      if (!allowed) {
+        reject(res, 403, "Complete the verification challenge before chatting.");
+        return;
+      }
+      next();
+    })
+    .catch((error) => {
+      console.warn("[abuse] Turnstile verification failed:", error?.message || error);
+      reject(res, 503, "Chat verification is temporarily unavailable.");
+    });
+}
+
+export function enforcePublicFeedbackAbuseGuards(req, res, next) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const combinedText = [
+    body.note,
+    body.reason,
+    body.user_question || body.userQuestion,
+    body.assistant_answer || body.assistantAnswer,
+  ].map((value) => cleanText(value)).join("\n");
+
+  if (combinedText.length > MAX_PUBLIC_FEEDBACK_TEXT_LENGTH) {
+    reject(res, 413, "Feedback payload is too long.");
+    return;
+  }
+
   next();
 }
 
-export function clearChatRateLimitForTests() {
-  chatRequestLog.clear();
+export function enforcePublicCaptureAbuseGuards(req, res, next) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const combinedText = [
+    body.name,
+    body.email,
+    body.phone,
+    body.reference_message || body.referenceMessage,
+  ].map((value) => cleanText(value)).join("\n");
+
+  if (combinedText.length > 3000) {
+    reject(res, 413, "Contact payload is too long.");
+    return;
+  }
+
+  next();
 }
 
 export function requireAdminToken(req, res, next) {

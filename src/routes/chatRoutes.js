@@ -8,7 +8,12 @@ import {
 } from "../services/chat/chatService.js";
 import { recordVisitorReplyFeedback } from "../services/analytics/visitorReplyFeedbackService.js";
 import { trackProductEvent } from "../services/analytics/productEventService.js";
-import { enforceChatRateLimit } from "../utils/httpGuards.js";
+import {
+  enforcePublicCaptureAbuseGuards,
+  enforcePublicChatAbuseGuards,
+  enforcePublicFeedbackAbuseGuards,
+} from "../utils/httpGuards.js";
+import { createRateLimitMiddleware } from "../utils/rateLimiter.js";
 import { cleanText } from "../utils/text.js";
 
 function normalizePublicDisplayMode(value) {
@@ -24,6 +29,11 @@ export function createChatRouter(deps = {}) {
   const recordVisitorReplyFeedbackImpl =
     deps.recordVisitorReplyFeedback || recordVisitorReplyFeedback;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
+  const enforcePublicChatRateLimit = deps.enforcePublicChatRateLimit || createRateLimitMiddleware("public_chat");
+  const enforcePublicCaptureRateLimit =
+    deps.enforcePublicCaptureRateLimit || createRateLimitMiddleware("public_chat_capture");
+  const enforcePublicFeedbackRateLimit =
+    deps.enforcePublicFeedbackRateLimit || createRateLimitMiddleware("public_chat_feedback");
   const trackPublicProductEvent = async ({
     agentId,
     installId = "",
@@ -58,7 +68,7 @@ export function createChatRouter(deps = {}) {
     });
   };
 
-  router.post("/chat", enforceChatRateLimit, async (req, res) => {
+  router.post("/chat", enforcePublicChatAbuseGuards, enforcePublicChatRateLimit, async (req, res) => {
     try {
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
@@ -90,7 +100,7 @@ export function createChatRouter(deps = {}) {
     }
   });
 
-  router.post("/chat/capture", enforceChatRateLimit, async (req, res) => {
+  router.post("/chat/capture", enforcePublicCaptureAbuseGuards, enforcePublicCaptureRateLimit, async (req, res) => {
     try {
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
@@ -123,7 +133,7 @@ export function createChatRouter(deps = {}) {
     }
   });
 
-  router.post("/chat/feedback", enforceChatRateLimit, async (req, res) => {
+  router.post("/chat/feedback", enforcePublicFeedbackAbuseGuards, enforcePublicFeedbackRateLimit, async (req, res) => {
     try {
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
@@ -136,6 +146,7 @@ export function createChatRouter(deps = {}) {
         websiteUrl: req.body.website_url || req.body.websiteUrl,
         origin: req.body.origin,
         pageUrl: req.body.page_url || req.body.pageUrl,
+        publicPageKey: req.body.public_page_key || req.body.publicPageKey || req.body.k,
         displayMode,
         sessionKey: req.body.session_key || req.body.sessionKey,
         assistantMessageKey: req.body.assistant_message_key || req.body.assistantMessageKey,

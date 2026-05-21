@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { cleanText, slugifyLookupValue } from "../../utils/text.js";
 import { getHostnameFromUrl, normalizeWebsiteUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
@@ -240,6 +242,14 @@ function buildPublicWidgetNotFoundError(message = "Public widget install not fou
   return buildAgentSettingsError(message, 404, "public_widget_not_found");
 }
 
+function buildPublicFullPageUnavailableError() {
+  return buildAgentSettingsError(
+    "This public assistant page is not available. Please contact the business directly.",
+    404,
+    "public_full_page_unavailable"
+  );
+}
+
 function normalizeOptionalUrl(value) {
   const providedValue = cleanText(value);
 
@@ -409,6 +419,14 @@ function normalizeConfigBoolean(value, fallbackValue) {
   }
 
   return fallbackValue;
+}
+
+function generatePublicPageKey() {
+  return randomBytes(18).toString("base64url");
+}
+
+function normalizePublicPageKey(value) {
+  return cleanText(value).replace(/[^a-z0-9_-]/gi, "").slice(0, 80);
 }
 
 function normalizeAccentColor(value) {
@@ -776,11 +794,21 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
   const logoUrl = normalizeOptionalImageSource(
     readConfigField(config, "logoUrl", "logo_url")
   ) || null;
+  const publicPageEnabled = normalizeConfigBoolean(
+    readConfigField(config, "publicPageEnabled", "public_page_enabled")
+      ?? readConfigField(config, "enabled"),
+    false
+  );
+  const publicPageKey = normalizePublicPageKey(
+    readConfigField(config, "publicPageKey", "public_page_key")
+  );
   const design = normalizeFullPageDesignConfig(
     readConfigField(config, "design") || {}
   );
 
   return {
+    publicPageEnabled,
+    publicPageKey,
     headline: normalizeLimitedText(readConfigField(config, "headline"), 80) || null,
     subtitle: normalizeLimitedText(readConfigField(config, "subtitle"), 180) || null,
     actionCards: actionCards.length ? actionCards : defaultCards,
@@ -801,6 +829,8 @@ function serializeFullPageConfig(config = {}) {
   });
 
   return {
+    public_page_enabled: normalized.publicPageEnabled === true,
+    public_page_key: normalizePublicPageKey(normalized.publicPageKey) || null,
     headline: normalized.headline,
     subtitle: normalized.subtitle,
     action_cards: normalized.actionCards.map((card) => ({ ...card })),
@@ -832,6 +862,20 @@ function serializeFullPageConfig(config = {}) {
       disable_video_on_mobile: normalized.design.disableVideoOnMobile,
     },
   };
+}
+
+function resolveFullPageAccessConfig(config = {}, previousConfig = {}, options = {}) {
+  const next = { ...config };
+  const previousKey = normalizePublicPageKey(previousConfig.publicPageKey || previousConfig.public_page_key);
+  const requestedKey = normalizePublicPageKey(next.publicPageKey || next.public_page_key);
+  const shouldRegenerate = options.regenerate === true;
+  const enabled = next.publicPageEnabled === true || next.public_page_enabled === true;
+
+  next.publicPageKey = shouldRegenerate
+    ? generatePublicPageKey()
+    : requestedKey || previousKey || (enabled ? generatePublicPageKey() : "");
+
+  return next;
 }
 
 function buildInvalidWidgetLogoError() {
@@ -1586,8 +1630,8 @@ async function resolveExistingPublicWidgetContext(supabase, options = {}) {
   const businessId = cleanText(options.businessId);
   const websiteUrl = cleanText(options.websiteUrl);
   let agent = null;
-  let business = null;
-  let widgetConfigRow = null;
+  let business;
+  let widgetConfigRow;
 
   if (agentId) {
     agent = await findAgentById(supabase, agentId);
@@ -1650,6 +1694,7 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
   const requestedOrigin = cleanText(options.origin);
   const pageUrl = cleanText(options.pageUrl);
   const displayMode = normalizePublicDisplayMode(options.displayMode || options.mode);
+  const publicPageKey = normalizePublicPageKey(options.publicPageKey || options.public_page_key || options.pageKey || options.k);
 
   if (installId) {
     const installContext = await requireAllowedInstallOrigin(supabase, {
@@ -1658,18 +1703,25 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
       pageUrl,
     });
 
-    return {
+    const context = {
       agent: mapAgentRow(installContext.agent),
       business: installContext.business,
       widgetConfigRow: installContext.widgetConfigRow,
       widgetConfig: mapWidgetConfigRow(installContext.widgetConfigRow),
       allowedDomains: installContext.allowedDomains,
     };
+
+    if (displayMode === "page") {
+      requirePublicFullPageAccess(context, { publicPageKey });
+    }
+
+    return context;
   }
 
   const context = await resolveExistingPublicWidgetContext(supabase, options);
 
   if (displayMode === "page") {
+    requirePublicFullPageAccess(context, { publicPageKey });
     return context;
   }
 
@@ -1681,6 +1733,17 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
   });
 
   return context;
+}
+
+export function requirePublicFullPageAccess(context = {}, options = {}) {
+  const config = context.widgetConfig?.fullPageConfig || {};
+  const enabled = config.publicPageEnabled === true || config.public_page_enabled === true;
+  const expectedKey = normalizePublicPageKey(config.publicPageKey || config.public_page_key);
+  const providedKey = normalizePublicPageKey(options.publicPageKey || options.public_page_key || options.pageKey || options.k);
+
+  if (!enabled || !expectedKey || providedKey !== expectedKey) {
+    throw buildPublicFullPageUnavailableError();
+  }
 }
 
 export async function getWidgetBootstrap(supabase, options = {}) {
@@ -2239,6 +2302,7 @@ export async function updateAgentSettings(
     fallbackCtaMode,
     businessHoursNote,
     fullPageConfig,
+    regeneratePublicPageKey,
     vertical,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
@@ -2459,21 +2523,25 @@ export async function updateAgentSettings(
     ? cleanText(businessHoursNote)
     : persistedWidgetConfig.businessHoursNote;
   const nextFullPageConfig = hasField("fullPageConfig")
-    ? normalizeFullPageConfig(fullPageConfig, {
-        bookingSupport: hasBookingSupportInWidgetConfig({
-          ...persistedWidgetConfig,
-          bookingUrl: nextBookingUrl,
-          booking_url: nextBookingUrl,
-          bookingStartUrl: nextBookingStartUrl,
-          booking_start_url: nextBookingStartUrl,
-          bookingSuccessUrl: nextBookingSuccessUrl,
-          booking_success_url: nextBookingSuccessUrl,
-          primaryCtaMode: nextPrimaryCtaMode,
-          primary_cta_mode: nextPrimaryCtaMode,
-          fallbackCtaMode: nextFallbackCtaMode,
-          fallback_cta_mode: nextFallbackCtaMode,
+    ? resolveFullPageAccessConfig(
+        normalizeFullPageConfig(fullPageConfig, {
+          bookingSupport: hasBookingSupportInWidgetConfig({
+            ...persistedWidgetConfig,
+            bookingUrl: nextBookingUrl,
+            booking_url: nextBookingUrl,
+            bookingStartUrl: nextBookingStartUrl,
+            booking_start_url: nextBookingStartUrl,
+            bookingSuccessUrl: nextBookingSuccessUrl,
+            booking_success_url: nextBookingSuccessUrl,
+            primaryCtaMode: nextPrimaryCtaMode,
+            primary_cta_mode: nextPrimaryCtaMode,
+            fallbackCtaMode: nextFallbackCtaMode,
+            fallback_cta_mode: nextFallbackCtaMode,
+          }),
         }),
-      })
+        persistedWidgetConfig.fullPageConfig,
+        { regenerate: regeneratePublicPageKey === true || cleanText(regeneratePublicPageKey).toLowerCase() === "true" }
+      )
     : persistedWidgetConfig.fullPageConfig;
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
