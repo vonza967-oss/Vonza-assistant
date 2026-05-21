@@ -6,6 +6,7 @@ import {
   listFrontDeskTrainingItems,
   saveFrontDeskTrainingItem,
   selectRelevantApprovedAnswers,
+  selectRelevantPracticeAnswers,
   updateFrontDeskTrainingItemStatus,
 } from "../src/services/training/frontDeskTrainingService.js";
 
@@ -102,6 +103,44 @@ test("approved answer can be saved and listed for the owner and agent", async ()
   assert.deepEqual(result.items[0].tags, ["refunds", "policies"]);
 });
 
+test("draft improvement can be saved before it is published", async () => {
+  const supabase = createTrainingSupabase();
+
+  const draft = await saveFrontDeskTrainingItem(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    title: "Website cost",
+    triggerText: "How much does a website cost?",
+    answerText: "Draft answer for website pricing.",
+    tags: "pricing",
+    sourceType: "test",
+    status: "draft",
+  });
+
+  assert.equal(draft.item.status, "draft");
+
+  const publicRelevant = await selectRelevantApprovedAnswers(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queryText: "How much does a website cost?",
+  });
+
+  await updateFrontDeskTrainingItemStatus(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    itemId: draft.item.id,
+    status: "active",
+  });
+  const publishedRelevant = await selectRelevantApprovedAnswers(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queryText: "How much does a website cost?",
+  });
+
+  assert.equal(publicRelevant.length, 0);
+  assert.deepEqual(publishedRelevant.map((item) => item.id), [draft.item.id]);
+});
+
 test("relevant approved answers exclude draft, archived, unrelated, and cross-agent items", async () => {
   const supabase = createTrainingSupabase([
     {
@@ -195,4 +234,63 @@ test("archiving an approved answer removes it from active retrieval", async () =
   });
 
   assert.equal(relevant.length, 0);
+});
+
+test("practice retrieval can include selected draft answers without changing public retrieval", async () => {
+  const supabase = createTrainingSupabase([
+    {
+      id: "active-1",
+      owner_id: "owner-1",
+      agent_id: "agent-1",
+      type: "approved_answer",
+      title: "Pricing",
+      trigger_text: "pricing quote cost",
+      answer_text: "Published pricing depends on scope.",
+      tags: ["pricing"],
+      source_type: "manual",
+      status: "active",
+    },
+    {
+      id: "draft-1",
+      owner_id: "owner-1",
+      agent_id: "agent-1",
+      type: "approved_answer",
+      title: "Website cost draft",
+      trigger_text: "website cost",
+      answer_text: "Draft: website projects start after a discovery call.",
+      tags: ["pricing"],
+      source_type: "test",
+      status: "draft",
+    },
+    {
+      id: "other-agent-draft",
+      owner_id: "owner-1",
+      agent_id: "agent-2",
+      type: "approved_answer",
+      title: "Wrong draft",
+      trigger_text: "website cost",
+      answer_text: "Wrong agent draft.",
+      tags: ["pricing"],
+      source_type: "test",
+      status: "draft",
+    },
+  ]);
+
+  const publicRelevant = await selectRelevantApprovedAnswers(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queryText: "How much does a website cost?",
+  });
+  const practiceRelevant = await selectRelevantPracticeAnswers(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    queryText: "How much does a website cost?",
+    includeDraftTrainingIds: ["draft-1", "other-agent-draft"],
+  });
+
+  assert.deepEqual(publicRelevant.map((item) => item.id), ["active-1"]);
+  assert.deepEqual(practiceRelevant.map((item) => item.id), ["draft-1", "active-1"]);
+  assert.doesNotMatch(buildApprovedAnswersPrompt(publicRelevant), /Draft:/);
+  assert.match(buildApprovedAnswersPrompt(practiceRelevant), /Draft: website projects/);
+  assert.doesNotMatch(buildApprovedAnswersPrompt(practiceRelevant), /Wrong agent draft/);
 });

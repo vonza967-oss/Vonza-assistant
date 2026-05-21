@@ -52,7 +52,7 @@ const trackedEventKeys = new Set();
 let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
-const FRONT_DESK_SECTIONS = ["overview", "knowledge", "approved", "queue", "test", "launch"];
+const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
 const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
   home: "overview",
   today: "overview",
@@ -92,11 +92,10 @@ const DASHBOARD_HELP_SECTION_LABELS = {
 };
 const DASHBOARD_HELP_SUBSECTION_LABELS = {
   customize: {
-    overview: "Overview",
+    practice: "Practice",
+    improvements: "Improvements",
     knowledge: "Knowledge",
-    approved: "Approved answers",
-    queue: "Training queue",
-    test: "Test",
+    library: "Answer library",
     launch: "Launch",
   },
 };
@@ -1950,7 +1949,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Deeper configuration lives in Settings. Front Desk stays focused on readiness, preview, website grounding, and the path to launch.": "A részletesebb beállítások a Beállításokban vannak. A Front Desk az előkészítésre, az előnézetre, a weboldali megalapozásra és az élesítés útjára koncentrál.",
   "Try front desk": "Front Desk kipróbálása",
   "Open Front Desk settings": "Front Desk beállítások megnyitása",
-  "Test the customer experience before you launch it.": "Teszteld az ügyfélélményt, mielőtt élesítenéd.",
+  "Practice with Front Desk": "Gyakorlás a Front Deskkel",
   "Ask realistic questions, check the next step, and make sure the next step feels helpful and on-brand.": "Tegyél fel valósághű kérdéseket, ellenőrizd a következő lépést, és győződj meg róla, hogy hasznosnak és márkához illőnek hat.",
   "Open full-page assistant": "Teljes oldalas asszisztens megnyitása",
   "Reset conversation": "Beszélgetés visszaállítása",
@@ -1959,7 +1958,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Website detail loaded": "Weboldal részletei betöltve",
   "More website detail would help": "Több weboldalrészlet segítene",
   "Website detail not loaded yet": "A weboldal részletei még nincsenek betöltve",
-  "You can already test the Front Desk here. A fresh website import should make answers feel more complete before you go live.": "A Front Desket itt már most tesztelheted. Egy friss weboldalimport még teljesebbé teheti a válaszokat az élesítés előtt.",
+  "Practice mode — visitors will not see this conversation.": "Gyakorló mód — a látogatók nem látják ezt a beszélgetést.",
   "No website URL": "Nincs megadott weboldal URL",
   "Prompt starters": "Indító kérdések",
   "Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.": "Használj néhány valósághű ügyfélkérdést, hogy lásd, mennyire megalapozott a Front Desk, és a megfelelő következő lépést ajánlja-e.",
@@ -1968,7 +1967,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Can I get a quote?": "Kérhetek ajánlatot?",
   "How can I contact you?": "Hogyan tudlak elérni benneteket?",
   "Embedded preview": "Beágyazott előnézet",
-  "This is the in-workspace version of the Front Desk, so you can test it without leaving the page.": "Ez a Front Desk munkaterületen belüli változata, így az oldal elhagyása nélkül tesztelheted.",
+  "What should Front Desk say instead?": "Mit mondjon helyette a Front Desk?",
   "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.": "Vidd át a Vonzát az előnézetből az éles weboldalra világos telepítési úttal, ellenőrzéssel és őszinte állapotjelzéssel.",
   "Preview is available, so you can test the customer-facing flow before launch.": "Az előnézet elérhető, így az ügyféloldali folyamatot élesítés előtt tesztelheted.",
   "Preview will appear as soon as the front desk has a public key.": "Az előnézet megjelenik, amint a Front Desk kap egy nyilvános kulcsot.",
@@ -2014,10 +2013,10 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Added": "Hozzáadva",
   "Not added yet": "Még nincs hozzáadva",
   "Business grounding": "Üzleti megalapozás",
-  "Run a real test conversation": "Futtass egy valódi tesztbeszélgetést",
+  "Run a real practice conversation": "Futtass egy valódi gyakorló beszélgetést",
   "Needs setup": "Beállítás szükséges",
-  "Use Test to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd a Tesztet annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
-  "Finish the Front Desk setup first so Vonza can generate a live preview for testing.": "Előbb fejezd be a Front Desk beállítását, hogy a Vonza élő előnézetet tudjon generálni a teszteléshez.",
+  "Use Practice to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd a Gyakorlást annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
+  "Finish the Front Desk setup first so Vonza can generate a live assistant page for practice.": "Előbb fejezd be a Front Desk beállítását, hogy a Vonza élő asszisztensoldalt tudjon készíteni a gyakorláshoz.",
   "Move into the install flow": "Lépj tovább a telepítési folyamatba",
   "The core setup is strong enough to hand off into Install, where the snippet, verification, and live-domain details already belong.": "Az alapbeállítás már elég erős ahhoz, hogy átadd a Telepítésnek, ahol a kódrészlet, az ellenőrzés és az élő domain részletei vannak a helyükön.",
   "Tighten the front-desk behavior and grounding first, then use Install for the final publishing path.": "Előbb pontosítsd a Front Desk működését és megalapozását, majd használd a Telepítést a végső közzétételi úthoz.",
@@ -2473,19 +2472,31 @@ function getActiveFrontDeskSection() {
   const storedSection = trimText(window.localStorage.getItem(DASHBOARD_FRONTDESK_SECTION_KEY)).toLowerCase();
   const normalizedStoredSection = storedSection === "context"
     ? "knowledge"
-    : storedSection === "preview"
-      ? "test"
-      : storedSection;
+    : ["overview", "preview", "test"].includes(storedSection)
+      ? "practice"
+      : ["approved", "answers", "answer-library"].includes(storedSection)
+        ? "library"
+        : ["queue", "training", "training-queue"].includes(storedSection)
+          ? "improvements"
+          : storedSection;
 
   if (FRONT_DESK_SECTIONS.includes(normalizedStoredSection)) {
     return normalizedStoredSection;
   }
 
-  return "overview";
+  return "practice";
 }
 
 function setActiveFrontDeskSection(section) {
-  const normalizedSection = section === "context" ? "knowledge" : section === "preview" ? "test" : section;
+  const normalizedSection = section === "context"
+    ? "knowledge"
+    : ["overview", "preview", "test"].includes(section)
+      ? "practice"
+      : ["approved", "answers", "answer-library"].includes(section)
+        ? "library"
+        : ["queue", "training", "training-queue"].includes(section)
+          ? "improvements"
+          : section;
   if (!FRONT_DESK_SECTIONS.includes(normalizedSection)) {
     return;
   }
@@ -2829,20 +2840,6 @@ function buildFullPageAssistantIframe(agent = {}, headerHeight = 120, options = 
 
 function buildSimpleFullPageAssistantIframe(agent = {}, headerHeight = 120) {
   return buildFullPageAssistantIframe(agent, headerHeight);
-}
-
-function buildPreviewMarkup(installId) {
-  const publicAppUrl = getPublicAppUrl();
-  return `<!DOCTYPE html>
-<html>
-  <body style="margin:0;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif;background:linear-gradient(180deg,#f8fafc 0%,#e2e8f0 100%);color:#0f172a;">
-<main style="padding:32px;">
-  <h2 style="margin:0 0 8px;">Preview site</h2>
-  <p style="margin:0;max-width:520px;color:#475569;line-height:1.6;">This simulates how your website front desk will answer, route, and capture visitor intent when it is installed on a real website.</p>
-</main>
-<script async defer src="${publicAppUrl}/embed.js" data-install-id="${escapeHtml(installId)}"><\/script>
-  </body>
-</html>`;
 }
 
 function escapeHtml(value) {
@@ -8942,58 +8939,348 @@ function getApprovedAnswerItems(frontDeskTraining = createEmptyFrontDeskTraining
     .filter((item) => trimText(item.type) === "approved_answer" && trimText(item.status) !== "archived");
 }
 
-function buildApprovedAnswersSection(frontDeskTraining = createEmptyFrontDeskTraining(), activeFrontDeskSection = "overview") {
-  const approvedAnswers = getApprovedAnswerItems(frontDeskTraining);
+function getPublishedAnswerItems(frontDeskTraining = createEmptyFrontDeskTraining()) {
+  return getApprovedAnswerItems(frontDeskTraining)
+    .filter((item) => trimText(item.status) === "active");
+}
+
+function getDraftImprovementItems(frontDeskTraining = createEmptyFrontDeskTraining()) {
+  return getApprovedAnswerItems(frontDeskTraining)
+    .filter((item) => trimText(item.status) === "draft");
+}
+
+function getRecentlyPublishedImprovementItems(frontDeskTraining = createEmptyFrontDeskTraining()) {
+  return getPublishedAnswerItems(frontDeskTraining)
+    .filter((item) => ["test", "conversation"].includes(trimText(item.sourceType).toLowerCase()))
+    .slice(0, 6);
+}
+
+function getFeedbackReasonLabel(value = "") {
+  const normalized = trimText(value).toLowerCase().replaceAll("-", "_");
+  const labels = {
+    incorrect: "Incorrect",
+    missing_details: "Missing details",
+    too_vague: "Too vague",
+    did_not_answer: "Did not answer",
+    other: "Other",
+  };
+
+  return labels[normalized] || "";
+}
+
+function getImprovementSourceLabel(item = {}) {
+  const source = trimText(item.source || item.sourceType || item.sourceLabel).toLowerCase();
+  if (source === "visitor_feedback") return "visitor feedback";
+  if (source === "owner_feedback") return "owner feedback";
+  if (source === "test") return "practice";
+  return trimText(item.sourceLabel) || "customer conversation";
+}
+
+function getTrainingSourceLabel(item = {}) {
+  const source = trimText(item.sourceType || item.source_type).toLowerCase();
+  if (source === "test") return "Practice";
+  if (source === "conversation") return "Conversation";
+  if (source === "website") return "Website";
+  if (source === "manual") return "Owner";
+  return "Owner";
+}
+
+function getAssistantSourceLabel(item = {}) {
+  const mode = trimText(item.displayMode).toLowerCase();
+  const route = trimText(item.sourceRoute).toLowerCase();
+  const routeParams = route.includes("?") ? new URLSearchParams(route.split("?").slice(1).join("?")) : null;
+  const isEmbedded = route.includes("embedded")
+    || route.includes("embed")
+    || route.includes("iframe")
+    || routeParams?.get("embedded") === "1";
+  const isWidget = route.includes("public_widget") || route.includes("website_widget");
+  const isFullPage = route.includes("public_page_assistant")
+    || route.includes("full_page")
+    || route.includes("/a/")
+    || route.includes("/assistant/");
+
+  if (isEmbedded) return "Embedded assistant";
+  if (mode === "widget" || isWidget) return "Website widget";
+  if ((mode === "page" && isFullPage) || isFullPage) return "Full-page assistant";
+  if (mode === "page") return "Full-page assistant";
+  if (route.includes("hosted")) return "Hosted assistant page";
+  return "Unknown source";
+}
+
+function getFrontDeskReviewItems(actionQueue = createEmptyActionQueue()) {
+  return (actionQueue.items || [])
+    .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
+    .filter((item) => !["resolved", "ignored"].includes(trimText(item.status).toLowerCase()));
+}
+
+function buildCompactImprovementRows(items = [], emptyCopy = "") {
+  if (!items.length) {
+    return `<p class="frontdesk-compact-empty">${escapeHtml(emptyCopy)}</p>`;
+  }
+
+  return items.map((item) => `
+    <button class="frontdesk-compact-row" type="button" data-frontdesk-open-improvement data-question="${escapeHtml(item.question || item.triggerText || item.title || "")}" data-answer="${escapeHtml(item.reply || item.answerText || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}" data-item-id="${escapeHtml(item.id || "")}">
+      <span>${escapeHtml(item.question || item.triggerText || item.title || "Question needs review")}</span>
+      <small>${escapeHtml(trimText(item.reply || item.answerText || item.snippet || item.whyFlagged).slice(0, 96) || "Open in Practice")}</small>
+    </button>
+  `).join("");
+}
+
+function buildPracticeImprovementsPanel(frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
+  const draftItems = getDraftImprovementItems(frontDeskTraining).slice(0, 4);
+  const feedbackItems = getFrontDeskReviewItems(actionQueue)
+    .filter((item) => trimText(item.feedbackId))
+    .slice(0, 4);
+  const publishedItems = getRecentlyPublishedImprovementItems(frontDeskTraining).slice(0, 3);
 
   return `
-    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="approved" ${activeFrontDeskSection === "approved" ? "" : "hidden"}>
+    <aside class="frontdesk-practice-side-panel">
+      <section class="frontdesk-compact-section">
+        <div class="frontdesk-compact-heading">
+          <span>Draft improvements</span>
+          <strong>${escapeHtml(String(draftItems.length))}</strong>
+        </div>
+        ${buildCompactImprovementRows(draftItems, "Drafts you save in Practice will appear here.")}
+      </section>
+      <section class="frontdesk-compact-section">
+        <div class="frontdesk-compact-heading">
+          <span>Feedback needing review</span>
+          <strong>${escapeHtml(String(feedbackItems.length))}</strong>
+        </div>
+        ${buildCompactImprovementRows(feedbackItems, "Not-helpful visitor feedback will appear here.")}
+      </section>
+      <section class="frontdesk-compact-section">
+        <div class="frontdesk-compact-heading">
+          <span>Recently published improvements</span>
+          <strong>${escapeHtml(String(publishedItems.length))}</strong>
+        </div>
+        ${buildCompactImprovementRows(publishedItems, "Published improvements will appear here.")}
+      </section>
+    </aside>
+  `;
+}
+
+function buildFrontDeskPracticeSection(agent, setup, frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
+  const assistantName = trimText(agent.assistantName || agent.name) || "Front Desk";
+  const welcomeMessage = trimText(agent.welcomeMessage) || "Hi, I can help answer questions and point you to the right next step.";
+  const primaryColor = trimText(agent.primaryColor) || "#14b8a6";
+  const secondaryColor = trimText(agent.secondaryColor) || "#0f766e";
+  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-practice-panel" data-frontdesk-section="practice" ${activeFrontDeskSection === "practice" ? "" : "hidden"}>
       <div class="frontdesk-section-intro">
         <div>
-          <p class="studio-kicker">Approved answers</p>
-          <h2 class="frontdesk-section-title">Teach Front Desk exact answers for repeated questions.</h2>
-          <p class="frontdesk-section-copy">Use owner-approved wording for common questions. Archived answers stay out of customer replies.</p>
+          <p class="studio-kicker">Practice</p>
+          <h2 class="frontdesk-section-title">Practice with Front Desk</h2>
+          <p class="frontdesk-section-copy">Ask a question as if you were a visitor.</p>
+        </div>
+        <div class="frontdesk-section-actions">
+          <button class="ghost-button" type="button" data-frontdesk-practice-reset>Reset conversation</button>
         </div>
       </div>
-      <div class="frontdesk-section-divider"></div>
-      ${approvedAnswers.length ? `
-        <div class="analytics-list">
-          ${approvedAnswers.map((item) => `
-            <article class="analytics-item" data-frontdesk-training-item="${escapeHtml(item.id || "")}">
+      <div class="frontdesk-practice-layout">
+        <div class="frontdesk-practice-canvas" style="--frontdesk-practice-primary:${escapeHtml(primaryColor)}; --frontdesk-practice-secondary:${escapeHtml(secondaryColor)};">
+          <div class="frontdesk-practice-topbar">
+            <div>
+              <span class="frontdesk-practice-label">Practice mode — visitors will not see this conversation.</span>
+              <h3>${escapeHtml(assistantName)}</h3>
+            </div>
+            <span class="frontdesk-practice-status">${escapeHtml(hasWebsite ? "Website knowledge connected" : "Website knowledge needs review")}</span>
+          </div>
+          <div class="frontdesk-practice-thread" data-frontdesk-practice-thread>
+            <article class="frontdesk-practice-message assistant">
+              <span>${escapeHtml(assistantName)}</span>
+              <p>${escapeHtml(welcomeMessage)}</p>
+            </article>
+          </div>
+          <form class="frontdesk-practice-composer" data-frontdesk-practice-form>
+            <input name="message" type="text" autocomplete="off" placeholder="Ask a question as if you were a visitor.">
+            <button class="primary-button" type="submit">Send</button>
+          </form>
+          <div class="frontdesk-teaching-shell" data-frontdesk-teaching-form-shell hidden>
+            <form class="frontdesk-teaching-form" data-frontdesk-teaching-form>
+              <input name="item_id" type="hidden">
+              <input name="feedback_id" type="hidden">
+              <input name="source_type" type="hidden" value="test">
+              <div class="frontdesk-teaching-head">
+                <div>
+                  <p class="studio-kicker">Teach this answer</p>
+                  <h3 class="studio-group-title">What should Front Desk say instead?</h3>
+                </div>
+                <button class="ghost-button" type="button" data-frontdesk-teaching-close>Close</button>
+              </div>
+              <div class="form-grid two-col">
+                <div class="field">
+                  <label>Question</label>
+                  <input name="trigger_text" type="text" placeholder="What did the visitor ask?">
+                </div>
+                <div class="field">
+                  <label>Use when visitors ask about...</label>
+                  <input name="tags" type="text" placeholder="pricing, booking, refunds">
+                </div>
+              </div>
+              <div class="field">
+                <label>Current answer</label>
+                <textarea name="current_answer" readonly></textarea>
+              </div>
+              <div class="field">
+                <label>Better answer / guidance</label>
+                <textarea name="answer_text" placeholder="Write the answer or guidance Front Desk should use."></textarea>
+              </div>
+              <div class="inline-actions">
+                <button class="ghost-button" type="submit" data-frontdesk-save-draft>Save draft</button>
+                <button class="primary-button" type="submit" data-frontdesk-publish-improvement>Publish improvement</button>
+                <button class="ghost-button" type="button" data-frontdesk-try-again hidden>Try again</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        ${buildPracticeImprovementsPanel(frontDeskTraining, actionQueue)}
+      </div>
+    </section>
+  `;
+}
+
+function buildImprovementsSection(frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
+  const reviewItems = getFrontDeskReviewItems(actionQueue).slice(0, 12);
+  const draftItems = getDraftImprovementItems(frontDeskTraining).slice(0, 12);
+  const publishedItems = getRecentlyPublishedImprovementItems(frontDeskTraining).slice(0, 8);
+  const hasItems = reviewItems.length || draftItems.length || publishedItems.length;
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-improvements-panel" data-frontdesk-section="improvements" ${activeFrontDeskSection === "improvements" ? "" : "hidden"}>
+      <div class="frontdesk-section-intro">
+        <div>
+          <p class="studio-kicker">Improvements</p>
+          <h2 class="frontdesk-section-title">Review answers that need owner attention.</h2>
+          <p class="frontdesk-section-copy">Feedback and drafts stay here until an owner improves, publishes, ignores, or archives them.</p>
+        </div>
+      </div>
+      ${hasItems ? `
+        <div class="frontdesk-improvement-list">
+          ${reviewItems.map((item) => {
+            const reasonLabel = getFeedbackReasonLabel(item.feedbackReason);
+            const note = trimText(item.feedbackNote);
+
+            return `
+              <article class="frontdesk-improvement-card">
+                <div class="workspace-record-detail-header">
+                  <div>
+                    <span class="${getBadgeClass("Needs attention")}">Needs review</span>
+                    <h3 class="analytics-item-title">${escapeHtml(item.question || item.label || "Question needs review")}</h3>
+                    <p class="analytics-item-copy">${escapeHtml(item.reply || item.snippet || item.whyFlagged || "Review the conversation and improve the answer.")}</p>
+                    <p class="analytics-subtle">${escapeHtml([
+                      `Source: ${getImprovementSourceLabel(item)}`,
+                      reasonLabel ? `Reason: ${reasonLabel}` : "",
+                      `Assistant source: ${getAssistantSourceLabel(item)}`,
+                      item.lastSeenAt ? `Created ${formatSeenAt(item.lastSeenAt)}` : "",
+                    ].filter(Boolean).join(" · "))}</p>
+                    ${note ? `<p class="analytics-subtle">${escapeHtml(`Note: ${note}`)}</p>` : ""}
+                  </div>
+                </div>
+                <div class="inline-actions">
+                  <button class="ghost-button" type="button" data-frontdesk-open-improvement data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Open in practice</button>
+                  <button class="ghost-button" type="button" data-frontdesk-improve-feedback data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Improve answer</button>
+                  ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="ignored" data-feedback-id="${escapeHtml(item.feedbackId)}">Ignore</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
+                </div>
+              </article>
+            `;
+          }).join("")}
+          ${draftItems.map((item) => `
+            <article class="frontdesk-improvement-card" data-frontdesk-training-item="${escapeHtml(item.id || "")}">
               <div class="workspace-record-detail-header">
                 <div>
-                  <p class="analytics-item-title">${escapeHtml(item.title || item.triggerText || "Approved answer")}</p>
-                  <p class="analytics-item-copy">${escapeHtml(trimText(item.answerText).slice(0, 180))}</p>
+                  <span class="${getBadgeClass("Limited")}">Draft improvement</span>
+                  <h3 class="analytics-item-title">${escapeHtml(item.title || item.triggerText || "Draft improvement")}</h3>
+                  <p class="analytics-item-copy">${escapeHtml(trimText(item.answerText).slice(0, 220))}</p>
                   <p class="analytics-subtle">${escapeHtml([
                     item.triggerText ? `Use when visitors ask about ${item.triggerText}` : "",
                     Array.isArray(item.tags) && item.tags.length ? `Tags: ${item.tags.join(", ")}` : "",
-                    item.sourceType ? `Source: ${item.sourceType}` : "",
                     item.updatedAt ? `Updated ${formatSeenAt(item.updatedAt)}` : "",
                   ].filter(Boolean).join(" · "))}</p>
                 </div>
-                <span class="${getBadgeClass(item.status === "active" ? "Ready" : "Limited")}">${escapeHtml(item.status || "active")}</span>
               </div>
               <div class="inline-actions">
-                <button class="ghost-button" type="button" data-frontdesk-edit-approved-answer data-item-id="${escapeHtml(item.id || "")}">Edit</button>
+                <button class="ghost-button" type="button" data-frontdesk-open-draft data-item-id="${escapeHtml(item.id || "")}" data-question="${escapeHtml(item.triggerText || item.title || "")}" data-answer="${escapeHtml(item.answerText || "")}" data-tags="${escapeHtml(Array.isArray(item.tags) ? item.tags.join(", ") : "")}">Open in practice</button>
+                <button class="ghost-button" type="button" data-frontdesk-edit-draft data-item-id="${escapeHtml(item.id || "")}" data-question="${escapeHtml(item.triggerText || item.title || "")}" data-answer="${escapeHtml(item.answerText || "")}" data-tags="${escapeHtml(Array.isArray(item.tags) ? item.tags.join(", ") : "")}">Improve answer</button>
+                <button class="primary-button" type="button" data-frontdesk-publish-item data-item-id="${escapeHtml(item.id || "")}">Publish</button>
                 <button class="ghost-button" type="button" data-frontdesk-archive-approved-answer data-item-id="${escapeHtml(item.id || "")}">Archive</button>
-                <button class="ghost-button" type="button" data-frontdesk-test-answer="${escapeHtml(item.triggerText || item.title || "")}">Test this answer</button>
+              </div>
+            </article>
+          `).join("")}
+          ${publishedItems.map((item) => `
+            <article class="frontdesk-improvement-card" data-frontdesk-training-item="${escapeHtml(item.id || "")}">
+              <div>
+                <span class="${getBadgeClass("Ready")}">Published</span>
+                <h3 class="analytics-item-title">${escapeHtml(item.title || item.triggerText || "Published improvement")}</h3>
+                <p class="analytics-item-copy">${escapeHtml(trimText(item.answerText).slice(0, 180))}</p>
+              </div>
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" data-frontdesk-test-answer="${escapeHtml(item.triggerText || item.title || "")}">Open in practice</button>
               </div>
             </article>
           `).join("")}
         </div>
       ` : buildOperatorEmptyState({
-        title: "No approved answers yet.",
-        copy: "Add an answer for questions Front Desk should handle the same way every time.",
+        title: "Nothing needs review right now.",
+        copy: "Visitor feedback, owner-marked answers, and draft improvements will appear here.",
       })}
-      <div class="frontdesk-section-divider"></div>
+    </section>
+  `;
+}
+
+function buildAnswerLibrarySection(frontDeskTraining = createEmptyFrontDeskTraining(), activeFrontDeskSection = "practice") {
+  const publishedAnswers = getPublishedAnswerItems(frontDeskTraining);
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-library-panel" data-frontdesk-section="library" ${activeFrontDeskSection === "library" ? "" : "hidden"}>
+      <div class="frontdesk-section-intro">
+        <div>
+          <p class="studio-kicker">Answer library</p>
+          <h2 class="frontdesk-section-title">Published answers Front Desk can use when visitors ask similar questions.</h2>
+          <p class="frontdesk-section-copy">This is the advanced area for active guidance. Practice is still the fastest place to teach new answers.</p>
+        </div>
+      </div>
+      ${publishedAnswers.length ? `
+        <div class="frontdesk-library-grid">
+          ${publishedAnswers.map((item) => `
+            <article class="frontdesk-library-card" data-frontdesk-training-item="${escapeHtml(item.id || "")}">
+              <div class="workspace-record-detail-header">
+                <div>
+                  <p class="analytics-item-title">${escapeHtml(item.title || item.triggerText || "Published answer")}</p>
+                  <p class="analytics-item-copy">${escapeHtml(trimText(item.answerText).slice(0, 200))}</p>
+                  <p class="analytics-subtle">${escapeHtml([
+                    item.triggerText ? `Use when visitors ask about ${item.triggerText}` : "",
+                    Array.isArray(item.tags) && item.tags.length ? `Tags: ${item.tags.join(", ")}` : "",
+                    `Source: ${getTrainingSourceLabel(item)}`,
+                    item.updatedAt ? `Updated ${formatSeenAt(item.updatedAt)}` : "",
+                  ].filter(Boolean).join(" · "))}</p>
+                </div>
+                <span class="${getBadgeClass("Ready")}">Published</span>
+              </div>
+              <div class="inline-actions">
+                <button class="ghost-button" type="button" data-frontdesk-edit-library-answer data-item-id="${escapeHtml(item.id || "")}" data-question="${escapeHtml(item.triggerText || item.title || "")}" data-answer="${escapeHtml(item.answerText || "")}" data-tags="${escapeHtml(Array.isArray(item.tags) ? item.tags.join(", ") : "")}">Edit</button>
+                <button class="ghost-button" type="button" data-frontdesk-archive-approved-answer data-item-id="${escapeHtml(item.id || "")}">Archive</button>
+                <button class="ghost-button" type="button" data-frontdesk-test-answer="${escapeHtml(item.triggerText || item.title || "")}">Test in Practice</button>
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      ` : buildOperatorEmptyState({
+        title: "No published answers yet.",
+        copy: "Teach Front Desk in Practice, then publish improvements when they are ready for visitors.",
+      })}
       <form class="workspace-card-soft frontdesk-approved-answer-form" data-frontdesk-approved-answer-form>
-        <h3 class="studio-group-title">Add approved answer</h3>
+        <h3 class="studio-group-title">Add or edit a published answer</h3>
+        <input name="item_id" type="hidden">
         <div class="form-grid">
           <div class="field">
             <label>Question or situation</label>
             <input name="trigger_text" type="text" placeholder="What do visitors ask?">
           </div>
           <div class="field">
-            <label>Approved answer</label>
+            <label>Published answer</label>
             <textarea name="answer_text" placeholder="Write the answer Front Desk should use."></textarea>
           </div>
           <div class="field">
@@ -9003,117 +9290,8 @@ function buildApprovedAnswersSection(frontDeskTraining = createEmptyFrontDeskTra
         </div>
         <input name="feedback_id" type="hidden">
         <div class="inline-actions">
-          <button class="primary-button" type="submit">Save</button>
+          <button class="primary-button" type="submit">Save published answer</button>
         </div>
-      </form>
-    </section>
-  `;
-}
-
-function buildTrainingQueueSection(actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "overview") {
-  const queueItems = (actionQueue.items || [])
-    .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
-    .slice(0, 12);
-  const getFeedbackReasonLabel = (value = "") => {
-    const normalized = trimText(value).toLowerCase().replaceAll("-", "_");
-    const labels = {
-      incorrect: "Incorrect",
-      missing_details: "Missing details",
-      too_vague: "Too vague",
-      did_not_answer: "Did not answer",
-      other: "Other",
-    };
-
-    return labels[normalized] || "";
-  };
-  const getQueueSourceLabel = (item = {}) => {
-    const source = trimText(item.source || item.sourceType || item.sourceLabel).toLowerCase();
-    if (source === "visitor_feedback") return "visitor feedback";
-    if (source === "owner_feedback") return "owner feedback";
-    if (source === "test") return "test";
-    return trimText(item.sourceLabel) || "customer conversation";
-  };
-  const getDisplaySourceLabel = (item = {}) => {
-    const mode = trimText(item.displayMode).toLowerCase();
-    const route = trimText(item.sourceRoute).toLowerCase();
-    const routeParams = route.includes("?") ? new URLSearchParams(route.split("?").slice(1).join("?")) : null;
-    const isEmbedded = route.includes("embedded")
-      || route.includes("embed")
-      || route.includes("iframe")
-      || routeParams?.get("embedded") === "1";
-    const isWidget = route.includes("public_widget") || route.includes("website_widget");
-    const isFullPage = route.includes("public_page_assistant")
-      || route.includes("full_page")
-      || route.includes("/a/")
-      || route.includes("/assistant/");
-
-    if (isEmbedded) return "Embedded assistant";
-    if (mode === "widget" || isWidget) return "Website widget";
-    if ((mode === "page" && isFullPage) || isFullPage) return "Full-page assistant";
-    if (mode === "page") return "Full-page assistant";
-    if (route.includes("hosted")) return "Hosted assistant page";
-    return "Unknown source";
-  };
-
-  return `
-    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="queue" ${activeFrontDeskSection === "queue" ? "" : "hidden"}>
-      <div class="frontdesk-section-intro">
-        <div>
-          <p class="studio-kicker">Training queue</p>
-          <h2 class="frontdesk-section-title">Review customer questions that need a better answer.</h2>
-          <p class="frontdesk-section-copy">Only real review signals appear here.</p>
-        </div>
-      </div>
-      <div class="frontdesk-section-divider"></div>
-      ${queueItems.length ? `
-        <div class="analytics-list">
-          ${queueItems.map((item) => {
-            const reasonLabel = getFeedbackReasonLabel(item.feedbackReason);
-            const note = trimText(item.feedbackNote);
-
-            return `
-            <article class="analytics-item">
-              <p class="analytics-item-title">${escapeHtml(item.question || item.label || "Question needs review")}</p>
-              <p class="analytics-item-copy">${escapeHtml(item.reply || item.snippet || item.whyFlagged || "Review the conversation and improve the answer.")}</p>
-              <p class="analytics-subtle">${escapeHtml([
-                `Source: ${getQueueSourceLabel(item)}`,
-                reasonLabel ? `Reason: ${reasonLabel}` : "",
-                `Assistant source: ${getDisplaySourceLabel(item)}`,
-                item.lastSeenAt ? `Created ${formatSeenAt(item.lastSeenAt)}` : "",
-              ].filter(Boolean).join(" · "))}</p>
-              ${note ? `<p class="analytics-subtle">${escapeHtml(`Note: ${note}`)}</p>` : ""}
-              <div class="inline-actions">
-                <button class="ghost-button" type="button" data-frontdesk-improve-queue-item data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Improve answer</button>
-                <button class="ghost-button" type="button" data-frontdesk-save-queue-approved data-question="${escapeHtml(item.question || item.label || "")}" data-answer="${escapeHtml(item.reply || "")}" data-feedback-id="${escapeHtml(item.feedbackId || "")}">Save as approved answer</button>
-                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="resolved" data-feedback-id="${escapeHtml(item.feedbackId)}">Resolve</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="done" data-action-key="${escapeHtml(item.key)}">Resolve</button>` : ""}
-                ${item.feedbackId ? `<button class="ghost-button" type="button" data-frontdesk-feedback-status="ignored" data-feedback-id="${escapeHtml(item.feedbackId)}">Ignore</button>` : item.key ? `<button class="ghost-button" type="button" data-today-queue-status-action data-next-status="dismissed" data-action-key="${escapeHtml(item.key)}">Ignore</button>` : ""}
-              </div>
-            </article>
-            `;
-          }).join("")}
-        </div>
-      ` : buildOperatorEmptyState({
-        title: "Nothing needs training right now.",
-        copy: "Customer questions that need a better answer will appear here.",
-      })}
-    </section>
-  `;
-}
-
-function buildFrontDeskTestSection(agent, setup, activeFrontDeskSection = "overview") {
-  return `
-    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="test" ${activeFrontDeskSection === "test" ? "" : "hidden"}>
-      ${buildPreviewSection(agent, setup)}
-      <div class="frontdesk-section-divider"></div>
-      <form class="workspace-card-soft" data-frontdesk-test-form>
-        <div class="field">
-          <label>Ask a test question</label>
-          <textarea name="message" placeholder="Ask a test question"></textarea>
-        </div>
-        <div class="inline-actions">
-          <button class="primary-button" type="submit">Test Front Desk</button>
-        </div>
-        <div class="placeholder-card" data-frontdesk-test-result>Test response will appear here.</div>
       </form>
     </section>
   `;
@@ -9123,66 +9301,18 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const installStatus = getDefaultInstallStatus(agent);
   const activeFrontDeskSection = getActiveFrontDeskSection();
   const hasPreview = Boolean(trimText(agent.publicAgentKey));
-  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
   const frontDeskSections = [
-    { key: "overview", label: "Overview" },
+    { key: "practice", label: "Practice" },
+    { key: "improvements", label: "Improvements" },
     { key: "knowledge", label: "Knowledge" },
-    { key: "approved", label: "Approved answers" },
-    { key: "queue", label: "Training queue" },
-    { key: "test", label: "Test" },
+    { key: "library", label: "Answer library" },
     { key: "launch", label: "Launch" },
   ];
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
   const qrEndpoint = buildFullPageQrEndpoint(agent);
-  const widgetInstalled = isInstallDetected(installStatus) || isInstallSeen(installStatus);
-  const readinessItems = [
-    {
-      title: "Assistant configured",
-      copy: setup.personalityReady
-        ? "Name, welcome message, and tone are in place."
-        : "Add the business name, welcome message, or tone so the Front Desk feels polished from the first hello.",
-      tone: setup.personalityReady ? "Ready" : "Limited",
-      actionMarkup: `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Edit setup</button>`,
-    },
-    {
-      title: "Website knowledge imported",
-      copy: setup.knowledgeDescription,
-      tone: setup.knowledgeReady || hasWebsite ? "Ready" : setup.knowledgeLimited ? "Limited" : "Pending",
-      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="knowledge">Review knowledge</button>`,
-    },
-    {
-      title: "Widget installed",
-      copy: installStatus.label || "Not installed yet",
-      tone: widgetInstalled
-        ? "Ready"
-        : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
-          ? "Needs attention"
-        : installStatus.state === "installed_unseen"
-            ? "Limited"
-            : "Pending",
-      actionMarkup: `<button class="ghost-button" type="button" data-frontdesk-open="launch">Review launch</button>`,
-    },
-    {
-      title: "Full-page assistant available",
-      copy: fullPageUrl ? "A shareable assistant page is available for links, QR codes, and standalone support pages." : "The full-page assistant appears after the assistant is saved.",
-      tone: fullPageUrl ? "Ready" : "Pending",
-      actionMarkup: fullPageUrl
-        ? `<button class="ghost-button" type="button" data-frontdesk-open="launch">View launch options</button>`
-        : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`,
-    },
-    {
-      title: "QR available",
-      copy: qrEndpoint ? "QR code generation is available for the full-page assistant." : "QR code generation appears after the assistant has a saved workspace.",
-      tone: qrEndpoint ? "Ready" : "Pending",
-      actionMarkup: `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`,
-    },
-  ];
   const businessReadiness = operatorWorkspace.businessProfile?.readiness || createEmptyOperatorWorkspace().businessProfile.readiness;
   const missingSetupFields = getFrontDeskMissingSetupFields(agent, setup, operatorWorkspace);
   const profileContentSummary = getBusinessProfileContentSummary(operatorWorkspace);
-  const overviewPrimaryAction = hasPreview
-        ? `<button class="primary-button" type="button" data-frontdesk-open="test">Test Front Desk</button>`
-    : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open Front Desk settings</button>`;
   const businessContextSummary = businessReadiness.summary || "Business context readiness will appear here once the owner starts reviewing the profile.";
   const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
     ? `${businessReadiness.missingCount} area${businessReadiness.missingCount === 1 ? "" : "s"} could use a quick review before the Front Desk feels fully grounded.`
@@ -9201,88 +9331,20 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const pageHeaderActions = `
     <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
   `;
-  const approvedAnswerCount = getApprovedAnswerItems(frontDeskTraining).filter((item) => trimText(item.status) === "active").length;
-  const trainingQueueCount = (actionQueue.items || [])
-    .filter((item) => item.knowledgeFix || trimText(item.type) === "weak_answer" || /not helpful|weak|unanswered|review/i.test([item.whyFlagged, item.snippet, item.label].filter(Boolean).join(" ")))
-    .length;
-  const feedbackNeedingReviewCount = (actionQueue.items || [])
-    .filter((item) => trimText(item.feedbackId) && !["resolved", "ignored"].includes(trimText(item.status).toLowerCase()))
-    .length;
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="customize" hidden>
       ${buildPageHeader({
         title: "Front Desk",
-        copy: "Configure, test, and improve the assistant customers see.",
+        copy: "Practice, teach, and publish the answers customers see.",
         actionsMarkup: pageHeaderActions,
       })}
       ${buildPageToolbar({
         filtersMarkup: buildLocalSectionNav(frontDeskSections, { attribute: "data-frontdesk-target", activeKey: activeFrontDeskSection }),
       })}
       <div class="workspace-page-body">
-        <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-overview-panel" data-frontdesk-section="overview" ${activeFrontDeskSection === "overview" ? "" : "hidden"}>
-          <div class="frontdesk-section-intro">
-            <div>
-              <p class="studio-kicker">Overview</p>
-              <h2 class="frontdesk-section-title">See what is ready before customers use the assistant.</h2>
-              <p class="frontdesk-section-copy">Readiness is based on the current assistant, website knowledge, install status, full-page assistant, and QR availability.</p>
-            </div>
-            <div class="frontdesk-section-actions">
-              ${overviewPrimaryAction}
-            </div>
-          </div>
-          <div class="frontdesk-section-divider"></div>
-          <div class="frontdesk-detail-stack">
-            <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">Website knowledge status</p>
-              <h3 class="frontdesk-detail-title">${escapeHtml(formatKnowledgeState(setup.knowledgeState))}</h3>
-              <p class="frontdesk-detail-copy">${escapeHtml(setup.knowledgeDescription)}</p>
-            </section>
-            <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">Approved answers count</p>
-              <h3 class="frontdesk-detail-title">${escapeHtml(String(approvedAnswerCount))}</h3>
-              <p class="frontdesk-detail-copy">Owner-approved answers available for repeated questions.</p>
-            </section>
-            <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">New training items</p>
-              <h3 class="frontdesk-detail-title">${escapeHtml(String(trainingQueueCount))}</h3>
-              <p class="frontdesk-detail-copy">Real customer answer-review signals waiting right now.</p>
-            </section>
-            <section class="frontdesk-detail-block">
-              <p class="frontdesk-detail-kicker">Feedback needing review</p>
-              <h3 class="frontdesk-detail-title">${escapeHtml(String(feedbackNeedingReviewCount))}</h3>
-              <p class="frontdesk-detail-copy">Not-helpful answers waiting for an owner decision.</p>
-            </section>
-          </div>
-          <div class="inline-actions" style="margin:14px 0 4px;">
-            <button class="ghost-button" type="button" data-frontdesk-open="approved">Add approved answer</button>
-            <button class="ghost-button" type="button" data-frontdesk-open="queue">Review training queue</button>
-            <button class="ghost-button" type="button" data-frontdesk-open="test">Test Front Desk</button>
-          </div>
-          <div class="frontdesk-section-divider"></div>
-          <div class="frontdesk-readiness-list">
-            ${readinessItems.map((item) => `
-              <article class="frontdesk-readiness-item">
-                <div class="frontdesk-readiness-head">
-                  <div>
-                    <p class="frontdesk-detail-kicker">${escapeHtml(item.title)}</p>
-                    <h3 class="frontdesk-detail-title">${escapeHtml(item.tone === "Ready" ? "Looking good" : item.tone === "Limited" ? "Worth a quick pass" : item.tone === "Needs attention" ? "Needs attention" : "Getting started")}</h3>
-                  </div>
-                  <span class="${getBadgeClass(item.tone)}">${escapeHtml(item.tone)}</span>
-                </div>
-                <p class="frontdesk-readiness-copy">${escapeHtml(item.copy)}</p>
-                <div class="frontdesk-readiness-actions">
-                  ${item.actionMarkup}
-                </div>
-              </article>
-            `).join("")}
-          </div>
-          <div class="frontdesk-support-note">
-              <p class="frontdesk-support-title">What stays out of the way</p>
-            <p class="frontdesk-support-copy">Front Desk stays focused on the customer-facing experience. Deeper settings remain in Settings so launch status does not get buried.</p>
-          </div>
-        </section>
-
+        ${buildFrontDeskPracticeSection(agent, setup, frontDeskTraining, actionQueue, activeFrontDeskSection)}
+        ${buildImprovementsSection(frontDeskTraining, actionQueue, activeFrontDeskSection)}
         <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="knowledge" ${activeFrontDeskSection === "knowledge" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
@@ -9351,9 +9413,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             </section>
           </div>
         </section>
-        ${buildApprovedAnswersSection(frontDeskTraining, activeFrontDeskSection)}
-        ${buildTrainingQueueSection(actionQueue, activeFrontDeskSection)}
-        ${buildFrontDeskTestSection(agent, setup, activeFrontDeskSection)}
+        ${buildAnswerLibrarySection(frontDeskTraining, activeFrontDeskSection)}
         <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch" ${activeFrontDeskSection === "launch" ? "" : "hidden"}>
           <div class="frontdesk-section-intro">
             <div>
@@ -9364,7 +9424,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
             <div class="frontdesk-section-actions">
               <button class="primary-button" type="button" data-shell-target="install">Open install</button>
               ${hasPreview
-                ? `<button class="ghost-button" type="button" data-frontdesk-open="test">Test response</button>`
+                ? `<button class="ghost-button" type="button" data-frontdesk-open="practice">Practice first</button>`
                 : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
             </div>
           </div>
@@ -9395,11 +9455,11 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 <div class="frontdesk-step-head">
                   <div>
                     <p class="frontdesk-step-label">Step 1</p>
-                    <h3 class="frontdesk-step-title">Run a real test conversation</h3>
+                    <h3 class="frontdesk-step-title">Run a real practice conversation</h3>
                   </div>
                   <span class="${getBadgeClass(hasPreview ? "Ready" : "Limited")}">${escapeHtml(hasPreview ? "Ready" : "Needs setup")}</span>
                 </div>
-                <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Test to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live assistant page for testing.")}</p>
+                <p class="frontdesk-step-copy">${escapeHtml(hasPreview ? "Use Practice to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it." : "Finish the Front Desk setup first so Vonza can generate a live assistant page for practice.")}</p>
               </div>
             </article>
             <article class="frontdesk-step">
@@ -14936,79 +14996,6 @@ function renderReadyState(agent, messages, actionQueue, operatorWorkspace, front
   renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
 }
 
-function buildPreviewSection(agent, setup) {
-  const hasPreview = Boolean(trimText(agent.publicAgentKey));
-  const hasWebsite = setup.hasWebsite || isMeaningfulWebsite(agent.websiteUrl);
-  const statusPills = [
-    hasWebsite
-      ? `<span class="preview-status-pill">Website connected</span>`
-      : `<span class="preview-status-pill">Website not connected yet</span>`,
-    setup.knowledgeState === "ready"
-      ? `<span class="preview-status-pill">Website detail loaded</span>`
-      : setup.knowledgeState === "limited"
-        ? `<span class="preview-status-pill">More website detail would help</span>`
-        : `<span class="preview-status-pill">Website detail not loaded yet</span>`,
-    setup.knowledgePageCount
-      ? `<span class="preview-status-pill">${escapeHtml(`${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported`)}</span>`
-      : "",
-  ].join("");
-
-  const warning = setup.knowledgeState !== "ready"
-    ? `<p class="preview-warning">You can already test the Front Desk here. A fresh website import should make answers feel more complete before you go live.</p>`
-    : "";
-
-  return `
-    <div class="frontdesk-section-intro">
-      <div>
-        <p class="studio-kicker">Test</p>
-        <h2 class="frontdesk-section-title">Test the customer experience before you launch it.</h2>
-        <p class="frontdesk-section-copy">Ask realistic questions, check the next step, and make sure the answer feels helpful and on-brand.</p>
-      </div>
-      <div class="frontdesk-section-actions">
-        ${hasPreview
-          ? `<a class="primary-button" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Open full-page assistant</a>`
-          : `<button class="primary-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`}
-        <button class="ghost-button" type="button" data-action="reset-preview" ${hasPreview ? "" : "disabled"}>Reset conversation</button>
-        ${setup.knowledgeState !== "ready" ? `<button class="ghost-button" type="button" data-action="import-knowledge">Refresh website details</button>` : ""}
-      </div>
-    </div>
-    <div class="frontdesk-section-divider"></div>
-    <div class="preview-header">
-      <div class="preview-status-row">
-        ${statusPills}
-        <span class="preview-status-pill">${escapeHtml(agent.websiteUrl || "No website URL")}</span>
-      </div>
-      ${warning}
-    </div>
-    <div class="frontdesk-preview-guide">
-      <p class="frontdesk-support-title">Prompt starters</p>
-      <p class="frontdesk-support-copy">Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.</p>
-      <div class="prompt-chip-row">
-        <button class="prompt-chip" type="button" data-preview-prompt="What services do you offer?">What services do you offer?</button>
-        <button class="prompt-chip" type="button" data-preview-prompt="Can I book with you?">Can I book with you?</button>
-        <button class="prompt-chip" type="button" data-preview-prompt="Can I get a quote?">Can I get a quote?</button>
-        <button class="prompt-chip" type="button" data-preview-prompt="How can I contact you?">How can I contact you?</button>
-      </div>
-    </div>
-    <div class="frontdesk-section-divider"></div>
-    ${hasPreview ? `
-      <div class="frontdesk-preview-frame-shell">
-        <p class="frontdesk-preview-frame-title">Embedded preview</p>
-        <p class="frontdesk-support-copy">This is the in-workspace version of the Front Desk, so you can test it without leaving the page.</p>
-      </div>
-      <iframe
-        id="preview-frame"
-        class="preview-frame"
-        title="Widget preview"
-        src="${buildWidgetUrl(agent.publicAgentKey)}"
-      ></iframe>
-    ` : buildOperatorEmptyState({
-      title: "Assistant preview is not available yet.",
-      copy: "Finish the assistant setup first. No sample chat history is shown here.",
-    })}
-  `;
-}
-
 function getInstallStatusCopy(installStatus = {}) {
   if (installStatus.state === "seen_recently") {
     return `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`;
@@ -17261,80 +17248,6 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   syncFullPageIframe();
 }
 
-function getPreviewFrame() {
-  return document.getElementById("preview-frame");
-}
-
-function resetPreview(agent) {
-  const previewFrame = getPreviewFrame();
-
-  if (!previewFrame) {
-    return;
-  }
-
-  previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
-  setStatus("Test conversation reset.");
-}
-
-async function sendPromptToPreview(agent, prompt) {
-  if (!trimText(prompt)) {
-    return;
-  }
-
-  const previewFrame = getPreviewFrame();
-
-  if (!previewFrame) {
-    setStatus("Front Desk test is not available yet.");
-    return;
-  }
-
-  const trySend = () => {
-    try {
-      const frameWindow = previewFrame.contentWindow;
-      const frameDocument = previewFrame.contentDocument || frameWindow?.document;
-      const input = frameDocument?.getElementById("input");
-
-      if (!input || typeof frameWindow?.sendMessage !== "function") {
-        return false;
-      }
-
-      input.value = prompt;
-      frameWindow.sendMessage();
-      setStatus(`Testing: ${prompt}`);
-      saveInstallProgress(agent.id, { previewOpened: true });
-      trackProductEvent("starter_prompt_used", {
-        agentId: agent.id,
-        metadata: { prompt },
-      });
-      trackProductEvent("preview_opened", {
-        agentId: agent.id,
-        onceKey: `preview_opened:${agent.id}`,
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
-  if (trySend()) {
-    await boot();
-    return;
-  }
-
-  const onLoad = async () => {
-    previewFrame.removeEventListener("load", onLoad);
-    trySend();
-    await boot();
-  };
-
-  previewFrame.addEventListener("load", onLoad, { once: true });
-  if (!previewFrame.getAttribute("src")) {
-    previewFrame.src = buildWidgetUrl(agent.publicAgentKey);
-  } else {
-    setStatus("Front Desk test is still loading. Try the starter again in a moment.");
-  }
-}
-
 function updateStudioSummary(
   form = document.querySelector('form[data-form-kind="customize"]'),
   fallbackAgent = {}
@@ -17664,8 +17577,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const downloadFullPageQrButtons = document.querySelectorAll('[data-action="download-full-page-qr"]');
   const verifyInstallButtons = document.querySelectorAll('[data-action="verify-install"]');
   const previewLinks = document.querySelectorAll('[data-action="open-preview"]');
-  const resetPreviewButton = document.querySelector('[data-action="reset-preview"]');
-  const promptButtons = document.querySelectorAll('[data-preview-prompt]');
   const sectionButtons = document.querySelectorAll("[data-shell-target]");
   const actionQueueSections = document.querySelectorAll("[data-action-queue-section]");
   const actionQueueStatusInputs = document.querySelectorAll("[data-action-queue-status]");
@@ -17723,8 +17634,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const frontDeskTestAnswerButtons = document.querySelectorAll("[data-frontdesk-test-answer]");
   const frontDeskSaveQueueApprovedButtons = document.querySelectorAll("[data-frontdesk-save-queue-approved]");
   const frontDeskImproveQueueItemButtons = document.querySelectorAll("[data-frontdesk-improve-queue-item]");
+  const frontDeskPracticeForms = document.querySelectorAll("[data-frontdesk-practice-form]");
+  const frontDeskPracticeResetButtons = document.querySelectorAll("[data-frontdesk-practice-reset]");
+  const frontDeskTeachingForms = document.querySelectorAll("[data-frontdesk-teaching-form]");
+  const frontDeskTeachingCloseButtons = document.querySelectorAll("[data-frontdesk-teaching-close]");
+  const frontDeskTryAgainButtons = document.querySelectorAll("[data-frontdesk-try-again]");
+  const frontDeskOpenImprovementButtons = document.querySelectorAll("[data-frontdesk-open-improvement]");
+  const frontDeskImproveFeedbackButtons = document.querySelectorAll("[data-frontdesk-improve-feedback]");
+  const frontDeskOpenDraftButtons = document.querySelectorAll("[data-frontdesk-open-draft]");
+  const frontDeskEditDraftButtons = document.querySelectorAll("[data-frontdesk-edit-draft]");
+  const frontDeskPublishItemButtons = document.querySelectorAll("[data-frontdesk-publish-item]");
+  const frontDeskEditLibraryAnswerButtons = document.querySelectorAll("[data-frontdesk-edit-library-answer]");
   const frontDeskFeedbackStatusButtons = document.querySelectorAll("[data-frontdesk-feedback-status]");
-  const frontDeskTestForms = document.querySelectorAll("[data-frontdesk-test-form]");
   const conversationSaveApprovedButtons = document.querySelectorAll("[data-conversation-save-approved-answer]");
   const conversationImproveAnswerButtons = document.querySelectorAll("[data-conversation-improve-answer]");
   const conversationNotHelpfulButtons = document.querySelectorAll("[data-conversation-not-helpful]");
@@ -18517,8 +18438,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
     }
   };
-  const showFrontDeskSection = (target = "overview") => {
-    const normalizedTarget = FRONT_DESK_SECTIONS.includes(target) ? target : "overview";
+  const showFrontDeskSection = (target = "practice") => {
+    const normalizedTarget = FRONT_DESK_SECTIONS.includes(target) ? target : "practice";
     setActiveFrontDeskSection(normalizedTarget);
 
     frontDeskSectionButtons.forEach((button) => {
@@ -18582,16 +18503,157 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }),
   });
 
-  const saveApprovedAnswer = async ({ triggerText, answerText, tags, sourceType = "manual", sourceMessageId = "", feedbackId = "" } = {}) => {
-    const normalizedTrigger = trimText(triggerText);
-    const normalizedAnswer = trimText(answerText);
+  const getPracticeThread = () => document.querySelector("[data-frontdesk-practice-thread]");
+  const getPracticeTeachingShell = () => document.querySelector("[data-frontdesk-teaching-form-shell]");
+  const getPracticeTeachingForm = () => document.querySelector("[data-frontdesk-teaching-form]");
+  const getSelectedDraftTrainingIds = () => {
+    const shell = getPracticeTeachingShell();
+    const selected = trimText(shell?.dataset.includeDraftTrainingIds || "");
+    return selected ? selected.split(",").map((id) => trimText(id)).filter(Boolean) : [];
+  };
 
-    if (!normalizedTrigger || !normalizedAnswer) {
-      setStatus("Add the question or situation and the approved answer.");
+  const setSelectedDraftTrainingId = (itemId = "") => {
+    const shell = getPracticeTeachingShell();
+    const normalizedItemId = trimText(itemId);
+    if (!shell || !normalizedItemId) {
+      return;
+    }
+    shell.dataset.includeDraftTrainingIds = normalizedItemId;
+    shell.querySelector("[data-frontdesk-try-again]")?.removeAttribute("hidden");
+  };
+
+  const appendPracticeMessage = ({ role = "assistant", content = "", question = "", answer = "", draftIds = [] } = {}) => {
+    const thread = getPracticeThread();
+    if (!thread || !trimText(content)) {
+      return null;
+    }
+
+    const messageEl = document.createElement("article");
+    messageEl.className = `frontdesk-practice-message ${role === "user" ? "user" : "assistant"}`;
+    messageEl.innerHTML = `
+      <span>${escapeHtml(role === "user" ? "You" : (agent.assistantName || agent.name || "Front Desk"))}</span>
+      <p>${escapeHtml(content)}</p>
+      ${role === "assistant" ? `
+        <div class="frontdesk-practice-actions">
+          <button class="ghost-button" type="button" data-frontdesk-response-good>Looks good</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-teach data-question="${escapeHtml(question)}" data-answer="${escapeHtml(answer || content)}">Teach this answer</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-try-again data-question="${escapeHtml(question)}" data-draft-ids="${escapeHtml(draftIds.join(","))}">Try again</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-teach data-question="${escapeHtml(question)}" data-answer="${escapeHtml(answer || content)}">Save as improvement</button>
+        </div>
+      ` : ""}
+    `;
+    thread.appendChild(messageEl);
+    thread.scrollTop = thread.scrollHeight;
+
+    messageEl.querySelector("[data-frontdesk-response-good]")?.addEventListener("click", () => {
+      setStatus("Practice answer marked helpful.");
+    });
+    messageEl.querySelectorAll("[data-frontdesk-response-teach]").forEach((button) => {
+      button.addEventListener("click", () => {
+        openPracticeTeachingForm({
+          question: button.dataset.question || "",
+          currentAnswer: button.dataset.answer || "",
+          answer: "",
+          sourceType: "test",
+        });
+      });
+    });
+    messageEl.querySelector("[data-frontdesk-response-try-again]")?.addEventListener("click", async (buttonEvent) => {
+      const button = buttonEvent.currentTarget;
+      const selectedDraftIds = trimText(button.dataset.draftIds)
+        ? button.dataset.draftIds.split(",").map((id) => trimText(id)).filter(Boolean)
+        : getSelectedDraftTrainingIds();
+      await sendPracticeMessage(button.dataset.question || question, { includeDraftTrainingIds: selectedDraftIds, skipUserEcho: true });
+    });
+
+    return messageEl;
+  };
+
+  const openPracticeTeachingForm = ({
+    question = "",
+    currentAnswer = "",
+    answer = "",
+    tags = "",
+    feedbackId = "",
+    itemId = "",
+    sourceType = "test",
+  } = {}) => {
+    showFrontDeskSection("practice");
+    const shell = getPracticeTeachingShell();
+    const form = getPracticeTeachingForm();
+    if (!shell || !form) {
       return;
     }
 
-    setStatus("Saving approved answer...");
+    shell.hidden = false;
+    form.querySelector('[name="item_id"]').value = trimText(itemId);
+    form.querySelector('[name="feedback_id"]').value = trimText(feedbackId);
+    form.querySelector('[name="source_type"]').value = trimText(sourceType) || "test";
+    form.querySelector('[name="trigger_text"]').value = trimText(question);
+    form.querySelector('[name="current_answer"]').value = trimText(currentAnswer || answer);
+    form.querySelector('[name="answer_text"]').value = trimText(answer);
+    form.querySelector('[name="tags"]').value = trimText(tags);
+    shell.scrollIntoView({ behavior: "smooth", block: "center" });
+    form.querySelector('[name="answer_text"]')?.focus();
+  };
+
+  const sendPracticeMessage = async (message, { includeDraftTrainingIds = [], skipUserEcho = false } = {}) => {
+    const normalizedMessage = trimText(message);
+    if (!normalizedMessage) {
+      setStatus("Ask a question as if you were a visitor.");
+      return null;
+    }
+
+    const draftIds = includeDraftTrainingIds.length ? includeDraftTrainingIds : getSelectedDraftTrainingIds();
+    if (!skipUserEcho) {
+      appendPracticeMessage({ role: "user", content: normalizedMessage });
+    }
+    setStatus(draftIds.length ? "Trying again with the draft improvement..." : "Practicing with Front Desk...");
+
+    const result = await fetchJson(`/api/agents/${encodeURIComponent(agent.id)}/front-desk/practice-message`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        client_id: getClientId(),
+        message: normalizedMessage,
+        includeDraftTrainingIds: draftIds,
+      }),
+    });
+    const reply = trimText(result.reply) || "No practice response returned.";
+    appendPracticeMessage({
+      role: "assistant",
+      content: reply,
+      question: normalizedMessage,
+      answer: reply,
+      draftIds,
+    });
+    setStatus("Practice response ready.");
+    return result;
+  };
+
+  const saveApprovedAnswer = async ({
+    itemId = "",
+    triggerText,
+    answerText,
+    tags,
+    sourceType = "manual",
+    sourceMessageId = "",
+    feedbackId = "",
+    status = "active",
+    refresh = true,
+  } = {}) => {
+    const normalizedTrigger = trimText(triggerText);
+    const normalizedAnswer = trimText(answerText);
+    const normalizedStatus = trimText(status) === "draft" ? "draft" : "active";
+
+    if (!normalizedTrigger || !normalizedAnswer) {
+      setStatus("Add the question or situation and the better answer.");
+      return;
+    }
+
+    setStatus(normalizedStatus === "draft" ? "Saving draft..." : "Publishing improvement...");
     const result = await fetchJson("/agents/front-desk/training-items", {
       method: "POST",
       headers: {
@@ -18602,12 +18664,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         agent_id: agent.id,
         type: "approved_answer",
         title: normalizedTrigger,
+        item_id: trimText(itemId) || undefined,
         trigger_text: normalizedTrigger,
         answer_text: normalizedAnswer,
         tags,
         source_type: sourceType,
         source_message_id: sourceMessageId || undefined,
-        status: "active",
+        status: normalizedStatus,
       }),
     });
     if (feedbackId && result?.item?.id) {
@@ -18617,24 +18680,30 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         trainingItemId: result.item.id,
       });
     }
-    setStatus("Approved answer saved.");
-    await boot();
-    showFrontDeskSection("approved");
+    setStatus(normalizedStatus === "draft" ? "Draft improvement saved." : "Improvement published.");
+    if (refresh) {
+      await boot();
+      showFrontDeskSection(normalizedStatus === "draft" ? "improvements" : "library");
+    }
     return result;
   };
 
-  const fillApprovedAnswerForm = ({ question = "", answer = "", feedbackId = "" } = {}) => {
-    showFrontDeskSection("approved");
+  const fillApprovedAnswerForm = ({ question = "", answer = "", tags = "", feedbackId = "", itemId = "" } = {}) => {
+    showFrontDeskSection("library");
     const form = document.querySelector("[data-frontdesk-approved-answer-form]");
     if (!form) {
       return;
     }
 
+    const itemInput = form.querySelector('[name="item_id"]');
     const questionInput = form.querySelector('[name="trigger_text"]');
     const answerInput = form.querySelector('[name="answer_text"]');
+    const tagsInput = form.querySelector('[name="tags"]');
     const feedbackInput = form.querySelector('[name="feedback_id"]');
+    if (itemInput) itemInput.value = trimText(itemId);
     if (questionInput) questionInput.value = trimText(question);
     if (answerInput) answerInput.value = trimText(answer);
+    if (tagsInput) tagsInput.value = trimText(tags);
     if (feedbackInput) feedbackInput.value = trimText(feedbackId);
     form.scrollIntoView({ behavior: "smooth", block: "center" });
     questionInput?.focus();
@@ -19702,8 +19771,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
       setActiveShellSection("customize", operatorWorkspace);
       showShellSection("customize");
-      showFrontDeskSection("test");
-      await sendPromptToPreview(agent, question);
+      showFrontDeskSection("practice");
+      await sendPracticeMessage(question);
       await completeActivationStep("test_improve", {
         test_question: question,
         test_quality: activationWizardState?.signals?.needsImprovement ? "needs_improvement" : "strong",
@@ -20305,18 +20374,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
-  if (resetPreviewButton) {
-    resetPreviewButton.addEventListener("click", () => {
-      resetPreview(agent);
-    });
-  }
-
-  promptButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      sendPromptToPreview(agent, button.dataset.previewPrompt || "");
-    });
-  });
-
   sectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const resolvedTarget = resolveShellTarget(
@@ -20342,13 +20399,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   frontDeskSectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection(button.dataset.frontdeskTarget || "overview");
+      showFrontDeskSection(button.dataset.frontdeskTarget || "practice");
     });
   });
 
   frontDeskOpenButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const target = showFrontDeskSection(button.dataset.frontdeskOpen || "overview");
+      const target = showFrontDeskSection(button.dataset.frontdeskOpen || "practice");
       document.querySelector(`[data-frontdesk-section="${target}"]`)?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -20363,13 +20420,15 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       try {
         await saveApprovedAnswer({
+          itemId: formData.get("item_id"),
           triggerText: formData.get("trigger_text"),
           answerText: formData.get("answer_text"),
           tags: formData.get("tags"),
           feedbackId: formData.get("feedback_id"),
+          status: "active",
         });
       } catch (error) {
-        setStatus(error.message || "We couldn't save that approved answer.");
+        setStatus(error.message || "We couldn't save that published answer.");
       }
     });
   });
@@ -20379,7 +20438,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const itemId = trimText(button.dataset.itemId);
       if (!itemId) return;
 
-      setStatus("Archiving approved answer...");
+      setStatus("Archiving answer...");
       try {
         await fetchJson("/agents/front-desk/training-items/status", {
           method: "POST",
@@ -20393,19 +20452,19 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
             status: "archived",
           }),
         });
-        setStatus("Approved answer archived.");
+        setStatus("Answer archived.");
         await boot();
-        showFrontDeskSection("approved");
+        showFrontDeskSection("library");
       } catch (error) {
-        setStatus(error.message || "We couldn't archive that approved answer.");
+        setStatus(error.message || "We couldn't archive that answer.");
       }
     });
   });
 
   frontDeskTestAnswerButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection("test");
-      const input = document.querySelector('[data-frontdesk-test-form] [name="message"]');
+      showFrontDeskSection("practice");
+      const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
       if (input) {
         input.value = button.dataset.frontdeskTestAnswer || "";
         input.focus();
@@ -20425,12 +20484,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   frontDeskImproveQueueItemButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      fillApprovedAnswerForm({
+      openPracticeTeachingForm({
         question: button.dataset.question || "",
-        answer: button.dataset.answer || "",
+        currentAnswer: button.dataset.answer || "",
+        answer: "",
         feedbackId: button.dataset.feedbackId || "",
+        sourceType: "conversation",
       });
-      setStatus("Teach Front Desk how to answer this next time.");
+      setStatus("Teach this answer in Practice.");
     });
   });
 
@@ -20446,7 +20507,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         await updateFrontDeskFeedbackStatus({ feedbackId, status });
         setStatus(status === "ignored" ? "Feedback ignored." : "Feedback resolved.");
         await boot();
-        showFrontDeskSection("queue");
+        showFrontDeskSection("improvements");
       } catch (error) {
         button.disabled = false;
         setStatus(error.message || "We couldn't update that feedback.");
@@ -20454,25 +20515,167 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
-  frontDeskTestForms.forEach((form) => {
+  frontDeskPracticeResetButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const thread = getPracticeThread();
+      if (thread) {
+        thread.innerHTML = `
+          <article class="frontdesk-practice-message assistant">
+            <span>${escapeHtml(agent.assistantName || agent.name || "Front Desk")}</span>
+            <p>${escapeHtml(agent.welcomeMessage || "Hi, I can help answer questions and point you to the right next step.")}</p>
+          </article>
+        `;
+      }
+      const shell = getPracticeTeachingShell();
+      if (shell) {
+        shell.hidden = true;
+        shell.dataset.includeDraftTrainingIds = "";
+      }
+      setStatus("Practice conversation reset.");
+    });
+  });
+
+  frontDeskPracticeForms.forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const formData = new FormData(form);
-      const resultEl = form.querySelector("[data-frontdesk-test-result]");
       const message = trimText(formData.get("message"));
 
       if (!message) {
-        setStatus("Ask a test question first.");
+        setStatus("Ask a question as if you were a visitor.");
         return;
       }
 
-      setStatus("Testing Front Desk...");
-      if (resultEl) {
-        resultEl.textContent = "Testing Front Desk...";
+      try {
+        await sendPracticeMessage(message);
+        form.reset();
+      } catch (error) {
+        appendPracticeMessage({
+          role: "assistant",
+          content: error.message || "We couldn't practice with Front Desk right now.",
+          question: message,
+        });
+        setStatus(error.message || "We couldn't practice with Front Desk right now.");
       }
+    });
+  });
+
+  frontDeskTeachingCloseButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const shell = getPracticeTeachingShell();
+      if (shell) {
+        shell.hidden = true;
+      }
+    });
+  });
+
+  frontDeskTeachingForms.forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submitter = event.submitter;
+      const formData = new FormData(form);
+      const publish = submitter?.hasAttribute("data-frontdesk-publish-improvement");
+      const feedbackId = trimText(formData.get("feedback_id"));
 
       try {
-        const result = await fetchJson("/agents/front-desk/test", {
+        const result = await saveApprovedAnswer({
+          itemId: formData.get("item_id"),
+          triggerText: formData.get("trigger_text"),
+          answerText: formData.get("answer_text"),
+          tags: formData.get("tags"),
+          sourceType: formData.get("source_type") || "test",
+          feedbackId,
+          status: publish ? "active" : "draft",
+          refresh: false,
+        });
+        if (result?.item?.status === "draft") {
+          setSelectedDraftTrainingId(result.item.id);
+          form.querySelector('[name="item_id"]').value = result.item.id || "";
+          setStatus("Draft improvement saved. Try again when you are ready.");
+        } else if (result?.item?.status === "active") {
+          setStatus("Improvement published.");
+          await boot();
+          showFrontDeskSection("library");
+        }
+      } catch (error) {
+        setStatus(error.message || "We couldn't save that improvement.");
+      }
+    });
+  });
+
+  frontDeskTryAgainButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const form = getPracticeTeachingForm();
+      const question = trimText(form?.querySelector('[name="trigger_text"]')?.value || "");
+      try {
+        await sendPracticeMessage(question, {
+          includeDraftTrainingIds: getSelectedDraftTrainingIds(),
+          skipUserEcho: false,
+        });
+      } catch (error) {
+        setStatus(error.message || "We couldn't try that improvement.");
+      }
+    });
+  });
+
+  frontDeskOpenImprovementButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      showFrontDeskSection("practice");
+      const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
+      if (input) {
+        input.value = button.dataset.question || "";
+        input.focus();
+      }
+      if (button.dataset.answer || button.dataset.feedbackId) {
+        openPracticeTeachingForm({
+          question: button.dataset.question || "",
+          currentAnswer: button.dataset.answer || "",
+          answer: button.dataset.itemId && !button.dataset.feedbackId ? button.dataset.answer || "" : "",
+          feedbackId: button.dataset.feedbackId || "",
+          itemId: button.dataset.itemId || "",
+          sourceType: button.dataset.feedbackId ? "conversation" : "test",
+        });
+      }
+    });
+  });
+
+  frontDeskImproveFeedbackButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      openPracticeTeachingForm({
+        question: button.dataset.question || "",
+        currentAnswer: button.dataset.answer || "",
+        feedbackId: button.dataset.feedbackId || "",
+        sourceType: "conversation",
+      });
+      setStatus("Teach this answer in Practice.");
+    });
+  });
+
+  [...frontDeskOpenDraftButtons, ...frontDeskEditDraftButtons, ...frontDeskEditLibraryAnswerButtons].forEach((button) => {
+    button.addEventListener("click", () => {
+      openPracticeTeachingForm({
+        question: button.dataset.question || "",
+        currentAnswer: button.dataset.answer || "",
+        answer: button.dataset.answer || "",
+        tags: button.dataset.tags || "",
+        itemId: button.dataset.itemId || "",
+        sourceType: "test",
+      });
+      if (button.matches("[data-frontdesk-open-draft]")) {
+        setSelectedDraftTrainingId(button.dataset.itemId || "");
+      }
+    });
+  });
+
+  frontDeskPublishItemButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const itemId = trimText(button.dataset.itemId);
+      if (!itemId) return;
+
+      button.disabled = true;
+      setStatus("Publishing improvement...");
+      try {
+        await fetchJson("/agents/front-desk/training-items/status", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -20480,52 +20683,16 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           body: JSON.stringify({
             client_id: getClientId(),
             agent_id: agent.id,
-            message,
+            item_id: itemId,
+            status: "active",
           }),
         });
-        if (resultEl) {
-          const reply = trimText(result.reply) || "No test response returned.";
-          resultEl.innerHTML = `
-            <p>${escapeHtml(reply)}</p>
-            <div class="inline-actions">
-              <button class="ghost-button" type="button" data-frontdesk-test-looks-good>Looks good</button>
-              <button class="ghost-button" type="button" data-frontdesk-test-improve>Improve answer</button>
-              <button class="ghost-button" type="button" data-frontdesk-test-save-approved>Save as approved answer</button>
-            </div>
-          `;
-          resultEl.querySelector("[data-frontdesk-test-looks-good]")?.addEventListener("click", () => {
-            setStatus("Test answer marked helpful.");
-          });
-          resultEl.querySelector("[data-frontdesk-test-improve]")?.addEventListener("click", async () => {
-            try {
-              await recordOwnerFrontDeskFeedback({
-                question: message,
-                answer: reply,
-                sourceType: "test",
-                reason: "other",
-              });
-            } catch (error) {
-              console.warn("Could not queue test feedback", error);
-            }
-            fillApprovedAnswerForm({
-              question: message,
-              answer: reply,
-            });
-            setStatus("Teach Front Desk how to answer this next time.");
-          });
-          resultEl.querySelector("[data-frontdesk-test-save-approved]")?.addEventListener("click", () => {
-            fillApprovedAnswerForm({
-              question: message,
-              answer: reply,
-            });
-          });
-        }
-        setStatus("Test response ready.");
+        setStatus("Improvement published.");
+        await boot();
+        showFrontDeskSection("library");
       } catch (error) {
-        if (resultEl) {
-          resultEl.textContent = error.message || "We couldn't test Front Desk right now.";
-        }
-        setStatus(error.message || "We couldn't test Front Desk right now.");
+        button.disabled = false;
+        setStatus(error.message || "We couldn't publish that improvement.");
       }
     });
   });
@@ -20541,11 +20708,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   conversationImproveAnswerButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      fillApprovedAnswerForm({
+      openPracticeTeachingForm({
         question: button.dataset.question || "",
-        answer: button.dataset.answer || "",
+        currentAnswer: button.dataset.answer || "",
+        sourceType: "conversation",
       });
-      setStatus("Teach Front Desk how to answer this next time.");
+      setStatus("Teach this answer in Practice.");
     });
   });
 
@@ -20558,7 +20726,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         return;
       }
 
-      setStatus("Sending this answer to the Training queue...");
+      setStatus("Sending this answer to Improvements...");
       button.disabled = true;
       try {
         await recordOwnerFrontDeskFeedback({
@@ -20569,9 +20737,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           sourceType: "owner_feedback",
           reason: "other",
         });
-        setStatus("Marked not helpful and sent to Training queue.");
+        setStatus("Marked not helpful and sent to Improvements.");
         await boot();
-        showFrontDeskSection("queue");
+        showFrontDeskSection("improvements");
       } catch (error) {
         button.disabled = false;
         setStatus(error.message || "We couldn't mark that answer not helpful.");

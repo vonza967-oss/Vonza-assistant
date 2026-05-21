@@ -30,10 +30,10 @@ const SECTION_GUIDES = {
   customize: {
     label: "Front Desk",
     summary:
-      "Front Desk is where you shape the customer-facing Vonza experience: how it sounds, what it knows, how it previews, and how ready it is to go live.",
+      "Front Desk is where you practice with the customer-facing assistant, teach better answers, review improvements, and keep launch readiness visible.",
     nextSteps: [
-      "Use Front Desk to tune voice, test the live preview, and improve imported website knowledge.",
-      "When preview answers look strong, move to Install to publish Vonza on the website.",
+      "Use Practice to ask realistic visitor questions and teach better answers directly from the conversation.",
+      "Publish only the improvements you are ready for visitors to use, then move to Install when the assistant is ready to launch.",
     ],
   },
   analytics: {
@@ -94,9 +94,10 @@ const SECTION_GUIDES = {
 
 const SUBSECTION_GUIDES = {
   customize: {
-    overview: "The overview explains Front Desk readiness and whether the customer-facing experience is grounded enough to go live.",
-    preview: "Preview lets you test how the front desk answers before it is published to the live website.",
-    context: "Context shows whether website content has been imported well enough for Vonza to answer accurately.",
+    practice: "Practice lets you talk to Front Desk like a visitor, teach better answers, and try draft improvements before publishing.",
+    improvements: "Improvements collects visitor feedback, owner-marked answers, and drafts waiting for an owner decision.",
+    knowledge: "Knowledge shows whether website content and business profile context are strong enough for grounded answers.",
+    library: "Answer library shows published answers Front Desk can use when visitors ask similar questions.",
     launch: "Launch focuses on getting the customer-facing front desk ready to publish safely.",
   },
   contacts: {

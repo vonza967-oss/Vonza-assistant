@@ -120,8 +120,9 @@ test("dashboard Front Desk light shell keeps settings navigation and content rea
   assert.match(css, /\.workspace-pages \.settings-page-title,\s*\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
   assert.match(css, /\.workspace-pages \.settings-page-copy,\s*\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
   assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-polished-panel\s*\{[^}]*border-radius:\s*10px;[^}]*background:\s*#ffffff/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-overview-panel \.frontdesk-readiness-list,\s*\.workspace-page\[data-shell-section="customize"\] \.frontdesk-context-panel \.frontdesk-detail-stack\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-preview-panel \.preview-header\s*\{[^}]*background:\s*#f6f8fb;/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(280px,\s*340px\)/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-canvas\s*\{[^}]*border:\s*1px solid #cbd7e8/i);
+  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-context-panel \.frontdesk-detail-stack\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/i);
 });
 
 test("dashboard contrast pass covers analytics, chips, active rows, and settings shell text", () => {

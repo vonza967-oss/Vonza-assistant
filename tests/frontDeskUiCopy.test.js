@@ -19,15 +19,22 @@ test("Settings Front Desk stays configuration-only", () => {
 });
 
 test("Dashboard Front Desk renders training workspace tabs and empty states", () => {
-  ["Overview", "Knowledge", "Approved answers", "Training queue", "Test", "Launch"].forEach((label) => {
+  ["Practice", "Improvements", "Knowledge", "Answer library", "Launch"].forEach((label) => {
     assert.match(dashboardScript, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
-  assert.match(dashboardScript, /Teach Front Desk/);
-  assert.match(dashboardScript, /No approved answers yet/);
-  assert.match(dashboardScript, /Nothing needs training right now/);
-  assert.match(dashboardScript, /Ask a test question/);
-  assert.match(dashboardScript, /Test Front Desk/);
+  assert.match(dashboardScript, /Practice with Front Desk/);
+  assert.match(dashboardScript, /Practice mode — visitors will not see this conversation/);
+  assert.match(dashboardScript, /Teach this answer/);
+  assert.match(dashboardScript, /What should Front Desk say instead/);
+  assert.match(dashboardScript, /Save draft/);
+  assert.match(dashboardScript, /Publish improvement/);
+  assert.match(dashboardScript, /Nothing needs review right now/);
+  assert.match(dashboardScript, /No published answers yet/);
+  assert.match(dashboardScript, /Published answers Front Desk can use when visitors ask similar questions/);
+  assert.doesNotMatch(dashboardScript, /Approved answers/);
+  assert.doesNotMatch(dashboardScript, /Training queue/);
+  assert.doesNotMatch(dashboardScript, /Test Front Desk/);
   assert.doesNotMatch(dashboardScript, /Send AI draft/);
 });
 

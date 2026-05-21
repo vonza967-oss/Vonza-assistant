@@ -439,7 +439,7 @@ export async function recordOwnerAnswerFeedback(supabase, options = {}) {
   }
 
   if (rating === "not_helpful" && (!userQuestion || !assistantAnswer)) {
-    const error = new Error("Add the customer question and answer before sending this to the Training queue.");
+    const error = new Error("Add the customer question and answer before sending this to Improvements.");
     error.statusCode = 400;
     throw error;
   }

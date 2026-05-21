@@ -2425,53 +2425,49 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
     workspace
   );
 
-  assert.match(panel, /Configure, test, and improve the assistant customers see/);
-  assert.match(panel, />Overview<\/button>/);
+  assert.match(panel, /Practice, teach, and publish the answers customers see/);
+  assert.match(panel, />Practice<\/button>/);
+  assert.match(panel, />Improvements<\/button>/);
   assert.match(panel, />Knowledge<\/button>/);
-  assert.match(panel, />Approved answers<\/button>/);
-  assert.match(panel, />Training queue<\/button>/);
-  assert.match(panel, />Test<\/button>/);
+  assert.match(panel, />Answer library<\/button>/);
   assert.match(panel, />Launch<\/button>/);
   assert.match(panel, /Open settings/);
-  assert.match(panel, /Test Front Desk/);
-  assert.match(panel, /Assistant configured/);
-  assert.match(panel, /Website knowledge imported/);
-  assert.match(panel, /Approved answers count/);
-  assert.match(panel, /New training items/);
+  assert.match(panel, /Practice with Front Desk/);
+  assert.match(panel, /Ask a question as if you were a visitor/);
+  assert.match(panel, /Practice mode — visitors will not see this conversation/);
+  assert.match(panel, /Draft improvements/);
   assert.match(panel, /Feedback needing review/);
-  assert.match(panel, /Widget installed/);
-  assert.match(panel, /Full-page assistant available/);
-  assert.match(panel, /QR available/);
-  assert.match(panel, /Review knowledge/);
+  assert.match(panel, /Recently published improvements/);
+  assert.match(panel, /Published answers Front Desk can use when visitors ask similar questions/);
   assert.match(panel, /Open install/);
-  assert.match(panel, /What stays out of the way/);
-  assert.match(panel, /Deeper settings remain in Settings/);
   assert.match(panel, /Widget status/);
   assert.match(panel, /Full-page assistant URL/);
   assert.match(panel, /QR code/);
   assert.match(panel, /Verification/);
   assert.doesNotMatch(panel, /display_mode/);
   assert.doesNotMatch(panel, /primaryCtaMode/);
-  assert.match(panel, /frontdesk-polished-panel frontdesk-overview-panel/);
+  assert.match(panel, /frontdesk-polished-panel frontdesk-practice-panel/);
+  assert.match(panel, /frontdesk-polished-panel frontdesk-improvements-panel/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-context-panel/);
-  assert.match(panel, /data-frontdesk-section="approved"/);
-  assert.match(panel, /data-frontdesk-section="queue"/);
-  assert.match(panel, /data-frontdesk-section="test"/);
+  assert.match(panel, /data-frontdesk-section="library"/);
+  assert.match(panel, /data-frontdesk-section="improvements"/);
+  assert.match(panel, /data-frontdesk-section="practice"/);
   assert.match(panel, /class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel" data-frontdesk-section="launch"/);
   assert.match(panel, /data-frontdesk-section="launch"/);
   assert.match(panel, /frontdesk-main-panel/);
   assert.doesNotMatch(panel, /settings-summary-grid/);
   assert.doesNotMatch(panel, /frontdesk-context-grid/);
+  assert.doesNotMatch(panel, /Approved answers|Training queue|Test Front Desk/);
 });
 
-test("front desk training queue renders feedback metadata with owner-friendly labels", () => {
+test("front desk improvements render feedback metadata with owner-friendly labels", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
     },
   });
 
-  const markup = harness.buildTrainingQueueSection({
+  const markup = harness.buildImprovementsSection(harness.createEmptyFrontDeskTraining(), {
     items: [
       {
         key: "feedback:feedback-1",
@@ -2489,27 +2485,27 @@ test("front desk training queue renders feedback metadata with owner-friendly la
         lastSeenAt: "2026-05-20T10:00:00.000Z",
       },
     ],
-  }, "queue");
+  }, "improvements");
 
   assert.match(markup, /Do you offer Saturday appointments\?/);
   assert.match(markup, /Please contact the business\./);
+  assert.match(markup, /Needs review/);
   assert.match(markup, /Reason: Missing details/);
   assert.match(markup, /Note: Visitor needed the Saturday cutoff\./);
   assert.match(markup, /Assistant source: Website widget/);
+  assert.match(markup, />Open in practice<\/button>/);
   assert.match(markup, />Improve answer<\/button>/);
-  assert.match(markup, />Save as approved answer<\/button>/);
-  assert.match(markup, />Resolve<\/button>/);
   assert.match(markup, />Ignore<\/button>/);
   assert.doesNotMatch(markup, /display_mode|sourceRoute|public_widget/);
 });
 
-test("front desk training queue hides empty notes and maps page and embedded sources", () => {
+test("front desk improvements hide empty notes and maps page and embedded sources", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
     },
   });
-  const noNoteMarkup = harness.buildTrainingQueueSection({
+  const noNoteMarkup = harness.buildImprovementsSection(harness.createEmptyFrontDeskTraining(), {
     items: [
       {
         key: "feedback:feedback-2",
@@ -2524,8 +2520,8 @@ test("front desk training queue hides empty notes and maps page and embedded sou
         sourceRoute: "/assistant/agent-key",
       },
     ],
-  }, "queue");
-  const embeddedMarkup = harness.buildTrainingQueueSection({
+  }, "improvements");
+  const embeddedMarkup = harness.buildImprovementsSection(harness.createEmptyFrontDeskTraining(), {
     items: [
       {
         key: "feedback:feedback-3",
@@ -2540,7 +2536,7 @@ test("front desk training queue hides empty notes and maps page and embedded sou
         sourceRoute: "/a/agent-key?embedded=1",
       },
     ],
-  }, "queue");
+  }, "improvements");
 
   assert.match(noNoteMarkup, /Reason: Incorrect/);
   assert.match(noNoteMarkup, /Assistant source: Full-page assistant/);
@@ -2551,7 +2547,7 @@ test("front desk training queue hides empty notes and maps page and embedded sou
   assert.doesNotMatch(embeddedMarkup, /embedded=1|displayMode|sourceRoute/);
 });
 
-test("front desk test and launch CTAs use primary treatment", () => {
+test("front desk practice and launch CTAs use primary treatment", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -2572,27 +2568,24 @@ test("front desk test and launch CTAs use primary treatment", () => {
   };
   const workspace = harness.normalizeOperatorWorkspace({});
 
-  harness.setActiveFrontDeskSection("overview");
-  const overviewPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
-  assert.match(overviewPanel, /<button class="primary-button"[^>]*>Test Front Desk<\/button>/);
-
-  harness.setActiveFrontDeskSection("test");
-  const testPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
-  assert.match(testPanel, /<button class="primary-button"[^>]*>Test Front Desk<\/button>/);
+  harness.setActiveFrontDeskSection("practice");
+  const practicePanel = harness.buildFrontDeskPanel(agent, setup, workspace);
+  assert.match(practicePanel, /data-frontdesk-practice-form/);
+  assert.match(practicePanel, /<button class="primary-button" type="submit">Send<\/button>/);
 
   harness.setActiveFrontDeskSection("launch");
   const launchPanel = harness.buildFrontDeskPanel(agent, setup, workspace);
   assert.match(launchPanel, /<button class="primary-button"[^>]*>Open install<\/button>/);
 });
 
-test("front desk test section renders a clean empty state without fake chat data", () => {
+test("front desk practice section renders a clean owner-only conversation without fake customer data", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
     },
   });
 
-  harness.setActiveFrontDeskSection("preview");
+  harness.setActiveFrontDeskSection("practice");
   const panel = harness.buildFrontDeskPanel(
     {
       name: "Acme Services",
@@ -2609,9 +2602,9 @@ test("front desk test section renders a clean empty state without fake chat data
     harness.normalizeOperatorWorkspace({})
   );
 
-  assert.match(panel, /Assistant preview is not available yet/);
-  assert.match(panel, /No sample chat history is shown here/);
-  assert.match(panel, /Finish setup/);
+  assert.match(panel, /Practice with Front Desk/);
+  assert.match(panel, /Practice mode — visitors will not see this conversation/);
+  assert.match(panel, /data-frontdesk-practice-form/);
   assert.doesNotMatch(panel, /<iframe/);
   assert.doesNotMatch(panel, /Customer:|Assistant:/);
 });

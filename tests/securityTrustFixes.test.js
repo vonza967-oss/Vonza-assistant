@@ -1295,11 +1295,12 @@ test("legacy public admin page source is removed", () => {
   assert.equal(existsSync(path.join(repoRoot, "admin.html")), false);
 });
 
-test("dashboard preview starter prompts do not force-reset a loaded iframe", () => {
+test("dashboard Practice mode uses the owner-only practice endpoint instead of iframe prompts", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
 
-  assert.match(dashboard, /Front Desk test is still loading\. Try the starter again in a moment\./);
-  assert.match(dashboard, /if \(!previewFrame\.getAttribute\("src"\)\)/);
+  assert.match(dashboard, /Practice mode — visitors will not see this conversation\./);
+  assert.match(dashboard, /front-desk\/practice-message/);
+  assert.doesNotMatch(dashboard, /previewFrame\.src = buildWidgetUrl/);
 });
 
 test("test:supabase cleans up the live row it writes", () => {

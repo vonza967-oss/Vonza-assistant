@@ -481,6 +481,113 @@ test("product help route returns an explicit temporary fallback when OpenAI is u
   }
 });
 
+test("front desk practice message requires an authenticated owner", async () => {
+  const authError = new Error("Authentication required");
+  authError.statusCode = 401;
+  const server = await startServer(createApp(buildRouteDeps({
+    getAuthenticatedUser: async () => {
+      throw authError;
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/api/agents/agent-1/front-desk/practice-message", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "How much does a website cost?",
+      }),
+    });
+
+    assert.equal(response.status, 401);
+  } finally {
+    await server.close();
+  }
+});
+
+test("front desk practice message verifies ownership and includes selected drafts only in practice", async () => {
+  let accessPayload = null;
+  let draftPayload = null;
+  let chatBody = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    getOpenAIClient: () => ({}),
+    requireActiveAgentAccess: async (_supabase, payload) => {
+      accessPayload = payload;
+      return { id: payload.agentId, ownerUserId: payload.ownerUserId };
+    },
+    selectRelevantPracticeAnswers: async (_supabase, payload) => {
+      draftPayload = payload;
+      return [];
+    },
+    handleChatRequest: async ({ body }, chatDeps) => {
+      chatBody = body;
+      await chatDeps.selectRelevantApprovedAnswers({}, {
+        agentId: body.agent_id,
+        ownerUserId: "owner-1",
+        queryText: body.message,
+      });
+      return chatDeps.buildChatResponse({
+        reply: "Practice reply.",
+        agent: { id: body.agent_id, publicAgentKey: "public-key" },
+        businessId: "business-1",
+        widgetConfig: {},
+        leadCapture: null,
+        directRouting: null,
+      });
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/api/agents/agent-1/front-desk/practice-message", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: "client-1",
+        message: "How much does a website cost?",
+        includeDraftTrainingIds: ["draft-1"],
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.reply, "Practice reply.");
+    assert.deepEqual(accessPayload, {
+      agentId: "agent-1",
+      ownerUserId: "owner-1",
+      clientId: "client-1",
+    });
+    assert.equal(chatBody.agent_id, "agent-1");
+    assert.equal(chatBody.display_mode, "page");
+    assert.match(chatBody.visitor_session_key, /^internal-practice:agent-1:/);
+    assert.deepEqual(draftPayload.includeDraftTrainingIds, ["draft-1"]);
+    assert.deepEqual(response.json.metadata.includedDraftTrainingIds, ["draft-1"]);
+    assert.equal(response.json.metadata.internalPractice, true);
+  } finally {
+    await server.close();
+  }
+});
+
+test("front desk practice message rejects an agent the owner cannot access", async () => {
+  const accessError = new Error("Agent access denied");
+  accessError.statusCode = 403;
+  const server = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async () => {
+      throw accessError;
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/api/agents/other-agent/front-desk/practice-message", {
+      method: "POST",
+      body: JSON.stringify({
+        message: "Can I book?",
+      }),
+    });
+
+    assert.equal(response.status, 403);
+  } finally {
+    await server.close();
+  }
+});
+
 test("business profile routes stay owner-scoped and return hydrated context", async () => {
   const server = await startServer(createApp(buildRouteDeps()));
 

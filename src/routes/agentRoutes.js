@@ -14,7 +14,6 @@ import {
   listAllAgents,
   listAgents,
   requireActiveAgentAccess,
-  requireAgentAccess,
   requirePreClaimAgentAccess,
   resolveAgentContext,
   updateAgentAccessStatus,
@@ -143,6 +142,7 @@ import { handleChatRequest } from "../services/chat/chatService.js";
 import {
   listFrontDeskTrainingItems,
   saveFrontDeskTrainingItem,
+  selectRelevantPracticeAnswers,
   updateFrontDeskTrainingItemStatus,
 } from "../services/training/frontDeskTrainingService.js";
 import {
@@ -217,7 +217,6 @@ export function createAgentRouter(deps = {}) {
   const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
   const listAgentsImpl = deps.listAgents || listAgents;
   const createAgentForBusinessNameImpl = deps.createAgentForBusinessName || createAgentForBusinessName;
-  const requireAgentAccessImpl = deps.requireAgentAccess || requireAgentAccess;
   const requirePreClaimAgentAccessImpl = deps.requirePreClaimAgentAccess || deps.requireAgentAccess || requirePreClaimAgentAccess;
   const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
   const assertMessagesSchemaReadyImpl = deps.assertMessagesSchemaReady || assertMessagesSchemaReady;
@@ -276,6 +275,8 @@ export function createAgentRouter(deps = {}) {
     deps.listFrontDeskTrainingItems || listFrontDeskTrainingItems;
   const saveFrontDeskTrainingItemImpl =
     deps.saveFrontDeskTrainingItem || saveFrontDeskTrainingItem;
+  const selectRelevantPracticeAnswersImpl =
+    deps.selectRelevantPracticeAnswers || selectRelevantPracticeAnswers;
   const updateFrontDeskTrainingItemStatusImpl =
     deps.updateFrontDeskTrainingItemStatus || updateFrontDeskTrainingItemStatus;
   const handleChatRequestImpl = deps.handleChatRequest || handleChatRequest;
@@ -1138,6 +1139,70 @@ export function createAgentRouter(deps = {}) {
       });
 
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/api/agents/:agentId/front-desk/practice-message", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId || req.body.agent_id || req.body.agentId;
+      const includeDraftTrainingIds = Array.isArray(req.body.includeDraftTrainingIds)
+        ? req.body.includeDraftTrainingIds
+        : Array.isArray(req.body.include_draft_training_ids)
+          ? req.body.include_draft_training_ids
+          : [];
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await handleChatRequestImpl({
+        supabase,
+        openai: getOpenAI(),
+        body: {
+          agent_id: agentId,
+          message: req.body.message,
+          history: req.body.history,
+          visitor_session_key: `internal-practice:${agentId}:${Date.now()}`,
+          display_mode: "page",
+        },
+      }, {
+        processLiveChatLeadCapture: async () => null,
+        listRecentWidgetEvents: async () => [],
+        recordEstimatedUsage: async () => null,
+        selectRelevantApprovedAnswers: (trainingSupabase, options = {}) => selectRelevantPracticeAnswersImpl(trainingSupabase, {
+          ...options,
+          includeDraftTrainingIds,
+        }),
+        buildChatResponse: async ({ reply, agent, businessId, widgetConfig, leadCapture, directRouting }) => ({
+          reply,
+          agentId: agent.id,
+          agentKey: agent.publicAgentKey,
+          businessId,
+          widgetConfig,
+          leadCapture,
+          directRouting,
+          internalPractice: true,
+        }),
+      });
+
+      res.json({
+        ok: true,
+        reply: result.reply,
+        metadata: {
+          internalPractice: true,
+          includedDraftTrainingIds: includeDraftTrainingIds.map((id) => cleanText(id)).filter(Boolean),
+          displayMode: "page",
+        },
+      });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({

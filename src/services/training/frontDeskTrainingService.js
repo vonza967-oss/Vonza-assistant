@@ -310,6 +310,73 @@ export async function selectRelevantApprovedAnswers(supabase, {
     .slice(0, Math.max(1, Math.min(Number(limit) || 5, 5)));
 }
 
+function normalizeTrainingIdList(value) {
+  const rawIds = Array.isArray(value)
+    ? value
+    : cleanText(value).split(/,|\n/);
+
+  return [...new Set(rawIds.map((id) => cleanText(id)).filter(Boolean))].slice(0, 12);
+}
+
+export async function selectRelevantPracticeAnswers(supabase, {
+  agentId,
+  ownerUserId,
+  queryText,
+  limit = 5,
+  includeDraftTrainingIds = [],
+} = {}) {
+  const draftIds = normalizeTrainingIdList(includeDraftTrainingIds);
+  const activeResult = await listFrontDeskTrainingItems(supabase, {
+    agentId,
+    ownerUserId,
+    type: "approved_answer",
+    status: "active",
+  });
+
+  if (activeResult.persistenceAvailable === false) {
+    return [];
+  }
+
+  let draftItems = [];
+  if (draftIds.length) {
+    const draftResult = await listFrontDeskTrainingItems(supabase, {
+      agentId,
+      ownerUserId,
+      type: "approved_answer",
+      status: "draft",
+    });
+
+    if (draftResult.persistenceAvailable !== false) {
+      const draftIdSet = new Set(draftIds);
+      draftItems = draftResult.items.filter((item) => draftIdSet.has(cleanText(item.id)));
+    }
+  }
+
+  const selectedDraftIds = new Set(draftItems.map((item) => cleanText(item.id)));
+  const itemsById = new Map();
+  [...activeResult.items, ...draftItems].forEach((item) => {
+    const itemId = cleanText(item.id);
+    if (itemId) {
+      itemsById.set(itemId, item);
+    }
+  });
+
+  return [...itemsById.values()]
+    .map((item) => ({
+      ...item,
+      score: scoreApprovedAnswer(item, queryText),
+      selectedDraft: selectedDraftIds.has(cleanText(item.id)),
+    }))
+    .filter((item) => item.selectedDraft || item.score > 0)
+    .sort((left, right) => {
+      if (left.selectedDraft !== right.selectedDraft) {
+        return left.selectedDraft ? -1 : 1;
+      }
+      return right.score - left.score;
+    })
+    .slice(0, Math.max(1, Math.min(Number(limit) || 5, 8)));
+}
+
 export function buildApprovedAnswersPrompt(approvedAnswers = []) {
   const items = approvedAnswers
     .map((item, index) => ({
