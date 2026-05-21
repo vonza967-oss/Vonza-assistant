@@ -3233,10 +3233,14 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /function buildSectionAssistantIframe/);
   assert.match(dashboard, /assistant-embed\.js/);
   assert.match(dashboard, /data-vonza-assistant/);
+  assert.match(dashboard, /data-background-scope="\$\{backgroundScope\}"/);
+  assert.match(dashboard, /normalizeFullPageBackgroundScope/);
   assert.match(dashboard, /Recommended smart snippet/);
   assert.match(dashboard, /Recommended full-page embed/);
   assert.match(dashboard, /Advanced iframe snippet/);
   assert.match(dashboard, /Advanced iframe fallback/);
+  assert.match(dashboard, /Recommended\. The selected background fills the assistant section automatically\./);
+  assert.match(dashboard, /Raw iframe fallback applies backgrounds inside the iframe only\. Use smart embed for full-width section backgrounds\./);
   assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
   assert.match(dashboard, /Use this on a dedicated assistant page\. The embed includes the Front Desk heading\./);
   assert.match(dashboard, /Paste this into a blank\/dedicated page area\. The assistant includes its own heading\./);
@@ -3272,9 +3276,13 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(styles, /embedded-mode \.assistant-state[\s\S]*min-height: 220px/);
   assert.match(styles, /embedded-surface-flat[\s\S]*box-shadow: none/);
   assert.match(styles, /embedded-surface-transparent[\s\S]*background: transparent/);
+  assert.match(styles, /embedded-background-scope-section[\s\S]*background: transparent !important/);
   assert.match(script, /vonza:embedded-height/);
   assert.match(script, /isFullEmbeddedPageMode/);
   assert.match(script, /isSmartEmbeddedPageMode/);
+  assert.match(script, /normalizeEmbeddedBackgroundScope/);
+  assert.match(script, /FULL_PAGE_BACKGROUND_SCOPES/);
+  assert.match(script, /embedded-background-scope-\$\{/);
   assert.match(script, /\["card", "flat", "transparent"\]/);
   assert.match(dashboard, /Customize full-page assistant/);
   assert.match(dashboard, /data-settings-target="front_desk"/);

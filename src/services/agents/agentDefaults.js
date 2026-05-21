@@ -137,6 +137,7 @@ export const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
 export const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
 export const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
 export const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
+export const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe"]);
 
 export const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
@@ -155,6 +156,7 @@ export const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   composerStyle: "soft",
   chipStyle: "outline",
   statusStyle: "subtle",
+  backgroundScope: "section",
   disableVideoOnMobile: true,
 });
 

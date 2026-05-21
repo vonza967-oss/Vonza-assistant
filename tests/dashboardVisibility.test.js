@@ -503,6 +503,9 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /Clean Light Abstract/);
   assert.match(harness.getRootHtml(), /Dark Gold Abstract/);
   assert.match(harness.getRootHtml(), /name="full_page_background_source"/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_scope"/);
+  assert.match(harness.getRootHtml(), /Assistant section \(recommended\)/);
+  assert.match(harness.getRootHtml(), /Iframe only/);
   assert.match(harness.getRootHtml(), /name="full_page_background_preset"/);
   assert.match(harness.getRootHtml(), /name="full_page_background_image_file"/);
   assert.match(harness.getRootHtml(), /name="full_page_background_video_file"/);

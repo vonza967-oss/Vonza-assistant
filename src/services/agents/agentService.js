@@ -24,6 +24,7 @@ import {
   DEFAULT_WIDGET_CONFIG,
   FULL_PAGE_ACTION_CARD_TYPES,
   FULL_PAGE_BACKGROUND_PRESETS,
+  FULL_PAGE_BACKGROUND_SCOPES,
   FULL_PAGE_BACKGROUND_SOURCES,
   FULL_PAGE_BACKGROUND_FOCAL_POINTS,
   FULL_PAGE_BACKGROUND_TYPES,
@@ -653,6 +654,11 @@ export function normalizeFullPageDesignConfig(input = {}) {
       FULL_PAGE_STATUS_STYLES,
       presetDefaults.statusStyle
     ),
+    backgroundScope: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "backgroundScope", "background_scope"),
+      FULL_PAGE_BACKGROUND_SCOPES,
+      DEFAULT_FULL_PAGE_DESIGN.backgroundScope
+    ),
     disableVideoOnMobile: normalizeConfigBoolean(
       readConfigField(rawDesign, "disableVideoOnMobile", "disable_video_on_mobile"),
       presetDefaults.disableVideoOnMobile
@@ -822,6 +828,7 @@ function serializeFullPageConfig(config = {}) {
       composer_style: normalized.design.composerStyle,
       chip_style: normalized.design.chipStyle,
       status_style: normalized.design.statusStyle,
+      background_scope: normalized.design.backgroundScope,
       disable_video_on_mobile: normalized.design.disableVideoOnMobile,
     },
   };

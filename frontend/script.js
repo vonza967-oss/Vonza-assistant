@@ -8,6 +8,7 @@ const EMBEDDED_SURFACE = normalizeEmbeddedSurface(searchParams.get("surface"));
 const EMBEDDED_SIZE = normalizeEmbeddedSize(searchParams.get("size"));
 const EMBEDDED_LAYOUT = normalizeEmbeddedLayout(searchParams.get("layout"));
 const EMBEDDED_VARIANT = normalizeEmbeddedVariant(searchParams.get("variant"));
+const EMBEDDED_BACKGROUND_SCOPE = normalizeEmbeddedBackgroundScope(searchParams.get("background_scope"));
 const SHOW_EMBED_TITLE = normalizeShowEmbedTitle(searchParams.get("show_title"));
 const STORED_AGENT_KEY = window.localStorage.getItem("vonza_agent_key") || "";
 const INSTALL_ID =
@@ -101,6 +102,7 @@ const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
 const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
 const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
 const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
+const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe"]);
 const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
   backgroundType: "color",
@@ -118,6 +120,7 @@ const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   composerStyle: "soft",
   chipStyle: "outline",
   statusStyle: "subtle",
+  backgroundScope: "section",
   disableVideoOnMobile: true,
 });
 
@@ -248,6 +251,11 @@ function normalizeEmbeddedVariant(value) {
   return trimText(value).toLowerCase() === "smart" ? "smart" : "iframe";
 }
 
+function normalizeEmbeddedBackgroundScope(value) {
+  const normalized = trimText(value).toLowerCase();
+  return ["section", "iframe"].includes(normalized) ? normalized : "iframe";
+}
+
 function normalizeShowEmbedTitle(value) {
   const normalized = trimText(value).toLowerCase();
   return !["0", "false", "no", "off"].includes(normalized);
@@ -281,6 +289,10 @@ function isSmartEmbeddedPageMode() {
 
 function isCanvasEmbeddedPageMode() {
   return isFullEmbeddedPageMode() && EMBEDDED_LAYOUT === "canvas";
+}
+
+function isSectionBackgroundScope() {
+  return isCanvasEmbeddedPageMode() && EMBEDDED_BACKGROUND_SCOPE === "section";
 }
 
 function isMobileViewport() {
@@ -774,6 +786,7 @@ function normalizeFullPageDesignConfig(rawDesign = {}) {
     composerStyle: normalizeFullPageDesignEnum(design.composerStyle || design.composer_style, FULL_PAGE_COMPOSER_STYLES, presetDefaults.composerStyle),
     chipStyle: normalizeFullPageDesignEnum(design.chipStyle || design.chip_style, FULL_PAGE_CHIP_STYLES, presetDefaults.chipStyle),
     statusStyle: normalizeFullPageDesignEnum(design.statusStyle || design.status_style, FULL_PAGE_STATUS_STYLES, presetDefaults.statusStyle),
+    backgroundScope: normalizeFullPageDesignEnum(design.backgroundScope || design.background_scope, FULL_PAGE_BACKGROUND_SCOPES, DEFAULT_FULL_PAGE_DESIGN.backgroundScope),
     disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
   };
 }
@@ -1233,6 +1246,9 @@ function applyDisplayModeClasses() {
   document.documentElement.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
   document.documentElement.classList.toggle("vonza-canvas-title-hidden", isCanvasEmbeddedPageMode() && !SHOW_EMBED_TITLE);
   document.documentElement.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
+  FULL_PAGE_BACKGROUND_SCOPES.forEach((scope) => {
+    document.documentElement.classList.toggle(`embedded-background-scope-${scope}`, isCanvasEmbeddedPageMode() && EMBEDDED_BACKGROUND_SCOPE === scope);
+  });
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.documentElement.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
@@ -1247,6 +1263,9 @@ function applyDisplayModeClasses() {
   document.body?.classList.toggle("vonza-page-layout-canvas", isCanvasEmbeddedPageMode());
   document.body?.classList.toggle("vonza-canvas-title-hidden", isCanvasEmbeddedPageMode() && !SHOW_EMBED_TITLE);
   document.body?.classList.toggle("embedded-smart", isSmartEmbeddedPageMode());
+  FULL_PAGE_BACKGROUND_SCOPES.forEach((scope) => {
+    document.body?.classList.toggle(`embedded-background-scope-${scope}`, isCanvasEmbeddedPageMode() && EMBEDDED_BACKGROUND_SCOPE === scope);
+  });
   ["compact", "standard", "tall", "full"].forEach((size) => {
     document.body?.classList.toggle(`embedded-size-${size}`, EMBEDDED_MODE && EMBEDDED_SIZE === size);
   });
@@ -2353,6 +2372,7 @@ function syncFullPageDesignVideo(design) {
   let video = document.getElementById("full-page-design-video-bg");
   const shouldShowVideo =
     isCanvasEmbeddedPageMode()
+    && !isSectionBackgroundScope()
     && design.backgroundType === "video"
     && design.backgroundVideoUrl;
 
@@ -3127,6 +3147,7 @@ if (EMBEDDED_MODE) {
   if (isCanvasEmbeddedPageMode()) {
     document.body.classList.add("vonza-page-layout-canvas");
     document.body.classList.add("vonza-canvas-empty");
+    document.body.classList.add(`embedded-background-scope-${EMBEDDED_BACKGROUND_SCOPE}`);
   }
   if (EMBEDDED_VARIANT === "smart") {
     document.body.classList.add("embedded-smart");

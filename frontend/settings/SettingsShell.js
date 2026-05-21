@@ -204,6 +204,10 @@
     { value: "pill", label: "Pill" },
     { value: "minimal", label: "Minimal" },
   ]);
+  const FULL_PAGE_BACKGROUND_SCOPE_OPTIONS = Object.freeze([
+    { value: "section", label: "Assistant section (recommended)" },
+    { value: "iframe", label: "Iframe only" },
+  ]);
   const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
     preset: "clean-light",
     backgroundType: "color",
@@ -221,6 +225,7 @@
     composerStyle: "soft",
     chipStyle: "outline",
     statusStyle: "subtle",
+    backgroundScope: "section",
     disableVideoOnMobile: true,
   });
 
@@ -381,6 +386,7 @@
       composerStyle: normalizeDesignEnum(design.composerStyle || design.composer_style, ["soft", "elevated", "minimal"], presetDefaults.composerStyle),
       chipStyle: normalizeDesignEnum(design.chipStyle || design.chip_style, ["outline", "soft", "subtle-fill"], presetDefaults.chipStyle),
       statusStyle: normalizeDesignEnum(design.statusStyle || design.status_style, ["subtle", "pill", "minimal"], presetDefaults.statusStyle),
+      backgroundScope: normalizeDesignEnum(design.backgroundScope || design.background_scope, ["section", "iframe"], DEFAULT_FULL_PAGE_DESIGN.backgroundScope),
       disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
     };
   }
@@ -1173,6 +1179,13 @@
                         ${FULL_PAGE_BACKGROUND_TYPE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.backgroundType === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
                       </select>
                     </div>
+                  </div>
+                  <div class="field">
+                    <label for="full-page-background-scope">Background coverage</label>
+                    <select id="full-page-background-scope" name="full_page_background_scope">
+                      ${FULL_PAGE_BACKGROUND_SCOPE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.backgroundScope === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                    </select>
+                    <p class="field-help">Assistant section is recommended for the smart full-page embed. Iframe only keeps the background inside the iframe.</p>
                   </div>
                   <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="color gradient image video">
                     <div class="field">

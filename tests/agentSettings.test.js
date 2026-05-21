@@ -332,6 +332,7 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
         composer_style: "elevated",
         chip_style: "subtle-fill",
         status_style: "pill",
+        background_scope: "iframe",
         disable_video_on_mobile: false,
       },
     },
@@ -353,16 +354,19 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
   assert.equal(result.fullPageConfig.design.backgroundOverlayColor, "#000000");
   assert.equal(result.fullPageConfig.design.backgroundOverlayOpacity, 0.92);
   assert.equal(result.fullPageConfig.design.backgroundBlur, 18);
+  assert.equal(result.fullPageConfig.design.backgroundScope, "iframe");
   assert.equal(result.fullPageConfig.design.disableVideoOnMobile, false);
   assert.equal(state.widget_configs[0].full_page_config.headline.length, 80);
   assert.equal(state.widget_configs[0].full_page_config.accent_color, null);
   assert.equal(state.widget_configs[0].full_page_config.show_booking, false);
   assert.equal(state.widget_configs[0].full_page_config.design.background_video_url, "https://cdn.example.com/frontdesk.webm");
+  assert.equal(state.widget_configs[0].full_page_config.design.background_scope, "iframe");
 });
 
 test("full-page design defaults and presets resolve safely", () => {
   const defaultDesign = normalizeFullPageDesignConfig();
   assert.equal(defaultDesign.preset, "clean-light");
+  assert.equal(defaultDesign.backgroundScope, "section");
   assert.equal(defaultDesign.backgroundType, "color");
   assert.equal(defaultDesign.textTheme, "dark");
   assert.equal(defaultDesign.composerStyle, "soft");
@@ -788,6 +792,7 @@ test("normalizeFullPageDesignConfig falls back safely for invalid background des
     background_video_url: "https://example.com/video.svg",
     background_overlay_opacity: 7,
     background_blur: 100,
+    background_scope: "page",
     text_theme: "neon",
   });
 
@@ -800,6 +805,7 @@ test("normalizeFullPageDesignConfig falls back safely for invalid background des
   assert.equal(design.backgroundVideoUrl, null);
   assert.equal(design.backgroundOverlayOpacity, 0.92);
   assert.equal(design.backgroundBlur, 18);
+  assert.equal(design.backgroundScope, "section");
   assert.equal(design.textTheme, "dark");
 });
 

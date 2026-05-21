@@ -2775,6 +2775,11 @@ function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", option
   return url.toString();
 }
 
+function normalizeFullPageBackgroundScope(value) {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  return ["section", "iframe"].includes(normalized) ? normalized : "section";
+}
+
 function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) {
   const agentId = trimText(agent.id);
 
@@ -2783,8 +2788,14 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   }
 
   const normalizedLayout = trimText(layout).toLowerCase() === "full-page" ? "full-page" : "section";
+  const backgroundScope = normalizedLayout === "full-page"
+    ? normalizeFullPageBackgroundScope(agent?.fullPageConfig?.design?.backgroundScope || agent?.full_page_config?.design?.background_scope)
+    : "";
   const surfaceLine = normalizedLayout === "full-page"
     ? '\n  data-surface="flat"'
+    : "";
+  const backgroundScopeLine = normalizedLayout === "full-page"
+    ? `\n  data-background-scope="${backgroundScope}"`
     : "";
   const showTitleLine = normalizedLayout === "full-page" && options.showTitle === false
     ? '\n  data-show-title="false"'
@@ -2793,7 +2804,7 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
   return `<div
   data-vonza-assistant
   data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}${showTitleLine}
+  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${showTitleLine}
 ></div>
 <script async src="${getPublicAppUrl()}/assistant-embed.js"><\/script>`;
 }
@@ -15487,7 +15498,8 @@ function buildInstallSection(agent, options = {}) {
             disabled: !fullPageSmartEmbed,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help"><strong>Advanced iframe fallback:</strong> Use this if your website builder does not allow scripts.</p>
+          <p class="install-help">Recommended. The selected background fills the assistant section automatically.</p>
+          <p class="install-help"><strong>Advanced iframe fallback:</strong> Raw iframe fallback applies backgrounds inside the iframe only. Use smart embed for full-width section backgrounds.</p>
           <p class="install-help">If your website page already has its own heading, use the "Hide embed title" option.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
@@ -16666,6 +16678,7 @@ function parseFullPageDesignPayload(formData) {
     composer_style: normalizeFullPageDesignChoice(formData.get("full_page_composer_style"), ["soft", "elevated", "minimal"], "soft"),
     chip_style: normalizeFullPageDesignChoice(formData.get("full_page_chip_style"), ["outline", "soft", "subtle-fill"], "outline"),
     status_style: normalizeFullPageDesignChoice(formData.get("full_page_status_style"), ["subtle", "pill", "minimal"], "subtle"),
+    background_scope: normalizeFullPageDesignChoice(formData.get("full_page_background_scope"), ["section", "iframe"], "section"),
     disable_video_on_mobile: formData.has("full_page_disable_video_on_mobile"),
   };
 }

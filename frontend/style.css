@@ -2619,6 +2619,21 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ap
   z-index: 1;
 }
 
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section body,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section {
+  background: transparent !important;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::before,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::before,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::after,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::after,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .full-page-design-video-bg,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .full-page-design-video-bg {
+  display: none;
+}
+
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-assistant-hero:not([hidden]),
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-assistant-hero:not([hidden]) {
   width: min(100%, var(--full-page-shell-max-width));

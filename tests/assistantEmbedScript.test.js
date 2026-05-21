@@ -18,6 +18,7 @@ class FakeElement {
     this.textContent = "";
     this.title = "";
     this.loading = "";
+    this.hidden = false;
     this.allowTransparency = false;
     this.contentWindow = {};
     this.rectTop = 0;
@@ -33,6 +34,10 @@ class FakeElement {
 
   getAttribute(name) {
     return this.attributes.has(name) ? this.attributes.get(name) : null;
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
   }
 
   appendChild(child) {
@@ -80,6 +85,7 @@ function createHarness(rootAttributes, options = {}) {
     },
     innerHeight: options.innerHeight || 900,
     visualViewport: options.visualViewport || null,
+    matchMedia: options.matchMedia || (() => ({ matches: false })),
     addEventListener(name, callback) {
       listeners.set(name, callback);
     },
@@ -95,6 +101,19 @@ function createHarness(rootAttributes, options = {}) {
     },
     clearTimeout() {},
   };
+
+  if (options.bootstrapPayload) {
+    window.fetch = async (url) => {
+      window.lastFetchUrl = url;
+      return {
+        ok: true,
+        async json() {
+          return options.bootstrapPayload;
+        },
+      };
+    };
+  }
+
   const context = {
     window,
     document,
@@ -108,10 +127,18 @@ function createHarness(rootAttributes, options = {}) {
 
   return {
     root,
-    iframe: root.children[0],
+    iframe: root.children.find((child) => child.tagName === "IFRAME"),
     listeners,
     window,
   };
+}
+
+async function settle() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 test("/assistant-embed.js smart script creates section iframe URL with standard size", () => {
@@ -129,6 +156,7 @@ test("/assistant-embed.js smart script creates section iframe URL with standard 
   assert.equal(url.searchParams.get("variant"), "smart");
   assert.equal(url.searchParams.get("size"), "standard");
   assert.equal(url.searchParams.get("surface"), null);
+  assert.equal(url.searchParams.get("background_scope"), null);
   assert.equal(harness.iframe.style.width, "100%");
   assert.equal(harness.iframe.style.minHeight, "640px");
   assert.equal(harness.iframe.style.height, "640px");
@@ -149,10 +177,157 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(url.searchParams.get("size"), "full");
   assert.equal(url.searchParams.get("surface"), "flat");
   assert.equal(url.searchParams.get("layout"), "canvas");
+  assert.equal(url.searchParams.get("background_scope"), "section");
+  assert.equal(harness.root.style.width, "100vw");
+  assert.equal(harness.root.style.maxWidth, "none");
+  assert.equal(harness.root.style.marginLeft, "calc(50% - 50vw)");
+  assert.equal(harness.root.style.position, "relative");
+  assert.equal(harness.root.style.overflow, "hidden");
   assert.equal(harness.iframe.style.width, "100%");
+  assert.equal(harness.iframe.style.background, "transparent");
   assert.equal(harness.iframe.style.minHeight, "760px");
   assert.equal(harness.iframe.style.height, "900px");
   assert.equal(harness.iframe.style.borderRadius, "0");
+  assert.equal(harness.iframe.allowTransparency, true);
+});
+
+test("/assistant-embed.js applies full-page section color background from public bootstrap", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "color",
+            background_color: "#123456",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  assert.match(harness.window.lastFetchUrl, /\/widget\/bootstrap\?/);
+  assert.equal(harness.root.style.backgroundColor, "#123456");
+  assert.equal(harness.root.children.some((child) => child.getAttribute("data-vonza-assistant-background-overlay") !== null), false);
+});
+
+test("/assistant-embed.js applies full-page section gradient background and nonblocking overlay", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "gradient",
+            background_color: "#111827",
+            background_gradient_to: "#2563eb",
+            background_overlay_color: "#020617",
+            background_overlay_opacity: 0.4,
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const overlay = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-background-overlay") !== null);
+  assert.match(harness.root.style.background, /linear-gradient\(135deg, #111827, #2563eb\)/);
+  assert.equal(overlay.style.pointerEvents, "none");
+  assert.equal(overlay.style.opacity, "0.4");
+  assert.equal(harness.iframe.style.zIndex, "2");
+});
+
+test("/assistant-embed.js applies full-page section image background", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        fullPageConfig: {
+          design: {
+            backgroundType: "image",
+            backgroundColor: "#111827",
+            backgroundImageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+            backgroundFocalPoint: "left",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  assert.match(harness.root.style.backgroundImage, /https:\/\/vonza-assistant\.onrender\.com\/assets\/front-desk\/backgrounds\/abstract-dark-gold\.png/);
+  assert.equal(harness.root.style.backgroundSize, "cover");
+  assert.equal(harness.root.style.backgroundPosition, "left");
+  assert.equal(harness.root.style.backgroundRepeat, "no-repeat");
+});
+
+test("/assistant-embed.js applies full-page section video background behind iframe", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "video",
+            background_color: "#111827",
+            background_image_url: "https://cdn.example.com/fallback.webp",
+            background_video_url: "https://cdn.example.com/hero.webm",
+            background_overlay_color: "#020617",
+            background_overlay_opacity: 0.5,
+            background_focal_point: "top",
+            disable_video_on_mobile: false,
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const video = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-background-video") !== null);
+  assert.equal(video.getAttribute("src"), "https://cdn.example.com/hero.webm");
+  assert.equal(video.muted, true);
+  assert.equal(video.loop, true);
+  assert.equal(video.autoplay, true);
+  assert.equal(video.playsInline, true);
+  assert.equal(video.style.pointerEvents, "none");
+  assert.equal(video.style.objectFit, "cover");
+  assert.equal(video.style.objectPosition, "top");
+  assert.equal(video.style.zIndex, "0");
+});
+
+test("/assistant-embed.js keeps iframe-only background scope inside the iframe", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+    "data-background-scope": "iframe",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "image",
+            background_image_url: "https://cdn.example.com/bg.webp",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+  const url = new URL(harness.iframe.src);
+
+  assert.equal(url.searchParams.get("background_scope"), "iframe");
+  assert.equal(harness.root.style.backgroundImage || "", "");
+  assert.equal(harness.window.lastFetchUrl, undefined);
+  assert.equal(harness.iframe.style.background, "#ffffff");
 });
 
 test("/assistant-embed.js forwards data-show-title false for full-page canvas", () => {
