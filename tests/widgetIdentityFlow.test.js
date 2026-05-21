@@ -2682,6 +2682,97 @@ test("canvas full embedded page mode send color uses configured accent and dark 
   assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--brand-primary"), "#7c4dff");
 });
 
+test("canvas full embedded page mode applies full-page design settings", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+    },
+    customFetch: async () => ({
+      ok: true,
+      async json() {
+        return {
+          agent: { id: "agent-1" },
+          business: { id: "business-1", name: "Acme Studio" },
+          widgetConfig: {
+            assistantName: "Acme Assistant",
+            primaryColor: "#0f8f83",
+            full_page_config: {
+              headline: "Ask Acme",
+              suggested_questions: ["What services do you offer?"],
+              design: {
+                preset: "image-hero",
+                background_type: "image",
+                background_color: "#111827",
+                background_image_url: "https://cdn.example.com/lobby.webp",
+                background_overlay_color: "#000000",
+                background_overlay_opacity: 0.52,
+                background_blur: 4,
+                background_focal_point: "left",
+                text_theme: "light",
+                composer_style: "elevated",
+                chip_style: "subtle-fill",
+                status_style: "pill",
+              },
+            },
+          },
+        };
+      },
+    }),
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.documentElement.classList.contains("full-page-design-bg-image"), true);
+  assert.equal(harness.documentElement.classList.contains("full-page-design-text-light"), true);
+  assert.equal(harness.documentElement.classList.contains("full-page-design-composer-elevated"), true);
+  assert.equal(harness.documentElement.classList.contains("full-page-design-chip-subtle-fill"), true);
+  assert.equal(harness.documentElement.classList.contains("full-page-design-status-pill"), true);
+  assert.equal(harness.documentElement.style.getPropertyValue("--canvas-design-bg"), "#111827");
+  assert.equal(harness.documentElement.style.getPropertyValue("--canvas-design-overlay"), "#000000");
+  assert.equal(harness.documentElement.style.getPropertyValue("--canvas-design-overlay-opacity"), "0.52");
+  assert.equal(harness.documentElement.style.getPropertyValue("--canvas-design-blur"), "4px");
+  assert.equal(harness.documentElement.style.getPropertyValue("--canvas-design-position"), "left");
+  assert.match(harness.documentElement.style.getPropertyValue("--canvas-design-image"), /lobby\.webp/);
+});
+
+test("canvas full embedded page mode supports video design with mobile disable", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+    },
+    customFetch: async () => ({
+      ok: true,
+      async json() {
+        return {
+          agent: { id: "agent-1" },
+          business: { id: "business-1", name: "Acme Studio" },
+          widgetConfig: {
+            assistantName: "Acme Assistant",
+            full_page_config: {
+              design: {
+                preset: "video-hero",
+                background_type: "video",
+                background_video_url: "https://cdn.example.com/frontdesk.mp4",
+                disable_video_on_mobile: true,
+              },
+            },
+          },
+        };
+      },
+    }),
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.documentElement.classList.contains("full-page-design-bg-video"), true);
+  assert.equal(harness.documentElement.classList.contains("full-page-design-disable-mobile-video"), true);
+  assert.equal(harness.elements.get("full-page-design-video-bg").src, "https://cdn.example.com/frontdesk.mp4");
+});
+
 test("canvas full embedded page mode keeps empty state clean and renders messages after send", async () => {
   const harness = createWidgetHarness({
     location: {

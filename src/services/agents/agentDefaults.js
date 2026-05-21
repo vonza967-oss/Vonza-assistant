@@ -83,6 +83,52 @@ export const DEFAULT_FULL_PAGE_TRUST_ITEMS = Object.freeze([
   "Leave your details if needed",
 ]);
 
+export const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
+  "clean-light",
+  "dark-professional",
+  "warm-minimal",
+  "bold-gradient",
+  "image-hero",
+  "video-hero",
+]);
+
+export const FULL_PAGE_BACKGROUND_TYPES = Object.freeze([
+  "color",
+  "gradient",
+  "image",
+  "video",
+]);
+
+export const FULL_PAGE_BACKGROUND_FOCAL_POINTS = Object.freeze([
+  "center",
+  "top",
+  "left",
+  "right",
+]);
+
+export const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
+export const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
+export const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
+export const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
+
+export const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
+  preset: "clean-light",
+  backgroundType: "color",
+  backgroundColor: "#ffffff",
+  backgroundGradientTo: "#eef4ff",
+  backgroundImageUrl: null,
+  backgroundVideoUrl: null,
+  backgroundOverlayColor: "#ffffff",
+  backgroundOverlayOpacity: 0.72,
+  backgroundBlur: 0,
+  backgroundFocalPoint: "center",
+  textTheme: "dark",
+  composerStyle: "soft",
+  chipStyle: "outline",
+  statusStyle: "subtle",
+  disableVideoOnMobile: true,
+});
+
 export const DEFAULT_FULL_PAGE_CONFIG = Object.freeze({
   headline: null,
   subtitle: null,
@@ -94,4 +140,5 @@ export const DEFAULT_FULL_PAGE_CONFIG = Object.freeze({
   showQuote: true,
   showContact: true,
   trustItems: DEFAULT_FULL_PAGE_TRUST_ITEMS,
+  design: DEFAULT_FULL_PAGE_DESIGN,
 });

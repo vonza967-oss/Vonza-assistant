@@ -16,12 +16,20 @@ import {
   DEFAULT_FULL_PAGE_ACTION_CARDS,
   DEFAULT_FULL_PAGE_BOOKING_ACTION_CARD,
   DEFAULT_FULL_PAGE_CONFIG,
+  DEFAULT_FULL_PAGE_DESIGN,
   DEFAULT_FULL_PAGE_TRUST_ITEMS,
   DEFAULT_LANGUAGE,
   DEFAULT_PURPOSE,
   DEFAULT_TONE,
   DEFAULT_WIDGET_CONFIG,
   FULL_PAGE_ACTION_CARD_TYPES,
+  FULL_PAGE_BACKGROUND_FOCAL_POINTS,
+  FULL_PAGE_BACKGROUND_TYPES,
+  FULL_PAGE_CHIP_STYLES,
+  FULL_PAGE_COMPOSER_STYLES,
+  FULL_PAGE_DESIGN_PRESETS,
+  FULL_PAGE_STATUS_STYLES,
+  FULL_PAGE_TEXT_THEMES,
 } from "./agentDefaults.js";
 import { normalizeWidgetPurpose } from "./widgetPurpose.js";
 import { isTempInstantWorkspaceAccessEnabled } from "../../config/env.js";
@@ -302,6 +310,27 @@ function normalizeOptionalImageSource(value) {
   return normalizedUrl || "";
 }
 
+function normalizeOptionalDesignMediaUrl(value, allowedExtensions = []) {
+  const normalizedUrl = normalizeOptionalUrl(value);
+
+  if (!normalizedUrl) {
+    return "";
+  }
+
+  if (!allowedExtensions.length) {
+    return normalizedUrl;
+  }
+
+  try {
+    const pathname = new URL(normalizedUrl).pathname.toLowerCase();
+    return allowedExtensions.some((extension) => pathname.endsWith(`.${extension}`))
+      ? normalizedUrl
+      : "";
+  } catch {
+    return "";
+  }
+}
+
 function normalizeLimitedText(value, maxLength) {
   return cleanText(value).slice(0, maxLength);
 }
@@ -383,6 +412,199 @@ function normalizeAccentColor(value) {
   }
 
   return tokenColors[normalized] || null;
+}
+
+function normalizeFullPageDesignEnum(value, allowedValues, fallbackValue) {
+  const normalized = cleanText(value).toLowerCase().replace(/_/g, "-");
+  return allowedValues.includes(normalized) ? normalized : fallbackValue;
+}
+
+function normalizeOverlayOpacity(value, fallbackValue) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallbackValue;
+  }
+
+  return Math.max(0, Math.min(0.92, Math.round(number * 100) / 100));
+}
+
+function normalizeBackgroundBlur(value, fallbackValue) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallbackValue;
+  }
+
+  return Math.max(0, Math.min(18, Math.round(number)));
+}
+
+export function getFullPageDesignPresetDefaults(presetValue) {
+  const preset = normalizeFullPageDesignEnum(
+    presetValue,
+    FULL_PAGE_DESIGN_PRESETS,
+    DEFAULT_FULL_PAGE_DESIGN.preset
+  );
+  const presets = {
+    "clean-light": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "color",
+      backgroundColor: "#ffffff",
+      backgroundGradientTo: "#eef4ff",
+      backgroundOverlayColor: "#ffffff",
+      backgroundOverlayOpacity: 0.72,
+      textTheme: "dark",
+      composerStyle: "soft",
+      chipStyle: "outline",
+      statusStyle: "subtle",
+    },
+    "dark-professional": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "color",
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.36,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "warm-minimal": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "color",
+      backgroundColor: "#f8f3ea",
+      backgroundGradientTo: "#fffaf1",
+      backgroundOverlayColor: "#fff7ed",
+      backgroundOverlayOpacity: 0.54,
+      textTheme: "dark",
+      composerStyle: "soft",
+      chipStyle: "soft",
+      statusStyle: "minimal",
+    },
+    "bold-gradient": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "gradient",
+      backgroundColor: "#0f766e",
+      backgroundGradientTo: "#2563eb",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.18,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "image-hero": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "image",
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.5,
+      backgroundBlur: 0,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "video-hero": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "video",
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.56,
+      backgroundBlur: 0,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+      disableVideoOnMobile: true,
+    },
+  };
+
+  return presets[preset] || presets[DEFAULT_FULL_PAGE_DESIGN.preset];
+}
+
+export function normalizeFullPageDesignConfig(input = {}) {
+  const rawDesign = normalizeFullPageConfigInput(input);
+  const presetDefaults = getFullPageDesignPresetDefaults(
+    readConfigField(rawDesign, "preset")
+  );
+  const backgroundType = normalizeFullPageDesignEnum(
+    readConfigField(rawDesign, "backgroundType", "background_type"),
+    FULL_PAGE_BACKGROUND_TYPES,
+    presetDefaults.backgroundType
+  );
+
+  return {
+    preset: presetDefaults.preset,
+    backgroundType,
+    backgroundColor:
+      normalizeAccentColor(readConfigField(rawDesign, "backgroundColor", "background_color"))
+      || presetDefaults.backgroundColor,
+    backgroundGradientTo:
+      normalizeAccentColor(readConfigField(rawDesign, "backgroundGradientTo", "background_gradient_to"))
+      || presetDefaults.backgroundGradientTo,
+    backgroundImageUrl:
+      normalizeOptionalDesignMediaUrl(
+        readConfigField(rawDesign, "backgroundImageUrl", "background_image_url"),
+        ["png", "jpg", "jpeg", "webp"]
+      )
+      || null,
+    backgroundVideoUrl:
+      normalizeOptionalDesignMediaUrl(
+        readConfigField(rawDesign, "backgroundVideoUrl", "background_video_url"),
+        ["mp4", "webm"]
+      )
+      || null,
+    backgroundOverlayColor:
+      normalizeAccentColor(readConfigField(rawDesign, "backgroundOverlayColor", "background_overlay_color"))
+      || presetDefaults.backgroundOverlayColor,
+    backgroundOverlayOpacity: normalizeOverlayOpacity(
+      readConfigField(rawDesign, "backgroundOverlayOpacity", "background_overlay_opacity"),
+      presetDefaults.backgroundOverlayOpacity
+    ),
+    backgroundBlur: normalizeBackgroundBlur(
+      readConfigField(rawDesign, "backgroundBlur", "background_blur"),
+      presetDefaults.backgroundBlur
+    ),
+    backgroundFocalPoint: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "backgroundFocalPoint", "background_focal_point"),
+      FULL_PAGE_BACKGROUND_FOCAL_POINTS,
+      presetDefaults.backgroundFocalPoint
+    ),
+    textTheme: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "textTheme", "text_theme"),
+      FULL_PAGE_TEXT_THEMES,
+      presetDefaults.textTheme
+    ),
+    composerStyle: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "composerStyle", "composer_style"),
+      FULL_PAGE_COMPOSER_STYLES,
+      presetDefaults.composerStyle
+    ),
+    chipStyle: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "chipStyle", "chip_style"),
+      FULL_PAGE_CHIP_STYLES,
+      presetDefaults.chipStyle
+    ),
+    statusStyle: normalizeFullPageDesignEnum(
+      readConfigField(rawDesign, "statusStyle", "status_style"),
+      FULL_PAGE_STATUS_STYLES,
+      presetDefaults.statusStyle
+    ),
+    disableVideoOnMobile: normalizeConfigBoolean(
+      readConfigField(rawDesign, "disableVideoOnMobile", "disable_video_on_mobile"),
+      presetDefaults.disableVideoOnMobile
+    ),
+  };
 }
 
 function hasBookingSupportInWidgetConfig(config = {}) {
@@ -495,6 +717,9 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
   const logoUrl = normalizeOptionalImageSource(
     readConfigField(config, "logoUrl", "logo_url")
   ) || null;
+  const design = normalizeFullPageDesignConfig(
+    readConfigField(config, "design") || {}
+  );
 
   return {
     headline: normalizeLimitedText(readConfigField(config, "headline"), 80) || null,
@@ -507,6 +732,7 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
     showQuote,
     showContact,
     trustItems: trustItems.length ? trustItems : [...DEFAULT_FULL_PAGE_TRUST_ITEMS],
+    design,
   };
 }
 
@@ -526,6 +752,23 @@ function serializeFullPageConfig(config = {}) {
     show_quote: normalized.showQuote,
     show_contact: normalized.showContact,
     trust_items: normalized.trustItems,
+    design: {
+      preset: normalized.design.preset,
+      background_type: normalized.design.backgroundType,
+      background_color: normalized.design.backgroundColor,
+      background_gradient_to: normalized.design.backgroundGradientTo,
+      background_image_url: normalized.design.backgroundImageUrl,
+      background_video_url: normalized.design.backgroundVideoUrl,
+      background_overlay_color: normalized.design.backgroundOverlayColor,
+      background_overlay_opacity: normalized.design.backgroundOverlayOpacity,
+      background_blur: normalized.design.backgroundBlur,
+      background_focal_point: normalized.design.backgroundFocalPoint,
+      text_theme: normalized.design.textTheme,
+      composer_style: normalized.design.composerStyle,
+      chip_style: normalized.design.chipStyle,
+      status_style: normalized.design.statusStyle,
+      disable_video_on_mobile: normalized.design.disableVideoOnMobile,
+    },
   };
 }
 

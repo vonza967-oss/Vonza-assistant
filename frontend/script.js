@@ -68,6 +68,37 @@ const DEFAULT_WIDGET_CONFIG = {
 };
 const DEFAULT_FULL_PAGE_HEADLINE = "Front Desk";
 const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
+const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
+  "clean-light",
+  "dark-professional",
+  "warm-minimal",
+  "bold-gradient",
+  "image-hero",
+  "video-hero",
+]);
+const FULL_PAGE_BACKGROUND_TYPES = Object.freeze(["color", "gradient", "image", "video"]);
+const FULL_PAGE_FOCAL_POINTS = Object.freeze(["center", "top", "left", "right"]);
+const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
+const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
+const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
+const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
+const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
+  preset: "clean-light",
+  backgroundType: "color",
+  backgroundColor: "#ffffff",
+  backgroundGradientTo: "#eef4ff",
+  backgroundImageUrl: "",
+  backgroundVideoUrl: "",
+  backgroundOverlayColor: "#ffffff",
+  backgroundOverlayOpacity: 0.72,
+  backgroundBlur: 0,
+  backgroundFocalPoint: "center",
+  textTheme: "dark",
+  composerStyle: "soft",
+  chipStyle: "outline",
+  statusStyle: "subtle",
+  disableVideoOnMobile: true,
+});
 
 const WIDGET_PHASES = Object.freeze({
   ENTRY: "entry",
@@ -521,6 +552,148 @@ function normalizeFullPageAccentColor(value, fallbackValue = "") {
   return /^#[0-9a-f]{6}$/i.test(trimText(fallbackValue)) ? trimText(fallbackValue) : "";
 }
 
+function normalizeFullPageDesignEnum(value, allowedValues, fallbackValue) {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  return allowedValues.includes(normalized) ? normalized : fallbackValue;
+}
+
+function normalizeFullPageDesignNumber(value, fallbackValue, minValue, maxValue, precision = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallbackValue;
+  }
+
+  const clamped = Math.max(minValue, Math.min(maxValue, number));
+  const multiplier = 10 ** precision;
+  return Math.round(clamped * multiplier) / multiplier;
+}
+
+function normalizeFullPageMediaUrl(value, allowedExtensions = []) {
+  const normalized = trimText(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  try {
+    const url = new URL(normalized, window.location.origin);
+    if (!["https:", "http:"].includes(url.protocol)) {
+      return "";
+    }
+
+    const pathname = url.pathname.toLowerCase();
+    if (allowedExtensions.length && !allowedExtensions.some((extension) => pathname.endsWith(`.${extension}`))) {
+      return "";
+    }
+
+    return url.href;
+  } catch {
+    return "";
+  }
+}
+
+function getFullPageDesignPresetDefaults(presetValue) {
+  const preset = normalizeFullPageDesignEnum(presetValue, FULL_PAGE_DESIGN_PRESETS, DEFAULT_FULL_PAGE_DESIGN.preset);
+  const presets = {
+    "clean-light": { ...DEFAULT_FULL_PAGE_DESIGN, preset },
+    "dark-professional": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.36,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "warm-minimal": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundColor: "#f8f3ea",
+      backgroundGradientTo: "#fffaf1",
+      backgroundOverlayColor: "#fff7ed",
+      backgroundOverlayOpacity: 0.54,
+      chipStyle: "soft",
+      statusStyle: "minimal",
+    },
+    "bold-gradient": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "gradient",
+      backgroundColor: "#0f766e",
+      backgroundGradientTo: "#2563eb",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.18,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "image-hero": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "image",
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.5,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+    },
+    "video-hero": {
+      ...DEFAULT_FULL_PAGE_DESIGN,
+      preset,
+      backgroundType: "video",
+      backgroundColor: "#111827",
+      backgroundGradientTo: "#1f2937",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.56,
+      textTheme: "light",
+      composerStyle: "elevated",
+      chipStyle: "subtle-fill",
+      statusStyle: "pill",
+      disableVideoOnMobile: true,
+    },
+  };
+
+  return presets[preset] || presets[DEFAULT_FULL_PAGE_DESIGN.preset];
+}
+
+function normalizeFullPageDesignConfig(rawDesign = {}) {
+  const design = rawDesign && typeof rawDesign === "object" && !Array.isArray(rawDesign)
+    ? rawDesign
+    : {};
+  const presetDefaults = getFullPageDesignPresetDefaults(design.preset);
+  const backgroundType = normalizeFullPageDesignEnum(
+    design.backgroundType || design.background_type,
+    FULL_PAGE_BACKGROUND_TYPES,
+    presetDefaults.backgroundType
+  );
+
+  return {
+    preset: presetDefaults.preset,
+    backgroundType,
+    backgroundColor: normalizeFullPageAccentColor(design.backgroundColor || design.background_color, presetDefaults.backgroundColor),
+    backgroundGradientTo: normalizeFullPageAccentColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
+    backgroundImageUrl: normalizeFullPageMediaUrl(design.backgroundImageUrl || design.background_image_url, ["png", "jpg", "jpeg", "webp"]),
+    backgroundVideoUrl: normalizeFullPageMediaUrl(design.backgroundVideoUrl || design.background_video_url, ["mp4", "webm"]),
+    backgroundOverlayColor: normalizeFullPageAccentColor(design.backgroundOverlayColor || design.background_overlay_color, presetDefaults.backgroundOverlayColor),
+    backgroundOverlayOpacity: normalizeFullPageDesignNumber(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, presetDefaults.backgroundOverlayOpacity, 0, 0.92, 2),
+    backgroundBlur: normalizeFullPageDesignNumber(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur, 0, 18),
+    backgroundFocalPoint: normalizeFullPageDesignEnum(design.backgroundFocalPoint || design.background_focal_point, FULL_PAGE_FOCAL_POINTS, presetDefaults.backgroundFocalPoint),
+    textTheme: normalizeFullPageDesignEnum(design.textTheme || design.text_theme, FULL_PAGE_TEXT_THEMES, presetDefaults.textTheme),
+    composerStyle: normalizeFullPageDesignEnum(design.composerStyle || design.composer_style, FULL_PAGE_COMPOSER_STYLES, presetDefaults.composerStyle),
+    chipStyle: normalizeFullPageDesignEnum(design.chipStyle || design.chip_style, FULL_PAGE_CHIP_STYLES, presetDefaults.chipStyle),
+    statusStyle: normalizeFullPageDesignEnum(design.statusStyle || design.status_style, FULL_PAGE_STATUS_STYLES, presetDefaults.statusStyle),
+    disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
+  };
+}
+
 function normalizeLimitedText(value, maxLength) {
   return trimText(value).slice(0, maxLength);
 }
@@ -621,6 +794,7 @@ function getFullPageConfig(config = widgetConfig) {
     showQuote: normalizeBoolean(rawConfig.showQuote ?? rawConfig.show_quote, true),
     showContact: normalizeBoolean(rawConfig.showContact ?? rawConfig.show_contact, true),
     trustItems: trustItems.length ? trustItems : [...PAGE_TRUST_ITEMS],
+    design: normalizeFullPageDesignConfig(rawConfig.design),
   };
 }
 
@@ -2024,6 +2198,74 @@ function applyBrandMark(markElement, logoElement, textElement, customLogoUrl, fa
   markElement.classList.remove("has-custom-logo");
 }
 
+function setFullPageDesignClass(prefix, value, allowedValues) {
+  allowedValues.forEach((token) => {
+    document.documentElement.classList.remove(`${prefix}-${token}`);
+  });
+  document.documentElement.classList.add(`${prefix}-${value}`);
+}
+
+function syncFullPageDesignVideo(design) {
+  let video = document.getElementById("full-page-design-video-bg");
+  const shouldShowVideo =
+    isCanvasEmbeddedPageMode()
+    && design.backgroundType === "video"
+    && design.backgroundVideoUrl;
+
+  if (!shouldShowVideo) {
+    video?.remove?.();
+    return;
+  }
+
+  if (!video) {
+    video = document.createElement("video");
+    video.id = "full-page-design-video-bg";
+    video.className = "full-page-design-video-bg";
+    video.muted = true;
+    video.loop = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.setAttribute("aria-hidden", "true");
+    document.body.appendChild(video);
+  }
+
+  if (video.src !== design.backgroundVideoUrl) {
+    video.src = design.backgroundVideoUrl;
+  }
+
+  video.hidden = false;
+}
+
+function applyFullPageDesign(config = widgetConfig) {
+  const design = getFullPageConfig(config).design;
+  const root = document.documentElement;
+
+  if (!isCanvasEmbeddedPageMode()) {
+    syncFullPageDesignVideo({ ...DEFAULT_FULL_PAGE_DESIGN, backgroundType: "color" });
+    return;
+  }
+
+  setFullPageDesignClass("full-page-design-preset", design.preset, FULL_PAGE_DESIGN_PRESETS);
+  setFullPageDesignClass("full-page-design-bg", design.backgroundType, FULL_PAGE_BACKGROUND_TYPES);
+  setFullPageDesignClass("full-page-design-text", design.textTheme, FULL_PAGE_TEXT_THEMES);
+  setFullPageDesignClass("full-page-design-composer", design.composerStyle, FULL_PAGE_COMPOSER_STYLES);
+  setFullPageDesignClass("full-page-design-chip", design.chipStyle, FULL_PAGE_CHIP_STYLES);
+  setFullPageDesignClass("full-page-design-status", design.statusStyle, FULL_PAGE_STATUS_STYLES);
+  root.classList.toggle("full-page-design-disable-mobile-video", design.disableVideoOnMobile);
+  root.style.setProperty("--canvas-design-bg", design.backgroundColor);
+  root.style.setProperty("--canvas-design-gradient-to", design.backgroundGradientTo);
+  root.style.setProperty("--canvas-design-overlay", design.backgroundOverlayColor);
+  root.style.setProperty("--canvas-design-overlay-opacity", String(design.backgroundOverlayOpacity));
+  root.style.setProperty("--canvas-design-blur", `${design.backgroundBlur}px`);
+  root.style.setProperty("--canvas-design-position", design.backgroundFocalPoint);
+  root.style.setProperty(
+    "--canvas-design-image",
+    design.backgroundImageUrl ? `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")` : "none"
+  );
+
+  syncFullPageDesignVideo(design);
+}
+
 function applyWidgetConfig(config = {}) {
   widgetConfig = normalizeWidgetConfig(config);
 
@@ -2056,6 +2298,7 @@ function applyWidgetConfig(config = {}) {
     ? configuredPageAccentColor || "#111827"
     : brandPrimary);
   document.documentElement.style.setProperty("--canvas-accent-color", configuredPageAccentColor || brandPrimary);
+  applyFullPageDesign(widgetConfig);
   if (isPageMode()) {
     document.documentElement.style.setProperty("--brand-ink", `color-mix(in srgb, ${brandPrimary} 72%, #14201f 28%)`);
     document.documentElement.style.setProperty("--brand-surface", `color-mix(in srgb, ${brandPrimary} 9%, #ffffff 91%)`);

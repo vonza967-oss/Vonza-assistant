@@ -135,6 +135,71 @@
     "AI assistant",
     "Leave your details if needed",
   ]);
+  const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
+    "clean-light",
+    "dark-professional",
+    "warm-minimal",
+    "bold-gradient",
+    "image-hero",
+    "video-hero",
+  ]);
+  const FULL_PAGE_PRESET_OPTIONS = Object.freeze([
+    { value: "clean-light", label: "Clean Light" },
+    { value: "dark-professional", label: "Dark Professional" },
+    { value: "warm-minimal", label: "Warm Minimal" },
+    { value: "bold-gradient", label: "Bold Gradient" },
+    { value: "image-hero", label: "Image Hero" },
+    { value: "video-hero", label: "Video Hero" },
+  ]);
+  const FULL_PAGE_BACKGROUND_TYPES = Object.freeze(["color", "gradient", "image", "video"]);
+  const FULL_PAGE_BACKGROUND_TYPE_OPTIONS = Object.freeze([
+    { value: "color", label: "Solid color" },
+    { value: "gradient", label: "Gradient" },
+    { value: "image", label: "Image" },
+    { value: "video", label: "Video" },
+  ]);
+  const FULL_PAGE_FOCAL_POINT_OPTIONS = Object.freeze([
+    { value: "center", label: "Center" },
+    { value: "top", label: "Top" },
+    { value: "left", label: "Left" },
+    { value: "right", label: "Right" },
+  ]);
+  const FULL_PAGE_TEXT_THEME_OPTIONS = Object.freeze([
+    { value: "dark", label: "Dark" },
+    { value: "light", label: "Light" },
+  ]);
+  const FULL_PAGE_COMPOSER_STYLE_OPTIONS = Object.freeze([
+    { value: "soft", label: "Soft" },
+    { value: "elevated", label: "Elevated" },
+    { value: "minimal", label: "Minimal" },
+  ]);
+  const FULL_PAGE_CHIP_STYLE_OPTIONS = Object.freeze([
+    { value: "outline", label: "Outline" },
+    { value: "soft", label: "Soft" },
+    { value: "subtle-fill", label: "Subtle fill" },
+  ]);
+  const FULL_PAGE_STATUS_STYLE_OPTIONS = Object.freeze([
+    { value: "subtle", label: "Subtle" },
+    { value: "pill", label: "Pill" },
+    { value: "minimal", label: "Minimal" },
+  ]);
+  const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
+    preset: "clean-light",
+    backgroundType: "color",
+    backgroundColor: "#ffffff",
+    backgroundGradientTo: "#eef4ff",
+    backgroundImageUrl: "",
+    backgroundVideoUrl: "",
+    backgroundOverlayColor: "#ffffff",
+    backgroundOverlayOpacity: 0.72,
+    backgroundBlur: 0,
+    backgroundFocalPoint: "center",
+    textTheme: "dark",
+    composerStyle: "soft",
+    chipStyle: "outline",
+    statusStyle: "subtle",
+    disableVideoOnMobile: true,
+  });
 
   function defaultTrimText(value) {
     return String(value || "").trim();
@@ -160,6 +225,122 @@
     }
 
     return /^#[0-9a-f]{6}$/i.test(defaultTrimText(fallbackValue)) ? defaultTrimText(fallbackValue) : "#14b8a6";
+  }
+
+  function normalizeDesignEnum(value, allowedValues, fallbackValue) {
+    const normalized = defaultTrimText(value).toLowerCase().replace(/_/g, "-");
+    return allowedValues.includes(normalized) ? normalized : fallbackValue;
+  }
+
+  function normalizeOverlayOpacity(value, fallbackValue) {
+    const number = Number(value);
+    return Number.isFinite(number)
+      ? Math.max(0, Math.min(0.92, Math.round(number * 100) / 100))
+      : fallbackValue;
+  }
+
+  function normalizeBackgroundBlur(value, fallbackValue) {
+    const number = Number(value);
+    return Number.isFinite(number)
+      ? Math.max(0, Math.min(18, Math.round(number)))
+      : fallbackValue;
+  }
+
+  function getFullPageDesignPresetDefaults(presetValue) {
+    const preset = normalizeDesignEnum(presetValue, FULL_PAGE_DESIGN_PRESETS, DEFAULT_FULL_PAGE_DESIGN.preset);
+    const presets = {
+      "clean-light": { ...DEFAULT_FULL_PAGE_DESIGN, preset },
+      "dark-professional": {
+        ...DEFAULT_FULL_PAGE_DESIGN,
+        preset,
+        backgroundColor: "#111827",
+        backgroundGradientTo: "#1f2937",
+        backgroundOverlayColor: "#020617",
+        backgroundOverlayOpacity: 0.36,
+        textTheme: "light",
+        composerStyle: "elevated",
+        chipStyle: "subtle-fill",
+        statusStyle: "pill",
+      },
+      "warm-minimal": {
+        ...DEFAULT_FULL_PAGE_DESIGN,
+        preset,
+        backgroundColor: "#f8f3ea",
+        backgroundGradientTo: "#fffaf1",
+        backgroundOverlayColor: "#fff7ed",
+        backgroundOverlayOpacity: 0.54,
+        chipStyle: "soft",
+        statusStyle: "minimal",
+      },
+      "bold-gradient": {
+        ...DEFAULT_FULL_PAGE_DESIGN,
+        preset,
+        backgroundType: "gradient",
+        backgroundColor: "#0f766e",
+        backgroundGradientTo: "#2563eb",
+        backgroundOverlayColor: "#020617",
+        backgroundOverlayOpacity: 0.18,
+        textTheme: "light",
+        composerStyle: "elevated",
+        chipStyle: "subtle-fill",
+        statusStyle: "pill",
+      },
+      "image-hero": {
+        ...DEFAULT_FULL_PAGE_DESIGN,
+        preset,
+        backgroundType: "image",
+        backgroundColor: "#111827",
+        backgroundGradientTo: "#1f2937",
+        backgroundOverlayColor: "#020617",
+        backgroundOverlayOpacity: 0.5,
+        textTheme: "light",
+        composerStyle: "elevated",
+        chipStyle: "subtle-fill",
+        statusStyle: "pill",
+      },
+      "video-hero": {
+        ...DEFAULT_FULL_PAGE_DESIGN,
+        preset,
+        backgroundType: "video",
+        backgroundColor: "#111827",
+        backgroundGradientTo: "#1f2937",
+        backgroundOverlayColor: "#020617",
+        backgroundOverlayOpacity: 0.56,
+        textTheme: "light",
+        composerStyle: "elevated",
+        chipStyle: "subtle-fill",
+        statusStyle: "pill",
+        disableVideoOnMobile: true,
+      },
+    };
+
+    return presets[preset] || presets[DEFAULT_FULL_PAGE_DESIGN.preset];
+  }
+
+  function normalizeFullPageDesign(config = {}) {
+    const design = config.design && typeof config.design === "object" && !Array.isArray(config.design)
+      ? config.design
+      : {};
+    const presetDefaults = getFullPageDesignPresetDefaults(design.preset);
+    const backgroundType = normalizeDesignEnum(design.backgroundType || design.background_type, FULL_PAGE_BACKGROUND_TYPES, presetDefaults.backgroundType);
+
+    return {
+      preset: presetDefaults.preset,
+      backgroundType,
+      backgroundColor: normalizeFullPageColor(design.backgroundColor || design.background_color, presetDefaults.backgroundColor),
+      backgroundGradientTo: normalizeFullPageColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
+      backgroundImageUrl: defaultTrimText(design.backgroundImageUrl || design.background_image_url),
+      backgroundVideoUrl: defaultTrimText(design.backgroundVideoUrl || design.background_video_url),
+      backgroundOverlayColor: normalizeFullPageColor(design.backgroundOverlayColor || design.background_overlay_color, presetDefaults.backgroundOverlayColor),
+      backgroundOverlayOpacity: normalizeOverlayOpacity(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, presetDefaults.backgroundOverlayOpacity),
+      backgroundBlur: normalizeBackgroundBlur(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur),
+      backgroundFocalPoint: normalizeDesignEnum(design.backgroundFocalPoint || design.background_focal_point, ["center", "top", "left", "right"], presetDefaults.backgroundFocalPoint),
+      textTheme: normalizeDesignEnum(design.textTheme || design.text_theme, ["dark", "light"], presetDefaults.textTheme),
+      composerStyle: normalizeDesignEnum(design.composerStyle || design.composer_style, ["soft", "elevated", "minimal"], presetDefaults.composerStyle),
+      chipStyle: normalizeDesignEnum(design.chipStyle || design.chip_style, ["outline", "soft", "subtle-fill"], presetDefaults.chipStyle),
+      statusStyle: normalizeDesignEnum(design.statusStyle || design.status_style, ["subtle", "pill", "minimal"], presetDefaults.statusStyle),
+      disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
+    };
   }
 
   function normalizeBoolean(value, fallbackValue = false) {
@@ -253,6 +434,7 @@
       showQuote: normalizeBoolean(config.showQuote ?? config.show_quote, true),
       showContact: normalizeBoolean(config.showContact ?? config.show_contact, true),
       trustItems: trustItems.length ? trustItems : [...DEFAULT_FULL_PAGE_TRUST_ITEMS],
+      design: normalizeFullPageDesign(config),
     };
   }
 
@@ -778,6 +960,7 @@
     const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
     const primaryColor = agent.primaryColor || "#14b8a6";
     const fullPageConfig = normalizeFullPageConfig(agent);
+    const fullPageDesign = fullPageConfig.design;
     const fullPageHeadline = fullPageConfig.headline || "Front Desk";
     const fullPageSubtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
     const fullPageAccentColor = fullPageConfig.accentColor || primaryColor;
@@ -879,8 +1062,13 @@
                   <p class="settings-shell-section-copy">Customize the title, supporting copy, and starter actions for support links, booking/help pages, QR codes, and iframe embeds.</p>
                 </div>
               </div>
+              <div class="settings-full-page-subnav" role="tablist" aria-label="Full-page assistant customization sections">
+                <button class="settings-full-page-subnav-button active" type="button" data-full-page-settings-tab="content">Content</button>
+                <button class="settings-full-page-subnav-button" type="button" data-full-page-settings-tab="design">Design</button>
+                <button class="settings-full-page-subnav-button" type="button" data-full-page-settings-tab="layout">Layout</button>
+              </div>
               <div class="settings-full-page-grid">
-                <div class="settings-shell-field-stack">
+                <div class="settings-shell-field-stack" data-full-page-settings-panel="content">
                   <div class="field">
                     <label for="full-page-headline">Headline</label>
                     <input id="full-page-headline" name="full_page_headline" type="text" maxlength="80" value="${escapeHtml(fullPageConfig.headline || "")}" placeholder="Front Desk">
@@ -927,7 +1115,97 @@
                     <textarea id="full-page-trust-items" name="full_page_trust_items" maxlength="220" placeholder="One short item per line">${escapeHtml(fullPageTrustItemsText)}</textarea>
                   </div>
                 </div>
-                <aside class="settings-full-page-preview-card" aria-label="Full-page assistant preview" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)}">
+                <div class="settings-shell-field-stack" data-full-page-settings-panel="design" hidden>
+                  <div class="settings-field-grid settings-field-grid--two">
+                    <div class="field">
+                      <label for="full-page-design-preset">Preset</label>
+                      <select id="full-page-design-preset" name="full_page_design_preset" data-full-page-design-preset>
+                        ${FULL_PAGE_PRESET_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.preset === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="full-page-background-type">Background type</label>
+                      <select id="full-page-background-type" name="full_page_background_type" data-full-page-background-type>
+                        ${FULL_PAGE_BACKGROUND_TYPE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.backgroundType === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                  </div>
+                  <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="color gradient image video">
+                    <div class="field">
+                      <label for="full-page-background-color">Background color</label>
+                      <input id="full-page-background-color" name="full_page_background_color" type="color" value="${escapeHtml(fullPageDesign.backgroundColor)}">
+                    </div>
+                    <div class="field" data-full-page-background-control="gradient">
+                      <label for="full-page-gradient-to">Gradient color</label>
+                      <input id="full-page-gradient-to" name="full_page_background_gradient_to" type="color" value="${escapeHtml(fullPageDesign.backgroundGradientTo)}">
+                    </div>
+                  </div>
+                  <div class="field" data-full-page-background-control="image video">
+                    <label for="full-page-background-image-url">Image / fallback URL</label>
+                    <input id="full-page-background-image-url" name="full_page_background_image_url" type="url" value="${escapeHtml(fullPageDesign.backgroundImageUrl || "")}" placeholder="https://example.com/hero.webp">
+                    <p class="field-help">PNG, JPG, JPEG, or WebP URL for image backgrounds or video fallback. Upload support can be added later without changing this setting.</p>
+                  </div>
+                  <div class="field" data-full-page-background-control="video">
+                    <label for="full-page-background-video-url">Video URL</label>
+                    <input id="full-page-background-video-url" name="full_page_background_video_url" type="url" value="${escapeHtml(fullPageDesign.backgroundVideoUrl || "")}" placeholder="https://example.com/hero.webm">
+                    <p class="field-help">MP4 or WebM URL. Video is muted and loops behind the canvas.</p>
+                  </div>
+                  <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="image video">
+                    <div class="field">
+                      <label for="full-page-overlay-color">Overlay color</label>
+                      <input id="full-page-overlay-color" name="full_page_background_overlay_color" type="color" value="${escapeHtml(fullPageDesign.backgroundOverlayColor)}">
+                    </div>
+                    <div class="field">
+                      <label for="full-page-overlay-opacity">Overlay opacity</label>
+                      <input id="full-page-overlay-opacity" name="full_page_background_overlay_opacity" type="range" min="0" max="0.92" step="0.04" value="${escapeHtml(fullPageDesign.backgroundOverlayOpacity)}" data-full-page-range-output="full-page-overlay-opacity-value">
+                      <p class="field-help"><span id="full-page-overlay-opacity-value">${escapeHtml(String(Math.round(fullPageDesign.backgroundOverlayOpacity * 100)))}%</span></p>
+                    </div>
+                  </div>
+                  <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="image video">
+                    <div class="field">
+                      <label for="full-page-background-blur">Blur</label>
+                      <input id="full-page-background-blur" name="full_page_background_blur" type="range" min="0" max="18" step="1" value="${escapeHtml(fullPageDesign.backgroundBlur)}" data-full-page-range-output="full-page-background-blur-value">
+                      <p class="field-help"><span id="full-page-background-blur-value">${escapeHtml(String(fullPageDesign.backgroundBlur))}px</span></p>
+                    </div>
+                    <div class="field">
+                      <label for="full-page-background-focal-point">Focal point</label>
+                      <select id="full-page-background-focal-point" name="full_page_background_focal_point">
+                        ${FULL_PAGE_FOCAL_POINT_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.backgroundFocalPoint === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                  </div>
+                  <label class="settings-toggle-pill" data-full-page-background-control="video">
+                    <input name="full_page_disable_video_on_mobile" type="checkbox" ${fullPageDesign.disableVideoOnMobile ? "checked" : ""}>
+                    <span>Disable video on mobile</span>
+                  </label>
+                  <div class="settings-field-grid settings-field-grid--two">
+                    <div class="field">
+                      <label for="full-page-text-theme">Text theme</label>
+                      <select id="full-page-text-theme" name="full_page_text_theme">
+                        ${FULL_PAGE_TEXT_THEME_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.textTheme === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="full-page-composer-style">Composer style</label>
+                      <select id="full-page-composer-style" name="full_page_composer_style">
+                        ${FULL_PAGE_COMPOSER_STYLE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.composerStyle === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="full-page-chip-style">Chip style</label>
+                      <select id="full-page-chip-style" name="full_page_chip_style">
+                        ${FULL_PAGE_CHIP_STYLE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.chipStyle === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="full-page-status-style">Status style</label>
+                      <select id="full-page-status-style" name="full_page_status_style">
+                        ${FULL_PAGE_STATUS_STYLE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${fullPageDesign.statusStyle === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <aside class="settings-full-page-preview-card settings-full-page-preview-card--canvas" aria-label="Full-page assistant preview" data-full-page-design-preview data-background-type="${escapeHtml(fullPageDesign.backgroundType)}" data-text-theme="${escapeHtml(fullPageDesign.textTheme)}" data-chip-style="${escapeHtml(fullPageDesign.chipStyle)}" data-composer-style="${escapeHtml(fullPageDesign.composerStyle)}" data-status-style="${escapeHtml(fullPageDesign.statusStyle)}" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)};--full-page-preview-bg:${escapeHtml(fullPageDesign.backgroundColor)};--full-page-preview-gradient:${escapeHtml(fullPageDesign.backgroundGradientTo)};--full-page-preview-overlay:${escapeHtml(fullPageDesign.backgroundOverlayColor)};--full-page-preview-overlay-opacity:${escapeHtml(String(fullPageDesign.backgroundOverlayOpacity))};--full-page-preview-image:${fullPageDesign.backgroundImageUrl ? `url('${escapeHtml(fullPageDesign.backgroundImageUrl)}')` : "none"};--full-page-preview-blur:${escapeHtml(String(fullPageDesign.backgroundBlur))}px;--full-page-preview-position:${escapeHtml(fullPageDesign.backgroundFocalPoint)}">
                   <div class="settings-full-page-preview-header">
                     <span class="settings-full-page-preview-logo" aria-hidden="true">
                       ${fullPageConfig.logoUrl ? `<img src="${escapeHtml(fullPageConfig.logoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
@@ -938,10 +1216,18 @@
                     </div>
                   </div>
                   <p class="settings-full-page-preview-subtitle">${escapeHtml(fullPageSubtitle)}</p>
+                  <div class="settings-full-page-preview-status">
+                    <span class="status-dot"></span>
+                    <span>AI assistant online</span>
+                  </div>
                   <div class="settings-full-page-preview-actions">
                     ${(enabledPreviewCards.length ? enabledPreviewCards : fullPageConfig.actionCards.slice(0, 4)).map((card) => `
                       <span>${escapeHtml(card.label)}</span>
                     `).join("")}
+                  </div>
+                  <div class="settings-full-page-preview-composer">
+                    <span>Type your question...</span>
+                    <strong>Send</strong>
                   </div>
                   <div class="settings-full-page-preview-trust">
                     ${fullPageConfig.trustItems.slice(0, 3).map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
@@ -949,7 +1235,7 @@
                 </aside>
               </div>
 
-              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards">
+              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards" data-full-page-settings-panel="layout" hidden>
                 <div class="settings-full-page-action-editor-head">
                   <h4 class="settings-shell-section-title settings-shell-section-title--compact">Action cards</h4>
                   <p class="settings-shell-section-copy">Edit the starter prompts customers can click on the hosted page.</p>
@@ -2033,6 +2319,12 @@
     const frontDeskTabButtons = Array.from(root.querySelectorAll("[data-frontdesk-settings-tab]"));
     const frontDeskPanels = Array.from(root.querySelectorAll("[data-frontdesk-settings-panel]"));
     const frontDeskPreview = root.querySelector?.("[data-frontdesk-settings-preview]") || null;
+    const fullPageTabButtons = Array.from(root.querySelectorAll("[data-full-page-settings-tab]"));
+    const fullPagePanels = Array.from(root.querySelectorAll("[data-full-page-settings-panel]"));
+    const fullPageBackgroundType = root.querySelector?.("[data-full-page-background-type]") || null;
+    const fullPageBackgroundControls = Array.from(root.querySelectorAll("[data-full-page-background-control]"));
+    const fullPagePresetSelect = root.querySelector?.("[data-full-page-design-preset]") || null;
+    const fullPagePreview = root.querySelector?.("[data-full-page-design-preview]") || null;
     const settingsOverview = root.querySelector?.(".settings-shell-overview") || null;
     const mobileNote = typeof root.querySelector === "function"
       ? root.querySelector("[data-settings-mobile-note]")
@@ -2124,14 +2416,195 @@
       }
     };
 
+    const showFullPageSettingsPanel = (targetPanel = "content") => {
+      const normalizedPanel = ["content", "design", "layout"].includes(targetPanel)
+        ? targetPanel
+        : "content";
+
+      fullPageTabButtons.forEach((button) => {
+        const active = button.dataset.fullPageSettingsTab === normalizedPanel;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", active ? "true" : "false");
+      });
+
+      fullPagePanels.forEach((panel) => {
+        panel.hidden = panel.dataset.fullPageSettingsPanel !== normalizedPanel;
+      });
+    };
+
+    const syncFullPageBackgroundControls = () => {
+      const activeType = normalizeDesignEnum(
+        fullPageBackgroundType?.value,
+        FULL_PAGE_BACKGROUND_TYPES,
+        DEFAULT_FULL_PAGE_DESIGN.backgroundType
+      );
+
+      fullPageBackgroundControls.forEach((control) => {
+        const allowedTypes = defaultTrimText(control.dataset.fullPageBackgroundControl).split(/\s+/).filter(Boolean);
+        control.hidden = allowedTypes.length > 0 && !allowedTypes.includes(activeType);
+      });
+    };
+
+    const setInputValue = (name, value) => {
+      const input = root.querySelector?.(`[name="${name}"]`);
+
+      if (!input) {
+        return;
+      }
+
+      if (input.type === "checkbox") {
+        input.checked = value === true;
+        return;
+      }
+
+      input.value = String(value ?? "");
+    };
+
+    const applyFullPagePreset = () => {
+      if (!fullPagePresetSelect) {
+        return;
+      }
+
+      const preset = getFullPageDesignPresetDefaults(fullPagePresetSelect.value);
+      setInputValue("full_page_background_type", preset.backgroundType);
+      setInputValue("full_page_background_color", preset.backgroundColor);
+      setInputValue("full_page_background_gradient_to", preset.backgroundGradientTo);
+      setInputValue("full_page_background_overlay_color", preset.backgroundOverlayColor);
+      setInputValue("full_page_background_overlay_opacity", preset.backgroundOverlayOpacity);
+      setInputValue("full_page_background_blur", preset.backgroundBlur);
+      setInputValue("full_page_background_focal_point", preset.backgroundFocalPoint);
+      setInputValue("full_page_text_theme", preset.textTheme);
+      setInputValue("full_page_composer_style", preset.composerStyle);
+      setInputValue("full_page_chip_style", preset.chipStyle);
+      setInputValue("full_page_status_style", preset.statusStyle);
+      setInputValue("full_page_disable_video_on_mobile", preset.disableVideoOnMobile);
+      syncFullPageBackgroundControls();
+      root.querySelectorAll?.("[data-full-page-range-output]").forEach(syncRangeOutput);
+      syncFullPagePreview();
+    };
+
+    const getInputValue = (name, fallbackValue = "") => {
+      const input = root.querySelector?.(`[name="${name}"]`);
+      return input ? input.value : fallbackValue;
+    };
+
+    const getInputChecked = (name, fallbackValue = false) => {
+      const input = root.querySelector?.(`[name="${name}"]`);
+      return input ? input.checked === true : fallbackValue;
+    };
+
+    const syncRangeOutput = (input) => {
+      const targetId = input?.dataset?.fullPageRangeOutput;
+      const target = targetId ? root.getElementById?.(targetId) : null;
+
+      if (!target) {
+        return;
+      }
+
+      target.textContent = targetId.includes("opacity")
+        ? `${Math.round(Number(input.value || 0) * 100)}%`
+        : `${Math.round(Number(input.value || 0))}px`;
+    };
+
+    function syncFullPagePreview() {
+      if (!fullPagePreview) {
+        return;
+      }
+
+      const headline = limitText(getInputValue("full_page_headline"), 80) || "Front Desk";
+      const subtitle = limitText(getInputValue("full_page_subtitle"), 180) || "Ask about services, pricing, quotes, or contact details.";
+      const backgroundType = normalizeDesignEnum(getInputValue("full_page_background_type"), FULL_PAGE_BACKGROUND_TYPES, DEFAULT_FULL_PAGE_DESIGN.backgroundType);
+      const textTheme = normalizeDesignEnum(getInputValue("full_page_text_theme"), ["dark", "light"], DEFAULT_FULL_PAGE_DESIGN.textTheme);
+      const chipStyle = normalizeDesignEnum(getInputValue("full_page_chip_style"), ["outline", "soft", "subtle-fill"], DEFAULT_FULL_PAGE_DESIGN.chipStyle);
+      const composerStyle = normalizeDesignEnum(getInputValue("full_page_composer_style"), ["soft", "elevated", "minimal"], DEFAULT_FULL_PAGE_DESIGN.composerStyle);
+      const statusStyle = normalizeDesignEnum(getInputValue("full_page_status_style"), ["subtle", "pill", "minimal"], DEFAULT_FULL_PAGE_DESIGN.statusStyle);
+      const imageUrl = defaultTrimText(getInputValue("full_page_background_image_url"));
+      const accentColor = normalizeFullPageColor(getInputValue("full_page_accent_color"), "#14b8a6");
+      const title = fullPagePreview.querySelector?.(".settings-full-page-preview-header strong");
+      const copy = fullPagePreview.querySelector?.(".settings-full-page-preview-subtitle");
+      const actionWrap = fullPagePreview.querySelector?.(".settings-full-page-preview-actions");
+      const trustWrap = fullPagePreview.querySelector?.(".settings-full-page-preview-trust");
+
+      fullPagePreview.dataset.backgroundType = backgroundType;
+      fullPagePreview.dataset.textTheme = textTheme;
+      fullPagePreview.dataset.chipStyle = chipStyle;
+      fullPagePreview.dataset.composerStyle = composerStyle;
+      fullPagePreview.dataset.statusStyle = statusStyle;
+      fullPagePreview.style.setProperty("--full-page-preview-accent", accentColor);
+      fullPagePreview.style.setProperty("--full-page-preview-bg", normalizeFullPageColor(getInputValue("full_page_background_color"), "#ffffff"));
+      fullPagePreview.style.setProperty("--full-page-preview-gradient", normalizeFullPageColor(getInputValue("full_page_background_gradient_to"), "#eef4ff"));
+      fullPagePreview.style.setProperty("--full-page-preview-overlay", normalizeFullPageColor(getInputValue("full_page_background_overlay_color"), "#ffffff"));
+      fullPagePreview.style.setProperty("--full-page-preview-overlay-opacity", String(normalizeOverlayOpacity(getInputValue("full_page_background_overlay_opacity"), 0.72)));
+      fullPagePreview.style.setProperty("--full-page-preview-image", imageUrl ? `url("${imageUrl.replace(/"/g, "%22")}")` : "none");
+      fullPagePreview.style.setProperty("--full-page-preview-blur", `${normalizeBackgroundBlur(getInputValue("full_page_background_blur"), 0)}px`);
+      fullPagePreview.style.setProperty("--full-page-preview-position", normalizeDesignEnum(getInputValue("full_page_background_focal_point"), ["center", "top", "left", "right"], "center"));
+
+      if (title) title.textContent = headline;
+      if (copy) copy.textContent = subtitle;
+
+      if (actionWrap) {
+        const actionLabels = Array.from(root.querySelectorAll('[name^="full_page_action_"][name$="_label"]'))
+          .map((input) => limitText(input.value, 40))
+          .filter(Boolean)
+          .slice(0, 4);
+        actionWrap.innerHTML = actionLabels.map((label) => `<span>${defaultEscapeHtml(label)}</span>`).join("");
+      }
+
+      if (trustWrap) {
+        const trustItems = defaultTrimText(getInputValue("full_page_trust_items"))
+          .split(/\n|,/)
+          .map((item) => limitText(item, 60))
+          .filter(Boolean)
+          .slice(0, 3);
+        trustWrap.innerHTML = (trustItems.length ? trustItems : DEFAULT_FULL_PAGE_TRUST_ITEMS)
+          .map((item) => `<span>${defaultEscapeHtml(item)}</span>`)
+          .join("");
+      }
+
+      getInputChecked("full_page_disable_video_on_mobile");
+    }
+
     frontDeskTabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         showFrontDeskSettingsPanel(button.dataset.frontdeskSettingsTab || "identity");
       });
     });
 
+    fullPageTabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        showFullPageSettingsPanel(button.dataset.fullPageSettingsTab || "content");
+      });
+    });
+
+    fullPageBackgroundType?.addEventListener("change", () => {
+      syncFullPageBackgroundControls();
+      syncFullPagePreview();
+    });
+
+    fullPagePresetSelect?.addEventListener("change", applyFullPagePreset);
+
+    root.querySelectorAll?.("[data-full-page-range-output]").forEach((input) => {
+      input.addEventListener("input", () => {
+        syncRangeOutput(input);
+        syncFullPagePreview();
+      });
+      syncRangeOutput(input);
+    });
+
+    root.querySelectorAll?.("[name^=\"full_page_\"]").forEach((input) => {
+      if (input === fullPagePresetSelect || input === fullPageBackgroundType || input.dataset?.fullPageRangeOutput) {
+        return;
+      }
+
+      input.addEventListener("input", syncFullPagePreview);
+      input.addEventListener("change", syncFullPagePreview);
+    });
+
     showSettingsSection(getActiveSettingsSection(), { rerender: false, syncHash: false });
     showFrontDeskSettingsPanel("identity");
+    showFullPageSettingsPanel("content");
+    syncFullPageBackgroundControls();
+    syncFullPagePreview();
 
     return {
       getActiveSettingsSection,

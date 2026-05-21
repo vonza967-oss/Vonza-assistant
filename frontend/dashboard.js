@@ -16589,6 +16589,81 @@ function normalizeFullPageAccentColor(value) {
   return "";
 }
 
+function normalizeFullPageDesignChoice(value, allowedValues, fallbackValue) {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  return allowedValues.includes(normalized) ? normalized : fallbackValue;
+}
+
+function normalizeFullPageDesignNumber(value, fallbackValue, minValue, maxValue, precision = 0) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return fallbackValue;
+  }
+
+  const clamped = Math.max(minValue, Math.min(maxValue, number));
+  const multiplier = 10 ** precision;
+  return Math.round(clamped * multiplier) / multiplier;
+}
+
+function normalizeFullPageMediaUrl(value, allowedExtensions = []) {
+  const normalized = trimText(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  try {
+    const url = new URL(normalized);
+    if (!["https:", "http:"].includes(url.protocol)) {
+      return null;
+    }
+
+    const pathname = url.pathname.toLowerCase();
+    if (allowedExtensions.length && !allowedExtensions.some((extension) => pathname.endsWith(`.${extension}`))) {
+      return null;
+    }
+
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function parseFullPageDesignPayload(formData) {
+  const preset = normalizeFullPageDesignChoice(
+    formData.get("full_page_design_preset"),
+    ["clean-light", "dark-professional", "warm-minimal", "bold-gradient", "image-hero", "video-hero"],
+    "clean-light"
+  );
+
+  return {
+    preset,
+    background_type: normalizeFullPageDesignChoice(
+      formData.get("full_page_background_type"),
+      ["color", "gradient", "image", "video"],
+      "color"
+    ),
+    background_color: normalizeFullPageAccentColor(formData.get("full_page_background_color")) || "#ffffff",
+    background_gradient_to: normalizeFullPageAccentColor(formData.get("full_page_background_gradient_to")) || "#eef4ff",
+    background_image_url: normalizeFullPageMediaUrl(formData.get("full_page_background_image_url"), ["png", "jpg", "jpeg", "webp"]),
+    background_video_url: normalizeFullPageMediaUrl(formData.get("full_page_background_video_url"), ["mp4", "webm"]),
+    background_overlay_color: normalizeFullPageAccentColor(formData.get("full_page_background_overlay_color")) || "#ffffff",
+    background_overlay_opacity: normalizeFullPageDesignNumber(formData.get("full_page_background_overlay_opacity"), 0.72, 0, 0.92, 2),
+    background_blur: normalizeFullPageDesignNumber(formData.get("full_page_background_blur"), 0, 0, 18),
+    background_focal_point: normalizeFullPageDesignChoice(
+      formData.get("full_page_background_focal_point"),
+      ["center", "top", "left", "right"],
+      "center"
+    ),
+    text_theme: normalizeFullPageDesignChoice(formData.get("full_page_text_theme"), ["dark", "light"], "dark"),
+    composer_style: normalizeFullPageDesignChoice(formData.get("full_page_composer_style"), ["soft", "elevated", "minimal"], "soft"),
+    chip_style: normalizeFullPageDesignChoice(formData.get("full_page_chip_style"), ["outline", "soft", "subtle-fill"], "outline"),
+    status_style: normalizeFullPageDesignChoice(formData.get("full_page_status_style"), ["subtle", "pill", "minimal"], "subtle"),
+    disable_video_on_mobile: formData.has("full_page_disable_video_on_mobile"),
+  };
+}
+
 function parseFullPageConfigPayload(formData) {
   const actionCards = [];
 
@@ -16627,6 +16702,7 @@ function parseFullPageConfigPayload(formData) {
     show_quote: formData.has("full_page_show_quote"),
     show_contact: formData.has("full_page_show_contact"),
     trust_items: parseFullPageListField(formData.get("full_page_trust_items"), 3, 60),
+    design: parseFullPageDesignPayload(formData),
   };
 }
 

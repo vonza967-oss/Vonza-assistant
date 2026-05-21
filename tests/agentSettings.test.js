@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   getAgentWorkspaceSnapshot,
+  getFullPageDesignPresetDefaults,
+  normalizeFullPageDesignConfig,
   normalizeFullPageConfig,
   updateAgentSettings,
 } from "../src/services/agents/agentService.js";
@@ -311,6 +313,23 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
       show_quote: true,
       show_contact: true,
       trust_items: ["Instant help", "Real team follow-up", "Private"],
+      design: {
+        preset: "video-hero",
+        background_type: "video",
+        background_color: "#111827",
+        background_gradient_to: "#2563eb",
+        background_image_url: "https://cdn.example.com/not-supported.gif",
+        background_video_url: "https://cdn.example.com/frontdesk.webm",
+        background_overlay_color: "#000",
+        background_overlay_opacity: 2,
+        background_blur: 30,
+        background_focal_point: "left",
+        text_theme: "light",
+        composer_style: "elevated",
+        chip_style: "subtle-fill",
+        status_style: "pill",
+        disable_video_on_mobile: false,
+      },
     },
   });
 
@@ -323,9 +342,52 @@ test("updateAgentSettings persists sanitized full-page assistant config", async 
   assert.equal(result.fullPageConfig.showBooking, false);
   assert.equal(result.fullPageConfig.actionCards[1].enabled, false);
   assert.equal(result.fullPageConfig.suggestedQuestions[0].length, 120);
+  assert.equal(result.fullPageConfig.design.preset, "video-hero");
+  assert.equal(result.fullPageConfig.design.backgroundType, "video");
+  assert.equal(result.fullPageConfig.design.backgroundImageUrl, null);
+  assert.equal(result.fullPageConfig.design.backgroundVideoUrl, "https://cdn.example.com/frontdesk.webm");
+  assert.equal(result.fullPageConfig.design.backgroundOverlayColor, "#000000");
+  assert.equal(result.fullPageConfig.design.backgroundOverlayOpacity, 0.92);
+  assert.equal(result.fullPageConfig.design.backgroundBlur, 18);
+  assert.equal(result.fullPageConfig.design.disableVideoOnMobile, false);
   assert.equal(state.widget_configs[0].full_page_config.headline.length, 80);
   assert.equal(state.widget_configs[0].full_page_config.accent_color, null);
   assert.equal(state.widget_configs[0].full_page_config.show_booking, false);
+  assert.equal(state.widget_configs[0].full_page_config.design.background_video_url, "https://cdn.example.com/frontdesk.webm");
+});
+
+test("full-page design defaults and presets resolve safely", () => {
+  const defaultDesign = normalizeFullPageDesignConfig();
+  assert.equal(defaultDesign.preset, "clean-light");
+  assert.equal(defaultDesign.backgroundType, "color");
+  assert.equal(defaultDesign.textTheme, "dark");
+  assert.equal(defaultDesign.composerStyle, "soft");
+
+  const darkPreset = getFullPageDesignPresetDefaults("dark-professional");
+  assert.equal(darkPreset.backgroundColor, "#111827");
+  assert.equal(darkPreset.textTheme, "light");
+  assert.equal(darkPreset.statusStyle, "pill");
+
+  const normalized = normalizeFullPageDesignConfig({
+    preset: "bold-gradient",
+    background_type: "nonsense",
+    background_color: "#123",
+    background_gradient_to: "bad",
+    background_image_url: "https://cdn.example.com/hero.gif",
+    background_video_url: "https://cdn.example.com/hero.mov",
+    background_overlay_opacity: -1,
+    background_blur: "9",
+    text_theme: "light",
+  });
+
+  assert.equal(normalized.backgroundType, "gradient");
+  assert.equal(normalized.backgroundColor, "#112233");
+  assert.equal(normalized.backgroundGradientTo, "#2563eb");
+  assert.equal(normalized.backgroundImageUrl, null);
+  assert.equal(normalized.backgroundVideoUrl, null);
+  assert.equal(normalized.backgroundOverlayOpacity, 0);
+  assert.equal(normalized.backgroundBlur, 9);
+  assert.equal(normalized.textTheme, "light");
 });
 
 test("normalizeFullPageConfig allows booking only when booking support exists", () => {

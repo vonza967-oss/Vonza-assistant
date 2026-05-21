@@ -497,6 +497,13 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
   assert.match(harness.getRootHtml(), /placeholder="Front Desk"/);
   assert.match(harness.getRootHtml(), /Leave blank to show the default title, Front Desk\./);
+  assert.match(harness.getRootHtml(), /data-full-page-settings-tab="design"/);
+  assert.match(harness.getRootHtml(), /Preset/);
+  assert.match(harness.getRootHtml(), /Dark Professional/);
+  assert.match(harness.getRootHtml(), /data-full-page-background-control="image video"/);
+  assert.match(harness.getRootHtml(), /data-full-page-background-control="video"/);
+  assert.match(harness.getRootHtml(), /data-full-page-design-preview/);
+  assert.match(harness.getRootHtml(), /Type your question\.\.\./);
   assert.doesNotMatch(harness.getRootHtml(), /placeholder="How can we help\?"/);
   assert.doesNotMatch(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
 });
