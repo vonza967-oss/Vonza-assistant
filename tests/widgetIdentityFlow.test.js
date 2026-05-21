@@ -2703,6 +2703,86 @@ test("canvas full embedded page mode send color uses configured accent and dark 
   assert.equal(fallbackHarness.documentElement.style.getPropertyValue("--brand-primary"), "#7c4dff");
 });
 
+test("canvas full embedded page mode applies configured image and video backgrounds", async () => {
+  const createCanvasHarness = async (design = {}) => {
+    const harness = createWidgetHarness({
+      location: {
+        search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+        pathname: "/widget",
+        href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      },
+      customFetch: async (input) => {
+        if (String(input).includes("/widget/bootstrap")) {
+          return {
+            ok: true,
+            async json() {
+              return {
+                agent: { id: "agent-1" },
+                business: { id: "business-1", name: "Acme Studio" },
+                widgetConfig: {
+                  assistantName: "Acme Assistant",
+                  full_page_config: { design },
+                },
+              };
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          async json() {
+            return {};
+          },
+        };
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return harness;
+  };
+
+  const presetHarness = await createCanvasHarness({
+    background_source: "preset",
+    background_preset: "dark-gold-abstract",
+  });
+  const uploadHarness = await createCanvasHarness({
+    background_type: "image",
+    background_source: "upload",
+    background_image_url: "https://cdn.example.com/owner/agent/background.webp",
+    background_overlay_color: "#020617",
+    background_overlay_opacity: 0.4,
+    text_theme: "light",
+  });
+  const videoHarness = await createCanvasHarness({
+    background_type: "video",
+    background_source: "url",
+    background_video_url: "https://cdn.example.com/owner/agent/background.webm",
+    background_image_url: "https://cdn.example.com/owner/agent/fallback.webp",
+    disable_video_on_mobile: true,
+  });
+
+  assert.equal(presetHarness.documentElement.classList.contains("full-page-design-bg-image"), true);
+  assert.equal(presetHarness.documentElement.classList.contains("full-page-design-text-light"), true);
+  assert.match(
+    presetHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
+    /abstract-dark-gold\.png/
+  );
+  assert.equal(uploadHarness.documentElement.classList.contains("full-page-design-bg-image"), true);
+  assert.match(
+    uploadHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
+    /background\.webp/
+  );
+  assert.equal(uploadHarness.documentElement.style.getPropertyValue("--canvas-design-overlay-opacity"), "0.4");
+  assert.equal(videoHarness.documentElement.classList.contains("full-page-design-bg-video"), true);
+  assert.equal(videoHarness.documentElement.classList.contains("full-page-design-disable-mobile-video"), true);
+  assert.match(
+    videoHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
+    /fallback\.webp/
+  );
+  assert.match(readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8"), /full-page-design-disable-mobile-video \.full-page-design-video-bg/);
+});
+
 test("canvas icebreaker falls back without business name and uses safe configured intro", async () => {
   const createCanvasHarness = async ({ business = {}, fullPageConfig = {} } = {}) => {
     const harness = createWidgetHarness({

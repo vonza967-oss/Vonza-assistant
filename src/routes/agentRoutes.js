@@ -20,6 +20,7 @@ import {
   updateAgentAccessStatus,
   updateAgentSettings,
 } from "../services/agents/agentService.js";
+import { uploadFrontDeskBackground } from "../services/agents/frontDeskBackgroundService.js";
 import {
   assertMessagesSchemaReady,
   listAgentMessages,
@@ -269,6 +270,8 @@ export function createAgentRouter(deps = {}) {
     deps.updateVisitorReplyFeedbackStatus || updateVisitorReplyFeedbackStatus;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
+  const uploadFrontDeskBackgroundImpl =
+    deps.uploadFrontDeskBackground || uploadFrontDeskBackground;
   const listFrontDeskTrainingItemsImpl =
     deps.listFrontDeskTrainingItems || listFrontDeskTrainingItems;
   const saveFrontDeskTrainingItemImpl =
@@ -401,6 +404,115 @@ export function createAgentRouter(deps = {}) {
 
     return undefined;
   };
+
+  function getMultipartBoundary(req) {
+    const contentType = cleanText(req.headers["content-type"] || req.headers["Content-Type"]);
+    const match = contentType.match(/multipart\/form-data;\s*boundary=(?:"([^"]+)"|([^;]+))/i);
+    return cleanText(match?.[1] || match?.[2]);
+  }
+
+  function parseContentDisposition(value = "") {
+    const result = {};
+    String(value || "").split(";").forEach((part) => {
+      const [rawKey, ...rawValue] = part.trim().split("=");
+      const key = cleanText(rawKey).toLowerCase();
+      if (!key || !rawValue.length) {
+        return;
+      }
+      result[key] = rawValue.join("=").trim().replace(/^"|"$/g, "");
+    });
+    return result;
+  }
+
+  function findMultipartFile(buffer, boundary, acceptedNames = ["background", "file"]) {
+    const toBuffer = Buffer["from"];
+    const boundaryBuffer = toBuffer(`--${boundary}`);
+    const headerSeparator = toBuffer("\r\n\r\n");
+    let cursor = buffer.indexOf(boundaryBuffer);
+
+    while (cursor >= 0) {
+      const next = buffer.indexOf(boundaryBuffer, cursor + boundaryBuffer.length);
+      if (next < 0) {
+        break;
+      }
+
+      let part = buffer.subarray(cursor + boundaryBuffer.length, next);
+      if (part[0] === 45 && part[1] === 45) {
+        break;
+      }
+      if (part[0] === 13 && part[1] === 10) {
+        part = part.subarray(2);
+      }
+      if (part.length >= 2 && part[part.length - 2] === 13 && part[part.length - 1] === 10) {
+        part = part.subarray(0, part.length - 2);
+      }
+
+      const headerEnd = part.indexOf(headerSeparator);
+      if (headerEnd >= 0) {
+        const headerText = part.subarray(0, headerEnd).toString("latin1");
+        const body = part.subarray(headerEnd + headerSeparator.length);
+        const headers = Object.fromEntries(headerText.split("\r\n").map((line) => {
+          const separator = line.indexOf(":");
+          return separator >= 0
+            ? [line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim()]
+            : ["", ""];
+        }).filter(([key]) => key));
+        const disposition = parseContentDisposition(headers["content-disposition"]);
+
+        if (acceptedNames.includes(disposition.name) && disposition.filename) {
+          return {
+            fieldName: disposition.name,
+            filename: disposition.filename,
+            contentType: cleanText(headers["content-type"]).toLowerCase(),
+            buffer: body,
+            size: body.length,
+          };
+        }
+      }
+
+      cursor = next;
+    }
+
+    return null;
+  }
+
+  async function readMultipartBackgroundFile(req, { maxBytes }) {
+    const boundary = getMultipartBoundary(req);
+    if (!boundary) {
+      const error = new Error("Use multipart/form-data with a background file.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const contentLength = Number(req.headers["content-length"] || 0);
+    if (Number.isFinite(contentLength) && contentLength > maxBytes + 16384) {
+      const error = new Error("Uploaded background file is too large.");
+      error.statusCode = 413;
+      throw error;
+    }
+
+    const chunks = [];
+    let totalBytes = 0;
+
+    for await (const chunk of req) {
+      totalBytes += chunk.length;
+      if (totalBytes > maxBytes + 16384) {
+        const error = new Error("Uploaded background file is too large.");
+        error.statusCode = 413;
+        throw error;
+      }
+      chunks.push(chunk);
+    }
+
+    const file = findMultipartFile(Buffer.concat(chunks), boundary);
+    if (!file) {
+      const error = new Error("Upload a background file.");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    return file;
+  }
 
   function getCheckoutDraftBusinessName(user) {
     const ownerUserId = String(user?.id || "").trim();
@@ -1311,6 +1423,47 @@ export function createAgentRouter(deps = {}) {
         clientId: req.body.client_id || req.body.clientId || null,
         websiteUrl: req.body.website_url || req.body.websiteUrl || null,
         code: err?.code || null,
+        statusCode: err?.statusCode || 500,
+        message: err?.message || "Something went wrong",
+      });
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post([
+    "/agents/:agentId/front-desk-background/:kind",
+    "/api/agents/:agentId/front-desk-background/:kind",
+  ], async (req, res) => {
+    try {
+      const kind = cleanText(req.params.kind).toLowerCase();
+      const maxBytes = kind === "video" ? 50 * 1024 * 1024 : 8 * 1024 * 1024;
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agent = await requireActiveAgentAccessImpl(supabase, {
+        agentId: req.params.agentId,
+        ownerUserId: user.id,
+      });
+      const file = await readMultipartBackgroundFile(req, { maxBytes });
+      const upload = await uploadFrontDeskBackgroundImpl(supabase, {
+        agent,
+        ownerUserId: user.id,
+        kind,
+        file,
+      });
+
+      res.json({
+        ok: true,
+        kind: upload.kind,
+        url: upload.url,
+        contentType: upload.contentType,
+        size: upload.size,
+      });
+    } catch (err) {
+      console.error("[front-desk-background] Failed to upload background:", {
+        agentId: req.params.agentId || null,
+        kind: req.params.kind || null,
         statusCode: err?.statusCode || 500,
         message: err?.message || "Something went wrong",
       });

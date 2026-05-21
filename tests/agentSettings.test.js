@@ -8,6 +8,10 @@ import {
   normalizeFullPageConfig,
   updateAgentSettings,
 } from "../src/services/agents/agentService.js";
+import {
+  uploadFrontDeskBackground,
+  validateFrontDeskBackgroundUpload,
+} from "../src/services/agents/frontDeskBackgroundService.js";
 
 function createSupabaseStub(initialState) {
   const state = {
@@ -726,6 +730,214 @@ test("updateAgentSettings persists widget logo upload data", async () => {
 
   assert.equal(result.widgetLogoUrl, logoDataUrl);
   assert.equal(supabase.state.widget_configs[0].widget_logo_url, logoDataUrl);
+});
+
+test("normalizeFullPageDesignConfig maps built-in background presets", () => {
+  const light = normalizeFullPageDesignConfig({
+    background_source: "preset",
+    background_preset: "clean-light-abstract",
+    background_overlay_opacity: 0.22,
+  });
+  const dark = normalizeFullPageDesignConfig({
+    background_source: "preset",
+    background_preset: "dark-gold-abstract",
+  });
+
+  assert.equal(light.backgroundType, "image");
+  assert.equal(light.backgroundSource, "preset");
+  assert.equal(light.backgroundPreset, "clean-light-abstract");
+  assert.equal(light.backgroundImageUrl, "/assets/front-desk/backgrounds/abstract-light-gold.png");
+  assert.equal(light.textTheme, "dark");
+  assert.equal(light.backgroundOverlayOpacity, 0.22);
+  assert.equal(dark.backgroundType, "image");
+  assert.equal(dark.backgroundSource, "preset");
+  assert.equal(dark.backgroundPreset, "dark-gold-abstract");
+  assert.equal(dark.backgroundImageUrl, "/assets/front-desk/backgrounds/abstract-dark-gold.png");
+  assert.equal(dark.textTheme, "light");
+});
+
+test("normalizeFullPageDesignConfig gives media backgrounds readable overlay defaults", () => {
+  const lightTextVideo = normalizeFullPageDesignConfig({
+    background_type: "video",
+    background_source: "url",
+    background_video_url: "https://cdn.example.com/lobby.webm",
+    background_image_url: "https://cdn.example.com/lobby.png",
+    text_theme: "light",
+  });
+  const darkTextImage = normalizeFullPageDesignConfig({
+    background_type: "image",
+    background_source: "upload",
+    background_image_url: "https://cdn.example.com/lobby.webp",
+    text_theme: "dark",
+  });
+
+  assert.equal(lightTextVideo.backgroundOverlayColor, "#020617");
+  assert.equal(lightTextVideo.backgroundOverlayOpacity, 0.36);
+  assert.equal(darkTextImage.backgroundOverlayColor, "#ffffff");
+  assert.equal(darkTextImage.backgroundOverlayOpacity, 0.2);
+});
+
+test("normalizeFullPageDesignConfig falls back safely for invalid background design values", () => {
+  const design = normalizeFullPageDesignConfig({
+    background_type: "javascript",
+    background_source: "preset",
+    background_preset: "not-real",
+    background_color: "not-a-color",
+    background_gradient_to: "<b>bad</b>",
+    background_image_url: "ftp://example.com/background.png",
+    background_video_url: "https://example.com/video.svg",
+    background_overlay_opacity: 7,
+    background_blur: 100,
+    text_theme: "neon",
+  });
+
+  assert.equal(design.backgroundType, "color");
+  assert.equal(design.backgroundSource, "url");
+  assert.equal(design.backgroundPreset, null);
+  assert.equal(design.backgroundColor, "#ffffff");
+  assert.equal(design.backgroundGradientTo, "#eef4ff");
+  assert.equal(design.backgroundImageUrl, null);
+  assert.equal(design.backgroundVideoUrl, null);
+  assert.equal(design.backgroundOverlayOpacity, 0.92);
+  assert.equal(design.backgroundBlur, 18);
+  assert.equal(design.textTheme, "dark");
+});
+
+test("updateAgentSettings persists built-in full-page background preset fields", async () => {
+  const supabase = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Acme Assistant",
+        purpose: "support",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Acme",
+        website_url: "https://acme.example",
+      },
+    ],
+    widget_configs: [
+      {
+        agent_id: "agent-1",
+        assistant_name: "Acme Assistant",
+        welcome_message: "Hello.",
+        button_label: "Chat",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "YOUR PERSONAL ASSISTANT",
+        theme_mode: "dark",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    fullPageConfig: {
+      design: {
+        background_source: "preset",
+        background_preset: "dark-gold-abstract",
+      },
+    },
+  });
+
+  assert.equal(result.fullPageConfig.design.backgroundPreset, "dark-gold-abstract");
+  assert.equal(result.fullPageConfig.design.backgroundImageUrl, "/assets/front-desk/backgrounds/abstract-dark-gold.png");
+  assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_source, "preset");
+  assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_preset, "dark-gold-abstract");
+});
+
+test("front desk background upload validation accepts supported image and video files", () => {
+  assert.equal(
+    validateFrontDeskBackgroundUpload({
+      filename: "hero.PNG",
+      contentType: "image/png",
+      buffer: Buffer.alloc(100),
+    }, "image").extension,
+    "png"
+  );
+  assert.equal(
+    validateFrontDeskBackgroundUpload({
+      filename: "hero.webm",
+      contentType: "video/webm",
+      buffer: Buffer.alloc(100),
+    }, "video").mimeType,
+    "video/webm"
+  );
+});
+
+test("front desk background upload validation rejects svg, mismatched, and oversized files", () => {
+  assert.throws(
+    () => validateFrontDeskBackgroundUpload({
+      filename: "hero.svg",
+      contentType: "image/svg+xml",
+      buffer: Buffer.alloc(100),
+    }, "image"),
+    /PNG, JPG, JPEG, or WebP/
+  );
+  assert.throws(
+    () => validateFrontDeskBackgroundUpload({
+      filename: "hero.png",
+      contentType: "video/mp4",
+      buffer: Buffer.alloc(100),
+    }, "image"),
+    /PNG, JPG, JPEG, or WebP/
+  );
+  assert.throws(
+    () => validateFrontDeskBackgroundUpload({
+      filename: "hero.mp4",
+      contentType: "video/mp4",
+      size: 51 * 1024 * 1024,
+      buffer: Buffer.alloc(1),
+    }, "video"),
+    /under 50 MB/
+  );
+});
+
+test("uploadFrontDeskBackground stores owner and agent scoped public storage object", async () => {
+  const calls = [];
+  const supabase = {
+    storage: {
+      from(bucket) {
+        return {
+          async upload(path, buffer, options) {
+            calls.push({ bucket, path, buffer, options });
+            return { data: { path }, error: null };
+          },
+          getPublicUrl(path) {
+            return { data: { publicUrl: `https://cdn.example.com/${bucket}/${path}` } };
+          },
+        };
+      },
+    },
+  };
+
+  const result = await uploadFrontDeskBackground(supabase, {
+    agent: { id: "agent-1" },
+    ownerUserId: "owner-1",
+    kind: "image",
+    file: {
+      filename: "../Light Hero.webp",
+      contentType: "image/webp",
+      buffer: Buffer.from("image"),
+    },
+    bucket: "test-backgrounds",
+  });
+
+  assert.equal(result.url.startsWith("https://cdn.example.com/test-backgrounds/owner-1/agent-1/image/"), true);
+  assert.equal(calls[0].bucket, "test-backgrounds");
+  assert.match(calls[0].path, /^owner-1\/agent-1\/image\/\d+-[a-f0-9]+-Light-Hero\.webp$/);
+  assert.equal(calls[0].options.contentType, "image/webp");
+  assert.equal(calls[0].options.upsert, false);
 });
 
 test("updateAgentSettings persists clearing the website", async () => {

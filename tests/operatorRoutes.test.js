@@ -45,6 +45,30 @@ async function requestJson(baseUrl, pathname, options = {}) {
   };
 }
 
+async function requestMultipart(baseUrl, pathname, {
+  token = "token",
+  filename = "hero.png",
+  contentType = "image/png",
+  body = "image",
+  headers = {},
+} = {}) {
+  const form = new FormData();
+  form.set("background", new Blob([body], { type: contentType }), filename);
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: form,
+  });
+  const text = await response.text();
+  return {
+    status: response.status,
+    json: text ? JSON.parse(text) : null,
+  };
+}
+
 function buildRouteDeps(overrides = {}) {
   return {
     getSupabaseClient: () => ({}),
@@ -52,6 +76,13 @@ function buildRouteDeps(overrides = {}) {
     requireActiveAgentAccess: async () => ({
       id: "agent-1",
       businessId: "business-1",
+    }),
+    uploadFrontDeskBackground: async (_supabase, { kind, file }) => ({
+      ok: true,
+      kind,
+      url: `https://cdn.example.com/${kind}/${file.filename}`,
+      contentType: file.contentType,
+      size: file.size,
     }),
     getAgentWorkspaceSnapshot: async () => ({
       id: "agent-1",
@@ -536,6 +567,66 @@ test("agents update route preserves explicit blanks and omits untouched fields",
     assert.equal(capturedPayload.tone, undefined);
   } finally {
     await server.close();
+  }
+});
+
+test("front desk background upload route requires owner auth and accepts image/video uploads", async () => {
+  const server = await startServer(createApp(buildRouteDeps()));
+
+  try {
+    const image = await requestMultipart(
+      server.baseUrl,
+      "/agents/agent-1/front-desk-background/image",
+      { filename: "hero.png", contentType: "image/png", body: "png" }
+    );
+    const video = await requestMultipart(
+      server.baseUrl,
+      "/api/agents/agent-1/front-desk-background/video",
+      { filename: "hero.webm", contentType: "video/webm", body: "webm" }
+    );
+
+    assert.equal(image.status, 200);
+    assert.equal(image.json.ok, true);
+    assert.equal(image.json.url, "https://cdn.example.com/image/hero.png");
+    assert.equal(video.status, 200);
+    assert.equal(video.json.contentType, "video/webm");
+  } finally {
+    await server.close();
+  }
+});
+
+test("front desk background upload route rejects unauthorized and cross-owner requests", async () => {
+  const unauthServer = await startServer(createApp(buildRouteDeps({
+    getAuthenticatedUser: async () => {
+      const error = new Error("Unauthorized");
+      error.statusCode = 401;
+      throw error;
+    },
+  })));
+  const forbiddenServer = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async () => {
+      const error = new Error("Forbidden");
+      error.statusCode = 403;
+      throw error;
+    },
+  })));
+
+  try {
+    const unauthorized = await requestMultipart(
+      unauthServer.baseUrl,
+      "/agents/agent-1/front-desk-background/image",
+      { token: "" }
+    );
+    const forbidden = await requestMultipart(
+      forbiddenServer.baseUrl,
+      "/agents/agent-2/front-desk-background/image"
+    );
+
+    assert.equal(unauthorized.status, 401);
+    assert.equal(forbidden.status, 403);
+  } finally {
+    await unauthServer.close();
+    await forbiddenServer.close();
   }
 });
 

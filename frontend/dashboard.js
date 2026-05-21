@@ -16613,6 +16613,13 @@ function normalizeFullPageMediaUrl(value, allowedExtensions = []) {
     return null;
   }
 
+  if (/^\/assets\/front-desk\/backgrounds\/[a-z0-9._/-]+$/i.test(normalized)) {
+    const lowerPath = normalized.toLowerCase();
+    return allowedExtensions.some((extension) => lowerPath.endsWith(`.${extension}`))
+      ? normalized
+      : null;
+  }
+
   try {
     const url = new URL(normalized);
     if (!["https:", "http:"].includes(url.protocol)) {
@@ -16636,9 +16643,21 @@ function parseFullPageDesignPayload(formData) {
     ["clean-light", "dark-professional", "warm-minimal", "bold-gradient", "image-hero", "video-hero"],
     "clean-light"
   );
+  const backgroundPreset = normalizeFullPageDesignChoice(
+    formData.get("full_page_background_preset"),
+    ["clean-light-abstract", "dark-gold-abstract"],
+    ""
+  );
+  const backgroundSource = normalizeFullPageDesignChoice(
+    formData.get("full_page_background_source"),
+    ["preset", "upload", "url"],
+    backgroundPreset ? "preset" : "url"
+  );
 
   return {
     preset,
+    background_source: backgroundSource,
+    background_preset: backgroundPreset || null,
     background_type: normalizeFullPageDesignChoice(
       formData.get("full_page_background_type"),
       ["color", "gradient", "image", "video"],
@@ -16662,6 +16681,50 @@ function parseFullPageDesignPayload(formData) {
     status_style: normalizeFullPageDesignChoice(formData.get("full_page_status_style"), ["subtle", "pill", "minimal"], "subtle"),
     disable_video_on_mobile: formData.has("full_page_disable_video_on_mobile"),
   };
+}
+
+const FULL_PAGE_BACKGROUND_UPLOAD_LIMITS = Object.freeze({
+  image: 8 * 1024 * 1024,
+  video: 50 * 1024 * 1024,
+});
+const FULL_PAGE_BACKGROUND_UPLOAD_TYPES = Object.freeze({
+  image: new Set(["image/png", "image/jpeg", "image/webp"]),
+  video: new Set(["video/mp4", "video/webm"]),
+});
+
+async function uploadFullPageBackgroundFile(form, agent, kind) {
+  const input = form?.querySelector(`[data-full-page-background-upload="${kind}"]`);
+  const file = input?.files?.[0] || null;
+
+  if (!file) {
+    return null;
+  }
+
+  if (!FULL_PAGE_BACKGROUND_UPLOAD_TYPES[kind]?.has(file.type)) {
+    throw new Error(kind === "image"
+      ? "Upload a PNG, JPG, JPEG, or WebP background image."
+      : "Upload an MP4 or WebM background video.");
+  }
+
+  if (file.size > FULL_PAGE_BACKGROUND_UPLOAD_LIMITS[kind]) {
+    throw new Error(kind === "image"
+      ? "Use a background image under 8 MB."
+      : "Use a background video under 50 MB.");
+  }
+
+  const body = new FormData();
+  body.set("background", file);
+
+  const result = await fetchJson(`/agents/${encodeURIComponent(agent.id)}/front-desk-background/${kind}`, {
+    method: "POST",
+    body,
+  });
+
+  if (result?.ok !== true || !result.url) {
+    throw new Error("The background upload was not confirmed by the server.");
+  }
+
+  return result.url;
 }
 
 function parseFullPageConfigPayload(formData) {
@@ -16805,24 +16868,40 @@ async function saveAssistant(event, agent) {
     }
   });
 
-  if (formData.has("full_page_headline")) {
-    payload.full_page_config = parseFullPageConfigPayload(formData);
-  }
-
   try {
+    const uploadedImageUrl = await uploadFullPageBackgroundFile(form, agent, "image");
+    if (uploadedImageUrl) {
+      formData.set("full_page_background_type", "image");
+      formData.set("full_page_background_source", "upload");
+      formData.set("full_page_background_preset", "");
+      formData.set("full_page_background_image_url", uploadedImageUrl);
+    }
+
+    const uploadedVideoUrl = await uploadFullPageBackgroundFile(form, agent, "video");
+    if (uploadedVideoUrl) {
+      formData.set("full_page_background_type", "video");
+      formData.set("full_page_background_source", "upload");
+      formData.set("full_page_background_preset", "");
+      formData.set("full_page_background_video_url", uploadedVideoUrl);
+    }
+
     const widgetLogoUrl = await readWidgetLogoUpload(form);
     if (widgetLogoUrl) {
       payload.widget_logo_url = widgetLogoUrl;
     }
   } catch (error) {
-    const message = error.message || "That widget logo could not be uploaded.";
+    const message = error.message || "That media file could not be uploaded.";
     setStatus(message);
     if (saveState) {
-      saveState.textContent = "Could not save logo.";
+      saveState.textContent = "Could not save media.";
       saveState.className = "save-state unsaved";
       saveState.title = message;
     }
     return;
+  }
+
+  if (formData.has("full_page_headline")) {
+    payload.full_page_config = parseFullPageConfigPayload(formData);
   }
 
   submitButton.disabled = true;

@@ -77,6 +77,25 @@ const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
   "video-hero",
 ]);
 const FULL_PAGE_BACKGROUND_TYPES = Object.freeze(["color", "gradient", "image", "video"]);
+const FULL_PAGE_BACKGROUND_SOURCES = Object.freeze(["preset", "upload", "url"]);
+const FULL_PAGE_BACKGROUND_PRESETS = Object.freeze({
+  "clean-light-abstract": {
+    key: "clean-light-abstract",
+    imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+    backgroundColor: "#f8f4ea",
+    backgroundOverlayColor: "#ffffff",
+    backgroundOverlayOpacity: 0.18,
+    textTheme: "dark",
+  },
+  "dark-gold-abstract": {
+    key: "dark-gold-abstract",
+    imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+    backgroundColor: "#09090b",
+    backgroundOverlayColor: "#020617",
+    backgroundOverlayOpacity: 0.28,
+    textTheme: "light",
+  },
+});
 const FULL_PAGE_FOCAL_POINTS = Object.freeze(["center", "top", "left", "right"]);
 const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
 const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
@@ -85,6 +104,8 @@ const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
 const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
   backgroundType: "color",
+  backgroundSource: "url",
+  backgroundPreset: "",
   backgroundColor: "#ffffff",
   backgroundGradientTo: "#eef4ff",
   backgroundImageUrl: "",
@@ -598,6 +619,13 @@ function normalizeFullPageMediaUrl(value, allowedExtensions = []) {
     return "";
   }
 
+  if (/^\/assets\/front-desk\/backgrounds\/[a-z0-9._/-]+$/i.test(normalized)) {
+    const lowerPath = normalized.toLowerCase();
+    return allowedExtensions.some((extension) => lowerPath.endsWith(`.${extension}`))
+      ? normalized
+      : "";
+  }
+
   try {
     const url = new URL(normalized, window.location.origin);
     if (!["https:", "http:"].includes(url.protocol)) {
@@ -686,29 +714,63 @@ function getFullPageDesignPresetDefaults(presetValue) {
   return presets[preset] || presets[DEFAULT_FULL_PAGE_DESIGN.preset];
 }
 
+function getFullPageBackgroundPresetDefaults(presetValue) {
+  const preset = normalizeFullPageDesignEnum(presetValue, Object.keys(FULL_PAGE_BACKGROUND_PRESETS), "");
+  return preset ? FULL_PAGE_BACKGROUND_PRESETS[preset] : null;
+}
+
 function normalizeFullPageDesignConfig(rawDesign = {}) {
   const design = rawDesign && typeof rawDesign === "object" && !Array.isArray(rawDesign)
     ? rawDesign
     : {};
   const presetDefaults = getFullPageDesignPresetDefaults(design.preset);
+  const rawBackgroundPresetDefaults = getFullPageBackgroundPresetDefaults(design.backgroundPreset || design.background_preset);
+  const rawBackgroundSource = normalizeFullPageDesignEnum(
+    design.backgroundSource || design.background_source,
+    FULL_PAGE_BACKGROUND_SOURCES,
+    rawBackgroundPresetDefaults ? "preset" : DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+  );
+  const backgroundPresetDefaults = rawBackgroundSource === "preset" ? rawBackgroundPresetDefaults : null;
   const backgroundType = normalizeFullPageDesignEnum(
     design.backgroundType || design.background_type,
     FULL_PAGE_BACKGROUND_TYPES,
-    presetDefaults.backgroundType
+    backgroundPresetDefaults ? "image" : presetDefaults.backgroundType
   );
+  const backgroundSource = backgroundPresetDefaults
+    ? "preset"
+    : rawBackgroundSource === "preset"
+      ? DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+      : rawBackgroundSource;
+  const rawBackgroundImageUrl = normalizeFullPageMediaUrl(design.backgroundImageUrl || design.background_image_url, ["png", "jpg", "jpeg", "webp"]);
+  const rawBackgroundVideoUrl = normalizeFullPageMediaUrl(design.backgroundVideoUrl || design.background_video_url, ["mp4", "webm"]);
+  const textTheme = normalizeFullPageDesignEnum(design.textTheme || design.text_theme, FULL_PAGE_TEXT_THEMES, backgroundPresetDefaults?.textTheme || presetDefaults.textTheme);
+  const isMediaBackground = ["image", "video"].includes(backgroundType);
+  const designPresetOwnsMediaBackground = isMediaBackground && presetDefaults.backgroundType === backgroundType;
+  const mediaOverlayColor = textTheme === "light" ? "#020617" : "#ffffff";
+  const mediaOverlayOpacity = textTheme === "light" ? 0.36 : 0.2;
+  const overlayColorFallback =
+    backgroundPresetDefaults?.backgroundOverlayColor
+    || (designPresetOwnsMediaBackground ? presetDefaults.backgroundOverlayColor : "")
+    || (isMediaBackground ? mediaOverlayColor : presetDefaults.backgroundOverlayColor);
+  const overlayOpacityFallback =
+    backgroundPresetDefaults?.backgroundOverlayOpacity
+    ?? (designPresetOwnsMediaBackground ? presetDefaults.backgroundOverlayOpacity : undefined)
+    ?? (isMediaBackground ? mediaOverlayOpacity : presetDefaults.backgroundOverlayOpacity);
 
   return {
     preset: presetDefaults.preset,
     backgroundType,
-    backgroundColor: normalizeFullPageAccentColor(design.backgroundColor || design.background_color, presetDefaults.backgroundColor),
+    backgroundSource,
+    backgroundPreset: backgroundPresetDefaults?.key || "",
+    backgroundColor: normalizeFullPageAccentColor(design.backgroundColor || design.background_color, backgroundPresetDefaults?.backgroundColor || presetDefaults.backgroundColor),
     backgroundGradientTo: normalizeFullPageAccentColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
-    backgroundImageUrl: normalizeFullPageMediaUrl(design.backgroundImageUrl || design.background_image_url, ["png", "jpg", "jpeg", "webp"]),
-    backgroundVideoUrl: normalizeFullPageMediaUrl(design.backgroundVideoUrl || design.background_video_url, ["mp4", "webm"]),
-    backgroundOverlayColor: normalizeFullPageAccentColor(design.backgroundOverlayColor || design.background_overlay_color, presetDefaults.backgroundOverlayColor),
-    backgroundOverlayOpacity: normalizeFullPageDesignNumber(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, presetDefaults.backgroundOverlayOpacity, 0, 0.92, 2),
+    backgroundImageUrl: backgroundPresetDefaults?.imageUrl || rawBackgroundImageUrl,
+    backgroundVideoUrl: rawBackgroundVideoUrl,
+    backgroundOverlayColor: normalizeFullPageAccentColor(design.backgroundOverlayColor || design.background_overlay_color, overlayColorFallback),
+    backgroundOverlayOpacity: normalizeFullPageDesignNumber(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, overlayOpacityFallback, 0, 0.92, 2),
     backgroundBlur: normalizeFullPageDesignNumber(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur, 0, 18),
     backgroundFocalPoint: normalizeFullPageDesignEnum(design.backgroundFocalPoint || design.background_focal_point, FULL_PAGE_FOCAL_POINTS, presetDefaults.backgroundFocalPoint),
-    textTheme: normalizeFullPageDesignEnum(design.textTheme || design.text_theme, FULL_PAGE_TEXT_THEMES, presetDefaults.textTheme),
+    textTheme,
     composerStyle: normalizeFullPageDesignEnum(design.composerStyle || design.composer_style, FULL_PAGE_COMPOSER_STYLES, presetDefaults.composerStyle),
     chipStyle: normalizeFullPageDesignEnum(design.chipStyle || design.chip_style, FULL_PAGE_CHIP_STYLES, presetDefaults.chipStyle),
     statusStyle: normalizeFullPageDesignEnum(design.statusStyle || design.status_style, FULL_PAGE_STATUS_STYLES, presetDefaults.statusStyle),
@@ -2308,6 +2370,9 @@ function syncFullPageDesignVideo(design) {
     video.autoplay = true;
     video.playsInline = true;
     video.setAttribute("aria-hidden", "true");
+    video.addEventListener("error", () => {
+      video.hidden = true;
+    });
     document.body.appendChild(video);
   }
 
@@ -2321,6 +2386,7 @@ function syncFullPageDesignVideo(design) {
 function applyFullPageDesign(config = widgetConfig) {
   const design = getFullPageConfig(config).design;
   const root = document.documentElement;
+  const designStyleTargets = [root, document.body].filter(Boolean);
 
   if (!isCanvasEmbeddedPageMode()) {
     syncFullPageDesignVideo({ ...DEFAULT_FULL_PAGE_DESIGN, backgroundType: "color" });
@@ -2334,16 +2400,18 @@ function applyFullPageDesign(config = widgetConfig) {
   setFullPageDesignClass("full-page-design-chip", design.chipStyle, FULL_PAGE_CHIP_STYLES);
   setFullPageDesignClass("full-page-design-status", design.statusStyle, FULL_PAGE_STATUS_STYLES);
   root.classList.toggle("full-page-design-disable-mobile-video", design.disableVideoOnMobile);
-  root.style.setProperty("--canvas-design-bg", design.backgroundColor);
-  root.style.setProperty("--canvas-design-gradient-to", design.backgroundGradientTo);
-  root.style.setProperty("--canvas-design-overlay", design.backgroundOverlayColor);
-  root.style.setProperty("--canvas-design-overlay-opacity", String(design.backgroundOverlayOpacity));
-  root.style.setProperty("--canvas-design-blur", `${design.backgroundBlur}px`);
-  root.style.setProperty("--canvas-design-position", design.backgroundFocalPoint);
-  root.style.setProperty(
-    "--canvas-design-image",
-    design.backgroundImageUrl ? `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")` : "none"
-  );
+  designStyleTargets.forEach((target) => {
+    target.style.setProperty("--canvas-design-bg", design.backgroundColor);
+    target.style.setProperty("--canvas-design-gradient-to", design.backgroundGradientTo);
+    target.style.setProperty("--canvas-design-overlay", design.backgroundOverlayColor);
+    target.style.setProperty("--canvas-design-overlay-opacity", String(design.backgroundOverlayOpacity));
+    target.style.setProperty("--canvas-design-blur", `${design.backgroundBlur}px`);
+    target.style.setProperty("--canvas-design-position", design.backgroundFocalPoint);
+    target.style.setProperty(
+      "--canvas-design-image",
+      design.backgroundImageUrl ? `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")` : "none"
+    );
+  });
 
   syncFullPageDesignVideo(design);
 }

@@ -500,6 +500,12 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /data-full-page-settings-tab="design"/);
   assert.match(harness.getRootHtml(), /Preset/);
   assert.match(harness.getRootHtml(), /Dark Professional/);
+  assert.match(harness.getRootHtml(), /Clean Light Abstract/);
+  assert.match(harness.getRootHtml(), /Dark Gold Abstract/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_source"/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_preset"/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_image_file"/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_video_file"/);
   assert.match(harness.getRootHtml(), /data-full-page-background-control="image video"/);
   assert.match(harness.getRootHtml(), /data-full-page-background-control="video"/);
   assert.match(harness.getRootHtml(), /data-full-page-design-preview/);

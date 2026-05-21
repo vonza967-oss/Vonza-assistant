@@ -143,6 +143,27 @@
     "image-hero",
     "video-hero",
   ]);
+  const FULL_PAGE_BACKGROUND_SOURCES = Object.freeze(["preset", "upload", "url"]);
+  const FULL_PAGE_BACKGROUND_PRESETS = Object.freeze({
+    "clean-light-abstract": {
+      key: "clean-light-abstract",
+      label: "Clean Light Abstract",
+      imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+      backgroundColor: "#f8f4ea",
+      backgroundOverlayColor: "#ffffff",
+      backgroundOverlayOpacity: 0.18,
+      textTheme: "dark",
+    },
+    "dark-gold-abstract": {
+      key: "dark-gold-abstract",
+      label: "Dark Gold Abstract",
+      imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+      backgroundColor: "#09090b",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.28,
+      textTheme: "light",
+    },
+  });
   const FULL_PAGE_PRESET_OPTIONS = Object.freeze([
     { value: "clean-light", label: "Clean Light" },
     { value: "dark-professional", label: "Dark Professional" },
@@ -186,6 +207,8 @@
   const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
     preset: "clean-light",
     backgroundType: "color",
+    backgroundSource: "url",
+    backgroundPreset: "",
     backgroundColor: "#ffffff",
     backgroundGradientTo: "#eef4ff",
     backgroundImageUrl: "",
@@ -317,25 +340,44 @@
     return presets[preset] || presets[DEFAULT_FULL_PAGE_DESIGN.preset];
   }
 
+  function getFullPageBackgroundPresetDefaults(presetValue) {
+    const preset = normalizeDesignEnum(presetValue, Object.keys(FULL_PAGE_BACKGROUND_PRESETS), "");
+    return preset ? FULL_PAGE_BACKGROUND_PRESETS[preset] : null;
+  }
+
   function normalizeFullPageDesign(config = {}) {
     const design = config.design && typeof config.design === "object" && !Array.isArray(config.design)
       ? config.design
       : {};
     const presetDefaults = getFullPageDesignPresetDefaults(design.preset);
-    const backgroundType = normalizeDesignEnum(design.backgroundType || design.background_type, FULL_PAGE_BACKGROUND_TYPES, presetDefaults.backgroundType);
+    const rawBackgroundPresetDefaults = getFullPageBackgroundPresetDefaults(design.backgroundPreset || design.background_preset);
+    const rawBackgroundSource = normalizeDesignEnum(
+      design.backgroundSource || design.background_source,
+      FULL_PAGE_BACKGROUND_SOURCES,
+      rawBackgroundPresetDefaults ? "preset" : DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+    );
+    const backgroundPresetDefaults = rawBackgroundSource === "preset" ? rawBackgroundPresetDefaults : null;
+    const backgroundType = normalizeDesignEnum(design.backgroundType || design.background_type, FULL_PAGE_BACKGROUND_TYPES, backgroundPresetDefaults ? "image" : presetDefaults.backgroundType);
+    const backgroundSource = backgroundPresetDefaults
+      ? "preset"
+      : rawBackgroundSource === "preset"
+        ? DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+        : rawBackgroundSource;
 
     return {
       preset: presetDefaults.preset,
       backgroundType,
-      backgroundColor: normalizeFullPageColor(design.backgroundColor || design.background_color, presetDefaults.backgroundColor),
+      backgroundSource,
+      backgroundPreset: backgroundPresetDefaults?.key || "",
+      backgroundColor: normalizeFullPageColor(design.backgroundColor || design.background_color, backgroundPresetDefaults?.backgroundColor || presetDefaults.backgroundColor),
       backgroundGradientTo: normalizeFullPageColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
-      backgroundImageUrl: defaultTrimText(design.backgroundImageUrl || design.background_image_url),
+      backgroundImageUrl: backgroundPresetDefaults?.imageUrl || defaultTrimText(design.backgroundImageUrl || design.background_image_url),
       backgroundVideoUrl: defaultTrimText(design.backgroundVideoUrl || design.background_video_url),
-      backgroundOverlayColor: normalizeFullPageColor(design.backgroundOverlayColor || design.background_overlay_color, presetDefaults.backgroundOverlayColor),
-      backgroundOverlayOpacity: normalizeOverlayOpacity(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, presetDefaults.backgroundOverlayOpacity),
+      backgroundOverlayColor: normalizeFullPageColor(design.backgroundOverlayColor || design.background_overlay_color, backgroundPresetDefaults?.backgroundOverlayColor || presetDefaults.backgroundOverlayColor),
+      backgroundOverlayOpacity: normalizeOverlayOpacity(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, backgroundPresetDefaults?.backgroundOverlayOpacity ?? presetDefaults.backgroundOverlayOpacity),
       backgroundBlur: normalizeBackgroundBlur(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur),
       backgroundFocalPoint: normalizeDesignEnum(design.backgroundFocalPoint || design.background_focal_point, ["center", "top", "left", "right"], presetDefaults.backgroundFocalPoint),
-      textTheme: normalizeDesignEnum(design.textTheme || design.text_theme, ["dark", "light"], presetDefaults.textTheme),
+      textTheme: normalizeDesignEnum(design.textTheme || design.text_theme, ["dark", "light"], backgroundPresetDefaults?.textTheme || presetDefaults.textTheme),
       composerStyle: normalizeDesignEnum(design.composerStyle || design.composer_style, ["soft", "elevated", "minimal"], presetDefaults.composerStyle),
       chipStyle: normalizeDesignEnum(design.chipStyle || design.chip_style, ["outline", "soft", "subtle-fill"], presetDefaults.chipStyle),
       statusStyle: normalizeDesignEnum(design.statusStyle || design.status_style, ["subtle", "pill", "minimal"], presetDefaults.statusStyle),
@@ -1116,6 +1158,8 @@
                   </div>
                 </div>
                 <div class="settings-shell-field-stack" data-full-page-settings-panel="design" hidden>
+                  <input type="hidden" name="full_page_background_source" value="${escapeHtml(fullPageDesign.backgroundSource)}" data-full-page-background-source>
+                  <input type="hidden" name="full_page_background_preset" value="${escapeHtml(fullPageDesign.backgroundPreset || "")}" data-full-page-background-preset>
                   <div class="settings-field-grid settings-field-grid--two">
                     <div class="field">
                       <label for="full-page-design-preset">Preset</label>
@@ -1140,14 +1184,37 @@
                       <input id="full-page-gradient-to" name="full_page_background_gradient_to" type="color" value="${escapeHtml(fullPageDesign.backgroundGradientTo)}">
                     </div>
                   </div>
+                  <div class="settings-full-page-background-presets" data-full-page-background-control="image">
+                    ${Object.values(FULL_PAGE_BACKGROUND_PRESETS).map((preset) => `
+                      <button class="settings-background-preset-card ${fullPageDesign.backgroundPreset === preset.key ? "selected" : ""}" type="button" data-full-page-background-preset-option="${escapeHtml(preset.key)}" aria-pressed="${fullPageDesign.backgroundPreset === preset.key ? "true" : "false"}">
+                        <span class="settings-background-preset-thumb" style="background-image:url('${escapeHtml(preset.imageUrl)}')" aria-hidden="true"></span>
+                        <span class="settings-background-preset-copy">
+                          <strong>${escapeHtml(preset.label)}</strong>
+                          <span>Use background</span>
+                        </span>
+                      </button>
+                    `).join("")}
+                  </div>
                   <div class="field" data-full-page-background-control="image video">
                     <label for="full-page-background-image-url">Image / fallback URL</label>
-                    <input id="full-page-background-image-url" name="full_page_background_image_url" type="url" value="${escapeHtml(fullPageDesign.backgroundImageUrl || "")}" placeholder="https://example.com/hero.webp">
-                    <p class="field-help">PNG, JPG, JPEG, or WebP URL for image backgrounds or video fallback. Upload support can be added later without changing this setting.</p>
+                    <input id="full-page-background-image-url" name="full_page_background_image_url" type="text" value="${escapeHtml(fullPageDesign.backgroundImageUrl || "")}" placeholder="https://example.com/hero.webp">
+                    <p class="field-help">PNG, JPG, JPEG, or WebP URL for image backgrounds or video fallback.</p>
+                  </div>
+                  <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="image video">
+                    <div class="field" data-full-page-background-control="image">
+                      <label for="full-page-background-image-file">Upload image background</label>
+                      <input id="full-page-background-image-file" name="full_page_background_image_file" type="file" accept="image/png,image/jpeg,image/webp" data-full-page-background-upload="image">
+                      <p class="field-help">PNG, JPG, JPEG, or WebP. Max 8 MB. SVG is not allowed.</p>
+                    </div>
+                    <div class="field" data-full-page-background-control="video">
+                      <label for="full-page-background-video-file">Upload video background</label>
+                      <input id="full-page-background-video-file" name="full_page_background_video_file" type="file" accept="video/mp4,video/webm" data-full-page-background-upload="video">
+                      <p class="field-help">MP4 or WebM. Max 50 MB. Video renders muted, looped, and inline.</p>
+                    </div>
                   </div>
                   <div class="field" data-full-page-background-control="video">
                     <label for="full-page-background-video-url">Video URL</label>
-                    <input id="full-page-background-video-url" name="full_page_background_video_url" type="url" value="${escapeHtml(fullPageDesign.backgroundVideoUrl || "")}" placeholder="https://example.com/hero.webm">
+                    <input id="full-page-background-video-url" name="full_page_background_video_url" type="text" value="${escapeHtml(fullPageDesign.backgroundVideoUrl || "")}" placeholder="https://example.com/hero.webm">
                     <p class="field-help">MP4 or WebM URL. Video is muted and loops behind the canvas.</p>
                   </div>
                   <div class="settings-field-grid settings-field-grid--two" data-full-page-background-control="image video">
@@ -1206,6 +1273,7 @@
                   </div>
                 </div>
                 <aside class="settings-full-page-preview-card settings-full-page-preview-card--canvas" aria-label="Full-page assistant preview" data-full-page-design-preview data-background-type="${escapeHtml(fullPageDesign.backgroundType)}" data-text-theme="${escapeHtml(fullPageDesign.textTheme)}" data-chip-style="${escapeHtml(fullPageDesign.chipStyle)}" data-composer-style="${escapeHtml(fullPageDesign.composerStyle)}" data-status-style="${escapeHtml(fullPageDesign.statusStyle)}" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)};--full-page-preview-bg:${escapeHtml(fullPageDesign.backgroundColor)};--full-page-preview-gradient:${escapeHtml(fullPageDesign.backgroundGradientTo)};--full-page-preview-overlay:${escapeHtml(fullPageDesign.backgroundOverlayColor)};--full-page-preview-overlay-opacity:${escapeHtml(String(fullPageDesign.backgroundOverlayOpacity))};--full-page-preview-image:${fullPageDesign.backgroundImageUrl ? `url('${escapeHtml(fullPageDesign.backgroundImageUrl)}')` : "none"};--full-page-preview-blur:${escapeHtml(String(fullPageDesign.backgroundBlur))}px;--full-page-preview-position:${escapeHtml(fullPageDesign.backgroundFocalPoint)}">
+                  <video class="settings-full-page-preview-video" data-full-page-preview-video muted loop playsinline ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? `src="${escapeHtml(fullPageDesign.backgroundVideoUrl)}"` : ""} ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? "" : "hidden"}></video>
                   <div class="settings-full-page-preview-header">
                     <span class="settings-full-page-preview-logo" aria-hidden="true">
                       ${fullPageConfig.logoUrl ? `<img src="${escapeHtml(fullPageConfig.logoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
@@ -2324,6 +2392,10 @@
     const fullPageBackgroundType = root.querySelector?.("[data-full-page-background-type]") || null;
     const fullPageBackgroundControls = Array.from(root.querySelectorAll("[data-full-page-background-control]"));
     const fullPagePresetSelect = root.querySelector?.("[data-full-page-design-preset]") || null;
+    const fullPageBackgroundSourceInput = root.querySelector?.("[data-full-page-background-source]") || null;
+    const fullPageBackgroundPresetInput = root.querySelector?.("[data-full-page-background-preset]") || null;
+    const fullPageBackgroundPresetButtons = Array.from(root.querySelectorAll("[data-full-page-background-preset-option]"));
+    const fullPageBackgroundUploads = Array.from(root.querySelectorAll("[data-full-page-background-upload]"));
     const fullPagePreview = root.querySelector?.("[data-full-page-design-preview]") || null;
     const settingsOverview = root.querySelector?.(".settings-shell-overview") || null;
     const mobileNote = typeof root.querySelector === "function"
@@ -2460,6 +2532,39 @@
       input.value = String(value ?? "");
     };
 
+    const setFullPageBackgroundPresetSelection = (presetKey = "") => {
+      if (fullPageBackgroundPresetInput) {
+        fullPageBackgroundPresetInput.value = presetKey;
+      }
+
+      fullPageBackgroundPresetButtons.forEach((button) => {
+        const selected = button.dataset.fullPageBackgroundPresetOption === presetKey;
+        button.classList.toggle("selected", selected);
+        button.setAttribute("aria-pressed", selected ? "true" : "false");
+      });
+    };
+
+    const applyFullPageBackgroundPreset = (presetKey) => {
+      const preset = FULL_PAGE_BACKGROUND_PRESETS[presetKey];
+      if (!preset) {
+        return;
+      }
+
+      setInputValue("full_page_background_type", "image");
+      setInputValue("full_page_background_color", preset.backgroundColor);
+      setInputValue("full_page_background_image_url", preset.imageUrl);
+      setInputValue("full_page_background_overlay_color", preset.backgroundOverlayColor);
+      setInputValue("full_page_background_overlay_opacity", preset.backgroundOverlayOpacity);
+      setInputValue("full_page_text_theme", preset.textTheme);
+      if (fullPageBackgroundSourceInput) {
+        fullPageBackgroundSourceInput.value = "preset";
+      }
+      setFullPageBackgroundPresetSelection(preset.key);
+      syncFullPageBackgroundControls();
+      root.querySelectorAll?.("[data-full-page-range-output]").forEach(syncRangeOutput);
+      syncFullPagePreview();
+    };
+
     const applyFullPagePreset = () => {
       if (!fullPagePresetSelect) {
         return;
@@ -2478,6 +2583,10 @@
       setInputValue("full_page_chip_style", preset.chipStyle);
       setInputValue("full_page_status_style", preset.statusStyle);
       setInputValue("full_page_disable_video_on_mobile", preset.disableVideoOnMobile);
+      if (fullPageBackgroundSourceInput) {
+        fullPageBackgroundSourceInput.value = "url";
+      }
+      setFullPageBackgroundPresetSelection("");
       syncFullPageBackgroundControls();
       root.querySelectorAll?.("[data-full-page-range-output]").forEach(syncRangeOutput);
       syncFullPagePreview();
@@ -2519,11 +2628,13 @@
       const composerStyle = normalizeDesignEnum(getInputValue("full_page_composer_style"), ["soft", "elevated", "minimal"], DEFAULT_FULL_PAGE_DESIGN.composerStyle);
       const statusStyle = normalizeDesignEnum(getInputValue("full_page_status_style"), ["subtle", "pill", "minimal"], DEFAULT_FULL_PAGE_DESIGN.statusStyle);
       const imageUrl = defaultTrimText(getInputValue("full_page_background_image_url"));
+      const videoUrl = defaultTrimText(getInputValue("full_page_background_video_url"));
       const accentColor = normalizeFullPageColor(getInputValue("full_page_accent_color"), "#14b8a6");
       const title = fullPagePreview.querySelector?.(".settings-full-page-preview-header strong");
       const copy = fullPagePreview.querySelector?.(".settings-full-page-preview-subtitle");
       const actionWrap = fullPagePreview.querySelector?.(".settings-full-page-preview-actions");
       const trustWrap = fullPagePreview.querySelector?.(".settings-full-page-preview-trust");
+      const video = fullPagePreview.querySelector?.("[data-full-page-preview-video]");
 
       fullPagePreview.dataset.backgroundType = backgroundType;
       fullPagePreview.dataset.textTheme = textTheme;
@@ -2538,6 +2649,19 @@
       fullPagePreview.style.setProperty("--full-page-preview-image", imageUrl ? `url("${imageUrl.replace(/"/g, "%22")}")` : "none");
       fullPagePreview.style.setProperty("--full-page-preview-blur", `${normalizeBackgroundBlur(getInputValue("full_page_background_blur"), 0)}px`);
       fullPagePreview.style.setProperty("--full-page-preview-position", normalizeDesignEnum(getInputValue("full_page_background_focal_point"), ["center", "top", "left", "right"], "center"));
+
+      if (video) {
+        if (backgroundType === "video" && videoUrl) {
+          if (video.getAttribute("src") !== videoUrl) {
+            video.setAttribute("src", videoUrl);
+          }
+          video.hidden = false;
+          video.play?.().catch?.(() => {});
+        } else {
+          video.hidden = true;
+          video.removeAttribute("src");
+        }
+      }
 
       if (title) title.textContent = headline;
       if (copy) copy.textContent = subtitle;
@@ -2577,11 +2701,58 @@
     });
 
     fullPageBackgroundType?.addEventListener("change", () => {
+      if (fullPageBackgroundType.value !== "image") {
+        setFullPageBackgroundPresetSelection("");
+      }
+      if (["color", "gradient"].includes(fullPageBackgroundType.value) && fullPageBackgroundSourceInput) {
+        fullPageBackgroundSourceInput.value = "url";
+      }
       syncFullPageBackgroundControls();
       syncFullPagePreview();
     });
 
     fullPagePresetSelect?.addEventListener("change", applyFullPagePreset);
+
+    fullPageBackgroundPresetButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        applyFullPageBackgroundPreset(button.dataset.fullPageBackgroundPresetOption || "");
+      });
+    });
+
+    fullPageBackgroundUploads.forEach((input) => {
+      input.addEventListener("change", () => {
+        const kind = input.dataset.fullPageBackgroundUpload;
+        const file = input.files?.[0] || null;
+        if (!file || !["image", "video"].includes(kind)) {
+          return;
+        }
+
+        setInputValue("full_page_background_type", kind);
+        if (fullPageBackgroundSourceInput) {
+          fullPageBackgroundSourceInput.value = "upload";
+        }
+        setFullPageBackgroundPresetSelection("");
+
+        const objectUrl = URL.createObjectURL(file);
+        if (kind === "image") {
+          setInputValue("full_page_background_image_url", objectUrl);
+        } else {
+          setInputValue("full_page_background_video_url", objectUrl);
+        }
+        syncFullPageBackgroundControls();
+        syncFullPagePreview();
+      });
+    });
+
+    ["full_page_background_image_url", "full_page_background_video_url"].forEach((name) => {
+      const input = root.querySelector?.(`[name="${name}"]`);
+      input?.addEventListener("input", () => {
+        if (fullPageBackgroundSourceInput) {
+          fullPageBackgroundSourceInput.value = "url";
+        }
+        setFullPageBackgroundPresetSelection("");
+      });
+    });
 
     root.querySelectorAll?.("[data-full-page-range-output]").forEach((input) => {
       input.addEventListener("input", () => {

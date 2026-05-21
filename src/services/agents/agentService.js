@@ -23,6 +23,8 @@ import {
   DEFAULT_TONE,
   DEFAULT_WIDGET_CONFIG,
   FULL_PAGE_ACTION_CARD_TYPES,
+  FULL_PAGE_BACKGROUND_PRESETS,
+  FULL_PAGE_BACKGROUND_SOURCES,
   FULL_PAGE_BACKGROUND_FOCAL_POINTS,
   FULL_PAGE_BACKGROUND_TYPES,
   FULL_PAGE_CHIP_STYLES,
@@ -311,7 +313,20 @@ function normalizeOptionalImageSource(value) {
 }
 
 function normalizeOptionalDesignMediaUrl(value, allowedExtensions = []) {
-  const normalizedUrl = normalizeOptionalUrl(value);
+  const providedValue = cleanText(value);
+
+  if (!providedValue) {
+    return "";
+  }
+
+  if (/^\/assets\/front-desk\/backgrounds\/[a-z0-9._/-]+$/i.test(providedValue)) {
+    const lowerPath = providedValue.toLowerCase();
+    return allowedExtensions.some((extension) => lowerPath.endsWith(`.${extension}`))
+      ? providedValue
+      : "";
+  }
+
+  const normalizedUrl = normalizeOptionalUrl(providedValue);
 
   if (!normalizedUrl) {
     return "";
@@ -329,6 +344,16 @@ function normalizeOptionalDesignMediaUrl(value, allowedExtensions = []) {
   } catch {
     return "";
   }
+}
+
+function getFullPageBackgroundPresetDefaults(presetValue) {
+  const preset = normalizeFullPageDesignEnum(
+    presetValue,
+    Object.keys(FULL_PAGE_BACKGROUND_PRESETS),
+    ""
+  );
+
+  return preset ? FULL_PAGE_BACKGROUND_PRESETS[preset] : null;
 }
 
 function normalizeLimitedText(value, maxLength) {
@@ -537,39 +562,71 @@ export function normalizeFullPageDesignConfig(input = {}) {
   const presetDefaults = getFullPageDesignPresetDefaults(
     readConfigField(rawDesign, "preset")
   );
+  const rawBackgroundPresetDefaults = getFullPageBackgroundPresetDefaults(
+    readConfigField(rawDesign, "backgroundPreset", "background_preset")
+  );
+  const rawBackgroundSource = normalizeFullPageDesignEnum(
+    readConfigField(rawDesign, "backgroundSource", "background_source"),
+    FULL_PAGE_BACKGROUND_SOURCES,
+    rawBackgroundPresetDefaults ? "preset" : DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+  );
+  const backgroundPresetDefaults = rawBackgroundSource === "preset" ? rawBackgroundPresetDefaults : null;
   const backgroundType = normalizeFullPageDesignEnum(
     readConfigField(rawDesign, "backgroundType", "background_type"),
     FULL_PAGE_BACKGROUND_TYPES,
-    presetDefaults.backgroundType
+    backgroundPresetDefaults ? "image" : presetDefaults.backgroundType
   );
+  const backgroundSource = backgroundPresetDefaults
+    ? "preset"
+    : rawBackgroundSource === "preset"
+      ? DEFAULT_FULL_PAGE_DESIGN.backgroundSource
+      : rawBackgroundSource;
+  const rawBackgroundImageUrl = normalizeOptionalDesignMediaUrl(
+    readConfigField(rawDesign, "backgroundImageUrl", "background_image_url"),
+    ["png", "jpg", "jpeg", "webp"]
+  );
+  const rawBackgroundVideoUrl = normalizeOptionalDesignMediaUrl(
+    readConfigField(rawDesign, "backgroundVideoUrl", "background_video_url"),
+    ["mp4", "webm"]
+  );
+  const textTheme = normalizeFullPageDesignEnum(
+    readConfigField(rawDesign, "textTheme", "text_theme"),
+    FULL_PAGE_TEXT_THEMES,
+    backgroundPresetDefaults?.textTheme || presetDefaults.textTheme
+  );
+  const isMediaBackground = ["image", "video"].includes(backgroundType);
+  const designPresetOwnsMediaBackground = isMediaBackground && presetDefaults.backgroundType === backgroundType;
+  const mediaOverlayColor = textTheme === "light" ? "#020617" : "#ffffff";
+  const mediaOverlayOpacity = textTheme === "light" ? 0.36 : 0.2;
+  const overlayColorFallback =
+    backgroundPresetDefaults?.backgroundOverlayColor
+    || (designPresetOwnsMediaBackground ? presetDefaults.backgroundOverlayColor : null)
+    || (isMediaBackground ? mediaOverlayColor : presetDefaults.backgroundOverlayColor);
+  const overlayOpacityFallback =
+    backgroundPresetDefaults?.backgroundOverlayOpacity
+    ?? (designPresetOwnsMediaBackground ? presetDefaults.backgroundOverlayOpacity : undefined)
+    ?? (isMediaBackground ? mediaOverlayOpacity : presetDefaults.backgroundOverlayOpacity);
 
   return {
     preset: presetDefaults.preset,
     backgroundType,
+    backgroundSource,
+    backgroundPreset: backgroundPresetDefaults?.key || null,
     backgroundColor:
       normalizeAccentColor(readConfigField(rawDesign, "backgroundColor", "background_color"))
+      || backgroundPresetDefaults?.backgroundColor
       || presetDefaults.backgroundColor,
     backgroundGradientTo:
       normalizeAccentColor(readConfigField(rawDesign, "backgroundGradientTo", "background_gradient_to"))
       || presetDefaults.backgroundGradientTo,
-    backgroundImageUrl:
-      normalizeOptionalDesignMediaUrl(
-        readConfigField(rawDesign, "backgroundImageUrl", "background_image_url"),
-        ["png", "jpg", "jpeg", "webp"]
-      )
-      || null,
-    backgroundVideoUrl:
-      normalizeOptionalDesignMediaUrl(
-        readConfigField(rawDesign, "backgroundVideoUrl", "background_video_url"),
-        ["mp4", "webm"]
-      )
-      || null,
+    backgroundImageUrl: backgroundPresetDefaults?.imageUrl || rawBackgroundImageUrl || null,
+    backgroundVideoUrl: rawBackgroundVideoUrl || null,
     backgroundOverlayColor:
       normalizeAccentColor(readConfigField(rawDesign, "backgroundOverlayColor", "background_overlay_color"))
-      || presetDefaults.backgroundOverlayColor,
+      || overlayColorFallback,
     backgroundOverlayOpacity: normalizeOverlayOpacity(
       readConfigField(rawDesign, "backgroundOverlayOpacity", "background_overlay_opacity"),
-      presetDefaults.backgroundOverlayOpacity
+      overlayOpacityFallback
     ),
     backgroundBlur: normalizeBackgroundBlur(
       readConfigField(rawDesign, "backgroundBlur", "background_blur"),
@@ -580,11 +637,7 @@ export function normalizeFullPageDesignConfig(input = {}) {
       FULL_PAGE_BACKGROUND_FOCAL_POINTS,
       presetDefaults.backgroundFocalPoint
     ),
-    textTheme: normalizeFullPageDesignEnum(
-      readConfigField(rawDesign, "textTheme", "text_theme"),
-      FULL_PAGE_TEXT_THEMES,
-      presetDefaults.textTheme
-    ),
+    textTheme,
     composerStyle: normalizeFullPageDesignEnum(
       readConfigField(rawDesign, "composerStyle", "composer_style"),
       FULL_PAGE_COMPOSER_STYLES,
@@ -755,6 +808,8 @@ function serializeFullPageConfig(config = {}) {
     design: {
       preset: normalized.design.preset,
       background_type: normalized.design.backgroundType,
+      background_source: normalized.design.backgroundSource,
+      background_preset: normalized.design.backgroundPreset,
       background_color: normalized.design.backgroundColor,
       background_gradient_to: normalized.design.backgroundGradientTo,
       background_image_url: normalized.design.backgroundImageUrl,

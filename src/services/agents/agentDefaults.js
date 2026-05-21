@@ -92,6 +92,33 @@ export const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
   "video-hero",
 ]);
 
+export const FULL_PAGE_BACKGROUND_SOURCES = Object.freeze([
+  "preset",
+  "upload",
+  "url",
+]);
+
+export const FULL_PAGE_BACKGROUND_PRESETS = Object.freeze({
+  "clean-light-abstract": Object.freeze({
+    key: "clean-light-abstract",
+    label: "Clean Light Abstract",
+    imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+    backgroundColor: "#f8f4ea",
+    backgroundOverlayColor: "#ffffff",
+    backgroundOverlayOpacity: 0.18,
+    textTheme: "dark",
+  }),
+  "dark-gold-abstract": Object.freeze({
+    key: "dark-gold-abstract",
+    label: "Dark Gold Abstract",
+    imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+    backgroundColor: "#09090b",
+    backgroundOverlayColor: "#020617",
+    backgroundOverlayOpacity: 0.28,
+    textTheme: "light",
+  }),
+});
+
 export const FULL_PAGE_BACKGROUND_TYPES = Object.freeze([
   "color",
   "gradient",
@@ -114,6 +141,8 @@ export const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal
 export const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
   backgroundType: "color",
+  backgroundSource: "url",
+  backgroundPreset: null,
   backgroundColor: "#ffffff",
   backgroundGradientTo: "#eef4ff",
   backgroundImageUrl: null,
