@@ -389,6 +389,68 @@ function createActiveAgent(overrides = {}) {
   };
 }
 
+function createOperatorWorkspaceWithContacts(contacts = [], overrides = {}) {
+  return {
+    connectedAccounts: [],
+    inbox: {
+      threads: [],
+      attentionCount: 0,
+    },
+    calendar: {
+      events: [],
+      suggestedSlots: [],
+      dailySummary: "Calendar context is beta. Home works without it for now.",
+      missedBookingOpportunities: [],
+    },
+    automations: {
+      tasks: [],
+      campaigns: [],
+      followUps: [],
+    },
+    contacts: {
+      list: contacts,
+      summary: {
+        totalContacts: contacts.length,
+        contactsNeedingAttention: contacts.filter((contact) => ["needs_reply", "needs_review"].includes(contact.lifecycleState)).length,
+        complaintRiskContacts: contacts.filter((contact) => contact.lifecycleState === "complaint_risk").length,
+        leadsWithoutNextStep: contacts.filter((contact) => ["new", "active_lead", "qualified"].includes(contact.lifecycleState)).length,
+        customersAwaitingFollowUp: contacts.filter((contact) => contact.email || contact.phone).length,
+        contactsWithOutcomes: 0,
+        highValueWithoutOutcome: 0,
+      },
+      health: {
+        persistenceAvailable: true,
+        migrationRequired: false,
+        partialData: false,
+      },
+    },
+    summary: {},
+    capabilities: {
+      featureEnabled: true,
+      googleAvailable: true,
+      googleMissingEnv: [],
+      persistenceAvailable: true,
+      migrationRequired: false,
+      missingTables: [],
+      status: "ready",
+    },
+    alerts: [],
+    ...overrides,
+  };
+}
+
+function getContactRowHtml(html, contactId) {
+  const pattern = new RegExp(`<article[^>]*class="contact-row customer-row"[^>]*data-contact-id="${contactId}"[\\s\\S]*?<\\/article>`);
+  const match = html.match(pattern);
+  return match ? match[0] : "";
+}
+
+function getContactDetailHtml(html, contactId) {
+  const pattern = new RegExp(`<article[^>]*class="contact-detail-panel customer-detail-panel[^"]*"[^>]*data-contact-id="${contactId}"[\\s\\S]*?<\\/article>`);
+  const match = html.match(pattern);
+  return match ? match[0] : "";
+}
+
 test("dashboard bundle parses cleanly", () => {
   const bundle = readFileSync(dashboardBundlePath, "utf8");
   assert.doesNotThrow(() => {
@@ -580,6 +642,160 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   assert.match(html, /not available yet/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
+});
+
+test("Customers labels separate guest review from reachable follow-up", async () => {
+  const now = "2026-05-21T09:00:00.000Z";
+  const contacts = [
+    {
+      id: "guest-no-contact",
+      customerRowKey: "guest-no-contact",
+      name: "Anonymous visitor",
+      partialIdentity: true,
+      lifecycleState: "needs_review",
+      sources: ["chat"],
+      latestMessageId: "message-guest",
+      latestSummary: "Asked for a quote without leaving contact details.",
+      lastMessageAt: now,
+      nextAction: {
+        title: "Review open question",
+        description: "Review the conversation before deciding whether more contact details are needed.",
+      },
+      timeline: [
+        { at: now, label: "Visitor message", source: "chat", summary: "Asked for a quote without leaving contact details." },
+      ],
+    },
+    {
+      id: "identified-email",
+      customerRowKey: "identified-email",
+      name: "Mara Lane",
+      email: "mara@example.test",
+      lifecycleState: "needs_review",
+      source: "page",
+      latestMessageId: "message-identified",
+      latestSummary: "Asked for pricing and wants an email reply.",
+      lastMessageAt: now,
+      timeline: [
+        { at: now, label: "Full-page assistant", source: "page", summary: "Pricing question needs owner review." },
+      ],
+    },
+    {
+      id: "active-chat",
+      customerRowKey: "active-chat",
+      name: "Anonymous visitor",
+      partialIdentity: true,
+      lifecycleState: "needs_reply",
+      source: "widget",
+      activeChat: true,
+      latestMessageId: "message-active",
+      latestSummary: "Waiting in the active chat.",
+      lastMessageAt: now,
+      nextAction: {
+        title: "Reply now",
+        description: "The visitor is still in the chat session.",
+      },
+      chatMessages: [
+        { role: "customer", label: "Customer", content: "Are you available today?", createdAt: now },
+      ],
+      timeline: [
+        { at: now, label: "Widget conversation", source: "chat", summary: "Active replyable chat." },
+      ],
+    },
+  ];
+  const harness = createDashboardHarness({
+    hash: "#customers",
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: createOperatorWorkspaceWithContacts(contacts),
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const guestRow = getContactRowHtml(html, "guest-no-contact");
+  const identifiedRow = getContactRowHtml(html, "identified-email");
+  const activeChatRow = getContactRowHtml(html, "active-chat");
+  const guestDetail = getContactDetailHtml(html, "guest-no-contact");
+  const identifiedDetail = getContactDetailHtml(html, "identified-email");
+
+  assert.match(guestRow, /Guest visitor/);
+  assert.match(guestRow, /Needs review/);
+  assert.match(guestRow, /Missing contact details/);
+  assert.match(guestRow, /data-contact-follow-up-possible="false"/);
+  assert.doesNotMatch(guestRow, /Needs follow-up|Follow-up possible/);
+  assert.match(guestRow, /Chat unavailable/);
+  assert.match(guestRow, /Guest visitor only\. No contact details captured yet\./);
+
+  assert.match(identifiedRow, /Identified/);
+  assert.match(identifiedRow, /Needs follow-up/);
+  assert.match(identifiedRow, /data-contact-follow-up-possible="true"/);
+  assert.match(identifiedDetail, /Review suggested reply/);
+  assert.doesNotMatch(identifiedDetail, /Send AI draft/);
+
+  assert.match(activeChatRow, /Needs reply/);
+  assert.match(activeChatRow, /data-contact-reply-possible="true"/);
+  assert.match(activeChatRow, />View chat<\/button>/);
+
+  assert.match(guestDetail, /Review conversation/);
+  assert.match(guestDetail, /Mark reviewed/);
+  assert.doesNotMatch(guestDetail, /Review suggested reply|Follow up later|Send AI draft/);
+
+  assert.match(html, /Needs review \(\d+\)/);
+  assert.match(html, /Follow-up possible \(\d+\)/);
+  assert.match(html, /Website widget \(\d+\)/);
+  assert.match(html, /Full-page assistant \(\d+\)/);
+});
+
+test("Home review actions route to Customers while analytics actions say analytics", async () => {
+  const now = "2026-05-21T09:00:00.000Z";
+  const contacts = [
+    {
+      id: "needs-review-contact",
+      customerRowKey: "needs-review-contact",
+      name: "Riley Price",
+      email: "riley@example.test",
+      lifecycleState: "needs_review",
+      source: "widget",
+      latestMessageId: "message-review",
+      latestSummary: "Needs an owner reply.",
+      lastMessageAt: now,
+      nextAction: {
+        title: "Prepare reply",
+        description: "Prepare a direct owner reply.",
+      },
+      timeline: [
+        { at: now, label: "Widget conversation", source: "chat", summary: "Needs an owner reply." },
+      ],
+    },
+  ];
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/operator-workspace") {
+        return buildResponse({
+          status: 200,
+          body: createOperatorWorkspaceWithContacts(contacts),
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /data-overview-target="contacts" data-contact-filter="needs_review"[\s\S]{0,600}Review replies/);
+  assert.match(html, /data-overview-target="contacts" data-contact-filter="needs_review"[\s\S]{0,600}Review open needs/);
+  assert.match(html, /data-overview-target="analytics"[\s\S]{0,600}View analytics/);
+  assert.doesNotMatch(html, /data-overview-target="analytics"[\s\S]{0,80}>Review(?:\s|<)/);
 });
 
 test("access-locked checkout view renders Starter, Growth, and Pro plan choices", async () => {

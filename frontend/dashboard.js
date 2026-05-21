@@ -4989,8 +4989,25 @@ function customerHasContactDetails(contact = {}) {
   return Boolean(getCustomerEmailLabel(contact.email) || trimText(contact.phone));
 }
 
+function customerHasActiveReplyableChat(contact = {}) {
+  const explicitReplyable = [
+    contact.replyPossible,
+    contact.chatReplyPossible,
+    contact.activeChat,
+    contact.chatAvailable,
+  ].some((value) => value === true);
+  const statuses = [
+    contact.chatStatus,
+    contact.conversationStatus,
+    contact.sessionStatus,
+  ].map((value) => trimText(value).toLowerCase());
+
+  return explicitReplyable || statuses.some((value) => ["active", "open", "replyable", "live"].includes(value));
+}
+
 function customerHasReplyableChannel(contact = {}) {
-  return customerHasContactDetails(contact)
+  return customerHasActiveReplyableChat(contact)
+    || customerHasContactDetails(contact)
     || Boolean(trimText(contact.primaryThreadId))
     || Boolean(trimText(contact.nextAction?.followUpId))
     || Boolean(trimText(contact.primaryFollowUpId));
@@ -5721,7 +5738,7 @@ function buildContactQuickActions(
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
 
   if (contact.latestMessageId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Open related conversation", "Kapcsolódó beszélgetés megnyitása"))}</button>`);
+    actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Open related conversation", "Kapcsolódó beszélgetés megnyitása"))}</button>`);
   }
 
   if (contact.primaryThreadId) {
@@ -5872,11 +5889,11 @@ function getCustomerChatUnavailableReason(contact = {}) {
 }
 
 function buildCustomerChatPanel(contact = {}) {
-  if (isGuestCustomerRow(contact)) {
+  const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
+
+  if (isGuestCustomerRow(contact) && !customerHasActiveReplyableChat(contact)) {
     return "";
   }
-
-  const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
 
   if (!messages.length) {
     return `
@@ -5923,7 +5940,7 @@ function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWo
   const visibleLastActivityAt = getCustomerLastMessageAt(contact);
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
   const guestRow = isGuestCustomerRow(contact);
-  const canShowChat = !guestRow && chatMessages.length > 0;
+  const canShowChat = (!guestRow || customerHasActiveReplyableChat(contact)) && chatMessages.length > 0;
   const sourceLabels = getCustomerSourceLabels(contact);
   const identityTone = guestRow ? "guest" : "identified";
   const rowStatuses = getCustomerStatusList(contact).filter((status) => !["guest", "lead"].includes(status.key)).slice(0, 2);
@@ -5993,12 +6010,12 @@ function buildContactDetailPanel(
   const primaryStatus = getPrimaryCustomerStatus(contact);
   const guestRow = isGuestCustomerRow(contact);
   const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
-  const canShowChat = !guestRow && chatMessages.length > 0;
+  const canShowChat = (!guestRow || customerHasActiveReplyableChat(contact)) && chatMessages.length > 0;
   const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
   const canDraftReply = automationsVisible && customerHasContactDetails(contact);
   const chatUnavailableReason = getCustomerChatUnavailableReason(contact);
   const reviewConversationActionMarkup = contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
   ` : `
     <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
   `;
@@ -6018,7 +6035,7 @@ function buildContactDetailPanel(
       ${customerHasContactDetails(contact) ? "" : "disabled"}
     >${escapeHtml(localizeDashboardCopy("Review suggested reply", "Javasolt válasz áttekintése"))}</button>
   ` : customerMissingContactDetails(contact) ? reviewConversationActionMarkup : contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
+    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
   ` : contact.primaryThreadId ? `
     <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>
   ` : contact.primaryEventId ? `
@@ -19674,6 +19691,16 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   openConversationButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const messageId = button.dataset.messageId;
+      const contactId = trimText(button.dataset.contactId);
+
+      if (contactId) {
+        showSectionAndHighlight("contacts", `[data-contact-card][data-contact-id="${contactId}"]`, {
+          targetId: contactId,
+        });
+        syncCustomerHash(activeContactFilter, contactId);
+        return;
+      }
+
       showSectionAndHighlight("analytics", `[data-conversation-message="${messageId}"]`);
     });
   });
@@ -21151,7 +21178,7 @@ function renderLocalDashboardV2Fixture() {
           name: "Local Customer",
           email: "customer@example.test",
           phone: "+1 555 0100",
-          lifecycleState: "active_lead",
+          lifecycleState: "needs_review",
           source: "widget",
           latestMessageId: "fixture-message-1",
           latestSummary: "Asked to book a consultation this week.",
@@ -21184,6 +21211,10 @@ function renderLocalDashboardV2Fixture() {
           latestMessageId: "fixture-message-3",
           latestSummary: "Asked what affects the quote.",
           lastMessageAt: now,
+          nextAction: {
+            title: "Reply to pricing question",
+            description: "Answer the quote question and confirm the best next step.",
+          },
           chatMessages: [
             { role: "customer", label: "Customer", content: "What affects the quote?", createdAt: now },
           ],
