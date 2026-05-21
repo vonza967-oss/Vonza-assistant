@@ -1,0 +1,43 @@
+.vonza-front-desk-admin .vonza-front-desk-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 16px;
+	max-width: 980px;
+}
+
+.vonza-front-desk-card {
+	padding: 20px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #fff;
+}
+
+.vonza-front-desk-card form {
+	display: grid;
+	gap: 12px;
+}
+
+.vonza-front-desk-card label {
+	font-weight: 600;
+}
+
+.vonza-front-desk-card code {
+	display: block;
+	width: fit-content;
+	max-width: 100%;
+	margin: 8px 0;
+	padding: 8px 10px;
+	white-space: normal;
+}
+
+.vonza-front-desk-page-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+@media (min-width: 900px) {
+	.vonza-front-desk-admin .vonza-front-desk-grid {
+		grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+	}
+}
