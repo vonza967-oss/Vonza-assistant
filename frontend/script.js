@@ -102,7 +102,7 @@ const FULL_PAGE_TEXT_THEMES = Object.freeze(["dark", "light"]);
 const FULL_PAGE_COMPOSER_STYLES = Object.freeze(["soft", "elevated", "minimal"]);
 const FULL_PAGE_CHIP_STYLES = Object.freeze(["outline", "soft", "subtle-fill"]);
 const FULL_PAGE_STATUS_STYLES = Object.freeze(["subtle", "pill", "minimal"]);
-const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe"]);
+const FULL_PAGE_BACKGROUND_SCOPES = Object.freeze(["section", "iframe", "viewport"]);
 const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
   preset: "clean-light",
   backgroundType: "color",

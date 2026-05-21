@@ -22,6 +22,7 @@ class FakeElement {
     this.allowTransparency = false;
     this.contentWindow = {};
     this.rectTop = 0;
+    this.nextElementSibling = null;
 
     Object.entries(attributes).forEach(([name, value]) => {
       this.setAttribute(name, value);
@@ -48,6 +49,21 @@ class FakeElement {
   getBoundingClientRect() {
     return { top: this.rectTop };
   }
+}
+
+function findDescendant(element, predicate) {
+  if (predicate(element)) {
+    return element;
+  }
+
+  for (const child of element.children) {
+    const found = findDescendant(child, predicate);
+    if (found) {
+      return found;
+    }
+  }
+
+  return null;
 }
 
 function createHarness(rootAttributes, options = {}) {
@@ -106,6 +122,7 @@ function createHarness(rootAttributes, options = {}) {
     },
     clearTimeout() {},
   };
+  window.CSS = options.CSS || undefined;
 
   if (options.bootstrapPayload) {
     window.fetch = async (url) => {
@@ -132,7 +149,7 @@ function createHarness(rootAttributes, options = {}) {
 
   return {
     root,
-    iframe: root.children.find((child) => child.tagName === "IFRAME"),
+    iframe: findDescendant(root, (child) => child.tagName === "IFRAME"),
     listeners,
     window,
     document,
@@ -199,6 +216,62 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(harness.iframe.allowTransparency, true);
 });
 
+test("/assistant-embed.js supports page-takeover layout with viewport wrapper", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-surface": "flat",
+    "data-background-scope": "viewport",
+  }, {
+    innerHeight: 900,
+    rootTop: 96,
+    CSS: {
+      supports(property, value) {
+        return property === "height" && value === "100dvh";
+      },
+    },
+  });
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+  const url = new URL(harness.iframe.src);
+
+  assert.ok(wrapper);
+  assert.equal(url.searchParams.get("agent_id"), "agent-1");
+  assert.equal(url.searchParams.get("size"), "full");
+  assert.equal(url.searchParams.get("surface"), "flat");
+  assert.equal(url.searchParams.get("layout"), "canvas");
+  assert.equal(url.searchParams.get("background_scope"), "viewport");
+  assert.equal(harness.root.style.width, "100%");
+  assert.equal(harness.root.style.maxWidth, "100%");
+  assert.equal(harness.root.style.overflow, "visible");
+  assert.equal(wrapper.style.width, "100vw");
+  assert.equal(wrapper.style.maxWidth, "100vw");
+  assert.equal(wrapper.style.marginLeft, "calc(50% - 50vw)");
+  assert.equal(wrapper.style.marginRight, "calc(50% - 50vw)");
+  assert.equal(wrapper.style.minHeight, "max(0px, calc(100dvh - 96px))");
+  assert.equal(wrapper.style.position, "relative");
+  assert.equal(wrapper.style.overflow, "hidden");
+  assert.equal(wrapper.style.overflowX, "hidden");
+  assert.equal(harness.iframe.style.background, "transparent");
+  assert.equal(harness.iframe.style.height, "804px");
+  assert.equal(harness.iframe.style.minHeight, "804px");
+  assert.equal(harness.iframe.style.borderRadius, "0");
+  assert.equal(harness.iframe.allowTransparency, true);
+});
+
+test("/assistant-embed.js page-takeover respects header offset and min height", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-header-offset": "120",
+    "data-min-height": "820",
+  }, { innerHeight: 900 });
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+
+  assert.equal(wrapper.style.minHeight, "max(820px, calc(100vh - 120px))");
+  assert.equal(harness.iframe.style.height, "820px");
+  assert.equal(harness.iframe.style.minHeight, "820px");
+});
+
 test("/assistant-embed.js supports data-height full-page wrapper min-height", () => {
   const harness = createHarness({
     "data-agent-id": "agent-1",
@@ -245,6 +318,19 @@ test("/assistant-embed.js does not change global body or html backgrounds by def
   assert.equal(harness.document.documentElement.style.backgroundColor || "", "");
 });
 
+test("/assistant-embed.js page-takeover does not change global body or html styles", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "viewport",
+  });
+
+  assert.equal(harness.document.body.style.background || "", "");
+  assert.equal(harness.document.body.style.backgroundColor || "", "");
+  assert.equal(harness.document.documentElement.style.background || "", "");
+  assert.equal(harness.document.documentElement.style.backgroundColor || "", "");
+});
+
 test("/assistant-embed.js applies full-page section color background from public bootstrap", async () => {
   const harness = createHarness({
     "data-agent-id": "agent-1",
@@ -266,6 +352,41 @@ test("/assistant-embed.js applies full-page section color background from public
   assert.match(harness.window.lastFetchUrl, /\/widget\/bootstrap\?/);
   assert.equal(harness.root.style.backgroundColor, "#123456");
   assert.equal(harness.root.children.some((child) => child.getAttribute("data-vonza-assistant-background-overlay") !== null), false);
+});
+
+test("/assistant-embed.js applies page-takeover viewport background to takeover wrapper", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "viewport",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_type: "image",
+            background_color: "#111827",
+            background_image_url: "https://cdn.example.com/takeover.webp",
+            background_overlay_color: "#020617",
+            background_overlay_opacity: 0.32,
+            background_focal_point: "right",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+  const overlay = wrapper.children.find((child) => child.getAttribute("data-vonza-assistant-background-overlay") !== null);
+
+  assert.match(harness.window.lastFetchUrl, /\/widget\/bootstrap\?/);
+  assert.equal(harness.root.style.backgroundImage || "", "");
+  assert.match(wrapper.style.backgroundImage, /https:\/\/cdn\.example\.com\/takeover\.webp/);
+  assert.equal(wrapper.style.backgroundSize, "cover");
+  assert.equal(wrapper.style.backgroundPosition, "right");
+  assert.equal(overlay.style.pointerEvents, "none");
+  assert.equal(overlay.style.opacity, "0.32");
 });
 
 test("/assistant-embed.js applies full-page section gradient background and nonblocking overlay", async () => {

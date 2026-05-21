@@ -4,13 +4,14 @@
   const STATE_KEY = "__VonzaAssistantEmbedState__";
   const SECTION_DEFAULT_MIN_HEIGHT = 640;
   const FULL_PAGE_DEFAULT_MIN_HEIGHT = 760;
+  const PAGE_TAKEOVER_DEFAULT_MIN_HEIGHT = 0;
   const SIZE_MIN_HEIGHTS = Object.freeze({
     compact: 520,
     standard: 640,
     tall: 720,
     full: 760,
   });
-  const BACKGROUND_SCOPES = Object.freeze(["section", "iframe"]);
+  const BACKGROUND_SCOPES = Object.freeze(["section", "iframe", "viewport"]);
   const HEIGHT_MODES = Object.freeze(["auto", "full-page"]);
   const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
     backgroundType: "color",
@@ -79,7 +80,21 @@
   }
 
   function normalizeLayout(value) {
-    return trimText(value).toLowerCase() === "full-page" ? "full-page" : "section";
+    const normalized = trimText(value).toLowerCase();
+
+    if (normalized === "page-takeover") {
+      return "page-takeover";
+    }
+
+    return normalized === "full-page" ? "full-page" : "section";
+  }
+
+  function isCanvasLayout(layout) {
+    return layout === "full-page" || layout === "page-takeover";
+  }
+
+  function isPageTakeover(layout) {
+    return layout === "page-takeover";
   }
 
   function normalizeSize(value, layout) {
@@ -89,7 +104,7 @@
       return normalized;
     }
 
-    return layout === "full-page" ? "full" : "standard";
+    return isCanvasLayout(layout) ? "full" : "standard";
   }
 
   function normalizeSurface(value, layout) {
@@ -99,16 +114,26 @@
       return normalized;
     }
 
-    return layout === "full-page" ? "flat" : "";
+    return isCanvasLayout(layout) ? "flat" : "";
   }
 
-  function normalizeBackgroundScope(value) {
+  function normalizeBackgroundScope(value, layout) {
     const normalized = trimText(value).toLowerCase();
-    return BACKGROUND_SCOPES.includes(normalized) ? normalized : "section";
+
+    if (BACKGROUND_SCOPES.includes(normalized)) {
+      return normalized;
+    }
+
+    return isPageTakeover(layout) ? "viewport" : "section";
   }
 
   function normalizeHeightMode(value, layout) {
     const normalized = trimText(value).toLowerCase();
+
+    if (isPageTakeover(layout)) {
+      return "full-page";
+    }
+
     return layout === "full-page" && HEIGHT_MODES.includes(normalized) ? normalized : "auto";
   }
 
@@ -130,8 +155,14 @@
 
   function resolveMinHeight(element, layout, size) {
     const fallback = SIZE_MIN_HEIGHTS[size]
-      || (layout === "full-page" ? FULL_PAGE_DEFAULT_MIN_HEIGHT : SECTION_DEFAULT_MIN_HEIGHT);
-    return normalizeOptionalNumber(element.getAttribute("data-min-height"), 280, 5000) || fallback;
+      || (isCanvasLayout(layout) ? FULL_PAGE_DEFAULT_MIN_HEIGHT : SECTION_DEFAULT_MIN_HEIGHT);
+    const minHeight = normalizeOptionalNumber(element.getAttribute("data-min-height"), 280, 5000);
+
+    if (minHeight !== null) {
+      return minHeight;
+    }
+
+    return isPageTakeover(layout) ? PAGE_TAKEOVER_DEFAULT_MIN_HEIGHT : fallback;
   }
 
   function normalizeShowTitle(value) {
@@ -151,11 +182,11 @@
       url.searchParams.set("surface", surface);
     }
 
-    if (layout === "full-page") {
+    if (isCanvasLayout(layout)) {
       url.searchParams.set("layout", "canvas");
     }
 
-    if (layout === "full-page" && backgroundScope) {
+    if (isCanvasLayout(layout) && backgroundScope) {
       url.searchParams.set("background_scope", backgroundScope);
     }
 
@@ -164,6 +195,18 @@
     }
 
     return url.toString();
+  }
+
+  function supportsDynamicViewportHeight() {
+    return window.CSS?.supports?.("height", "100dvh") === true;
+  }
+
+  function getViewportHeightUnit() {
+    return supportsDynamicViewportHeight() ? "100dvh" : "100vh";
+  }
+
+  function buildViewportMinHeight(minHeight, topOffset) {
+    return `max(${minHeight}px, calc(${getViewportHeightUnit()} - ${topOffset}px))`;
   }
 
   function applyMountStyles(element, { layout, minHeight, headerOffset, heightMode }) {
@@ -178,15 +221,38 @@
       return;
     }
 
+    if (isPageTakeover(layout)) {
+      element.style.width = "100%";
+      element.style.maxWidth = "100%";
+      element.style.minHeight = "";
+      element.style.position = "relative";
+      element.style.overflow = "visible";
+      return;
+    }
+
     element.style.width = "100vw";
     element.style.maxWidth = "100vw";
     element.style.marginLeft = "calc(50% - 50vw)";
     element.style.marginRight = "calc(50% - 50vw)";
     element.style.minHeight = heightMode === "full-page" && headerOffset !== null
-      ? `max(${minHeight}px, calc(100vh - ${headerOffset}px))`
+      ? buildViewportMinHeight(minHeight, headerOffset)
       : `${minHeight}px`;
     element.style.position = "relative";
     element.style.overflow = "hidden";
+  }
+
+  function applyTakeoverWrapperStyles(wrapper, { minHeight, topOffset }) {
+    wrapper.style.display = "block";
+    wrapper.style.boxSizing = "border-box";
+    wrapper.style.width = "100vw";
+    wrapper.style.maxWidth = "100vw";
+    wrapper.style.marginLeft = "calc(50% - 50vw)";
+    wrapper.style.marginRight = "calc(50% - 50vw)";
+    wrapper.style.minHeight = buildViewportMinHeight(minHeight, topOffset);
+    wrapper.style.position = "relative";
+    wrapper.style.overflow = "hidden";
+    wrapper.style.overflowX = "hidden";
+    wrapper.style.isolation = "isolate";
   }
 
   function applyIframeStyles(iframe, { layout, surface, minHeight, backgroundScope }) {
@@ -196,7 +262,7 @@
     iframe.style.border = "0";
     iframe.style.boxSizing = "border-box";
     iframe.style.overflow = "hidden";
-    iframe.style.background = surface === "transparent" || backgroundScope === "section" ? "transparent" : "#ffffff";
+    iframe.style.background = surface === "transparent" || ["section", "viewport"].includes(backgroundScope) ? "transparent" : "#ffffff";
     iframe.style.position = "relative";
 
     if (layout === "section") {
@@ -352,7 +418,7 @@
     entry.overlay = document.createElement("div");
     entry.overlay.setAttribute("data-vonza-assistant-background-overlay", "");
     applyLayerStyles(entry.overlay, 1);
-    entry.mount.appendChild(entry.overlay);
+    entry.backgroundTarget.appendChild(entry.overlay);
     return entry.overlay;
   }
 
@@ -370,17 +436,18 @@
     entry.video.setAttribute("aria-hidden", "true");
     applyLayerStyles(entry.video, 0);
     entry.video.style.objectFit = "cover";
-    entry.mount.appendChild(entry.video);
+    entry.backgroundTarget.appendChild(entry.video);
     return entry.video;
   }
 
   function resetSectionBackground(entry) {
-    entry.mount.style.background = "";
-    entry.mount.style.backgroundImage = "";
-    entry.mount.style.backgroundSize = "";
-    entry.mount.style.backgroundPosition = "";
-    entry.mount.style.backgroundRepeat = "";
-    entry.mount.style.backgroundColor = "";
+    const target = entry.backgroundTarget;
+    target.style.background = "";
+    target.style.backgroundImage = "";
+    target.style.backgroundSize = "";
+    target.style.backgroundPosition = "";
+    target.style.backgroundRepeat = "";
+    target.style.backgroundColor = "";
 
     if (entry.overlay) {
       entry.overlay.style.background = "transparent";
@@ -394,30 +461,31 @@
   }
 
   function applySectionBackground(entry, design) {
-    if (entry.backgroundScope !== "section") {
+    if (!["section", "viewport"].includes(entry.backgroundScope)) {
       return;
     }
 
+    const target = entry.backgroundTarget;
     resetSectionBackground(entry);
-    entry.mount.style.backgroundColor = design.backgroundColor;
+    target.style.backgroundColor = design.backgroundColor;
 
     if (design.backgroundType === "gradient") {
-      entry.mount.style.background = `linear-gradient(135deg, ${design.backgroundColor}, ${design.backgroundGradientTo})`;
+      target.style.background = `linear-gradient(135deg, ${design.backgroundColor}, ${design.backgroundGradientTo})`;
     }
 
     if (design.backgroundType === "image" && design.backgroundImageUrl) {
-      entry.mount.style.backgroundImage = `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")`;
-      entry.mount.style.backgroundSize = "cover";
-      entry.mount.style.backgroundPosition = design.backgroundFocalPoint;
-      entry.mount.style.backgroundRepeat = "no-repeat";
+      target.style.backgroundImage = `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")`;
+      target.style.backgroundSize = "cover";
+      target.style.backgroundPosition = design.backgroundFocalPoint;
+      target.style.backgroundRepeat = "no-repeat";
     }
 
     if (design.backgroundType === "video") {
       if (design.backgroundImageUrl) {
-        entry.mount.style.backgroundImage = `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")`;
-        entry.mount.style.backgroundSize = "cover";
-        entry.mount.style.backgroundPosition = design.backgroundFocalPoint;
-        entry.mount.style.backgroundRepeat = "no-repeat";
+        target.style.backgroundImage = `url("${design.backgroundImageUrl.replace(/"/g, "%22")}")`;
+        target.style.backgroundSize = "cover";
+        target.style.backgroundPosition = design.backgroundFocalPoint;
+        target.style.backgroundRepeat = "no-repeat";
       }
 
       if (design.backgroundVideoUrl && !(design.disableVideoOnMobile && isMobileViewport())) {
@@ -443,8 +511,8 @@
 
   function loadAndApplySectionBackground(entry) {
     if (
-      entry.layout !== "full-page"
-      || entry.backgroundScope !== "section"
+      !isCanvasLayout(entry.layout)
+      || !["section", "viewport"].includes(entry.backgroundScope)
       || typeof window.fetch !== "function"
     ) {
       return;
@@ -547,7 +615,10 @@
       return entry.headerOffset;
     }
 
-    const rect = entry.mount.getBoundingClientRect?.() || entry.iframe.getBoundingClientRect?.() || { top: 0 };
+    const rect = entry.mount.getBoundingClientRect?.()
+      || entry.backgroundTarget.getBoundingClientRect?.()
+      || entry.iframe.getBoundingClientRect?.()
+      || { top: 0 };
     return Math.max(0, Math.floor(rect.top || 0));
   }
 
@@ -564,7 +635,7 @@
     }
 
     const topOffset = calculateFullPageTopOffset(entry);
-    entry.mount.style.minHeight = `max(${entry.minHeight}px, calc(100vh - ${topOffset}px))`;
+    entry.backgroundTarget.style.minHeight = buildViewportMinHeight(entry.minHeight, topOffset);
   }
 
   function applyFullPageHeight(entry) {
@@ -580,12 +651,12 @@
 
     if (entry.heightMode === "full-page") {
       entry.iframe.style.minHeight = `${nextHeight}px`;
-      entry.mount.style.height = "";
+      entry.backgroundTarget.style.height = "";
       syncFullPageWrapperMinHeight(entry);
       return;
     }
 
-    entry.mount.style.height = `${nextHeight}px`;
+    entry.backgroundTarget.style.height = `${nextHeight}px`;
   }
 
   function scheduleFullPageHeight(entry) {
@@ -598,7 +669,7 @@
 
   function scheduleAllFullPageHeights() {
     state.frames
-      .filter((entry) => entry.layout === "full-page")
+      .filter((entry) => isCanvasLayout(entry.layout))
       .forEach(scheduleFullPageHeight);
   }
 
@@ -613,6 +684,24 @@
       window.addEventListener("orientationchange", scheduleAllFullPageHeights);
       state.resizeBound = true;
     }
+  }
+
+  function hideDirectPageFooter(element) {
+    const footer = element.nextElementSibling;
+
+    if (!footer) {
+      return;
+    }
+
+    const tagName = trimText(footer.tagName).toLowerCase();
+    const role = trimText(footer.getAttribute?.("role")).toLowerCase();
+
+    if (tagName !== "footer" && role !== "contentinfo") {
+      return;
+    }
+
+    footer.setAttribute("data-vonza-assistant-hidden-footer", "");
+    footer.hidden = true;
   }
 
   function mountAssistant(element) {
@@ -630,46 +719,69 @@
     const layout = normalizeLayout(element.getAttribute("data-layout"));
     const size = normalizeSize(element.getAttribute("data-size"), layout);
     const surface = normalizeSurface(element.getAttribute("data-surface"), layout);
-    const backgroundScope = layout === "full-page"
-      ? normalizeBackgroundScope(element.getAttribute("data-background-scope"))
+    const backgroundScope = isCanvasLayout(layout)
+      ? normalizeBackgroundScope(element.getAttribute("data-background-scope"), layout)
       : "iframe";
     const showTitle = normalizeShowTitle(element.getAttribute("data-show-title"));
     const minHeight = resolveMinHeight(element, layout, size);
-    const headerOffset = layout === "full-page"
+    const headerOffset = isCanvasLayout(layout)
       ? normalizeOptionalNumber(element.getAttribute("data-header-offset"), 0, 2000)
       : null;
     const heightMode = normalizeHeightMode(element.getAttribute("data-height"), layout);
+    const hidePageFooter = isPageTakeover(layout)
+      ? normalizeBoolean(element.getAttribute("data-hide-page-footer"), false)
+      : false;
     const iframe = document.createElement("iframe");
+    const takeoverWrapper = isPageTakeover(layout) ? document.createElement("div") : null;
 
     iframe.src = buildAssistantUrl({ agentId, layout, size, surface, showTitle, backgroundScope });
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
-    iframe.allowTransparency = surface === "transparent" || backgroundScope === "section";
+    iframe.allowTransparency = surface === "transparent" || ["section", "viewport"].includes(backgroundScope);
     iframe.setAttribute("data-vonza-assistant-frame", "");
     iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     applyIframeStyles(iframe, { layout, surface, minHeight, backgroundScope });
     applyMountStyles(element, { layout, minHeight, headerOffset, heightMode });
 
+    if (takeoverWrapper) {
+      takeoverWrapper.setAttribute("data-vonza-assistant-takeover", "");
+      applyTakeoverWrapperStyles(takeoverWrapper, {
+        minHeight,
+        topOffset: headerOffset !== null ? headerOffset : Math.max(0, Math.floor(element.getBoundingClientRect?.().top || 0)),
+      });
+    }
+
     element.textContent = "";
-    element.appendChild(iframe);
+    if (takeoverWrapper) {
+      takeoverWrapper.appendChild(iframe);
+      element.appendChild(takeoverWrapper);
+    } else {
+      element.appendChild(iframe);
+    }
     element.setAttribute("data-vonza-assistant-mounted", "true");
     element.setAttribute("data-vonza-assistant-layout", layout);
 
     const entry = {
       iframe,
       mount: element,
+      backgroundTarget: takeoverWrapper || element,
       agentId,
       layout,
       backgroundScope,
       heightMode,
       minHeight,
       headerOffset,
+      hidePageFooter,
       currentHeight: minHeight,
       heightFrame: 0,
     };
     state.frames.push(entry);
 
-    if (layout === "full-page") {
+    if (hidePageFooter) {
+      hideDirectPageFooter(element);
+    }
+
+    if (isCanvasLayout(layout)) {
       scheduleFullPageHeight(entry);
       loadAndApplySectionBackground(entry);
     }

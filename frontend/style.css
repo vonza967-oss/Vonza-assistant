@@ -2621,7 +2621,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ap
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section,
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section body,
-html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section {
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport body,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport {
   background: transparent !important;
 }
 
@@ -2630,7 +2633,13 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.emb
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::after,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .app-shell::after,
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .full-page-design-video-bg,
-html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .full-page-design-video-bg {
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-section .full-page-design-video-bg,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .app-shell::before,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .app-shell::before,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .app-shell::after,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .app-shell::after,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .full-page-design-video-bg,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.embedded-background-scope-viewport .full-page-design-video-bg {
   display: none;
 }
 

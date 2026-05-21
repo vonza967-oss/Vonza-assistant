@@ -1382,6 +1382,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(assistantEmbedMatrix.text, /Vonza assistant embed matrix/);
         assert.match(assistantEmbedMatrix.text, /data-layout="section"/);
         assert.match(assistantEmbedMatrix.text, /data-layout="full-page"/);
+        assert.match(assistantEmbedMatrix.text, /data-layout="page-takeover"/);
+        assert.match(assistantEmbedMatrix.text, /data-background-scope="viewport"/);
         assert.match(assistantEmbedMatrix.text, /\/assistant-embed\.js/);
 
         const widget = await getText(server.baseUrl, "/widget");

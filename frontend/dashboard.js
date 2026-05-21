@@ -2791,14 +2791,22 @@ function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) 
     return "";
   }
 
-  const normalizedLayout = trimText(layout).toLowerCase() === "full-page" ? "full-page" : "section";
-  const backgroundScope = normalizedLayout === "full-page"
+  const requestedLayout = trimText(layout).toLowerCase();
+  const normalizedLayout = requestedLayout === "page-takeover"
+    ? "page-takeover"
+    : requestedLayout === "full-page"
+      ? "full-page"
+      : "section";
+  const isCanvasSmartEmbed = normalizedLayout === "full-page" || normalizedLayout === "page-takeover";
+  const backgroundScope = normalizedLayout === "page-takeover"
+    ? "viewport"
+    : normalizedLayout === "full-page"
     ? normalizeFullPageBackgroundScope(agent?.fullPageConfig?.design?.backgroundScope || agent?.full_page_config?.design?.background_scope)
     : "";
-  const surfaceLine = normalizedLayout === "full-page"
+  const surfaceLine = isCanvasSmartEmbed
     ? '\n  data-surface="flat"'
     : "";
-  const backgroundScopeLine = normalizedLayout === "full-page"
+  const backgroundScopeLine = isCanvasSmartEmbed
     ? `\n  data-background-scope="${backgroundScope}"`
     : "";
   const heightMode = normalizeFullPageAssistantHeight(options.heightMode);
@@ -15310,7 +15318,7 @@ function buildInstallSection(agent, options = {}) {
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
   const sectionSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
   const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
-  const fullPageSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "full-page") : "";
+  const dedicatedPageSmartEmbed = trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
   const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
@@ -15438,9 +15446,13 @@ function buildInstallSection(agent, options = {}) {
             <strong>Section embed</strong>
             <span>Place the assistant inside part of an existing page.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-embed" data-full-page-option="embed">
-            <strong>Full-page embed</strong>
-            <span>Use this when the assistant is the main content of a dedicated page on your website.</span>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
+            <strong>Dedicated page embed</strong>
+            <span>Use this when Front Desk is the main content of a page on your own website.</span>
+          </button>
+          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
+            <strong>Raw iframe fallback</strong>
+            <span>Use this for builders that block scripts.</span>
           </button>
         </div>
         <div class="full-page-install-output active" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share">
@@ -15485,54 +15497,30 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-iframe-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-embed" role="tabpanel" data-full-page-option-panel="embed" hidden>
-          <p class="install-help">Use this on a dedicated assistant page. The embed includes the Front Desk heading.</p>
-          <p class="install-help">Paste this into a blank/dedicated page area. The assistant includes its own heading.</p>
-          <p class="install-help">Do not add another assistant heading above it unless you hide the embed title.</p>
-          <label class="install-title-toggle">
-            <input type="checkbox" data-full-page-title-toggle checked>
-            <span>
-              <strong>Show embed title</strong>
-              <small>If your website page already has its own heading, turn this off.</small>
-            </span>
-          </label>
-          <fieldset class="install-height-options">
-            <legend>Assistant area height</legend>
-            <label>
-              <input type="radio" name="full_page_assistant_height" value="auto" data-full-page-height-mode checked>
-              <span>
-                <strong>Auto</strong>
-                <small>Fits normal website sections.</small>
-              </span>
-            </label>
-            <label>
-              <input type="radio" name="full_page_assistant_height" value="full-page" data-full-page-height-mode>
-              <span>
-                <strong>Full page</strong>
-                <small>Fills the visible page area below where it is inserted.</small>
-              </span>
-            </label>
-          </fieldset>
+        <div class="full-page-install-output" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" hidden>
+          <p class="install-help"><strong>Dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your own website.</p>
+          <p class="install-help">Dedicated page embed makes the assistant the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
-            label: "Recommended full-page embed",
-            value: fullPageSmartEmbed,
+            label: "Dedicated page embed snippet",
+            value: dedicatedPageSmartEmbed,
             rows: 9,
             buttonAction: "copy-full-page-assistant-smart-embed",
-            buttonLabel: "Copy smart snippet",
-            disabled: !fullPageSmartEmbed,
+            buttonLabel: "Copy dedicated page embed",
+            disabled: !dedicatedPageSmartEmbed,
             className: "full-page-iframe-output",
           })}
-          <p class="install-help">Recommended. The selected background fills the assistant section automatically.</p>
-          <p class="install-help"><strong>Advanced iframe fallback:</strong> Raw iframe fallback applies backgrounds inside the iframe only. Use smart embed for full-width section backgrounds.</p>
-          <p class="install-help">If your website page already has its own heading, use the "Hide embed title" option.</p>
+        </div>
+        <div class="full-page-install-output" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" hidden>
+          <p class="install-help"><strong>Raw iframe:</strong> Fallback for builders that block scripts.</p>
+          <p class="install-help">Raw iframe backgrounds stay inside the iframe. Use the smart dedicated page embed when you want the background to fill the page area.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-iframe",
-            label: "Advanced iframe fallback",
+            label: "Raw iframe fallback",
             value: fullPageIframe,
             rows: 9,
             buttonAction: "copy-full-page-iframe",
-            buttonLabel: "Copy iframe snippet",
+            buttonLabel: "Copy raw iframe",
             disabled: !fullPageIframe,
             className: "full-page-iframe-output",
           })}
@@ -17089,8 +17077,8 @@ async function copySectionAssistantIframe(agent) {
 async function copyFullPageAssistantSmartEmbed(agent) {
   const textarea = document.getElementById("full-page-assistant-smart-embed");
   await copyDashboardText(
-    textarea?.value || buildSmartAssistantEmbed(agent, "full-page"),
-    "Full-page smart snippet copied.",
+    textarea?.value || buildSmartAssistantEmbed(agent, "page-takeover"),
+    "Dedicated page embed snippet copied.",
     "full-page-assistant-smart-embed"
   );
 }
@@ -17232,8 +17220,6 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const sectionSmartEmbedOutput = document.getElementById("section-assistant-smart-embed");
   const fullPageIframeOutput = document.getElementById("full-page-assistant-iframe");
   const fullPageSmartEmbedOutput = document.getElementById("full-page-assistant-smart-embed");
-  const fullPageTitleToggle = document.querySelector("[data-full-page-title-toggle]");
-  const fullPageHeightOptions = document.querySelectorAll("[data-full-page-height-mode]");
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
@@ -17261,18 +17247,15 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
         : "";
     }
 
-    const showTitle = fullPageTitleToggle?.checked !== false;
-    const selectedHeightMode = Array.from(fullPageHeightOptions).find((input) => input.checked)?.value || "auto";
-
     if (fullPageSmartEmbedOutput) {
       fullPageSmartEmbedOutput.value = trimText(agent.id)
-        ? buildSmartAssistantEmbed(agent, "full-page", { showTitle, heightMode: selectedHeightMode })
+        ? buildSmartAssistantEmbed(agent, "page-takeover")
         : "";
     }
 
     if (fullPageIframeOutput) {
       fullPageIframeOutput.value = hasFullPageTarget
-        ? buildFullPageAssistantIframe(agent, 120, { showTitle })
+        ? buildFullPageAssistantIframe(agent, 120)
         : "";
     }
   };
@@ -17281,11 +17264,6 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
     button.addEventListener("click", () => {
       activateOption(button.dataset.fullPageOption || "share");
     });
-  });
-
-  fullPageTitleToggle?.addEventListener("change", syncFullPageIframe);
-  fullPageHeightOptions.forEach((input) => {
-    input.addEventListener("change", syncFullPageIframe);
   });
 
   syncFullPageIframe();

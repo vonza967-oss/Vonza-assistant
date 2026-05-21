@@ -539,6 +539,16 @@ function renderAssistantEmbedMatrixPage() {
       data-title="Matrix full-page height assistant"
     ></div>
   `;
+  const smartPageTakeover = `
+    <div
+      data-vonza-assistant
+      data-agent-id="${mockAgentId}"
+      data-layout="page-takeover"
+      data-surface="flat"
+      data-background-scope="viewport"
+      data-title="Matrix dedicated page assistant"
+    ></div>
+  `;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -640,6 +650,12 @@ function renderAssistantEmbedMatrixPage() {
       <h2>Full-page height mode with footer</h2>
       <p>Full-page smart embed fills the visible page area below where it is inserted.</p>
       ${smartFullPageHeight}
+      <div class="test-footer">Customer website footer</div>
+    </section>
+    <section class="matrix-case landing-page footer-close">
+      <h2>Dedicated page takeover</h2>
+      <p>Page takeover smart embed fills the visible page area below the website header.</p>
+      ${smartPageTakeover}
       <div class="test-footer">Customer website footer</div>
     </section>
     <section class="matrix-case sticky-shell">
