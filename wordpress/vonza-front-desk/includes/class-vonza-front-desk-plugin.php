@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Vonza_Front_Desk_Plugin {
 	const OPTION_NAME = 'vonza_front_desk_options';
 	const DEFAULT_APP_URL = 'https://vonza-assistant.onrender.com';
+	const FRONT_DESK_PAGE_META = '_vonza_front_desk_page';
 
 	/**
 	 * Singleton instance.
@@ -46,6 +47,9 @@ class Vonza_Front_Desk_Plugin {
 		$this->renderer = new Vonza_Front_Desk_Renderer( $this );
 		$this->renderer->init();
 
+		add_filter( 'template_include', array( $this, 'filter_template_include' ) );
+		add_filter( 'body_class', array( $this, 'filter_body_classes' ) );
+
 		if ( is_admin() ) {
 			$this->admin = new Vonza_Front_Desk_Admin( $this );
 			$this->admin->init();
@@ -66,7 +70,8 @@ class Vonza_Front_Desk_Plugin {
 			'surface'              => 'flat',
 			'background_coverage'  => 'page',
 			'hide_page_footer'     => '1',
-			'hide_page_title'      => '0',
+			'hide_page_title'      => '1',
+			'front_desk_page_mode' => 'template',
 			'created_page_id'      => 0,
 		);
 	}
@@ -93,6 +98,7 @@ class Vonza_Front_Desk_Plugin {
 			'background_coverage'  => $this->sanitize_choice( $input['background_coverage'] ?? $current['background_coverage'], array( 'section', 'page' ), 'page' ),
 			'hide_page_footer'     => empty( $input['hide_page_footer'] ) ? '0' : '1',
 			'hide_page_title'      => empty( $input['hide_page_title'] ) ? '0' : '1',
+			'front_desk_page_mode' => $this->sanitize_choice( $input['front_desk_page_mode'] ?? $current['front_desk_page_mode'], array( 'template', 'shortcode' ), 'template' ),
 			'created_page_id'      => absint( $input['created_page_id'] ?? $current['created_page_id'] ),
 		);
 	}
@@ -134,5 +140,46 @@ class Vonza_Front_Desk_Plugin {
 
 		$page = get_page_by_path( 'front-desk', OBJECT, 'page' );
 		return ( $page && 'trash' !== $page->post_status ) ? $page : null;
+	}
+
+	public function is_front_desk_page() {
+		if ( is_admin() || ! is_page() ) {
+			return false;
+		}
+
+		$options = $this->get_options();
+		$page_id = absint( $options['created_page_id'] );
+
+		return $page_id && absint( get_queried_object_id() ) === $page_id;
+	}
+
+	public function filter_template_include( $template ) {
+		$options = $this->get_options();
+
+		if ( 'template' !== $options['front_desk_page_mode'] || ! $this->is_front_desk_page() ) {
+			return $template;
+		}
+
+		$front_desk_template = $this->get_front_desk_template_path();
+		return file_exists( $front_desk_template ) ? $front_desk_template : $template;
+	}
+
+	public function filter_body_classes( $classes ) {
+		if ( ! $this->is_front_desk_page() ) {
+			return $classes;
+		}
+
+		$classes[] = 'vonza-front-desk-page';
+
+		$options = $this->get_options();
+		if ( 'template' === $options['front_desk_page_mode'] ) {
+			$classes[] = 'vonza-front-desk-template-active';
+		}
+
+		return array_values( array_unique( $classes ) );
+	}
+
+	public function get_front_desk_template_path() {
+		return VONZA_FRONT_DESK_DIR . 'templates/front-desk-page-template.php';
 	}
 }

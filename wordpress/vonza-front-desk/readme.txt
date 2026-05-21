@@ -13,6 +13,8 @@ Add the Vonza AI Front Desk to your WordPress website.
 
 Vonza Front Desk lets a business owner or agency install Vonza on WordPress without manually editing smart embed snippets. Configure an Agent ID, create a dedicated Front Desk page, or enable the floating widget site-wide.
 
+The created Front Desk page uses a plugin template by default, so it can render below the website header without the theme's normal page content box. Shortcodes remain available for regular page sections and manual placement.
+
 == Installation ==
 
 1. Upload the `vonza-front-desk` folder as a WordPress plugin.
@@ -20,6 +22,7 @@ Vonza Front Desk lets a business owner or agency install Vonza on WordPress with
 3. Go to WP Admin -> Vonza Front Desk.
 4. Enter your Agent ID and save.
 5. Click "Create Front Desk page".
+6. Use Template page mode unless your theme requires the shortcode fallback.
 
 == Shortcodes ==
 

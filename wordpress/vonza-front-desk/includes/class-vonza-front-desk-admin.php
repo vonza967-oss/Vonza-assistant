@@ -91,6 +91,7 @@ class Vonza_Front_Desk_Admin {
 		if ( $page ) {
 			$options['created_page_id'] = $page->ID;
 			$this->plugin->save_options( $options );
+			update_post_meta( $page->ID, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
 			$this->redirect_with_status( 'page-exists' );
 		}
 
@@ -111,6 +112,7 @@ class Vonza_Front_Desk_Admin {
 
 		$options['created_page_id'] = absint( $page_id );
 		$this->plugin->save_options( $options );
+		update_post_meta( $page_id, Vonza_Front_Desk_Plugin::FRONT_DESK_PAGE_META, '1' );
 		$this->redirect_with_status( 'page-created' );
 	}
 
@@ -164,6 +166,15 @@ class Vonza_Front_Desk_Admin {
 							<option value="page" <?php selected( 'page', $options['background_coverage'] ); ?>><?php echo esc_html__( 'page', 'vonza-front-desk' ); ?></option>
 						</select>
 
+						<h3><?php echo esc_html__( 'Front Desk page display', 'vonza-front-desk' ); ?></h3>
+						<p><?php echo esc_html__( 'Template page is recommended. It removes theme content boxes and lets Front Desk fill the page body.', 'vonza-front-desk' ); ?></p>
+
+						<label for="vonza-front-desk-page-mode"><?php echo esc_html__( 'Page mode', 'vonza-front-desk' ); ?></label>
+						<select id="vonza-front-desk-page-mode" name="vonza_front_desk[front_desk_page_mode]">
+							<option value="template" <?php selected( 'template', $options['front_desk_page_mode'] ); ?>><?php echo esc_html__( 'Template page', 'vonza-front-desk' ); ?></option>
+							<option value="shortcode" <?php selected( 'shortcode', $options['front_desk_page_mode'] ); ?>><?php echo esc_html__( 'Shortcode fallback', 'vonza-front-desk' ); ?></option>
+						</select>
+
 						<label>
 							<input type="checkbox" name="vonza_front_desk[hide_page_footer]" value="1" <?php checked( '1', $options['hide_page_footer'] ); ?>>
 							<?php echo esc_html__( 'Hide page footer for dedicated page', 'vonza-front-desk' ); ?>
@@ -174,6 +185,8 @@ class Vonza_Front_Desk_Admin {
 							<?php echo esc_html__( 'Hide page title for dedicated page', 'vonza-front-desk' ); ?>
 						</label>
 
+						<p><?php echo esc_html__( 'Website header is kept on the Front Desk page.', 'vonza-front-desk' ); ?></p>
+
 						<?php submit_button( __( 'Save settings', 'vonza-front-desk' ) ); ?>
 					</form>
 				</section>
@@ -181,6 +194,8 @@ class Vonza_Front_Desk_Admin {
 				<section class="vonza-front-desk-card">
 					<h2><?php echo esc_html__( 'Front Desk page', 'vonza-front-desk' ); ?></h2>
 					<p><?php echo esc_html__( 'Create a dedicated WordPress page that renders your Vonza Front Desk embed.', 'vonza-front-desk' ); ?></p>
+					<p><strong><?php echo esc_html__( 'Created Front Desk page:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( $page ? get_the_title( $page ) : __( 'Not created yet', 'vonza-front-desk' ) ); ?></p>
+					<p><strong><?php echo esc_html__( 'Page mode:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( 'template' === $options['front_desk_page_mode'] ? __( 'Template page', 'vonza-front-desk' ) : __( 'Shortcode fallback', 'vonza-front-desk' ) ); ?></p>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="vonza_front_desk_create_page">
 						<?php wp_nonce_field( 'vonza_front_desk_create_page' ); ?>

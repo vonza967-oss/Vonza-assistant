@@ -125,7 +125,7 @@ class Vonza_Front_Desk_Renderer {
 	public function render_site_wide_widget() {
 		$options = $this->plugin->get_options();
 
-		if ( is_admin() || '1' !== $options['enable_widget'] || $this->widget_rendered ) {
+		if ( is_admin() || $this->plugin->is_front_desk_page() || '1' !== $options['enable_widget'] || $this->widget_rendered ) {
 			return;
 		}
 
