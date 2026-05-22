@@ -186,6 +186,10 @@ test("route-specific CORS keeps private routes non-wildcard while public widget 
       assert.equal(widget.status, 200);
       assert.match(widget.headers.get("content-security-policy") || "", /frame-ancestors \*/);
       assert.equal(widget.headers.get("x-frame-options"), null);
+      assert.match(widget.headers.get("permissions-policy") || "", /microphone=\(self\)/);
+
+      const dashboardPolicy = dashboard.headers.get("permissions-policy") || "";
+      assert.match(dashboardPolicy, /microphone=\(\)/);
     });
   });
 });

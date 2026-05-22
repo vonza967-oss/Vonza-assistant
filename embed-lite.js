@@ -53,7 +53,7 @@
     <div class="vonza-lite-modal" data-open="false" aria-hidden="true">
       <div class="vonza-lite-panel" role="dialog" aria-modal="true" aria-label="${defaults.assistantName}">
         <button class="vonza-lite-close" type="button" aria-label="Close">&times;</button>
-        <iframe class="vonza-lite-frame" title="${defaults.assistantName}" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <iframe class="vonza-lite-frame" title="${defaults.assistantName}" allow="microphone; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
     </div>
   `;

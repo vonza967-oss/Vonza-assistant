@@ -666,7 +666,7 @@
                 <button class="status-button secondary" type="button" data-action="close">Close</button>
               </div>
             </div>
-            <iframe class="frame" title="${visualConfig.assistantName}" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+            <iframe class="frame" title="${visualConfig.assistantName}" allow="microphone; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe>
           </div>
         </div>
       </div>

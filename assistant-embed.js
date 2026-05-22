@@ -23,6 +23,7 @@
   const PAGE_FOOTER_SELECTORS = Object.freeze(["footer", ".site-footer", "#colophon", ".footer"]);
   const PAGE_TITLE_SELECTORS = Object.freeze([".entry-title", ".page-title", "h1.wp-block-post-title"]);
   const PAGE_CHROME_SELECTORS = Object.freeze(["header", "nav", ".site-header", "#masthead"]);
+  const ASSISTANT_IFRAME_ALLOW = "microphone; autoplay";
   const HEIGHT_MODES = Object.freeze(["auto", "full-page"]);
   const DEFAULT_FULL_PAGE_DESIGN = Object.freeze({
     backgroundType: "color",
@@ -1119,6 +1120,7 @@
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
     iframe.allowTransparency = surface === "transparent" || ["section", "viewport"].includes(backgroundScope);
+    iframe.setAttribute("allow", ASSISTANT_IFRAME_ALLOW);
     iframe.setAttribute("data-vonza-assistant-frame", "");
     iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     applyIframeStyles(iframe, { layout, surface, minHeight, backgroundScope });

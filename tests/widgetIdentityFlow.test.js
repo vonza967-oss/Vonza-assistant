@@ -116,6 +116,9 @@ function createWidgetHarness({
   widgetRuntimeConfig = {},
   initialLocalStorage = {},
   location = {},
+  mediaDevices = null,
+  MediaRecorder = null,
+  isSecureContext = true,
   mobileViewport = false,
   innerWidth = 1024,
 } = {}) {
@@ -335,12 +338,16 @@ function createWidgetHarness({
     Audio: TestAudio,
     URL: TestURL,
     URLSearchParams,
+    setTimeout,
+    clearTimeout,
     window: {
       location: {
         search: location.search || "",
         pathname: location.pathname || "/widget",
         href: location.href || `https://example.com${location.pathname || "/widget"}${location.search || ""}`,
         origin: location.origin || "https://example.com",
+        protocol: location.protocol || "https:",
+        hostname: location.hostname || "example.com",
       },
       localStorage,
       sessionStorage: createStorage(),
@@ -352,7 +359,8 @@ function createWidgetHarness({
       VonzaWidgetConfig: widgetRuntimeConfig,
       Audio: TestAudio,
       Blob,
-      MediaRecorder: null,
+      MediaRecorder,
+      isSecureContext,
       addEventListener() {},
       innerWidth,
       matchMedia(query) {
@@ -370,6 +378,7 @@ function createWidgetHarness({
     },
     globalThis: null,
   };
+  context.navigator = mediaDevices ? { mediaDevices } : {};
 
   context.window.fetch = context.fetch;
   context.globalThis = context;
@@ -390,6 +399,35 @@ function createWidgetHarness({
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
+
+class TestMediaRecorder {
+  constructor(stream, options = {}) {
+    this.stream = stream;
+    this.options = options;
+    this.state = "inactive";
+    this.listeners = new Map();
+    TestMediaRecorder.instances.push(this);
+  }
+
+  static isTypeSupported(type) {
+    return type === "audio/webm";
+  }
+
+  addEventListener(type, handler) {
+    this.listeners.set(type, handler);
+  }
+
+  start() {
+    this.state = "recording";
+    this.started = true;
+  }
+
+  stop() {
+    this.state = "inactive";
+    this.listeners.get("stop")?.();
+  }
+}
+TestMediaRecorder.instances = [];
 
 test("widget can continue as guest and build a guest payload", async () => {
   const harness = createWidgetHarness({
@@ -508,9 +546,175 @@ test("voice input controls default off and render safely when enabled", () => {
 
   assert.equal(micButton.hidden, false);
   assert.equal(micButton.disabled, true);
-  assert.equal(micButton.title, "Voice input is not supported in this browser.");
+  assert.equal(micButton.title, "Voice input is not available in this browser.");
   assert.equal(voiceControls.hidden, false);
   assert.equal(disclosure.hidden, false);
+});
+
+test("voice input click starts MediaRecorder when enabled and chat is ready", async () => {
+  let getUserMediaCalled = false;
+  TestMediaRecorder.instances = [];
+  const mediaStream = {
+    getTracks() {
+      return [{ stop() {} }];
+    },
+  };
+  const harness = createWidgetHarness({
+    mediaDevices: {
+      async getUserMedia(constraints) {
+        getUserMediaCalled = true;
+        assert.equal(constraints.audio, true);
+        return mediaStream;
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+  const micButton = harness.elements.get("voice-input-button");
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+
+  assert.equal(micButton.hidden, false);
+  assert.equal(micButton.disabled, false);
+  micButton.dispatch("click");
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(getUserMediaCalled, true);
+  assert.equal(TestMediaRecorder.instances.length, 1);
+  assert.equal(TestMediaRecorder.instances[0].started, true);
+  assert.equal(harness.elements.get("composer-status").textContent, "Listening...");
+  harness.hooks.stopVoiceRecording();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});
+
+test("voice input getUserMedia denial shows a user-facing permission error", async () => {
+  const deniedError = new Error("Permission denied by test");
+  deniedError.name = "NotAllowedError";
+  const harness = createWidgetHarness({
+    mediaDevices: {
+      async getUserMedia() {
+        throw deniedError;
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+  const micButton = harness.elements.get("voice-input-button");
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  micButton.dispatch("click");
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.elements.get("composer-status").textContent, "Microphone permission was blocked.");
+  assert.equal(micButton.title, "Microphone permission was blocked.");
+});
+
+test("voice input reports HTTPS requirement before requesting the microphone", async () => {
+  let getUserMediaCalled = false;
+  const harness = createWidgetHarness({
+    location: {
+      protocol: "http:",
+      hostname: "customer.example",
+      origin: "http://customer.example",
+      href: "http://customer.example/widget",
+    },
+    isSecureContext: false,
+    mediaDevices: {
+      async getUserMedia() {
+        getUserMediaCalled = true;
+        return { getTracks: () => [] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  await harness.hooks.startVoiceRecording();
+
+  assert.equal(getUserMediaCalled, false);
+  assert.equal(harness.elements.get("composer-status").textContent, "Voice input requires HTTPS.");
+});
+
+test("voice transcription failure shows a recoverable user-facing error", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: false,
+          status: 500,
+          async json() {
+            return { error: "internal stack detail" };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  await harness.hooks.handleVoiceRecordingComplete(900, "audio/webm");
+
+  assert.equal(
+    harness.elements.get("composer-status").textContent,
+    "Could not transcribe that recording. Please try again."
+  );
+});
+
+test("voice config explicit enabled and disabled states control mic visibility", () => {
+  const harness = createWidgetHarness();
+  const micButton = harness.elements.get("voice-input-button");
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+  assert.equal(harness.hooks.getVoiceConfig().voiceInputEnabled, true);
+  assert.equal(micButton.hidden, false);
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: false,
+    },
+  });
+  assert.equal(harness.hooks.getVoiceConfig().voiceInputEnabled, false);
+  assert.equal(micButton.hidden, true);
 });
 
 test("voice transcription fills the composer without auto-sending by default", async () => {
@@ -2461,6 +2665,7 @@ test("widget source separates entry and chat phases, hides the composer before i
   const style = readFileSync(path.join(repoRoot, "frontend", "style.css"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "script.js"), "utf8");
   const embed = readFileSync(path.join(repoRoot, "embed.js"), "utf8");
+  const embedLite = readFileSync(path.join(repoRoot, "embed-lite.js"), "utf8");
 
   assert.match(widget, /Continue with email/);
   assert.match(widget, /Continue as guest/);
@@ -2506,6 +2711,8 @@ test("widget source separates entry and chat phases, hides the composer before i
   assert.match(style, /@media \(max-width: 720px\)/);
   assert.match(style, /@media \(max-width: 420px\)/);
   assert.match(embed, /launcher-presence/);
+  assert.match(embed, /allow="microphone; autoplay"/);
+  assert.match(embedLite, /allow="microphone; autoplay"/);
   assert.match(embed, /launcher\.addEventListener\("click", openModal\)/);
   assert.match(embed, /closeButton\.addEventListener\("click", closeModal\)/);
   assert.match(embed, /event\.key === "Escape"/);
@@ -3606,6 +3813,7 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /Use this when Front Desk is the main content of a page on your website/);
   assert.match(dashboard, /\["compact", "standard", "tall", "full"\]/);
   assert.match(dashboard, /surface: "flat"/);
+  assert.match(dashboard, /allow="microphone; autoplay"/);
   assert.match(dashboard, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
   assert.match(dashboard, /Dedicated page embed/);
   assert.match(dashboard, /Copy smart snippet/);

@@ -292,6 +292,7 @@ test("/assistant-embed.js smart script creates section iframe URL with standard 
   assert.equal(harness.iframe.style.minHeight, "640px");
   assert.equal(harness.iframe.style.height, "640px");
   assert.equal(harness.iframe.style.borderRadius, "18px");
+  assert.equal(harness.iframe.getAttribute("allow"), "microphone; autoplay");
 });
 
 test("/assistant-embed.js smart script creates full-page iframe URL with full size and flat surface", () => {
@@ -322,6 +323,7 @@ test("/assistant-embed.js smart script creates full-page iframe URL with full si
   assert.equal(harness.iframe.style.height, "900px");
   assert.equal(harness.iframe.style.borderRadius, "0");
   assert.equal(harness.iframe.allowTransparency, true);
+  assert.equal(harness.iframe.getAttribute("allow"), "microphone; autoplay");
 });
 
 test("/assistant-embed.js supports page-takeover layout with viewport wrapper", () => {
@@ -364,6 +366,7 @@ test("/assistant-embed.js supports page-takeover layout with viewport wrapper", 
   assert.equal(harness.iframe.style.minHeight, "804px");
   assert.equal(harness.iframe.style.borderRadius, "0");
   assert.equal(harness.iframe.allowTransparency, true);
+  assert.equal(harness.iframe.getAttribute("allow"), "microphone; autoplay");
 });
 
 test("/assistant-embed.js hydrates missing public page key from allowed widget bootstrap", async () => {

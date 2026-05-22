@@ -212,6 +212,14 @@ function createInstallState() {
           show_contact: true,
           trust_items: ["Acme replies fast"],
         },
+        voice_config: {
+          voice_input_enabled: true,
+          spoken_replies_enabled: false,
+          auto_send_transcript: true,
+          auto_play_spoken_replies: false,
+          voice: "sage",
+          language_behavior: "auto",
+        },
         install_id: "11111111-1111-1111-1111-111111111111",
         allowed_domains: ["example.com"],
       },
@@ -287,6 +295,22 @@ test("full-page assistant bootstrap reuses config without weakening installed wi
   assert.equal(page.widgetConfig.fullPageConfig.subtitle, "Ask Acme about services.");
   assert.equal(page.widgetConfig.fullPageConfig.actionCards[0].label, "Custom service card");
   assert.equal(page.widgetConfig.fullPageConfig.accentColor, "#123abc");
+  assert.deepEqual(page.widgetConfig.voiceConfig, {
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: false,
+    autoSendTranscript: true,
+    autoPlaySpokenReplies: false,
+    voice: "sage",
+    languageBehavior: "auto",
+  });
+  assert.deepEqual(page.widgetConfig.voice_config, {
+    voice_input_enabled: true,
+    spoken_replies_enabled: false,
+    auto_send_transcript: true,
+    auto_play_spoken_replies: false,
+    voice: "sage",
+    language_behavior: "auto",
+  });
 
   const installedSupabase = createInstallState();
   await assert.rejects(

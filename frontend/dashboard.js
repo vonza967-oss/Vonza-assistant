@@ -3140,6 +3140,7 @@ function buildSectionAssistantIframe(agent = {}) {
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent, "standard")}"
   title="AI assistant"
+  allow="microphone; autoplay"
   style="width:100%;min-height:640px;border:0;border-radius:18px;overflow:hidden;"
   loading="lazy"
 ></iframe>`;
@@ -3158,6 +3159,7 @@ function buildFullPageAssistantIframe(agent = {}, headerHeight = 120, options = 
   return `<iframe
   src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat", layout: "canvas", showTitle: options.showTitle })}"
   title="AI assistant"
+  allow="microphone; autoplay"
   style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
   loading="lazy"
 ></iframe>`;

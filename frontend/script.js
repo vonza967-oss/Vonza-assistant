@@ -242,6 +242,7 @@ let voiceRecorderChunks = [];
 let voiceRecordingStartedAt = 0;
 let voiceRecordingStopTimer = 0;
 let voiceTranscriptRequestActive = false;
+let voiceInputStatusState = "";
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -2393,6 +2394,49 @@ function browserSupportsVoiceInput() {
   );
 }
 
+function isLocalSecureHost() {
+  const hostname = trimText(window.location?.hostname).toLowerCase();
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function voiceRequiresHttps() {
+  return window.isSecureContext === false
+    || (window.location?.protocol === "http:" && !isLocalSecureHost());
+}
+
+function getVoiceUnavailableMessage() {
+  if (voiceRequiresHttps()) {
+    return "Voice input requires HTTPS.";
+  }
+
+  if (!navigator?.mediaDevices?.getUserMedia || typeof window.MediaRecorder !== "function") {
+    return "Voice input is not available in this browser.";
+  }
+
+  return "";
+}
+
+function getMicrophoneStartErrorMessage(error) {
+  if (voiceRequiresHttps()) {
+    return "Voice input requires HTTPS.";
+  }
+
+  const errorName = trimText(error?.name);
+  if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+    return "Microphone permission was blocked.";
+  }
+
+  if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
+    return "No microphone was found.";
+  }
+
+  if (errorName === "NotReadableError" || errorName === "TrackStartError" || errorName === "SecurityError") {
+    return "Could not start recording. Check your browser microphone permission.";
+  }
+
+  return "Could not start recording. Check your browser microphone permission.";
+}
+
 function getPreferredRecordingMimeType() {
   const MediaRecorderCtor = window.MediaRecorder;
 
@@ -2409,6 +2453,24 @@ function getVoiceInputButton() {
 
 function getSpeakRepliesToggle() {
   return document.getElementById("speak-replies-toggle");
+}
+
+function bindVoiceInputButton() {
+  const button = getVoiceInputButton();
+
+  if (!button || button.dataset.voiceInputBound === "true") {
+    return;
+  }
+
+  button.dataset.voiceInputBound = "true";
+  button.addEventListener("click", () => {
+    if (voiceRecorder) {
+      stopVoiceRecording();
+      return;
+    }
+
+    void startVoiceRecording();
+  });
 }
 
 function buildVoiceContextParams() {
@@ -2447,6 +2509,7 @@ function setVoiceInputState(state, message = "") {
   const button = getVoiceInputButton();
   const inputArea = document.querySelector(".input-area");
   const normalizedState = trimText(state);
+  voiceInputStatusState = normalizedState;
   const label = message || (
     normalizedState === "listening"
       ? "Listening..."
@@ -2493,6 +2556,7 @@ function syncSpeakRepliesToggle() {
 }
 
 function syncVoiceControls() {
+  bindVoiceInputButton();
   const config = getVoiceConfig();
   const micButton = getVoiceInputButton();
   const voiceControls = document.getElementById("voice-controls");
@@ -2500,15 +2564,16 @@ function syncVoiceControls() {
   const voiceInputEnabled = config.voiceInputEnabled !== false;
   const spokenRepliesEnabled = config.spokenRepliesEnabled === true;
   const supportsVoice = browserSupportsVoiceInput();
+  const unavailableMessage = getVoiceUnavailableMessage();
   const chatReady = widgetPhase === WIDGET_PHASES.CHAT;
 
   if (micButton) {
     micButton.hidden = !voiceInputEnabled;
     micButton.disabled = !voiceInputEnabled || !supportsVoice || !chatReady || voiceTranscriptRequestActive;
-    if (voiceInputEnabled && !supportsVoice) {
-      micButton.setAttribute("aria-label", "Voice input is not supported in this browser.");
-      micButton.setAttribute("title", "Voice input is not supported in this browser.");
-    } else if (!voiceRecorder) {
+    if (voiceInputEnabled && unavailableMessage) {
+      micButton.setAttribute("aria-label", unavailableMessage);
+      micButton.setAttribute("title", unavailableMessage);
+    } else if (!voiceRecorder && voiceInputStatusState !== "error") {
       micButton.setAttribute("aria-label", "Tap to speak");
       micButton.setAttribute("title", "Tap to speak");
     }
@@ -2664,7 +2729,12 @@ async function transcribeVoiceBlob(blob, durationMs) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.error || "Voice transcription failed.");
+    const message = response.status === 413
+      ? "Recording was too large. Try a shorter message."
+      : response.status === 429
+        ? "Voice input is busy. Please try again in a minute."
+        : "Could not transcribe that recording. Please try again.";
+    throw new Error(message);
   }
 
   return data;
@@ -2694,8 +2764,9 @@ async function startVoiceRecording() {
     return;
   }
 
-  if (!browserSupportsVoiceInput()) {
-    setVoiceInputState("error", "Voice input is not supported in this browser.");
+  const unavailableMessage = getVoiceUnavailableMessage();
+  if (unavailableMessage) {
+    setVoiceInputState("error", unavailableMessage);
     syncVoiceControls();
     return;
   }
@@ -2712,9 +2783,15 @@ async function startVoiceRecording() {
     const MediaRecorderCtor = window.MediaRecorder;
     voiceRecorderChunks = [];
     voiceRecordingStartedAt = Date.now();
-    voiceRecorder = mimeType
-      ? new MediaRecorderCtor(stream, { mimeType })
-      : new MediaRecorderCtor(stream);
+    try {
+      voiceRecorder = mimeType
+        ? new MediaRecorderCtor(stream, { mimeType })
+        : new MediaRecorderCtor(stream);
+    } catch (recorderError) {
+      const tracks = stream.getTracks?.() || [];
+      tracks.forEach((track) => track.stop?.());
+      throw recorderError;
+    }
     voiceRecorder.addEventListener("dataavailable", (event) => {
       if (event.data?.size) {
         voiceRecorderChunks.push(event.data);
@@ -2737,7 +2814,7 @@ async function startVoiceRecording() {
     console.warn("Vonza microphone recording failed:", error);
     voiceRecorder = null;
     clearVoiceRecordingTimer();
-    setVoiceInputState("error", "Microphone access was not available.");
+    setVoiceInputState("error", getMicrophoneStartErrorMessage(error));
     syncVoiceControls();
   }
 }
@@ -2760,6 +2837,9 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
   try {
     const blobType = chunks.find((chunk) => trimText(chunk.type))?.type || fallbackMimeType || "audio/webm";
     const blob = new Blob(chunks, { type: blobType });
+    if (!blob.size) {
+      throw new Error("No speech was recorded.");
+    }
     const result = await transcribeVoiceBlob(blob, durationMs);
     const transcript = trimText(result.text);
 
@@ -3611,14 +3691,7 @@ document.getElementById("input").addEventListener("keydown", (event) => {
   }
 });
 
-getVoiceInputButton()?.addEventListener("click", () => {
-  if (voiceRecorder) {
-    stopVoiceRecording();
-    return;
-  }
-
-  void startVoiceRecording();
-});
+bindVoiceInputButton();
 
 getSpeakRepliesToggle()?.addEventListener("click", () => {
   if (!getVoiceConfig().spokenRepliesEnabled) {

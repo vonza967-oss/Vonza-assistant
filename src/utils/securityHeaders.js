@@ -28,6 +28,11 @@ function isPublicAssistantPath(pathname) {
     || pathname === "/assistant-embed.js";
 }
 
+function buildPermissionsPolicy(pathname) {
+  const microphonePolicy = isPublicAssistantPath(pathname) ? "microphone=(self)" : "microphone=()";
+  return `camera=(), ${microphonePolicy}, geolocation=(), payment=()`;
+}
+
 function buildDashboardCsp() {
   const publicAppUrl = getPublicAppUrl();
   const supabaseUrl = getSupabasePublicUrl();
@@ -75,7 +80,7 @@ export function applySecurityHeaders(req, res, next) {
 
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  res.setHeader("Permissions-Policy", buildPermissionsPolicy(pathname));
 
   if (isDashboardDocumentPath(pathname) || isDashboardAssetPath(pathname)) {
     res.setHeader("Content-Security-Policy", buildDashboardCsp());

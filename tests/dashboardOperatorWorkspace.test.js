@@ -3890,6 +3890,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[2], /data-layout="section"/);
   assert.match(copied[2], /\/assistant-embed\.js/);
   assert.match(copied[3], /<iframe/);
+  assert.match(copied[3], /allow="microphone; autoplay"/);
   assert.match(copied[3], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=standard&k=page-key-1/);
   assert.match(copied[3], /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
   assert.doesNotMatch(copied[3], /100vh|min-height:520px/);
@@ -3912,6 +3913,7 @@ test("install copy helpers write the current install code and full-page sharing 
   assert.match(copied[5], /data-hide-page-footer="true"/);
   assert.match(copied[5], /\/assistant-embed\.js/);
   assert.match(copied[6], /^<iframe/);
+  assert.match(copied[6], /allow="microphone; autoplay"/);
   assert.doesNotMatch(copied[6], /width:100vw;margin-left/);
   assert.match(copied[6], /\/widget\?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas&k=page-key-1/);
   assert.match(copied[6], /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
