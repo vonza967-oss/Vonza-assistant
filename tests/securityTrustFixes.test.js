@@ -12,6 +12,7 @@ import { createPublicRouter } from "../src/routes/publicRoutes.js";
 import { handleChatRequest } from "../src/services/chat/chatService.js";
 import {
   listAgents,
+  requirePublicFullPageAccess,
   requireActiveAgentAccess,
 } from "../src/services/agents/agentService.js";
 import {
@@ -406,6 +407,76 @@ test("client_id-only listing only returns pre-claim onboarding assistants", asyn
   });
 
   assert.deepEqual(result.agents.map((agent) => agent.id), ["preclaim-agent"]);
+});
+
+test("public full-page access requires an active claimed owner context", () => {
+  const baseContext = {
+    agent: {
+      id: "agent-1",
+      ownerUserId: "owner-1",
+      accessStatus: "active",
+    },
+    widgetConfig: {
+      fullPageConfig: {
+        publicPageEnabled: true,
+        publicPageKey: "page-key-1",
+      },
+    },
+  };
+
+  assert.doesNotThrow(() => requirePublicFullPageAccess(baseContext, {
+    publicPageKey: "page-key-1",
+  }));
+
+  assert.throws(
+    () => requirePublicFullPageAccess({
+      ...baseContext,
+      agent: {
+        ...baseContext.agent,
+        ownerUserId: "",
+      },
+    }, {
+      publicPageKey: "page-key-1",
+    }),
+    /public assistant page is not available/i
+  );
+
+  assert.throws(
+    () => requirePublicFullPageAccess({
+      ...baseContext,
+      agent: {
+        ...baseContext.agent,
+        accessStatus: "pending",
+      },
+    }, {
+      publicPageKey: "page-key-1",
+    }),
+    /public assistant page is not available/i
+  );
+});
+
+test("page-mode public bootstrap returns a generic unavailable error", async () => {
+  const app = express();
+  app.use(createAgentRouter({
+    getSupabaseClient: () => ({}),
+    getWidgetBootstrap: async () => {
+      const error = new Error("Agent not found");
+      error.statusCode = 404;
+      error.code = "public_widget_not_found";
+      throw error;
+    },
+    limitWidgetBootstrap: (_req, _res, next) => next(),
+  }));
+  const server = await startServer(app);
+
+  try {
+    const response = await getJson(server.baseUrl, "/widget/bootstrap?agent_id=bad-id&mode=page");
+
+    assert.equal(response.status, 404);
+    assert.deepEqual(response.json, { error: "Assistant unavailable" });
+  } finally {
+    await server.close();
+  }
 });
 
 test("claimed owner routes reject unauthenticated client_id fallback", async () => {
@@ -1272,6 +1343,59 @@ test("front-desk answer repair removes invented services when service data is mi
   assert.equal(calls.length, 2);
   assert.doesNotMatch(result.reply, /HVAC installation/i);
   assert.match(result.reply, /do not have a published service list/i);
+});
+
+test("front-desk answer repair removes invented policy when policy data is missing", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Vonza Studio",
+        meta_description: "Contact page",
+        content: "Vonza Studio invites customers to contact the team for project questions. The site asks visitors to send questions through the contact form.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+  const calls = [];
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: calls.length === 1
+                      ? "Cancellations are free within 24 hours. Would you like to book for tomorrow?"
+                      : "Front Desk does not have the cancellation policy or booking-time details from the business information here. Would you like to leave contact details so the team can confirm the policy?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/policies",
+      visitor_session_key: "session-policy-guard",
+      message: "What is your cancellation policy?",
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.doesNotMatch(result.reply, /free within 24 hours/i);
+  assert.match(result.reply, /Front Desk does not have the cancellation policy/i);
 });
 
 test("owner-approved answers are included as the highest-priority trusted source", async () => {

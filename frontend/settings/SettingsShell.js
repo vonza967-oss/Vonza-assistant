@@ -247,7 +247,7 @@
     { value: "shimmer", label: "Shimmer" },
   ]);
   const DEFAULT_VOICE_CONFIG = Object.freeze({
-    voiceInputEnabled: true,
+    voiceInputEnabled: false,
     spokenRepliesEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,

@@ -61,6 +61,60 @@ test("business context stays grounded in text and keeps media URLs out of prompt
   assert.doesNotMatch(buildRelevantContextBlock(record, "show me your kitchen work"), /hero\.jpg/i);
 });
 
+test("retrieval does not treat irrelevant website sections as authoritative fallback", () => {
+  const record = {
+    content: [
+      "Title: Careers",
+      "Headings:",
+      "Join the team",
+      "Body:",
+      "We are hiring part-time reception staff.",
+      "",
+      "---",
+      "",
+      "Title: Blog",
+      "Headings:",
+      "Community news",
+      "Body:",
+      "Our team volunteered at a local event.",
+    ].join("\n"),
+  };
+
+  const relevant = buildRelevantContextBlock(record, "What is your refund policy?");
+  const context = buildBusinessContextForChat(record, "What is your refund policy?");
+
+  assert.equal(relevant, "");
+  assert.match(context, /No relevant website excerpt was found/i);
+  assert.doesNotMatch(context, /Join the team/i);
+  assert.doesNotMatch(context, /Community news/i);
+});
+
+test("retrieval expands related wording for quote and pricing questions", () => {
+  const record = {
+    content: [
+      "Title: Services",
+      "Headings:",
+      "Repairs",
+      "Body:",
+      "We repair small appliances.",
+      "",
+      "---",
+      "",
+      "Title: Pricing",
+      "Headings:",
+      "Project estimates",
+      "Body:",
+      "Project costs are scoped after a short estimate.",
+    ].join("\n"),
+  };
+
+  const relevant = buildRelevantContextBlock(record, "Can I get a quote?");
+
+  assert.match(relevant, /Project estimates/i);
+  assert.match(relevant, /Project costs are scoped/i);
+  assert.doesNotMatch(relevant, /small appliances/i);
+});
+
 test("business context ignores placeholder site contacts and keeps verified configured contacts", () => {
   const record = {
     content: [
@@ -148,6 +202,8 @@ test("assistant system prompt forbids unsupported launch-sensitive claims", () =
   assert.match(prompt, /Never invent services/i);
   assert.match(prompt, /Never invent availability/i);
   assert.match(prompt, /Never invent policies/i);
+  assert.match(prompt, /Never invent discounts/i);
+  assert.match(prompt, /Never invent booking times/i);
   assert.match(prompt, /draft or archived training items are not trusted sources/i);
   assert.match(prompt, /Cross-agent training is never trusted/i);
 });
@@ -166,6 +222,13 @@ test("factual guardrails flag invented pricing and services when trusted data is
     reply: "We offer plumbing repair and HVAC installation. Which service do you need?",
   });
   assert.ok(serviceIssues.some((issue) => /invents a service/i.test(issue)));
+
+  const policyIssues = getFactualReplyGuardrailIssues({
+    userMessage: "What is your cancellation policy?",
+    businessContext: "Most relevant website excerpts:\nContact us through the form.",
+    reply: "Cancellations are free within 24 hours. What time would you like to book?",
+  });
+  assert.ok(policyIssues.some((issue) => /invents a policy/i.test(issue)));
 });
 
 test("approved answers allow relevant factual details to override weaker website context", () => {

@@ -79,6 +79,8 @@ test("deploy readiness reports missing distributed rate limiter config in produc
     "UPSTASH_REDIS_REST_URL",
     "UPSTASH_REDIS_REST_TOKEN",
   ]);
+  assert.equal(readiness.trustedProxyConfigured, false);
+  assert.ok(readiness.warnings.some((warning) => /TRUSTED_PROXY_IPS is not set/i.test(warning)));
   assert.match(
     readiness.message,
     /Distributed rate limiting is required in production\. Missing: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN\./
@@ -91,10 +93,13 @@ test("deploy readiness accepts configured distributed rate limiter aliases", () 
     RATE_LIMIT_BACKEND: "redis",
     REDIS_URL: "https://allowed-upstash-url.example",
     REDIS_TOKEN: "token-present",
+    TRUSTED_PROXY_IPS: "10.0.0.1",
   });
 
   assert.equal(readiness.ok, true);
   assert.deepEqual(readiness.missing, []);
+  assert.deepEqual(readiness.warnings, []);
+  assert.equal(readiness.trustedProxyConfigured, true);
 });
 
 test("Google deploy env vars are required only when operator workspace is explicitly enabled", () => {

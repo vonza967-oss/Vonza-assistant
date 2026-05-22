@@ -1400,7 +1400,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.contacts.list), []);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Home at a glance/);
@@ -1506,7 +1506,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
@@ -3074,6 +3074,11 @@ test("customer detail actions prepare replies and explain unavailable guest chat
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+      VONZA_LAUNCH_PROFILE: {
+        matrix: {
+          automations: { state: "stable", label: "Automations" },
+        },
+      },
     },
   });
   const workspace = harness.normalizeOperatorWorkspace({
@@ -3724,6 +3729,36 @@ test("install section stays focused on install methods and verification", () => 
   assert.doesNotMatch(markup, /TODO/);
 });
 
+test("install section disables full-page sharing controls when public page is disabled", () => {
+  const harness = createDashboardHarness();
+  const markup = harness.buildInstallSection({
+    id: "agent-1",
+    publicAgentKey: "agent-key",
+    installId: "install-1",
+    fullPageConfig: {
+      publicPageEnabled: false,
+      publicPageKey: "page-key-1",
+    },
+    installStatus: {
+      state: "not_installed",
+      label: "Not installed yet",
+    },
+  });
+  const pagePanel = markup.slice(
+    markup.indexOf('id="install-panel-page"'),
+    markup.indexOf('id="install-panel-qr"')
+  );
+  const qrPanel = markup.slice(markup.indexOf('id="install-panel-qr"'));
+
+  assert.match(pagePanel, /Your Front Desk page is disabled/);
+  assert.match(pagePanel, /Enable public Front Desk page access/);
+  assert.match(pagePanel, /data-action="copy-full-page-url" disabled/);
+  assert.doesNotMatch(pagePanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
+  assert.match(qrPanel, /Enable the public Front Desk page before downloading or sharing a QR code/);
+  assert.match(qrPanel, /data-action="copy-full-page-url" disabled/);
+  assert.match(qrPanel, /data-action="download-full-page-qr" disabled/);
+});
+
 test("install panel shows real status, progress, and resources without unrelated workspace content", () => {
   const harness = createDashboardHarness();
   const agent = {
@@ -4068,7 +4103,7 @@ test("sparse-data copilot rendering stays honest and points back to business con
   assert.match(overview, /Open business context/);
 });
 
-test("launch profile keeps the stable core visible and labels Google workspace surfaces as beta", () => {
+test("launch profile keeps the stable core visible and hides Google workspace surfaces", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -4077,9 +4112,9 @@ test("launch profile keeps the stable core visible and labels Google workspace s
         matrix: {
           today: { state: "stable" },
           contacts: { state: "stable" },
-          inbox: { state: "beta" },
-          calendar: { state: "beta" },
-          automations: { state: "beta" },
+          inbox: { state: "hidden" },
+          calendar: { state: "hidden" },
+          automations: { state: "hidden" },
           customize: { state: "stable" },
           outcomes: { state: "stable" },
           advanced_guidance: { state: "hidden" },
@@ -4091,10 +4126,10 @@ test("launch profile keeps the stable core visible and labels Google workspace s
   });
 
   assert.equal(harness.getCapabilityState("today"), "stable");
-  assert.equal(harness.getCapabilityState("inbox"), "beta");
+  assert.equal(harness.getCapabilityState("inbox"), "hidden");
   assert.equal(harness.getCapabilityState("manual_outcome_marks"), "hidden");
   assert.equal(harness.isCapabilityStable("contacts"), true);
-  assert.equal(harness.isCapabilityBeta("calendar"), true);
+  assert.equal(harness.isCapabilityBeta("calendar"), false);
 });
 
 test("launch mode hides Google beta tabs when Google config is unavailable", () => {
@@ -4117,7 +4152,7 @@ test("launch mode hides Google beta tabs when Google config is unavailable", () 
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "inbox", "install", "settings"]
+    ["overview", "contacts", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "operator_without_google_beta");
 });

@@ -481,19 +481,17 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
 });
 
-test("voice input controls render safely and hide when disabled", () => {
+test("voice input controls default off and render safely when enabled", () => {
   const harness = createWidgetHarness();
   const micButton = harness.elements.get("voice-input-button");
   const voiceControls = harness.elements.get("voice-controls");
   const disclosure = harness.elements.get("voice-disclosure");
 
-  assert.equal(micButton.hidden, false);
-  assert.equal(micButton.disabled, true);
-  assert.equal(micButton.title, "Voice input is not supported in this browser.");
-  assert.equal(voiceControls.hidden, false);
-  assert.equal(disclosure.hidden, false);
+  assert.equal(micButton.hidden, true);
+  assert.equal(voiceControls.hidden, true);
+  assert.equal(disclosure.hidden, true);
   assert.deepEqual(plain(harness.hooks.getVoiceConfig()), {
-    voiceInputEnabled: true,
+    voiceInputEnabled: false,
     spokenRepliesEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,
@@ -503,14 +501,16 @@ test("voice input controls render safely and hide when disabled", () => {
 
   harness.hooks.applyWidgetConfig({
     voice_config: {
-      voice_input_enabled: false,
+      voice_input_enabled: true,
       spoken_replies_enabled: false,
     },
   });
 
-  assert.equal(micButton.hidden, true);
-  assert.equal(voiceControls.hidden, true);
-  assert.equal(disclosure.hidden, true);
+  assert.equal(micButton.hidden, false);
+  assert.equal(micButton.disabled, true);
+  assert.equal(micButton.title, "Voice input is not supported in this browser.");
+  assert.equal(voiceControls.hidden, false);
+  assert.equal(disclosure.hidden, false);
 });
 
 test("voice transcription fills the composer without auto-sending by default", async () => {

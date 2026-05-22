@@ -487,12 +487,100 @@ export function buildPlainWebsiteContent(content = "") {
   return cleanExtractedContent(withoutLegacyImageSections);
 }
 
+function normalizeMatchText(value = "") {
+  return cleanText(value)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const MATCH_SYNONYM_GROUPS = Object.freeze([
+  Object.freeze(["price", "prices", "pricing", "cost", "costs", "quote", "estimate", "fee", "fees", "budget", "ar", "arak", "ajanlat", "koltseg"]),
+  Object.freeze(["service", "services", "offer", "offers", "offering", "help", "szolgaltatas", "szolgaltatasok", "kinal"]),
+  Object.freeze(["contact", "email", "phone", "call", "reach", "address", "kapcsolat", "elerhetoseg", "telefon"]),
+  Object.freeze(["book", "booking", "appointment", "schedule", "availability", "available", "time", "times", "foglalas", "idopont", "elerheto"]),
+  Object.freeze(["policy", "policies", "refund", "return", "cancellation", "cancel", "warranty", "guarantee", "privacy", "szabalyzat", "visszaterites", "lemondas", "garancia"]),
+]);
+
+function buildExpandedKeywords(userMessage = "") {
+  const normalizedMessage = normalizeMatchText(userMessage);
+  const tokens = tokenizeForMatching(userMessage).map(normalizeMatchText).filter(Boolean);
+  const keywords = new Set(tokens);
+
+  MATCH_SYNONYM_GROUPS.forEach((group) => {
+    if (group.some((term) => keywords.has(term) || normalizedMessage.includes(term))) {
+      group.forEach((term) => keywords.add(term));
+    }
+  });
+
+  return [...keywords].filter((keyword) => keyword.length > 2);
+}
+
+function isBroadBusinessContextRequest(userMessage = "", keywords = []) {
+  const normalizedMessage = normalizeMatchText(userMessage);
+
+  if (!keywords.length) {
+    return true;
+  }
+
+  return /\b(what do you do|what does this business do|about|overview|business|company|help with|mivel foglalkoz|mit csinal|mit csinaltok)\b/i.test(
+    normalizedMessage
+  );
+}
+
+function scoreSectionForKeywords(section = "", keywords = []) {
+  if (!keywords.length) {
+    return 1;
+  }
+
+  const normalizedSection = normalizeMatchText(section);
+  const titleText = normalizeMatchText((section.match(/^Title:\s*(.+)$/im) || [])[1] || "");
+  const headingText = normalizeMatchText((section.match(/Headings:\s*([\s\S]*?)(?:\n\n|$)/i) || [])[1] || "");
+  const highlightsText = normalizeMatchText((section.match(/Highlights:\s*([\s\S]*?)(?:\n\n|$)/i) || [])[1] || "");
+
+  let keywordScore = 0;
+
+  keywords.forEach((keyword) => {
+    if (!keyword || !normalizedSection.includes(keyword)) {
+      return;
+    }
+
+    keywordScore += 2;
+
+    if (titleText.includes(keyword)) {
+      keywordScore += 5;
+    }
+
+    if (headingText.includes(keyword)) {
+      keywordScore += 4;
+    }
+
+    if (highlightsText.includes(keyword)) {
+      keywordScore += 3;
+    }
+  });
+
+  if (!keywordScore) {
+    return 0;
+  }
+
+  const structureScore =
+    (headingText ? 2 : 0) +
+    (highlightsText ? 2 : 0) +
+    (/description:/i.test(section) ? 1 : 0);
+
+  return keywordScore + structureScore;
+}
+
 export function buildRelevantContextBlock(contentRecord, userMessage) {
   const sections = buildPlainWebsiteContent(contentRecord.content)
     .split(/\n\n---\n\n/)
     .map((section) => section.trim())
     .filter(Boolean);
-  const keywords = tokenizeForMatching(userMessage);
+  const keywords = buildExpandedKeywords(userMessage);
 
   if (sections.length === 0) {
     return "";
@@ -500,28 +588,7 @@ export function buildRelevantContextBlock(contentRecord, userMessage) {
 
   const rankedSections = sections
     .map((section) => {
-      const normalizedSection = section.toLowerCase();
-      const score = keywords.reduce((total, keyword) => {
-        if (!normalizedSection.includes(keyword)) {
-          return total;
-        }
-
-        const headingBonus =
-          normalizedSection.includes(`title: ${keyword}`) ||
-          normalizedSection.includes(`headings:\n${keyword}`) ||
-          normalizedSection.includes(`highlights:\n${keyword}`)
-            ? 4
-            : 0;
-
-        return total + 2 + headingBonus;
-      }, 0);
-
-      const structureScore =
-        (normalizedSection.includes("headings:") ? 2 : 0) +
-        (normalizedSection.includes("highlights:") ? 2 : 0) +
-        (normalizedSection.includes("description:") ? 1 : 0);
-
-      return { section, score: score + structureScore };
+      return { section, score: scoreSectionForKeywords(section, keywords) };
     })
     .sort((left, right) => right.score - left.score);
 
@@ -530,8 +597,12 @@ export function buildRelevantContextBlock(contentRecord, userMessage) {
     .slice(0, 5)
     .map((entry) => entry.section.slice(0, 2200));
 
+  if (!topSections.length && !isBroadBusinessContextRequest(userMessage, keywords)) {
+    return "";
+  }
+
   const fallbackSections = sections
-    .slice(0, 3)
+    .slice(0, 2)
     .map((section) => section.slice(0, 2200));
   const selectedSections = topSections.length > 0 ? topSections : fallbackSections;
 

@@ -383,7 +383,7 @@ const DEFAULT_LAUNCH_PROFILE = {
   product: {
     name: "Vonza Front Desk",
     purchaseSummary:
-      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Connected tools are beta and stay clearly marked until they are ready.",
+      "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Connected tools stay out of the launch UI until they are intentionally enabled for a private workspace.",
   },
   icp: {
     key: "service_businesses_with_inbound_leads",
@@ -402,13 +402,13 @@ const DEFAULT_LAUNCH_PROFILE = {
     outcomes: { state: FEATURE_STATE_STABLE, label: "Analytics" },
     customize: { state: FEATURE_STATE_STABLE, label: "Front Desk" },
     lead_capture: { state: FEATURE_STATE_STABLE, label: "Lead capture" },
-    google_connect: { state: FEATURE_STATE_BETA, label: "Google connect" },
-    inbox: { state: FEATURE_STATE_BETA, label: "Email" },
-    calendar: { state: FEATURE_STATE_BETA, label: "Calendar" },
-    automations: { state: FEATURE_STATE_BETA, label: "Automations" },
+    google_connect: { state: FEATURE_STATE_HIDDEN, label: "Google connect" },
+    inbox: { state: FEATURE_STATE_HIDDEN, label: "Email" },
+    calendar: { state: FEATURE_STATE_HIDDEN, label: "Calendar" },
+    automations: { state: FEATURE_STATE_HIDDEN, label: "Automations" },
     advanced_guidance: { state: FEATURE_STATE_HIDDEN, label: "Advanced guidance" },
     manual_outcome_marks: { state: FEATURE_STATE_HIDDEN, label: "Fallback outcome marks" },
-    knowledge_fix_workflows: { state: FEATURE_STATE_STABLE, label: "Knowledge Improvement" },
+    knowledge_fix_workflows: { state: FEATURE_STATE_HIDDEN, label: "Knowledge Improvement" },
   },
 };
 const AUTH_VIEW_MODES = {
@@ -872,7 +872,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "front_desk_only",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools are beta and stay out of the way for now.",
+        copy: "Home, Customers, Front Desk, Analytics, and Install are available here. Connected tools stay out of the launch workspace for now.",
       };
   }
 
@@ -881,7 +881,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_without_google_beta",
       eyebrow: "Workspace",
       title: "Your main workspace is live.",
-      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations are marked Beta until they are ready.",
+      copy: "Home, Customers, Front Desk, and Analytics are ready to use. Email, Calendar, and Automations stay out of the launch workspace for now.",
     };
   }
 
@@ -891,7 +891,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
         key: "operator_calendar_connected",
         eyebrow: "Workspace",
         title: "Your core workspace is ready.",
-        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not self-serve yet.",
+        copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
       };
     }
 
@@ -899,7 +899,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
       key: "operator_google_connected",
       eyebrow: "Workspace",
       title: "Your core workspace is ready.",
-      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are beta and are not ready to use yet.",
+      copy: "Home, Customers, Front Desk, and Analytics stay at the center. Connected tools are hidden from the launch navigation.",
     };
   }
 
@@ -907,7 +907,7 @@ function getWorkspaceMode(operatorWorkspace = createEmptyOperatorWorkspace()) {
     key: "operator_beta_available",
     eyebrow: "Workspace",
     title: "Your main workspace is ready.",
-    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools are beta, so Email, Calendar, and Automations stay clearly marked as not ready yet.",
+    copy: "Home, Customers, Front Desk, and Analytics are ready now. Connected tools stay out of the launch navigation until they are intentionally enabled.",
   };
 }
 
@@ -3507,7 +3507,7 @@ function getAccessCopy(agent) {
     return {
       eyebrow: "Workspace active",
       headline: "Your Vonza workspace is open.",
-      copy: "Your public launch workspace is active. The stable core is the AI front desk, Home, Customers, Front Desk, and Analytics. Google-connected Email, Calendar, and Automations stay optional beta surfaces.",
+      copy: "Your public launch workspace is active. The stable core is the AI front desk, Home, Customers, Front Desk, and Analytics. Google-connected Email, Calendar, and Automations stay out of the launch UI.",
     };
   }
 
@@ -3589,7 +3589,7 @@ function renderAccessLocked(agent) {
         </div>
         <div class="overview-card">
           <p class="overview-label">2. Setup workspace</p>
-          <p class="overview-card-copy">Tune the front desk, review Home, Customers, and Analytics, and connect Google later if you want the optional beta.</p>
+          <p class="overview-card-copy">Tune the front desk, review Home, Customers, and Analytics, and keep connected tools for a later private workspace.</p>
         </div>
         <div class="overview-card">
           <p class="overview-label">3. Add to website</p>
@@ -4299,7 +4299,7 @@ function renderOnboarding() {
     <div class="state-grid">
       <section id="onboarding-create" class="section-card">
         <h2 class="section-heading">Create your front desk</h2>
-        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Home, Customers, and Analytics. Google-connected workflow beta can come later.</p>
+        <p class="section-copy">Start with the essentials. We’ll turn your website into a customer-facing front desk you can shape, preview, install, and then confirm inside Home, Customers, and Analytics. Connected workflow tools can come later.</p>
         <form id="create-assistant-form" class="form-grid spacer">
           <div class="field">
             <label for="create-website-url">Website URL</label>
@@ -15692,8 +15692,9 @@ function buildInstallSection(agent, options = {}) {
   const script = hasInstall ? buildScript(agent) : "";
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
   const fullPageEnabled = isPublicFullPageEnabled(agent);
+  const publicFullPageUrl = fullPageEnabled ? fullPageUrl : "";
   const sectionSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
-  const sectionIframe = fullPageUrl ? buildSectionAssistantIframe(agent) : "";
+  const sectionIframe = publicFullPageUrl ? buildSectionAssistantIframe(agent) : "";
   const dedicatedPageSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
   const truePageTakeoverSmartEmbed = fullPageEnabled && trimText(agent.id)
     ? buildSmartAssistantEmbed(agent, "page-takeover", {
@@ -15702,7 +15703,7 @@ function buildInstallSection(agent, options = {}) {
       hidePageFooter: true,
     })
     : "";
-  const fullPageIframe = fullPageUrl ? buildFullPageAssistantIframe(agent) : "";
+  const fullPageIframe = publicFullPageUrl ? buildFullPageAssistantIframe(agent) : "";
   const installStatus = getDefaultInstallStatus(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
   const verifyDetails = installStatus.verificationDetails || {};
@@ -15762,7 +15763,7 @@ function buildInstallSection(agent, options = {}) {
 
   return `
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
-    ${buildInstallStageProgress(installStatus, hasInstall, fullPageUrl, qrEndpoint)}
+    ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
     <div class="install-method-grid" role="tablist" aria-label="Installation methods">
       ${methodCards.map((item) => {
         const isActive = activeInstallMethod === item.key;
@@ -15868,18 +15869,18 @@ function buildInstallSection(agent, options = {}) {
         </div>
         <div class="full-page-install-output ${activeFullPageInstallOption === "share" ? "active" : ""}" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share" ${activeFullPageInstallOption === "share" ? "" : "hidden"}>
           <div class="install-cta-row">
-            <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
-            <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
+            <button class="primary-button" type="button" data-action="copy-full-page-url" ${publicFullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+            <a class="test-link ${publicFullPageUrl ? "" : "disabled"}" href="${publicFullPageUrl ? escapeHtml(publicFullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
           </div>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-url",
             label: "Front Desk page link",
-            value: fullPageUrl,
+            value: publicFullPageUrl,
             rows: 2,
             buttonAction: "copy-full-page-url",
             buttonLabel: "Copy Front Desk page link",
-            disabled: !fullPageUrl,
+            disabled: !publicFullPageUrl,
             className: "full-page-url-output",
           })}
         </div>
@@ -15968,12 +15969,12 @@ function buildInstallSection(agent, options = {}) {
           <div class="install-qr-copy">
             <div class="install-target-url">
               <span>Front Desk page link</span>
-              <strong>${escapeHtml(fullPageUrl || "Available after the assistant is saved.")}</strong>
+              <strong>${escapeHtml(publicFullPageUrl || "Enable the public Front Desk page before sharing.")}</strong>
             </div>
             <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public Front Desk page before downloading or sharing a QR code.")}</p>
             <p class="install-help">The QR code opens the same customer-facing Front Desk page link.</p>
             <div class="install-cta-row">
-              <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+              <button class="ghost-button" type="button" data-action="copy-full-page-url" ${publicFullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
               ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>' : ""}
               <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
             </div>

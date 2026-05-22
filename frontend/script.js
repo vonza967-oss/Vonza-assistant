@@ -73,7 +73,7 @@ const DEFAULT_WIDGET_CONFIG = {
   themeMode: "dark",
 };
 const DEFAULT_VOICE_CONFIG = Object.freeze({
-  voiceInputEnabled: true,
+  voiceInputEnabled: false,
   spokenRepliesEnabled: false,
   autoSendTranscript: false,
   autoPlaySpokenReplies: false,
@@ -3077,7 +3077,9 @@ async function loadWidgetBootstrap() {
     focusComposerInputIfSafe();
     await detectConversionOutcomesOnLoad();
   } catch (error) {
-    console.error("Vonza assistant bootstrap failed:", error);
+    console.warn("Vonza assistant bootstrap unavailable", {
+      statusCode: error?.statusCode || null,
+    });
     if (isPageMode()) {
       setPageShellState("unavailable", getFriendlyUnavailableState(error));
       return;

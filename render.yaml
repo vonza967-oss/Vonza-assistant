@@ -29,6 +29,8 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      - key: TRUSTED_PROXY_IPS
+        sync: false
       - key: NODE_ENV
         value: production
       - key: VONZA_DEPLOY_ENV

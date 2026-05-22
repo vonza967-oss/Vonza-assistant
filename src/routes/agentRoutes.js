@@ -619,9 +619,23 @@ export function createAgentRouter(deps = {}) {
       res.setHeader("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
       res.json(result);
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
+      const statusCode = Number(err?.statusCode || 500);
+      const displayMode = String(req.query.display_mode || req.query.displayMode || req.query.mode || "").trim().toLowerCase();
+      const safePublicStatus = [400, 403, 404].includes(statusCode);
+
+      if (safePublicStatus) {
+        console.warn("[widget bootstrap] unavailable", {
+          statusCode,
+          code: err?.code || null,
+        });
+      } else {
+        console.error(err);
+      }
+
+      res.status(statusCode).json({
+        error: displayMode === "page" && safePublicStatus
+          ? "Assistant unavailable"
+          : err.message || "Something went wrong",
       });
     }
   });
@@ -1926,7 +1940,6 @@ export function createAgentRouter(deps = {}) {
       res.type("image/svg+xml");
       res.setHeader("Cache-Control", "private, no-store");
       res.setHeader("Content-Disposition", "inline; filename=\"vonza-full-page-assistant-qr.svg\"");
-      res.setHeader("X-Vonza-QR-Target", fullPageUrl);
       res.send(svg);
     } catch (err) {
       console.error(err);

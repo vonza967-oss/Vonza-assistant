@@ -470,7 +470,7 @@ export async function handleChatRequest({
       model: "gpt-4o-mini",
       temperature: 0.3,
       presencePenalty: 0,
-      frequencyPenalty: 0.1,
+      frequencyPenalty: 0,
       postProcess: stripRawAssetUrls,
       repair: {
         getIssues: (reply) => {

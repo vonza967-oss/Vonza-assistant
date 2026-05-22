@@ -745,7 +745,8 @@ test("Customers labels separate guest review from reachable follow-up", async ()
   assert.match(identifiedRow, /Identified/);
   assert.match(identifiedRow, /Needs follow-up/);
   assert.match(identifiedRow, /data-contact-follow-up-possible="true"/);
-  assert.match(identifiedDetail, /Review suggested reply/);
+  assert.match(identifiedDetail, /Review conversation/);
+  assert.doesNotMatch(identifiedDetail, /Review suggested reply/);
   assert.doesNotMatch(identifiedDetail, /Send AI draft/);
 
   assert.match(activeChatRow, /Needs reply/);
@@ -1078,7 +1079,9 @@ test("missing Google env shows a visible non-breaking operator fallback state", 
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Connected tools/i);
+  assert.match(harness.getRootHtml(), /Front Desk/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);
 });
 
 test("missing operator tables show a visible migration fallback state", async () => {
@@ -1111,7 +1114,8 @@ test("missing operator tables show a visible migration fallback state", async ()
   await harness.settle();
 
   assert.match(harness.getRootHtml(), /workspace-shell/);
-  assert.match(harness.getRootHtml(), /Calendar/i);
+  assert.match(harness.getRootHtml(), /Front Desk/);
+  assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
 });
 
 test("a failed operator workspace sub-request does not blank the dashboard", async () => {

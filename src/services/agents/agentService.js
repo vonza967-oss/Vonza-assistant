@@ -259,6 +259,11 @@ function isMissingRelationError(error, relationName) {
   );
 }
 
+function isInvalidUuidFilterError(error) {
+  const message = cleanText(error?.message || "");
+  return error?.code === "22P02" || /invalid input syntax for type uuid/i.test(message);
+}
+
 function normalizeAgentKey(value) {
   return slugifyLookupValue(value).replace(/_+/g, "");
 }
@@ -1496,6 +1501,9 @@ async function findAgentById(supabase, agentId) {
     if (isMissingRelationError(error, AGENTS_TABLE)) {
       return null;
     }
+    if (isInvalidUuidFilterError(error)) {
+      return null;
+    }
     console.error(error);
     throw error;
   }
@@ -1893,8 +1901,10 @@ export function requirePublicFullPageAccess(context = {}, options = {}) {
   const enabled = config.publicPageEnabled === true || config.public_page_enabled === true;
   const expectedKey = normalizePublicPageKey(config.publicPageKey || config.public_page_key);
   const providedKey = normalizePublicPageKey(options.publicPageKey || options.public_page_key || options.pageKey || options.k);
+  const ownerUserId = cleanText(context.agent?.ownerUserId || context.agent?.owner_user_id);
+  const accessStatus = normalizeAccessStatus(context.agent?.accessStatus || context.agent?.access_status);
 
-  if (!enabled || !expectedKey || providedKey !== expectedKey) {
+  if (!ownerUserId || accessStatus !== "active" || !enabled || !expectedKey || providedKey !== expectedKey) {
     throw buildPublicFullPageUnavailableError();
   }
 }

@@ -584,7 +584,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
   });
 
   assert.deepEqual(defaulted.voiceConfig, {
-    voiceInputEnabled: true,
+    voiceInputEnabled: false,
     spokenRepliesEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,
@@ -592,7 +592,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
     languageBehavior: "auto",
   });
   assert.deepEqual(state.widget_configs[0].voice_config, {
-    voice_input_enabled: true,
+    voice_input_enabled: false,
     spoken_replies_enabled: false,
     auto_send_transcript: false,
     auto_play_spoken_replies: false,

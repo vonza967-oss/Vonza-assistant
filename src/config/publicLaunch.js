@@ -50,19 +50,19 @@ const PUBLIC_COHORT_V1_MATRIX = Object.freeze({
     label: "Lead capture",
   },
   google_connect: {
-    state: FEATURE_STATES.BETA,
+    state: FEATURE_STATES.HIDDEN,
     label: "Google connect",
   },
   inbox: {
-    state: FEATURE_STATES.BETA,
+    state: FEATURE_STATES.HIDDEN,
     label: "Inbox",
   },
   calendar: {
-    state: FEATURE_STATES.BETA,
+    state: FEATURE_STATES.HIDDEN,
     label: "Calendar",
   },
   automations: {
-    state: FEATURE_STATES.BETA,
+    state: FEATURE_STATES.HIDDEN,
     label: "Automations",
   },
   advanced_guidance: {
@@ -111,7 +111,7 @@ export function getPublicLaunchProfile({ operatorWorkspaceEnabled = false } = {}
       name: "Vonza Front Desk",
       headline: "AI front desk for service businesses with a simple customer service workspace.",
       purchaseSummary:
-        "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay optional connected tools when enabled.",
+        "The first public offer is the AI front desk plus Home, Customers, Front Desk, Analytics, website import, and install. Google-connected Inbox, Calendar, and Automations stay out of the launch UI until they are intentionally enabled for a private workspace.",
     },
     icp: {
       key: "service_businesses_with_inbound_leads",

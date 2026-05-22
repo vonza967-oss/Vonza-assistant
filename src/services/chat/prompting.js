@@ -98,6 +98,7 @@ export function buildBusinessContextForChat(contentRecord, userMessage, options 
   const relevantContext = stripPlaceholderContactDetails(
     buildRelevantContextBlock(contentRecord, userMessage)
   );
+  const hasRelevantContext = Boolean(cleanText(relevantContext));
   const serviceHints = extractServiceHints(contentRecord.content);
   const contactDetails = extractContactDetails(contentRecord.content);
   const configuredContactDetails = extractConfiguredContactDetails(options.widgetConfig);
@@ -117,7 +118,9 @@ export function buildBusinessContextForChat(contentRecord, userMessage, options 
     configuredContactDetails ? `Configured live contact details: ${configuredContactDetails}.` : "",
     verticalPromptBlock,
     "Most relevant website excerpts:",
-    relevantContext || stripPlaceholderContactDetails(contentRecord.content.slice(0, 9000)),
+    hasRelevantContext
+      ? relevantContext
+      : "No relevant website excerpt was found for this question. Do not treat unrelated website sections as evidence for the answer.",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -164,7 +167,7 @@ Core behavior:
 - Keep any next-step guidance subtle, natural, and limited to one short follow-up line
 - Prefer action nudges like clarifying needs, choosing a service, or contacting the business when that fits the question
 - If the website does not contain the requested detail, say so plainly
-- If information is missing, say that clearly and guide the visitor toward the best next action
+- If information is missing, say Front Desk does not have that detail and guide the visitor toward the best next action
 - Avoid filler phrases like "It seems that", "Based on the information provided", or "I'd be happy to help"
 - If the user follows up, continue from the last relevant point instead of restarting
 - If the user is vague, narrow the decision with 2-3 tailored options
@@ -218,8 +221,8 @@ Tone-aware next-step style:
 
 Hard rules:
 - Do not invent facts, services, prices, or guarantees
-- Do not invent policies, availability, legal claims, discounts, warranties, insurance/license status, timelines, or opening hours
-- If a price, service, policy, availability, legal claim, guarantee, discount, or contact route is not in the approved answers or business context, say you do not have enough information and ask one practical follow-up or suggest contacting the business
+- Do not invent policies, availability, legal claims, discounts, warranties, insurance/license status, timelines, booking times, or opening hours
+- If a price, service, policy, availability, legal claim, guarantee, discount, booking time, or contact route is not in the approved answers or business context, say Front Desk does not have that detail and ask one practical follow-up or suggest contacting the business
 - Prefer owner-approved answers over website excerpts when they match the visitor's question
 - Use website/business context only when it is actually present; do not fill gaps with generic industry assumptions
 - Do not speak as "we" or as the company
@@ -236,6 +239,8 @@ Hard rules:
 - Never invent services
 - Never invent availability
 - Never invent policies
+- Never invent discounts
+- Never invent booking times
 - For public customer answers, draft or archived training items are not trusted sources. Cross-agent training is never trusted.
 - Never invent or output placeholder contact details such as example.com emails or demo phone numbers
 - If services are clearly listed, name them directly
@@ -258,6 +263,14 @@ export function detectUserIntent(message, history) {
     )
   ) {
     return "pricing";
+  }
+
+  if (
+    /(policy|policies|refund|return|cancellation|cancel|warranty|guarantee|discount|coupon|availability|available|opening hours|hours|book|booking time|appointment time|privacy|szabalyzat|szabályzat|visszatérítés|visszaterites|lemondás|lemondas|garancia|kedvezmény|kedvezmeny|időpont|idopont|nyitvatartás|nyitvatartas)/i.test(
+      combinedUserText
+    )
+  ) {
+    return "policy";
   }
 
   if (
@@ -436,6 +449,21 @@ function replyClaimsSpecificServices(reply = "") {
   return /\b(offer|offers|provide|provides|services include|can help with|specializes in|repair|installation|maintenance|consulting|design|development|cleaning|plumbing|booking)\b/i.test(normalized);
 }
 
+function hasTrustedPolicyEvidence(context = "") {
+  const normalized = extractTrustedFactText(context).toLowerCase();
+  return /\b(policy|policies|refund|return|cancellation|cancel|warranty|guarantee|discount|coupon|availability|available|opening hours|hours|booking time|appointment time|privacy|szabalyzat|szabályzat|visszatérítés|visszaterites|lemondás|lemondas|garancia|kedvezmény|kedvezmeny|időpont|idopont|nyitvatartás|nyitvatartas)\b/i.test(normalized);
+}
+
+function replyClaimsSpecificPolicy(reply = "") {
+  const normalized = cleanText(reply).toLowerCase();
+
+  if (/\b(do not have|don't have|does not have|is not listed|not listed|not shown|not available|cannot confirm|front desk does not have|nem látok|nincs megadva|nem szerepel)\b/i.test(normalized)) {
+    return false;
+  }
+
+  return /\b(refunds? (?:are|is|within|after|before)|returns? (?:are|within|after|before)|cancel(?:lation)? (?:is|within|after|before|fee)|warrant(?:y|ies) (?:are|is|lasts?|cover)|discounts? (?:are|is|available|start)|coupons? (?:are|is|available)|available (?:today|tomorrow|on|at)|open(?:ing)? hours? (?:are|is)|book(?:ing)? (?:is|times? are|at|on)|appointment (?:times? are|is|at|on)|\b\d+\s?(?:day|days|hour|hours|business days)\b)/i.test(normalized);
+}
+
 export function getFactualReplyGuardrailIssues({
   reply = "",
   userMessage = "",
@@ -453,6 +481,10 @@ export function getFactualReplyGuardrailIssues({
 
   if (intent === "services" && !hasTrustedServiceEvidence(trustedContext) && replyClaimsSpecificServices(reply)) {
     issues.push("reply invents a service that is not present in approved answers or business context");
+  }
+
+  if (intent === "policy" && !hasTrustedPolicyEvidence(trustedContext) && replyClaimsSpecificPolicy(reply)) {
+    issues.push("reply invents a policy, availability, discount, or booking detail that is not present in approved answers or business context");
   }
 
   return issues;
@@ -475,8 +507,8 @@ export function buildBusinessReplyRepairPrompt(language) {
 - Vary the phrasing so it feels conversational and not formulaic
 - Remove generic filler like "Based on the information provided" or "It seems that"
 - If the website content is missing the requested detail, say that plainly instead of softening it with vague phrasing
-- Never invent prices, services, availability, policies, guarantees, timelines, discounts, or legal claims
-- If the reply contains a price, service, policy, or availability detail that is not in the approved answers or business context, remove it and say that detail is not available
+- Never invent prices, services, availability, policies, guarantees, timelines, discounts, booking times, or legal claims
+- If the reply contains a price, service, policy, availability, discount, or booking detail that is not in the approved answers or business context, remove it and say Front Desk does not have that detail
 - Prefer owner-approved answers over weaker website context when they match the visitor's question
 - Keep any next-step suggestion short, natural, and helpful
 - If the reply can gently move the user toward a useful action, do it without sounding salesy or pushy

@@ -165,6 +165,8 @@ function createInstallState() {
       {
         id: "agent-1",
         business_id: "business-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
         public_agent_key: "agent-key",
         name: "Vonza",
         is_active: true,
@@ -323,6 +325,40 @@ test("full-page assistant bootstrap requires owner enablement and revocable publ
         publicPageKey: "old-key",
       }),
     (error) => error.statusCode === 404 && error.code === "public_full_page_unavailable"
+  );
+});
+
+test("full-page assistant bootstrap treats invalid public agent ids as unavailable", async () => {
+  const invalidUuidSupabase = {
+    from() {
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        maybeSingle() {
+          return Promise.resolve({
+            data: null,
+            error: {
+              code: "22P02",
+              message: "invalid input syntax for type uuid",
+            },
+          });
+        },
+      };
+    },
+  };
+
+  await assert.rejects(
+    () =>
+      getWidgetBootstrap(invalidUuidSupabase, {
+        agentId: "not-a-valid-agent-id",
+        displayMode: "page",
+        publicPageKey: "page-key-1",
+      }),
+    (error) => error.statusCode === 404 && /Agent not found/i.test(error.message)
   );
 });
 

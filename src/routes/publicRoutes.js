@@ -819,6 +819,10 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "assistant-embed.js"));
   });
 
+  router.get("/favicon.ico", (_req, res) => {
+    res.status(204).end();
+  });
+
   router.get("/generator", (_req, res) => {
     res.redirect("/dashboard");
   });

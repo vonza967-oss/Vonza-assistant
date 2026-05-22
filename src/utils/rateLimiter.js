@@ -230,9 +230,11 @@ export function getDistributedRateLimitReadiness(env = process.env, { production
   const distributedRequired = productionLike || isDistributedBackend(backend);
   const acceptedBackends = [...RATE_LIMIT_BACKENDS];
   const missing = [];
+  const warnings = [];
   let ok = true;
   let message = "";
   let invalidBackend = "";
+  const trustedProxyConfigured = Boolean(cleanText(env.TRUSTED_PROXY_IPS));
 
   if (!acceptedBackends.includes(backend)) {
     ok = false;
@@ -252,13 +254,19 @@ export function getDistributedRateLimitReadiness(env = process.env, { production
     }
   }
 
+  if (productionLike && !trustedProxyConfigured) {
+    warnings.push("TRUSTED_PROXY_IPS is not set. Rate limiting will use the direct socket IP and will not trust X-Forwarded-For until trusted proxy IPs are configured.");
+  }
+
   return {
     ok,
     backend,
     explicit,
     distributedRequired,
+    trustedProxyConfigured,
     acceptedBackends,
     missing,
+    warnings,
     invalidBackend,
     message,
     acceptedUrlEnvNames: ["UPSTASH_REDIS_REST_URL", "REDIS_URL"],

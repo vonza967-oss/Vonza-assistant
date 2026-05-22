@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { FEATURE_STATES, getPublicLaunchProfile } from "../src/config/publicLaunch.js";
 
-test("public launch profile defines the stable core plus optional Google beta", () => {
+test("public launch profile defines the stable core and hides Google workspace surfaces", () => {
   const profile = getPublicLaunchProfile({
     operatorWorkspaceEnabled: true,
   });
@@ -14,12 +14,13 @@ test("public launch profile defines the stable core plus optional Google beta", 
   assert.equal(profile.matrix.today.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.contacts.state, FEATURE_STATES.STABLE);
   assert.equal(profile.matrix.outcomes.state, FEATURE_STATES.STABLE);
-  assert.equal(profile.matrix.inbox.state, FEATURE_STATES.BETA);
-  assert.equal(profile.matrix.calendar.state, FEATURE_STATES.BETA);
-  assert.equal(profile.matrix.automations.state, FEATURE_STATES.BETA);
+  assert.equal(profile.matrix.inbox.state, FEATURE_STATES.HIDDEN);
+  assert.equal(profile.matrix.calendar.state, FEATURE_STATES.HIDDEN);
+  assert.equal(profile.matrix.automations.state, FEATURE_STATES.HIDDEN);
   assert.equal(profile.matrix.advanced_guidance.state, FEATURE_STATES.HIDDEN);
   assert.equal(profile.matrix.manual_outcome_marks.state, FEATURE_STATES.HIDDEN);
   assert.equal(profile.matrix.knowledge_fix_workflows.state, FEATURE_STATES.HIDDEN);
+  assert.deepEqual(profile.beta, []);
 });
 
 test("public launch profile hides operator beta surfaces when the workspace flag is off", () => {
