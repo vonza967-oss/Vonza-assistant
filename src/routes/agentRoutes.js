@@ -217,6 +217,7 @@ export function createAgentRouter(deps = {}) {
   const getOpenAI = deps.getOpenAIClient || getOpenAIClient;
   const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
   const listAgentsImpl = deps.listAgents || listAgents;
+  const getWidgetBootstrapImpl = deps.getWidgetBootstrap || getWidgetBootstrap;
   const createAgentForBusinessNameImpl = deps.createAgentForBusinessName || createAgentForBusinessName;
   const requirePreClaimAgentAccessImpl = deps.requirePreClaimAgentAccess || deps.requireAgentAccess || requirePreClaimAgentAccess;
   const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
@@ -603,7 +604,7 @@ export function createAgentRouter(deps = {}) {
 
   router.get("/widget/bootstrap", limitWidgetBootstrap, async (req, res) => {
     try {
-      const result = await getWidgetBootstrap(getSupabase(), {
+      const result = await getWidgetBootstrapImpl(getSupabase(), {
         installId: req.query.install_id || req.query.installId,
         agentId: req.query.agent_id || req.query.agentId,
         agentKey: req.query.agent_key || req.query.agentKey,

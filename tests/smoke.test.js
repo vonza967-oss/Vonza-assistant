@@ -1826,6 +1826,15 @@ test("setup doctor is only available in local dev mode and never exposes values"
       assert.equal(allowed.json.dev_fake_billing, true);
       assert.ok(Array.isArray(allowed.json.checks));
       assert.ok(allowed.json.checks.every((check) => typeof check.key === "string" && typeof check.present === "boolean"));
+      assert.equal(allowed.json.production.rate_limit.ok, false);
+      assert.deepEqual(allowed.json.production.rate_limit.missing, [
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+      ]);
+      assert.match(
+        allowed.json.production.rate_limit.message,
+        /Distributed rate limiting is required in production\. Missing: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN\./
+      );
       assert.doesNotMatch(allowed.text, /sensitive-openai-value|sensitive-admin-value|sensitive-stripe-key|whsec_sensitive/);
     } finally {
       await server.close();

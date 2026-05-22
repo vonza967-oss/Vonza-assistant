@@ -14,15 +14,44 @@ const DEFAULT_LIMITS = Object.freeze({
   install_verify: { windowMs: 60_000, max: 5 },
 });
 
+export const RATE_LIMIT_BACKENDS = Object.freeze(["memory", "redis", "upstash"]);
+export const CANONICAL_DISTRIBUTED_RATE_LIMIT_ENV_VARS = Object.freeze([
+  "UPSTASH_REDIS_REST_URL",
+  "UPSTASH_REDIS_REST_TOKEN",
+]);
+
 const memoryBuckets = new Map();
 
-function isLocalDevRuntime() {
-  const env = cleanText(process.env.NODE_ENV).toLowerCase();
-  return !env || env === "development" || env === "test";
+function isLocalDevRuntime(env = process.env) {
+  const nodeEnv = cleanText(env.NODE_ENV).toLowerCase();
+  return !nodeEnv || nodeEnv === "development" || nodeEnv === "test";
 }
 
-function isNodeTestRuntime() {
-  return Boolean(process.env.NODE_TEST_CONTEXT);
+function isNodeTestRuntime(env = process.env) {
+  return Boolean(env.NODE_TEST_CONTEXT);
+}
+
+function isProductionLikeRuntime(env = process.env) {
+  const deployEnv = cleanText(env.VONZA_DEPLOY_ENV || env.RENDER_ENV).toLowerCase();
+  const nodeEnv = cleanText(env.NODE_ENV).toLowerCase();
+
+  return nodeEnv === "production"
+    || ["staging", "production", "prod"].includes(deployEnv)
+    || cleanText(env.RENDER).toLowerCase() === "true";
+}
+
+function isDistributedBackend(backend = "") {
+  return backend === "redis" || backend === "upstash";
+}
+
+function isPublicAssistantRoute(req) {
+  const path = cleanText(req.originalUrl || req.url || req.path).split("?")[0];
+  return path === "/widget/bootstrap"
+    || path === "/chat"
+    || path === "/chat/capture"
+    || path === "/chat/feedback"
+    || path === "/api/voice/transcribe"
+    || path === "/api/voice/speech";
 }
 
 function normalizeIpAddress(value = "") {
@@ -84,14 +113,14 @@ function getClientKey(req, name) {
   return `rl:${name}:${hashKey(`${getClientIp(req)}:${getRequestIdentityPart(req)}`)}`;
 }
 
-function getRateLimitBackendConfig() {
-  const explicitBackend = cleanText(process.env.RATE_LIMIT_BACKEND).toLowerCase();
+export function getRateLimitBackendConfig(env = process.env) {
+  const explicitBackend = cleanText(env.RATE_LIMIT_BACKEND).toLowerCase();
   if (explicitBackend) {
     return { backend: explicitBackend, explicit: true };
   }
 
   return {
-    backend: isLocalDevRuntime() || isNodeTestRuntime() ? "memory" : "redis",
+    backend: isLocalDevRuntime(env) || isNodeTestRuntime(env) ? "memory" : "redis",
     explicit: false,
   };
 }
@@ -117,9 +146,10 @@ async function checkMemoryLimit(key, { windowMs, max }) {
   };
 }
 
-function getUpstashConfig() {
-  const url = cleanText(process.env.UPSTASH_REDIS_REST_URL || (/^https?:\/\//i.test(cleanText(process.env.REDIS_URL)) ? process.env.REDIS_URL : ""));
-  const token = cleanText(process.env.UPSTASH_REDIS_REST_TOKEN || process.env.REDIS_TOKEN || "");
+function getUpstashConfig(env = process.env) {
+  const redisUrl = cleanText(env.REDIS_URL);
+  const url = cleanText(env.UPSTASH_REDIS_REST_URL || (/^https?:\/\//i.test(redisUrl) ? redisUrl : ""));
+  const token = cleanText(env.UPSTASH_REDIS_REST_TOKEN || env.REDIS_TOKEN || "");
   return { url: url.replace(/\/$/, ""), token };
 }
 
@@ -129,6 +159,7 @@ async function runUpstashCommand(command) {
   if (!url || !token) {
     const error = new Error("Distributed rate limit backend is not configured.");
     error.statusCode = 503;
+    error.code = "rate_limit_backend_not_configured";
     throw error;
   }
 
@@ -144,6 +175,7 @@ async function runUpstashCommand(command) {
   if (!response.ok) {
     const error = new Error("Distributed rate limit backend is unavailable.");
     error.statusCode = 503;
+    error.code = "rate_limit_backend_unavailable";
     throw error;
   }
 
@@ -174,18 +206,68 @@ async function checkLimit(key, config) {
     if (!isLocalDevRuntime() && !(isNodeTestRuntime() && !explicit)) {
       const error = new Error("Memory rate limiting is disabled outside local development.");
       error.statusCode = 503;
+      error.code = "rate_limit_backend_memory_disabled";
       throw error;
     }
     return checkMemoryLimit(key, config);
   }
 
-  if (backend === "redis" || backend === "upstash") {
+  if (isDistributedBackend(backend)) {
     return checkRedisLimit(key, config);
   }
 
   const error = new Error("Invalid RATE_LIMIT_BACKEND configuration.");
   error.statusCode = 503;
+  error.code = "rate_limit_backend_invalid";
   throw error;
+}
+
+export function getDistributedRateLimitReadiness(env = process.env, { productionRequired } = {}) {
+  const { backend, explicit } = getRateLimitBackendConfig(env);
+  const productionLike = productionRequired === undefined
+    ? isProductionLikeRuntime(env)
+    : Boolean(productionRequired);
+  const distributedRequired = productionLike || isDistributedBackend(backend);
+  const acceptedBackends = [...RATE_LIMIT_BACKENDS];
+  const missing = [];
+  let ok = true;
+  let message = "";
+  let invalidBackend = "";
+
+  if (!acceptedBackends.includes(backend)) {
+    ok = false;
+    invalidBackend = backend;
+    message = `Invalid RATE_LIMIT_BACKEND '${backend}'. Accepted values: ${acceptedBackends.join(", ")}.`;
+  } else if (backend === "memory" && productionLike) {
+    ok = false;
+    message = "Distributed rate limiting is required in production. RATE_LIMIT_BACKEND=memory is disabled outside local development.";
+  } else if (distributedRequired) {
+    const { url, token } = getUpstashConfig(env);
+    if (!url) missing.push("UPSTASH_REDIS_REST_URL");
+    if (!token) missing.push("UPSTASH_REDIS_REST_TOKEN");
+
+    if (missing.length) {
+      ok = false;
+      message = `Distributed rate limiting is required in production. Missing: ${missing.join(", ")}.`;
+    }
+  }
+
+  return {
+    ok,
+    backend,
+    explicit,
+    distributedRequired,
+    acceptedBackends,
+    missing,
+    invalidBackend,
+    message,
+    acceptedUrlEnvNames: ["UPSTASH_REDIS_REST_URL", "REDIS_URL"],
+    acceptedTokenEnvNames: ["UPSTASH_REDIS_REST_TOKEN", "REDIS_TOKEN"],
+  };
+}
+
+export function isRateLimitBackendError(error) {
+  return cleanText(error?.code).startsWith("rate_limit_backend_");
 }
 
 export function createRateLimitMiddleware(name, overrides = {}) {
@@ -208,6 +290,17 @@ export function createRateLimitMiddleware(name, overrides = {}) {
 
       next();
     } catch (error) {
+      if (isRateLimitBackendError(error) && isPublicAssistantRoute(req)) {
+        console.warn("[rate-limit] public assistant unavailable", {
+          limiter: name,
+          path: cleanText(req.originalUrl || req.url || req.path).split("?")[0],
+          code: error.code,
+          message: error.message || "Rate limit backend error",
+        });
+        res.status(error.statusCode || 503).json({ error: "Assistant unavailable" });
+        return;
+      }
+
       next(error);
     }
   };

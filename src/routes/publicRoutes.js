@@ -17,6 +17,7 @@ import {
 } from "../config/billingPlans.js";
 import { getPublicLaunchProfile } from "../config/publicLaunch.js";
 import { renderLegalPage } from "../config/legalContent.js";
+import { getDistributedRateLimitReadiness } from "../utils/rateLimiter.js";
 
 const SETUP_DOCTOR_KEYS = [
   "PUBLIC_APP_URL",
@@ -932,6 +933,14 @@ window.VONZA_BILLING_PLANS = ${JSON.stringify(listPublicBillingPlans())};
       ok: checks.every((check) => check.present),
       dev_fake_billing: true,
       checks,
+      production: {
+        rate_limit: getDistributedRateLimitReadiness({
+          ...process.env,
+          NODE_ENV: "production",
+          VONZA_DEPLOY_ENV: process.env.VONZA_DEPLOY_ENV || "production",
+          NODE_TEST_CONTEXT: "",
+        }, { productionRequired: true }),
+      },
     });
   });
 

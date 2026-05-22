@@ -17,6 +17,7 @@ import {
   STARTUP_SCHEMA_CHECKS,
 } from "../../src/services/schema/deployReadinessManifest.js";
 import { validateStartupSchemaReady } from "../../src/services/schema/startupSchemaService.js";
+import { getDistributedRateLimitReadiness } from "../../src/utils/rateLimiter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,6 +121,12 @@ export function getMissingDeployReadinessEnvVars(env = process.env) {
   }
 
   return required.filter(({ name }) => !String(env[name] || "").trim());
+}
+
+export function getDeployRateLimitReadiness(env = process.env) {
+  return getDistributedRateLimitReadiness(env, {
+    productionRequired: isProductionLikeDeploy(env),
+  });
 }
 
 function unique(values = []) {
@@ -265,6 +272,7 @@ export function buildDeployReadinessError(issues = []) {
 export async function runDeployReadinessVerification({ env = process.env, logger = console } = {}) {
   const issues = [];
   const missingEnvVars = getMissingDeployReadinessEnvVars(env);
+  const rateLimitReadiness = getDeployRateLimitReadiness(env);
 
   if (missingEnvVars.length) {
     issues.push(
@@ -272,6 +280,10 @@ export async function runDeployReadinessVerification({ env = process.env, logger
         ({ name, note }) => `Missing required startup env var '${name}'. ${note}`
       )
     );
+  }
+
+  if (!rateLimitReadiness.ok) {
+    issues.push(rateLimitReadiness.message);
   }
 
   issues.push(...evaluateDeployReadinessManifest());

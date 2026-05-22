@@ -3438,17 +3438,22 @@ function renderAccessLocked(agent) {
       const result = await fetchJson("/setup-doctor");
       const checks = Array.isArray(result?.checks) ? result.checks : [];
       const missing = checks.filter((check) => !check.present).map((check) => check.key);
+      const productionRateLimitMessage = trimText(result?.production?.rate_limit?.message);
 
       if (!resultsEl) {
         return;
       }
 
       if (!missing.length) {
-        resultsEl.textContent = "Local setup looks ready. All required env values are present.";
+        resultsEl.textContent = productionRateLimitMessage
+          ? `Local setup looks ready. ${productionRateLimitMessage}`
+          : "Local setup looks ready. All required env values are present.";
         return;
       }
 
-      resultsEl.textContent = `Missing locally: ${missing.join(", ")}`;
+      resultsEl.textContent = productionRateLimitMessage
+        ? `Missing locally: ${missing.join(", ")}. ${productionRateLimitMessage}`
+        : `Missing locally: ${missing.join(", ")}`;
     } catch (error) {
       if (resultsEl) {
         resultsEl.textContent = error.message || "We could not run the local setup check.";
