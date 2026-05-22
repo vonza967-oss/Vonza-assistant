@@ -1,20 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  ACTION_QUEUE_STATUS_TABLE,
   CONVERSION_OUTCOME_TABLE,
-  FOLLOW_UP_WORKFLOW_TABLE,
   LEAD_CAPTURE_TABLE,
-  OPERATOR_CALENDAR_EVENT_TABLE,
-  OPERATOR_CAMPAIGN_RECIPIENT_TABLE,
-  OPERATOR_CAMPAIGN_TABLE,
-  OPERATOR_CONTACT_TABLE,
-  OPERATOR_INBOX_THREAD_TABLE,
-  OPERATOR_TASK_TABLE,
 } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
 import { normalizeWebsiteUrl } from "../../utils/url.js";
-import { getWidgetInstallContextByInstallId, isMissingRelationError as isMissingInstallRelationError } from "../install/installPresenceService.js";
+import { getWidgetInstallContextByInstallId } from "../install/installPresenceService.js";
 import { updateActionQueueStatus } from "../analytics/actionQueueService.js";
 
 export const CONVERSION_OUTCOME_TYPES = [
@@ -123,8 +115,6 @@ const CLICK_OUTCOME_TYPES = new Set([
   "email_clicked",
   "phone_clicked",
 ]);
-
-const URL_BASED_CTA_TYPES = new Set(["booking", "quote", "checkout"]);
 
 const LEAD_SELECT = [
   "id",
@@ -358,11 +348,6 @@ export function normalizeOutcomeSettings(widgetConfig = {}) {
       false
     ),
   };
-}
-
-function getTimestamp(value) {
-  const timestamp = new Date(value || "").getTime();
-  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function cleanUuid(value) {
@@ -1172,7 +1157,7 @@ export async function detectConversionOutcomesForPage(supabase, input = {}) {
     const sourceType = input.source === "ping" ? "external_success_ping" : "success_url_match";
     const matchingExistingOutcome = existingCtaOutcomes.find((entry) => entry.outcomeType === finalOutcomeType)
       || (sourceOutcome?.outcomeType === finalOutcomeType ? sourceOutcome : null);
-    let outcome = null;
+    let outcome;
 
     if (matchingExistingOutcome?.id) {
       outcome = await updateOutcomeRecord(supabase, matchingExistingOutcome.id, {

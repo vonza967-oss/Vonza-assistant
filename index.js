@@ -92,7 +92,7 @@ const __dirname = path.dirname(__filename);
 logCriticalEnvWarnings();
 
 const app = createApp({ rootDir: __dirname });
-let supabase = null;
+let supabase;
 
 try {
   supabase = getSupabaseClient();

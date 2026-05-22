@@ -33,6 +33,7 @@ const LEGAL_DOC_PATHS = Object.freeze({
 });
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
+const CONNECTED_TOOLS_SELF_SERVE_ENABLED = false;
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -409,34 +410,6 @@ function isInstallSeen(status) {
 
 function isInstallDetected(status) {
   return ["installed_unseen", "seen_recently", "seen_stale"].includes(status?.state);
-}
-
-function getInstallSummaryLabel(status) {
-  if (!status) {
-    return "Not live";
-  }
-
-  if (status.state === "seen_recently") {
-    return status.host || "Seen recently";
-  }
-
-  if (status.state === "seen_stale") {
-    return status.host ? `${status.host} (stale)` : "Seen stale";
-  }
-
-  if (status.state === "installed_unseen") {
-    return "Installed, awaiting ping";
-  }
-
-  if (status.state === "domain_mismatch") {
-    return "Mismatch";
-  }
-
-  if (status.state === "verify_failed") {
-    return "Verify failed";
-  }
-
-  return "Not live";
 }
 
 function hasAuthConfig() {
@@ -8370,23 +8343,6 @@ function getIntentLabel(intent) {
   }
 }
 
-function getIntentDescription(intent) {
-  switch (intent) {
-    case "contact":
-      return "Visitors are trying to speak to someone, call, email, or take a direct lead step.";
-    case "booking":
-      return "Visitors are asking to book, schedule, reserve, or check availability.";
-    case "pricing":
-      return "Visitors want pricing, quote, package, or purchase clarity.";
-    case "support":
-      return "Visitors may have a problem, concern, or support-style need.";
-    case "services":
-      return "Visitors are still learning what the business offers.";
-    default:
-      return "Visitors are trying to clarify the right customer-service next step.";
-  }
-}
-
 function getMessageTimestamp(message) {
   const value = new Date(message?.createdAt || "").getTime();
   return Number.isFinite(value) ? value : 0;
@@ -9301,14 +9257,6 @@ function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {},
       ...(providedSummary.operatorSignal || {}),
     },
   };
-}
-
-function formatAnalyticsMetric(value, analyticsSummary = createEmptyAnalyticsSummary()) {
-  if (analyticsSummary.syncState === "pending" && Number(value || 0) === 0) {
-    return "Syncing";
-  }
-
-  return String(Number(value || 0));
 }
 
 function _formatAnalyticsRate(value, analyticsSummary = createEmptyAnalyticsSummary()) {
@@ -10374,7 +10322,7 @@ function _buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
   `;
 }
 
-function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), options = {}) {
+function _buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), options = {}) {
   const items = Array.isArray(actionQueue.items) ? actionQueue.items : [];
   const summary = {
     ...createEmptyActionQueue().summary,
@@ -10948,9 +10896,9 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
   };
 
   const nextActions = [];
-  let primaryAction = null;
-  let title = "Create and manage your AI Front Desk page";
-  let copy = "Your customer-facing Front Desk is set up in Vonza and ready for testing, training, and launch.";
+  let primaryAction;
+  let title;
+  let copy;
 
   if (!setup.isReady) {
     title = "Home is open. The next step is finishing the Front Desk page.";
@@ -11423,7 +11371,7 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
   `;
 }
 
-function buildActivationWizardMarkup(agent, wizard = activationWizardState) {
+function _buildActivationWizardMarkup(agent, wizard = activationWizardState) {
   if (!wizard || wizard.isComplete) {
     return "";
   }
@@ -11465,271 +11413,6 @@ function buildActivationWizardMarkup(agent, wizard = activationWizardState) {
       </div>
     </section>
   `;
-}
-
-function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
-  const overview = buildOverviewState(agent, messages, setup, actionQueue);
-  const attentionItems = (actionQueue.items || [])
-    .filter((item) => getActionQueueOwnerWorkflow(item).attention)
-    .slice(0, 3);
-  const topQuestionMarkup = overview.signals.topQuestions.length
-    ? overview.signals.topQuestions.map((item) => `
-      <div class="overview-list-item">
-        <p class="overview-list-title">${escapeHtml(item.label)}${item.count > 1 ? ` (${item.count})` : ""}</p>
-        <p class="overview-list-copy">${escapeHtml(`${getIntentLabel(item.intent)} signal from real visitor questions.`)}</p>
-      </div>
-    `).join("")
-    : `<div class="placeholder-card">No real customer question themes yet. Once the assistant is live and visitors start using it, Vonza will group the strongest recurring questions here.</div>`;
-  const highIntentSignals = overview.analyticsSummary.highIntentSignals || 0;
-  const recentUsageValue = overview.analyticsSummary.syncState === "pending"
-    ? "Syncing"
-    : overview.analyticsSummary.visitorQuestions > 0
-      ? `${overview.analyticsSummary.visitorQuestions} captured`
-      : "No usage yet";
-  const recommendationTitle = !setup.knowledgeReady
-    ? "Strengthen website knowledge"
-    : !isInstallSeen(overview.installStatus)
-      ? "Finish live install"
-      : overview.queueSummary.attentionNeeded > 0
-        ? "Review follow-up queue"
-      : overview.queueSummary.total > 0
-          ? "Close the loop on follow-up"
-      : overview.analyticsSummary.weakAnswerCount > 0
-        ? "Review weak answers"
-        : highIntentSignals > 0
-          ? "Review buyer intent"
-          : "Keep learning from live usage";
-  const recommendationCopy = !setup.knowledgeReady
-    ? "Run another website import so the front desk can answer with stronger business context."
-    : !isInstallSeen(overview.installStatus)
-      ? "Place Vonza on the live site so it can start detecting real visitor behavior and customer intent."
-      : overview.queueSummary.attentionNeeded > 0
-        ? "Important high-intent or weak-answer items are in the follow-up queue. Review them first so the owner knows which visitors or answer paths still need attention."
-        : overview.queueSummary.total > 0
-          ? "The follow-up queue already holds important conversation follow-up. Keep moving items through review so the front desk becomes more operational, not just informative."
-      : overview.analyticsSummary.weakAnswerCount > 0
-        ? "Several live questions ended in weak or uncertain answers. Use Analytics to review those conversations, then refine website knowledge or front-desk setup."
-        : highIntentSignals > 0
-          ? "High-intent questions are already coming in. Review Analytics to see whether visitors want pricing, booking, contact, or support help most."
-          : "Keep an eye on the first real visitor questions so you can tighten the welcome, website copy, or install placement if needed.";
-  const humanFollowUpOpen = Number(actionQueue.humanFollowUps?.summary?.open || 0);
-  const notificationUnread = Number(actionQueue.ownerNotifications?.summary?.unread || 0);
-  const commandLinks = [
-    {
-      label: "Follow-Ups",
-      copy: humanFollowUpOpen ? `${humanFollowUpOpen} customer${humanFollowUpOpen === 1 ? "" : "s"} need a human reply.` : "No human replies are waiting.",
-      target: "analytics",
-      targetId: "",
-      count: humanFollowUpOpen,
-    },
-    {
-      label: "Notifications",
-      copy: notificationUnread ? `${notificationUnread} unread owner notice${notificationUnread === 1 ? "" : "s"}.` : "No unread owner notices.",
-      target: "analytics",
-      targetId: "notifications",
-      count: notificationUnread,
-    },
-    {
-      label: "Install",
-      copy: isInstallSeen(overview.installStatus) ? "Live install is detected." : "Finish verification before launch.",
-      target: "install",
-      targetId: "",
-      count: isInstallSeen(overview.installStatus) ? 0 : 1,
-    },
-  ];
-  const weakAnswerMarkup = overview.signals.weakAnswerExamples.length
-    ? overview.signals.weakAnswerExamples.map((question) => `
-      <div class="overview-list-item">
-        <p class="overview-list-title">${escapeHtml(question)}</p>
-        <p class="overview-list-copy">This question ended in a weak or uncertain answer and is a good candidate for improvement.</p>
-      </div>
-    `).join("")
-    : `<div class="placeholder-card">No weak-answer signal yet. Once customers ask questions that Vonza struggles to answer, they will show up here instead of being hidden behind a fake success state.</div>`;
-  const attentionMarkup = attentionItems.length
-    ? attentionItems.map((item) => {
-      const workflow = getActionQueueOwnerWorkflow(item);
-      const nextLine = trimText(item.nextStep)
-        ? `Next step: ${trimText(item.nextStep)}`
-        : workflow.copy;
-      const recencyLine = item.lastSeenAt ? `Flagged ${formatSeenAt(item.lastSeenAt)}` : "Recent signal";
-
-      return `
-        <div class="overview-list-item">
-          <p class="overview-list-title">${escapeHtml(item.label || getActionQueueTypeLabel(item.type))} · ${escapeHtml(workflow.label)}</p>
-          <p class="overview-list-copy">${escapeHtml(item.snippet || item.whyFlagged || "Flagged from recent conversation activity.")}</p>
-          <p class="overview-list-copy">${escapeHtml(recencyLine)}</p>
-          <p class="overview-list-copy">${escapeHtml(nextLine)}</p>
-        </div>
-      `;
-    }).join("")
-    : `<div class="placeholder-card">No queue items need owner attention right now. Resolved items and dismissed items stay out of the way here.</div>`;
-
-  const renderAction = (action, options = {}) => {
-    const buttonClass = options.primary ? "primary-button" : "ghost-button";
-
-    if (action.type === "section") {
-      return `<button class="${buttonClass}" type="button" data-overview-target="${action.value}">${action.label}</button>`;
-    }
-
-    if (action.type === "focus") {
-      return `<button class="${buttonClass}" type="button" data-overview-focus="${action.value}">${action.label}</button>`;
-    }
-
-    if (action.type === "import") {
-      return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${action.label}</button>`;
-    }
-
-    if (action.type === "install") {
-      return `<button class="${options.primary ? "primary-button" : "ghost-button"}" type="button" data-overview-focus="install">${escapeHtml(action.label || "Open install")}</button>`;
-    }
-
-    if (action.type === "preview") {
-      const previewUrl = buildFrontDeskPreviewUrl(agent);
-      return `<a class="${options.primary ? "primary-button" : "test-link"} ${previewUrl ? "" : "disabled"}" data-action="open-preview" href="${previewUrl ? escapeHtml(previewUrl) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(action.label)}</a>`;
-    }
-
-    return "";
-  };
-
-  return localizeDashboardHtml(`
-    <section class="overview-shell">
-      ${buildActivationWizardMarkup(agent)}
-      <section class="overview-hero">
-        <span class="eyebrow">${isInstallSeen(overview.installStatus) ? "Live front desk" : "Home"}</span>
-        <h2 class="overview-title">${escapeHtml(overview.title)}</h2>
-        <p class="overview-copy">${escapeHtml(overview.copy)}</p>
-        <div class="overview-metric-grid">
-          <div class="overview-metric">
-            <div class="overview-metric-label">Install status</div>
-            <div class="overview-metric-value">${escapeHtml(getInstallSummaryLabel(overview.installStatus))}</div>
-          </div>
-          <div class="overview-metric">
-            <div class="overview-metric-label">Visitor questions</div>
-            <div class="overview-metric-value">${escapeHtml(recentUsageValue)}</div>
-          </div>
-          <div class="overview-metric">
-            <div class="overview-metric-label">High-intent chats</div>
-            <div class="overview-metric-value">${escapeHtml(formatAnalyticsMetric(overview.analyticsSummary.highIntentSignals, overview.analyticsSummary))}</div>
-          </div>
-          <div class="overview-metric">
-            <div class="overview-metric-label">Attention now</div>
-            <div class="overview-metric-value">${overview.queueSummary.attentionNeeded || 0}</div>
-          </div>
-          <div class="overview-metric">
-            <div class="overview-metric-label">Customers captured</div>
-            <div class="overview-metric-value">${escapeHtml(formatAnalyticsMetric(overview.analyticsSummary.contactsCaptured, overview.analyticsSummary))}</div>
-          </div>
-          <div class="overview-metric">
-            <div class="overview-metric-label">Assisted outcomes</div>
-            <div class="overview-metric-value">${overview.outcomeSummary.assistedConversions || 0}</div>
-          </div>
-        </div>
-        <div class="overview-action-row">
-          ${overview.primaryAction ? renderAction(overview.primaryAction, { primary: true }) : ""}
-          ${overview.nextActions.map((action) => renderAction(action)).join("")}
-        </div>
-        <div class="overview-command-strip" aria-label="Home command center">
-          <div class="overview-command-primary">
-            <span class="eyebrow">Do this now</span>
-            <h3 class="overview-card-title">${escapeHtml(recommendationTitle)}</h3>
-            <p class="overview-card-copy">${escapeHtml(recommendationCopy)}</p>
-          </div>
-          <div class="overview-command-links" aria-label="Command center links">
-            ${commandLinks.map((item) => `
-              <button
-                class="overview-command-link"
-                type="button"
-                data-overview-target="${escapeHtml(item.target)}"
-                data-target-id="${escapeHtml(item.targetId)}"
-              >
-                <span>${escapeHtml(item.label)}</span>
-                <strong>${escapeHtml(item.count ? String(item.count) : "Open")}</strong>
-                <small>${escapeHtml(item.copy)}</small>
-              </button>
-            `).join("")}
-          </div>
-        </div>
-        <div class="overview-progress-row">
-          ${overview.progressItems.map((item) => `
-            <div class="progress-card ${item.done ? "done" : ""}">
-              <p class="progress-label">${escapeHtml(item.title)}</p>
-              <p class="progress-copy">${escapeHtml(item.copy)}</p>
-            </div>
-          `).join("")}
-        </div>
-      </section>
-
-      <div class="overview-grid">
-        ${buildActionQueueMarkup(agent, actionQueue)}
-
-        <section class="overview-card">
-          <h3 class="overview-card-title">Top customer question themes</h3>
-          <p class="overview-card-copy">${escapeHtml(
-            overview.signals.topQuestions.length
-              ? "These are the strongest recurring questions or themes showing up in real visitor usage."
-              : "Vonza will show grouped customer question themes here as soon as real usage comes in."
-          )}</p>
-          <div class="overview-list">
-            ${topQuestionMarkup}
-          </div>
-        </section>
-
-        <section class="overview-card">
-          <h3 class="overview-card-title">Owner attention now</h3>
-          <p class="overview-card-copy">These are the flagged conversations that still need an owner decision, follow-up, or final resolution.</p>
-          <div class="overview-list">
-            ${attentionMarkup}
-          </div>
-        </section>
-
-        <section class="overview-card">
-          <h3 class="overview-card-title">Intent signals</h3>
-          <p class="overview-card-copy">A fast read on the kinds of conversations visitors are trying to have with the business.</p>
-          <div class="overview-list">
-            ${["contact", "booking", "pricing", "support"].map((intent) => `
-              <div class="overview-list-item">
-                <p class="overview-list-title">${escapeHtml(`${getIntentLabel(intent)}: ${overview.signals.intentCounts[intent] || 0}`)}</p>
-                <p class="overview-list-copy">${escapeHtml(getIntentDescription(intent))}</p>
-              </div>
-            `).join("")}
-          </div>
-        </section>
-
-        <section class="overview-card">
-          <h3 class="overview-card-title">Outcome proof</h3>
-          <p class="overview-card-copy">This is where Vonza stops looking like activity tracking and starts proving business impact.</p>
-          <div class="overview-list">
-            <div class="overview-list-item">
-              <p class="overview-list-title">${escapeHtml(`${overview.outcomeSummary.confirmedBusinessOutcomes || 0} confirmed business outcomes`)}</p>
-              <p class="overview-list-copy">${escapeHtml(`${overview.outcomeSummary.directOutcomeCount || 0} direct-route and ${overview.outcomeSummary.followUpAssistedOutcomeCount || 0} follow-up-assisted outcomes are currently attributed.`)}</p>
-            </div>
-            <div class="overview-list-item">
-              <p class="overview-list-title">${escapeHtml(`${overview.conversionSummary.directCtasShown || 0} shown → ${overview.conversionSummary.ctaClicks || 0} clicked → ${overview.outcomeSummary.assistedConversions || 0} outcomes`)}</p>
-              <p class="overview-list-copy">This is the current high-intent to route to click to outcome chain.</p>
-            </div>
-            ${overview.outcomeSummary.topPages.map((entry) => `
-              <div class="overview-list-item">
-                <p class="overview-list-title">${escapeHtml(entry.label)}</p>
-                <p class="overview-list-copy">${escapeHtml(`${entry.count} attributed outcome${entry.count === 1 ? "" : "s"} from this page.`)}</p>
-              </div>
-            `).join("") || `<div class="placeholder-card">No outcome-linked pages yet. As soon as Vonza confirms real business results, the strongest pages will show here.</div>`}
-          </div>
-        </section>
-
-        <section class="overview-card">
-          <h3 class="overview-card-title">What to do next</h3>
-          <p class="overview-card-copy">${escapeHtml(recommendationCopy)}</p>
-          <div class="overview-list">
-            <div class="overview-list-item">
-              <p class="overview-list-title">${escapeHtml(recommendationTitle)}</p>
-              <p class="overview-list-copy">${escapeHtml(recommendationCopy)}</p>
-            </div>
-            ${weakAnswerMarkup}
-          </div>
-        </section>
-      </div>
-    </section>
-  `);
 }
 
 function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyActionQueue(), operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -11937,157 +11620,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
   `);
 }
 
-function getThreadDraft(thread = {}) {
-  return (thread.messages || []).find((message) => message.direction === "draft") || null;
-}
-
-function formatInboxClassificationLabel(value = "") {
-  switch (trimText(value)) {
-    case "lead_sales":
-      return "lead";
-    case "follow_up_needed":
-    case "general":
-      return "general";
-    default:
-      return trimText(value).replaceAll("_", " ") || "thread";
-  }
-}
-
-function getEmailPreviewCategoryKey(thread = {}) {
-  const classification = trimText(thread.classification);
-
-  if (classification === "complaint") {
-    return "complaint";
-  }
-
-  if (["lead_sales", "booking"].includes(classification)) {
-    return "lead";
-  }
-
-  if (classification === "billing") {
-    return "billing_questions";
-  }
-
-  if (!thread.needsReply || trimText(thread.status) === "waiting" || trimText(thread.riskLevel) === "low") {
-    return "resolved";
-  }
-
-  return "billing_questions";
-}
-
-function getEmailPreviewCategoryMeta(categoryKey = "") {
-  switch (trimText(categoryKey)) {
-    case "complaint":
-      return {
-        key: "complaint",
-        label: "Complaint",
-        description: "Unhappy customer who likely needs calm careful review.",
-        priority: "High",
-      };
-    case "lead":
-      return {
-        key: "lead",
-        label: "Lead",
-        description: "Commercial intent, quote request, or buying signal.",
-        priority: "High",
-      };
-    case "resolved":
-      return {
-        key: "resolved",
-        label: "Resolved",
-        description: "Handled or low-priority thread that can stay quiet for now.",
-        priority: "Low",
-      };
-    case "billing_questions":
-    default:
-      return {
-        key: "billing_questions",
-        label: "Billing / question",
-        description: "Routine support, invoice help, and general customer questions.",
-        priority: "Medium",
-      };
-  }
-}
-
-function getEmailPreviewFallbackItems() {
-  return [
-    {
-      subject: "Complaint - delayed delivery",
-      snippet: "Customer says they are unhappy and want help urgently.",
-      categoryKey: "complaint",
-      priority: "High",
-      statusNote: "Customer match if possible",
-    },
-    {
-      subject: "Where is my invoice?",
-      snippet: "Routine support request that likely needs a quick answer.",
-      categoryKey: "billing_questions",
-      priority: "Medium",
-      statusNote: "Customer match if possible",
-    },
-    {
-      subject: "Can I get a quote this week?",
-      snippet: "Commercial intent from a customer asking about next steps.",
-      categoryKey: "lead",
-      priority: "High",
-      statusNote: "Customer match if possible",
-    },
-    {
-      subject: "Thanks, issue solved",
-      snippet: "Resolved thread that can safely stay in a low-priority group.",
-      categoryKey: "resolved",
-      priority: "Low",
-      statusNote: "Quiet for now",
-    },
-  ];
-}
-
-function buildEmailPreviewItems(threads = []) {
-  if (!threads.length) {
-    return getEmailPreviewFallbackItems();
-  }
-
-  return threads.slice(0, 4).map((thread) => {
-    const categoryKey = getEmailPreviewCategoryKey(thread);
-    const categoryMeta = getEmailPreviewCategoryMeta(categoryKey);
-    const latestInbound = (thread.messages || [])
-      .slice()
-      .reverse()
-      .find((message) => message.direction === "inbound") || null;
-    const linkedContactId = trimText(thread.contactId || thread.contact_id || thread.linkedContactId);
-
-    return {
-      subject: trimText(thread.subject) || "Support thread",
-      snippet:
-        trimText(latestInbound?.bodyPreview)
-        || trimText(latestInbound?.bodyText)
-        || trimText(thread.snippet)
-        || categoryMeta.description,
-      categoryKey,
-      priority: trimText(thread.riskLevel)
-        ? trimText(thread.riskLevel).replace(/^\w/, (character) => character.toUpperCase())
-        : categoryMeta.priority,
-      statusNote: linkedContactId ? "Customer matched" : "Customer match if possible",
-    };
-  });
-}
-
-function buildEmailPreviewCategorySummary(items = []) {
-  const counts = {
-    complaint: 0,
-    lead: 0,
-    billing_questions: 0,
-    resolved: 0,
-  };
-
-  items.forEach((item) => {
-    const key = getEmailPreviewCategoryMeta(item.categoryKey).key;
-    counts[key] = (counts[key] || 0) + 1;
-  });
-
-  return counts;
-}
-
 function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="${escapeHtml(sectionKey)}" hidden>
@@ -12108,198 +11640,24 @@ function buildConnectedToolComingSoonPanel(sectionKey, title, copy) {
   `);
 }
 
-function buildInboxPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function buildInboxPanel() {
   // Keep connected tools informational until self-serve access is ready.
   return buildConnectedToolComingSoonPanel(
     "inbox",
     "Email",
     "Email connection is planned, but it is not self-serve yet. Vonza will not ask you to connect Gmail until the feature is ready."
   );
-
-  const accounts = operatorWorkspace.connectedAccounts || [];
-  const primaryAccount = accounts[0] || null;
-  const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
-  const threads = operatorWorkspace.inbox?.threads || [];
-  const status = operatorWorkspace.status || createEmptyOperatorWorkspace().status;
-  const activation = operatorWorkspace.activation || createEmptyOperatorWorkspace().activation;
-  const connected = primaryAccount?.status === "connected" && googleCapabilities.gmailRead === true;
-  const previewItems = buildEmailPreviewItems(threads);
-  const summary = buildEmailPreviewCategorySummary(previewItems);
-  const liveThreadCount = threads.length;
-  const nextStepLabel = !status.googleConfigReady
-    ? "Email unavailable"
-    : connected
-      ? activation.inboxSynced
-        ? "Review categories"
-        : "Run first sync"
-      : primaryAccount?.status === "connected"
-        ? "Reconnect Gmail"
-        : "Connect Gmail";
-  const nextStepCopy = !status.googleConfigReady
-    ? "Google inbox connection is not configured on this deployment."
-    : connected
-      ? activation.inboxSynced
-        ? "preview is ready"
-        : "pull first threads"
-      : primaryAccount?.status === "connected"
-        ? "finish read-only access"
-        : "review categories";
-  const accountStatusValue = connected
-    ? "Connected"
-    : primaryAccount?.status === "connected"
-      ? "Needs Gmail access"
-      : "Not connected";
-  const accountStatusCopy = connected
-    ? primaryAccount.accountEmail || "Gmail connected in read-only mode"
-    : status.googleConfigReady
-      ? "safe to start"
-      : "not available here";
-  const heroCopy = !status.googleConfigReady
-    ? "Google inbox connection is not configured on this deployment yet, so Email stays visible but unavailable for now."
-    : connected
-      ? `Vonza is connected to ${primaryAccount.accountEmail || "your Gmail inbox"} in read-only mode. It can read, organize, and classify support email without sending or changing anything.`
-      : primaryAccount?.status === "connected"
-        ? "Google is connected, but Gmail read-only access is not active yet. Reconnect Gmail so Vonza can safely review support email."
-        : "Start by connecting the inbox your team uses for complaints or customer support. Vonza will read, organize, and classify, but not send or change anything.";
-  const heroActions = connected
-    ? `
-      <button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Refresh inbox preview</button>
-      <button class="ghost-button" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection.">Reconnect Gmail</button>
-    `
-    : `
-      <button class="primary-button" type="button" data-google-connect data-google-connect-mode="email_read_only" data-google-connect-status="Preparing Gmail read-only connection..." data-google-connect-error="We couldn't start the Gmail inbox connection." ${status.googleConfigReady ? "" : "disabled"}>${primaryAccount?.status === "connected" ? "Reconnect Gmail" : "Connect Gmail"}</button>
-    `;
-  const syncNote = connected
-    ? `Mailbox ${primaryAccount.selectedMailbox || "INBOX"}${primaryAccount.lastSyncAt ? `, last synced ${formatSeenAt(primaryAccount.lastSyncAt)}` : ", first sync still pending"}`
-    : "No auto-replies, no auto-archive, and no silent mailbox changes.";
-  const supportedCounts = [
-    { label: "Complaints", value: summary.complaint || 0 },
-    { label: "Leads", value: summary.lead || 0 },
-    { label: "Billing / questions", value: summary.billing_questions || 0 },
-    { label: "Resolved / low priority", value: summary.resolved || 0 },
-  ];
-
-  return `
-    <section class="workspace-page workspace-page-email" data-shell-section="inbox" hidden>
-      ${buildPageHeader({
-        eyebrow: "Connected tools",
-        title: "Email",
-        copy: "Connect your support inbox so Vonza can organize customer email without changing anything yet.",
-        actionsMarkup: `
-          <div class="email-page-header-pills">
-            <span class="email-page-pill">Customers</span>
-            <span class="email-page-pill email-page-pill--safe">Read-only</span>
-          </div>
-        `,
-      })}
-      <div class="workspace-page-body">
-        <section class="email-hero-card">
-          <div class="email-hero-copy">
-            <p class="email-hero-text">${escapeHtml(heroCopy)}</p>
-            <div class="email-guardrail-row">
-              <span class="email-guardrail-chip">Read-only first</span>
-              <span class="email-guardrail-chip">No sending</span>
-              <span class="email-guardrail-chip">No mailbox changes</span>
-            </div>
-            <p class="email-hero-note">${escapeHtml(syncNote)}</p>
-          </div>
-          <div class="email-hero-actions">
-            ${heroActions}
-          </div>
-        </section>
-
-        <div class="email-status-grid">
-          <article class="email-status-card">
-            <p class="email-status-label">Connection status</p>
-            <strong class="email-status-value">${escapeHtml(accountStatusValue)}</strong>
-            <p class="email-status-copy">${escapeHtml(accountStatusCopy)}</p>
-          </article>
-          <article class="email-status-card">
-            <p class="email-status-label">Mode</p>
-            <strong class="email-status-value">Read-only</strong>
-            <p class="email-status-copy">no email sending</p>
-          </article>
-          <article class="email-status-card">
-            <p class="email-status-label">What Vonza sees</p>
-            <strong class="email-status-value">${escapeHtml(connected && liveThreadCount ? `${liveThreadCount} live thread${liveThreadCount === 1 ? "" : "s"}` : "Support threads")}</strong>
-            <p class="email-status-copy">complaints and requests</p>
-          </article>
-          <article class="email-status-card">
-            <p class="email-status-label">Next step</p>
-            <strong class="email-status-value">${escapeHtml(nextStepLabel)}</strong>
-            <p class="email-status-copy">${escapeHtml(nextStepCopy)}</p>
-          </article>
-        </div>
-
-        <div class="email-main-grid">
-          <section class="email-preview-card">
-            <div class="email-section-header">
-              <div>
-                <h3 class="email-section-title">Support inbox preview</h3>
-                <p class="email-section-copy">${escapeHtml(connected && activation.inboxSynced
-                  ? "Vonza is showing a live read-only preview of how your support inbox is grouped right now."
-                  : "Once connected, Vonza will quietly sort customer email into clear groups your team can understand at a glance.")}</p>
-              </div>
-              <div class="email-preview-counts">
-                ${supportedCounts.map((item) => `
-                  <div class="email-preview-count">
-                    <strong>${escapeHtml(String(item.value))}</strong>
-                    <span>${escapeHtml(item.label)}</span>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-            <div class="email-preview-list">
-              ${previewItems.map((item) => {
-                const category = getEmailPreviewCategoryMeta(item.categoryKey);
-                return `
-                  <article class="email-preview-row email-preview-row--${escapeHtml(category.key)}">
-                    <div class="email-preview-dot" aria-hidden="true"></div>
-                    <div class="email-preview-main">
-                      <p class="email-preview-subject">${escapeHtml(item.subject)}</p>
-                      <p class="email-preview-snippet">${escapeHtml(item.snippet)}</p>
-                    </div>
-                    <div class="email-preview-tags">
-                      <span class="email-preview-tag email-preview-tag--${escapeHtml(category.key)}">${escapeHtml(category.label)}</span>
-                      <span class="email-preview-tag email-preview-tag--priority">${escapeHtml(item.priority)}</span>
-                      <span class="email-preview-tag email-preview-tag--neutral">${escapeHtml(item.statusNote)}</span>
-                    </div>
-                  </article>
-                `;
-              }).join("")}
-            </div>
-          </section>
-
-          <div class="email-side-stack">
-            <section class="email-side-card">
-              <h3 class="email-section-title">What Vonza will do</h3>
-              <ul class="email-bullet-list">
-                <li>Identify complaint emails that need careful follow-up.</li>
-                <li>Identify lead and sales-intent messages that should not sit idle.</li>
-                <li>Identify routine support and billing questions.</li>
-                <li>Identify resolved or low-priority threads that can stay quiet.</li>
-                <li>Connect email activity to the right customer when Vonza can match it safely.</li>
-              </ul>
-            </section>
-
-            <section class="email-side-card email-side-card--dark">
-              <h3 class="email-section-title">Coming next</h3>
-              <p class="email-section-copy email-section-copy--inverse">After read-only works well, Vonza can add draft replies, stronger complaint handling, and better customer matching. This first version only connects, reads, and organizes.</p>
-            </section>
-          </div>
-        </div>
-      </div>
-    </section>
-  `;
 }
 
 function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   // Keep connected tools informational until self-serve access is ready.
-  return buildConnectedToolComingSoonPanel(
-    "calendar",
-    "Calendar",
-    "Calendar context is planned, but it is not ready yet. Home and Customers still work without Google Calendar."
-  );
+  if (!CONNECTED_TOOLS_SELF_SERVE_ENABLED) {
+    return buildConnectedToolComingSoonPanel(
+      "calendar",
+      "Calendar",
+      "Calendar context is planned, but it is not ready yet. Home and Customers still work without Google Calendar."
+    );
+  }
 
   const accounts = operatorWorkspace.connectedAccounts || [];
   const primaryAccount = accounts[0] || null;
@@ -12503,11 +11861,13 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
 
 function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWorkspace()) {
   // Keep connected tools informational until self-serve access is ready.
-  return buildConnectedToolComingSoonPanel(
-    "automations",
-    "Automations",
-    "Automations are planned, but they are not available yet. The dashboard will keep this area clearly marked until workflows are ready."
-  );
+  if (!CONNECTED_TOOLS_SELF_SERVE_ENABLED) {
+    return buildConnectedToolComingSoonPanel(
+      "automations",
+      "Automations",
+      "Automations are planned, but they are not available yet. The dashboard will keep this area clearly marked until workflows are ready."
+    );
+  }
 
   const automations = operatorWorkspace.automations || createEmptyOperatorWorkspace().automations;
   const allTasks = automations.tasks || [];
@@ -13383,108 +12743,6 @@ function buildInstallSection(agent, options = {}) {
         </div>
       </section>
     </div>
-  `;
-}
-
-function buildCustomizationForm(agent, _compact) {
-  return `
-    <form id="assistant-settings-form" class="spacer">
-      <div class="studio-layout">
-        <div class="studio-groups">
-          <section class="studio-group">
-            <h3 class="studio-group-title">Identity</h3>
-            <p class="studio-group-copy">Shape the name and voice your customers will recognize.</p>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-name">Assistant name</label>
-                <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
-                <p class="field-help">This is the name customers will see in the assistant.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-tone">Brand voice</label>
-                <select id="assistant-tone" name="tone">
-                  <option value="friendly" ${agent.tone === "friendly" ? "selected" : ""}>friendly</option>
-                  <option value="professional" ${agent.tone === "professional" ? "selected" : ""}>professional</option>
-                  <option value="sales" ${agent.tone === "sales" ? "selected" : ""}>sales</option>
-                  <option value="support" ${agent.tone === "support" ? "selected" : ""}>support</option>
-                </select>
-                <p class="field-help">Choose the tone that feels most natural for your business.</p>
-              </div>
-            </div>
-          </section>
-
-          <section class="studio-group">
-            <h3 class="studio-group-title">First impression</h3>
-            <p class="studio-group-copy">Define the first thing people read and the action they take.</p>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-button-label">Button text</label>
-                <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
-                <p class="field-help">Keep this short, clear, and welcoming.</p>
-              </div>
-              <div class="field">
-                <label for="assistant-website">Website</label>
-                <input id="assistant-website" name="website_url" type="text" value="${escapeHtml(agent.websiteUrl || "")}">
-                <p class="field-help">This is the website your assistant should represent.</p>
-              </div>
-            </div>
-            <div class="form-grid">
-              <div class="field">
-                <label for="assistant-welcome">Welcome message</label>
-                <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
-                <p class="field-help">Set the tone of the first customer interaction.</p>
-              </div>
-            </div>
-          </section>
-
-          <section class="studio-group">
-            <h3 class="studio-group-title">Brand look</h3>
-            <p class="studio-group-copy">Use your colors so the assistant feels like part of your brand.</p>
-            <div class="form-grid two-col">
-              <div class="field">
-                <label for="assistant-primary-color">Primary color</label>
-                <input id="assistant-primary-color" name="primary_color" type="color" value="${escapeHtml(agent.primaryColor || "#14b8a6")}">
-              </div>
-              <div class="field">
-                <label for="assistant-secondary-color">Secondary color</label>
-                <input id="assistant-secondary-color" name="secondary_color" type="color" value="${escapeHtml(agent.secondaryColor || "#0f766e")}">
-              </div>
-            </div>
-          </section>
-
-          <section class="studio-group secondary">
-            <h3 class="studio-group-title">Advanced guidance</h3>
-            <p class="studio-group-copy">Optional guidance for how the assistant should think and respond in edge cases.</p>
-            <div class="form-grid">
-              <div class="field">
-                <label for="assistant-instructions">Advanced guidance</label>
-                <textarea id="assistant-instructions" name="system_prompt">${escapeHtml(agent.systemPrompt || "")}</textarea>
-                <p class="field-help">Use this only if you want to adjust behavior beyond the core brand settings.</p>
-              </div>
-            </div>
-          </section>
-
-          <div class="studio-save-row">
-            <button class="primary-button" type="submit">Save changes</button>
-            <span id="studio-save-state" class="save-state">No changes yet.</span>
-          </div>
-        </div>
-
-        <aside class="studio-summary">
-          <p class="studio-summary-label">Live summary</p>
-          <h3 id="studio-summary-name" class="studio-summary-name">${escapeHtml(agent.assistantName || agent.name)}</h3>
-          <p id="studio-summary-copy" class="studio-summary-copy">${escapeHtml(agent.welcomeMessage || "Your assistant is ready to greet visitors with a clear, helpful first message.")}</p>
-          <div class="studio-summary-badge-row">
-            <span id="studio-summary-tone" class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
-            <span id="studio-summary-button" class="pill">${escapeHtml(agent.buttonLabel || "Chat")}</span>
-          </div>
-          <div class="studio-swatch-row">
-            <div id="studio-swatch-primary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.primaryColor || "#14b8a6")}">Primary</div>
-            <div id="studio-swatch-secondary" class="studio-swatch" style="--swatch-color:${escapeHtml(agent.secondaryColor || "#0f766e")}">Secondary</div>
-          </div>
-        </aside>
-      </div>
-    </form>
   `;
 }
 
@@ -15746,7 +15004,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         ? result.suggestedPrompts.map((prompt) => trimText(prompt)).filter(Boolean).slice(0, 4)
         : [];
       setStatus("Ask Vonza is ready.");
-    } catch (error) {
+    } catch {
       helpState.messages.push({
         role: "assistant",
         content: DASHBOARD_HELP_UNAVAILABLE_MESSAGE,
@@ -16947,28 +16205,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
-  const refreshOperatorWorkspace = async () => {
-    setStatus("Refreshing connected workspace...");
-
-    try {
-      const operatorSnapshot = await loadOperatorWorkspaceSafe(agent.id, {
-        forceSync: false,
-      });
-      workspaceState = {
-        ...(workspaceState || {}),
-        agent,
-        messages,
-        actionQueue,
-        operatorWorkspace: operatorSnapshot,
-        setup,
-      };
-      renderWorkspaceFromState();
-      setStatus("Connected workspace refreshed.");
-    } catch (error) {
-      setStatus(error.message || "We couldn't refresh the connected workspace.");
-    }
-  };
-
   const saveOperatorActivationState = async (payload = {}, options = {}) => {
     const nextStatusMessage = options.statusMessage || "Saving workspace progress...";
     setStatus(nextStatusMessage);
@@ -17635,7 +16871,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       try {
         await navigator.clipboard.writeText(draftValue);
         setStatus("Follow-up draft copied.");
-      } catch (error) {
+      } catch {
         setStatus("We couldn't copy that draft.");
       }
     });

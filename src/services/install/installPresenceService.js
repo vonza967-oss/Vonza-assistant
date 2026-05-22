@@ -1,6 +1,5 @@
 import { getPublicAppUrl } from "../../config/env.js";
 import { cleanText } from "../../utils/text.js";
-import { getHostnameFromUrl } from "../../utils/url.js";
 
 const AGENT_INSTALLATIONS_TABLE = "agent_installations";
 const AGENTS_TABLE = "agents";

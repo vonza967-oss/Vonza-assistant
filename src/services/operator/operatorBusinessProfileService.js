@@ -126,15 +126,6 @@ function uniqueByKey(values = [], getKey = (value) => value) {
   return result;
 }
 
-function normalizeTextObject(value, keyNames = []) {
-  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  return Object.fromEntries(
-    keyNames
-      .map((key) => [key, cleanText(source[key])])
-      .filter(([, entry]) => entry)
-  );
-}
-
 function splitWebsiteContentEntries(websiteContent = {}) {
   const lines = String(websiteContent.content || "")
     .split(/\r?\n/)

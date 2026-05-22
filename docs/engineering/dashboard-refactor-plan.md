@@ -451,6 +451,126 @@ Recommended Sprint 6:
 - Lint warning burn-down is the best next sprint. The remaining dashboard warnings include dead legacy overview/inbox/customization helpers, unreachable connected-tool bodies, and a few unused caught errors. A targeted cleanup can reduce risk without taking on CSS load-order changes.
 - Keep Dashboard CSS section split/load-order hardening as the next larger structural sprint after lint cleanup, because the CSS still has multiple late override layers.
 
+## Sprint 6 Baseline
+
+Starting point before Sprint 6 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 19,315 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 48 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 31 |
+| `no-useless-assignment` | 14 |
+| `no-unreachable` | 3 |
+
+Starting test status:
+
+- `npm run test:smoke`: passing, 623 tests.
+- No current test file was observed passing alone but failing in the full smoke run. The previously documented full-run risk around `tests/dashboardOperatorWorkspace.test.js` remains worth monitoring, but it did not reproduce at the Sprint 6 baseline.
+
+## Sprint 6 Lint and Test Isolation Cleanup
+
+Completed:
+
+- Removed low-risk dead dashboard helpers and legacy renderer fragments that were no longer reachable from the active dashboard.
+- Removed overwritten assignments in dashboard, operator, conversion, and scraping code where the value was replaced before being read.
+- Reworked the connected-tool dashboard renderers so retained disabled legacy bodies are no longer syntactically unreachable.
+- Added `tests/helpers/testIsolation.js` for scoped environment and browser-global cleanup.
+- Updated operator workspace tests to snapshot and restore Google integration environment values.
+- Updated one brittle smoke source-string assertion after the inactive Inbox connection copy was reduced to the existing coming-soon state.
+
+Files changed in Sprint 6:
+
+- `frontend/dashboard.js`
+- `index.js`
+- `src/config/legalContent.js`
+- `src/services/analytics/actionQueueService.js`
+- `src/services/conversion/conversionOutcomeService.js`
+- `src/services/install/installPresenceService.js`
+- `src/services/operator/contactWorkspaceService.js`
+- `src/services/operator/copilotProposalService.js`
+- `src/services/operator/operatorActivationService.js`
+- `src/services/operator/operatorBusinessProfileService.js`
+- `src/services/operator/operatorWorkspaceService.js`
+- `src/services/operator/todayCopilotService.js`
+- `src/services/scraping/websiteContentService.js`
+- `tests/helpers/testIsolation.js`
+- `tests/testIsolationHelper.test.js`
+- `tests/operatorWorkspaceService.test.js`
+- `tests/smoke.test.js`
+- `docs/engineering/dashboard-refactor-plan.md`
+
+Line counts after Sprint 6:
+
+| File | Before | After |
+| --- | ---: | ---: |
+| `frontend/dashboard.js` | 19,315 | 18,551 |
+| `frontend/dashboard.css` | 19,040 | 19,040 |
+
+Lint warnings after Sprint 6: 4 warnings.
+
+| Rule | Before | After | Removed |
+| --- | ---: | ---: | ---: |
+| `no-unused-vars` | 31 | 3 | 28 |
+| `no-useless-assignment` | 14 | 1 | 13 |
+| `no-unreachable` | 3 | 0 | 3 |
+
+Remaining warnings:
+
+- `embed.js`: one `no-useless-assignment` warning in public embed code.
+- `frontend/script.js`: two `no-unused-vars` warnings in public widget code.
+- `src/services/knowledge/knowledgeFixService.js`: one `no-unused-vars` warning in knowledge/training code.
+
+These remain intentionally untouched in Sprint 6 because the sprint constraints excluded public assistant/widget/embed and training/knowledge behavior unless required by tests.
+
+Test isolation risks fixed:
+
+- Google integration environment mutations in operator workspace tests now use a shared snapshot/restore helper.
+- Browser-like globals and storage mocks have a reusable reset helper for future VM tests.
+- The new helper is covered by `tests/testIsolationHelper.test.js`.
+
+Sprint 6 verification:
+
+- `node --check` coverage for dashboard, extracted dashboard modules, public script files, Settings shell, assistant embed, and the new test helper passed.
+- Focused dashboard tests passed.
+- `npm run test:smoke` passed with 625 tests.
+- `npm run check:schema-sync` passed.
+- `npm run lint` passed with the four intentional warnings listed above.
+- `git diff --check` passed.
+- Fixture-backed browser checks covered Home, Customers, Front Desk, Analytics, Install, Settings Front Desk, tab persistence, full-page assistant preview, and assistant embed matrix.
+
+CSS split prerequisites:
+
+- Keep `dashboard.css` as the ordered final bundle until extracted CSS can be loaded through an explicit ordered asset plan.
+- Add browser screenshots for each candidate split area before moving selectors.
+- Prefer one section at a time, with before/after checks for desktop and mobile routes.
+- Do not remove late override layers until the replacement file is loaded after the base selectors it overrides.
+
+Recommended CSS split order:
+
+1. Extract final Install overrides first, preserving their current late load order.
+2. Extract Analytics V2 styles next because the renderer is already isolated and behavior tests cover source labels and empty states.
+3. Extract Customers V2 styles after validating table/detail density on mobile and desktop.
+4. Extract Front Desk styles after another pass over event/API boundaries, because those styles have the broadest overlap with Settings, training, and workspace panels.
+5. Leave shared shell, navigation, cards, forms, responsive utilities, and global density overrides in `dashboard.css` until the section files are stable.
+
+CSS load-order risks:
+
+- Several dashboard sections rely on late compact/density/mobile overrides that currently win by position in `dashboard.css`.
+- Moving only base selectors can make later shared overrides unexpectedly dominate section-specific styles.
+- Moving only late overrides can leave the base bundle with stale styles that still affect responsive breakpoints.
+- Classic script/CSS loading has no build-time ordering guarantees beyond document order, so the route document and static asset headers must be updated together if CSS files are added.
+
+Recommended Sprint 7:
+
+- Run dashboard CSS split/load-order hardening as the next sprint, starting with Install or Analytics styles and fixture-backed browser screenshots.
+- If CSS ordering proves too risky, extract Home helper/render fragments instead; Sprint 6 left the lint surface small enough that structural dashboard work can resume.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 5:

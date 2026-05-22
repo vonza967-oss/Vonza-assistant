@@ -10,6 +10,25 @@ import {
   sendDueCampaignSteps,
   suggestCalendarSlots,
 } from "../src/services/operator/operatorWorkspaceService.js";
+import { applyEnv, restoreEnv, snapshotEnv } from "./helpers/testIsolation.js";
+
+const GOOGLE_ENV_KEYS = [
+  "VONZA_OPERATOR_WORKSPACE_V1",
+  "GOOGLE_CLIENT_ID",
+  "GOOGLE_CLIENT_SECRET",
+  "GOOGLE_OAUTH_REDIRECT_URI",
+  "GOOGLE_TOKEN_ENCRYPTION_SECRET",
+];
+
+function applyGoogleTestEnv() {
+  applyEnv({
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+    GOOGLE_CLIENT_ID: "client-id",
+    GOOGLE_CLIENT_SECRET: "client-secret",
+    GOOGLE_OAUTH_REDIRECT_URI: "https://example.com/google/oauth/callback",
+    GOOGLE_TOKEN_ENCRYPTION_SECRET: "test-secret",
+  });
+}
 
 test("inbox classifier identifies complaint and billing threads", () => {
   assert.equal(classifyInboxThread({
@@ -63,13 +82,7 @@ test("reply draft generation stays approval-first and complaint aware", () => {
 });
 
 test("google connection start defaults to minimal identity and read-only calendar scopes", async () => {
-  const previousEnv = {
-    VONZA_OPERATOR_WORKSPACE_V1: process.env.VONZA_OPERATOR_WORKSPACE_V1,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
-    GOOGLE_TOKEN_ENCRYPTION_SECRET: process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET,
-  };
+  const previousEnv = snapshotEnv(GOOGLE_ENV_KEYS);
   const inserts = [];
   const supabase = {
     from(tableName) {
@@ -82,11 +95,7 @@ test("google connection start defaults to minimal identity and read-only calenda
     },
   };
 
-  process.env.VONZA_OPERATOR_WORKSPACE_V1 = "true";
-  process.env.GOOGLE_CLIENT_ID = "client-id";
-  process.env.GOOGLE_CLIENT_SECRET = "client-secret";
-  process.env.GOOGLE_OAUTH_REDIRECT_URI = "https://example.com/google/oauth/callback";
-  process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = "test-secret";
+  applyGoogleTestEnv();
 
   try {
     const result = await createGoogleConnectionStart(supabase, {
@@ -109,46 +118,12 @@ test("google connection start defaults to minimal identity and read-only calenda
     assert.equal(inserts[0]?.tableName, "google_oauth_states");
     assert.equal(inserts[1]?.tableName, "operator_audit_logs");
   } finally {
-    if (previousEnv.VONZA_OPERATOR_WORKSPACE_V1 === undefined) {
-      delete process.env.VONZA_OPERATOR_WORKSPACE_V1;
-    } else {
-      process.env.VONZA_OPERATOR_WORKSPACE_V1 = previousEnv.VONZA_OPERATOR_WORKSPACE_V1;
-    }
-
-    if (previousEnv.GOOGLE_CLIENT_ID === undefined) {
-      delete process.env.GOOGLE_CLIENT_ID;
-    } else {
-      process.env.GOOGLE_CLIENT_ID = previousEnv.GOOGLE_CLIENT_ID;
-    }
-
-    if (previousEnv.GOOGLE_CLIENT_SECRET === undefined) {
-      delete process.env.GOOGLE_CLIENT_SECRET;
-    } else {
-      process.env.GOOGLE_CLIENT_SECRET = previousEnv.GOOGLE_CLIENT_SECRET;
-    }
-
-    if (previousEnv.GOOGLE_OAUTH_REDIRECT_URI === undefined) {
-      delete process.env.GOOGLE_OAUTH_REDIRECT_URI;
-    } else {
-      process.env.GOOGLE_OAUTH_REDIRECT_URI = previousEnv.GOOGLE_OAUTH_REDIRECT_URI;
-    }
-
-    if (previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET === undefined) {
-      delete process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET;
-    } else {
-      process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET;
-    }
+    restoreEnv(previousEnv);
   }
 });
 
 test("campaign sending fails before lookup without Gmail send capability", async () => {
-  const previousEnv = {
-    VONZA_OPERATOR_WORKSPACE_V1: process.env.VONZA_OPERATOR_WORKSPACE_V1,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    GOOGLE_OAUTH_REDIRECT_URI: process.env.GOOGLE_OAUTH_REDIRECT_URI,
-    GOOGLE_TOKEN_ENCRYPTION_SECRET: process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET,
-  };
+  const previousEnv = snapshotEnv(GOOGLE_ENV_KEYS);
   let campaignLookupAttempted = false;
   const supabase = {
     from(tableName) {
@@ -203,11 +178,7 @@ test("campaign sending fails before lookup without Gmail send capability", async
     },
   };
 
-  process.env.VONZA_OPERATOR_WORKSPACE_V1 = "true";
-  process.env.GOOGLE_CLIENT_ID = "client-id";
-  process.env.GOOGLE_CLIENT_SECRET = "client-secret";
-  process.env.GOOGLE_OAUTH_REDIRECT_URI = "https://example.com/google/oauth/callback";
-  process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = "test-secret";
+  applyGoogleTestEnv();
 
   try {
     await assert.rejects(
@@ -224,35 +195,7 @@ test("campaign sending fails before lookup without Gmail send capability", async
 
     assert.equal(campaignLookupAttempted, false);
   } finally {
-    if (previousEnv.VONZA_OPERATOR_WORKSPACE_V1 === undefined) {
-      delete process.env.VONZA_OPERATOR_WORKSPACE_V1;
-    } else {
-      process.env.VONZA_OPERATOR_WORKSPACE_V1 = previousEnv.VONZA_OPERATOR_WORKSPACE_V1;
-    }
-
-    if (previousEnv.GOOGLE_CLIENT_ID === undefined) {
-      delete process.env.GOOGLE_CLIENT_ID;
-    } else {
-      process.env.GOOGLE_CLIENT_ID = previousEnv.GOOGLE_CLIENT_ID;
-    }
-
-    if (previousEnv.GOOGLE_CLIENT_SECRET === undefined) {
-      delete process.env.GOOGLE_CLIENT_SECRET;
-    } else {
-      process.env.GOOGLE_CLIENT_SECRET = previousEnv.GOOGLE_CLIENT_SECRET;
-    }
-
-    if (previousEnv.GOOGLE_OAUTH_REDIRECT_URI === undefined) {
-      delete process.env.GOOGLE_OAUTH_REDIRECT_URI;
-    } else {
-      process.env.GOOGLE_OAUTH_REDIRECT_URI = previousEnv.GOOGLE_OAUTH_REDIRECT_URI;
-    }
-
-    if (previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET === undefined) {
-      delete process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET;
-    } else {
-      process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET = previousEnv.GOOGLE_TOKEN_ENCRYPTION_SECRET;
-    }
+    restoreEnv(previousEnv);
   }
 });
 

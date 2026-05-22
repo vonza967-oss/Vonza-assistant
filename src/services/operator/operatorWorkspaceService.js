@@ -1631,7 +1631,7 @@ async function ensureFreshGoogleAccessToken(supabase, account, deps = {}) {
     throw error;
   }
 
-  let refreshed = null;
+  let refreshed;
 
   try {
     refreshed = await googleApi.refreshAccessToken({ refreshToken });
@@ -1865,7 +1865,7 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
     },
   };
 
-  let accountRow = null;
+  let accountRow;
 
   if (existing?.id) {
     const { data, error } = await supabase
@@ -2597,7 +2597,7 @@ export function buildReplyDraft(thread = {}, options = {}) {
       || firstRecipient.split("@")[0]
   );
   const greeting = greetingName ? `Hi ${greetingName},` : "Hi,";
-  let body = "";
+  let body;
 
   switch (thread.classification) {
     case "complaint":
@@ -5091,7 +5091,7 @@ export async function approveCalendarAction(supabase, options = {}, deps = {}) {
   const accessToken = await ensureFreshGoogleAccessToken(supabase, account, deps);
   const googleApi = buildGoogleApi(deps);
   let providerEventId = event.providerEventId;
-  let providerStatus = event.status;
+  let providerStatus;
 
   if (event.actionType === "cancel" && providerEventId) {
     await googleApi.cancelCalendarEvent({

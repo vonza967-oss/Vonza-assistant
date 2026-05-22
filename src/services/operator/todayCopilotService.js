@@ -16,11 +16,6 @@ function isSameDay(left, right) {
   return String(left || "").slice(0, 10) === String(right || "").slice(0, 10);
 }
 
-function parseTimestamp(value) {
-  const timestamp = new Date(value || "").getTime();
-  return Number.isFinite(timestamp) ? timestamp : 0;
-}
-
 function pluralize(count, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -919,9 +914,6 @@ export function buildTodayCopilotSnapshot(options = {}) {
   const leadsNeedingFollowUp = contacts.filter((contact) =>
     ["active_lead", "qualified", "new"].includes(cleanText(contact.lifecycleState))
     && cleanText(contact.nextAction?.key) !== "no_action_needed"
-  );
-  const contactsNeedingAttention = contacts.filter((contact) =>
-    cleanText(contact.nextAction?.key) && cleanText(contact.nextAction?.key) !== "no_action_needed"
   );
   const nowIso = options.now || new Date().toISOString();
   const todaysMessages = messages.filter((message) =>

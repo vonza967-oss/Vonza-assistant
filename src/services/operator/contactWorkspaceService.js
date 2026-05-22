@@ -1,5 +1,4 @@
 import {
-  CONNECTED_ACCOUNT_TABLE,
   CONVERSION_OUTCOME_TABLE,
   FOLLOW_UP_WORKFLOW_TABLE,
   LEAD_CAPTURE_TABLE,
@@ -526,7 +525,7 @@ function mergeGroups(primary, secondary, identityMaps, groups) {
   );
   primary.persistedContact = pickPreferredPersistedContact(primary.persistedContacts, primary.id);
 
-  Object.entries(identityMaps).forEach(([identityType, identityMap]) => {
+  Object.values(identityMaps).forEach((identityMap) => {
     identityMap.forEach((group, key) => {
       if (group === secondary) {
         identityMap.set(key, primary);
@@ -2375,10 +2374,7 @@ export async function getOperatorContactsWorkspace(
     };
   }
 
-  let persistenceState = {
-    persistenceAvailable: true,
-    migrationRequired: false,
-  };
+  let persistenceState;
   let storedContacts = [];
   let storedIdentities = [];
 
@@ -2438,10 +2434,6 @@ export async function getOperatorContactsWorkspace(
       });
       await backfillSourceContactLinks(supabase, built);
     } catch (error) {
-      persistenceState = {
-        persistenceAvailable: false,
-        migrationRequired: false,
-      };
       return {
         list: built.contacts,
         filters: built.filters,

@@ -609,25 +609,6 @@ function getSuggestedAction(intent) {
   }
 }
 
-function getFlaggedReason(intent, count) {
-  const suffix = `${count} conversation${count === 1 ? "" : "s"}`;
-
-  switch (intent) {
-    case "contact":
-      return `Flagged because ${suffix} showed direct lead or contact intent.`;
-    case "booking":
-      return `Flagged because ${suffix} asked about booking, scheduling, or availability.`;
-    case "pricing":
-      return `Flagged because ${suffix} asked about pricing, packages, or purchase intent.`;
-    case "support":
-      return `Flagged because ${suffix} looked like support, complaint, or problem-solving requests.`;
-    case "weak_answer":
-      return `Flagged because ${suffix} ended in weak or uncertain assistant answers.`;
-    default:
-      return `Flagged because ${suffix} showed a recurring pattern worth reviewing.`;
-  }
-}
-
 function getConversationFlagReason(intent, options = {}) {
   const weakAnswer = options.weakAnswer === true;
   const unresolved = options.unresolved === true;

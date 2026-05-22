@@ -85,7 +85,6 @@ function ipv6ToBigInt(address = "") {
   const withoutZone = normalized.split("%")[0];
   const ipv4Match = withoutZone.match(/(?:^|:)(\d{1,3}(?:\.\d{1,3}){3})$/);
   let candidate = withoutZone;
-  let ipv4Groups = [];
 
   if (ipv4Match) {
     const ipv4 = parseIpv4Address(ipv4Match[1]);
@@ -94,7 +93,7 @@ function ipv6ToBigInt(address = "") {
       return null;
     }
 
-    ipv4Groups = [
+    const ipv4Groups = [
       ((ipv4[0] << 8) | ipv4[1]).toString(16),
       ((ipv4[2] << 8) | ipv4[3]).toString(16),
     ];

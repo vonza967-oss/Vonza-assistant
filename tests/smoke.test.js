@@ -1689,7 +1689,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.doesNotMatch(dashboardScript.text, /\$\{buildDashboardHelpAssistantMarkup\(\)\}/);
         assert.match(dashboardScript.text, /Home/);
         assert.match(dashboardScript.text, /Getting started/);
-        assert.match(dashboardScript.text, /Connect Gmail/);
+        assert.match(dashboardScript.text, /Email connection is planned/);
         assert.match(dashboardScript.text, /Connect Google/);
         assert.match(dashboardScript.text, /Home at a glance/);
         assert.match(dashboardScript.text, /Messages today/);

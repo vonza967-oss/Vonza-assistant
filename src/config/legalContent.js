@@ -48,15 +48,6 @@ const MISSING_CONTRACT_FIELDS = Object.freeze([
   "irányadó jog és illetékes bíróság",
 ]);
 
-const MISSING_PRIVACY_FIELDS = Object.freeze([
-  "adatkezelő hivatalos neve",
-  "adatkezelő postai címe",
-  "adatkezelő közvetlen kapcsolattartási e-mail címe",
-  "végleges megőrzési időtartamok szerveroldali adatkategóriánként",
-  "nemzetközi adattovábbítás jogalapja / garanciája szolgáltatónként",
-  "felügyeleti hatóság pontos megnevezése és elérhetősége az adatkezelő letelepedése alapján",
-]);
-
 const MISSING_HOSTING_FIELDS = Object.freeze([
   "hosting provider teljes cégnév",
   "hosting provider székhelye",

@@ -198,10 +198,6 @@ function findContact(workspace = {}, contactId = "") {
   return normalizeArray(workspace.contacts?.list).find((contact) => cleanText(contact.id) === cleanText(contactId)) || null;
 }
 
-function findFollowUp(workspace = {}, followUpId = "") {
-  return normalizeArray(workspace.automations?.followUps).find((followUp) => cleanText(followUp.id) === cleanText(followUpId)) || null;
-}
-
 function buildOpenSurfaceResult(target = {}) {
   return {
     status: "applied",
@@ -566,7 +562,7 @@ export async function dismissTodayCopilotProposal(supabase, options = {}) {
 
 export async function applyTodayCopilotProposal(supabase, options = {}) {
   const proposal = options.proposal || {};
-  let execution = null;
+  let execution;
 
   try {
     switch (cleanText(proposal.type)) {

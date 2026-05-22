@@ -640,7 +640,7 @@ export function buildOperatorActivationChecklist({
 
 export function buildOperatorBriefing({
   status = {},
-  summary = {},
+  summary: _summary = {},
   tasks = [],
   nextAction = null,
   activation = createDefaultOperatorActivationState(),
