@@ -677,6 +677,105 @@ Recommended Sprint 8:
 
 - Split Analytics CSS next. The Analytics renderer is already isolated in `frontend/dashboardAnalytics.js`, the focused dashboard tests cover Analytics source labels and empty states, and the remaining Analytics styles are less intertwined with Settings/Front Desk than a Settings split would be.
 
+## Sprint 8 - Analytics CSS Split
+
+Starting baseline before edits:
+
+| Item | Value |
+| --- | ---: |
+| `frontend/dashboard.js` | 18,551 lines |
+| `frontend/dashboard.css` | 17,855 lines |
+| `frontend/dashboard-install.css` | 1,234 lines |
+| Lint warnings | 4 |
+
+Starting CSS load order:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `settings/settings.css`
+
+Starting Analytics CSS boundaries in `frontend/dashboard.css`:
+
+- Legacy/simple Analytics grid around line 1,849.
+- Analytics stack, report, source, chart, question, recommendation, contact, and launch-board selectors around lines 4,845-5,607.
+- Light workspace Analytics text overrides around lines 6,443-6,488.
+- Responsive Analytics layout groups around lines 7,583-8,384.
+- Workspace/dark-theme Analytics contrast and report overrides around lines 9,025-11,063.
+- V2 Analytics shell, chart, source breakdown, heatmap, gauge, table, and responsive ordering around lines 11,102-11,829.
+- Product-wide Analytics override eras around lines 12,058-14,312 and 14,848-17,483.
+- Final compact Analytics density rules around lines 17,787-17,851.
+
+Files changed in Sprint 8:
+
+- `frontend/dashboard.css`
+- `frontend/dashboard-analytics.css`
+- `dashboard.html`
+- `src/app/createApp.js`
+- `src/routes/publicRoutes.js`
+- `src/utils/securityHeaders.js`
+- `tests/smoke.test.js`
+- `tests/dashboardContrastStyles.test.js`
+- `docs/engineering/dashboard-refactor-plan.md`
+
+Line counts after Sprint 8:
+
+| File | Before | After |
+| --- | ---: | ---: |
+| `frontend/dashboard.css` | 17,855 | 16,071 |
+| `frontend/dashboard-analytics.css` | 0 | 1,966 |
+| `frontend/dashboard-install.css` | 1,234 | 1,234 |
+| `frontend/dashboard.js` | 18,551 | 18,551 |
+
+CSS load order after Sprint 8:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `dashboard-analytics.css`
+4. `settings/settings.css`
+
+Analytics CSS moved:
+
+- Legacy `.analytics-*` page stacks, source cards, report grids, metric cards, question lists, recommendations, charts, contact mix, and launch-board styles.
+- V2 Analytics-only layout and visual selectors: `.dashboard-v2-analytics`, `.v2-analytics-*`, line chart, donut/source breakdown, heatmap, gauge, split-stat, source performance table, and Analytics section-specific compact overrides.
+- Analytics light/dark contrast, responsive, mobile, and density overrides that were scoped to Analytics selectors.
+
+Styles intentionally left in `dashboard.css`:
+
+- Shared shell/sidebar/page layout, base buttons, base forms, cards, badges, pills, placeholder cards, generic V2 card/metric/button/grid utilities, and global responsive breakpoints.
+- A small 760-959px dashboard shell reset stayed in `dashboard.css` because the tablet browser check exposed an existing global shell overflow that was not Analytics-owned.
+- Home-specific V2 rows and shared row typography such as `.v2-row-title`, `.v2-row-meta`, and `.v2-section-*`.
+- Mixed grouped rules where the non-Analytics members are still shared by Home, Customers, Front Desk, Install, Settings, or dashboard-wide density.
+
+Static guard added:
+
+- Smoke coverage asserts `dashboard-analytics.css` exists, loads after `dashboard-install.css`, loads before `settings/settings.css`, serves successfully, and contains key Analytics selectors.
+- Smoke coverage keeps Install selectors in `dashboard-install.css` and verifies shared selectors such as `.home-grid`, `.placeholder-card`, and generic V2 card styles remain in `dashboard.css`.
+- Dashboard asset versioning, no-store headers, and dashboard CSP asset classification now include `/dashboard-analytics.css`.
+- Dashboard contrast tests read Analytics contrast selectors from `dashboard-analytics.css` while continuing to assert shared contrast selectors in `dashboard.css`.
+
+Browser checks run:
+
+- `http://127.0.0.1:3000/dashboard-v2-fixture#analytics` at desktop and mobile/tablet widths: Analytics identity, metric cards, source breakdown, top questions, chart cards, heatmap, AI-vs-human handling, conversion/time-saved, source performance table, contact mix, stylesheet order, and console health.
+- Quick dashboard routes: `#home`, `#customers`, `#front-desk`, `#install`, and `#settings/front-desk`.
+- Public surfaces: full-page Front Desk, normal widget, smart embed matrix, and WordPress/static plugin coverage through smoke tests.
+
+Remaining CSS risks:
+
+- `dashboard.css` still contains mixed Analytics selector fragments where the same rule also owns shared page, Home, Customers, Front Desk, Install, Settings, or generic V2 behavior.
+- The cascade now depends on four ordered dashboard CSS files; future splits should keep static load-order guards paired with browser checks.
+- The local fixture covers the populated Analytics path. Empty-state visual coverage remains primarily through focused VM tests unless a dedicated browser fixture is added.
+
+Sprint 8 verification:
+
+- Required `node --check` coverage for dashboard helpers, public scripts, Settings shell, and assistant embed passed.
+- Focused dashboard visibility, operator workspace, and Analytics tests passed.
+- Smoke, schema sync, lint, and whitespace checks passed.
+- `npm run lint` still reports the same four unrelated warnings recorded at baseline.
+
+Recommended Sprint 9:
+
+- Split Settings CSS next. Settings already has a separately loaded `settings/settings.css`, but `dashboard.css` still owns shared/legacy Settings selector fragments and density interactions; that makes it the next CSS-risk reduction step before returning to JavaScript helper extraction.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 5:

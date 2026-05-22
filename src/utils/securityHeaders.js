@@ -13,6 +13,7 @@ function isDashboardAssetPath(pathname) {
     "/dashboard.js",
     "/dashboard.css",
     "/dashboard-install.css",
+    "/dashboard-analytics.css",
     "/dashboardHelpers.js",
     "/dashboardState.js",
     "/dashboardLabels.js",

@@ -12,6 +12,10 @@ function readDashboardCss() {
   return readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
 }
 
+function readDashboardAnalyticsCss() {
+  return readFileSync(path.join(repoRoot, "frontend", "dashboard-analytics.css"), "utf8");
+}
+
 function readSettingsCss() {
   return readFileSync(path.join(repoRoot, "frontend", "settings", "settings.css"), "utf8");
 }
@@ -127,13 +131,15 @@ test("dashboard Front Desk light shell keeps settings navigation and content rea
 
 test("dashboard contrast pass covers analytics, chips, active rows, and settings shell text", () => {
   const dashboardCss = readDashboardCss();
+  const analyticsCss = readDashboardAnalyticsCss();
   const settingsCss = readSettingsCss();
 
   assert.match(dashboardCss, /--light-surface-text:\s*#40516c/i);
   assert.match(dashboardCss, /--light-surface-muted-strong:\s*#435775/i);
-  assert.match(dashboardCss, /\.workspace-page \.analytics-report-title,[^}]*color:\s*var\(--light-surface-title\)/i);
-  assert.match(dashboardCss, /\.workspace-page \.analytics-report-copy,[^}]*\.workspace-page \.frontdesk-section-copy,[^}]*\.workspace-page \.field-help,[^}]*color:\s*var\(--light-surface-text\)/i);
-  assert.match(dashboardCss, /\.workspace-page \.analytics-report-metric-note\.tone-neutral,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(analyticsCss, /\.workspace-page \.analytics-report-title,[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(analyticsCss, /\.workspace-page \.analytics-report-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(dashboardCss, /\.workspace-page \.frontdesk-section-copy,[^}]*\.workspace-page \.field-help,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(analyticsCss, /\.workspace-page \.analytics-report-metric-note\.tone-neutral,[^}]*color:\s*var\(--light-surface-text\)/i);
   assert.match(dashboardCss, /\.workspace-page \.toolbar-chip,[^}]*\.workspace-page \.local-section-button,[^}]*\.workspace-page \.prompt-chip,[^}]*color:\s*var\(--light-pill-text\)/i);
   assert.match(dashboardCss, /\.workspace-record-row\.active,[^}]*\.contact-row\.active\s*\{[^}]*background:\s*var\(--light-active-bg\);[^}]*box-shadow:\s*inset 3px 0 0 #0f8f7f;/i);
 

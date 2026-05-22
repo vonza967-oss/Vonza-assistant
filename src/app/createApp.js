@@ -26,6 +26,7 @@ export function createApp({ rootDir }) {
         normalizedPath.endsWith("/frontend/dashboard.js")
         || normalizedPath.endsWith("/frontend/dashboard.css")
         || normalizedPath.endsWith("/frontend/dashboard-install.css")
+        || normalizedPath.endsWith("/frontend/dashboard-analytics.css")
         || normalizedPath.endsWith("/frontend/dashboardHelpers.js")
         || normalizedPath.endsWith("/frontend/dashboardState.js")
         || normalizedPath.endsWith("/frontend/dashboardLabels.js")
