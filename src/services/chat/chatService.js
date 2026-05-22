@@ -10,6 +10,7 @@ import {
   buildChatSystemPrompt,
   buildConversationGuidance,
   buildRetrievedBusinessContextForChat,
+  detectUserIntent,
   getFactualReplyGuardrailIssues,
   getReplyRepairIssues,
 } from "./prompting.js";
@@ -46,7 +47,10 @@ import {
   cleanText,
   detectResponseLanguage,
   extractEmails,
+  extractPhoneCandidates,
+  isInternalPlatformEmail,
   isPlaceholderEmail,
+  isPlaceholderPhone,
   normalizeAssistantReply,
   sanitizeChatHistory,
   selectResponseLanguage,
@@ -133,17 +137,52 @@ function logChatMetadata(eventName, payload = {}) {
   });
 }
 
+function normalizePhoneDigits(value = "") {
+  return cleanText(value).replace(/\D/g, "");
+}
+
+function extractContactUrls(value = "") {
+  return [...new Set(
+    (String(value || "").match(/https?:\/\/[^\s<>"')]+/gi) || [])
+      .map((url) => {
+        try {
+          const parsed = new URL(url);
+          parsed.hash = "";
+          return parsed.toString();
+        } catch {
+          return "";
+        }
+      })
+      .filter((url) => /(?:contact|book|booking|schedule|appointment|quote|inquiry|enquiry|kapcsolat|foglal)/i.test(url))
+  )];
+}
+
+function extractTrustedEmails(value = "", { allowInternalPlatform = false } = {}) {
+  return extractEmails(value).filter((email) =>
+    !isPlaceholderEmail(email) &&
+    (allowInternalPlatform || !isInternalPlatformEmail(email))
+  );
+}
+
+function extractTrustedPhones(value = "") {
+  return extractPhoneCandidates(value).filter((phone) => !isPlaceholderPhone(phone));
+}
+
 function listTrustedReplyEmails({
   websiteContent = {},
   widgetConfig = {},
   userMessage = "",
   history = [],
   visitorIdentity = null,
+  approvedAnswers = [],
 } = {}) {
   const configuredEmail = cleanText(widgetConfig.contactEmail || widgetConfig.contact_email).toLowerCase();
   return new Set(
     [
-      ...extractEmails(websiteContent.content || ""),
+      ...extractTrustedEmails(websiteContent.content || ""),
+      ...approvedAnswers.flatMap((item) => extractTrustedEmails(item.answerText || item.answer_text || "", {
+        allowInternalPlatform: true,
+      })),
       ...extractEmails(userMessage),
       ...history.flatMap((entry) => extractEmails(entry?.content || "")),
       cleanText(visitorIdentity?.email).toLowerCase(),
@@ -153,15 +192,72 @@ function listTrustedReplyEmails({
 }
 
 function replyContainsUnsafePlaceholderEmail(reply = "", trustedEmails = new Set()) {
-  return extractEmails(reply).some((email) => isPlaceholderEmail(email) && !trustedEmails.has(email));
+  return extractEmails(reply).some((email) =>
+    (isPlaceholderEmail(email) || isInternalPlatformEmail(email)) && !trustedEmails.has(email)
+  );
+}
+
+function collectTrustedBusinessContactEvidence({
+  widgetConfig = {},
+  approvedAnswers = [],
+  businessContext = "",
+  retrievedBusinessContext = "",
+} = {}) {
+  const trustedEmails = new Set();
+  const trustedPhones = new Set();
+  const trustedUrls = new Set();
+  const configuredEmail = cleanText(widgetConfig.contactEmail || widgetConfig.contact_email).toLowerCase();
+  const configuredPhone = cleanText(widgetConfig.contactPhone || widgetConfig.contact_phone);
+
+  if (configuredEmail && !isPlaceholderEmail(configuredEmail)) {
+    trustedEmails.add(configuredEmail);
+  }
+
+  if (configuredPhone && !isPlaceholderPhone(configuredPhone)) {
+    trustedPhones.add(normalizePhoneDigits(configuredPhone));
+  }
+
+  const approvedText = approvedAnswers
+    .map((item) => [item.triggerText || item.trigger_text || item.title, item.answerText || item.answer_text].map(cleanText).join("\n"))
+    .join("\n\n");
+
+  extractTrustedEmails(approvedText, { allowInternalPlatform: true }).forEach((email) => trustedEmails.add(email));
+  extractTrustedPhones(approvedText).forEach((phone) => trustedPhones.add(normalizePhoneDigits(phone)));
+  extractContactUrls(approvedText).forEach((url) => trustedUrls.add(url));
+
+  const contextText = [businessContext, retrievedBusinessContext].map(cleanText).filter(Boolean).join("\n\n");
+  extractTrustedEmails(contextText).forEach((email) => trustedEmails.add(email));
+  extractTrustedPhones(contextText).forEach((phone) => trustedPhones.add(normalizePhoneDigits(phone)));
+  extractContactUrls(contextText).forEach((url) => trustedUrls.add(url));
+
+  return {
+    trustedEmails,
+    trustedPhones,
+    trustedUrls,
+    hasApprovedContactGuidance: approvedAnswers.length > 0 && /contact|email|phone|call|reach|whatsapp|book|booking|quote|kapcsolat|telefon/i.test(approvedText),
+    hasVerifiedContactDetail: trustedEmails.size > 0 || trustedPhones.size > 0 || trustedUrls.size > 0,
+  };
+}
+
+function replyContainsUntrustedContactDetail(reply = "", evidence = {}) {
+  const emails = extractEmails(reply);
+  const phones = extractPhoneCandidates(reply);
+  const urls = extractContactUrls(reply);
+
+  return emails.some((email) => !evidence.trustedEmails?.has(email))
+    || phones.some((phone) => {
+      const digits = normalizePhoneDigits(phone);
+      return digits && !evidence.trustedPhones?.has(digits);
+    })
+    || urls.some((url) => !evidence.trustedUrls?.has(url));
 }
 
 function buildMissingVerifiedContactReply(language) {
   if (language === "Hungarian") {
-    return "Nem látok megerősített elérhetőséget a weboldalból vagy a jelenlegi élő beállításból, ezért nem akarok kitalálni egy email címet vagy telefonszámot. Ha szeretnéd, segítek megfogalmazni, mit érdemes kérdezni, amint megvan a helyes kapcsolat. Miben szeretnél írni vagy telefonálni nekik?";
+    return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
   }
 
-  return "I don’t see a verified contact email or phone number from the website or the live setup, so I don’t want to guess. If you want, I can still help you figure out what to ask once the right contact route is confirmed. What are you trying to reach them about?";
+  return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
 }
 
 function buildAiCapacityReachedReply(language) {
@@ -499,6 +595,13 @@ export async function handleChatRequest({
     userMessage: message,
     history,
     visitorIdentity,
+    approvedAnswers: relevantApprovedAnswers,
+  });
+  const trustedBusinessContactEvidence = collectTrustedBusinessContactEvidence({
+    widgetConfig,
+    approvedAnswers: relevantApprovedAnswers,
+    businessContext,
+    retrievedBusinessContext,
   });
   const usageEntries = [];
   let finalReply;
@@ -529,10 +632,7 @@ export async function handleChatRequest({
               reply,
               userMessage: effectiveUserText,
               history,
-              businessContext: [
-                businessContext,
-                retrievedBusinessContext,
-              ].join("\n\n"),
+              businessContext: retrievedBusinessContext,
               approvedAnswersPrompt,
             }),
           ];
@@ -580,6 +680,19 @@ export async function handleChatRequest({
       pageUrl,
     });
     finalReply = buildMissingVerifiedContactReply(language);
+  }
+
+  if (detectUserIntent(effectiveUserText, history) === "contact") {
+    if (!trustedBusinessContactEvidence.hasVerifiedContactDetail && !trustedBusinessContactEvidence.hasApprovedContactGuidance) {
+      finalReply = buildMissingVerifiedContactReply(language);
+    } else if (replyContainsUntrustedContactDetail(finalReply, trustedBusinessContactEvidence)) {
+      console.warn("[chat] Replacing untrusted contact-detail reply with grounded fallback.", {
+        agentId: agent.id,
+        installId,
+        pageUrl,
+      });
+      finalReply = buildMissingVerifiedContactReply(language);
+    }
   }
 
   const userMessageCreatedAt = new Date().toISOString();

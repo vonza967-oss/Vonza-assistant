@@ -1443,7 +1443,268 @@ test("owner-approved answers are included as the highest-priority trusted source
   assert.match(calls[0].messages[0].content, /Owner-approved answers/);
   assert.match(calls[0].messages[0].content, /highest-priority trusted business source/);
   assert.match(calls[0].messages[0].content, /Emergency visits require a custom quote/);
+  assert.match(calls[0].messages.at(-1).content, /OWNER-APPROVED ANSWERS — HIGH PRIORITY/);
+  assert.match(calls[0].messages.at(-1).content, /use that answer as the primary guidance/i);
   assert.match(result.reply, /custom quote/i);
+});
+
+test("contact questions without verified contact data use the strict safe fallback", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Acme",
+        meta_description: "Service business",
+        content: "Acme describes its services but does not publish an email or phone number.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "You can email info@madeup.example.com or call +1 555 222 3333." } }],
+          }),
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/contact",
+      visitor_session_key: "session-contact-missing",
+      message: "How can I contact you?",
+    },
+  });
+
+  assert.equal(
+    result.reply,
+    "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up."
+  );
+  assert.doesNotMatch(result.reply, /info@madeup|555/);
+});
+
+test("placeholder and Vonza platform support emails are not surfaced as business contact details", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Acme",
+        meta_description: "Service business",
+        content: "Contact us at mail@example.com. Platform help: support@vonza.app.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "Use support@vonza.app or mail@example.com. What do you need?" } }],
+          }),
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/contact",
+      visitor_session_key: "session-contact-placeholder",
+      message: "What is your email?",
+    },
+  });
+
+  assert.match(result.reply, /I do not have a confirmed contact detail/);
+  assert.doesNotMatch(result.reply, /support@vonza\.app|mail@example\.com/i);
+});
+
+test("configured and trusted website contact details can be surfaced", async () => {
+  const configuredState = buildChatState();
+  configuredState.widget_configs[0].contact_email = "team@acmeservices.com";
+  let supabase = createFakeSupabase(configuredState);
+
+  let result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "You can contact them at team@acmeservices.com. What should they help with?" } }],
+          }),
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/contact",
+      visitor_session_key: "session-configured-contact",
+      message: "What is your email?",
+    },
+  });
+
+  assert.match(result.reply, /team@acmeservices\.com/);
+
+  supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Acme Contact",
+        meta_description: "Contact Acme",
+        content: "Title: Contact\nBody:\nFor project questions, email projects@acmeservices.com.",
+        crawled_urls: ["https://allowed.example/contact"],
+        page_count: 1,
+      },
+    ],
+  });
+
+  result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [{ message: { content: "For project questions, email projects@acmeservices.com. What would you like to ask?" } }],
+          }),
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/contact",
+      visitor_session_key: "session-website-contact",
+      message: "How can I contact you?",
+    },
+  });
+
+  assert.match(result.reply, /projects@acmeservices\.com/);
+});
+
+test("active approved contact guidance is authoritative in the public chat path", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    front_desk_training_items: [
+      {
+        id: "rapid-active",
+        owner_id: "owner-1",
+        agent_id: "agent-1",
+        type: "approved_answer",
+        title: "Rapid blue contact",
+        trigger_text: "contact rapid blue",
+        answer_text: "For this contact question, use RAPID BLUE 42 as the intake guidance. Do not describe it as a product.",
+        tags: ["contact"],
+        source_type: "manual",
+        status: "active",
+      },
+      {
+        id: "rapid-draft",
+        owner_id: "owner-1",
+        agent_id: "agent-1",
+        type: "approved_answer",
+        title: "Draft rapid blue",
+        trigger_text: "contact rapid blue",
+        answer_text: "Draft RAPID BLUE 42 text should not be public.",
+        tags: ["contact"],
+        source_type: "manual",
+        status: "draft",
+      },
+      {
+        id: "rapid-archived",
+        owner_id: "owner-1",
+        agent_id: "agent-1",
+        type: "approved_answer",
+        title: "Archived rapid blue",
+        trigger_text: "contact rapid blue",
+        answer_text: "Archived RAPID BLUE 42 text should not be public.",
+        tags: ["contact"],
+        source_type: "manual",
+        status: "archived",
+      },
+      {
+        id: "rapid-cross-agent",
+        owner_id: "owner-1",
+        agent_id: "agent-2",
+        type: "approved_answer",
+        title: "Cross agent rapid blue",
+        trigger_text: "contact rapid blue",
+        answer_text: "Cross-agent RAPID BLUE 42 text should not be public.",
+        tags: ["contact"],
+        source_type: "manual",
+        status: "active",
+      },
+      {
+        id: "unrelated",
+        owner_id: "owner-1",
+        agent_id: "agent-1",
+        type: "approved_answer",
+        title: "Refund",
+        trigger_text: "refund policy",
+        answer_text: "Unrelated refund guidance.",
+        tags: ["refund"],
+        source_type: "manual",
+        status: "active",
+      },
+    ],
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Acme",
+        meta_description: "Service business",
+        content: "Website says contact details are not published.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+  const calls = [];
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            const context = payload.messages.at(-1).content;
+            assert.match(context, /OWNER-APPROVED ANSWERS — HIGH PRIORITY/);
+            assert.match(context, /RAPID BLUE 42/);
+            assert.doesNotMatch(context, /Draft RAPID BLUE 42|Archived RAPID BLUE 42|Cross-agent RAPID BLUE 42|Unrelated refund/);
+            return {
+              choices: [{ message: { content: "Use RAPID BLUE 42 as the intake guidance. What details should the business follow up on?" } }],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/contact",
+      visitor_session_key: "session-rapid-blue",
+      message: "How should I contact you about rapid blue?",
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.match(result.reply, /RAPID BLUE 42/);
+  assert.doesNotMatch(result.reply, /product|service/i);
 });
 
 test("/chat persists explicit visitor identity on stored messages", async () => {

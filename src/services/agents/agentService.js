@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
 
-import { cleanText, slugifyLookupValue } from "../../utils/text.js";
+import {
+  cleanText,
+  isPlaceholderEmail,
+  isPlaceholderPhone,
+  slugifyLookupValue,
+} from "../../utils/text.js";
 import { getHostnameFromUrl, normalizeWebsiteUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
 import { getAgentMessageStats } from "../chat/messageService.js";
@@ -331,7 +336,11 @@ function normalizeOptionalEmail(value) {
     return "";
   }
 
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return "";
+  }
+
+  return isPlaceholderEmail(normalized) ? "" : normalized;
 }
 
 function buildInvalidEmailError() {
@@ -346,7 +355,11 @@ function normalizeOptionalPhone(value) {
   }
 
   const digits = normalized.replace(/\D/g, "");
-  return digits.length >= 7 ? normalized : "";
+  if (digits.length < 7) {
+    return "";
+  }
+
+  return isPlaceholderPhone(normalized) ? "" : normalized;
 }
 
 function buildInvalidPhoneError() {

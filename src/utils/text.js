@@ -9,10 +9,22 @@ const PLACEHOLDER_EMAIL_DOMAINS = new Set([
   "example.org",
   "example.net",
   "example.edu",
+  "example.test",
   "test.com",
+  "test.example",
   "test.local",
   "localhost",
   "invalid",
+]);
+const INTERNAL_PLATFORM_EMAILS = new Set([
+  "support@vonza.app",
+  "support@vonza.com",
+  "hello@vonza.app",
+  "hello@vonza.com",
+]);
+const INTERNAL_PLATFORM_EMAIL_DOMAINS = new Set([
+  "vonza.app",
+  "vonza.com",
 ]);
 const PLACEHOLDER_PHONE_DIGITS = new Set([
   "0000000",
@@ -297,7 +309,23 @@ export function isPlaceholderEmail(value = "") {
 
   const [, domain = ""] = normalized.split("@");
 
-  return PLACEHOLDER_EMAIL_DOMAINS.has(domain);
+  return PLACEHOLDER_EMAIL_DOMAINS.has(domain)
+    || domain.endsWith(".example")
+    || domain.endsWith(".test")
+    || domain.startsWith("example.");
+}
+
+export function isInternalPlatformEmail(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+
+  if (!normalized || !normalized.includes("@")) {
+    return false;
+  }
+
+  const [local = "", domain = ""] = normalized.split("@");
+
+  return INTERNAL_PLATFORM_EMAILS.has(normalized)
+    || (INTERNAL_PLATFORM_EMAIL_DOMAINS.has(domain) && /^(support|help|hello|contact|team)$/i.test(local));
 }
 
 export function isPlaceholderPhone(value = "") {
@@ -308,6 +336,10 @@ export function isPlaceholderPhone(value = "") {
   }
 
   if (PLACEHOLDER_PHONE_DIGITS.has(digits)) {
+    return true;
+  }
+
+  if (/(^|1)555\d{4,}/.test(digits)) {
     return true;
   }
 

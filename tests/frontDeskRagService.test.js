@@ -431,7 +431,7 @@ test("retrieved context marks source priority, confidence, and safe fallback rul
     retrievalConfidence: "medium",
   });
 
-  assert.match(context, /OWNER-APPROVED ANSWERS:/);
+  assert.match(context, /OWNER-APPROVED ANSWERS — HIGH PRIORITY:/);
   assert.match(context, /BUSINESS PROFILE FACTS:/);
   assert.match(context, /WEBSITE CONTEXT:/);
   assert.match(context, /RETRIEVAL CONFIDENCE:\nmedium/);

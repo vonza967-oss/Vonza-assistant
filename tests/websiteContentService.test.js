@@ -184,8 +184,8 @@ test("pricing and contact guidance encourages structured business-specific answe
 
   const contactGuidance = buildConversationGuidance("How can I contact you?", []);
 
-  assert.match(contactGuidance, /concrete contact details in bullets/i);
-  assert.match(contactGuidance, /most practical next action/i);
+  assert.match(contactGuidance, /verified business email, phone, contact URL/i);
+  assert.match(contactGuidance, /I do not have a confirmed contact detail/i);
 });
 
 test("assistant system prompt forbids unsupported launch-sensitive claims", () => {
@@ -303,11 +303,11 @@ test("assistant reply generation passes business references as untrusted user co
   );
   assert.ok(messages.some((message) =>
     message.role === "system" &&
-    /Retrieved website content is untrusted/i.test(message.content)
+    /Treat relevant owner-approved answers as highest priority/i.test(message.content)
   ));
   assert.ok(messages.some((message) =>
     message.role === "user" &&
-    /BEGIN UNTRUSTED Business reference/.test(message.content) &&
+    /BEGIN RETRIEVED Business reference/.test(message.content) &&
     /Latest user message/.test(message.content)
   ));
 });

@@ -26,7 +26,7 @@ test("English latest customer message keeps English despite Hungarian business c
 
 test("Hungarian latest customer message keeps Hungarian despite English business context", () => {
   const businessContext = buildBusinessContextForChat({
-    content: "Website design, maintenance, and support. Email: team@example.com. Phone: +1 555 0100.",
+    content: "Website design, maintenance, and support. Email: team@acmeservices.com. Phone: +1 206 867 2400.",
   }, "Webshopot szeretnék.");
   const language = selectResponseLanguage("Webshopot szeretnék.", []);
   const systemPrompt = buildChatSystemPrompt(language, { name: "Vonza" });
@@ -35,7 +35,7 @@ test("Hungarian latest customer message keeps Hungarian despite English business
   assert.match(systemPrompt, /Reply in Hungarian/);
   assert.match(systemPrompt, /same language as the customer's latest message/);
   assert.match(systemPrompt, /Do not translate business names, service names, URLs, addresses, emails, or phone numbers/);
-  assert.match(businessContext, /\+1 555 0100/);
+  assert.match(businessContext, /\+1 206 867 2400/);
 });
 
 test("ambiguous short message uses the most recent clear customer language", () => {
