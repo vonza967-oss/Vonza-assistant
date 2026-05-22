@@ -1710,6 +1710,15 @@ function focusComposerInputIfSafe(options = {}) {
     return false;
   }
 
+  if (isCanvasEmbeddedPageMode()) {
+    try {
+      input.focus({ preventScroll: true });
+    } catch (_) {
+      input.focus();
+    }
+    return true;
+  }
+
   input.focus();
   return true;
 }
@@ -1805,6 +1814,17 @@ function hasCanvasVisibleThread() {
     const className = String(child.className || "");
     return className.includes("message") && !className.includes("intro") && child.hidden !== true;
   });
+}
+
+function getCanvasVisibleMessageCount(chat) {
+  if (!isCanvasEmbeddedPageMode()) {
+    return 0;
+  }
+
+  return Array.from(chat?.children || []).filter((child) => {
+    const className = String(child.className || "");
+    return className.includes("message") && !className.includes("intro") && child.hidden !== true;
+  }).length;
 }
 
 function updateCanvasConversationState() {
@@ -3344,6 +3364,7 @@ function buildCanvasAnswerActionsMarkup() {
 
 function appendMessage(chat, role, text, options = {}) {
   const wrapper = document.createElement("div");
+  const canvasVisibleMessageCount = getCanvasVisibleMessageCount(chat);
   const isCanvasAnswer = isCanvasEmbeddedPageMode()
     && role === "bot"
     && !options.typing
@@ -3396,9 +3417,10 @@ function appendMessage(chat, role, text, options = {}) {
   `;
 
   chat.appendChild(wrapper);
-  chat.scrollTop = isCanvasEmbeddedPageMode() && (isCanvasAnswer || isCanvasLoading)
-    ? 0
-    : chat.scrollHeight;
+  const shouldAnchorFirstCanvasAnswer = isCanvasEmbeddedPageMode()
+    && (isCanvasAnswer || isCanvasLoading)
+    && canvasVisibleMessageCount <= 1;
+  chat.scrollTop = shouldAnchorFirstCanvasAnswer ? 0 : chat.scrollHeight;
   updateCanvasConversationState();
   queueEmbeddedHeightUpdate();
   return wrapper;

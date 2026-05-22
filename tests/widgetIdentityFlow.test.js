@@ -88,15 +88,20 @@ function createFakeElement(id = "") {
         ...event,
       });
     },
-    focus() {
+    focus(options = undefined) {
       this.focused = true;
+      this.focusOptions = options;
     },
     appendChild(child) {
+      child.parentNode = this;
       this.children.push(child);
       return child;
     },
     remove() {
       this.removed = true;
+      if (this.parentNode?.children) {
+        this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
+      }
     },
     setAttribute(name, value) {
       this[name] = value === "" ? true : value;
@@ -3698,6 +3703,73 @@ test("canvas full embedded page mode renders a subtle answering state while chat
 
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-answering"), false);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot canvas-answer-message")), true);
+});
+
+test("canvas follow-up messages keep the latest turn in view without refocusing the host page", async () => {
+  let chatCount = 0;
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: { assistantName: "Acme Assistant" },
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        chatCount += 1;
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: chatCount === 1
+                ? "First answer."
+                : "Second answer with the latest details.",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const input = harness.elements.get("input");
+  const chat = harness.elements.get("chat");
+  chat.scrollHeight = 1800;
+  input.value = "First question";
+  await harness.hooks.sendMessage();
+
+  assert.equal(chat.scrollTop, 0);
+  assert.equal(input.focusOptions?.preventScroll, true);
+
+  chat.scrollHeight = 2400;
+  input.value = "Follow-up question";
+  await harness.hooks.sendMessage();
+
+  assert.equal(chat.scrollTop, 2400);
+  assert.equal(input.focusOptions?.preventScroll, true);
+  assert.match(chat.children.at(-1).innerHTML, /Second answer with the latest details/);
 });
 
 test("normal widget typing state stays unchanged by canvas transition polish", async () => {
