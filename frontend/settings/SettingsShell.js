@@ -1,5 +1,6 @@
 (function registerVonzaSettingsShell(global) {
   const SETTINGS_STORAGE_KEY = "vonza_dashboard_settings_section";
+  const SETTINGS_FALLBACK_UI_STATE_STORAGE_KEY = "vonza_dashboard_ui_state";
   const SETTINGS_SECTION_DETAILS = [
     {
       key: "general",
@@ -28,6 +29,15 @@
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
+  const FRONT_DESK_SETTINGS_TABS = Object.freeze(["identity", "voice", "full_page", "routing", "appearance"]);
+  const FRONT_DESK_SETTINGS_TAB_HASH_SEGMENTS = Object.freeze({
+    identity: "identity-welcome",
+    voice: "voice",
+    full_page: "full-page-assistant",
+    routing: "routing",
+    appearance: "widget-appearance",
+  });
+  const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
   const SETTINGS_SECTION_ALIASES = Object.freeze({
     assistant: "general",
     branding: "general",
@@ -769,7 +779,83 @@
             { code: "en", nativeLabel: "English" },
             { code: "hu", nativeLabel: "Magyar" },
           ],
+      getDashboardUiStateValue:
+        typeof options.getDashboardUiStateValue === "function"
+          ? options.getDashboardUiStateValue
+          : getFallbackDashboardUiStateValue,
+      setDashboardUiStateValue:
+        typeof options.setDashboardUiStateValue === "function"
+          ? options.setDashboardUiStateValue
+          : setFallbackDashboardUiStateValue,
     };
+  }
+
+  function normalizeFrontDeskSettingsTab(tabKey) {
+    const normalized = defaultTrimText(tabKey).toLowerCase().replace(/_/g, "-");
+    const aliases = {
+      identity: "identity",
+      "identity-welcome": "identity",
+      welcome: "identity",
+      voice: "voice",
+      full_page: "full_page",
+      "full-page": "full_page",
+      "full-page-assistant": "full_page",
+      page: "full_page",
+      routing: "routing",
+      route: "routing",
+      appearance: "appearance",
+      "widget-appearance": "appearance",
+      widget: "appearance",
+    };
+    const candidate = aliases[normalized] || aliases[normalized.replace(/-/g, "_")] || normalized;
+
+    return FRONT_DESK_SETTINGS_TABS.includes(candidate) ? candidate : "identity";
+  }
+
+  function getFrontDeskSettingsTabHashSegment(tabKey) {
+    return FRONT_DESK_SETTINGS_TAB_HASH_SEGMENTS[normalizeFrontDeskSettingsTab(tabKey)] || "identity-welcome";
+  }
+
+  function normalizeFullPageSettingsTab(tabKey) {
+    const normalized = defaultTrimText(tabKey).toLowerCase().replace(/_/g, "-");
+    return FULL_PAGE_SETTINGS_TABS.includes(normalized) ? normalized : "content";
+  }
+
+  function getFallbackDashboardUiState() {
+    try {
+      const rawState = global.sessionStorage?.getItem(SETTINGS_FALLBACK_UI_STATE_STORAGE_KEY);
+      return rawState ? JSON.parse(rawState) : {};
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  function setFallbackDashboardUiStateValue(key, value) {
+    const nextState = {
+      ...getFallbackDashboardUiState(),
+      [key]: value,
+    };
+
+    try {
+      global.sessionStorage?.setItem(SETTINGS_FALLBACK_UI_STATE_STORAGE_KEY, JSON.stringify(nextState));
+    } catch (_error) {
+      // Dashboard state persistence is best-effort.
+    }
+
+    return value;
+  }
+
+  function getFallbackDashboardUiStateValue(key) {
+    return getFallbackDashboardUiState()[key] || "";
+  }
+
+  function getHashPathParts() {
+    const rawHash = defaultTrimText(global.location?.hash).replace(/^#\/?/, "");
+    const hashPath = rawHash.split(/[?&]/)[0];
+    return hashPath
+      .split("/")
+      .map((part) => defaultTrimText(part).toLowerCase().replace(/_/g, "-"))
+      .filter(Boolean);
   }
 
   function normalizeSettingsSection(sectionKey) {
@@ -788,14 +874,7 @@
   }
 
   function getSettingsSectionFromHash() {
-    const rawHash = defaultTrimText(global.location?.hash).replace(/^#\/?/, "");
-
-    if (!rawHash) {
-      return "";
-    }
-
-    const hashPath = rawHash.split(/[?&]/)[0];
-    const pathParts = hashPath.split("/").map((part) => defaultTrimText(part)).filter(Boolean);
+    const pathParts = getHashPathParts();
 
     if (pathParts[0] !== "settings") {
       return "";
@@ -804,17 +883,32 @@
     return pathParts[1] ? normalizeSettingsSection(pathParts[1]) : "";
   }
 
+  function getFrontDeskSettingsTabFromHash() {
+    const pathParts = getHashPathParts();
+
+    if (pathParts[0] !== "settings" || normalizeSettingsSection(pathParts[1]) !== "front_desk" || !pathParts[2]) {
+      return "";
+    }
+
+    return normalizeFrontDeskSettingsTab(pathParts[2]);
+  }
+
   function getSettingsHashSegment(sectionKey) {
     return normalizeSettingsSection(sectionKey).replace(/_/g, "-");
   }
 
-  function syncSettingsSectionHash(sectionKey) {
+  function syncSettingsSectionHash(sectionKey, options = {}) {
     if (!global.history?.replaceState || !global.location?.href) {
       return;
     }
 
     const normalizedSection = normalizeSettingsSection(sectionKey);
-    const nextHash = `#settings/${getSettingsHashSegment(normalizedSection)}`;
+    const frontDeskTab = normalizedSection === "front_desk"
+      ? normalizeFrontDeskSettingsTab(options.frontDeskTab || getActiveFrontDeskSettingsTab(options.helpers))
+      : "";
+    const nextHash = frontDeskTab
+      ? `#settings/${getSettingsHashSegment(normalizedSection)}/${getFrontDeskSettingsTabHashSegment(frontDeskTab)}`
+      : `#settings/${getSettingsHashSegment(normalizedSection)}`;
     const nextUrl = new URL(global.location.href);
 
     if (nextUrl.hash === nextHash) {
@@ -845,6 +939,27 @@
 
   function setActiveSettingsSection(section) {
     global.localStorage?.setItem(SETTINGS_STORAGE_KEY, normalizeSettingsSection(section));
+  }
+
+  function getActiveFrontDeskSettingsTab(helpers = getHelpers()) {
+    return getFrontDeskSettingsTabFromHash()
+      || normalizeFrontDeskSettingsTab(helpers.getDashboardUiStateValue("settingsFrontDeskTab"));
+  }
+
+  function setActiveFrontDeskSettingsTab(tabKey, helpers = getHelpers()) {
+    const normalizedTab = normalizeFrontDeskSettingsTab(tabKey);
+    helpers.setDashboardUiStateValue("settingsFrontDeskTab", getFrontDeskSettingsTabHashSegment(normalizedTab));
+    return normalizedTab;
+  }
+
+  function getActiveFullPageSettingsTab(helpers = getHelpers()) {
+    return normalizeFullPageSettingsTab(helpers.getDashboardUiStateValue("settingsFullPageTab"));
+  }
+
+  function setActiveFullPageSettingsTab(tabKey, helpers = getHelpers()) {
+    const normalizedTab = normalizeFullPageSettingsTab(tabKey);
+    helpers.setDashboardUiStateValue("settingsFullPageTab", normalizedTab);
+    return normalizedTab;
   }
 
   function renderSettingsIcon(name) {
@@ -1064,6 +1179,14 @@
     const fullPageSuggestedQuestionsText = fullPageConfig.suggestedQuestions.join("\n");
     const fullPageTrustItemsText = fullPageConfig.trustItems.join("\n");
     const bookingSupported = hasBookingSupport(agent);
+    const activeFrontDeskTab = getActiveFrontDeskSettingsTab(helpers);
+    const activeFullPageTab = getActiveFullPageSettingsTab(helpers);
+    const frontDeskTabClass = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "active" : "";
+    const frontDeskTabSelected = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "true" : "false";
+    const frontDeskPanelAttrs = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "" : "hidden";
+    const fullPageTabClass = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "active" : "";
+    const fullPageTabSelected = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "true" : "false";
+    const fullPagePanelAttrs = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "" : "hidden";
     const enabledPreviewCards = fullPageConfig.actionCards
       .filter((card) => {
         if (card.type === "booking" && (!bookingSupported || !fullPageConfig.showBooking)) return false;
@@ -1088,16 +1211,16 @@
         </header>
 
         <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
-          <button class="settings-frontdesk-subnav-button active" type="button" data-frontdesk-settings-tab="identity">Identity & welcome</button>
-          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="voice">Voice</button>
-          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="full_page">Full-page assistant</button>
-          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="routing">Routing</button>
-          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="appearance">Widget appearance</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("identity")}" type="button" data-frontdesk-settings-tab="identity" aria-selected="${frontDeskTabSelected("identity")}">Identity & welcome</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("voice")}" type="button" data-frontdesk-settings-tab="voice" aria-selected="${frontDeskTabSelected("voice")}">Voice</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Full-page assistant</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("routing")}" type="button" data-frontdesk-settings-tab="routing" aria-selected="${frontDeskTabSelected("routing")}">Routing</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("appearance")}" type="button" data-frontdesk-settings-tab="appearance" aria-selected="${frontDeskTabSelected("appearance")}">Widget appearance</button>
         </div>
 
         <div class="settings-frontdesk-layout">
           <div class="settings-frontdesk-editor">
-            <section class="settings-shell-section" data-frontdesk-settings-panel="identity">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="identity" ${frontDeskPanelAttrs("identity")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Widget purpose</h3>
@@ -1117,7 +1240,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section" data-frontdesk-settings-panel="identity">
+            <section class="settings-shell-section" data-frontdesk-settings-panel="identity" ${frontDeskPanelAttrs("identity")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Identity and welcome</h3>
@@ -1153,7 +1276,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section" data-frontdesk-settings-panel="voice" hidden>
+            <section class="settings-shell-section" data-frontdesk-settings-panel="voice" ${frontDeskPanelAttrs("voice")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Voice</h3>
@@ -1210,7 +1333,7 @@
               <p class="settings-shell-section-copy">Voice is processed to transcribe the visitor's question. Voice output is AI-generated.</p>
             </section>
 
-            <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" hidden>
+            <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" ${frontDeskPanelAttrs("full_page")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Full-page assistant</h3>
@@ -1218,12 +1341,12 @@
                 </div>
               </div>
               <div class="settings-full-page-subnav" role="tablist" aria-label="Full-page assistant customization sections">
-                <button class="settings-full-page-subnav-button active" type="button" data-full-page-settings-tab="content">Content</button>
-                <button class="settings-full-page-subnav-button" type="button" data-full-page-settings-tab="design">Design</button>
-                <button class="settings-full-page-subnav-button" type="button" data-full-page-settings-tab="layout">Layout</button>
+                <button class="settings-full-page-subnav-button ${fullPageTabClass("content")}" type="button" data-full-page-settings-tab="content" aria-selected="${fullPageTabSelected("content")}">Content</button>
+                <button class="settings-full-page-subnav-button ${fullPageTabClass("design")}" type="button" data-full-page-settings-tab="design" aria-selected="${fullPageTabSelected("design")}">Design</button>
+                <button class="settings-full-page-subnav-button ${fullPageTabClass("layout")}" type="button" data-full-page-settings-tab="layout" aria-selected="${fullPageTabSelected("layout")}">Layout</button>
               </div>
               <div class="settings-full-page-grid">
-                <div class="settings-shell-field-stack" data-full-page-settings-panel="content">
+                <div class="settings-shell-field-stack" data-full-page-settings-panel="content" ${fullPagePanelAttrs("content")}>
                   <div class="settings-shell-choice-row">
                     <div class="settings-shell-choice-main">
                       <p class="settings-shell-choice-title">Public full-page access</p>
@@ -1278,7 +1401,7 @@
                     <textarea id="full-page-trust-items" name="full_page_trust_items" maxlength="220" placeholder="One short item per line">${escapeHtml(fullPageTrustItemsText)}</textarea>
                   </div>
                 </div>
-                <div class="settings-shell-field-stack" data-full-page-settings-panel="design" hidden>
+                <div class="settings-shell-field-stack" data-full-page-settings-panel="design" ${fullPagePanelAttrs("design")}>
                   <input type="hidden" name="full_page_background_source" value="${escapeHtml(fullPageDesign.backgroundSource)}" data-full-page-background-source>
                   <input type="hidden" name="full_page_background_preset" value="${escapeHtml(fullPageDesign.backgroundPreset || "")}" data-full-page-background-preset>
                   <div class="settings-field-grid settings-field-grid--two">
@@ -1431,7 +1554,7 @@
                 </aside>
               </div>
 
-              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards" data-full-page-settings-panel="layout" hidden>
+              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards" data-full-page-settings-panel="layout" ${fullPagePanelAttrs("layout")}>
                 <div class="settings-full-page-action-editor-head">
                   <h4 class="settings-shell-section-title settings-shell-section-title--compact">Action cards</h4>
                   <p class="settings-shell-section-copy">Edit the starter prompts customers can click on the hosted page.</p>
@@ -1462,7 +1585,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" hidden>
+            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" ${frontDeskPanelAttrs("routing")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Routing defaults</h3>
@@ -1515,7 +1638,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" hidden>
+            <section class="settings-shell-section" data-frontdesk-settings-panel="routing" ${frontDeskPanelAttrs("routing")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Outcome routing</h3>
@@ -1575,7 +1698,7 @@
               </div>
             </section>
 
-            <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" hidden>
+            <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" ${frontDeskPanelAttrs("appearance")}>
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Widget logo</h3>
@@ -1616,7 +1739,7 @@
             ` : ""}
           </div>
 
-          <aside class="settings-frontdesk-preview" aria-label="Front Desk live readout" data-frontdesk-settings-preview hidden>
+          <aside class="settings-frontdesk-preview" aria-label="Front Desk live readout" data-frontdesk-settings-preview ${["identity", "appearance"].includes(activeFrontDeskTab) ? "" : "hidden"}>
             <section class="settings-shell-section">
               <div class="settings-shell-section-header">
                 <div>
@@ -2533,10 +2656,15 @@
     const showSettingsSection = (targetSection = getActiveSettingsSection(), showOptions = {}) => {
       const normalizedSection = normalizeSettingsSection(targetSection);
       const renderedSection = normalizeSettingsSection(settingsOverview?.dataset?.activeSettingsSection || getActiveSettingsSection());
+      const helpers = getHelpers(options);
 
       setActiveSettingsSection(normalizedSection);
+      helpers.setDashboardUiStateValue("settingsMainTab", getSettingsHashSegment(normalizedSection));
       if (showOptions.syncHash !== false) {
-        syncSettingsSectionHash(normalizedSection);
+        syncSettingsSectionHash(normalizedSection, {
+          helpers,
+          frontDeskTab: getActiveFrontDeskSettingsTab(helpers),
+        });
       }
 
       settingsTargets.forEach((target) => {
@@ -2559,8 +2687,11 @@
       }
 
       if (mobileNote) {
-        const helpers = getHelpers(options);
         mobileNote.textContent = helpers.translateDashboardText(getSectionByKey(normalizedSection).note);
+      }
+
+      if (normalizedSection === "front_desk" && typeof showFrontDeskSettingsPanel === "function") {
+        showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(helpers), { syncHash: false });
       }
 
       return normalizedSection;
@@ -2596,10 +2727,16 @@
       });
     });
 
-    const showFrontDeskSettingsPanel = (targetPanel = "identity") => {
-      const normalizedPanel = ["identity", "voice", "full_page", "routing", "appearance"].includes(targetPanel)
-        ? targetPanel
-        : "identity";
+    const showFrontDeskSettingsPanel = (targetPanel = getActiveFrontDeskSettingsTab(getHelpers(options)), panelOptions = {}) => {
+      const helpers = getHelpers(options);
+      const normalizedPanel = setActiveFrontDeskSettingsTab(targetPanel, helpers);
+
+      if (panelOptions.syncHash !== false) {
+        syncSettingsSectionHash("front_desk", {
+          helpers,
+          frontDeskTab: normalizedPanel,
+        });
+      }
 
       frontDeskTabButtons.forEach((button) => {
         const active = button.dataset.frontdeskSettingsTab === normalizedPanel;
@@ -2616,10 +2753,8 @@
       }
     };
 
-    const showFullPageSettingsPanel = (targetPanel = "content") => {
-      const normalizedPanel = ["content", "design", "layout"].includes(targetPanel)
-        ? targetPanel
-        : "content";
+    const showFullPageSettingsPanel = (targetPanel = getActiveFullPageSettingsTab(getHelpers(options))) => {
+      const normalizedPanel = setActiveFullPageSettingsTab(targetPanel, getHelpers(options));
 
       fullPageTabButtons.forEach((button) => {
         const active = button.dataset.fullPageSettingsTab === normalizedPanel;
@@ -2900,8 +3035,8 @@
     });
 
     showSettingsSection(getActiveSettingsSection(), { rerender: false, syncHash: false });
-    showFrontDeskSettingsPanel("identity");
-    showFullPageSettingsPanel("content");
+    showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(getHelpers(options)), { syncHash: false });
+    showFullPageSettingsPanel(getActiveFullPageSettingsTab(getHelpers(options)));
     syncFullPageBackgroundControls();
     syncFullPagePreview();
 

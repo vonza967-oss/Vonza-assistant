@@ -14,6 +14,7 @@ const HANDOFF_STORAGE_KEY = "vonza_dashboard_handoff_seen";
 const DASHBOARD_SOURCE_KEY = "vonza_dashboard_source";
 const DASHBOARD_SECTION_KEY = "vonza_dashboard_section";
 const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
+const DASHBOARD_UI_STATE_STORAGE_KEY = "vonza_dashboard_ui_state";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
@@ -53,6 +54,46 @@ let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
+const INSTALL_METHODS = ["widget", "full-page", "qr"];
+const INSTALL_METHOD_PANEL_KEYS = Object.freeze({
+  widget: "widget",
+  "full-page": "page",
+  qr: "qr",
+});
+const INSTALL_METHOD_HASH_SEGMENTS = Object.freeze({
+  widget: "widget",
+  "full-page": "full-page",
+  qr: "qr",
+});
+const INSTALL_FULL_PAGE_OPTIONS = ["share", "section", "dedicated", "takeover", "iframe"];
+const FRONT_DESK_SECTION_HASH_SEGMENTS = Object.freeze({
+  practice: "practice",
+  improvements: "improvements",
+  knowledge: "knowledge",
+  library: "answer-library",
+  launch: "launch",
+});
+const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
+  settingsMainTab: "general",
+  settingsFrontDeskTab: "identity-welcome",
+  settingsFullPageTab: "content",
+  installMethod: "widget",
+  installFullPageOption: "share",
+  frontDeskTab: "practice",
+  customersFilter: "all",
+  selectedCustomerKey: "",
+  selectedConversationKey: "",
+  todayFilter: "all",
+});
+const DASHBOARD_UI_STATE_PERSISTED_KEYS = Object.freeze([
+  "settingsMainTab",
+  "settingsFrontDeskTab",
+  "settingsFullPageTab",
+  "installMethod",
+  "installFullPageOption",
+  "frontDeskTab",
+  "todayFilter",
+]);
 const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
   home: "overview",
   today: "overview",
@@ -99,6 +140,7 @@ const DASHBOARD_HELP_SUBSECTION_LABELS = {
     launch: "Launch",
   },
 };
+const dashboardUiState = loadDashboardUiState();
 const OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1_ENABLED";
 const LEGACY_OPERATOR_WORKSPACE_BROWSER_FLAG = "VONZA_OPERATOR_WORKSPACE_V1";
 const TODAY_COPILOT_BROWSER_FLAG = "VONZA_TODAY_COPILOT_V1_ENABLED";
@@ -2359,9 +2401,8 @@ function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
   }
 
   const hashParams = rawHash.includes("=") ? new URLSearchParams(rawHash) : null;
-  const hashKey = hashParams
-    ? trimText(hashParams.get("section") || hashParams.get("tab") || hashParams.get("page"))
-    : rawHash.split(/[?&]/)[0].split("/")[0];
+  const pathRoot = getDashboardHashRoot();
+  const hashKey = trimText(hashParams?.get("section") || hashParams?.get("tab") || hashParams?.get("page") || pathRoot);
 
   const normalizedHash = hashKey
     .trim()
@@ -2381,6 +2422,202 @@ function getDashboardHashSearchParams() {
   }
 
   return new URLSearchParams(rawHash.slice(queryIndex + 1));
+}
+
+function getDashboardHashPathParts() {
+  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
+
+  if (!rawHash) {
+    return [];
+  }
+
+  const hashPath = rawHash.split(/[?&]/)[0];
+  return hashPath
+    .split("/")
+    .map((part) => trimText(part).toLowerCase().replace(/_/g, "-"))
+    .filter(Boolean);
+}
+
+function getDashboardHashRoot() {
+  return getDashboardHashPathParts()[0] || "";
+}
+
+function normalizeInstallMethod(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  const aliases = {
+    page: "full-page",
+    "full-page-assistant": "full-page",
+    fullpage: "full-page",
+    full: "full-page",
+    assistant: "full-page",
+    website: "widget",
+    "website-widget": "widget",
+    qr: "qr",
+    "qr-code": "qr",
+  };
+  const candidate = aliases[normalized] || normalized;
+
+  return INSTALL_METHODS.includes(candidate) ? candidate : "widget";
+}
+
+function getInstallMethodPanelKey(method = "") {
+  return INSTALL_METHOD_PANEL_KEYS[normalizeInstallMethod(method)] || "widget";
+}
+
+function getInstallMethodHashSegment(method = "") {
+  return INSTALL_METHOD_HASH_SEGMENTS[normalizeInstallMethod(method)] || "widget";
+}
+
+function normalizeInstallFullPageOption(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  return INSTALL_FULL_PAGE_OPTIONS.includes(normalized) ? normalized : "share";
+}
+
+function normalizeFrontDeskSection(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+  const aliases = {
+    context: "knowledge",
+    overview: "practice",
+    preview: "practice",
+    test: "practice",
+    approved: "library",
+    answers: "library",
+    "answer-library": "library",
+    library: "library",
+    queue: "improvements",
+    training: "improvements",
+    "training-queue": "improvements",
+  };
+  const candidate = aliases[normalized] || normalized;
+
+  return FRONT_DESK_SECTIONS.includes(candidate) ? candidate : "practice";
+}
+
+function getFrontDeskSectionHashSegment(section = "") {
+  return FRONT_DESK_SECTION_HASH_SEGMENTS[normalizeFrontDeskSection(section)] || "practice";
+}
+
+function getDashboardUiStateHashUpdates() {
+  const parts = getDashboardHashPathParts();
+  const root = parts[0] || "";
+  const updates = {};
+
+  if (["settings"].includes(root)) {
+    if (parts[1]) {
+      updates.settingsMainTab = parts[1];
+    }
+    if (["front-desk", "frontdesk", "front_desk"].includes(parts[1]) && parts[2]) {
+      updates.settingsFrontDeskTab = parts[2];
+    }
+    return updates;
+  }
+
+  if (root === "install") {
+    if (parts[1]) {
+      updates.installMethod = normalizeInstallMethod(parts[1]);
+    }
+    return updates;
+  }
+
+  if (["front-desk", "frontdesk", "customize"].includes(root)) {
+    if (parts[1]) {
+      updates.frontDeskTab = getFrontDeskSectionHashSegment(parts[1]);
+    }
+    return updates;
+  }
+
+  if (["customers", "customer", "contacts"].includes(root)) {
+    const filter = normalizeCustomerFilterKey(getDashboardHashSearchParams().get("filter") || "");
+    const customer = trimText(getDashboardHashSearchParams().get("customer") || getDashboardHashSearchParams().get("contact"));
+    if (filter) {
+      updates.customersFilter = filter;
+    }
+    if (customer) {
+      updates.selectedCustomerKey = customer;
+    }
+  }
+
+  return updates;
+}
+
+function loadDashboardUiState() {
+  try {
+    const rawState = window.sessionStorage?.getItem(DASHBOARD_UI_STATE_STORAGE_KEY);
+    const storedState = rawState ? JSON.parse(rawState) : {};
+    return {
+      ...DASHBOARD_UI_STATE_DEFAULTS,
+      ...storedState,
+    };
+  } catch (_error) {
+    return {
+      ...DASHBOARD_UI_STATE_DEFAULTS,
+    };
+  }
+}
+
+function persistDashboardUiState() {
+  if (!window.sessionStorage?.setItem) {
+    return;
+  }
+
+  const persistedState = {};
+  DASHBOARD_UI_STATE_PERSISTED_KEYS.forEach((key) => {
+    persistedState[key] = dashboardUiState[key] ?? DASHBOARD_UI_STATE_DEFAULTS[key];
+  });
+
+  try {
+    window.sessionStorage.setItem(DASHBOARD_UI_STATE_STORAGE_KEY, JSON.stringify(persistedState));
+  } catch (_error) {
+    // UI state persistence is opportunistic; rendering should continue if storage is blocked.
+  }
+}
+
+function setDashboardUiStateValue(key, value, options = {}) {
+  if (!Object.hasOwn(DASHBOARD_UI_STATE_DEFAULTS, key)) {
+    return dashboardUiState[key];
+  }
+
+  const normalizedValue = normalizeDashboardUiStateValue(key, value);
+  dashboardUiState[key] = normalizedValue;
+
+  if (options.persist !== false && DASHBOARD_UI_STATE_PERSISTED_KEYS.includes(key)) {
+    persistDashboardUiState();
+  }
+
+  return normalizedValue;
+}
+
+function getDashboardUiStateValue(key) {
+  const hashUpdates = getDashboardUiStateHashUpdates();
+
+  if (Object.hasOwn(hashUpdates, key)) {
+    return normalizeDashboardUiStateValue(key, hashUpdates[key]);
+  }
+
+  return normalizeDashboardUiStateValue(key, dashboardUiState[key]);
+}
+
+function normalizeDashboardUiStateValue(key, value) {
+  switch (key) {
+    case "installMethod":
+      return normalizeInstallMethod(value);
+    case "installFullPageOption":
+      return normalizeInstallFullPageOption(value);
+    case "frontDeskTab":
+      return getFrontDeskSectionHashSegment(value);
+    case "customersFilter":
+      return normalizeCustomerFilterKey(value) || "all";
+    case "selectedCustomerKey":
+    case "selectedConversationKey":
+      return trimText(value);
+    case "settingsMainTab":
+    case "settingsFrontDeskTab":
+    case "settingsFullPageTab":
+    case "todayFilter":
+      return trimText(value) || DASHBOARD_UI_STATE_DEFAULTS[key];
+    default:
+      return value ?? DASHBOARD_UI_STATE_DEFAULTS[key];
+  }
 }
 
 function normalizeCustomerFilterKey(value = "") {
@@ -2425,7 +2662,21 @@ function syncCustomerHash(filterKey = "", contactId = "") {
 }
 
 function syncShellSectionHash(section) {
-  const hash = DASHBOARD_SECTION_HASHES[section] || "";
+  let hash = DASHBOARD_SECTION_HASHES[section] || "";
+
+  if (section === "settings") {
+    return;
+  }
+
+  if (section === "contacts" && ["customers", "customer", "contacts"].includes(getDashboardHashRoot())) {
+    return;
+  }
+
+  if (section === "customize") {
+    hash = `front-desk/${getFrontDeskSectionHashSegment(dashboardUiState.frontDeskTab)}`;
+  } else if (section === "install") {
+    hash = `install/${getInstallMethodHashSegment(dashboardUiState.installMethod)}`;
+  }
 
   if (!window.history?.replaceState) {
     return;
@@ -2469,16 +2720,25 @@ function setActiveShellSection(section, operatorWorkspace = workspaceState?.oper
 }
 
 function getActiveFrontDeskSection() {
+  const hashRoot = getDashboardHashRoot();
+  const hashParts = getDashboardHashPathParts();
+  const hashSection = ["front-desk", "frontdesk", "customize"].includes(hashRoot)
+    ? normalizeFrontDeskSection(hashParts[1] || "")
+    : "";
+
+  if (hashSection && hashParts[1]) {
+    window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, hashSection);
+    setDashboardUiStateValue("frontDeskTab", getFrontDeskSectionHashSegment(hashSection));
+    return hashSection;
+  }
+
+  const stateSection = normalizeFrontDeskSection(getDashboardUiStateValue("frontDeskTab"));
+  if (FRONT_DESK_SECTIONS.includes(stateSection)) {
+    return stateSection;
+  }
+
   const storedSection = trimText(window.localStorage.getItem(DASHBOARD_FRONTDESK_SECTION_KEY)).toLowerCase();
-  const normalizedStoredSection = storedSection === "context"
-    ? "knowledge"
-    : ["overview", "preview", "test"].includes(storedSection)
-      ? "practice"
-      : ["approved", "answers", "answer-library"].includes(storedSection)
-        ? "library"
-        : ["queue", "training", "training-queue"].includes(storedSection)
-          ? "improvements"
-          : storedSection;
+  const normalizedStoredSection = normalizeFrontDeskSection(storedSection);
 
   if (FRONT_DESK_SECTIONS.includes(normalizedStoredSection)) {
     return normalizedStoredSection;
@@ -2487,21 +2747,18 @@ function getActiveFrontDeskSection() {
   return "practice";
 }
 
-function setActiveFrontDeskSection(section) {
-  const normalizedSection = section === "context"
-    ? "knowledge"
-    : ["overview", "preview", "test"].includes(section)
-      ? "practice"
-      : ["approved", "answers", "answer-library"].includes(section)
-        ? "library"
-        : ["queue", "training", "training-queue"].includes(section)
-          ? "improvements"
-          : section;
+function setActiveFrontDeskSection(section, options = {}) {
+  const normalizedSection = normalizeFrontDeskSection(section);
   if (!FRONT_DESK_SECTIONS.includes(normalizedSection)) {
     return;
   }
 
   window.localStorage.setItem(DASHBOARD_FRONTDESK_SECTION_KEY, normalizedSection);
+  setDashboardUiStateValue("frontDeskTab", getFrontDeskSectionHashSegment(normalizedSection));
+
+  if (options.syncHash === true) {
+    syncShellSectionHash("customize");
+  }
 }
 
 function createDashboardHelpState() {
@@ -8949,6 +9206,8 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
     translateDashboardText,
     localizeDashboardHtml,
     getDashboardLanguage,
+    getDashboardUiStateValue,
+    setDashboardUiStateValue,
     getSupportedDashboardLanguages: () => window.VonzaDashboardI18n?.SUPPORTED_LANGUAGES || [
       { code: "en", nativeLabel: "English" },
       { code: "hu", nativeLabel: "Magyar" },
@@ -15372,6 +15631,8 @@ function buildInstallSection(agent, options = {}) {
   const {
     upcoming = false,
   } = options;
+  const activeInstallMethod = getInstallMethodPanelKey(getDashboardUiStateValue("installMethod"));
+  const activeFullPageInstallOption = normalizeInstallFullPageOption(getDashboardUiStateValue("installFullPageOption"));
   const hasInstall = Boolean(trimText(agent.installId));
   const script = hasInstall ? buildScript(agent) : "";
   const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
@@ -15436,12 +15697,14 @@ function buildInstallSection(agent, options = {}) {
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
     ${buildInstallStageProgress(installStatus, hasInstall, fullPageUrl, qrEndpoint)}
     <div class="install-method-grid" role="tablist" aria-label="Installation methods">
-      ${methodCards.map((item, index) => `
+      ${methodCards.map((item) => {
+        const isActive = activeInstallMethod === item.key;
+        return `
         <button
-          class="install-method-card ${index === 0 ? "active" : ""}"
+          class="install-method-card ${isActive ? "active" : ""}"
           type="button"
           role="tab"
-          aria-selected="${index === 0 ? "true" : "false"}"
+          aria-selected="${isActive ? "true" : "false"}"
           aria-controls="install-panel-${escapeHtml(item.key)}"
           data-install-method-tab="${escapeHtml(item.key)}"
         >
@@ -15452,10 +15715,11 @@ function buildInstallSection(agent, options = {}) {
             ${item.status ? buildInstallMethodPill(item.status, item.tone) : ""}
           </span>
         </button>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
     <div class="install-options-grid">
-      <section class="install-option-card active" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget">
+      <section class="install-option-card ${activeInstallMethod === "widget" ? "active" : ""}" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget" ${activeInstallMethod === "widget" ? "" : "hidden"}>
         <div class="install-option-header">
           <div>
             <p class="install-option-eyebrow">Selected method</p>
@@ -15495,7 +15759,7 @@ function buildInstallSection(agent, options = {}) {
           </div>
         </div>
       </section>
-      <section class="install-option-card" id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden>
+      <section class="install-option-card ${activeInstallMethod === "page" ? "active" : ""}" id="install-panel-page" role="tabpanel" data-install-method-panel="page" ${activeInstallMethod === "page" ? "" : "hidden"}>
         <div class="install-option-header">
           <div>
             <p class="install-option-eyebrow">Selected method</p>
@@ -15513,28 +15777,28 @@ function buildInstallSection(agent, options = {}) {
           </div>
         ` : ""}
         <div class="full-page-install-selector" role="tablist" aria-label="Full-page assistant install options">
-          <button class="full-page-install-choice active" type="button" role="tab" aria-selected="true" aria-controls="full-page-option-share" data-full-page-option="share">
+          <button class="full-page-install-choice ${activeFullPageInstallOption === "share" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "share" ? "true" : "false"}" aria-controls="full-page-option-share" data-full-page-option="share">
             <strong>Shareable link</strong>
             <span>Use this for QR codes, buttons, menus, emails, and direct links.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-section" data-full-page-option="section">
+          <button class="full-page-install-choice ${activeFullPageInstallOption === "section" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "section" ? "true" : "false"}" aria-controls="full-page-option-section" data-full-page-option="section">
             <strong>Section embed</strong>
             <span>Place the assistant inside part of an existing page.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
+          <button class="full-page-install-choice ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "dedicated" ? "true" : "false"}" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
             <strong>Dedicated page embed</strong>
             <span>Use this when Front Desk is the main content of a page on your website.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-takeover" data-full-page-option="takeover">
+          <button class="full-page-install-choice ${activeFullPageInstallOption === "takeover" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "takeover" ? "true" : "false"}" aria-controls="full-page-option-takeover" data-full-page-option="takeover">
             <strong>True page takeover</strong>
             <span>Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</span>
           </button>
-          <button class="full-page-install-choice" type="button" role="tab" aria-selected="false" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
+          <button class="full-page-install-choice ${activeFullPageInstallOption === "iframe" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "iframe" ? "true" : "false"}" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
             <strong>Raw iframe fallback</strong>
             <span>Use this for builders that block scripts.</span>
           </button>
         </div>
-        <div class="full-page-install-output active" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share">
+        <div class="full-page-install-output ${activeFullPageInstallOption === "share" ? "active" : ""}" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share" ${activeFullPageInstallOption === "share" ? "" : "hidden"}>
           <div class="install-cta-row">
             <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
             <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open full-page assistant</a>
@@ -15551,7 +15815,7 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-url-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" hidden>
+        <div class="full-page-install-output ${activeFullPageInstallOption === "section" ? "active" : ""}" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" ${activeFullPageInstallOption === "section" ? "" : "hidden"}>
           <p class="install-help">Place the assistant inside part of an existing page.</p>
           <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
           ${buildInstallCopyBlock({
@@ -15576,7 +15840,7 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-iframe-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" hidden>
+        <div class="full-page-install-output ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" ${activeFullPageInstallOption === "dedicated" ? "" : "hidden"}>
           <p class="install-help"><strong>Dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your website.</p>
           <p class="install-help">Dedicated page embed makes the assistant the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
           ${buildInstallCopyBlock({
@@ -15590,7 +15854,7 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-iframe-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-takeover" role="tabpanel" data-full-page-option-panel="takeover" hidden>
+        <div class="full-page-install-output ${activeFullPageInstallOption === "takeover" ? "active" : ""}" id="full-page-option-takeover" role="tabpanel" data-full-page-option-panel="takeover" ${activeFullPageInstallOption === "takeover" ? "" : "hidden"}>
           <p class="install-help"><strong>True page takeover:</strong> Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</p>
           <p class="install-help install-warning">Use this on a blank assistant page. It may hide the page footer and remove extra page spacing.</p>
           ${buildInstallCopyBlock({
@@ -15604,7 +15868,7 @@ function buildInstallSection(agent, options = {}) {
             className: "full-page-iframe-output",
           })}
         </div>
-        <div class="full-page-install-output" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" hidden>
+        <div class="full-page-install-output ${activeFullPageInstallOption === "iframe" ? "active" : ""}" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" ${activeFullPageInstallOption === "iframe" ? "" : "hidden"}>
           <p class="install-help"><strong>Raw iframe:</strong> Fallback for builders that block scripts.</p>
           <p class="install-help">Raw iframe backgrounds stay inside the iframe. Use the smart dedicated page embed when you want the background to fill the page area.</p>
           ${buildInstallCopyBlock({
@@ -15619,7 +15883,7 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
       </section>
-      <section class="install-option-card install-option-card-qr" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden>
+      <section class="install-option-card install-option-card-qr ${activeInstallMethod === "qr" ? "active" : ""}" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" ${activeInstallMethod === "qr" ? "" : "hidden"}>
         <div class="install-option-header">
           <div>
             <p class="install-option-eyebrow">Selected method</p>
@@ -17309,20 +17573,27 @@ function bindInstallMethodTabs() {
   }
 
   const activateMethod = (method, options = {}) => {
+    const normalizedMethod = normalizeInstallMethod(method);
+    const panelKey = getInstallMethodPanelKey(normalizedMethod);
+    setDashboardUiStateValue("installMethod", normalizedMethod);
+    if (options.syncHash !== false) {
+      syncShellSectionHash("install");
+    }
+
     tabs.forEach((tab) => {
-      const isActive = tab.dataset.installMethodTab === method;
+      const isActive = tab.dataset.installMethodTab === panelKey;
       tab.classList.toggle("active", isActive);
       tab.setAttribute("aria-selected", isActive ? "true" : "false");
     });
 
     panels.forEach((panel) => {
-      const isActive = panel.dataset.installMethodPanel === method;
+      const isActive = panel.dataset.installMethodPanel === panelKey;
       panel.hidden = !isActive;
       panel.classList.toggle("active", isActive);
     });
 
     if (options.scroll === true) {
-      document.querySelector(`[data-install-method-panel="${method}"]`)?.scrollIntoView({
+      document.querySelector(`[data-install-method-panel="${panelKey}"]`)?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -17340,6 +17611,8 @@ function bindInstallMethodTabs() {
       activateMethod(jump.dataset.installMethodJump || "widget", { scroll: true });
     });
   });
+
+  activateMethod(getDashboardUiStateValue("installMethod"), { syncHash: false });
 }
 
 function bindFullPageAssistantInstallOptions(agent = {}) {
@@ -17352,14 +17625,17 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
   const hasFullPageTarget = Boolean(trimText(agent.id || agent.publicAgentKey));
 
   const activateOption = (option) => {
+    const normalizedOption = normalizeInstallFullPageOption(option);
+    setDashboardUiStateValue("installFullPageOption", normalizedOption);
+
     optionButtons.forEach((button) => {
-      const isActive = button.dataset.fullPageOption === option;
+      const isActive = button.dataset.fullPageOption === normalizedOption;
       button.classList.toggle("active", isActive);
       button.setAttribute("aria-selected", isActive ? "true" : "false");
     });
 
     optionPanels.forEach((panel) => {
-      const isActive = panel.dataset.fullPageOptionPanel === option;
+      const isActive = panel.dataset.fullPageOptionPanel === normalizedOption;
       panel.hidden = !isActive;
       panel.classList.toggle("active", isActive);
     });
@@ -17405,6 +17681,7 @@ function bindFullPageAssistantInstallOptions(agent = {}) {
     });
   });
 
+  activateOption(getDashboardUiStateValue("installFullPageOption"));
   syncFullPageIframe();
 }
 
@@ -17830,8 +18107,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const activationCompleteButtons = document.querySelectorAll("[data-activation-complete]");
   const activationImproveButtons = document.querySelectorAll("[data-activation-open-improvement]");
   const availableSections = getAvailableShellSections(operatorWorkspace);
-  let activeContactFilter = getContactFilterFromHash() || "all";
-  let activeTodayFilter = "all";
+  let activeContactFilter = getContactFilterFromHash() || getDashboardUiStateValue("customersFilter") || "all";
+  let activeTodayFilter = getDashboardUiStateValue("todayFilter") || "all";
   let activeTodayQueueKey = getActiveTodayQueueSelection(buildTodayQueueItems(actionQueue, operatorWorkspace));
   let settingsShellController = null;
 
@@ -18250,11 +18527,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   };
 
   const applyContactFilter = (filterKey = "all") => {
+    activeContactFilter = normalizeCustomerFilterKey(filterKey) || "all";
+    setDashboardUiStateValue("customersFilter", activeContactFilter);
     let visibleCount = 0;
     const searchTerm = trimText(contactSearchInput?.value || "").toLowerCase();
 
     contactFilterButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.contactFilter === filterKey);
+      button.classList.toggle("active", button.dataset.contactFilter === activeContactFilter);
     });
 
     contactRows.forEach((row) => {
@@ -18267,7 +18546,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const followUpPossible = row.dataset.contactFollowUpPossible === "true";
       let visible = true;
 
-      switch (filterKey) {
+      switch (activeContactFilter) {
         case "unresolved":
         case "needs_review":
           visible = needsOwnerReview || statuses.some((status) => ["needs_reply", "needs_review", "complaint", "follow_up"].includes(status));
@@ -18321,7 +18600,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     const nextVisibleRow = activeVisibleRow || [...contactRows].find((row) => !row.hidden);
 
     if (nextVisibleRow) {
-      selectContact(nextVisibleRow.dataset.contactId || "");
+      selectContact(nextVisibleRow.dataset.contactId || "", { remember: false });
     }
 
     const resultsShell = document.querySelector("[data-contact-filter-results]");
@@ -18342,13 +18621,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
-  const selectContact = (contactId = "") => {
+  const selectContact = (contactId = "", options = {}) => {
+    const normalizedContactId = trimText(contactId);
+    if (options.remember !== false) {
+      setDashboardUiStateValue("selectedCustomerKey", normalizedContactId, { persist: false });
+    }
+
     contactRows.forEach((row) => {
-      row.classList.toggle("active", row.dataset.contactId === contactId);
+      row.classList.toggle("active", row.dataset.contactId === normalizedContactId);
     });
 
     contactDetails.forEach((detail) => {
-      const isActive = detail.dataset.contactId === contactId;
+      const isActive = detail.dataset.contactId === normalizedContactId;
       detail.hidden = !isActive;
       detail.classList.toggle("active", isActive);
     });
@@ -18376,6 +18660,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     panel.hidden = false;
     button.setAttribute("aria-expanded", "true");
     button.textContent = t("common.hideChat");
+    setDashboardUiStateValue("selectedConversationKey", contactId, { persist: false });
     selectContact(contactId);
   };
 
@@ -18557,18 +18842,20 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   };
 
   const applyTodayFilter = (filterKey = "all") => {
+    activeTodayFilter = trimText(filterKey) || "all";
+    setDashboardUiStateValue("todayFilter", activeTodayFilter);
     const queueList = document.querySelector(".today-queue-list");
     const existingEmpty = document.querySelector(".today-queue-empty");
     const searchTerm = trimText(todaySearchInput?.value || "").toLowerCase();
     let visibleCount = 0;
 
     todayFilterButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.todayFilter === filterKey);
+      button.classList.toggle("active", button.dataset.todayFilter === activeTodayFilter);
     });
 
     todayQueueRows.forEach((row) => {
       const keys = trimText(row.dataset.todayFilterKeys).split("|").filter(Boolean);
-      const matchesFilter = filterKey === "all" || keys.includes(filterKey);
+      const matchesFilter = activeTodayFilter === "all" || keys.includes(activeTodayFilter);
       const searchText = trimText(row.dataset.todaySearchText).toLowerCase();
       const visible = matchesFilter && (!searchTerm || searchText.includes(searchTerm));
       row.hidden = !visible;
@@ -18599,9 +18886,11 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
     }
   };
-  const showFrontDeskSection = (target = "practice") => {
-    const normalizedTarget = FRONT_DESK_SECTIONS.includes(target) ? target : "practice";
-    setActiveFrontDeskSection(normalizedTarget);
+  const showFrontDeskSection = (target = "practice", options = {}) => {
+    const normalizedTarget = normalizeFrontDeskSection(target);
+    setActiveFrontDeskSection(normalizedTarget, {
+      syncHash: options.syncHash === true,
+    });
 
     frontDeskSectionButtons.forEach((button) => {
       button.classList.toggle("active", button.dataset.frontdeskTarget === normalizedTarget);
@@ -18739,7 +19028,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     itemId = "",
     sourceType = "test",
   } = {}) => {
-    showFrontDeskSection("practice");
+    showFrontDeskSection("practice", { syncHash: true });
     const shell = getPracticeTeachingShell();
     const form = getPracticeTeachingForm();
     if (!shell || !form) {
@@ -18844,13 +19133,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     setStatus(normalizedStatus === "draft" ? "Draft improvement saved." : "Improvement published.");
     if (refresh) {
       await boot();
-      showFrontDeskSection(normalizedStatus === "draft" ? "improvements" : "library");
+      showFrontDeskSection(normalizedStatus === "draft" ? "improvements" : "library", { syncHash: true });
     }
     return result;
   };
 
   const fillApprovedAnswerForm = ({ question = "", answer = "", tags = "", feedbackId = "", itemId = "" } = {}) => {
-    showFrontDeskSection("library");
+    showFrontDeskSection("library", { syncHash: true });
     const form = document.querySelector("[data-frontdesk-approved-answer-form]");
     if (!form) {
       return;
@@ -19819,7 +20108,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   contactRows.forEach((row) => {
     row.addEventListener("click", () => {
-      selectContact(row.dataset.contactId || "");
+      const contactId = row.dataset.contactId || "";
+      selectContact(contactId);
+      syncCustomerHash(activeContactFilter, contactId);
     });
   });
 
@@ -19942,7 +20233,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
       setActiveShellSection("customize", operatorWorkspace);
       showShellSection("customize");
-      showFrontDeskSection("practice");
+      showFrontDeskSection("practice", { syncHash: true });
       await sendPracticeMessage(question);
       await completeActivationStep("test_improve", {
         test_question: question,
@@ -20574,13 +20865,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   frontDeskSectionButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection(button.dataset.frontdeskTarget || "practice");
+      showFrontDeskSection(button.dataset.frontdeskTarget || "practice", { syncHash: true });
     });
   });
 
   frontDeskOpenButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const target = showFrontDeskSection(button.dataset.frontdeskOpen || "practice");
+      const target = showFrontDeskSection(button.dataset.frontdeskOpen || "practice", { syncHash: true });
       document.querySelector(`[data-frontdesk-section="${target}"]`)?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -20629,7 +20920,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         });
         setStatus("Answer archived.");
         await boot();
-        showFrontDeskSection("library");
+        showFrontDeskSection("library", { syncHash: true });
       } catch (error) {
         setStatus(error.message || "We couldn't archive that answer.");
       }
@@ -20638,7 +20929,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   frontDeskTestAnswerButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection("practice");
+      showFrontDeskSection("practice", { syncHash: true });
       const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
       if (input) {
         input.value = button.dataset.frontdeskTestAnswer || "";
@@ -20682,7 +20973,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         await updateFrontDeskFeedbackStatus({ feedbackId, status });
         setStatus(status === "ignored" ? "Feedback ignored." : "Feedback resolved.");
         await boot();
-        showFrontDeskSection("improvements");
+        showFrontDeskSection("improvements", { syncHash: true });
       } catch (error) {
         button.disabled = false;
         setStatus(error.message || "We couldn't update that feedback.");
@@ -20770,7 +21061,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         } else if (result?.item?.status === "active") {
           setStatus("Improvement published.");
           await boot();
-          showFrontDeskSection("library");
+          showFrontDeskSection("library", { syncHash: true });
         }
       } catch (error) {
         setStatus(error.message || "We couldn't save that improvement.");
@@ -20795,7 +21086,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   frontDeskOpenImprovementButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      showFrontDeskSection("practice");
+      showFrontDeskSection("practice", { syncHash: true });
       const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
       if (input) {
         input.value = button.dataset.question || "";
@@ -20864,7 +21155,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         });
         setStatus("Improvement published.");
         await boot();
-        showFrontDeskSection("library");
+        showFrontDeskSection("library", { syncHash: true });
       } catch (error) {
         button.disabled = false;
         setStatus(error.message || "We couldn't publish that improvement.");
@@ -20914,7 +21205,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         });
         setStatus("Marked not helpful and sent to Improvements.");
         await boot();
-        showFrontDeskSection("improvements");
+        showFrontDeskSection("improvements", { syncHash: true });
       } catch (error) {
         button.disabled = false;
         setStatus(error.message || "We couldn't mark that answer not helpful.");
@@ -20969,10 +21260,14 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   if (contactRows.length) {
     const hashContactId = getContactIdFromHash();
+    const rememberedContactId = getDashboardUiStateValue("selectedCustomerKey");
     const hashContactRow = hashContactId
       ? [...contactRows].find((row) => row.dataset.contactId === hashContactId && !row.hidden)
       : null;
-    selectContact(hashContactRow?.dataset.contactId || [...contactRows].find((row) => !row.hidden)?.dataset.contactId || contactRows[0].dataset.contactId || "");
+    const rememberedContactRow = rememberedContactId
+      ? [...contactRows].find((row) => row.dataset.contactId === rememberedContactId && !row.hidden)
+      : null;
+    selectContact(hashContactRow?.dataset.contactId || rememberedContactRow?.dataset.contactId || [...contactRows].find((row) => !row.hidden)?.dataset.contactId || contactRows[0].dataset.contactId || "");
   }
 
   if (todayFilterButtons.length) {

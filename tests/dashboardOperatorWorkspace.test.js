@@ -167,6 +167,131 @@ function buildSettingsSection(harness, section, agent = {}, setup = {}, workspac
   return harness.buildSettingsPanel(agent, setup, workspace);
 }
 
+function createDashboardUiStateAgent(overrides = {}) {
+  return {
+    id: "agent-1",
+    name: "Vonza",
+    assistantName: "Vonza Front Desk",
+    welcomeMessage: "Welcome to Vonza.",
+    tone: "friendly",
+    publicAgentKey: "public-key",
+    installId: "install-1",
+    websiteUrl: "https://example.com",
+    knowledge: {
+      state: "ready",
+      description: "Knowledge ready.",
+      pageCount: 2,
+    },
+    installStatus: {
+      state: "installed_unseen",
+      label: "Installed, waiting for first live visit",
+      host: "example.com",
+    },
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key",
+    },
+    accessStatus: "active",
+    ...overrides,
+  };
+}
+
+function createDashboardUiStateFetch(agent) {
+  return async (url) => {
+    const parsed = new URL(url);
+
+    if (parsed.pathname === "/agents/install-status") {
+      return {
+        ok: true,
+        async json() {
+          return { agent };
+        },
+      };
+    }
+
+    if (parsed.pathname === "/agents/messages") {
+      return {
+        ok: true,
+        async json() {
+          return { messages: [] };
+        },
+      };
+    }
+
+    if (parsed.pathname === "/agents/front-desk/training-items") {
+      return {
+        ok: true,
+        async json() {
+          return { items: [] };
+        },
+      };
+    }
+
+    if (parsed.pathname === "/agents/action-queue") {
+      return {
+        ok: true,
+        async json() {
+          return {
+            items: [],
+            summary: { total: 0, attentionNeeded: 0 },
+            analyticsSummary: {
+              totalMessages: 0,
+              visitorQuestions: 0,
+              syncState: "ready",
+            },
+          };
+        },
+      };
+    }
+
+    if (parsed.pathname === "/agents/operator-workspace") {
+      return {
+        ok: true,
+        async json() {
+          return {
+            enabled: true,
+            featureEnabled: true,
+            contacts: { list: [], summary: { totalContacts: 0 } },
+          };
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      async json() {
+        return {};
+      },
+    };
+  };
+}
+
+function getTagWithAttribute(html, attributeName, attributeValue) {
+  const escapedValue = attributeValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`<[^>]+${attributeName}="${escapedValue}"[^>]*>`);
+  const match = html.match(pattern);
+  return match ? match[0] : "";
+}
+
+function assertSettingsFrontDeskTabActive(html, tabKey) {
+  const button = getTagWithAttribute(html, "data-frontdesk-settings-tab", tabKey);
+  const panel = getTagWithAttribute(html, "data-frontdesk-settings-panel", tabKey);
+
+  assert.match(button, /active/);
+  assert.match(button, /aria-selected="true"/);
+  assert.doesNotMatch(panel, /\shidden(?:\s|>|=)/);
+}
+
+function assertInstallMethodActive(html, panelKey) {
+  const button = getTagWithAttribute(html, "data-install-method-tab", panelKey);
+  const panel = getTagWithAttribute(html, "data-install-method-panel", panelKey);
+
+  assert.match(button, /active/);
+  assert.match(button, /aria-selected="true"/);
+  assert.match(panel, /active/);
+  assert.doesNotMatch(panel, /\shidden(?:\s|>|=)/);
+}
+
 test("dashboard flag resolver prefers the canonical browser flag and falls back safely", () => {
   const canonicalHarness = createDashboardHarness({
     windowFlags: {
@@ -4228,6 +4353,92 @@ test("dashboard refresh reloads live agent messages, summaries, and workspace da
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Asked for help choosing a next step/);
   assert.doesNotMatch(harness.document.getElementById("dashboard-root").innerHTML, /<p class="customer-row-summary">Fresh live question<\/p>/);
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Guest visitor/);
+});
+
+test("Settings Front Desk subtabs survive workspace refresh and nested hashes", async () => {
+  const agent = createDashboardUiStateAgent();
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+    fetchImpl: createDashboardUiStateFetch(agent),
+  });
+
+  harness.window.location.hash = "#settings/front-desk/voice";
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "voice");
+
+  await harness.refreshAgentInstallState("agent-1");
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "voice");
+
+  harness.window.location.hash = "#settings/front-desk/full-page-assistant";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "full-page-assistant");
+  await harness.refreshAgentInstallState("agent-1");
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "full_page");
+
+  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
+  await harness.refreshAgentInstallState("agent-1");
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "routing");
+});
+
+test("Install selected method survives install status refresh and nested hashes", async () => {
+  const agent = createDashboardUiStateAgent();
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+    fetchImpl: createDashboardUiStateFetch(agent),
+  });
+
+  harness.window.location.hash = "#install/full-page";
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "page");
+
+  await harness.refreshAgentInstallState("agent-1");
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "page");
+
+  harness.window.location.hash = "#install/qr";
+  harness.setDashboardUiStateValue("installMethod", "qr");
+  await harness.refreshAgentInstallState("agent-1");
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "qr");
+});
+
+test("invalid nested dashboard hashes fall back without breaking default UI state", () => {
+  const agent = createDashboardUiStateAgent();
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.window.location.hash = "#settings/front-desk/not-a-tab";
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "identity");
+
+  harness.window.location.hash = "#install/not-a-method";
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "widget");
 });
 
 test("dashboard refresh buttons use the full live reload path", () => {
