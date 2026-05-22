@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const dashboardScript = readFileSync("frontend/dashboard.js", "utf8");
 const dashboardFrontDeskScript = readFileSync("frontend/dashboardFrontDesk.js", "utf8");
+const dashboardCustomersScript = readFileSync("frontend/dashboardCustomers.js", "utf8");
 const settingsShellScript = readFileSync("frontend/settings/SettingsShell.js", "utf8");
 const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
 
@@ -47,10 +48,12 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
 });
 
 test("conversation detail exposes owner-friendly training actions", () => {
-  assert.match(dashboardScript, /Improve this answer/);
-  assert.match(dashboardScript, /Save as approved answer/);
-  assert.match(dashboardScript, /Mark not helpful/);
-  assert.doesNotMatch(dashboardScript, /Send AI draft/);
+  const customerDashboardSurface = `${dashboardScript}\n${dashboardCustomersScript}`;
+
+  assert.match(customerDashboardSurface, /Improve this answer/);
+  assert.match(customerDashboardSurface, /Save as approved answer/);
+  assert.match(customerDashboardSurface, /Mark not helpful/);
+  assert.doesNotMatch(customerDashboardSurface, /Send AI draft/);
 });
 
 test("public answer feedback uses owner-friendly review copy", () => {

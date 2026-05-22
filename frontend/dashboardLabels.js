@@ -45,6 +45,10 @@
       return "Front Desk page";
     }
 
+    if (normalized.includes("embedded") || normalized.includes("iframe")) {
+      return "Embedded assistant";
+    }
+
     if (normalized.includes("widget") || normalized.includes("chat")) {
       return "Website widget";
     }

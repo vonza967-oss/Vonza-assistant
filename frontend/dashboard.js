@@ -7,6 +7,7 @@ const dashboardState = window.VonzaDashboardState || {};
 const dashboardLabels = window.VonzaDashboardLabels || {};
 const dashboardInstall = window.VonzaDashboardInstall || {};
 const dashboardFrontDesk = window.VonzaDashboardFrontDesk || {};
+const dashboardCustomers = window.VonzaDashboardCustomers || {};
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
@@ -4737,6 +4738,7 @@ function getCustomerSourceLabels(contact = {}) {
   ];
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildCustomerSourceBadgeMarkup(contact = {}, limit = 2) {
   const labels = getCustomerSourceLabels(contact);
   const visibleLabels = labels.length ? labels.slice(0, limit) : ["Legacy/unknown"];
@@ -4860,1218 +4862,267 @@ function _buildContactActionMarkup(label = "", attributes = {}, className = "gho
   `;
 }
 
-function contactNeedsReply(contact = {}) {
-  const nextActionKey = trimText(contact.nextAction?.key);
+const dashboardCustomerHelpers = typeof dashboardCustomers.createCustomerHelpers === "function"
+  ? dashboardCustomers.createCustomerHelpers({
+    trimText,
+    escapeHtml,
+    t,
+    translateDashboardText,
+    localizeDashboardCopy,
+    formatSeenAt,
+    formatAnalyticsReportNumber,
+    formatDashboardCountLabel,
+    formatOperatorCount,
+    getUiIconMarkup,
+    createEmptyOperatorWorkspace,
+    isCapabilityVisibleForWorkspace,
+    isCapabilityExplicitlyVisible,
+    buildDisclosureBlock,
+    buildDisclosureDetailRows,
+    buildOperatorEmptyState,
+    buildPageHeader,
+    buildPageToolbar,
+    formatContactLifecycleLabel,
+    buildContactFlags,
+    buildContactSources,
+    getCustomerSourceLabel,
+    getRecommendedCampaignGoal,
+  })
+  : {};
 
-  if (nextActionKey && nextActionKey !== "no_action_needed") {
-    return true;
+function callCustomerHelper(name, args) {
+  const helper = dashboardCustomerHelpers[name];
+  if (typeof helper !== "function") {
+    throw new Error(`Dashboard Customers helper missing: ${name}`);
   }
-
-  return Boolean(trimText(contact.nextAction?.title) || trimText(contact.nextAction?.description));
+  return helper(...args);
 }
 
-function customerHasContactDetails(contact = {}) {
-  return Boolean(getCustomerEmailLabel(contact.email) || trimText(contact.phone));
+/* eslint-disable no-unused-vars -- Customers helpers stay exposed for dashboard VM tests and legacy call sites. */
+function contactNeedsReply(...args) {
+  return callCustomerHelper("contactNeedsReply", args);
 }
 
-function customerHasActiveReplyableChat(contact = {}) {
-  const explicitReplyable = [
-    contact.replyPossible,
-    contact.chatReplyPossible,
-    contact.activeChat,
-    contact.chatAvailable,
-  ].some((value) => value === true);
-  const statuses = [
-    contact.chatStatus,
-    contact.conversationStatus,
-    contact.sessionStatus,
-  ].map((value) => trimText(value).toLowerCase());
-
-  return explicitReplyable || statuses.some((value) => ["active", "open", "replyable", "live"].includes(value));
+function customerHasContactDetails(...args) {
+  return callCustomerHelper("customerHasContactDetails", args);
 }
 
-function customerHasReplyableChannel(contact = {}) {
-  return customerHasActiveReplyableChat(contact)
-    || customerHasContactDetails(contact)
-    || Boolean(trimText(contact.primaryThreadId))
-    || Boolean(trimText(contact.nextAction?.followUpId))
-    || Boolean(trimText(contact.primaryFollowUpId));
+function customerHasActiveReplyableChat(...args) {
+  return callCustomerHelper("customerHasActiveReplyableChat", args);
 }
 
-function customerNeedsOwnerReviewRaw(contact = {}) {
-  const lifecycleState = trimText(contact.lifecycleState);
-
-  return contactNeedsReply(contact)
-    || isComplaintContact(contact)
-    || ["needs_reply", "needs_review"].includes(lifecycleState)
-    || buildContactFlags(contact).some((flag) => /follow.?up|reply|attention|due/i.test(trimText(flag)))
-    || Boolean(trimText(contact.nextAction?.followUpId))
-    || ["draft", "ready", "failed", "missing_contact"].includes(trimText(contact.followUpStatus).toLowerCase());
+function customerHasReplyableChannel(...args) {
+  return callCustomerHelper("customerHasReplyableChannel", args);
 }
 
-function getCustomerActionState(contact = {}) {
-  const needsOwnerReview = customerNeedsOwnerReviewRaw(contact);
-  const replyPossible = customerHasReplyableChannel(contact);
-  const missingContactDetails = isGuestCustomerRow(contact) && !replyPossible;
-
-  return {
-    needs_owner_review: needsOwnerReview,
-    follow_up_possible: needsOwnerReview && replyPossible,
-    missing_contact_details: missingContactDetails,
-    reply_possible: replyPossible,
-  };
+function customerNeedsOwnerReviewRaw(...args) {
+  return callCustomerHelper("customerNeedsOwnerReviewRaw", args);
 }
 
-function customerMissingContactDetails(contact = {}) {
-  return getCustomerActionState(contact).missing_contact_details;
+function getCustomerActionState(...args) {
+  return callCustomerHelper("getCustomerActionState", args);
 }
 
-function customerNeedsOwnerReview(contact = {}) {
-  return getCustomerActionState(contact).needs_owner_review;
+function customerMissingContactDetails(...args) {
+  return callCustomerHelper("customerMissingContactDetails", args);
 }
 
-function customerNeedsFollowUp(contact = {}) {
-  return getCustomerActionState(contact).follow_up_possible;
+function customerNeedsOwnerReview(...args) {
+  return callCustomerHelper("customerNeedsOwnerReview", args);
 }
 
-function isComplaintContact(contact = {}) {
-  const lifecycleState = trimText(contact.lifecycleState);
-  const flags = buildContactFlags(contact);
-
-  return ["complaint_risk", "support_issue"].includes(lifecycleState) || flags.includes("complaint");
+function customerNeedsFollowUp(...args) {
+  return callCustomerHelper("customerNeedsFollowUp", args);
 }
 
-function isLeadContact(contact = {}) {
-  return ["new", "active_lead", "qualified"].includes(trimText(contact.lifecycleState));
+function isComplaintContact(...args) {
+  return callCustomerHelper("isComplaintContact", args);
 }
 
-function isResolvedContact(contact = {}) {
-  if (contactNeedsReply(contact)) {
-    return false;
-  }
-
-  return contact.hasMeaningfulOutcome === true || Boolean(trimText(contact.latestOutcome?.label));
+function isLeadContact(...args) {
+  return callCustomerHelper("isLeadContact", args);
 }
 
-function isReturningContact(contact = {}) {
-  return trimText(contact.lifecycleState) === "customer"
-    || Number(contact.counts?.outcomes || 0) > 0
-    || Number(contact.counts?.inboxThreads || 0) > 1
-    || (contact.timeline || []).length > 1;
+function isResolvedContact(...args) {
+  return callCustomerHelper("isResolvedContact", args);
 }
 
-function normalizeCustomerLabelForCompare(value = "") {
-  return trimText(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+function isReturningContact(...args) {
+  return callCustomerHelper("isReturningContact", args);
 }
 
-function isPlaceholderCustomerLabel(value = "") {
-  return [
-    "unknown",
-    "anonymous visitor",
-    "guest visitor",
-    "unknown visitor",
-    "unknown contact",
-    "identity unknown",
-    "session continuity only",
-    "no direct identifier yet",
-  ].includes(trimText(value).toLowerCase());
+function normalizeCustomerLabelForCompare(...args) {
+  return callCustomerHelper("normalizeCustomerLabelForCompare", args);
 }
 
-function isLikelyCustomerMessageLabel(value = "") {
-  const label = trimText(value);
-  const normalizedLabel = normalizeCustomerLabelForCompare(label);
-
-  if (!label || !normalizedLabel) {
-    return false;
-  }
-
-  const wordCount = label.split(/\s+/).filter(Boolean).length;
-
-  if (["hi", "hey", "hello"].includes(label.toLowerCase())) {
-    return true;
-  }
-
-  if (/^(?:hi|hey|hello)[,!.\s]+/i.test(label)) {
-    return true;
-  }
-
-  if (label.includes("?")) {
-    return true;
-  }
-
-  if (wordCount >= 3) {
-    return (
-      /\b(?:what|why|how|when|where|who|which)\b/i.test(label)
-      || /\b(?:can|could|would|should|do|does|did|is|are|will)\s+(?:i|we|you|your|they)\b/i.test(label)
-      || /\b(?:i|we)\s+(?:need|want|would|am|have)\b/i.test(label)
-      || /\b(?:services|pricing|price|cost|quote|booking|appointment|schedule)\b/i.test(label)
-    );
-  }
-
-  return false;
+function isPlaceholderCustomerLabel(...args) {
+  return callCustomerHelper("isPlaceholderCustomerLabel", args);
 }
 
-function getValidCustomerLabel(value = "") {
-  const label = trimText(value);
-
-  return label && !isPlaceholderCustomerLabel(label) && !isLikelyCustomerMessageLabel(label)
-    ? label
-    : "";
+function isLikelyCustomerMessageLabel(...args) {
+  return callCustomerHelper("isLikelyCustomerMessageLabel", args);
 }
 
-function getCustomerEmailLabel(value = "") {
-  const match = trimText(value).match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-  return match ? match[0].toLowerCase() : "";
+function getValidCustomerLabel(...args) {
+  return callCustomerHelper("getValidCustomerLabel", args);
 }
 
-function getNamedCustomerIdentity(contact = {}) {
-  const email = getCustomerEmailLabel(contact.email);
-  const phone = trimText(contact.phone);
-
-  return [
-    getValidCustomerLabel(contact.name),
-    getValidCustomerLabel(contact.bestIdentifier),
-  ].find((candidate) => {
-    const normalizedCandidate = trimText(candidate);
-    const candidateEmail = getCustomerEmailLabel(normalizedCandidate);
-    return normalizedCandidate
-      && (!candidateEmail || candidateEmail !== email)
-      && normalizedCandidate !== phone;
-  }) || "";
+function getCustomerEmailLabel(...args) {
+  return callCustomerHelper("getCustomerEmailLabel", args);
 }
 
-function getCustomerName(contact = {}) {
-  return getNamedCustomerIdentity(contact)
-    || getCustomerEmailLabel(contact.email)
-    || trimText(contact.phone)
-    || (hasGuestCustomerActivity(contact) ? t("common.guestVisitor") : "")
-    || "Unknown";
+function getNamedCustomerIdentity(...args) {
+  return callCustomerHelper("getNamedCustomerIdentity", args);
 }
 
-function getCustomerRowIdentifier(contact = {}) {
-  return getCustomerName(contact);
+function getCustomerName(...args) {
+  return callCustomerHelper("getCustomerName", args);
 }
 
-function getCustomerIdentityLabel(contact = {}) {
-  if (getCustomerEmailLabel(contact.email)) {
-    return translateDashboardText("Email user");
-  }
-
-  if (trimText(contact.phone)) {
-    return translateDashboardText("Phone user");
-  }
-
-  if (getNamedCustomerIdentity(contact)) {
-    return translateDashboardText("Named visitor");
-  }
-
-  return t("common.guestVisitor");
+function getCustomerRowIdentifier(...args) {
+  return callCustomerHelper("getCustomerRowIdentifier", args);
 }
 
-function getCustomerIdentifier(contact = {}) {
-  return getCustomerEmailLabel(contact.email)
-    || trimText(contact.phone)
-    || getNamedCustomerIdentity(contact)
-    || (hasGuestCustomerActivity(contact) ? t("common.guestVisitor") : "")
-    || localizeDashboardCopy("No direct identifier yet", "Még nincs közvetlen azonosító");
+function getCustomerIdentityLabel(...args) {
+  return callCustomerHelper("getCustomerIdentityLabel", args);
 }
 
-function getCustomerLastMessageAt(contact = {}) {
-  const directCustomerMessageAt = trimText(contact.lastCustomerMessageAt || contact.last_customer_message_at);
-
-  if (directCustomerMessageAt) {
-    return directCustomerMessageAt;
-  }
-
-  const legacyLastMessageAt = trimText(contact.lastMessageAt || contact.last_message_at);
-
-  if (
-    legacyLastMessageAt
-    && (
-      trimText(contact.latestCustomerMessageSummary || contact.latestSummary)
-      || (Array.isArray(contact.chatMessages) && contact.chatMessages.some((message) => trimText(message.role) === "customer"))
-    )
-  ) {
-    return legacyLastMessageAt;
-  }
-
-  return "";
+function getCustomerIdentifier(...args) {
+  return callCustomerHelper("getCustomerIdentifier", args);
 }
 
-function hasGuestCustomerActivity(contact = {}) {
-  if (getCustomerEmailLabel(contact.email) || trimText(contact.phone) || getNamedCustomerIdentity(contact)) {
-    return false;
-  }
-
-  const sources = Array.isArray(contact.sources) ? contact.sources.map((source) => trimText(source).toLowerCase()) : [];
-  const timeline = Array.isArray(contact.timeline) ? contact.timeline : [];
-
-  return contact.partialIdentity === true
-    || sources.includes("chat")
-    || sources.includes("inbox")
-    || isPlaceholderCustomerLabel(contact.name)
-    || isPlaceholderCustomerLabel(contact.bestIdentifier)
-    || timeline.some((entry) =>
-      ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
-      || ["chat", "inbox"].includes(trimText(entry.source))
-    );
+function getCustomerLastMessageAt(...args) {
+  return callCustomerHelper("getCustomerLastMessageAt", args);
 }
 
-function getCustomerLastActivityLabel(contact = {}) {
-  const lastCustomerMessageAt = getCustomerLastMessageAt(contact);
-
-  if (lastCustomerMessageAt) {
-    return formatSeenAt(lastCustomerMessageAt);
-  }
-
-  return t("common.noCustomerMessage");
+function hasGuestCustomerActivity(...args) {
+  return callCustomerHelper("hasGuestCustomerActivity", args);
 }
 
-function isGuestCustomerRow(contact = {}) {
-  return !getCustomerEmailLabel(contact.email)
-    && !trimText(contact.phone)
-    && !getNamedCustomerIdentity(contact)
-    && hasGuestCustomerActivity(contact);
+function getCustomerLastActivityLabel(...args) {
+  return callCustomerHelper("getCustomerLastActivityLabel", args);
 }
 
-function getCustomerConversationSourceText(contact = {}) {
-  const customerMessageEntry = (contact.timeline || []).find((entry) =>
-    ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
-    || ["chat", "inbox"].includes(trimText(entry.source))
-  ) || {};
-  const messageLikeName = isLikelyCustomerMessageLabel(contact.name)
-    ? trimText(contact.name)
-    : isLikelyCustomerMessageLabel(contact.bestIdentifier)
-      ? trimText(contact.bestIdentifier)
-      : "";
-
-  return [
-    trimText(contact.latestCustomerMessageSummary),
-    trimText(customerMessageEntry.summary),
-    messageLikeName,
-    trimText(contact.nextAction?.description),
-    trimText(contact.nextAction?.title),
-    trimText(contact.latestOutcome?.label),
-    trimText(customerMessageEntry.label),
-  ].find((value) => value && !isGenericCustomerNoActionCopy(value) && !isGenericCustomerNoActionTitle(value)) || "";
+function isGuestCustomerRow(...args) {
+  return callCustomerHelper("isGuestCustomerRow", args);
 }
 
-function getGuestConversationRowSummary(contact = {}) {
-  const sourceText = getCustomerConversationSourceText(contact);
-  const signalText = [
-    sourceText,
-    trimText(contact.nextAction?.description),
-    trimText(contact.nextAction?.title),
-    trimText(contact.lifecycleState),
-    ...(Array.isArray(contact.flags) ? contact.flags : []),
-  ].join(" ").toLowerCase();
-
-  if (!signalText) {
-    return localizeDashboardCopy("No recent conversation summary yet.", "Még nincs összefoglaló a legutóbbi beszélgetésről.");
-  }
-
-  if (/\b(?:complaint|frustrat|refund|cancel|issue|problem|support|upset|angry|unhappy)\b/.test(signalText)) {
-    return localizeDashboardCopy("Needed help with a support issue", "Támogatási ügyben kért segítséget");
-  }
-
-  if (/\b(?:price|pricing|cost|quote|estimate|package|rate|buy|purchase|checkout)\b/.test(signalText)) {
-    return /\b(?:book|booking|appointment|schedule|availability|next step|contact|call|email)\b/.test(signalText)
-      ? localizeDashboardCopy("Asked about pricing and next steps", "Árazásról és következő lépésekről kérdezett")
-      : localizeDashboardCopy("Asked about pricing or quote details", "Árazásról vagy ajánlatkérés részleteiről kérdezett");
-  }
-
-  if (/\b(?:book|booking|appointment|appointments|schedule|scheduling|availability|available|reserve|reservation|consultation|calendar)\b/.test(signalText)) {
-    return localizeDashboardCopy("Needed help with booking or availability", "Foglalással vagy elérhetőséggel kapcsolatban kért segítséget");
-  }
-
-  if (/\b(?:which|fit|best|recommend|choose|service|services|offer|offers|available|need|looking for)\b/.test(signalText)) {
-    return localizeDashboardCopy("Asked which service fits their needs", "Azt kérdezte, melyik szolgáltatás illik az igényeihez");
-  }
-
-  if (/\b(?:contact|call|email|phone|reach|message|talk|speak|get in touch)\b/.test(signalText)) {
-    return localizeDashboardCopy("Wanted to contact the business", "Kapcsolatba akart lépni a vállalkozással");
-  }
-
-  if (/\b(?:hour|hours|open|location|where|area|near|weekend)\b/.test(signalText)) {
-    return localizeDashboardCopy("Asked about hours or service area", "Nyitvatartásról vagy kiszolgálási területről kérdezett");
-  }
-
-  if (/\b(?:hi|hey|hello)\b/.test(signalText) && sourceText.split(/\s+/).filter(Boolean).length <= 4) {
-    return localizeDashboardCopy("Started a new chat with the business", "Új beszélgetést indított a vállalkozással");
-  }
-
-  return localizeDashboardCopy("Asked for help choosing a next step", "Segítséget kért a következő lépés kiválasztásához");
+function getCustomerConversationSourceText(...args) {
+  return callCustomerHelper("getCustomerConversationSourceText", args);
 }
 
-function getCustomerLatestSummary(contact = {}) {
-  const customerMessageEntry = (contact.timeline || []).find((entry) =>
-    ["Visitor message", "Inbox thread"].includes(trimText(entry.label))
-    || ["chat", "inbox"].includes(trimText(entry.source))
-  ) || {};
-  const messageLikeName = isLikelyCustomerMessageLabel(contact.name)
-    ? trimText(contact.name)
-    : isLikelyCustomerMessageLabel(contact.bestIdentifier)
-      ? trimText(contact.bestIdentifier)
-      : "";
-  const latestCustomerMessageSummary = trimText(contact.latestCustomerMessageSummary || contact.latestSummary);
-  const customerMessageSummary = trimText(customerMessageEntry.summary);
-
-  if (isGuestCustomerRow(contact)) {
-    return getGuestConversationRowSummary(contact);
-  }
-
-  if (
-    messageLikeName
-    && (!latestCustomerMessageSummary || isGenericCustomerNoActionCopy(latestCustomerMessageSummary))
-    && (!customerMessageSummary || isGenericCustomerNoActionCopy(customerMessageSummary))
-  ) {
-    return messageLikeName;
-  }
-
-  return latestCustomerMessageSummary
-    || customerMessageSummary
-    || trimText(customerMessageEntry.label)
-    || messageLikeName
-    || trimText(contact.nextAction?.description)
-    || trimText(contact.latestOutcome?.label)
-    || localizeDashboardCopy("No recent conversation summary yet.", "Még nincs összefoglaló a legutóbbi beszélgetésről.");
+function getGuestConversationRowSummary(...args) {
+  return callCustomerHelper("getGuestConversationRowSummary", args);
 }
 
-function getCustomerSecondaryIdentityLine(contact = {}) {
-  const email = getCustomerEmailLabel(contact.email);
-  const phone = trimText(contact.phone);
-  const displayName = getNamedCustomerIdentity(contact);
-  const rowIdentifier = getCustomerRowIdentifier(contact);
-
-  if (email && rowIdentifier !== email) {
-    return `${localizeDashboardCopy("Email user", "Emailes felhasználó")} · ${email}`;
-  }
-
-  if (phone && rowIdentifier !== phone) {
-    return `${localizeDashboardCopy("Phone user", "Telefonos felhasználó")} · ${phone}`;
-  }
-
-  if (displayName && rowIdentifier !== displayName) {
-    return `${localizeDashboardCopy("Named visitor", "Azonosított látogató")} · ${displayName}`;
-  }
-
-  return "";
+function getCustomerLatestSummary(...args) {
+  return callCustomerHelper("getCustomerLatestSummary", args);
 }
 
-function getCustomerSituationSummary(contact = {}) {
-  const recentTimelineEntry = (contact.timeline || [])[0] || {};
-
-  return trimText(contact.nextAction?.description)
-    || trimText(recentTimelineEntry.summary)
-    || trimText(contact.latestOutcome?.label)
-    || localizeDashboardCopy("No current situation has been captured yet.", "Még nincs rögzítve aktuális helyzet.");
+function getCustomerSecondaryIdentityLine(...args) {
+  return callCustomerHelper("getCustomerSecondaryIdentityLine", args);
 }
 
-function getCustomerRiskSummary(contact = {}) {
-  if (customerMissingContactDetails(contact)) {
-    return localizeDashboardCopy(
-      "No contact details captured yet. This guest can’t be followed up outside the chat.",
-      "Még nincs rögzített elérhetőség. Ezt a vendéget a chaten kívül nem lehet utánkövetni."
-    );
-  }
-
-  if (isComplaintContact(contact)) {
-    return localizeDashboardCopy(
-      "Risk is elevated. This customer may lose trust if the issue stays unanswered.",
-      "Emelkedett a kockázat. Ez az ügyfél elveszítheti a bizalmát, ha az ügy megválaszolatlan marad."
-    );
-  }
-
-  if (isLeadContact(contact) && contactNeedsReply(contact)) {
-    return localizeDashboardCopy(
-      "Lead intent is present, but momentum could fade if nobody replies soon.",
-      "Az érdeklődési szándék látszik, de a lendület gyorsan elfogyhat, ha senki nem válaszol hamar."
-    );
-  }
-
-  if (contactNeedsReply(contact)) {
-    return localizeDashboardCopy(
-      "The conversation is still open and likely needs a team reply or follow-up.",
-      "A beszélgetés még nyitott, és valószínűleg csapatválaszra vagy utánkövetésre van szükség."
-    );
-  }
-
-  if (isResolvedContact(contact)) {
-    return localizeDashboardCopy(
-      "The latest interaction looks settled right now with no urgent action standing out.",
-      "A legutóbbi interakció most rendezettnek tűnik, és nem látszik sürgős teendő."
-    );
-  }
-
-  if (isReturningContact(contact)) {
-    return localizeDashboardCopy(
-      "This looks like a returning relationship, so continuity matters more than a generic reply.",
-      "Ez visszatérő kapcsolatnak látszik, ezért a folytonosság fontosabb, mint egy általános válasz."
-    );
-  }
-
-  return localizeDashboardCopy("No strong risk signal is standing out yet.", "Még nem látszik erős kockázati jelzés.");
+function getCustomerSituationSummary(...args) {
+  return callCustomerHelper("getCustomerSituationSummary", args);
 }
 
-function getCustomerSuggestedAction(contact = {}) {
-  const nextActionDescription = trimText(contact.nextAction?.description);
-  const nextActionTitle = trimText(contact.nextAction?.title);
-
-  if (customerMissingContactDetails(contact)) {
-    return localizeDashboardCopy(
-      "Open the conversation to review what they asked. Ask for contact details before follow-up.",
-      "Nyisd meg a beszélgetést, hogy lásd, mit kérdezett. Utánkövetés előtt kérj elérhetőséget."
-    );
-  }
-
-  return (!isGenericCustomerNoActionCopy(nextActionDescription) ? nextActionDescription : "")
-    || (!isGenericCustomerNoActionTitle(nextActionTitle) ? nextActionTitle : "")
-    || (isComplaintContact(contact)
-      ? localizeDashboardCopy(
-        "Send a calm reply, confirm the issue, and give one clear next step.",
-        "Küldj nyugodt választ, erősítsd meg a problémát, és adj egy világos következő lépést."
-      )
-      : isLeadContact(contact)
-        ? localizeDashboardCopy(
-          "Answer the open question and guide this person toward a quote, booking, or decision.",
-          "Válaszold meg a nyitott kérdést, és vezesd ezt az ügyfelet ajánlatkérés, foglalás vagy döntés felé."
-        )
-        : isReturningContact(contact)
-          ? localizeDashboardCopy(
-            "Reconnect with context from the last interaction and confirm the next step.",
-            "Kapcsolódj vissza az előző interakció kontextusával, és erősítsd meg a következő lépést."
-          )
-          : localizeDashboardCopy(
-            "Review the latest interaction and decide whether a follow-up is still needed.",
-            "Nézd át a legutóbbi interakciót, és döntsd el, kell-e még utánkövetés."
-          ));
+function getCustomerRiskSummary(...args) {
+  return callCustomerHelper("getCustomerRiskSummary", args);
 }
 
-function isGenericCustomerNoActionCopy(value = "") {
-  const copy = trimText(value).toLowerCase();
-
-  return !copy
-    || copy === "this contact does not have a higher-priority owner next step right now."
-    || copy === "this contact does not have a higher-priority manual next step right now."
-    || copy === "no customer message yet.";
+function getCustomerSuggestedAction(...args) {
+  return callCustomerHelper("getCustomerSuggestedAction", args);
 }
 
-function isGenericCustomerNoActionTitle(value = "") {
-  return ["", "no action needed"].includes(trimText(value).toLowerCase());
+function isGenericCustomerNoActionCopy(...args) {
+  return callCustomerHelper("isGenericCustomerNoActionCopy", args);
 }
 
-function getCustomerDraftPreview(contact = {}) {
-  if (isComplaintContact(contact)) {
-    return localizeDashboardCopy(
-      "Apologize clearly, confirm the issue, and offer one specific next step with timing.",
-      "Kérj világosan bocsánatot, erősítsd meg a problémát, és adj egy konkrét következő lépést időzítéssel."
-    );
-  }
-
-  if (isLeadContact(contact)) {
-    return localizeDashboardCopy(
-      "Thank them for reaching out, answer the open question, and suggest the clearest next step.",
-      "Köszönd meg a megkeresést, válaszold meg a nyitott kérdést, és javasold a legvilágosabb következő lépést."
-    );
-  }
-
-  if (contactNeedsReply(contact)) {
-    return localizeDashboardCopy(
-      "Acknowledge the latest message, answer the main question, and confirm what happens next.",
-      "Ismerd el a legutóbbi üzenetet, válaszold meg a fő kérdést, és erősítsd meg, mi történik ezután."
-    );
-  }
-
-  if (isReturningContact(contact)) {
-    return localizeDashboardCopy(
-      "Reference the previous interaction, check whether they still need help, and keep the reply warm and brief.",
-      "Hivatkozz az előző interakcióra, ellenőrizd, hogy még szükségük van-e segítségre, és tartsd a választ meleg hangvételűnek és rövidnek."
-    );
-  }
-
-  return "";
+function isGenericCustomerNoActionTitle(...args) {
+  return callCustomerHelper("isGenericCustomerNoActionTitle", args);
 }
 
-function getCustomerStatusList(contact = {}) {
-  const statuses = [];
-  const pushStatus = (key, label) => {
-    if (!statuses.some((status) => status.key === key)) {
-      statuses.push({ key, label });
-    }
-  };
-
-  if (isGuestCustomerRow(contact)) {
-    pushStatus("guest", t("common.guestVisitor"));
-  }
-
-  if (isComplaintContact(contact)) {
-    pushStatus("complaint", translateDashboardText("Complaint"));
-  }
-
-  if (isLeadContact(contact)) {
-    pushStatus("lead", translateDashboardText("Lead"));
-  }
-
-  if (customerMissingContactDetails(contact) && customerNeedsOwnerReview(contact)) {
-    pushStatus("needs_review", translateDashboardText("Needs review"));
-    pushStatus("missing_contact", translateDashboardText("Missing contact details"));
-  } else if (contactNeedsReply(contact)) {
-    pushStatus("needs_reply", t("customers.needsReply"));
-  } else if (customerNeedsFollowUp(contact)) {
-    pushStatus("follow_up", translateDashboardText("Needs follow-up"));
-  }
-
-  if (isResolvedContact(contact)) {
-    pushStatus("resolved", translateDashboardText("AI handled"));
-  }
-
-  if (isReturningContact(contact)) {
-    pushStatus("returning", translateDashboardText("Returning"));
-  }
-
-  if (!statuses.length) {
-    pushStatus("resolved", translateDashboardText("Resolved"));
-  }
-
-  return statuses;
+function getCustomerDraftPreview(...args) {
+  return callCustomerHelper("getCustomerDraftPreview", args);
 }
 
-function _buildCustomerStatusMarkup(contact = {}, limit = 2) {
-  return getCustomerStatusList(contact)
-    .filter((status) => status.key !== "needs_reply")
-    .slice(0, limit)
-    .map((status) => `
-      <span class="customer-status-chip customer-status-chip--${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>
-    `)
-    .join("");
+function getCustomerStatusList(...args) {
+  return callCustomerHelper("getCustomerStatusList", args);
 }
 
-function getPrimaryCustomerStatus(contact = {}) {
-  const statuses = getCustomerStatusList(contact);
-  return statuses.find((status) => !["guest", "missing_contact"].includes(status.key))
-    || statuses[0]
-    || { key: "resolved", label: translateDashboardText("Resolved") };
+function getPrimaryCustomerStatus(...args) {
+  return callCustomerHelper("getPrimaryCustomerStatus", args);
 }
 
-function buildCustomerFilterDefinitions(contacts = []) {
-  const countMatching = (predicate) => contacts.filter(predicate).length;
-
-  return [
-    { key: "all", label: translateDashboardText("All"), count: contacts.length },
-    { key: "identified", label: translateDashboardText("Identified"), count: countMatching((contact) => !isGuestCustomerRow(contact)) },
-    { key: "guests", label: translateDashboardText("Guests"), count: countMatching((contact) => isGuestCustomerRow(contact)) },
-    {
-      key: "needs_review",
-      label: translateDashboardText("Needs review"),
-      count: countMatching((contact) => customerNeedsOwnerReview(contact)),
-    },
-    {
-      key: "needs_follow_up",
-      label: translateDashboardText("Follow-up possible"),
-      count: countMatching((contact) => customerNeedsFollowUp(contact)),
-    },
-    {
-      key: "website_widget",
-      label: translateDashboardText("Website widget"),
-      count: countMatching((contact) => getCustomerSourceLabels(contact).includes("Website widget")),
-    },
-    {
-      key: "full_page_assistant",
-      label: translateDashboardText("Front Desk page"),
-      count: countMatching((contact) =>
-        getCustomerSourceLabels(contact).some((label) => ["Front Desk page", "Full-page assistant", "QR / direct link", "QR touchpoint"].includes(label))
-      ),
-    },
-  ];
+function buildCustomerFilterDefinitions(...args) {
+  return callCustomerHelper("buildCustomerFilterDefinitions", args);
 }
 
-function buildCustomerSummaryItems(contacts = []) {
-  const countMatching = (predicate) => contacts.filter(predicate).length;
-
-  return [
-    {
-      label: translateDashboardText("New leads"),
-      value: countMatching((contact) => trimText(contact.lifecycleState) === "new"),
-      copy: translateDashboardText("Trend unavailable: daily lead comparison is not in this workflow yet."),
-    },
-    {
-      label: translateDashboardText("Warm leads"),
-      value: countMatching((contact) => ["active_lead", "qualified"].includes(trimText(contact.lifecycleState))),
-      copy: translateDashboardText("Live count from saved customer records."),
-    },
-    {
-      label: translateDashboardText("Needs review"),
-      value: countMatching((contact) => customerNeedsOwnerReview(contact)),
-      copy: translateDashboardText("Customers or guests waiting on a reply, decision, or review."),
-    },
-    {
-      label: translateDashboardText("Missing contact details"),
-      value: countMatching((contact) => customerMissingContactDetails(contact) || contact.partialIdentity === true),
-      copy: translateDashboardText("Chat unavailable on guest visitor rows until identity is captured."),
-    },
-  ];
+function buildCustomerSummaryItems(...args) {
+  return callCustomerHelper("buildCustomerSummaryItems", args);
 }
 
-function getCustomerMetricIcon(label = "") {
-  const normalized = trimText(label).toLowerCase();
-
-  if (normalized.includes("warm")) {
-    return "users";
-  }
-
-  if (normalized.includes("reply")) {
-    return "chat";
-  }
-
-  if (normalized.includes("missing")) {
-    return "review";
-  }
-
-  return "chat";
+function getCustomerMetricIcon(...args) {
+  return callCustomerHelper("getCustomerMetricIcon", args);
 }
 
-function buildCustomerMetricCards(contacts = []) {
-  return `
-    <div class="customer-v2-metric-grid">
-      ${buildCustomerSummaryItems(contacts).map((item) => `
-        <article class="customer-v2-metric-card">
-          <div class="customer-v2-metric-label">
-            <span class="customer-v2-metric-icon" aria-hidden="true">${getUiIconMarkup(getCustomerMetricIcon(item.label))}</span>
-            <span>${escapeHtml(item.label)}</span>
-          </div>
-          <strong>${escapeHtml(formatAnalyticsReportNumber(item.value || 0))}</strong>
-          <p>${escapeHtml(item.copy)}</p>
-        </article>
-      `).join("")}
-    </div>
-  `;
+function buildCustomerMetricCards(...args) {
+  return callCustomerHelper("buildCustomerMetricCards", args);
 }
 
-function getContactFirstSeenAt(contact = {}) {
-  const timeline = Array.isArray(contact.timeline) ? contact.timeline : [];
-  const datedEntries = timeline
-    .map((entry) => entry.at || entry.createdAt || entry.created_at || "")
-    .filter((value) => !Number.isNaN(new Date(value).getTime()))
-    .sort((left, right) => new Date(left).getTime() - new Date(right).getTime());
-
-  return trimText(contact.firstSeenAt || contact.first_seen_at || contact.createdAt || contact.created_at)
-    || datedEntries[0]
-    || "";
+function getContactFirstSeenAt(...args) {
+  return callCustomerHelper("getContactFirstSeenAt", args);
 }
 
-function getCustomerIntentLabel(contact = {}) {
-  const nextActionTitle = trimText(contact.nextAction?.title || contact.nextAction?.label);
-
-  if (nextActionTitle && !isGenericCustomerNoActionTitle(nextActionTitle)) {
-    return nextActionTitle;
-  }
-
-  const outcomeLabel = trimText(contact.latestOutcome?.label);
-
-  if (outcomeLabel) {
-    return outcomeLabel;
-  }
-
-  const primaryStatus = getPrimaryCustomerStatus(contact);
-  return primaryStatus?.label || translateDashboardText("General inquiry");
+function getCustomerIntentLabel(...args) {
+  return callCustomerHelper("getCustomerIntentLabel", args);
 }
 
-function getCustomerDetailMetaRows(contact = {}) {
-  const email = getCustomerEmailLabel(contact.email);
-  const phone = trimText(contact.phone);
-  const firstSeenAt = getContactFirstSeenAt(contact);
-
-  return [
-    email ? { icon: "mail", label: email } : { icon: "mail", label: localizeDashboardCopy("Email missing", "Hiányzó email") },
-    phone ? { icon: "phone", label: phone } : { icon: "phone", label: localizeDashboardCopy("Phone missing", "Hiányzó telefon") },
-    { icon: "link", label: buildContactSourceSummary(contact) },
-    {
-      icon: "clock",
-      label: firstSeenAt
-        ? `${localizeDashboardCopy("First seen", "Első megjelenés")} ${formatSeenAt(firstSeenAt)}`
-        : localizeDashboardCopy("First seen unavailable", "Első megjelenés nem elérhető"),
-    },
-  ];
+function getCustomerDetailMetaRows(...args) {
+  return callCustomerHelper("getCustomerDetailMetaRows", args);
 }
 
-function buildCustomerInitials(contact = {}) {
-  const label = getCustomerRowIdentifier(contact);
-  const parts = trimText(label).split(/\s+/).filter(Boolean);
-
-  if (isGuestCustomerRow(contact)) {
-    return "G";
-  }
-
-  if (parts.length >= 2) {
-    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
-  }
-
-  return trimText(label).slice(0, 2).toUpperCase() || "C";
+function buildCustomerInitials(...args) {
+  return callCustomerHelper("buildCustomerInitials", args);
 }
 
-// eslint-disable-next-line no-unused-vars
-function buildContactQuickActions(
-  contact = {},
-  operatorWorkspace = createEmptyOperatorWorkspace(),
-  { includeDraftFollowUp = true } = {}
-) {
-  const actions = [];
-  const nextAction = contact.nextAction || {};
-  const suggestedSlot = (operatorWorkspace.calendar?.suggestedSlots || [])[0] || null;
-  const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
-
-  if (contact.latestMessageId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Open related conversation", "Kapcsolódó beszélgetés megnyitása"))}</button>`);
-  }
-
-  if (contact.primaryThreadId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>`);
-  }
-
-  if (nextAction.followUpId) {
-    if (automationsVisible) {
-      actions.push(`<button class="ghost-button" type="button" data-open-follow-up data-follow-up-id="${escapeHtml(nextAction.followUpId)}">${escapeHtml(localizeDashboardCopy("Open follow-up draft", "Utánkövetési piszkozat megnyitása"))}</button>`);
-    } else if (contact.id) {
-      actions.push(`<button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id)}">Open customer</button>`);
-    }
-  } else if (customerHasContactDetails(contact) && automationsVisible && includeDraftFollowUp) {
-    actions.push(`
-      <button
-        class="ghost-button"
-        type="button"
-        data-draft-contact-followup
-        data-contact-name="${escapeHtml(contact.name || "")}"
-        data-contact-email="${escapeHtml(contact.email || "")}"
-        data-contact-phone="${escapeHtml(contact.phone || "")}"
-        data-contact-id="${escapeHtml(contact.id || "")}"
-        data-person-key="${escapeHtml(contact.personKey || "")}"
-        data-lead-id="${escapeHtml(contact.leadId || "")}"
-        data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      >${escapeHtml(localizeDashboardCopy("Review suggested reply", "Javasolt válasz áttekintése"))}</button>
-    `);
-  }
-
-  if (nextAction.eventId || contact.primaryEventId) {
-    actions.push(`<button class="ghost-button" type="button" data-open-calendar-event data-event-id="${escapeHtml(nextAction.eventId || contact.primaryEventId)}">${escapeHtml(localizeDashboardCopy("Review calendar action", "Naptárművelet áttekintése"))}</button>`);
-  } else if ((contact.email || contact.phone) && suggestedSlot?.startAt && suggestedSlot?.endAt) {
-    actions.push(`
-      <button
-        class="ghost-button"
-        type="button"
-        data-draft-contact-calendar
-        data-contact-name="${escapeHtml(contact.name || "")}"
-        data-contact-email="${escapeHtml(contact.email || "")}"
-        data-contact-phone="${escapeHtml(contact.phone || "")}"
-        data-contact-id="${escapeHtml(contact.id || "")}"
-        data-lead-id="${escapeHtml(contact.leadId || "")}"
-        data-slot-start="${escapeHtml(suggestedSlot.startAt || "")}"
-        data-slot-end="${escapeHtml(suggestedSlot.endAt || "")}"
-      >${escapeHtml(localizeDashboardCopy("Schedule call", "Hívás ütemezése"))}</button>
-    `);
-  } else {
-    actions.push(`<button class="ghost-button" type="button" data-shell-target="calendar">${escapeHtml(localizeDashboardCopy("Open calendar", "Naptár megnyitása"))}</button>`);
-  }
-
-  if (contact.email && automationsVisible) {
-    actions.push(`
-      <button
-        class="ghost-button"
-        type="button"
-        data-draft-contact-campaign
-        data-contact-name="${escapeHtml(contact.name || "")}"
-        data-contact-email="${escapeHtml(contact.email || "")}"
-        data-contact-id="${escapeHtml(contact.id || "")}"
-        data-person-key="${escapeHtml(contact.personKey || "")}"
-        data-lead-id="${escapeHtml(contact.leadId || "")}"
-        data-goal="${escapeHtml(nextAction.recommendedGoal || getRecommendedCampaignGoal(contact))}"
-      >${escapeHtml(localizeDashboardCopy("Draft campaign", "Kampánypiszkozat készítése"))}</button>
-    `);
-  }
-
-  if (Array.isArray(contact.complaintTaskIds) && contact.complaintTaskIds.length) {
-    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="resolved">${escapeHtml(localizeDashboardCopy("Mark complaint resolved", "Panasz megoldottnak jelölése"))}</button>`);
-    actions.push(`<button class="ghost-button" type="button" data-update-operator-task data-task-id="${escapeHtml(contact.complaintTaskIds[0])}" data-task-status="escalated">${escapeHtml(localizeDashboardCopy("Escalate", "Eszkalálás"))}</button>`);
-  }
-
-  return actions.join("");
+function buildContactQuickActions(...args) {
+  return callCustomerHelper("buildContactQuickActions", args);
 }
 
-function buildContactsAttentionStrip(operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const summary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
-
-  return `
-    <div class="overview-grid operator-metric-grid operator-people-grid">
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Needs a follow-up", "Utánkövetést igényel"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsNeedingAttention, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("People who would benefit from a reply, a follow-up, or a next step.", "Olyan emberek, akiknek hasznos lenne egy válasz, utánkövetés vagy következő lépés."))}</p>
-      </div>
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("At-risk relationships", "Kockázatos kapcsolatok"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.complaintRiskContacts, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Customers or leads where support context should stay front and center.", "Ügyfelek vagy érdeklődők, akiknél a támogatási kontextusnak kell fókuszban maradnia."))}</p>
-      </div>
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("No clear next step", "Nincs világos következő lépés"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.leadsWithoutNextStep, "lead"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Interested people who still need a follow-up, booking, or quote path.", "Érdeklődők, akiknek még utánkövetésre, foglalási vagy ajánlatkérési útra van szükségük."))}</p>
-      </div>
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Customers to check in with", "Ügyfelek, akikkel érdemes egyeztetni"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.customersAwaitingFollowUp, "customer"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Customers who could benefit from another touchpoint before momentum fades.", "Ügyfelek, akiknek hasznos lehet még egy érintkezési pont, mielőtt elillan a lendület."))}</p>
-      </div>
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("Customers with wins", "Eredményt hozó ügyfelek"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.contactsWithOutcomes, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("People records where Vonza can already point to a real result.", "Olyan ügyfélrekordok, ahol a Vonza már valódi eredményt tud felmutatni."))}</p>
-      </div>
-      <div class="overview-card">
-        <p class="overview-label">${escapeHtml(localizeDashboardCopy("High-value still open", "Magas érték még nyitott"))}</p>
-        <p class="overview-value">${escapeHtml(formatOperatorCount(summary.highValueWithoutOutcome, "contact"))}</p>
-        <p class="overview-card-copy">${escapeHtml(localizeDashboardCopy("Qualified or active leads that still need a real outcome, not just activity.", "Minősített vagy aktív érdeklődők, akiknek még valódi eredményre van szükségük, nem csak aktivitásra."))}</p>
-      </div>
-    </div>
-  `;
+function buildContactsAttentionStrip(...args) {
+  return callCustomerHelper("buildContactsAttentionStrip", args);
 }
 
-function buildContactSourceSummary(contact = {}) {
-  const sources = getCustomerSourceLabels(contact);
-  return sources.length ? sources.join(" · ") : localizeDashboardCopy("Sparse record", "Hiányos rekord");
+function buildContactSourceSummary(...args) {
+  return callCustomerHelper("buildContactSourceSummary", args);
 }
 
-function buildContactCountsSummary(contact = {}) {
-  return [
-    formatDashboardCountLabel(contact.counts?.leads || 0, "lead", "leads", "érdeklődő"),
-    formatDashboardCountLabel(contact.counts?.inboxThreads || 0, "inbox thread", "inbox threads", "email-szál"),
-    formatDashboardCountLabel(contact.counts?.calendarEvents || 0, "calendar event", "calendar events", "naptárbejegyzés"),
-    formatDashboardCountLabel(contact.counts?.followUps || 0, "follow-up", "follow-ups", "utánkövetés"),
-    formatDashboardCountLabel(contact.counts?.outcomes || 0, "outcome", "outcomes", "eredmény"),
-  ].join(" · ");
+function buildContactCountsSummary(...args) {
+  return callCustomerHelper("buildContactCountsSummary", args);
 }
 
-function getCustomerChatUnavailableReason(contact = {}) {
-  if (customerMissingContactDetails(contact)) {
-    return localizeDashboardCopy(
-      "Guest visitor only. No contact details captured yet.",
-      "Csak vendég látogató. Még nincs rögzített elérhetőség."
-    );
-  }
-
-  if (!customerHasContactDetails(contact) && !trimText(contact.primaryThreadId)) {
-    return localizeDashboardCopy(
-      "No contact details captured yet.",
-      "Még nincs rögzített elérhetőség."
-    );
-  }
-
-  return localizeDashboardCopy(
-    "Conversation closed or no saved chat messages.",
-    "A beszélgetés lezárult, vagy nincs mentett chatüzenet."
-  );
+function getCustomerChatUnavailableReason(...args) {
+  return callCustomerHelper("getCustomerChatUnavailableReason", args);
 }
 
-function buildCustomerChatPanel(contact = {}) {
-  const messages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
-
-  if (isGuestCustomerRow(contact) && !customerHasActiveReplyableChat(contact)) {
-    return "";
-  }
-
-  if (!messages.length) {
-    return `
-      <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
-        <div class="customer-chat-empty">${escapeHtml(t("common.noSavedChat"))}</div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="customer-chat-panel" data-customer-chat-panel data-contact-id="${escapeHtml(contact.id || "")}" hidden>
-      <div class="customer-chat-list">
-        ${messages.map((message, index) => {
-          const previousCustomer = message.role === "vonza"
-            ? messages.slice(0, index).reverse().find((candidate) => candidate.role !== "vonza")
-            : null;
-          const canTrain = message.role === "vonza" && previousCustomer && trimText(previousCustomer.content) && trimText(message.content);
-          return `
-          <div class="customer-chat-message customer-chat-message--${escapeHtml(message.role === "vonza" ? "vonza" : "customer")}">
-            <div class="customer-chat-message-meta">
-              <strong>${escapeHtml(message.label === "Vonza" ? t("common.vonza") : t("common.customer"))}</strong>
-              ${message.createdAt ? `<span>${escapeHtml(formatSeenAt(message.createdAt))}</span>` : ""}
-            </div>
-            <p>${escapeHtml(trimText(message.content) || t("common.noMessageText"))}</p>
-            ${canTrain ? `
-              <div class="inline-actions customer-training-actions">
-                <button class="ghost-button" type="button" data-conversation-improve-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}" data-session-key="${escapeHtml(message.sessionKey || previousCustomer.sessionKey || "")}">Improve this answer</button>
-                <button class="ghost-button" type="button" data-conversation-save-approved-answer data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}">Save as approved answer</button>
-                <button class="ghost-button" type="button" data-conversation-not-helpful data-question="${escapeHtml(previousCustomer.content || "")}" data-answer="${escapeHtml(message.content || "")}" data-message-id="${escapeHtml(message.id || "")}" data-session-key="${escapeHtml(message.sessionKey || previousCustomer.sessionKey || "")}">Mark not helpful</button>
-              </div>
-            ` : ""}
-          </div>
-        `; }).join("")}
-      </div>
-    </div>
-  `;
+function buildCustomerChatPanel(...args) {
+  return callCustomerHelper("buildCustomerChatPanel", args);
 }
 
-function buildContactRow(contact = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const statusKeys = getCustomerStatusList(contact).map((status) => status.key).join("|");
-  const actionState = getCustomerActionState(contact);
-  const rowIdentifier = getCustomerRowIdentifier(contact);
-  const secondaryIdentityLine = getCustomerSecondaryIdentityLine(contact);
-  const visibleLastActivityAt = getCustomerLastMessageAt(contact);
-  const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
-  const guestRow = isGuestCustomerRow(contact);
-  const canShowChat = (!guestRow || customerHasActiveReplyableChat(contact)) && chatMessages.length > 0;
-  const sourceLabels = getCustomerSourceLabels(contact);
-  const identityTone = guestRow ? "guest" : "identified";
-  const rowStatuses = getCustomerStatusList(contact).filter((status) => !["guest", "lead"].includes(status.key)).slice(0, 2);
-  const chatUnavailableReason = getCustomerChatUnavailableReason(contact);
-
-  return `
-    <article
-      class="contact-row customer-row"
-      data-contact-row
-      data-contact-card
-      data-contact-id="${escapeHtml(contact.id || "")}"
-      data-customer-row-key="${escapeHtml(contact.customerRowKey || "")}"
-      data-contact-lifecycle="${escapeHtml(contact.lifecycleState || "")}"
-      data-contact-flags="${escapeHtml(buildContactFlags(contact).join("|"))}"
-      data-contact-sources="${escapeHtml(buildContactSources(contact).join("|"))}"
-      data-contact-source-labels="${escapeHtml((sourceLabels.length ? sourceLabels : ["Legacy/unknown"]).join("|"))}"
-      data-contact-statuses="${escapeHtml(statusKeys)}"
-      data-contact-identity="${escapeHtml(guestRow ? "guest" : "identified")}"
-      data-contact-needs-owner-review="${actionState.needs_owner_review ? "true" : "false"}"
-      data-contact-follow-up-possible="${actionState.follow_up_possible ? "true" : "false"}"
-      data-contact-missing-contact-details="${actionState.missing_contact_details ? "true" : "false"}"
-      data-contact-reply-possible="${actionState.reply_possible ? "true" : "false"}"
-      data-contact-last-activity="${escapeHtml(visibleLastActivityAt)}"
-    >
-      <div class="contact-row-main">
-        <span class="customer-row-select" aria-hidden="true"></span>
-        <div class="customer-row-top">
-          <div class="customer-row-title-group">
-            <span class="customer-avatar customer-avatar--${escapeHtml(identityTone)}" aria-hidden="true">${escapeHtml(buildCustomerInitials(contact))}</span>
-            <div>
-              <strong class="contact-row-name">${escapeHtml(rowIdentifier)}</strong>
-              ${secondaryIdentityLine ? `<p class="customer-row-identity">${escapeHtml(secondaryIdentityLine)}</p>` : ""}
-            </div>
-          </div>
-          <div class="customer-row-source">${buildCustomerSourceBadgeMarkup(contact, 1)}</div>
-          <div class="customer-row-intent"><span class="customer-intent-chip">${escapeHtml(getCustomerIntentLabel(contact))}</span></div>
-          <p class="customer-row-summary">${escapeHtml(getCustomerLatestSummary(contact))}</p>
-          <strong class="customer-row-last-seen">${escapeHtml(getCustomerLastActivityLabel(contact))}</strong>
-          <div class="customer-row-statuses">
-            <span class="customer-identity-chip customer-identity-chip--${escapeHtml(identityTone)}">${escapeHtml(guestRow ? t("common.guestVisitor") : translateDashboardText("Identified"))}</span>
-            ${rowStatuses.map((status) => `<span class="customer-status-chip customer-status-chip--${escapeHtml(status.key)}">${escapeHtml(status.label)}</span>`).join("")}
-          </div>
-        </div>
-        <div class="customer-row-meta">
-          <button
-            class="ghost-button customer-chat-toggle"
-            type="button"
-            data-toggle-customer-chat
-            data-contact-id="${escapeHtml(contact.id || "")}"
-            aria-expanded="false"
-            ${canShowChat ? "" : "disabled"}
-          >${canShowChat ? t("common.viewChat") : t("common.chatUnavailable")}</button>
-          ${!canShowChat && chatUnavailableReason ? `<span class="customer-chat-unavailable-reason">${escapeHtml(chatUnavailableReason)}</span>` : ""}
-        </div>
-      </div>
-      ${buildCustomerChatPanel(contact)}
-    </article>
-  `;
+function buildContactRow(...args) {
+  return callCustomerHelper("buildContactRow", args);
 }
 
-function buildContactDetailPanel(
-  agent = {},
-  contact = {},
-  operatorWorkspace = createEmptyOperatorWorkspace(),
-  selected = false
-) {
-  const primaryStatus = getPrimaryCustomerStatus(contact);
-  const guestRow = isGuestCustomerRow(contact);
-  const chatMessages = Array.isArray(contact.chatMessages) ? contact.chatMessages : [];
-  const canShowChat = (!guestRow || customerHasActiveReplyableChat(contact)) && chatMessages.length > 0;
-  const automationsVisible = isCapabilityVisibleForWorkspace("automations", operatorWorkspace);
-  const canDraftReply = automationsVisible && customerHasContactDetails(contact);
-  const chatUnavailableReason = getCustomerChatUnavailableReason(contact);
-  const reviewConversationActionMarkup = contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
-  ` : `
-    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
-  `;
-  const primaryActionMarkup = canDraftReply ? `
-    <button
-      class="primary-button"
-      data-customer-primary-action
-      type="button"
-      data-draft-contact-followup
-      data-contact-name="${escapeHtml(contact.name || "")}"
-      data-contact-email="${escapeHtml(contact.email || "")}"
-      data-contact-phone="${escapeHtml(contact.phone || "")}"
-      data-contact-id="${escapeHtml(contact.id || "")}"
-      data-person-key="${escapeHtml(contact.personKey || "")}"
-      data-lead-id="${escapeHtml(contact.leadId || "")}"
-      data-lifecycle-state="${escapeHtml(contact.lifecycleState || "")}"
-      ${customerHasContactDetails(contact) ? "" : "disabled"}
-    >${escapeHtml(localizeDashboardCopy("Review suggested reply", "Javasolt válasz áttekintése"))}</button>
-  ` : customerMissingContactDetails(contact) ? reviewConversationActionMarkup : contact.latestMessageId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-conversation data-message-id="${escapeHtml(contact.latestMessageId)}" data-contact-id="${escapeHtml(contact.id || "")}">${escapeHtml(localizeDashboardCopy("Review conversation", "Beszélgetés áttekintése"))}</button>
-  ` : contact.primaryThreadId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-inbox-thread data-thread-id="${escapeHtml(contact.primaryThreadId)}">${escapeHtml(localizeDashboardCopy("Open inbox thread", "Email-szál megnyitása"))}</button>
-  ` : contact.primaryEventId ? `
-    <button class="primary-button" data-customer-primary-action type="button" data-open-calendar-event data-event-id="${escapeHtml(contact.primaryEventId)}">${escapeHtml(localizeDashboardCopy("Review calendar action", "Naptárművelet áttekintése"))}</button>
-  ` : `
-    <button class="primary-button" data-customer-primary-action type="button" data-shell-target="contacts" data-target-id="${escapeHtml(contact.id || "")}" ${contact.id ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Review customer", "Ügyfél áttekintése"))}</button>
-  `;
-  const directChatActionMarkup = `
-    <button
-      class="ghost-button customer-chat-toggle"
-      type="button"
-      data-toggle-customer-chat
-      data-contact-id="${escapeHtml(contact.id || "")}"
-      aria-expanded="false"
-      ${canShowChat ? "" : "disabled"}
-    >${escapeHtml(canShowChat ? t("common.viewChat") : t("common.chatUnavailable"))}</button>
-    ${!canShowChat && chatUnavailableReason ? `<span class="customer-chat-unavailable-reason">${escapeHtml(chatUnavailableReason)}</span>` : ""}
-  `;
-  const timelineMarkup = Array.isArray(contact.timeline) && contact.timeline.length ? `
-    <div class="timeline-list customer-timeline-list">
-      ${contact.timeline.slice(0, 5).map((entry) => `
-        <div class="timeline-row">
-          <div>
-            <strong>${escapeHtml(entry.at ? formatSeenAt(entry.at) : translateDashboardText(entry.label || "Recent"))}</strong>
-            <span>${escapeHtml(translateDashboardText(trimText(entry.label || entry.source || "Activity")))}</span>
-          </div>
-          <p class="customer-timeline-copy">${escapeHtml(trimText(entry.summary) || localizeDashboardCopy("No additional note stored for this interaction.", "Nincs további megjegyzés eltárolva ehhez az interakcióhoz."))}</p>
-        </div>
-      `).join("")}
-    </div>
-  ` : `<div class="placeholder-card">${escapeHtml(localizeDashboardCopy("No timeline details are stored yet.", "Még nincs eltárolt idővonal-részlet."))}</div>`;
-  const detailDisclosureMarkup = buildDisclosureBlock({
-    label: localizeDashboardCopy("View timeline", "Idővonal megnyitása"),
-    summary: `${contact.timeline?.length || 0} interaction${contact.timeline?.length === 1 ? "" : "s"}`,
-    className: "customer-detail-disclosure",
-    contentMarkup: `
-        <div class="customer-detail-disclosure-section">
-        ${canDraftReply ? `
-          <div class="customer-draft-card">
-            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Reply idea", "Válaszötlet"))}</span>
-            <strong>${escapeHtml(getCustomerDraftPreview(contact))}</strong>
-          </div>
-        ` : ""}
-      </div>
-      ${buildDisclosureDetailRows([
-        { label: localizeDashboardCopy("Customer", "Ügyfél"), value: getCustomerName(contact), copy: getCustomerIdentityLabel(contact) },
-        { label: localizeDashboardCopy("Identifier", "Azonosító"), value: getCustomerIdentifier(contact), copy: buildContactSourceSummary(contact) },
-        { label: localizeDashboardCopy("Previous interactions", "Korábbi interakciók"), value: buildContactCountsSummary(contact) },
-        {
-          label: localizeDashboardCopy("Latest outcome", "Legutóbbi eredmény"),
-          value: trimText(contact.latestOutcome?.label) || localizeDashboardCopy("No recorded result yet", "Még nincs rögzített eredmény"),
-          copy: contact.latestOutcome?.occurredAt
-            ? `${localizeDashboardCopy("Updated", "Frissítve")} ${formatSeenAt(contact.latestOutcome.occurredAt)}`
-            : localizeDashboardCopy("No recent outcome has been recorded.", "Nem lett rögzítve friss eredmény."),
-        },
-      ])}
-      ${timelineMarkup}
-      <form class="detail-inline-form" data-contact-lifecycle-form data-contact-id="${escapeHtml(contact.id || "")}">
-        <label for="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Customer type", "Ügyféltípus"))}</label>
-        <div class="detail-inline-form-row">
-          <select id="contact-detail-lifecycle-${escapeHtml(contact.id || contact.name || "contact")}" name="lifecycle_state">
-            ${["new", "active_lead", "qualified", "customer", "support_issue", "complaint_risk", "dormant"].map((state) => `
-              <option value="${escapeHtml(state)}" ${state === contact.lifecycleState ? "selected" : ""}>${escapeHtml(formatContactLifecycleLabel(state))}</option>
-            `).join("")}
-          </select>
-          <button class="ghost-button" type="submit" ${contact.id ? "" : "disabled"}>${escapeHtml(t("common.save"))}</button>
-        </div>
-      </form>
-      ${isCapabilityExplicitlyVisible("manual_outcome_marks") ? `
-        <form class="action-queue-follow-up-form" data-manual-outcome-form data-contact-id="${escapeHtml(contact.id || "")}" data-lead-id="${escapeHtml(contact.leadId || "")}" data-follow-up-id="${escapeHtml(contact.primaryFollowUpId || "")}" data-inbox-thread-id="${escapeHtml(contact.primaryThreadId || "")}" data-calendar-event-id="${escapeHtml(contact.primaryEventId || "")}" data-person-key="${escapeHtml(contact.personKey || "")}">
-          <div class="form-grid two-col">
-            <div class="field">
-              <label for="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Outcome mark", "Eredményjelölés"))}</label>
-              <select id="contact-outcome-${escapeHtml(contact.id || contact.name || "contact")}" name="outcome_type" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-                <option value="booking_confirmed">${escapeHtml(localizeDashboardCopy("booked", "lefoglalva"))}</option>
-                <option value="quote_requested">${escapeHtml(localizeDashboardCopy("quote requested", "ajánlatkérés érkezett"))}</option>
-                <option value="quote_accepted">${escapeHtml(localizeDashboardCopy("quote accepted", "ajánlat elfogadva"))}</option>
-                <option value="follow_up_replied">${escapeHtml(localizeDashboardCopy("follow-up successful", "utánkövetés sikeres"))}</option>
-                <option value="complaint_resolved">${escapeHtml(localizeDashboardCopy("complaint resolved", "panasz megoldva"))}</option>
-                <option value="manual_outcome_marked">${escapeHtml(localizeDashboardCopy("no outcome / manual note", "nincs eredmény / kézi megjegyzés"))}</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}">${escapeHtml(localizeDashboardCopy("Note", "Megjegyzés"))}</label>
-              <input id="contact-outcome-note-${escapeHtml(contact.id || contact.name || "contact")}" name="note" type="text" ${agent.manualOutcomeMode === true ? "" : "disabled"}>
-            </div>
-          </div>
-          <div class="action-queue-form-actions">
-            <button class="ghost-button" type="submit" ${agent.manualOutcomeMode === true ? "" : "disabled"}>${escapeHtml(localizeDashboardCopy("Record outcome", "Eredmény rögzítése"))}</button>
-          </div>
-        </form>
-      ` : ""}
-    `,
-  });
-
-  return `
-    <article
-      class="contact-detail-panel customer-detail-panel ${selected ? "active" : ""}"
-      data-contact-detail
-      data-contact-card
-      data-contact-id="${escapeHtml(contact.id || "")}"
-      ${selected ? "" : "hidden"}
-    >
-      <div class="customer-detail-topbar">
-        <span class="customer-avatar customer-avatar--${escapeHtml(guestRow ? "guest" : "identified")}" aria-hidden="true">${escapeHtml(buildCustomerInitials(contact))}</span>
-        <div class="customer-detail-intro">
-          <div class="customer-detail-heading-row">
-            <h2 class="contact-detail-title">${escapeHtml(getCustomerRowIdentifier(contact))}</h2>
-            ${primaryStatus ? `<span class="customer-status-chip customer-status-chip--${escapeHtml(primaryStatus.key)}">${escapeHtml(primaryStatus.label)}</span>` : ""}
-          </div>
-          <p class="contact-detail-copy">${escapeHtml(getCustomerIdentityLabel(contact))}</p>
-          <div class="customer-detail-meta-list">
-            ${getCustomerDetailMetaRows(contact).map((item) => `
-              <span>${getUiIconMarkup(item.icon)}${escapeHtml(item.label)}</span>
-            `).join("")}
-          </div>
-        </div>
-      </div>
-      <div class="customer-detail-card customer-detail-summary-card">
-        <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation summary", "Beszélgetés összefoglaló"))}</span>
-        <p>${escapeHtml(getCustomerSituationSummary(contact))}</p>
-        <span class="customer-intent-chip">${escapeHtml(getCustomerIntentLabel(contact))}</span>
-      </div>
-      <div class="customer-detail-card customer-suggested-action-card">
-        <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Suggested next action", "Javasolt következő lépés"))}</span>
-        <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
-      </div>
-      <div class="customer-detail-card customer-timeline-card">
-        <div class="customer-card-heading">
-          <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation timeline", "Beszélgetés idővonala"))}</span>
-          <span>${escapeHtml(formatDashboardCountLabel(contact.timeline?.length || 0, "interaction", "interactions", "interakció"))}</span>
-        </div>
-        ${timelineMarkup}
-      </div>
-      <div class="inline-actions customer-primary-actions">
-        ${directChatActionMarkup}
-        ${primaryActionMarkup}
-        <button
-          class="ghost-button customer-secondary-button"
-          type="button"
-          data-contact-quick-status="customer"
-          data-contact-id="${escapeHtml(contact.id || "")}"
-          ${contact.id ? "" : "disabled"}
-        >${escapeHtml(localizeDashboardCopy("Mark reviewed", "Áttekintettnek jelölés"))}</button>
-      </div>
-      <div class="customer-risk-note">${escapeHtml(getCustomerRiskSummary(contact))}</div>
-      ${detailDisclosureMarkup}
-    </article>
-  `;
+function buildContactDetailPanel(...args) {
+  return callCustomerHelper("buildContactDetailPanel", args);
 }
+
+function _buildCustomerStatusMarkup(...args) {
+  return callCustomerHelper("buildCustomerStatusMarkup", args);
+}
+/* eslint-enable no-unused-vars */
 
 // eslint-disable-next-line no-unused-vars
 function buildWorkspaceRecordRow({
@@ -6106,74 +5157,8 @@ function buildWorkspaceRecordRow({
   `;
 }
 
-function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
-  const contacts = operatorWorkspace.contacts?.list || [];
-  const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
-  const customerFilters = buildCustomerFilterDefinitions(contacts);
-  const filtersMarkup = `
-    <div class="customer-filter-strip" data-customer-filter-strip>
-      ${customerFilters.map((filter, index) => `
-        <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-          ${escapeHtml(`${filter.label} (${filter.count})`)}
-        </button>
-      `).join("")}
-    </div>
-  `;
-  const searchMarkup = `
-    <div class="toolbar-search customer-toolbar-search">
-      <label class="sr-only" for="customer-search-input">${escapeHtml(translateDashboardText("Search customers"))}</label>
-      <input id="customer-search-input" data-contact-search type="search" placeholder="${escapeHtml(translateDashboardText("Search by name, email, phone, or conversation"))}">
-    </div>
-  `;
-  const peopleWorkspaceMarkup = `
-    ${buildCustomerMetricCards(contacts)}
-    <div class="contacts-workspace" data-contacts-workspace>
-      <section class="contacts-list-shell">
-        <div class="contacts-list-header">
-          <div>
-            <h3 class="flat-section-title">${escapeHtml(translateDashboardText("All customers"))}</h3>
-            <p class="workspace-panel-copy">${escapeHtml(t("customers.listCopy"))}</p>
-          </div>
-          <button class="ghost-button customer-banner-button" type="button" data-contact-filter="needs_review">${escapeHtml(localizeDashboardCopy("Show customers needing review", "Áttekintésre váró ügyfelek mutatása"))}</button>
-        </div>
-        <div class="customer-table-head" aria-hidden="true">
-          <span></span>
-          <span>${escapeHtml(translateDashboardText("Customer"))}</span>
-          <span>${escapeHtml(translateDashboardText("Source"))}</span>
-          <span>${escapeHtml(translateDashboardText("Intent"))}</span>
-          <span>${escapeHtml(t("common.lastMessage"))}</span>
-          <span>${escapeHtml(translateDashboardText("Last seen"))}</span>
-          <span>${escapeHtml(translateDashboardText("Status"))}</span>
-          <span>${escapeHtml(t("common.viewChat"))}</span>
-        </div>
-        <div class="contacts-list" data-contact-filter-results>
-          ${contacts.map((contact) => buildContactRow(contact, operatorWorkspace)).join("")}
-        </div>
-      </section>
-      <aside class="contacts-detail-shell">
-        ${contacts.map((contact, index) => buildContactDetailPanel(agent, contact, operatorWorkspace, index === 0)).join("")}
-      </aside>
-    </div>
-  `;
-
-  return `
-    <section class="workspace-page" data-shell-section="contacts" hidden>
-      ${buildPageHeader({
-        title: t("customers.title"),
-        copy: t("customers.subtitle"),
-      })}
-      ${contacts.length ? buildPageToolbar({ searchMarkup, filtersMarkup }) : ""}
-      <div class="workspace-page-body">
-        <div class="workspace-section-stack">
-          ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
-          ${!contacts.length ? buildOperatorEmptyState({
-            title: "No customer conversations yet.",
-            copy: "Customer conversations, leads, and follow-up context will appear here after visitors contact the business.",
-          }) : peopleWorkspaceMarkup}
-        </div>
-      </div>
-    </section>
-  `;
+function buildContactsPanel(...args) {
+  return callCustomerHelper("buildContactsPanel", args);
 }
 
 function buildCopilotSummaryCards(copilot = createEmptyOperatorWorkspace().copilot) {
@@ -6403,6 +5388,7 @@ function buildTodayCopilotSection(operatorWorkspace = createEmptyOperatorWorkspa
   `;
 }
 
+// eslint-disable-next-line no-unused-vars
 function getTodayRecommendationCategory(recommendation = {}) {
   const type = trimText(recommendation.type).toLowerCase();
 
@@ -7372,7 +6358,6 @@ function buildTodayQueueRow(
   const title = isAppointmentReviewQueueItem(item)
     ? item.title || "Ended appointment"
     : item.label || getActionQueueTypeLabel(item.type);
-  const contextLabel = isAppointmentReviewQueueItem(item) ? "Attendee / contact" : "Contact";
 
   return `
     <article
@@ -8295,6 +7280,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   `);
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const profile = getBusinessProfileViewModel(operatorWorkspace);
 
@@ -8376,6 +7362,7 @@ function buildBusinessContextSetupPanel(operatorWorkspace = createEmptyOperatorW
   `;
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildFrontDeskSettingsForm(agent, setup) {
   const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
   const behaviorSummary = buildBehaviorSummary(agent.tone, agent.systemPrompt);
@@ -8714,6 +7701,7 @@ function buildConnectedToolsSettingsPanel(agent, operatorWorkspace = createEmpty
   `;
 }
 
+// eslint-disable-next-line no-unused-vars
 function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const installStatus = getDefaultInstallStatus(agent);
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
@@ -8817,6 +7805,7 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
   });
 }
 
+// eslint-disable-next-line no-unused-vars
 function getFriendlyRouteLabel(value = "") {
   const normalized = trimText(value || "contact").toLowerCase();
   const labels = {
@@ -8923,6 +7912,7 @@ function buildCustomizePanel(agent, setup, operatorWorkspace = createEmptyOperat
 }
 
 // Workspace sections
+// eslint-disable-next-line no-unused-vars
 function buildAppearanceStudio(agent) {
   return `
     <section class="workspace-panel" data-shell-section="appearance">
@@ -16965,7 +15955,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const contactSearchInput = document.querySelector("[data-contact-search]");
   const focusCustomerFilterButtons = document.querySelectorAll("[data-focus-customer-filters]");
   const exportCustomerButtons = document.querySelectorAll("[data-export-customers]");
-  const contactCards = document.querySelectorAll("[data-contact-card]");
   const contactRows = document.querySelectorAll("[data-contact-row]");
   const contactDetails = document.querySelectorAll("[data-contact-detail]");
   const customerChatToggleButtons = document.querySelectorAll("[data-toggle-customer-chat]");
@@ -17475,7 +16464,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const searchText = trimText(row.textContent || "").toLowerCase();
       const needsOwnerReview = row.dataset.contactNeedsOwnerReview === "true";
       const followUpPossible = row.dataset.contactFollowUpPossible === "true";
-      let visible = true;
+      let visible;
 
       switch (activeContactFilter) {
         case "unresolved":

@@ -14,6 +14,7 @@ const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
 const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js");
 const dashboardInstallPath = path.join(repoRoot, "frontend", "dashboardInstall.js");
 const dashboardFrontDeskPath = path.join(repoRoot, "frontend", "dashboardFrontDesk.js");
+const dashboardCustomersPath = path.join(repoRoot, "frontend", "dashboardCustomers.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -52,6 +53,7 @@ function createDashboardHarness({
   const dashboardLabelsScript = readFileSync(dashboardLabelsPath, "utf8");
   const dashboardInstallScript = readFileSync(dashboardInstallPath, "utf8");
   const dashboardFrontDeskScript = readFileSync(dashboardFrontDeskPath, "utf8");
+  const dashboardCustomersScript = readFileSync(dashboardCustomersPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -354,6 +356,7 @@ function createDashboardHarness({
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
   vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
   vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
+  vm.runInNewContext(dashboardCustomersScript, context, { filename: "frontend/dashboardCustomers.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -476,6 +479,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   const labelsBundle = readFileSync(dashboardLabelsPath, "utf8");
   const installBundle = readFileSync(dashboardInstallPath, "utf8");
   const frontDeskBundle = readFileSync(dashboardFrontDeskPath, "utf8");
+  const customersBundle = readFileSync(dashboardCustomersPath, "utf8");
   const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
@@ -484,6 +488,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     new vm.Script(labelsBundle, { filename: "frontend/dashboardLabels.js" }).runInNewContext(context);
     new vm.Script(installBundle, { filename: "frontend/dashboardInstall.js" }).runInNewContext(context);
     new vm.Script(frontDeskBundle, { filename: "frontend/dashboardFrontDesk.js" }).runInNewContext(context);
+    new vm.Script(customersBundle, { filename: "frontend/dashboardCustomers.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
@@ -513,6 +518,60 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
   assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
   assert.equal(typeof context.window.VonzaDashboardFrontDesk.createFrontDeskHelpers, "function");
+  assert.equal(typeof context.window.VonzaDashboardCustomers.createCustomerHelpers, "function");
+  assert.equal(context.window.VonzaDashboardCustomers.getCustomerSourceLabel("embedded_assistant"), "Embedded assistant");
+  const customerHelpers = context.window.VonzaDashboardCustomers.createCustomerHelpers({
+    getCustomerSourceLabel: context.window.VonzaDashboardLabels.getCustomerSourceLabel,
+    isCapabilityVisibleForWorkspace: (capability) => capability === "automations",
+    formatSeenAt: (value) => `seen:${value}`,
+    getUiIconMarkup: () => "",
+    formatAnalyticsReportNumber: (value) => String(value),
+    formatDashboardCountLabel: (count, singular, plural) => `${count} ${Number(count) === 1 ? singular : plural}`,
+    formatContactLifecycleLabel: (value) => value,
+  });
+  const guestContact = {
+    id: "guest-1",
+    name: "Anonymous visitor",
+    partialIdentity: true,
+    lifecycleState: "needs_review",
+    flags: ["follow up due"],
+    sources: [],
+    latestMessageId: "message-1",
+    chatMessages: [{ role: "customer", label: "Customer", content: "Can I get pricing?", createdAt: "2026-05-13T10:00:00.000Z" }],
+    timeline: [{ label: "Visitor message", source: "chat", summary: "Asked about pricing." }],
+  };
+  const identifiedContact = {
+    id: "identified-1",
+    name: "Avery Hart",
+    email: "avery@example.com",
+    lifecycleState: "active_lead",
+    flags: ["follow up due"],
+    sources: ["widget_chat", "full_page_assistant", "embedded_assistant"],
+    latestMessageId: "message-2",
+    chatMessages: [{ role: "customer", label: "Customer", content: "Can you help?", createdAt: "2026-05-13T10:00:00.000Z" }],
+  };
+  assert.equal(customerHelpers.deriveCustomerReachability(guestContact).missingContactDetails, true);
+  assert.equal(customerHelpers.deriveCustomerReachability(identifiedContact).replyPossible, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(customerHelpers.deriveCustomerStatusBadges(guestContact).map((badge) => badge.label).slice(0, 3))),
+    ["Guest visitor", "Needs review", "Missing contact details"]
+  );
+  assert.equal(customerHelpers.getCustomerPrimaryAction(guestContact).label, "Review conversation");
+  assert.notEqual(customerHelpers.getCustomerPrimaryAction(guestContact).label, "Follow-up");
+  assert.equal(customerHelpers.getCustomerPrimaryAction(identifiedContact, { capabilities: {} }).label, "Review suggested reply");
+  assert.match(customerHelpers.deriveCustomerReachability(guestContact).reason, /No contact details captured yet/);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(["widget_chat", "full_page_assistant", "embedded_assistant", ""].map((source) => customerHelpers.getCustomerSourceLabel(source) || "Unknown source"))),
+    ["Website widget", "Front Desk page", "Embedded assistant", "Unknown source"]
+  );
+  const rowMarkup = customerHelpers.renderCustomerRow(guestContact);
+  assert.match(rowMarkup, /data-contact-id="guest-1"/);
+  assert.match(rowMarkup, /data-contact-source-labels="Unknown source"/);
+  assert.match(rowMarkup, /data-contact-missing-contact-details="true"/);
+  const detailMarkup = customerHelpers.renderCustomerDetailPanel({}, identifiedContact, { capabilities: {} }, true);
+  assert.match(detailMarkup, /data-customer-primary-action/);
+  assert.match(detailMarkup, /Review suggested reply/);
+  assert.doesNotMatch(detailMarkup, /Send AI draft/);
   assert.equal(context.window.VonzaDashboardFrontDesk.normalizeFrontDeskTab("answer-library"), "library");
   assert.equal(context.window.VonzaDashboardFrontDesk.normalizeFrontDeskTab("bad-tab"), "practice");
   assert.equal(context.window.VonzaDashboardFrontDesk.getFrontDeskTabLabel("launch"), "Launch");

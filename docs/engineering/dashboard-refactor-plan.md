@@ -263,9 +263,105 @@ Recommended Sprint 4:
 - Treat lint burn-down as a secondary Sprint 4 target, limited to touched Customers code and any clearly dead VM-only wrappers.
 - Defer dashboard CSS section splitting until one more renderer boundary lands or an ordered CSS bundling plan exists.
 
+## Sprint 4 Baseline
+
+Starting point before Sprint 4 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 20,776 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 68 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 50 |
+| `no-useless-assignment` | 15 |
+| `no-unreachable` | 3 |
+
+Starting test status:
+
+- `npm run test:smoke`: passing, 615 tests.
+
+## Sprint 4 Extraction
+
+Extracted:
+
+- `frontend/dashboardCustomers.js`
+  - customer identity and guest/identified detection helpers
+  - source labels and source badge render fragments
+  - customer reachability, owner-review, follow-up, and missing-contact state derivation
+  - status badge derivation
+  - primary/secondary customer action label helpers
+  - customer metric cards, filter tab rendering, row rendering, detail panel rendering, chat panel rendering, and conversation-message rendering
+  - Customers panel rendering through a dependency-injected `createCustomerHelpers(...)` bridge
+- `frontend/dashboard.js`
+  - now delegates Customers helpers/render fragments through `window.VonzaDashboardCustomers.createCustomerHelpers(...)`
+  - retains thin compatibility wrappers for VM tests and existing dashboard call sites
+  - keeps Customers event binding and API calls in the shared dashboard event layer
+- `dashboard.html`, `src/routes/publicRoutes.js`, `src/utils/securityHeaders.js`, and `src/app/createApp.js`
+  - load, version, classify, and no-store the new Customers helper asset consistently with the other dashboard scripts
+- `frontend/dashboardLabels.js`
+  - adds the explicit `Embedded assistant` customer source label used by Customers helpers and tests
+
+Line counts after Sprint 4 extraction:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 19,765 |
+| `frontend/dashboard.css` | 19,040 |
+| `frontend/dashboardCustomers.js` | 1,516 |
+
+Lint warnings after Sprint 4: 58 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 41 |
+| `no-useless-assignment` | 14 |
+| `no-unreachable` | 3 |
+
+Customer action wording verification:
+
+- Guest/no-contact rows derive `Needs review` and `Missing contact details`, not `Needs follow-up`.
+- Guest/no-contact primary actions remain `Review conversation`.
+- Identified/reachable customers can show `Needs follow-up` and `Review suggested reply`.
+- Unavailable chat includes an explicit reason.
+- `Send AI draft` remains absent from Customers markup.
+- Source labels cover `Website widget`, `Front Desk page`, `Embedded assistant`, and `Unknown source` fallback behavior.
+
+Intentionally not extracted:
+
+- Customers event binding, because selection, filter application, chat expansion, selected-customer persistence, and detail-panel visibility are live DOM concerns inside `bindSharedDashboardEvents(...)`.
+- Customers API calls, because fetching workspace contacts/conversations, marking reviewed, training actions, and follow-up drafting remain coupled to authenticated `fetchJson`, boot-time reloads, and global dashboard state.
+- Backend APIs, schema, auth/access gates, billing, public assistant/widget/embed/WordPress/voice/RAG/chat behavior.
+
+Sprint 4 CSS notes:
+
+- `frontend/dashboard.css` was not changed or split.
+- Customers CSS remains in layered blocks:
+  - legacy/base contact controls around lines 2,330-3,145
+  - main contacts workspace and row/detail styles around lines 4,272-4,560
+  - production Customers override blocks around lines 17,226-17,655
+  - late compact/density overrides around lines 18,115-18,132
+- CSS split remains risky because Customers styles depend on later production-shell overrides and shared workspace tokens.
+
+Remaining Sprint 4 risks:
+
+- `frontend/dashboard.js` still owns Customers event/API coupling.
+- Customers renderers now depend on injected dashboard primitives; load order is covered by tests but remains important for classic scripts.
+- Some compatibility wrappers remain in `dashboard.js` for VM tests and legacy call sites.
+- The lint total is below 60, but remaining warnings are mostly outside Customers or require product decisions around legacy connected-tool bodies.
+
+Recommended Sprint 5:
+
+- Analytics helper extraction is the next best renderer-boundary sprint.
+- Keep CSS split/load-order hardening as a separate sprint after another renderer module lands.
+- Continue lint burn-down only where warnings are clearly dead or already touched by the active sprint.
+
 ## Dashboard.js Section Map
 
-Approximate current line ranges after Sprint 2:
+Approximate current line ranges after Sprint 4:
 
 | Area | Lines | Notes |
 | --- | ---: | --- |
@@ -275,15 +371,15 @@ Approximate current line ranges after Sprint 2:
 | Install/embed helper bridge and shared helpers | 2,690-3,260 | Install URL/snippet/status helpers now come from `frontend/dashboardInstall.js`. |
 | Setup/access/loading/auth rendering | 3,430-4,240 | Access gates, loading, auth entry, launch/onboarding screens. |
 | Shell primitives and navigation | 4,240-4,900 | Page headers, toolbar, local nav, icons, sidebar. |
-| Customers helpers and renderer | 4,900-6,520 | Customer identity, source labels, filters, rows, detail panel. |
-| Home/operator/Today helpers | 6,520-8,120 | Copilot summaries, Today queue, review drawer, Home overview. |
-| Settings and Front Desk renderers | 8,120-9,850 | Settings bridge, Front Desk practice/improvements/knowledge/library/launch. |
-| Analytics logic and renderer | 9,850-13,670 | Conversation analysis, owner analytics, reports, action queue labels. |
-| Connected tools renderers | 13,670-14,900 | Email/Calendar/Automations currently return coming-soon surfaces with unreachable legacy bodies. |
-| Install renderer | 14,900-15,640 | Install status, methods, copy blocks, QR, full-page assistant install options. |
-| Form parsing and save/import/copy actions | 15,640-17,260 | Assistant saves, full-page config, voice config, uploads, copy helpers. |
-| Event binding | 17,260-20,980 | Shared dashboard events, filters, settings forms, queue actions, customer actions. |
-| Local fixture and boot | 20,980-21,544 | Fixture-backed dashboard and authenticated boot flow. |
+| Customers compatibility bridge | 4,860-5,170 | Delegates customer helpers/renderers to `frontend/dashboardCustomers.js`. |
+| Home/operator/Today helpers | 5,170-7,110 | Copilot summaries, Today queue, review drawer, Home overview. |
+| Settings and Front Desk renderers | 7,110-8,850 | Settings bridge, Front Desk practice/improvements/knowledge/library/launch. |
+| Analytics logic and renderer | 8,850-12,650 | Conversation analysis, owner analytics, reports, action queue labels. |
+| Connected tools renderers | 12,650-13,880 | Email/Calendar/Automations currently return coming-soon surfaces with unreachable legacy bodies. |
+| Install renderer | 13,880-14,620 | Install status, methods, copy blocks, QR, full-page assistant install options. |
+| Form parsing and save/import/copy actions | 14,620-16,240 | Assistant saves, full-page config, voice config, uploads, copy helpers. |
+| Event binding | 16,240-19,760 | Shared dashboard events, filters, settings forms, queue actions, customer actions. |
+| Local fixture and boot | 19,200-19,765 | Fixture-backed dashboard and authenticated boot flow. |
 
 ## Dashboard.css Section Map
 
@@ -312,7 +408,7 @@ CSS was not split in Sprint 1. The file contains multiple late override layers, 
 - `frontend/dashboardLabels.js`: stable source/status/outcome labels and small formatting helpers.
 - `frontend/dashboardInstall.js`: Install page URLs, snippets, QR helpers, status copy, method metadata, and public page helpers.
 - `frontend/dashboardFrontDesk.js`: Front Desk tab metadata, status summaries, source/reason labels, and isolated Front Desk render fragments.
-- Future `frontend/dashboardCustomers.js`: customer identity/source/status helpers and Customers renderer.
+- `frontend/dashboardCustomers.js`: customer identity/source/status/action helpers and Customers render fragments.
 - Future `frontend/dashboardAnalytics.js`: analytics formatting/report helpers.
 - Future CSS split: keep `dashboard.css` as the final bundle initially, then extract source files only if the app has a safe concatenation or explicit ordered load plan.
 
