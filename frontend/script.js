@@ -1285,11 +1285,23 @@ function normalizeVoiceConfig(config = widgetConfig) {
 }
 
 function getPageOrigin() {
-  return trimText(PAGE_ORIGIN || window.location.origin);
+  if (PAGE_ORIGIN) {
+    return trimText(PAGE_ORIGIN);
+  }
+
+  if (EMBEDDED_MODE && document.referrer) {
+    try {
+      return new URL(document.referrer).origin;
+    } catch {
+      return "";
+    }
+  }
+
+  return trimText(window.location.origin);
 }
 
 function getPageUrl() {
-  return trimText(PAGE_URL || window.location.href);
+  return trimText(PAGE_URL || (EMBEDDED_MODE ? document.referrer : "") || window.location.href);
 }
 
 function getFingerprint() {

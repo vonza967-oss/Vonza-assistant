@@ -326,6 +326,29 @@ test("full-page assistant bootstrap requires owner enablement and revocable publ
       }),
     (error) => error.statusCode === 404 && error.code === "public_full_page_unavailable"
   );
+
+  const installedOriginSupabase = createInstallState();
+  const installedOriginResult = await getWidgetBootstrap(installedOriginSupabase, {
+    agentKey: "agent-key",
+    displayMode: "page",
+    origin: "https://example.com",
+    pageUrl: "https://example.com/front-desk",
+  });
+
+  assert.equal(installedOriginResult.agent.id, "agent-1");
+  assert.equal(installedOriginResult.widgetConfig.fullPageConfig.publicPageEnabled, true);
+
+  const blockedOriginSupabase = createInstallState();
+  await assert.rejects(
+    () =>
+      getWidgetBootstrap(blockedOriginSupabase, {
+        agentKey: "agent-key",
+        displayMode: "page",
+        origin: "https://bad.example.net",
+        pageUrl: "https://bad.example.net/front-desk",
+      }),
+    (error) => error.statusCode === 404 && error.code === "public_full_page_unavailable"
+  );
 });
 
 test("full-page assistant bootstrap treats invalid public agent ids as unavailable", async () => {

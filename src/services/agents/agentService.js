@@ -1873,7 +1873,11 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
     };
 
     if (displayMode === "page") {
-      requirePublicFullPageAccess(context, { publicPageKey });
+      requirePublicFullPageAccess(context, {
+        publicPageKey,
+        origin: requestedOrigin,
+        pageUrl,
+      });
     }
 
     return context;
@@ -1882,7 +1886,11 @@ export async function resolveAllowedPublicWidgetContext(supabase, options = {}) 
   const context = await resolveExistingPublicWidgetContext(supabase, options);
 
   if (displayMode === "page") {
-    requirePublicFullPageAccess(context, { publicPageKey });
+    requirePublicFullPageAccess(context, {
+      publicPageKey,
+      origin: requestedOrigin,
+      pageUrl,
+    });
     return context;
   }
 
@@ -1903,8 +1911,23 @@ export function requirePublicFullPageAccess(context = {}, options = {}) {
   const providedKey = normalizePublicPageKey(options.publicPageKey || options.public_page_key || options.pageKey || options.k);
   const ownerUserId = cleanText(context.agent?.ownerUserId || context.agent?.owner_user_id);
   const accessStatus = normalizeAccessStatus(context.agent?.accessStatus || context.agent?.access_status);
+  const hasValidPublicPageKey = Boolean(expectedKey && providedKey === expectedKey);
+  let hasAllowedInstalledOrigin = false;
 
-  if (!ownerUserId || accessStatus !== "active" || !enabled || !expectedKey || providedKey !== expectedKey) {
+  if (!providedKey && expectedKey) {
+    try {
+      requireAllowedOriginForWidgetContext(context, {
+        installId: context.widgetConfig?.installId || context.widgetConfigRow?.install_id,
+        origin: options.origin,
+        pageUrl: options.pageUrl,
+      });
+      hasAllowedInstalledOrigin = true;
+    } catch {
+      hasAllowedInstalledOrigin = false;
+    }
+  }
+
+  if (!ownerUserId || accessStatus !== "active" || !enabled || !expectedKey || (!hasValidPublicPageKey && !hasAllowedInstalledOrigin)) {
     throw buildPublicFullPageUnavailableError();
   }
 }
