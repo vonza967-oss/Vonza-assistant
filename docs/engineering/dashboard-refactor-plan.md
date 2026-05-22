@@ -571,6 +571,112 @@ Recommended Sprint 7:
 - Run dashboard CSS split/load-order hardening as the next sprint, starting with Install or Analytics styles and fixture-backed browser screenshots.
 - If CSS ordering proves too risky, extract Home helper/render fragments instead; Sprint 6 left the lint surface small enough that structural dashboard work can resume.
 
+## Sprint 7 Baseline
+
+Starting point before Sprint 7 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 18,551 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 4 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 3 |
+| `no-useless-assignment` | 1 |
+
+Starting dashboard CSS load order:
+
+1. `dashboard.css`
+2. `settings/settings.css`
+
+Starting Install CSS boundaries in `frontend/dashboard.css`:
+
+- Base install/onboarding styles around lines 6,748-7,163: install shell, steps, option cards, copy fields, full-page install choices, QR blocks, and code snippets.
+- Install V2/status overrides around lines 13,428-13,504: status card, meta grid, QR sizing, and light copy fields.
+- Install method-card overrides around lines 14,610-14,729: method cards, selected state, next-step cards, copy fields, and QR preview surface.
+- Compact/final install density around lines 18,050-19,040: method-card density, final wizard layout, setup progress, side/status cards, preview/resources, dark-mode, and mobile overrides.
+
+Dashboard CSS audit summary:
+
+- Global/base styles kept in `dashboard.css`: root variables, reset/base form controls, shell/sidebar, auth/loading, typography, buttons, cards, badges, tables, shared forms, shared responsive utilities, dark/light workspace tokens, and dashboard-wide density rules.
+- Section-specific styles kept in `dashboard.css` for now: Home, Customers, Front Desk, Analytics, Settings, connected-tool placeholders, and mixed shared workspace panels.
+- Install-specific selectors identified: `install-page-*`, `install-method-*`, `install-status-*`, `install-meta-*`, `install-option-*`, `install-copy-*`, `install-qr-*`, `install-stage-*`, `install-progress-*`, `install-detail-*`, `install-side-*`, `install-target-*`, `install-preview-*`, `install-resource-*`, `full-page-install-*`, `install-title-toggle`, `install-height-options`, `code-toggle`, `copy-action`, and `step-check`.
+
+## Sprint 7 Install CSS Split
+
+Files changed in Sprint 7:
+
+- `frontend/dashboard.css`
+- `frontend/dashboard-install.css`
+- `dashboard.html`
+- `src/app/createApp.js`
+- `src/routes/publicRoutes.js`
+- `src/utils/securityHeaders.js`
+- `tests/smoke.test.js`
+- `docs/engineering/dashboard-refactor-plan.md`
+
+Line counts after Sprint 7:
+
+| File | Before | After |
+| --- | ---: | ---: |
+| `frontend/dashboard.js` | 18,551 | 18,551 |
+| `frontend/dashboard.css` | 19,040 | 17,855 |
+| `frontend/dashboard-install.css` | 0 | 1,234 |
+
+CSS load order after Sprint 7:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `settings/settings.css`
+
+Install CSS moved:
+
+- Install method cards, selected state, icons, and method-grid responsive rules.
+- Install status/meta cards, setup progress, side panel, preview, resources, target URL, and domain chips.
+- Install page option cards, copy/snippet fields, QR/direct-link controls, full-page install option cards, WordPress/dedicated page guidance, and disabled public-page styling.
+- Final Install wizard layout, compact desktop density, dark-mode Install overrides, and mobile Install overrides that were purely Install-scoped.
+
+Styles intentionally left in `dashboard.css`:
+
+- Mixed selectors shared with Front Desk, Knowledge Improvement, Analytics, Customers, Settings, or dashboard-wide density groups.
+- Shared shell/sidebar/layout, base buttons/forms/cards/badges, global light/dark tokens, and common responsive breakpoint groups.
+- Broad grouped rules where moving only the Install member would increase cascade risk more than it would reduce monolith risk.
+
+Static guard added:
+
+- Smoke coverage now asserts `dashboard-install.css` exists, is referenced after `dashboard.css`, remains before Settings CSS, serves successfully, and contains key Install selectors.
+- Dashboard asset versioning, no-store headers, and dashboard CSP asset classification now include `/dashboard-install.css`.
+
+Browser checks run:
+
+- `http://127.0.0.1:3000/dashboard-v2-fixture#install` at 1440x900: page identity, nonblank app shell, stylesheet order, Install layout, status/sidebar, disabled public Front Desk page state, method cards, WordPress/dedicated page options, QR/direct link panel, widget panel, and console health.
+- Install interactions: Front Desk page, QR/direct link, Website widget, WordPress/dedicated, raw iframe fallback, and disabled copy/share controls.
+- `http://127.0.0.1:3000/dashboard-v2-fixture#install` at 390x844: mobile Install layout, one-column method grid/page layout, no horizontal overflow, and console health.
+- Quick dashboard routes: `#home`, `#customers`, `#front-desk`, `#analytics`, and `#settings/front-desk`.
+- Public surfaces: `/widget?agent_id=local-agent-1`, `/a/local-public-agent`, and `/assistant-embed-matrix`.
+
+Remaining CSS risks:
+
+- `dashboard.css` still contains mixed Install selectors inside shared dashboard-wide groups. Those are intentionally retained until each neighboring section has its own split and browser baseline.
+- The local fixture covers disabled public Front Desk page controls; enabled public-page behavior remains covered by VM/smoke tests rather than the local browser fixture.
+- The cascade now relies on document order across files instead of one monolithic file. The static smoke guard should remain in place for every future section CSS split.
+
+Sprint 7 verification:
+
+- Required `node --check` coverage for dashboard, extracted dashboard helpers, public scripts, Settings shell, and assistant embed passed.
+- `node --test tests/dashboardVisibility.test.js tests/dashboardOperatorWorkspace.test.js tests/dashboardAnalytics.test.js` passed, 124 tests.
+- `npm run test:smoke` passed, 625 tests.
+- `npm run check:schema-sync` passed.
+- `npm run lint` passed with the four intentional warnings listed in Sprint 6.
+- `git diff --check` passed after removing a mechanical trailing blank line from the extracted CSS.
+
+Recommended Sprint 8:
+
+- Split Analytics CSS next. The Analytics renderer is already isolated in `frontend/dashboardAnalytics.js`, the focused dashboard tests cover Analytics source labels and empty states, and the remaining Analytics styles are less intertwined with Settings/Front Desk than a Settings split would be.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 5:

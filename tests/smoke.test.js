@@ -1342,6 +1342,15 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /dashboard-root/);
         assert.match(dashboard.text, /\/public-config\.js/);
         assert.match(dashboard.text, /\/supabase-auth\.js/);
+        assert.ok(
+          dashboard.text.indexOf("/dashboard.css") < dashboard.text.indexOf("/dashboard-install.css"),
+          "dashboard-install.css should load after dashboard.css"
+        );
+        assert.ok(
+          dashboard.text.indexOf("/dashboard-install.css") < dashboard.text.indexOf("/settings/settings.css"),
+          "settings CSS should remain after dashboard install CSS"
+        );
+        assert.match(dashboard.text, /\/dashboard-install\.css/);
         assert.match(dashboard.text, /\/settings\/settings\.css/);
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboardState\.js/);
@@ -1430,6 +1439,13 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const settingsShellCss = await getText(server.baseUrl, "/settings/settings.css");
         assert.equal(settingsShellCss.status, 200);
+
+        const dashboardInstallCss = await getText(server.baseUrl, "/dashboard-install.css");
+        assert.equal(dashboardInstallCss.status, 200);
+        assert.match(dashboardInstallCss.text, /\.install-method-card\s*\{/);
+        assert.match(dashboardInstallCss.text, /\.workspace-page\[data-shell-section="install"\] \.install-page-layout/);
+        assert.match(dashboardInstallCss.text, /\.full-page-install-choice\s*\{/);
+        assert.match(dashboardInstallCss.text, /\.install-qr-preview\s*\{/);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);

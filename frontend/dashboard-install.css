@@ -1,0 +1,1234 @@
+/* Dashboard Install page styles. Loaded after dashboard.css so Install-specific rules keep their override order. */
+.install-shell {
+  margin-top: 18px;
+}
+
+.copy-action {
+  margin-top: 18px;
+}
+
+.install-steps {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.install-step {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: start;
+  padding: 18px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: var(--surface-highlight);
+}
+
+.install-step-number {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #13233a 0%, #174238 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+
+.install-step-title {
+  margin: 0 0 4px;
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.install-step-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.step-check {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.step-check.done {
+  color: var(--success);
+}
+
+.install-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  align-items: center;
+}
+
+.install-options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.install-option-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: var(--surface-highlight);
+}
+
+.install-option-card[hidden] {
+  display: none;
+}
+
+.install-option-eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.install-option-title {
+  margin: 0;
+  color: white;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+}
+
+.install-option-copy {
+  margin: 0;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.install-copy-field {
+  display: grid;
+  gap: 8px;
+}
+
+.install-copy-field label {
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.install-copy-field textarea {
+  min-height: 82px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.install-copy-field textarea.full-page-url-output {
+  min-height: 48px;
+  overflow-wrap: anywhere;
+}
+
+.install-copy-field textarea.full-page-iframe-output {
+  min-height: 132px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.full-page-install-selector {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.full-page-install-choice {
+  display: grid;
+  gap: 6px;
+  min-height: 112px;
+  padding: 14px;
+  border: 1px solid var(--dashboard-panel-line, rgba(148, 163, 184, 0.22));
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--dashboard-ink, #172033);
+  text-align: left;
+  cursor: pointer;
+}
+
+.full-page-install-choice strong {
+  font-size: 14px;
+}
+
+.full-page-install-choice span {
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.full-page-install-choice:hover,
+.full-page-install-choice.active {
+  border-color: rgba(37, 99, 235, 0.55);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.full-page-install-output {
+  display: grid;
+  gap: 12px;
+}
+
+.full-page-install-output[hidden] {
+  display: none;
+}
+
+.install-title-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  color: var(--dashboard-ink, #172033);
+}
+
+.install-title-toggle input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin-top: 3px;
+  padding: 0;
+  box-shadow: none;
+  accent-color: #2563eb;
+}
+
+.install-title-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.install-title-toggle strong {
+  font-size: 14px;
+}
+
+.install-title-toggle small {
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-height-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.035);
+}
+
+.install-height-options legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-height-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--dashboard-ink, #172033);
+  cursor: pointer;
+}
+
+.install-height-options input[type="radio"] {
+  flex: 0 0 auto;
+  width: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin-top: 3px;
+  padding: 0;
+  box-shadow: none;
+  accent-color: #2563eb;
+}
+
+.install-height-options span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.install-height-options strong {
+  font-size: 14px;
+}
+
+.install-height-options small {
+  color: var(--dashboard-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.45;
+}
+@media (max-width: 760px) {
+  .full-page-install-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .full-page-install-choice {
+    min-height: 0;
+  }
+
+  .install-height-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.install-qr-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.18);
+}
+
+.install-qr-preview {
+  display: grid;
+  place-items: center;
+  width: 132px;
+  min-height: 132px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.install-qr-preview svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.install-qr-copy {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.install-qr-status {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.install-next-step {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid rgba(20, 184, 166, 0.18);
+  border-radius: 12px;
+  background: rgba(20, 184, 166, 0.08);
+}
+
+.install-next-step-title {
+  margin: 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.install-next-step-copy {
+  margin: 6px 0 0;
+  color: var(--soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.workspace-pages .install-next-step-title {
+  color: var(--dashboard-ink);
+}
+
+.workspace-pages .install-next-step-copy {
+  color: var(--dashboard-muted);
+}
+
+.install-help {
+  margin-top: 14px;
+  color: var(--soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.install-upcoming {
+  margin: 0 0 16px;
+  color: var(--soft);
+  font-size: 14px;
+}
+
+.code-toggle {
+  margin-top: 14px;
+}
+
+.code-toggle summary {
+  cursor: pointer;
+  color: var(--soft);
+  font-size: 14px;
+}
+
+.code-toggle textarea {
+  margin-top: 12px;
+  min-height: 110px;
+}
+
+.install-page-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  gap: 18px;
+}
+
+.install-status-card,
+.install-meta-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.install-status-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid #d8e6e2;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, #f7fcfa);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.install-status-title {
+  margin: 5px 0 6px;
+  color: #111827;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.install-meta-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.install-meta-grid:empty {
+  display: none;
+}
+
+.install-meta-grid .install-help {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #dfe7ef;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.install-meta-grid .install-help strong {
+  color: #1f2d44;
+  font-size: 12px;
+}
+
+.install-options-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.install-option-card {
+  gap: 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.install-option-card-qr .install-qr-section {
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: center;
+}
+
+.install-qr-preview {
+  width: 150px;
+  min-height: 150px;
+}
+
+.install-copy-field textarea {
+  border-color: #d7e0eb;
+  background: #f8fbfd;
+  color: #243449;
+}
+@media (max-width: 700px) {
+
+  .install-option-card-qr .install-qr-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+.install-page-layout {
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.6fr);
+  gap: 22px;
+}
+
+.install-method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.install-method-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  width: 100%;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  box-shadow: none;
+}
+
+.install-method-card.active {
+  border-color: rgba(15, 143, 127, 0.42);
+  background: linear-gradient(180deg, #ffffff, #f4fbf9);
+}
+
+.install-method-card:focus-visible {
+  outline: 3px solid rgba(15, 143, 127, 0.22);
+  outline-offset: 2px;
+}
+
+.install-method-card:hover {
+  border-color: rgba(15, 143, 127, 0.3);
+  background: #f8fcfb;
+}
+
+.install-method-icon {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.install-method-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.install-method-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.install-method-copy strong {
+  color: var(--dashboard-ink);
+  font-size: 15px;
+}
+
+.install-method-copy small {
+  color: var(--dashboard-muted);
+  line-height: 1.4;
+}
+
+.install-status-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 18px;
+  background: #ffffff;
+}
+
+.install-next-step {
+  padding: 16px;
+  border-color: #cfe4df;
+  background: #f4fbf9;
+}
+
+.install-next-step-title {
+  color: var(--dashboard-ink);
+}
+
+.install-next-step-copy {
+  color: var(--dashboard-muted);
+}
+
+.install-checklist,
+.install-options-grid,
+.install-steps {
+  gap: 12px;
+}
+
+.install-option-card {
+  padding: 18px;
+}
+
+.install-option-eyebrow {
+  color: var(--dashboard-accent);
+}
+
+.install-copy-field textarea,
+.code-toggle textarea {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  background: #f8fbfd;
+}
+
+.install-qr-preview {
+  border-color: var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: #ffffff;
+}
+
+.install-method-card.active,
+.install-option-card,
+.install-option-card-qr,
+.install-status-card,
+.install-next-step {
+  background: #ffffff;
+}
+
+.install-method-card.active {
+  border-color: rgba(15, 143, 127, 0.36);
+  box-shadow: inset 3px 0 0 var(--dashboard-accent), var(--dashboard-shadow-soft);
+}
+
+.install-method-icon {
+  background: var(--dashboard-accent-soft);
+  color: var(--dashboard-accent-hover);
+}
+
+.install-meta-grid .install-help,
+.install-qr-section,
+.install-qr-preview,
+.install-code-card {
+  border-color: var(--dashboard-panel-line);
+  background: #ffffff;
+}
+@media (min-width: 760px) {
+
+  .dashboard-v2-production-shell .install-method-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .dashboard-v2-production-shell .install-method-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .dashboard-v2-production-shell .install-method-copy {
+    gap: 3px;
+  }
+
+  .dashboard-v2-production-shell .install-method-copy strong {
+    font-size: 12px;
+  }
+
+  .dashboard-v2-production-shell .install-method-copy small {
+    font-size: 10.5px;
+    line-height: 1.2;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-layout {
+    grid-template-columns: minmax(0, 1.8fr) minmax(260px, 0.45fr);
+    gap: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-main {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 0;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-card {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-status-card {
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-meta-grid,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-checklist {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    align-items: start;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-options-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-step {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-step-number {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-step-title {
+    font-size: 11px;
+    line-height: 1.15;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-step-copy {
+    font-size: 9.8px;
+    line-height: 1.18;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-option-card {
+    gap: 6px;
+    min-height: 0;
+    padding: 8px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-steps,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-section,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-copy {
+    gap: 6px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field textarea,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .code-toggle textarea {
+    min-height: 42px;
+    height: 42px;
+    padding: 5px 7px;
+    font-size: 9.8px;
+    line-height: 1.18;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field textarea.full-page-iframe-output {
+    height: 72px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-section {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-preview {
+    min-height: 92px;
+    padding: 6px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-preview svg {
+    width: 76px;
+    height: 76px;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-next-step,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .placeholder-card {
+    padding: 8px;
+  }
+}
+
+
+/* Final Install wizard overrides after dashboard density rules. */
+.workspace-page[data-shell-section="install"] .install-page-layout,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-layout {
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.55fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.workspace-page[data-shell-section="install"] .install-page-main,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-main {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.workspace-page[data-shell-section="install"] .install-stage-flow,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-stage-flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-grid,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-card,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-card {
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 126px;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-icon,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-icon {
+  width: 42px;
+  height: 42px;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-icon svg,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-copy strong,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-copy strong {
+  font-size: 14px;
+}
+
+.workspace-page[data-shell-section="install"] .install-method-copy small,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-copy small {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workspace-page[data-shell-section="install"] .install-option-card,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-option-card {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.workspace-page[data-shell-section="install"] .install-option-title,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-option-title {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.workspace-page[data-shell-section="install"] .install-option-copy,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-option-copy {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workspace-page[data-shell-section="install"] .install-copy-field textarea,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field textarea {
+  min-height: 112px;
+  height: auto;
+  padding: 12px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.workspace-page[data-shell-section="install"] .full-page-url-output textarea,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .full-page-url-output textarea {
+  min-height: 58px;
+}
+
+.workspace-page[data-shell-section="install"] .full-page-iframe-output textarea,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .full-page-iframe-output textarea {
+  min-height: 168px;
+}
+
+.workspace-page[data-shell-section="install"] .install-qr-section,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-section {
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.workspace-page[data-shell-section="install"] .install-qr-preview,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-preview {
+  width: 210px;
+  min-height: 210px;
+  padding: 14px;
+}
+
+.workspace-page[data-shell-section="install"] .install-qr-preview svg,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-preview svg {
+  width: 180px;
+  height: 180px;
+}
+@media (max-width: 1100px) {
+  .workspace-page[data-shell-section="install"] .install-page-layout,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-layout,
+  .workspace-page[data-shell-section="install"] .install-stage-flow,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-stage-flow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace-page[data-shell-section="install"] .install-method-grid,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-grid,
+  .workspace-page[data-shell-section="install"] .install-qr-section,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-section {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page[data-shell-section="install"] .install-method-card,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-method-card {
+    min-height: 0;
+  }
+
+  .workspace-page[data-shell-section="install"] .install-qr-preview,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-qr-preview {
+    width: min(100%, 240px);
+    min-height: 220px;
+  }
+}
+
+
+.install-stage-flow,
+.install-progress-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.install-stage-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.install-stage-item.done {
+  border-color: #b8dfcd;
+  background: #f2fbf7;
+}
+
+.install-stage-item.active {
+  border-color: rgba(15, 143, 127, 0.4);
+  background: #f4fbf9;
+}
+
+.install-stage-number {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--dashboard-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-stage-item strong,
+.install-progress-copy strong,
+.install-status-row strong,
+.install-detail-card strong,
+.install-target-url strong,
+.install-preview-mini strong {
+  color: var(--dashboard-ink);
+}
+
+.install-stage-item small,
+.install-progress-copy small {
+  display: block;
+  margin-top: 2px;
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.install-method-pill {
+  justify-self: start;
+  padding: 4px 8px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.install-method-pill.ready {
+  border-color: #a9dcc8;
+  background: #ecfdf5;
+  color: #137350;
+}
+
+.install-method-pill.warning {
+  border-color: #e7cf95;
+  background: #fff8e8;
+  color: #8a5b06;
+}
+
+.install-option-header,
+.install-copy-heading,
+.install-side-card-header,
+.install-progress-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.install-option-header > div {
+  min-width: 0;
+}
+
+.workspace-page[data-shell-section="install"] .install-copy-field,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-page[data-shell-section="install"] .install-copy-heading label,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-heading label {
+  color: var(--dashboard-ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.workspace-page[data-shell-section="install"] .install-copy-field textarea,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-copy-field textarea {
+  max-width: 100%;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #172033;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  resize: vertical;
+}
+
+.install-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 12px;
+}
+
+.install-detail-card,
+.install-side-card,
+.install-progress-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.install-detail-card > span,
+.install-target-url span,
+.install-status-row span {
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-detail-card p,
+.install-side-summary,
+.install-preview-mini p {
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-domain-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.install-domain-chips span {
+  padding: 5px 8px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--dashboard-ink-soft);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.install-qr-copy,
+.install-target-url {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.install-target-url {
+  padding: 12px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.install-target-url strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.install-side-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.install-status-row-list {
+  display: grid;
+  gap: 8px;
+}
+
+.install-status-row {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--dashboard-panel-line);
+}
+
+.install-status-row strong {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.install-progress-card-header span {
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-progress-list {
+  display: grid;
+  gap: 8px;
+}
+
+.install-progress-item {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+
+.install-progress-dot {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--dashboard-accent);
+}
+
+.install-progress-dot svg {
+  width: 14px;
+  height: 14px;
+}
+
+.install-progress-item.done .install-progress-dot {
+  border-color: #a9dcc8;
+  background: #ecfdf5;
+}
+
+.install-preview-mini {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.install-preview-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--dashboard-accent-soft);
+  color: var(--dashboard-accent);
+  font-weight: 900;
+}
+
+.install-resource-card .ghost-button {
+  justify-content: center;
+  width: 100%;
+}
+
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-page-main,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-method-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-option-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-detail-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-side-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-progress-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-qr-preview,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-target-url {
+  border-color: var(--dashboard-panel-line);
+  background: var(--dashboard-panel-bg);
+}
+
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-stage-item,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-copy-field textarea,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-domain-chips span {
+  border-color: var(--dashboard-panel-line);
+  background: var(--dashboard-panel-soft);
+  color: var(--dashboard-ink);
+}
+@media (max-width: 760px) {
+  .install-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .install-option-header,
+  .install-copy-heading {
+    display: grid;
+  }
+}
