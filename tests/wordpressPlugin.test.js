@@ -45,6 +45,7 @@ test("Vonza Front Desk WordPress plugin registers admin settings and shortcodes 
   assert.match(admin, /Create new page/);
   assert.match(admin, /Page title/);
   assert.match(admin, /Page slug/);
+  assert.match(admin, /Public page key/);
   assert.match(admin, /get_permalink\(/);
   assert.match(admin, /get_edit_post_link\(/);
   assert.match(admin, /create_or_adopt_front_desk_page/);
@@ -77,6 +78,8 @@ test("Vonza Front Desk WordPress plugin registers admin settings and shortcodes 
   assert.match(plugin, /front_desk_page_id'\] = \$options\['created_page_id'\]/);
   assert.match(plugin, /FRONT_DESK_PAGE_META/);
   assert.match(plugin, /front_desk_page_mode/);
+  assert.match(plugin, /public_page_key/);
+  assert.match(plugin, /sanitize_public_page_key/);
   assert.match(plugin, /sanitize_front_desk_page_id/);
   assert.match(plugin, /sanitize_text_field/);
   assert.match(plugin, /wp_http_validate_url/);
@@ -102,6 +105,7 @@ test("Vonza Front Desk WordPress plugin provides a dedicated template page mode"
   assert.match(template, /get_footer\(\)/);
   assert.match(template, /data-vonza-assistant/);
   assert.match(template, /data-agent-id="<\?php echo esc_attr/);
+  assert.match(template, /data-public-page-key="<\?php echo esc_attr/);
   assert.match(template, /data-layout="page-takeover"/);
   assert.match(template, /data-surface="flat"/);
   assert.match(template, /data-background-scope="page"/);

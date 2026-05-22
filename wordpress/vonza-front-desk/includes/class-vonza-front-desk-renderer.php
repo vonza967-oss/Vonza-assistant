@@ -51,12 +51,14 @@ class Vonza_Front_Desk_Renderer {
 				'hide_footer'      => $options['hide_page_footer'],
 				'hide_title'       => $options['hide_page_title'],
 				'agent_id'         => '',
+				'public_page_key'  => '',
 			),
 			$atts,
 			'vonza_front_desk'
 		);
 
 		$agent_id = $this->plugin->sanitize_agent_id( $atts['agent_id'] ?: $options['agent_id'] );
+		$public_page_key = $this->plugin->sanitize_public_page_key( $atts['public_page_key'] ?: $options['public_page_key'] );
 		if ( empty( $agent_id ) ) {
 			return current_user_can( 'manage_options' )
 				? '<p class="vonza-front-desk-notice">' . esc_html__( 'Vonza Front Desk is missing an Agent ID.', 'vonza-front-desk' ) . '</p>'
@@ -93,6 +95,10 @@ class Vonza_Front_Desk_Renderer {
 			'data-agent-id'        => $agent_id,
 			'data-layout'          => $layout,
 		);
+
+		if ( ! empty( $public_page_key ) ) {
+			$attrs['data-public-page-key'] = $public_page_key;
+		}
 
 		if ( 'section' !== $layout ) {
 			$attrs['data-surface'] = $surface;

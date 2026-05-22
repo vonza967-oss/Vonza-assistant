@@ -366,6 +366,35 @@ test("/assistant-embed.js supports page-takeover layout with viewport wrapper", 
   assert.equal(harness.iframe.allowTransparency, true);
 });
 
+test("/assistant-embed.js hydrates missing public page key from allowed widget bootstrap", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          public_page_enabled: true,
+          public_page_key: "page-key-1",
+          design: {
+            background_type: "color",
+            background_color: "#f8f4ea",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+  const url = new URL(harness.iframe.src);
+  const bootstrapUrl = new URL(harness.window.lastFetchUrl);
+
+  assert.equal(url.searchParams.get("k"), "page-key-1");
+  assert.equal(bootstrapUrl.searchParams.get("display_mode"), null);
+  assert.equal(bootstrapUrl.searchParams.get("origin"), "https://customer.example");
+  assert.equal(bootstrapUrl.searchParams.get("page_url"), "https://customer.example/page");
+});
+
 test("/assistant-embed.js data-page-reset true adds dedicated page classes and resets nearest page-builder wrapper", () => {
   const harness = createHarness({
     "data-agent-id": "agent-1",

@@ -75,6 +75,7 @@ class Vonza_Front_Desk_Plugin {
 	public function get_default_options() {
 		return array(
 			'agent_id'             => '',
+			'public_page_key'      => '',
 			'app_url'              => self::DEFAULT_APP_URL,
 			'enable_widget'        => '0',
 			'default_page_mode'    => 'page-takeover',
@@ -120,6 +121,7 @@ class Vonza_Front_Desk_Plugin {
 
 		return array(
 			'agent_id'             => $this->sanitize_agent_id( $input['agent_id'] ?? $current['agent_id'] ),
+			'public_page_key'      => $this->sanitize_public_page_key( $input['public_page_key'] ?? $current['public_page_key'] ),
 			'app_url'              => untrailingslashit( $app_url ),
 			'enable_widget'        => empty( $input['enable_widget'] ) ? '0' : '1',
 			'default_page_mode'    => $this->sanitize_choice( $input['default_page_mode'] ?? $current['default_page_mode'], array( 'section', 'page-takeover' ), 'page-takeover' ),
@@ -138,6 +140,11 @@ class Vonza_Front_Desk_Plugin {
 	public function sanitize_agent_id( $value ) {
 		$value = sanitize_text_field( wp_unslash( $value ) );
 		return preg_match( '/^[A-Za-z0-9._:-]{0,200}$/', $value ) ? $value : '';
+	}
+
+	public function sanitize_public_page_key( $value ) {
+		$value = sanitize_text_field( wp_unslash( $value ) );
+		return preg_match( '/^[A-Za-z0-9_-]{0,80}$/', $value ) ? $value : '';
 	}
 
 	public function sanitize_bool_string( $value, $default = false ) {

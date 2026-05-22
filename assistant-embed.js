@@ -545,6 +545,19 @@
     return normalizePublicDesign(fullPageConfig.design || {});
   }
 
+  function getBootstrapFullPageAccess(payload = {}) {
+    const config = payload.widgetConfig || payload.widget_config || {};
+    const fullPageConfig = config.fullPageConfig || config.full_page_config || {};
+
+    return {
+      publicPageEnabled: normalizeBoolean(
+        fullPageConfig.publicPageEnabled ?? fullPageConfig.public_page_enabled,
+        false
+      ),
+      publicPageKey: trimText(fullPageConfig.publicPageKey || fullPageConfig.public_page_key),
+    };
+  }
+
   function buildBootstrapUrl(agentId, publicPageKey = "") {
     const url = new URL("/widget/bootstrap", vonzaOrigin);
     url.searchParams.set("agent_id", agentId);
@@ -554,6 +567,14 @@
     if (publicPageKey) {
       url.searchParams.set("k", publicPageKey);
     }
+    return url.toString();
+  }
+
+  function buildAllowedWidgetBootstrapUrl(agentId) {
+    const url = new URL("/widget/bootstrap", vonzaOrigin);
+    url.searchParams.set("agent_id", agentId);
+    url.searchParams.set("origin", window.location.origin || "");
+    url.searchParams.set("page_url", window.location.href || "");
     return url.toString();
   }
 
@@ -711,6 +732,7 @@
     if (
       !isCanvasLayout(entry.layout)
       || !["section", "viewport", "page"].includes(entry.backgroundScope)
+      || !entry.publicPageKey
       || typeof window.fetch !== "function"
     ) {
       return;
@@ -724,6 +746,48 @@
         }
 
         applySectionBackground(entry, getBootstrapDesign(payload));
+      })
+      .catch(() => {});
+  }
+
+  function refreshAssistantFrameSrc(entry) {
+    entry.iframe.src = buildAssistantUrl({
+      agentId: entry.agentId,
+      publicPageKey: entry.publicPageKey,
+      layout: entry.layout,
+      size: entry.size,
+      surface: entry.surface,
+      showTitle: entry.showTitle,
+      backgroundScope: entry.backgroundScope,
+    });
+  }
+
+  function loadMissingPublicPageKey(entry) {
+    if (
+      !isCanvasLayout(entry.layout)
+      || !["section", "viewport", "page"].includes(entry.backgroundScope)
+      || entry.publicPageKey
+      || typeof window.fetch !== "function"
+    ) {
+      return;
+    }
+
+    window.fetch(buildAllowedWidgetBootstrapUrl(entry.agentId))
+      .then((response) => (response?.ok ? response.json() : null))
+      .then((payload) => {
+        if (!payload) {
+          return;
+        }
+
+        const access = getBootstrapFullPageAccess(payload);
+        if (access.publicPageEnabled && access.publicPageKey) {
+          entry.publicPageKey = access.publicPageKey;
+          refreshAssistantFrameSrc(entry);
+        }
+
+        if (["section", "viewport", "page"].includes(entry.backgroundScope)) {
+          applySectionBackground(entry, getBootstrapDesign(payload));
+        }
       })
       .catch(() => {});
   }
@@ -1052,7 +1116,6 @@
     const iframe = document.createElement("iframe");
     const takeoverWrapper = isPageTakeover(layout) ? document.createElement("div") : null;
 
-    iframe.src = buildAssistantUrl({ agentId, publicPageKey, layout, size, surface, showTitle, backgroundScope });
     iframe.title = trimText(element.getAttribute("data-title")) || "AI assistant";
     iframe.loading = "lazy";
     iframe.allowTransparency = surface === "transparent" || ["section", "viewport"].includes(backgroundScope);
@@ -1093,6 +1156,9 @@
       agentId,
       publicPageKey,
       layout,
+      size,
+      surface,
+      showTitle,
       backgroundScope,
       heightMode,
       minHeight,
@@ -1104,6 +1170,7 @@
       heightFrame: 0,
     };
     state.frames.push(entry);
+    refreshAssistantFrameSrc(entry);
 
     if (hidePageFooter) {
       hideDirectPageFooter(element);
@@ -1119,6 +1186,7 @@
     if (isCanvasLayout(layout)) {
       scheduleFullPageHeight(entry);
       loadAndApplySectionBackground(entry);
+      loadMissingPublicPageKey(entry);
     }
   }
 

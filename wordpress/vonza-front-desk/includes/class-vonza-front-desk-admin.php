@@ -136,6 +136,10 @@ class Vonza_Front_Desk_Admin {
 						<label for="vonza-agent-id"><?php echo esc_html__( 'Agent ID', 'vonza-front-desk' ); ?></label>
 						<input id="vonza-agent-id" class="regular-text" type="text" name="vonza_front_desk[agent_id]" value="<?php echo esc_attr( $options['agent_id'] ); ?>" autocomplete="off">
 
+						<label for="vonza-public-page-key"><?php echo esc_html__( 'Public page key', 'vonza-front-desk' ); ?></label>
+						<input id="vonza-public-page-key" class="regular-text" type="text" name="vonza_front_desk[public_page_key]" value="<?php echo esc_attr( $options['public_page_key'] ); ?>" autocomplete="off">
+						<p><?php echo esc_html__( 'Copy this from the Vonza dashboard after enabling the public Front Desk page.', 'vonza-front-desk' ); ?></p>
+
 						<label for="vonza-app-url"><?php echo esc_html__( 'Vonza app URL', 'vonza-front-desk' ); ?></label>
 						<input id="vonza-app-url" class="regular-text" type="url" name="vonza_front_desk[app_url]" value="<?php echo esc_url( $options['app_url'] ); ?>">
 

@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $vonza_front_desk_plugin = Vonza_Front_Desk_Plugin::instance();
 $vonza_front_desk_options = $vonza_front_desk_plugin->get_options();
 $vonza_front_desk_agent_id = $vonza_front_desk_plugin->sanitize_agent_id( $vonza_front_desk_options['agent_id'] );
+$vonza_front_desk_public_page_key = $vonza_front_desk_plugin->sanitize_public_page_key( $vonza_front_desk_options['public_page_key'] );
 $vonza_front_desk_app_url = trailingslashit( $vonza_front_desk_options['app_url'] );
 $vonza_front_desk_hide_footer = '1' === $vonza_front_desk_options['hide_page_footer'];
 $vonza_front_desk_hide_title = '1' === $vonza_front_desk_options['hide_page_title'];
@@ -55,6 +56,9 @@ get_header();
 			class="vonza-front-desk-template-embed"
 			data-vonza-assistant
 			data-agent-id="<?php echo esc_attr( $vonza_front_desk_agent_id ); ?>"
+			<?php if ( ! empty( $vonza_front_desk_public_page_key ) ) : ?>
+				data-public-page-key="<?php echo esc_attr( $vonza_front_desk_public_page_key ); ?>"
+			<?php endif; ?>
 			data-layout="page-takeover"
 			data-surface="flat"
 			data-background-scope="page"
