@@ -161,6 +161,108 @@ Largest remaining warning clusters:
 | `src/services/operator/copilotProposalService.js` | 2 |
 | `src/services/operator/todayCopilotService.js` | 2 |
 
+## Sprint 3 Baseline
+
+Starting point before Sprint 3 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 21,293 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 79 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 61 |
+| `no-useless-assignment` | 15 |
+| `no-unreachable` | 3 |
+
+Starting test status:
+
+- `node --test tests/dashboardVisibility.test.js tests/dashboardOperatorWorkspace.test.js`: passing, 114 tests.
+- `npm run test:smoke`: passing, 613 tests.
+
+## Sprint 3 Extraction
+
+Extracted:
+
+- `frontend/dashboardFrontDesk.js`
+  - Front Desk tab metadata, labels, and normalization for `practice`, `improvements`, `knowledge`, `answer-library`, and `launch`
+  - Front Desk and knowledge status summary helpers
+  - training item source and reason labels
+  - improvement and approved-answer source labels
+  - training queue item renderer
+  - approved answer card renderer
+  - practice status and empty-state render fragments
+  - Front Desk tab navigation renderer
+  - dependency-injected Front Desk renderer helpers for Practice, Improvements, Knowledge, Answer library, Launch, and the full workspace panel
+- `frontend/dashboard.js`
+  - now delegates Front Desk renderer/helper work through `window.VonzaDashboardFrontDesk.createFrontDeskHelpers(...)`
+  - retains thin compatibility wrappers for VM tests and existing dashboard call sites
+  - fixes bare `#front-desk` navigation so it opens Practice instead of reusing a previously persisted nested tab
+- `dashboard.html`, `src/routes/publicRoutes.js`, `src/utils/securityHeaders.js`, and `src/app/createApp.js`
+  - load, version, classify, and no-store the new dashboard helper asset consistently with the other dashboard scripts
+
+Line counts after Sprint 3 extraction:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 20,776 |
+| `frontend/dashboard.css` | 19,040 |
+| `frontend/dashboardFrontDesk.js` | 896 |
+
+Lint warnings after Sprint 3: 68 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 50 |
+| `no-useless-assignment` | 15 |
+| `no-unreachable` | 3 |
+
+Low-risk lint cleanup completed:
+
+- Marked VM/test-exposed dashboard helpers as intentional where the browser still needs them available by name.
+- Removed active Front Desk renderer/helper warnings by moving isolated render fragments into the namespace module.
+
+Routes verified by tests and browser checks:
+
+- `/dashboard#front-desk`
+- `/dashboard#front-desk/practice`
+- `/dashboard#front-desk/improvements`
+- `/dashboard#front-desk/knowledge`
+- `/dashboard#front-desk/answer-library`
+- `/dashboard#front-desk/launch`
+
+Intentionally not extracted:
+
+- Front Desk event binding, because it is delegated through the shared dashboard event layer and coordinates live DOM state, refreshes, practice sends, feedback actions, and answer approval actions.
+- Front Desk API calls, because they remain coupled to authenticated `fetchJson`, boot-time data refresh, workspace reloads, and global dashboard state.
+- Practice send/save flows, because moving them without a broader event-boundary split would increase duplicate-listener risk.
+- Public assistant, widget, smart embed, WordPress plugin, voice, billing, auth, schema, RAG, semantic search, and chat behavior.
+
+Sprint 3 CSS split notes:
+
+- `frontend/dashboard.css` was not changed.
+- Front Desk dashboard CSS remains spread across:
+  - early Front Desk layout around lines 1,666-2,470
+  - workspace override blocks around lines 6,555-6,632
+  - production Front Desk polish around lines 9,898-10,190
+  - late density/dark/mobile override layers around lines 14,477-18,090
+- The CSS was left bundled because the Front Desk styles rely on later override layers and load-order risk is still high.
+
+Remaining Sprint 3 risks:
+
+- `frontend/dashboard.js` still owns the Front Desk event/API boundary and most workspace refresh coupling.
+- `frontend/dashboard.css` still has layered Front Desk overrides in the shared dashboard stylesheet.
+- Some dashboard globals remain exposed for VM tests or legacy call sites, so additional lint burn-down should stay scoped and evidence-driven.
+
+Recommended Sprint 4:
+
+- Extract Customers helpers/render fragments into `frontend/dashboardCustomers.js`. This continues reducing `dashboard.js` risk without taking on the higher load-order risk of a CSS split.
+- Treat lint burn-down as a secondary Sprint 4 target, limited to touched Customers code and any clearly dead VM-only wrappers.
+- Defer dashboard CSS section splitting until one more renderer boundary lands or an ordered CSS bundling plan exists.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 2:
@@ -209,6 +311,7 @@ CSS was not split in Sprint 1. The file contains multiple late override layers, 
 - `frontend/dashboardState.js`: hash parsing, section aliasing, install method normalization, Settings tab normalization, Front Desk tab normalization, dashboard UI-state normalization.
 - `frontend/dashboardLabels.js`: stable source/status/outcome labels and small formatting helpers.
 - `frontend/dashboardInstall.js`: Install page URLs, snippets, QR helpers, status copy, method metadata, and public page helpers.
+- `frontend/dashboardFrontDesk.js`: Front Desk tab metadata, status summaries, source/reason labels, and isolated Front Desk render fragments.
 - Future `frontend/dashboardCustomers.js`: customer identity/source/status helpers and Customers renderer.
 - Future `frontend/dashboardAnalytics.js`: analytics formatting/report helpers.
 - Future CSS split: keep `dashboard.css` as the final bundle initially, then extract source files only if the app has a safe concatenation or explicit ordered load plan.

@@ -57,6 +57,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   const dashboardStateScript = readFileSync(path.join(repoRoot, "frontend", "dashboardState.js"), "utf8");
   const dashboardLabelsScript = readFileSync(path.join(repoRoot, "frontend", "dashboardLabels.js"), "utf8");
   const dashboardInstallScript = readFileSync(path.join(repoRoot, "frontend", "dashboardInstall.js"), "utf8");
+  const dashboardFrontDeskScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
@@ -163,6 +164,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
   vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
+  vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }
@@ -2592,6 +2594,20 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.doesNotMatch(panel, /settings-summary-grid/);
   assert.doesNotMatch(panel, /frontdesk-context-grid/);
   assert.doesNotMatch(panel, /Approved answers|Training queue|Test Front Desk/);
+});
+
+test("bare front desk hash opens Practice even after another tab was persisted", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.window.localStorage.setItem("vonza_dashboard_frontdesk_section", "knowledge");
+  harness.window.sessionStorage.setItem("vonza_dashboard_ui_state", JSON.stringify({ frontDeskTab: "knowledge" }));
+  harness.window.location.hash = "#front-desk";
+
+  assert.equal(harness.getActiveFrontDeskSection(), "practice");
 });
 
 test("front desk improvements render feedback metadata with owner-friendly labels", () => {

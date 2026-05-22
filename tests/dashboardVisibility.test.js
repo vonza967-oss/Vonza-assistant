@@ -13,6 +13,7 @@ const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.j
 const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
 const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js");
 const dashboardInstallPath = path.join(repoRoot, "frontend", "dashboardInstall.js");
+const dashboardFrontDeskPath = path.join(repoRoot, "frontend", "dashboardFrontDesk.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -50,6 +51,7 @@ function createDashboardHarness({
   const dashboardStateScript = readFileSync(dashboardStatePath, "utf8");
   const dashboardLabelsScript = readFileSync(dashboardLabelsPath, "utf8");
   const dashboardInstallScript = readFileSync(dashboardInstallPath, "utf8");
+  const dashboardFrontDeskScript = readFileSync(dashboardFrontDeskPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -351,6 +353,7 @@ function createDashboardHarness({
   vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
   vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
+  vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -472,6 +475,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   const stateBundle = readFileSync(dashboardStatePath, "utf8");
   const labelsBundle = readFileSync(dashboardLabelsPath, "utf8");
   const installBundle = readFileSync(dashboardInstallPath, "utf8");
+  const frontDeskBundle = readFileSync(dashboardFrontDeskPath, "utf8");
   const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
@@ -479,6 +483,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     new vm.Script(stateBundle, { filename: "frontend/dashboardState.js" }).runInNewContext(context);
     new vm.Script(labelsBundle, { filename: "frontend/dashboardLabels.js" }).runInNewContext(context);
     new vm.Script(installBundle, { filename: "frontend/dashboardInstall.js" }).runInNewContext(context);
+    new vm.Script(frontDeskBundle, { filename: "frontend/dashboardFrontDesk.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
@@ -507,6 +512,56 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(context.window.VonzaDashboardLabels.getActionQueueStatusLabel("reviewed", ["new", "reviewed"]), "Reviewed");
   assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
   assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
+  assert.equal(typeof context.window.VonzaDashboardFrontDesk.createFrontDeskHelpers, "function");
+  assert.equal(context.window.VonzaDashboardFrontDesk.normalizeFrontDeskTab("answer-library"), "library");
+  assert.equal(context.window.VonzaDashboardFrontDesk.normalizeFrontDeskTab("bad-tab"), "practice");
+  assert.equal(context.window.VonzaDashboardFrontDesk.getFrontDeskTabLabel("launch"), "Launch");
+  assert.equal(context.window.VonzaDashboardFrontDesk.formatTrainingItemSource({ sourceType: "conversation" }), "Conversation");
+  assert.equal(context.window.VonzaDashboardFrontDesk.formatTrainingItemReason("missing-details"), "Missing details");
+  assert.equal(
+    context.window.VonzaDashboardFrontDesk.buildKnowledgeStatusSummary({
+      agent: { websiteUrl: "https://example.com" },
+      setup: { knowledgePageCount: 2, knowledgeReady: true },
+      businessReadiness: { missingCount: 0 },
+      profileContentSummary: "2 business profile areas filled: services, pricing.",
+    }).customerImpact,
+    "The Front Desk is ready to answer with solid business context."
+  );
+  const frontDeskHelpers = context.window.VonzaDashboardFrontDesk.createFrontDeskHelpers({
+    getBadgeClass(value) {
+      return `badge-${String(value).toLowerCase().replaceAll(" ", "-")}`;
+    },
+    formatSeenAt() {
+      return "today";
+    },
+  });
+  const queueMarkup = frontDeskHelpers.renderTrainingQueueItem({
+    question: "Do you offer emergency visits?",
+    reply: "Current answer",
+    feedbackId: "feedback-1",
+    feedbackReason: "too_vague",
+    sourceType: "visitor_feedback",
+    sourceRoute: "/assistant/demo?embedded=1",
+    lastSeenAt: "2026-05-22T10:00:00Z",
+  });
+  assert.match(queueMarkup, /Do you offer emergency visits\?/);
+  assert.match(queueMarkup, /Reason: Too vague/);
+  assert.match(queueMarkup, /Assistant source: Embedded assistant/);
+  assert.match(queueMarkup, /data-frontdesk-feedback-status="ignored"/);
+  const approvedMarkup = frontDeskHelpers.renderApprovedAnswerCard({
+    id: "answer-1",
+    title: "Emergency visits",
+    triggerText: "emergency visits",
+    answerText: "Call us for urgent availability.",
+    tags: ["urgent", "booking"],
+    sourceType: "manual",
+    updatedAt: "2026-05-22T10:00:00Z",
+  });
+  assert.match(approvedMarkup, /data-frontdesk-training-item="answer-1"/);
+  assert.match(approvedMarkup, /Source: Owner/);
+  assert.match(approvedMarkup, /data-frontdesk-edit-library-answer/);
+  assert.match(approvedMarkup, /data-frontdesk-archive-approved-answer/);
+  assert.match(approvedMarkup, /data-frontdesk-test-answer="emergency visits"/);
   assert.equal(context.window.VonzaDashboardInstall.getPublicPageKey({
     fullPageConfig: { publicPageKey: "page-key" },
   }), "page-key");
@@ -579,6 +634,31 @@ test("dashboard hash routes open the matching interior section", async () => {
     await harness.settle();
 
     assert.match(harness.getRootHtml(), expectedMarkup, `${hash} should render the expected dashboard section`);
+  }
+});
+
+test("front desk nested hash routes open the matching tab", async () => {
+  const tabRoutes = [
+    ["#front-desk", "practice", "Practice"],
+    ["#front-desk/practice", "practice", "Practice"],
+    ["#front-desk/improvements", "improvements", "Improvements"],
+    ["#front-desk/knowledge", "knowledge", "Knowledge"],
+    ["#front-desk/answer-library", "library", "Answer library"],
+    ["#front-desk/launch", "launch", "Launch"],
+  ];
+
+  for (const [hash, tabKey, label] of tabRoutes) {
+    const harness = createDashboardHarness({
+      hash,
+      agents: () => [createActiveAgent()],
+    });
+    await harness.settle();
+
+    const html = harness.getRootHtml();
+    const tabSection = html.match(new RegExp(`<section[^>]+data-frontdesk-section="${tabKey}"[^>]*>`))?.[0] || "";
+    assert.equal(harness.getGlobal("getActiveFrontDeskSection")(), tabKey, `${hash} should select ${label}`);
+    assert.match(tabSection, /data-frontdesk-section=/, `${hash} should render ${label}`);
+    assert.doesNotMatch(tabSection, /\bhidden\b/, `${hash} should show ${label}`);
   }
 });
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const dashboardScript = readFileSync("frontend/dashboard.js", "utf8");
+const dashboardFrontDeskScript = readFileSync("frontend/dashboardFrontDesk.js", "utf8");
 const settingsShellScript = readFileSync("frontend/settings/SettingsShell.js", "utf8");
 const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
 
@@ -24,23 +25,25 @@ test("Settings Front Desk stays configuration-only", () => {
 });
 
 test("Dashboard Front Desk renders training workspace tabs and empty states", () => {
+  const frontDeskDashboardSurface = `${dashboardScript}\n${dashboardFrontDeskScript}`;
+
   ["Practice", "Improvements", "Knowledge", "Answer library", "Launch"].forEach((label) => {
-    assert.match(dashboardScript, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(frontDeskDashboardSurface, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
-  assert.match(dashboardScript, /Practice with Front Desk/);
-  assert.match(dashboardScript, /Practice mode — visitors will not see this conversation/);
-  assert.match(dashboardScript, /Teach this answer/);
-  assert.match(dashboardScript, /What should Front Desk say instead/);
-  assert.match(dashboardScript, /Save draft/);
-  assert.match(dashboardScript, /Publish improvement/);
-  assert.match(dashboardScript, /Nothing needs review right now/);
-  assert.match(dashboardScript, /No published answers yet/);
-  assert.match(dashboardScript, /Published answers Front Desk can use when visitors ask similar questions/);
-  assert.doesNotMatch(dashboardScript, /Approved answers/);
-  assert.doesNotMatch(dashboardScript, /Training queue/);
-  assert.doesNotMatch(dashboardScript, /Test Front Desk/);
-  assert.doesNotMatch(dashboardScript, /Send AI draft/);
+  assert.match(frontDeskDashboardSurface, /Practice with Front Desk/);
+  assert.match(frontDeskDashboardSurface, /Practice mode — visitors will not see this conversation/);
+  assert.match(frontDeskDashboardSurface, /Teach this answer/);
+  assert.match(frontDeskDashboardSurface, /What should Front Desk say instead/);
+  assert.match(frontDeskDashboardSurface, /Save draft/);
+  assert.match(frontDeskDashboardSurface, /Publish improvement/);
+  assert.match(frontDeskDashboardSurface, /Nothing needs review right now/);
+  assert.match(frontDeskDashboardSurface, /No published answers yet/);
+  assert.match(frontDeskDashboardSurface, /Published answers Front Desk can use when visitors ask similar questions/);
+  assert.doesNotMatch(frontDeskDashboardSurface, /Approved answers/);
+  assert.doesNotMatch(frontDeskDashboardSurface, /Training queue/);
+  assert.doesNotMatch(frontDeskDashboardSurface, /Test Front Desk/);
+  assert.doesNotMatch(frontDeskDashboardSurface, /Send AI draft/);
 });
 
 test("conversation detail exposes owner-friendly training actions", () => {
