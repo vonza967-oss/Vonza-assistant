@@ -59,6 +59,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   const dashboardInstallScript = readFileSync(path.join(repoRoot, "frontend", "dashboardInstall.js"), "utf8");
   const dashboardFrontDeskScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
   const dashboardCustomersScript = readFileSync(path.join(repoRoot, "frontend", "dashboardCustomers.js"), "utf8");
+  const dashboardAnalyticsScript = readFileSync(path.join(repoRoot, "frontend", "dashboardAnalytics.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
@@ -167,6 +168,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
   vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(dashboardCustomersScript, context, { filename: "frontend/dashboardCustomers.js" });
+  vm.runInNewContext(dashboardAnalyticsScript, context, { filename: "frontend/dashboardAnalytics.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }
@@ -3367,6 +3369,14 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
           visitorQuestionCount: 1,
           leadsCaptured: 1,
         },
+        embedded: {
+          key: "embedded",
+          label: "Embedded assistant",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
         unknown: {
           key: "unknown",
           label: "Legacy/unknown",
@@ -3375,8 +3385,8 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
           visitorQuestionCount: 1,
           leadsCaptured: 0,
         },
-        totalConversations: 3,
-        totalMessages: 5,
+        totalConversations: 4,
+        totalMessages: 7,
       },
     },
   };
@@ -3393,6 +3403,7 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
   assert.match(analyticsPanel, /Performance by source/);
   assert.match(analyticsPanel, /Website widget/);
   assert.match(analyticsPanel, /Front Desk page/);
+  assert.match(analyticsPanel, /Embedded assistant/);
   assert.match(analyticsPanel, /Legacy\/unknown/);
   assert.match(analyticsPanel, /Conversion rate/);
   assert.match(analyticsPanel, /AI handled/);

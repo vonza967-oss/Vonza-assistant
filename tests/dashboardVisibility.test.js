@@ -15,6 +15,7 @@ const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js"
 const dashboardInstallPath = path.join(repoRoot, "frontend", "dashboardInstall.js");
 const dashboardFrontDeskPath = path.join(repoRoot, "frontend", "dashboardFrontDesk.js");
 const dashboardCustomersPath = path.join(repoRoot, "frontend", "dashboardCustomers.js");
+const dashboardAnalyticsPath = path.join(repoRoot, "frontend", "dashboardAnalytics.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -54,6 +55,7 @@ function createDashboardHarness({
   const dashboardInstallScript = readFileSync(dashboardInstallPath, "utf8");
   const dashboardFrontDeskScript = readFileSync(dashboardFrontDeskPath, "utf8");
   const dashboardCustomersScript = readFileSync(dashboardCustomersPath, "utf8");
+  const dashboardAnalyticsScript = readFileSync(dashboardAnalyticsPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -357,6 +359,7 @@ function createDashboardHarness({
   vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
   vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(dashboardCustomersScript, context, { filename: "frontend/dashboardCustomers.js" });
+  vm.runInNewContext(dashboardAnalyticsScript, context, { filename: "frontend/dashboardAnalytics.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -480,6 +483,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   const installBundle = readFileSync(dashboardInstallPath, "utf8");
   const frontDeskBundle = readFileSync(dashboardFrontDeskPath, "utf8");
   const customersBundle = readFileSync(dashboardCustomersPath, "utf8");
+  const analyticsBundle = readFileSync(dashboardAnalyticsPath, "utf8");
   const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
@@ -489,6 +493,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     new vm.Script(installBundle, { filename: "frontend/dashboardInstall.js" }).runInNewContext(context);
     new vm.Script(frontDeskBundle, { filename: "frontend/dashboardFrontDesk.js" }).runInNewContext(context);
     new vm.Script(customersBundle, { filename: "frontend/dashboardCustomers.js" }).runInNewContext(context);
+    new vm.Script(analyticsBundle, { filename: "frontend/dashboardAnalytics.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
@@ -518,6 +523,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
   assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
   assert.equal(typeof context.window.VonzaDashboardFrontDesk.createFrontDeskHelpers, "function");
+  assert.equal(context.window.VonzaDashboardAnalytics.getAnalyticsSourceLabel("page"), "Front Desk page");
   assert.equal(typeof context.window.VonzaDashboardCustomers.createCustomerHelpers, "function");
   assert.equal(context.window.VonzaDashboardCustomers.getCustomerSourceLabel("embedded_assistant"), "Embedded assistant");
   const customerHelpers = context.window.VonzaDashboardCustomers.createCustomerHelpers({

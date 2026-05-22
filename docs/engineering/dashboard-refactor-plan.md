@@ -359,9 +359,101 @@ Recommended Sprint 5:
 - Keep CSS split/load-order hardening as a separate sprint after another renderer module lands.
 - Continue lint burn-down only where warnings are clearly dead or already touched by the active sprint.
 
+## Sprint 5 Baseline
+
+Starting point before Sprint 5 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 19,765 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 58 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 41 |
+| `no-useless-assignment` | 14 |
+| `no-unreachable` | 3 |
+
+Starting test status:
+
+- `npm run test:smoke`: passing, 615 tests.
+
+## Sprint 5 Extraction
+
+Extracted:
+
+- `frontend/dashboardAnalytics.js`
+  - Analytics source normalization and owner-facing labels for `Website widget`, `Front Desk page`, `Embedded assistant`, and real `Legacy/unknown` data
+  - metric, conversation, message, lead, delta, percent, and hours formatting helpers
+  - metric-card descriptor builder
+  - assistant source row builder
+  - V2 Analytics metric cards, source breakdown, top questions list, line chart, heatmap, AI-vs-human handling card, conversion/time-saved card, performance-by-source table, contact-mix card, recent activity list, empty state, and page-fragment renderer
+- `frontend/dashboard.js`
+  - delegates the V2 Analytics page fragment through `window.VonzaDashboardAnalytics.renderAnalyticsPageFragment(...)`
+  - delegates Analytics source-row construction through `window.VonzaDashboardAnalytics.buildAssistantSourceRows(...)`
+  - keeps report calculation, fallback signal analysis, customer-satisfaction markup, recommendations, API fetches, refresh orchestration, event binding, auth/access gates, and global dashboard state in the shared dashboard file
+  - preserves the existing icon, translation, and button primitives by injecting them into the Analytics module render context
+  - keeps a fallback placeholder only for a failed Analytics helper load
+- `dashboard.html`, `src/routes/publicRoutes.js`, `src/utils/securityHeaders.js`, and `src/app/createApp.js`
+  - load, version, classify, no-store, and CSP-allow the new Analytics helper asset consistently with the other dashboard helper scripts
+- Tests:
+  - `tests/dashboardAnalytics.test.js` covers namespace loading, source labels, unknown/legacy behavior, metric formatting, assistant source rows, empty states, top questions, no QR metric rendering, and raw `display_mode` suppression
+  - dashboard VM tests now load `dashboardAnalytics.js` before `dashboard.js`
+  - Analytics behavior tests cover source breakdown, Front Desk page, Website widget, Embedded assistant when data exists, Legacy/unknown only when data exists, no fake QR scan stats, metric preservation, empty state behavior, and cross-page regressions
+
+Line counts after Sprint 5 extraction:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 19,315 |
+| `frontend/dashboard.css` | 19,040 |
+| `frontend/dashboardAnalytics.js` | 666 |
+
+Lint warnings after Sprint 5: 48 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 31 |
+| `no-useless-assignment` | 14 |
+| `no-unreachable` | 3 |
+
+Intentionally not extracted:
+
+- Analytics API fetches and owner dashboard loading, because they are tied to authenticated `fetchJson`, partial workspace failure handling, boot refreshes, and action-queue normalization.
+- Report calculation and conversation signal analysis, because Home, Customers, action queue, and Analytics still share those derived signals.
+- Customer satisfaction and recommendation sections, because they still depend on action queue records, dashboard language, and owner workflow labels in `dashboard.js`.
+- Dashboard hash routing and event binding, because Analytics is still one section inside the shared dashboard shell.
+- Backend analytics calculations and schema, because Sprint 5 was a frontend maintainability extraction only.
+
+Sprint 5 CSS notes:
+
+- `frontend/dashboard.css` was not changed or split.
+- Analytics CSS remains in the shared ordered bundle:
+  - legacy/simple analytics grid around line 1,846
+  - shared analytics list, item, report, source, chart, question, recommendation, and contact-card styles around lines 4,841-5,603
+  - shared workspace analytics text overrides around lines 6,439-6,484
+  - responsive analytics grid rules around lines 7,983-8,043
+  - production V2 Analytics layout, chart, heatmap, gauge, table, and card styles around lines 11,494-12,183
+  - compact/density/mobile Analytics overrides around lines 16,491-18,432
+- CSS split remains risky because the production V2 Analytics styles depend on later density and mobile override layers.
+
+Remaining Sprint 5 risks:
+
+- `frontend/dashboard.js` still owns shared analytics data assembly and several legacy connected-tool bodies with unreachable code warnings.
+- The Analytics module is a classic browser script and must load before `dashboard.js`; load order is now covered by document and VM tests.
+- The backend currently produces widget/page/unknown source buckets; the frontend can render an `embedded` bucket if real telemetry starts providing it, but no fake embedded or QR metrics are created.
+- The lint total is below 50, but the remaining warnings are mostly old connected-tool, operator-service, and broad backend cleanup items outside this sprint.
+
+Recommended Sprint 6:
+
+- Lint warning burn-down is the best next sprint. The remaining dashboard warnings include dead legacy overview/inbox/customization helpers, unreachable connected-tool bodies, and a few unused caught errors. A targeted cleanup can reduce risk without taking on CSS load-order changes.
+- Keep Dashboard CSS section split/load-order hardening as the next larger structural sprint after lint cleanup, because the CSS still has multiple late override layers.
+
 ## Dashboard.js Section Map
 
-Approximate current line ranges after Sprint 4:
+Approximate current line ranges after Sprint 5:
 
 | Area | Lines | Notes |
 | --- | ---: | --- |
@@ -374,12 +466,12 @@ Approximate current line ranges after Sprint 4:
 | Customers compatibility bridge | 4,860-5,170 | Delegates customer helpers/renderers to `frontend/dashboardCustomers.js`. |
 | Home/operator/Today helpers | 5,170-7,110 | Copilot summaries, Today queue, review drawer, Home overview. |
 | Settings and Front Desk renderers | 7,110-8,850 | Settings bridge, Front Desk practice/improvements/knowledge/library/launch. |
-| Analytics logic and renderer | 8,850-12,650 | Conversation analysis, owner analytics, reports, action queue labels. |
+| Analytics logic and module bridge | 8,850-12,200 | Conversation analysis, owner analytics, reports, Analytics module bridge, action queue labels. |
 | Connected tools renderers | 12,650-13,880 | Email/Calendar/Automations currently return coming-soon surfaces with unreachable legacy bodies. |
 | Install renderer | 13,880-14,620 | Install status, methods, copy blocks, QR, full-page assistant install options. |
 | Form parsing and save/import/copy actions | 14,620-16,240 | Assistant saves, full-page config, voice config, uploads, copy helpers. |
-| Event binding | 16,240-19,760 | Shared dashboard events, filters, settings forms, queue actions, customer actions. |
-| Local fixture and boot | 19,200-19,765 | Fixture-backed dashboard and authenticated boot flow. |
+| Event binding | 15,800-19,310 | Shared dashboard events, filters, settings forms, queue actions, customer actions. |
+| Local fixture and boot | 18,750-19,315 | Fixture-backed dashboard and authenticated boot flow. |
 
 ## Dashboard.css Section Map
 
@@ -409,7 +501,7 @@ CSS was not split in Sprint 1. The file contains multiple late override layers, 
 - `frontend/dashboardInstall.js`: Install page URLs, snippets, QR helpers, status copy, method metadata, and public page helpers.
 - `frontend/dashboardFrontDesk.js`: Front Desk tab metadata, status summaries, source/reason labels, and isolated Front Desk render fragments.
 - `frontend/dashboardCustomers.js`: customer identity/source/status/action helpers and Customers render fragments.
-- Future `frontend/dashboardAnalytics.js`: analytics formatting/report helpers.
+- `frontend/dashboardAnalytics.js`: Analytics source labels, formatting helpers, V2 Analytics render fragments, and empty-state/list fragments.
 - Future CSS split: keep `dashboard.css` as the final bundle initially, then extract source files only if the app has a safe concatenation or explicit ordered load plan.
 
 ## Sprint 1 Extraction

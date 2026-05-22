@@ -8,6 +8,7 @@ const dashboardLabels = window.VonzaDashboardLabels || {};
 const dashboardInstall = window.VonzaDashboardInstall || {};
 const dashboardFrontDesk = window.VonzaDashboardFrontDesk || {};
 const dashboardCustomers = window.VonzaDashboardCustomers || {};
+const dashboardAnalytics = window.VonzaDashboardAnalytics || {};
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
@@ -7879,7 +7880,7 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   return dashboardFrontDeskHelpers.buildFrontDeskPanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue);
 }
 
-function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), messages = [], actionQueue = createEmptyActionQueue()) {
+function buildInstallPanel(agent, setup, _operatorWorkspace = createEmptyOperatorWorkspace(), messages = [], actionQueue = createEmptyActionQueue()) {
   const actionsMarkup = [
     `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
     `<button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>`,
@@ -8028,7 +8029,7 @@ function buildAppearanceStudio(agent) {
   `;
 }
 
-function buildConfigurationStudio(agent, setup) {
+function _buildConfigurationStudio(agent, setup) {
   const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
 
   return `
@@ -8135,7 +8136,7 @@ function buildConfigurationStudio(agent, setup) {
   `;
 }
 
-function getActivityLevel(messageCount, lastMessageAt) {
+function _getActivityLevel(messageCount, lastMessageAt) {
   if (!messageCount) {
     return {
       label: "Just getting started",
@@ -9068,6 +9069,14 @@ function createEmptyOwnerAnalyticsDashboard() {
       visitorQuestionCount: 0,
       leadsCaptured: 0,
     },
+    embedded: {
+      key: "embedded",
+      label: "Embedded assistant",
+      conversationCount: 0,
+      messageCount: 0,
+      visitorQuestionCount: 0,
+      leadsCaptured: 0,
+    },
     unknown: {
       key: "unknown",
       label: "Legacy/unknown",
@@ -9164,9 +9173,18 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
       ...assistantSource,
       widget: normalizeAssistantSourceBucket(assistantSource.widget, emptyDashboard.assistantSource.widget),
       page: normalizeAssistantSourceBucket(assistantSource.page, emptyDashboard.assistantSource.page),
+      embedded: normalizeAssistantSourceBucket(assistantSource.embedded, emptyDashboard.assistantSource.embedded),
       unknown: normalizeAssistantSourceBucket(assistantSource.unknown, emptyDashboard.assistantSource.unknown),
-      totalConversations: Number(assistantSource.totalConversations || 0),
-      totalMessages: Number(assistantSource.totalMessages || 0),
+      totalConversations: Number(assistantSource.totalConversations || 0)
+        || Number(assistantSource.widget?.conversationCount || 0)
+        + Number(assistantSource.page?.conversationCount || 0)
+        + Number(assistantSource.embedded?.conversationCount || 0)
+        + Number(assistantSource.unknown?.conversationCount || 0),
+      totalMessages: Number(assistantSource.totalMessages || 0)
+        || Number(assistantSource.widget?.messageCount || 0)
+        + Number(assistantSource.page?.messageCount || 0)
+        + Number(assistantSource.embedded?.messageCount || 0)
+        + Number(assistantSource.unknown?.messageCount || 0),
     },
     topVisitorQuestions: Array.isArray(data.topVisitorQuestions)
       ? data.topVisitorQuestions.map((item) => normalizeOperatorRecord(item)).filter((item) => trimText(item.summary || item.question))
@@ -9234,7 +9252,9 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
   const hasKnowledgeImprovementData = Number(dashboard.knowledgeImprovement?.total || 0) > 0;
   const hasAiUsage = dashboard.aiUsage && trimText(dashboard.aiUsage.statusLabel || dashboard.aiUsage.planName || dashboard.aiUsage.planKey);
   const hasAssistantSourceData = Number(dashboard.assistantSource?.totalMessages || 0) > 0
-    || Number(dashboard.assistantSource?.totalConversations || 0) > 0;
+    || Number(dashboard.assistantSource?.totalConversations || 0) > 0
+    || Number(dashboard.assistantSource?.embedded?.messageCount || 0) > 0
+    || Number(dashboard.assistantSource?.embedded?.conversationCount || 0) > 0;
 
   return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage || hasAssistantSourceData ? dashboard : null;
 }
@@ -9291,7 +9311,7 @@ function formatAnalyticsMetric(value, analyticsSummary = createEmptyAnalyticsSum
   return String(Number(value || 0));
 }
 
-function formatAnalyticsRate(value, analyticsSummary = createEmptyAnalyticsSummary()) {
+function _formatAnalyticsRate(value, analyticsSummary = createEmptyAnalyticsSummary()) {
   if (analyticsSummary.syncState === "pending" && Number(value || 0) === 0) {
     return "Syncing";
   }
@@ -9313,10 +9333,6 @@ function formatAnalyticsReportNumber(value) {
   return new Intl.NumberFormat("en-US").format(Math.round(Number(value || 0)));
 }
 
-function formatAnalyticsReportPercent(value) {
-  return `${Math.round(Number(value || 0))}%`;
-}
-
 function formatAnalyticsReportDecimalPercent(value) {
   const numeric = Number(value || 0);
 
@@ -9325,30 +9341,6 @@ function formatAnalyticsReportDecimalPercent(value) {
   }
 
   return `${numeric.toFixed(1).replace(/\.0$/, "")}%`;
-}
-
-function formatAnalyticsReportHours(value) {
-  const numeric = Number(value || 0);
-
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return "0";
-  }
-
-  if (numeric >= 10) {
-    return String(Math.round(numeric));
-  }
-
-  return numeric.toFixed(1).replace(/\.0$/, "");
-}
-
-function formatAnalyticsReportScore(value) {
-  const numeric = Number(value || 0);
-
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return "0.0";
-  }
-
-  return numeric.toFixed(1);
 }
 
 function formatAnalyticsHourLabel(hour) {
@@ -9407,22 +9399,6 @@ function buildAnalyticsTimeSeries(entries = [], getDateValue, days = 30) {
     total: values.reduce((sum, value) => sum + value, 0),
     max: Math.max(...values, 0),
   };
-}
-
-function buildAnalyticsChartPath(values = [], width = 640, height = 220, padding = 22) {
-  if (!values.length) {
-    return "";
-  }
-
-  const maxValue = Math.max(...values, 1);
-  const drawableWidth = width - padding * 2;
-  const drawableHeight = height - padding * 2;
-
-  return values.map((value, index) => {
-    const x = padding + (drawableWidth * index) / Math.max(values.length - 1, 1);
-    const y = height - padding - (drawableHeight * value) / maxValue;
-    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(" ");
 }
 
 function buildAnalyticsPeakHours(userMessages = []) {
@@ -9805,109 +9781,6 @@ function buildAnalyticsReport(signals = {}, analyticsSummary = createEmptyAnalyt
   };
 }
 
-function buildAssistantSourceMarkup(sourceBreakdown = {}) {
-  const emptySource = createEmptyOwnerAnalyticsDashboard().assistantSource;
-  const source = sourceBreakdown && typeof sourceBreakdown === "object" ? sourceBreakdown : {};
-  const widget = normalizeAssistantSourceBucket(source.widget, emptySource.widget);
-  const page = normalizeAssistantSourceBucket(source.page, emptySource.page);
-  const unknown = normalizeAssistantSourceBucket(source.unknown, emptySource.unknown);
-  const totalConversations = Math.max(0, Number(source.totalConversations || 0));
-  const sourceCards = [
-    {
-      ...widget,
-      note: `${formatAnalyticsReportNumber(widget.messageCount)} message${widget.messageCount === 1 ? "" : "s"}`,
-    },
-    {
-      ...page,
-      note: page.conversationCount > 0
-        ? `${formatAnalyticsReportNumber(page.messageCount)} message${page.messageCount === 1 ? "" : "s"}`
-        : "No Front Desk page conversations yet.",
-    },
-  ];
-
-  if (unknown.conversationCount > 0 || unknown.messageCount > 0 || unknown.leadsCaptured > 0) {
-    sourceCards.push({
-      ...unknown,
-      note: `${formatAnalyticsReportNumber(unknown.messageCount)} legacy message${unknown.messageCount === 1 ? "" : "s"}`,
-    });
-  }
-
-  return `
-    <section class="workspace-card-soft analytics-source-section">
-      <div class="flat-section-header">
-        <div>
-          <p class="overview-label">Source breakdown</p>
-          <h3 class="flat-section-title">Source breakdown</h3>
-          <p class="analytics-report-section-copy">See whether visitors are using the Front Desk page, embedded assistant, website widget, or older activity.</p>
-        </div>
-      </div>
-      <div class="analytics-source-grid">
-        ${sourceCards.map((item) => `
-          <article class="analytics-source-card analytics-source-card--${escapeHtml(item.key || "source")}">
-            <span>${escapeHtml(item.label)}</span>
-            <strong>${escapeHtml(formatAnalyticsReportNumber(item.conversationCount))}</strong>
-            <p>${escapeHtml(item.conversationCount === 1 ? "conversation" : "conversations")}</p>
-            <small>${escapeHtml(item.note)}</small>
-            ${Number(item.visitorQuestionCount || 0) > 0 ? `<small>${escapeHtml(`${formatAnalyticsReportNumber(item.visitorQuestionCount)} visitor question${item.visitorQuestionCount === 1 ? "" : "s"}`)}</small>` : ""}
-            ${Number(item.leadsCaptured || 0) > 0 ? `<small>${escapeHtml(`${formatAnalyticsReportNumber(item.leadsCaptured)} lead${item.leadsCaptured === 1 ? "" : "s"} captured`)}</small>` : ""}
-            <div class="analytics-source-meter" aria-hidden="true">
-              <span style="width:${escapeHtml(String(totalConversations > 0 ? Math.round((Number(item.conversationCount || 0) / totalConversations) * 100) : 0))}%"></span>
-            </div>
-          </article>
-        `).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function buildAnalyticsTrendMarkup(report = {}) {
-  const conversations = report.conversationSeries || { values: [], labels: [], total: 0, max: 0 };
-  const outcomes = report.outcomeSeries || { values: [], labels: [], total: 0, max: 0 };
-  const hasConversationData = conversations.total > 0;
-  const hasOutcomeData = outcomes.total > 0;
-
-  if (!hasConversationData && !hasOutcomeData) {
-    return `<div class="placeholder-card">Live conversation and customer-action trends will appear here as soon as dated usage starts flowing in.</div>`;
-  }
-
-  const width = 640;
-  const height = 220;
-  const conversationsPath = buildAnalyticsChartPath(conversations.values, width, height);
-  const outcomesPath = buildAnalyticsChartPath(outcomes.values, width, height);
-  const guideLines = [25, 50, 75].map((position) => {
-    const y = height - ((height - 44) * position) / 100 - 22;
-    return `<line x1="22" y1="${y.toFixed(2)}" x2="${width - 22}" y2="${y.toFixed(2)}"></line>`;
-  }).join("");
-  const axisLabels = [
-    conversations.labels[0],
-    conversations.labels[Math.floor(conversations.labels.length / 2)] || "",
-    conversations.labels[conversations.labels.length - 1] || "",
-  ].filter(Boolean);
-
-  return `
-    <div class="analytics-report-chart-shell">
-      <div class="analytics-report-chart-header">
-        <div class="analytics-report-legend">
-          <span><i class="tone-conversations"></i>Conversations</span>
-          <span><i class="tone-actions"></i>Successful actions</span>
-        </div>
-        <div class="analytics-report-chart-totals">
-          <span>${formatAnalyticsReportNumber(conversations.total)} conversations</span>
-          <span>${formatAnalyticsReportNumber(outcomes.total)} successful actions</span>
-        </div>
-      </div>
-      <svg class="analytics-report-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Conversations and successful customer actions over time">
-        <g class="analytics-report-chart-guides">${guideLines}</g>
-        ${hasConversationData ? `<path class="analytics-report-chart-line analytics-report-chart-line-conversations" d="${conversationsPath}"></path>` : ""}
-        ${hasOutcomeData ? `<path class="analytics-report-chart-line analytics-report-chart-line-actions" d="${outcomesPath}"></path>` : ""}
-      </svg>
-      <div class="analytics-report-chart-axis">
-        ${axisLabels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
-      </div>
-    </div>
-  `;
-}
-
 function buildV2Icon(name = "", className = "") {
   const classes = ["v2-icon", className].filter(Boolean).join(" ");
   return getUiIconMarkup(name).replace("<svg ", `<svg class="${escapeHtml(classes)}" `);
@@ -9945,6 +9818,10 @@ function buildV2MetricCard(metric = {}) {
 }
 
 function getAnalyticsSourceRows(sourceBreakdown = {}) {
+  if (typeof dashboardAnalytics.buildAssistantSourceRows === "function") {
+    return dashboardAnalytics.buildAssistantSourceRows(sourceBreakdown);
+  }
+
   const emptySource = createEmptyOwnerAnalyticsDashboard().assistantSource;
   const source = sourceBreakdown && typeof sourceBreakdown === "object" ? sourceBreakdown : {};
   const rows = [
@@ -9978,344 +9855,17 @@ function getAnalyticsSourceRows(sourceBreakdown = {}) {
   return rows;
 }
 
-function buildV2LineChart(series = {}) {
-  const values = Array.isArray(series.values) && series.values.length ? series.values : [0, 0, 0, 0, 0, 0, 0];
-  const labels = Array.isArray(series.labels) && series.labels.length ? series.labels : [];
-  const width = 680;
-  const height = 180;
-  const paddingX = 50;
-  const top = 25;
-  const bottom = 154;
-  const maxValue = Math.max(...values, 1);
-  const linePath = values.map((value, index) => {
-    const x = paddingX + ((width - paddingX - 30) * index) / Math.max(values.length - 1, 1);
-    const y = bottom - ((bottom - top) * Number(value || 0)) / maxValue;
-    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
-  }).join(" ");
-  const startX = paddingX;
-  const endX = width - 30;
-  const fillPath = `${linePath} L${endX} ${bottom} L${startX} ${bottom} Z`;
-  const labelIndexes = [0, Math.floor(values.length * 0.25), Math.floor(values.length * 0.5), Math.floor(values.length * 0.75), values.length - 1]
-    .filter((index, position, indexes) => index >= 0 && indexes.indexOf(index) === position);
-
-  return `
-    <svg class="v2-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t("analytics.conversationsOverTime"))} line chart">
-      <defs>
-        <linearGradient id="v2LineGradientProduction" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0" stop-color="#0ea99b" stop-opacity="0.22"></stop>
-          <stop offset="1" stop-color="#0ea99b" stop-opacity="0"></stop>
-        </linearGradient>
-      </defs>
-      <path class="v2-chart-gridline" d="M50 25H650M50 68H650M50 111H650M50 154H650"></path>
-      <path class="v2-chart-fill" d="${escapeHtml(fillPath)}"></path>
-      <path class="v2-chart-line" d="${escapeHtml(linePath)}"></path>
-      <text class="v2-axis-label" x="18" y="158">0</text>
-      <text class="v2-axis-label" x="14" y="115">${escapeHtml(formatAnalyticsReportNumber(Math.ceil(maxValue / 2)))}</text>
-      <text class="v2-axis-label" x="8" y="72">${escapeHtml(formatAnalyticsReportNumber(maxValue))}</text>
-      ${labelIndexes.map((index) => {
-        const x = paddingX + ((width - paddingX - 30) * index) / Math.max(values.length - 1, 1);
-        return `<text class="v2-axis-label" x="${escapeHtml(x.toFixed(0))}" y="176">${escapeHtml(labels[index] || "")}</text>`;
-      }).join("")}
-    </svg>
-  `;
-}
-
-function buildV2AnalyticsSourceBreakdown(sourceRows = [], totalConversations = 0) {
-  const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
-  const trackedRows = sourceRows.filter((row) => !row.unavailable || Number(row.conversationCount || 0) > 0 || Number(row.messageCount || 0) > 0);
-
-  return `
-    <article class="v2-card v2-analytics-source-card">
-      <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(t("analytics.entrySourceBreakdown"))}</h2>
-      </div>
-      <div class="v2-donut-layout">
-        <div class="v2-donut" aria-hidden="true"></div>
-        <div class="v2-donut-legend">
-          ${trackedRows.map((row) => {
-            const percent = total > 0 ? Math.round((Number(row.conversationCount || 0) / total) * 100) : 0;
-            return `
-              <div class="v2-legend-row">
-                <span class="v2-legend-color ${escapeHtml(row.color || "gray")}"></span>
-                <span>${escapeHtml(row.label)}</span>
-                <strong>${escapeHtml(`${percent}%`)}</strong>
-                <span class="v2-subtext">${escapeHtml(formatAnalyticsReportNumber(row.conversationCount))}</span>
-              </div>
-            `;
-          }).join("")}
-          <div class="v2-legend-row v2-legend-total">
-            <span></span><strong>${escapeHtml(t("analytics.total"))}</strong><strong></strong><strong>${escapeHtml(formatAnalyticsReportNumber(total))}</strong>
-          </div>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function buildV2TopQuestions(topQuestionItems = []) {
-  const maxCount = Math.max(...topQuestionItems.map((item) => Number(item.count || 0)), 1);
-
-  return `
-    <article class="v2-card v2-analytics-top-questions-card">
-      <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(t("analytics.topCustomerQuestions"))}</h2>
-        ${buildV2Button(t("analytics.viewAll"), "")}
-      </div>
-      ${topQuestionItems.length ? `
-        <div class="v2-list">
-          ${topQuestionItems.map((item) => {
-            const count = Number(item.count || 0);
-            const width = Math.max(8, Math.round((count / maxCount) * 100));
-            return `
-              <div class="v2-question-row">
-                <div class="v2-row-title">${escapeHtml(item.label || "Customer question")}</div>
-                <div class="v2-bar-track"><span class="v2-bar-fill" style="--v2-bar:${escapeHtml(String(width))}%"></span></div>
-                <div class="v2-row-meta">${escapeHtml(formatAnalyticsReportNumber(count))}</div>
-              </div>
-            `;
-          }).join("")}
-        </div>
-      ` : `<div class="placeholder-card">${escapeHtml(t("analytics.noRepeatedQuestions"))}</div>`}
-    </article>
-  `;
-}
-
-function buildV2Heatmap(userMessages = []) {
-  const times = [
-    { label: "12am", start: 0, end: 3 },
-    { label: "4am", start: 4, end: 7 },
-    { label: "8am", start: 8, end: 11 },
-    { label: "12pm", start: 12, end: 15 },
-    { label: "4pm", start: 16, end: 19 },
-    { label: "8pm", start: 20, end: 23 },
-  ];
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const buckets = times.map(() => days.map(() => 0));
-
-  userMessages.forEach((message) => {
-    const date = new Date(message.createdAt || message.created_at || "");
-
-    if (Number.isNaN(date.getTime())) {
-      return;
-    }
-
-    const hour = date.getHours();
-    const rowIndex = times.findIndex((time) => hour >= time.start && hour <= time.end);
-    const dayIndex = (date.getDay() + 6) % 7;
-
-    if (rowIndex >= 0) {
-      buckets[rowIndex][dayIndex] += 1;
-    }
-  });
-
-  const max = Math.max(...buckets.flat(), 1);
-  const colors = ["#e8f0ff", "#cfe0ff", "#9ec1ff", "#5d94f5", "#2563eb", "#0a3f94"];
-  const cells = times.map((time, rowIndex) => {
-    const rowCells = days.map((_day, dayIndex) => {
-      const intensity = Math.ceil((buckets[rowIndex][dayIndex] / max) * (colors.length - 1));
-      return `<span class="v2-heat-cell" style="--heat:${escapeHtml(colors[Math.max(0, intensity)])}"></span>`;
-    }).join("");
-    return `<span class="v2-heatmap-label">${escapeHtml(time.label)}</span>${rowCells}`;
-  }).join("");
-
-  return `
-    <article class="v2-card v2-analytics-heatmap-card">
-      <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsByHour"))}</h2>
-        <span class="v2-info-dot">i</span>
-      </div>
-      <div class="v2-heatmap">
-        <span></span>
-        ${days.map((day) => `<span class="v2-heatmap-day">${escapeHtml(day)}</span>`).join("")}
-        ${cells}
-      </div>
-      <div class="v2-heatmap-key">
-        <span>${escapeHtml(t("analytics.low"))}</span>
-        ${colors.map((color) => `<span class="v2-heat-key-box" style="--heat:${escapeHtml(color)}"></span>`).join("")}
-        <span>${escapeHtml(t("analytics.high"))}</span>
-      </div>
-    </article>
-  `;
-}
-
-function buildV2HandlingCard(report = {}) {
-  const rate = Math.max(0, Math.min(100, Number(report.autonomousHandledRate || 0)));
-  const handled = Number(report.autonomousHandledCount || 0);
-  const human = Math.max(0, Number(report.conversationCount || 0) - handled);
-  const dashOffset = 236 - (236 * rate) / 100;
-
-  return `
-    <article class="v2-card v2-analytics-handling-card">
-      <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(t("analytics.aiVsHumanHandling"))}</h2>
-      </div>
-      <div class="v2-gauge">
-        <svg viewBox="0 0 220 140" aria-label="${escapeHtml(t("analytics.aiHandled"))} ${escapeHtml(String(rate))} percent">
-          <path class="v2-gauge-base" d="M35 112A75 75 0 0 1 185 112"></path>
-          <path class="v2-gauge-value" d="M35 112A75 75 0 0 1 185 112" style="stroke-dasharray:236; stroke-dashoffset:${escapeHtml(dashOffset.toFixed(2))}"></path>
-          <text class="v2-gauge-text" x="110" y="103">${escapeHtml(`${rate}%`)}</text>
-          <text class="v2-gauge-sub" x="110" y="124">${escapeHtml(t("analytics.aiHandled"))}</text>
-        </svg>
-      </div>
-      <div class="v2-donut-legend">
-        <div class="v2-legend-row"><span class="v2-legend-color teal"></span><span>${escapeHtml(t("analytics.aiHandled"))}</span><strong></strong><span>${escapeHtml(formatAnalyticsReportNumber(handled))}</span></div>
-        <div class="v2-legend-row"><span class="v2-legend-color soft-blue"></span><span>${escapeHtml(t("analytics.humanFollowUps"))}</span><strong></strong><span>${escapeHtml(formatAnalyticsReportNumber(human))}</span></div>
-      </div>
-    </article>
-  `;
-}
-
-function buildV2ConversionCard(report = {}) {
-  return `
-    <article class="v2-card v2-analytics-conversion-card">
-      <div class="v2-split-stat">
-        <div class="v2-split-stat-item">
-          ${buildV2IconBadge("users", "teal")}
-          <div>
-            <div class="v2-row-title">${escapeHtml(t("analytics.conversionRate"))}</div>
-            <div class="v2-split-stat-value">${escapeHtml(formatAnalyticsReportDecimalPercent(report.conversionRate || 0))}</div>
-            <div class="v2-metric-change"><span>${escapeHtml(t("analytics.basedOnCapturedLeads"))}</span></div>
-          </div>
-        </div>
-        <div class="v2-split-stat-item">
-          ${buildV2IconBadge("clock", "blue")}
-          <div>
-            <div class="v2-row-title">${escapeHtml(t("analytics.estimatedTimeSaved"))}</div>
-            <div class="v2-split-stat-value">${escapeHtml(formatAnalyticsReportHours(report.estimatedHoursSaved))}h</div>
-            <div class="v2-metric-change"><span>${escapeHtml(t("analytics.estimatedFromAiHandled"))}</span></div>
-          </div>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function buildV2ContactMixCard(report = {}) {
-  return `
-    <section class="v2-card v2-section v2-contact-mix-card">
-      <div class="v2-section-header">
-        <div>
-          <h2 class="v2-section-title">${escapeHtml(t("analytics.talkingTo"))}</h2>
-          <p class="v2-section-subtitle">${escapeHtml(report.contactMixCopy || "Contact identity will become more useful as more live conversations arrive.")}</p>
-        </div>
-      </div>
-      <div class="analytics-report-contact-grid">
-        <div class="analytics-report-contact-card">
-          <span>${escapeHtml(t("analytics.guestUsers"))}</span>
-          <strong>${escapeHtml(formatAnalyticsReportNumber(report.guestUsers))}</strong>
-        </div>
-        <div class="analytics-report-contact-card">
-          <span>${escapeHtml(t("analytics.identifiedUsers"))}</span>
-          <strong>${escapeHtml(formatAnalyticsReportNumber(report.identifiedUsers))}</strong>
-        </div>
-        <div class="analytics-report-contact-card">
-          <span>${escapeHtml(t("analytics.emailUsers"))}</span>
-          <strong>${escapeHtml(formatAnalyticsReportNumber(report.emailUsers))}</strong>
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-function buildV2PerformanceBySource(sourceRows = [], report = {}) {
-  const total = Math.max(Number(report.conversationCount || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
-  const rows = sourceRows.map((row) => {
-    const conversations = Number(row.conversationCount || 0);
-    const percent = total > 0 ? Math.round((conversations / total) * 100) : 0;
-    const aiHandled = Math.min(conversations, Math.round((conversations * Number(report.autonomousHandledRate || 0)) / 100));
-    const human = Math.max(0, conversations - aiHandled);
-
-    return `
-      <tr>
-        <td><span class="v2-name">${buildV2Icon(row.icon || "window", row.tone || "blue")} ${escapeHtml(row.label)}</span></td>
-        <td>${escapeHtml(row.visits || t("analytics.notTracked"))}</td>
-        <td>${escapeHtml(row.unavailable ? t("analytics.notTracked") : `${formatAnalyticsReportNumber(conversations)} (${percent}%)`)}</td>
-        <td>${escapeHtml(row.unavailable ? t("analytics.notTracked") : formatAnalyticsReportNumber(row.leadsCaptured || 0))}</td>
-        <td>${escapeHtml(row.unavailable || conversations <= 0 ? "-" : formatAnalyticsReportDecimalPercent((Number(row.leadsCaptured || 0) / conversations) * 100))}</td>
-        <td>${escapeHtml(row.unavailable ? "-" : formatAnalyticsReportNumber(aiHandled))}</td>
-        <td>${escapeHtml(row.unavailable ? "-" : formatAnalyticsReportNumber(human))}</td>
-        <td>${escapeHtml(t("analytics.instant"))}</td>
-      </tr>
-    `;
-  }).join("");
-
-  return `
-    <section class="v2-table-card v2-section">
-      <div class="v2-table-header">
-        <div>
-          <h2 class="v2-section-title">${escapeHtml(t("analytics.performanceBySource"))}</h2>
-        </div>
-      </div>
-      <div class="v2-data-table-wrap">
-        <table class="v2-data-table">
-          <thead>
-            <tr>
-              <th>${escapeHtml(t("analytics.source"))}</th>
-              <th>${escapeHtml(t("analytics.visits"))}</th>
-              <th>${escapeHtml(t("analytics.conversations"))}</th>
-              <th>${escapeHtml(t("analytics.leads"))}</th>
-              <th>${escapeHtml(t("analytics.conversionRate"))}</th>
-              <th>${escapeHtml(t("analytics.aiHandled"))}</th>
-              <th>${escapeHtml(t("analytics.humanFollowUps"))}</th>
-              <th>${escapeHtml(t("analytics.avgFirstResponse"))}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </section>
-  `;
-}
-
 function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = null, topQuestionItems = [], userMessages = []) {
-  const sourceRows = getAnalyticsSourceRows(ownerAnalyticsDashboard?.assistantSource);
-  const sourceTotal = Math.max(
-    Number(ownerAnalyticsDashboard?.assistantSource?.totalConversations || 0),
-    Number(report.conversationCount || 0)
-  );
-  const humanFollowUps = Math.max(0, Number(report.conversationCount || 0) - Number(report.autonomousHandledCount || 0));
-  const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
-  const metrics = [
-    { label: t("analytics.totalConversations"), value: formatAnalyticsReportNumber(report.conversationCount), compare: t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
-    { label: t("analytics.aiHandled"), value: formatAnalyticsReportPercent(report.autonomousHandledRate), compare: `${formatAnalyticsReportNumber(report.autonomousHandledCount)} ${t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
-    { label: t("analytics.humanFollowUps"), value: formatAnalyticsReportNumber(humanFollowUps), compare: t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
-    { label: t("analytics.leadsCaptured"), value: formatAnalyticsReportNumber(report.contactsCaptured), compare: t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
-    { label: t("analytics.fullPageActivity"), value: formatAnalyticsReportNumber(fullPageRow.conversationCount || 0), compare: t("analytics.fullPageConversationsRecorded"), icon: "window", tone: "blue" },
-  ];
+  if (typeof dashboardAnalytics.renderAnalyticsPageFragment === "function") {
+    return dashboardAnalytics.renderAnalyticsPageFragment(report, ownerAnalyticsDashboard, topQuestionItems, userMessages, {
+      t,
+      renderIcon: buildV2Icon,
+      renderIconBadge: buildV2IconBadge,
+      renderButton: buildV2Button,
+    });
+  }
 
-  return `
-    <div class="dashboard-v2-analytics">
-      <section class="v2-grid v2-grid-6">
-        ${metrics.map(buildV2MetricCard).join("")}
-      </section>
-      <section class="v2-analytics-columns v2-section">
-        <div class="v2-analytics-column v2-analytics-column-main">
-          <article class="v2-card v2-chart-card v2-analytics-chart-card">
-            <div class="v2-section-header">
-              <div>
-                <h2 class="v2-section-title">${escapeHtml(t("analytics.conversationsOverTime"))}</h2>
-                <div class="v2-metric-value v2-chart-total">${escapeHtml(formatAnalyticsReportNumber(report.conversationCount))} <span class="v2-subtext">${escapeHtml(t("analytics.totalConversationLabel"))}</span></div>
-                <div class="v2-metric-change"><span>${escapeHtml(t("analytics.liveCurrentWorkspace"))}</span></div>
-              </div>
-              <button class="v2-button" type="button">${escapeHtml(t("analytics.daily"))} ${buildV2Icon("chevronDown")}</button>
-            </div>
-            ${buildV2LineChart(report.conversationSeries)}
-          </article>
-          ${buildV2Heatmap(userMessages)}
-        </div>
-        <div class="v2-analytics-column">
-          ${buildV2AnalyticsSourceBreakdown(sourceRows, sourceTotal)}
-          ${buildV2HandlingCard(report)}
-        </div>
-        <div class="v2-analytics-column">
-          ${buildV2TopQuestions(topQuestionItems)}
-          ${buildV2ConversionCard(report)}
-        </div>
-      </section>
-      ${buildV2PerformanceBySource(sourceRows, report)}
-      ${buildV2ContactMixCard(report)}
-    </div>
-  `;
+  return `<div class="placeholder-card">Analytics are unavailable until the dashboard analytics module loads.</div>`;
 }
 
 function normalizeActionQueueStatus(value) {
@@ -10670,7 +10220,7 @@ function formatCaptureRate(value) {
   return dashboardLabels.formatCaptureRate(value);
 }
 
-function buildConversionSummaryPills(summary = {}) {
+function _buildConversionSummaryPills(summary = {}) {
   const counts = {
     ...createEmptyActionQueue().conversionSummary,
     ...(summary || {}),
@@ -10727,7 +10277,7 @@ function formatPersonIntents(person = {}) {
     .join(" · ");
 }
 
-function buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
+function _buildPeopleMarkup(actionQueue = createEmptyActionQueue()) {
   const people = Array.isArray(actionQueue.people) ? actionQueue.people : [];
   const peopleSummary = {
     ...createEmptyActionQueue().peopleSummary,
@@ -13836,7 +13386,7 @@ function buildInstallSection(agent, options = {}) {
   `;
 }
 
-function buildCustomizationForm(agent, compact) {
+function buildCustomizationForm(agent, _compact) {
   return `
     <form id="assistant-settings-form" class="spacer">
       <div class="studio-layout">

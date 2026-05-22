@@ -1349,6 +1349,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/dashboardInstall\.js/);
         assert.match(dashboard.text, /\/dashboardFrontDesk\.js/);
         assert.match(dashboard.text, /\/dashboardCustomers\.js/);
+        assert.match(dashboard.text, /\/dashboardAnalytics\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
         assert.match(dashboard.text, /Preparing your workspace/);
         assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
@@ -1654,8 +1655,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
       try {
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         const dashboardLabelsScript = await getText(server.baseUrl, "/dashboardLabels.js");
+        const dashboardAnalyticsScript = await getText(server.baseUrl, "/dashboardAnalytics.js");
         assert.equal(dashboardScript.status, 200);
         assert.equal(dashboardLabelsScript.status, 200);
+        assert.equal(dashboardAnalyticsScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
         assert.match(dashboardScript.text, /Sign in to continue into Vonza/);
         assert.match(dashboardScript.text, /Create account/);
@@ -1712,10 +1715,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);
         assert.match(dashboardScript.text, /Performance insights for your AI front desk/);
-        assert.match(dashboardScript.text, /Conversations over time/);
-        assert.match(dashboardScript.text, /Entry point \/ source breakdown/);
-        assert.match(dashboardScript.text, /AI vs Human handling/);
-        assert.match(dashboardScript.text, /Who Vonza is talking to/);
+        assert.match(dashboardAnalyticsScript.text, /Conversations over time/);
+        assert.match(dashboardAnalyticsScript.text, /Entry point \/ source breakdown/);
+        assert.match(dashboardAnalyticsScript.text, /AI vs Human handling/);
+        assert.match(dashboardAnalyticsScript.text, /Who Vonza is talking to/);
         assert.match(dashboardScript.text, /Clarify pricing guidance/);
         assert.match(dashboardScript.text, /Top questions and weak answers/);
         assert.match(dashboardScript.text, /Reviewed/);
@@ -1734,6 +1737,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Save follow-up note/);
         assert.match(dashboardScript.text, /Installation methods/);
         assert.match(dashboardScript.text, /Front Desk page/);
+        assert.match(dashboardAnalyticsScript.text, /Front Desk page/);
         assert.match(dashboardScript.text, /QR code/);
         assert.match(dashboardScript.text, /Setup progress/);
         assert.match(dashboardScript.text, /Domain status/);

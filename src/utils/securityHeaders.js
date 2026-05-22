@@ -18,6 +18,7 @@ function isDashboardAssetPath(pathname) {
     "/dashboardInstall.js",
     "/dashboardFrontDesk.js",
     "/dashboardCustomers.js",
+    "/dashboardAnalytics.js",
     "/i18n/dashboardI18n.js",
     "/settings/SettingsShell.js",
     "/settings/settings.css",
