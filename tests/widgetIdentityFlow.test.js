@@ -2632,32 +2632,110 @@ test("widget send flow keeps identity payloads and stays in the chat state after
 test("assistant output formatter preserves paragraph spacing", () => {
   const harness = createWidgetHarness();
   const html = harness.hooks.formatAssistantMessageHtml(
-    "Direct answer.\n\nShort explanation, if needed.\n\nOne clear next step?"
+    "Direct **answer**.\n\nShort explanation, if needed.\n\nOne clear next step?"
   );
 
-  assert.match(html, /<p>Direct answer\.<\/p><p>Short explanation, if needed\.<\/p><p>One clear next step\?<\/p>/);
+  assert.match(html, /<p>Direct <strong>answer<\/strong>\.<\/p><p>Short explanation, if needed\.<\/p><p>One clear next step\?<\/p>/);
+  assert.doesNotMatch(html, /\*\*answer\*\*/);
 });
 
 test("assistant output formatter renders bullet responses as readable lists", () => {
   const harness = createWidgetHarness();
   const html = harness.hooks.formatAssistantMessageHtml(
-    "For an accurate quote, include:\n\n- Service type\n- Timeline\n- Must-have features"
+    "For an accurate quote, include:\n\n- **Service type**\n- Timeline\n- Must-have features"
   );
 
   assert.match(html, /<p>For an accurate quote, include:<\/p>/);
-  assert.match(html, /<ul><li>Service type<\/li><li>Timeline<\/li><li>Must-have features<\/li><\/ul>/);
+  assert.match(html, /<ul><li><strong>Service type<\/strong><\/li><li>Timeline<\/li><li>Must-have features<\/li><\/ul>/);
 });
 
 test("assistant output formatter escapes script and HTML content", () => {
   const harness = createWidgetHarness();
   const html = harness.hooks.formatAssistantMessageHtml(
-    "Safe answer <script>alert('x')</script>\n\n- <img src=x onerror=alert(1)>"
+    "Safe **answer** <script>alert('x')</script>\n\n- **<img src=x onerror=alert(1)>**"
   );
 
   assert.doesNotMatch(html, /<script/i);
   assert.doesNotMatch(html, /<img/i);
+  assert.match(html, /Safe <strong>answer<\/strong>/);
   assert.match(html, /&lt;script&gt;alert\(&#39;x&#39;\)&lt;\/script&gt;/);
-  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(html, /<strong>&lt;img src=x onerror=alert\(1\)&gt;<\/strong>/);
+});
+
+test("canvas answer state switches to compact workspace, hides topic chips, and keeps composer footer after input", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Co." },
+              widgetConfig: {
+                assistantName: "Acme Front Desk",
+                fullPageConfig: {
+                  headline: "Front Desk",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (String(input) === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We offer **Web Design** and **E-commerce Solutions**.\n\n- Strategy\n- Launch support",
+              agentId: "agent-1",
+              businessId: "business-1",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), false);
+  assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+
+  harness.elements.get("input").value = "What services do you offer?";
+  await harness.hooks.sendMessage();
+
+  const answer = harness.elements.get("chat").children.find((child) => String(child.className || "").includes("canvas-answer-message"));
+  assert.ok(answer);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), false);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").hidden, true);
+  assert.equal(harness.elements.get("quick-replies").innerHTML, "");
+  const renderedAnswerBody = answer.innerHTML.match(/<div class="vonza-message-body">([\s\S]*?)<\/div>/)?.[1] || "";
+  assert.doesNotMatch(renderedAnswerBody, /\*\*Web Design\*\*/);
+  assert.match(renderedAnswerBody, /<strong>Web Design<\/strong>/);
+  assert.match(renderedAnswerBody, /<ul><li>Strategy<\/li><li>Launch support<\/li><\/ul>/);
+  assert.equal((answer.innerHTML.match(/canvas-answer-actions/g) || []).length, 1);
+  assert.match(answer.innerHTML, /Ask another question/);
+  assert.match(answer.innerHTML, /Leave contact details/);
 });
 
 test("widget source separates entry and chat phases, hides the composer before identity, omits attach and emoji controls, and preserves mobile rules", () => {
@@ -2793,6 +2871,14 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-layout-canvas \.send-button[\s\S]*background: var\(--canvas-send-color, #111827\)/);
   assert.doesNotMatch(styles, /embedded-layout-canvas \.send-button[\s\S]*background: color-mix\(in srgb, var\(--brand-primary\) 76%/);
   assert.match(styles, /embedded-layout-canvas \.page-identity-legal[\s\S]*display: block[\s\S]*font-size: 0\.64rem/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.app-shell[\s\S]*grid-template-rows: auto minmax\(0, 1fr\)[\s\S]*gap: clamp\(8px, 1\.6dvh, 14px\)/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.page-assistant-hero:not\(\[hidden\]\)[\s\S]*padding-top: 0/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.page-context-panel h2[\s\S]*font-size: clamp\(1\.18rem, 2\.2vw, 1\.8rem\)[\s\S]*letter-spacing: 0/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.chat-container[\s\S]*overflow: hidden/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.chat-feed[\s\S]*max-height: calc\(100dvh - 186px\)[\s\S]*overflow-y: auto/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.composer-shell[\s\S]*margin: 0 auto[\s\S]*padding-bottom: max\(0px, env\(safe-area-inset-bottom\)\)/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.quick-replies[\s\S]*display: none !important/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.page-identity-legal[\s\S]*display: none/);
   assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
   assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
 
@@ -3521,7 +3607,8 @@ test("clicking a canvas prompt opens the answer workspace with the selected topi
   assert.match(renderedChat, /Pricing depends on the scope/);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("message user")).length, 1);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("canvas-answer-message")).length, 1);
-  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").hidden, true);
+  assert.equal(harness.elements.get("quick-replies").innerHTML, "");
 });
 
 test("canvas answer contact action opens the compact inline contact form", async () => {
@@ -3758,7 +3845,8 @@ test("canvas full embedded page mode keeps empty state clean and renders message
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message user")), true);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot canvas-answer-message")), true);
-  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").hidden, true);
+  assert.equal(harness.elements.get("quick-replies").innerHTML, "");
   const renderedChat = chat.children.map((child) => child.innerHTML).join("\n");
   assert.match(renderedChat, /We can help with services/);
   assert.match(renderedChat, /Was this helpful\?/);

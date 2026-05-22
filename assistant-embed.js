@@ -874,10 +874,6 @@
   }
 
   function calculateFullPageTopOffset(entry) {
-    if (entry.pageReset) {
-      return entry.headerOffset !== null ? entry.headerOffset : 0;
-    }
-
     if (entry.headerOffset !== null) {
       return entry.headerOffset;
     }
@@ -1132,9 +1128,7 @@
       addClass(takeoverWrapper, "vonza-page-takeover-active");
       applyTakeoverWrapperStyles(takeoverWrapper, {
         minHeight,
-        topOffset: pageReset
-          ? (headerOffset !== null ? headerOffset : 0)
-          : headerOffset !== null ? headerOffset : Math.max(0, Math.floor(element.getBoundingClientRect?.().top || 0)),
+        topOffset: headerOffset !== null ? headerOffset : Math.max(0, Math.floor(element.getBoundingClientRect?.().top || 0)),
       });
       if (pageReset) {
         applyDedicatedPageReset(element, takeoverWrapper);

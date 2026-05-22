@@ -524,9 +524,14 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function formatInlineAssistantMarkdown(value) {
+  return escapeHtml(String(value || ""))
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+}
+
 function formatMessageParagraph(lines) {
   const content = lines
-    .map((line) => escapeHtml(line))
+    .map((line) => formatInlineAssistantMarkdown(line))
     .join("<br>");
 
   return content ? `<p>${content}</p>` : "";
@@ -556,7 +561,7 @@ function formatAssistantMessageHtml(text) {
 
       const flushBullets = () => {
         if (bulletItems.length) {
-          parts.push(`<ul>${bulletItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`);
+          parts.push(`<ul>${bulletItems.map((item) => `<li>${formatInlineAssistantMarkdown(item)}</li>`).join("")}</ul>`);
           bulletItems = [];
         }
       };
@@ -1700,7 +1705,7 @@ function isMobilePagePromptMode() {
 
 function shouldShowQuickReplies() {
   if (isCanvasEmbeddedPageMode()) {
-    return widgetPhase === WIDGET_PHASES.CHAT;
+    return widgetPhase === WIDGET_PHASES.CHAT && !hasCanvasVisibleThread();
   }
 
   if (isPageMode() && !EMBEDDED_MODE && !isMobilePagePromptMode()) {
@@ -1737,6 +1742,15 @@ function renderQuickReplies() {
   queueEmbeddedHeightUpdate();
 }
 
+function hasCanvasVisibleThread() {
+  const chat = document.getElementById("chat");
+
+  return Array.from(chat?.children || []).some((child) => {
+    const className = String(child.className || "");
+    return className.includes("message") && !className.includes("intro") && child.hidden !== true;
+  });
+}
+
 function updateCanvasConversationState() {
   if (!isCanvasEmbeddedPageMode()) {
     document.documentElement.classList.remove("vonza-canvas-empty", "vonza-canvas-active");
@@ -1744,11 +1758,7 @@ function updateCanvasConversationState() {
     return;
   }
 
-  const chat = document.getElementById("chat");
-  const hasVisibleThread = Array.from(chat?.children || []).some((child) => {
-    const className = String(child.className || "");
-    return className.includes("message") && !className.includes("intro") && child.hidden !== true;
-  });
+  const hasVisibleThread = hasCanvasVisibleThread();
   document.documentElement.classList.toggle("vonza-canvas-empty", !hasVisibleThread);
   document.documentElement.classList.toggle("vonza-canvas-active", hasVisibleThread);
   document.body?.classList.toggle("vonza-canvas-empty", !hasVisibleThread);

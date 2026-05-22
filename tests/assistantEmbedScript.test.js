@@ -428,6 +428,23 @@ test("/assistant-embed.js data-page-reset true adds dedicated page classes and r
   assert.equal(harness.iframe.style.background, "transparent");
 });
 
+test("/assistant-embed.js page reset preserves visible site header height", () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "page-takeover",
+    "data-background-scope": "page",
+    "data-page-reset": "true",
+  }, {
+    innerHeight: 900,
+    rootTop: 72,
+  });
+  const wrapper = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-takeover") !== null);
+
+  assert.equal(wrapper.style.minHeight, "max(0px, calc(100vh - 72px))");
+  assert.equal(harness.iframe.style.height, "828px");
+  assert.equal(harness.iframe.style.minHeight, "828px");
+});
+
 test("/assistant-embed.js page background scope applies takeover and safe body background with page reset", async () => {
   const harness = createHarness({
     "data-agent-id": "agent-1",
