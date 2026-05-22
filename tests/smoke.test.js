@@ -1301,33 +1301,27 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       try {
         const marketingHome = await getText(server.baseUrl, "/");
         assert.equal(marketingHome.status, 200);
-        assert.match(marketingHome.text, /An AI front desk for your customer questions/i);
-        assert.match(marketingHome.text, /answers common questions, captures customer details, and keeps conversations organized/i);
-        assert.match(marketingHome.text, /Start your front desk/i);
+        assert.match(marketingHome.text, /Your AI Front Desk for customer questions, quotes, bookings, and follow-ups/i);
+        assert.match(marketingHome.text, /dedicated page where they can ask questions, request quotes, leave details/i);
+        assert.match(marketingHome.text, /Create your Front Desk/i);
         assert.match(marketingHome.text, /href="\/dashboard\?from=site"/);
         assert.match(marketingHome.text, /id="site-auth-link"/);
         assert.match(marketingHome.text, /id="site-primary-cta"/);
         assert.match(marketingHome.text, /data-app-link/);
-        assert.match(marketingHome.text, /Simple monthly plans/i);
-        assert.match(marketingHome.text, /Choose the monthly capacity that fits your customer traffic/i);
-        assert.match(marketingHome.text, /Starter/);
-        assert.match(marketingHome.text, /Growth/);
-        assert.match(marketingHome.text, /Pro/);
-        assert.match(marketingHome.text, /\$20\/month/);
-        assert.match(marketingHome.text, /\$50\/month/);
-        assert.match(marketingHome.text, /\$100\/month/);
-        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=starter"/);
-        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=growth"/);
-        assert.match(marketingHome.text, /href="\/dashboard\?from=site&amp;plan=pro"/);
-        assert.match(marketingHome.text, /No AI knowledge needed/i);
-        assert.match(marketingHome.text, /Home/i);
+        assert.match(marketingHome.text, /Dedicated Front Desk page/i);
+        assert.match(marketingHome.text, /More than a website widget/i);
+        assert.match(marketingHome.text, /WordPress plugin/i);
+        assert.match(marketingHome.text, /QR \/ direct link/i);
+        assert.match(marketingHome.text, /optional website widget/i);
         assert.match(marketingHome.text, /Customers/i);
         assert.match(marketingHome.text, /Front Desk/i);
         assert.match(marketingHome.text, /Analytics/i);
         assert.match(marketingHome.text, /Install/i);
-        assert.match(marketingHome.text, /Email, calendar, and automation connections are planned for later/i);
-        assert.match(marketingHome.text, /Coming soon/i);
+        assert.match(marketingHome.text, /Train it from real conversations/i);
+        assert.match(marketingHome.text, /No invented prices or policies/i);
         assert.match(marketingHome.text, /\/marketing\.js/);
+        assert.match(marketingHome.text, /\/assets\/product\/front-desk-page-desktop\.webp/);
+        assert.doesNotMatch(marketingHome.text, /website chat widget/i);
         assert.doesNotMatch(marketingHome.text, /operator/i);
         assert.doesNotMatch(marketingHome.text, /copilot/i);
         assert.doesNotMatch(marketingHome.text, /approval-first/i);
@@ -1336,6 +1330,57 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.doesNotMatch(marketingHome.text, /Outcomes/i);
         assert.doesNotMatch(marketingHome.text, /Contacts/i);
         assert.doesNotMatch(marketingHome.text, /token usage|api spend|model cost|crm|automation platform/i);
+
+        for (const route of ["/features", "/product", "/pricing", "/about"]) {
+          const page = await getText(server.baseUrl, route);
+          assert.equal(page.status, 200);
+          assert.match(page.text, /AI Front Desk|Front Desk page/i);
+          assert.match(page.text, /\/marketing\.js/);
+          assert.doesNotMatch(page.text, /fully autonomous|human replacement|enterprise compliance|omnichannel/i);
+        }
+
+        const pricingPage = await getText(server.baseUrl, "/pricing");
+        assert.match(pricingPage.text, /Simple monthly plans/i);
+        assert.match(pricingPage.text, /Choose the monthly capacity for your AI Front Desk/i);
+        assert.match(pricingPage.text, /Starter/);
+        assert.match(pricingPage.text, /Growth/);
+        assert.match(pricingPage.text, /Pro/);
+        assert.match(pricingPage.text, /\$20\/month/);
+        assert.match(pricingPage.text, /\$50\/month/);
+        assert.match(pricingPage.text, /\$100\/month/);
+        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=starter"/);
+        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=growth"/);
+        assert.match(pricingPage.text, /href="\/dashboard\?from=site&amp;plan=pro"/);
+
+        const featuresPage = await getText(server.baseUrl, "/features");
+        assert.match(featuresPage.text, /WordPress Front Desk page/i);
+        assert.match(featuresPage.text, /Smart embed \/ QR \/ hosted link/i);
+        assert.match(featuresPage.text, /Feedback and training/i);
+        assert.match(featuresPage.text, /Analytics and source breakdown/i);
+
+        const productPage = await getText(server.baseUrl, "/product");
+        assert.match(productPage.text, /Training and feedback loop/i);
+        assert.match(productPage.text, /Customers and conversations/i);
+        assert.match(productPage.text, /Settings and customization/i);
+
+        const marketingImageRefs = Array.from(marketingHome.text.matchAll(/<img[^>]+src="([^"]+)"/g), (match) => match[1]);
+        assert.ok(marketingImageRefs.length >= 5, "marketing homepage should render product screenshots");
+        marketingImageRefs.forEach((src) => {
+          assert.doesNotThrow(() => readFileSync(path.join(repoRoot, "frontend", src.replace(/^\//, ""))));
+        });
+        [
+          "front-desk-page-desktop.webp",
+          "front-desk-answer-state.webp",
+          "wordpress-page-takeover-assistant.webp",
+          "front-desk-page-mobile.webp",
+          "dashboard-front-desk-practice.webp",
+          "dashboard-install-front-desk.webp",
+          "dashboard-customers.webp",
+          "dashboard-analytics.webp",
+          "dashboard-settings-front-desk.webp",
+        ].forEach((assetName) => {
+          assert.doesNotThrow(() => readFileSync(path.join(repoRoot, "frontend", "assets", "product", assetName)));
+        });
 
         const dashboard = await getText(server.baseUrl, "/dashboard");
         assert.equal(dashboard.status, 200);
@@ -1842,7 +1887,7 @@ test("signed-out marketing header keeps the normal CTA", async () => {
   const harness = createMarketingHarness({ storedSession: null, session: null });
   await harness.settle();
 
-  assert.equal(harness.primaryCta.textContent, "Start your front desk");
+  assert.equal(harness.primaryCta.textContent, "Create Front Desk");
   assert.equal(harness.primaryCta.getAttribute("href"), "/dashboard?from=site");
   assert.equal(harness.authLink.hidden, false);
   assert.equal(harness.footerAppLink.getAttribute("href"), "/dashboard?from=site");

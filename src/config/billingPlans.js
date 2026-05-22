@@ -6,15 +6,17 @@ export const BILLING_INTERVAL_MONTH = "month";
 export const DEFAULT_BILLING_PLAN_KEY = "growth";
 export const BILLING_USAGE_COPY = Object.freeze({
   sectionEyebrow: "Simple monthly plans",
-  sectionHeadline: "Choose the monthly capacity that fits your customer traffic.",
+  sectionHeadline: "Choose the monthly capacity for your AI Front Desk.",
   sectionNote:
-    "All plans include the same core Vonza experience. The difference is how much monthly AI usage is included.",
+    "All plans include the same core Front Desk experience. The difference is how much monthly AI usage is included.",
   sharedFeatures: Object.freeze([
-    "AI front desk on your website",
+    "AI Front Desk page",
+    "WordPress, smart embed, QR/direct link",
+    "Optional website widget",
     "Customer dashboard",
-    "Customer summaries",
-    "Analytics",
-    "Simple install",
+    "Conversations and summaries",
+    "Training with approved answers",
+    "Analytics and source breakdown",
     "Monthly AI usage included",
     "Upgrade anytime",
   ]),
@@ -32,8 +34,8 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     stripePriceEnvKey: "STRIPE_PRICE_ID_STARTER_MONTHLY",
     marketing: Object.freeze({
       audience: "For lighter website traffic",
-      summary: "A simple way to get Vonza live on your site",
-      detail: "Best for getting Vonza live on a lower-volume site",
+      summary: "A simple way to publish your AI Front Desk",
+      detail: "Best for launching a lower-volume Front Desk page",
       capacityLabel: "Lighter monthly AI capacity",
     }),
   }),
@@ -50,7 +52,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For regular customer questions",
       summary: "Best for most growing small businesses",
-      detail: "Best for most small businesses",
+      detail: "Best for a live Front Desk with regular customer questions",
       capacityLabel: "Regular monthly AI capacity",
     }),
   }),
@@ -66,7 +68,7 @@ const BILLING_PLAN_DEFINITIONS = Object.freeze([
     marketing: Object.freeze({
       audience: "For busier websites",
       summary: "More room for higher monthly customer volume",
-      detail: "More monthly AI capacity for higher customer volume",
+      detail: "More monthly AI capacity for a busier Front Desk",
       capacityLabel: "Higher monthly AI capacity",
     }),
   }),

@@ -149,26 +149,41 @@ function renderAppImage({
   caption = "",
   className = "",
   loading = "lazy",
+  width = 1440,
+  height = 980,
 }) {
   return `
     <figure class="app-frame ${className}">
       <div class="app-frame-bar" aria-hidden="true">
         <span></span><span></span><span></span>
       </div>
-      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="${escapeHtml(loading)}" width="1440" height="980">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="${escapeHtml(loading)}" width="${escapeHtml(width)}" height="${escapeHtml(height)}">
       ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ""}
     </figure>
   `;
 }
 
+const PRODUCT_IMAGES = Object.freeze({
+  frontDeskPage: "/assets/product/front-desk-page-desktop.webp",
+  frontDeskAnswer: "/assets/product/front-desk-answer-state.webp",
+  wordpressPage: "/assets/product/wordpress-page-takeover-assistant.webp",
+  frontDeskMobile: "/assets/product/front-desk-page-mobile.webp",
+  dashboardHome: "/assets/product/dashboard-home-current.webp",
+  dashboardFrontDesk: "/assets/product/dashboard-front-desk-practice.webp",
+  dashboardCustomers: "/assets/product/dashboard-customers.webp",
+  dashboardInstall: "/assets/product/dashboard-install-front-desk.webp",
+  dashboardAnalytics: "/assets/product/dashboard-analytics.webp",
+  dashboardSettings: "/assets/product/dashboard-settings-front-desk.webp",
+});
+
 function renderValueStrip() {
   return `
     <section class="value-strip" aria-label="Vonza value">
       ${[
-        "Prioritize customer replies",
-        "Spot warm leads",
-        "Reduce missed messages",
-        "No AI knowledge needed",
+        "Dedicated Front Desk page",
+        "WordPress, QR, embed, or link",
+        "Train with approved answers",
+        "Optional website widget",
       ].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
     </section>
   `;
@@ -178,12 +193,12 @@ function renderFinalCta() {
   return `
     <section class="final-cta" data-reveal>
       <div>
-        <h2>Open a sharper front desk for every customer question.</h2>
-        <p>Create a customer-facing AI Front Desk page, publish it through links, QR, WordPress, smart embeds, or the optional website bubble, and keep customer work moving from one focused dashboard.</p>
+        <h2>Create the AI Front Desk customers can actually use.</h2>
+        <p>Publish a dedicated Front Desk page, share it by QR or link, install it with WordPress or smart embed, and keep improving answers from the dashboard.</p>
       </div>
       <div class="final-cta-actions">
-        <a class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
-        <a class="button button-secondary" href="/features">View features</a>
+        <a class="button button-primary" data-app-link href="/dashboard?from=site">Create your Front Desk</a>
+        <a class="button button-secondary" href="/product">View product</a>
       </div>
     </section>
   `;
@@ -193,18 +208,18 @@ function renderMarketingHomePage() {
   return `
     <section class="hero">
       <div class="hero-copy" data-reveal>
-        <h1>An AI front desk for your customer questions.</h1>
-        <p class="hero-text">Vonza answers common questions, captures customer details, and keeps conversations organized so teams can respond faster and lose fewer customers.</p>
+        <h1>Your AI Front Desk for customer questions, quotes, bookings, and follow-ups.</h1>
+        <p class="hero-text">Give customers a dedicated page where they can ask questions, request quotes, leave details, and get useful answers grounded in your business.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-app-link href="/dashboard?from=site">Start your front desk</a>
-          <a class="button button-secondary" href="/product">See product tour</a>
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Create your Front Desk</a>
+          <a class="button button-secondary" href="/product">See how it works</a>
         </div>
       </div>
       <div class="hero-media" data-reveal style="--reveal-delay: 100ms;">
         ${renderAppImage({
-          src: "/assets/product/dashboard-home.png",
-          alt: "Vonza dashboard home showing daily customer priorities and service metrics",
-          caption: "Home highlights customer priorities, wins, and service quality in one operational view.",
+          src: PRODUCT_IMAGES.frontDeskPage,
+          alt: "Vonza public Front Desk page where a customer can ask questions and review suggested next steps",
+          caption: "The public Front Desk page gives customers a focused place to ask, share details, and continue.",
           className: "app-frame-hero",
           loading: "eager",
         })}
@@ -213,66 +228,21 @@ function renderMarketingHomePage() {
 
     ${renderValueStrip()}
 
-    <section class="section">
+    <section class="section front-desk-first">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>Built for the customer work after the first question.</h2>
-          <p>Vonza keeps the dashboard compact and operational, so owners and teams can see who needs attention without sorting through noisy tools.</p>
+          <h2>More than a website widget.</h2>
+          <p>The widget bubble is optional. Vonza starts with a full-page AI Front Desk you can publish, share, embed, or connect to WordPress.</p>
         </div>
         <a class="text-arrow" href="/features">Explore all features</a>
       </div>
-      <div class="feature-preview-grid">
-        <article class="feature-preview-card" data-reveal>
-          ${renderAppImage({
-            src: "/assets/product/customers-list.png",
-            alt: "Vonza customers page showing customer rows and statuses",
-          })}
-          <h3>Customer record rows</h3>
-          <p>See recent messages, reply state, lead context, and clean status pills in one compact list.</p>
-        </article>
-        <article class="feature-preview-card" data-reveal style="--reveal-delay: 80ms;">
-          ${renderAppImage({
-            src: "/assets/product/front-desk-inbox.png",
-            alt: "Vonza Front Desk page showing preview and readiness panels",
-          })}
-          <h3>Front Desk readiness</h3>
-          <p>Test the customer-facing assistant, review business grounding, and move into install when ready.</p>
-        </article>
-        <article class="feature-preview-card" data-reveal style="--reveal-delay: 160ms;">
-          ${renderAppImage({
-            src: "/assets/product/analytics-overview.png",
-            alt: "Vonza analytics overview showing customer service KPIs and trend chart",
-          })}
-          <h3>Customer-service analytics</h3>
-          <p>Track conversations, captured leads, weak-answer areas, and the customer questions that repeat.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section product-story">
-      <div class="story-copy" data-reveal>
-        <h2>One path from install to faster replies.</h2>
-        <p>Launch the Front Desk page, let Vonza capture customer questions, review priority replies, and use analytics to tighten the answers customers rely on.</p>
-        <a class="button button-secondary" href="/product">How it works</a>
-      </div>
-      ${renderAppImage({
-        src: "/assets/product/settings-install.png",
-        alt: "Vonza install and settings view with setup status and configuration controls",
-        caption: "Settings and Install stay separate from the main dashboard so setup work never clutters daily operations.",
-        className: "story-frame",
-      })}
-    </section>
-
-    <section class="section use-cases">
-      <div class="section-intro" data-reveal>
-        <h2>For teams that cannot afford missed customer intent.</h2>
-      </div>
-      <div class="use-case-grid">
+      <div class="channel-grid">
         ${[
-          ["Service businesses", "Capture quote, booking, and callback intent while the team is busy."],
-          ["Ecommerce teams", "Answer product and order questions before they become abandoned carts."],
-          ["Creators and experts", "Route warm questions into a clearer follow-up process."],
-          ["Support teams", "Keep common questions answered and urgent replies visible."],
+          ["Dedicated Front Desk page", "A hosted customer-facing assistant page for questions, quotes, bookings, and contact capture."],
+          ["WordPress Front Desk page", "Use the plugin or page embed when the assistant should feel like a full page on your site."],
+          ["Smart embed", "Place the Front Desk inside part of an existing page without making the widget the main experience."],
+          ["QR / direct link", "Share the same Front Desk from flyers, invoices, menus, emails, or social profiles."],
+          ["Optional widget bubble", "Add the compact website bubble only when a normal page needs a small launcher."],
         ].map(([title, copy]) => `
           <article data-reveal>
             <h3>${escapeHtml(title)}</h3>
@@ -282,13 +252,140 @@ function renderMarketingHomePage() {
       </div>
     </section>
 
-    ${renderMarketingPricingSection()}
+    <section class="section how-it-works">
+      <div class="section-intro" data-reveal>
+        <h2>How the Front Desk goes live.</h2>
+        <p>Start with your website and business details, then publish the customer-facing page and improve it from real conversations.</p>
+      </div>
+      <div class="step-grid">
+        ${[
+          ["Connect your business website", "Import the pages and business context Vonza should use for grounded answers."],
+          ["Customize your Front Desk", "Set the welcome, voice, page style, suggested questions, and customer next steps."],
+          ["Publish by page, QR, embed, or widget", "Use the recommended Front Desk page first, then add WordPress, smart embed, or the optional bubble."],
+          ["Review and improve answers", "Use conversations, feedback, and approved answers to make the next response stronger."],
+        ].map(([title, copy], index) => `
+          <article data-reveal style="--reveal-delay:${index * 70}ms;">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
 
-    <section class="section connected-section">
-      <div class="connected-note" data-reveal>
-        <h2>Email, calendar, and automation connections are planned for later.</h2>
-        <p>Today, Vonza focuses on your website front desk and customer conversations.</p>
-        <span>Coming soon</span>
+    <section class="section product-screenshot-section">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>The customer page and the owner dashboard stay connected.</h2>
+          <p>Customers get a clear Front Desk. Owners get conversations, training, install guidance, analytics, and settings in one dashboard.</p>
+        </div>
+      </div>
+      <div class="feature-preview-grid product-shot-grid">
+        <article class="feature-preview-card" data-reveal>
+          ${renderAppImage({
+            src: PRODUCT_IMAGES.dashboardFrontDesk,
+            alt: "Vonza Front Desk dashboard practice screen for testing and improving answers",
+          })}
+          <h3>Practice and training</h3>
+          <p>Try customer questions, inspect weak areas, and keep approved answers close to the Front Desk workspace.</p>
+        </article>
+        <article class="feature-preview-card" data-reveal style="--reveal-delay: 80ms;">
+          ${renderAppImage({
+            src: PRODUCT_IMAGES.dashboardInstall,
+            alt: "Vonza Install dashboard showing Front Desk page, QR or direct link, smart embed, and optional widget choices",
+          })}
+          <h3>Install flow</h3>
+          <p>Publish the Front Desk page first, then add WordPress, smart embed, QR/direct link, or the optional website bubble.</p>
+        </article>
+        <article class="feature-preview-card" data-reveal style="--reveal-delay: 160ms;">
+          ${renderAppImage({
+            src: PRODUCT_IMAGES.dashboardAnalytics,
+            alt: "Vonza Analytics dashboard with conversation totals, Front Desk page activity, and source breakdown",
+          })}
+          <h3>Source analytics</h3>
+          <p>See conversations, messages, captured leads, and which entry points are producing customer questions.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section product-story">
+      <div class="story-copy" data-reveal>
+        <h2>Train it from real conversations.</h2>
+        <p>When a reply is thin or a visitor marks an answer as not helpful, Vonza turns that into a training moment. Owners can approve better answers and keep future replies grounded in verified business facts.</p>
+        <a class="button button-secondary" href="/product">See the feedback loop</a>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.frontDeskAnswer,
+        alt: "Vonza Front Desk answer state showing a customer question and assistant response",
+        caption: "The Front Desk can answer first, then owner feedback and approved answers improve the next response.",
+        className: "story-frame",
+      })}
+    </section>
+
+    <section class="section use-cases">
+      <div class="section-intro" data-reveal>
+        <h2>Built for small businesses that need a better front door.</h2>
+        <p>Vonza keeps the language general because each business decides what its Front Desk should know and what it should never invent.</p>
+      </div>
+      <div class="use-case-grid">
+        ${[
+          ["Salons and clinics", "Answer common questions and collect details for a human follow-up when needed."],
+          ["Agencies and studios", "Explain services, quote inputs, timelines, and next steps without inventing prices."],
+          ["Restaurants and venues", "Share practical answers from approved business information and direct visitors to the right next step."],
+          ["Local services", "Capture quote, booking, and callback intent while the team is working."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section install-options-section">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>Install options match how customers find you.</h2>
+          <p>Use one Front Desk across the channels you already use. The website widget remains available, but it is no longer the whole product.</p>
+        </div>
+      </div>
+      <div class="install-option-layout">
+        ${renderAppImage({
+          src: PRODUCT_IMAGES.wordpressPage,
+          alt: "Vonza Front Desk embedded as a page-style assistant on a website",
+        })}
+        <div class="install-option-list">
+          ${[
+            ["WordPress plugin", "Create a dedicated Front Desk page inside WordPress."],
+            ["Smart embed", "Place the assistant as a full-page or section experience."],
+            ["Hosted page / QR", "Share the same page by link or QR code."],
+            ["Optional widget", "Keep the compact website bubble as a secondary entry point."],
+          ].map(([title, copy]) => `
+            <article data-reveal>
+              <h3>${escapeHtml(title)}</h3>
+              <p>${escapeHtml(copy)}</p>
+            </article>
+          `).join("")}
+        </div>
+      </div>
+    </section>
+
+    <section class="section trust-section">
+      <div class="section-intro" data-reveal>
+        <h2>Built to stay honest when the answer is not known.</h2>
+      </div>
+      <div class="trust-grid">
+        ${[
+          ["No invented prices or policies", "If exact details are not in the business context, the Front Desk should say so and guide the visitor to a quote or contact path."],
+          ["Owner-approved answers", "Useful corrections can become approved answers for future customer questions."],
+          ["Customer details handled intentionally", "The assistant can collect contact details for follow-up without pretending to replace your contact tools."],
+          ["Public endpoints are guarded", "Public assistant routes stay rate-limited and scoped to the right customer-facing experience."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
       </div>
     </section>
 
@@ -299,52 +396,52 @@ function renderMarketingHomePage() {
 function renderFeaturesPage() {
   const features = [
     {
-      title: "AI customer assistant",
-      copy: "Answer common website questions with business-aware guidance, clear next steps, and a tone that matches the company.",
-      src: "/assets/product/front-desk-inbox.png",
-      alt: "Vonza Front Desk preview for testing an AI customer assistant",
+      title: "AI Front Desk page",
+      copy: "A dedicated customer-facing assistant page for questions, quotes, bookings, and contact capture.",
+      src: PRODUCT_IMAGES.frontDeskPage,
+      alt: "Vonza public Front Desk page with customer question and assistant answer",
     },
     {
-      title: "Customer inbox / front desk",
-      copy: "Review conversations, chat availability, customer context, and handoff states without leaving the operational workspace.",
-      src: "/assets/product/customers-crm.png",
-      alt: "Vonza customer workspace with inbox-style customer rows",
+      title: "WordPress Front Desk page",
+      copy: "Use the WordPress plugin or page embed when the assistant should feel like a full customer help page.",
+      src: PRODUCT_IMAGES.wordpressPage,
+      alt: "Vonza page-style assistant embedded on a website",
     },
     {
-      title: "Lead detection",
-      copy: "Surface quote, booking, callback, and high-intent questions so the best follow-up does not get buried.",
-      src: "/assets/product/dashboard-home.png",
-      alt: "Vonza home page highlighting priority lead and reply tasks",
+      title: "Smart embed / QR / hosted link",
+      copy: "Publish by hosted page, QR/direct link, smart embed, dedicated page embed, or the optional website bubble.",
+      src: PRODUCT_IMAGES.dashboardInstall,
+      alt: "Vonza Install screen with Front Desk page and distribution options",
     },
     {
-      title: "Reply prioritization",
-      copy: "Give unhappy customers, unanswered questions, and warm leads a cleaner visual priority than ordinary activity.",
-      src: "/assets/product/customers-crm.png",
-      alt: "Vonza customer list with reply and lead status pills",
+      title: "Customer conversations",
+      copy: "Review guests, identified customers, conversation context, and the next owner action from the dashboard.",
+      src: PRODUCT_IMAGES.dashboardCustomers,
+      alt: "Vonza Customers dashboard with conversation list and customer detail",
     },
     {
-      title: "Analytics",
-      copy: "Measure conversations, captured leads, weak answers, and frequent questions in a credible customer-service report.",
-      src: "/assets/product/analytics-overview.png",
-      alt: "Vonza analytics dashboard with KPI cards and chart",
+      title: "Feedback and training",
+      copy: "Turn not-helpful feedback, repeated questions, and owner corrections into approved answers for better future replies.",
+      src: PRODUCT_IMAGES.dashboardFrontDesk,
+      alt: "Vonza Front Desk dashboard practice and training workspace",
     },
     {
-      title: "Settings / installation",
-      copy: "Keep business profile, Front Desk page settings, installation, and verification clear without changing the daily dashboard flow.",
-      src: "/assets/product/settings-install.png",
-      alt: "Vonza settings and install configuration screens",
+      title: "Analytics and source breakdown",
+      copy: "Track conversations, messages, leads, Front Desk page activity, and the mix of page, embed, and widget entry points.",
+      src: PRODUCT_IMAGES.dashboardAnalytics,
+      alt: "Vonza Analytics dashboard with source breakdown",
     },
   ];
 
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>Everything the front desk needs to answer, route, and prioritize.</h1>
-        <p>Vonza combines customer-facing AI with an admin workspace designed for reply quality, lead visibility, and installation confidence.</p>
+        <h1>Features for a real AI Front Desk, not just a chat bubble.</h1>
+        <p>Vonza combines a dedicated customer page, install options, conversations, training, approved answers, analytics, and optional widget support.</p>
       </div>
       ${renderAppImage({
-        src: "/assets/product/front-desk-inbox.png",
-        alt: "Vonza Front Desk page with readiness and preview states",
+        src: PRODUCT_IMAGES.frontDeskPage,
+        alt: "Vonza public Front Desk page with a customer-facing assistant",
         className: "page-hero-frame",
         loading: "eager",
       })}
@@ -366,29 +463,37 @@ function renderFeaturesPage() {
       `).join("")}
     </section>
 
+    <section class="section trust-section">
+      <div class="section-intro" data-reveal>
+        <h2>Also included where configured.</h2>
+        <p>Vonza supports contact capture, semantic knowledge retrieval, voice input and spoken replies when enabled, approved answers, and the website widget bubble as a secondary channel.</p>
+      </div>
+    </section>
+
     ${renderFinalCta()}
   `;
 }
 
 function renderProductPage() {
   const steps = [
-    ["Publish Front Desk page", "Choose WordPress, smart embed, QR/direct link, or the optional website bubble and verify any website embed.", "/assets/product/settings-install.png", "Vonza install page with setup steps"],
-    ["Connect or configure", "Set the business profile, tone, routing, and the knowledge Vonza should trust.", "/assets/product/settings-install.png", "Vonza settings page with business profile controls"],
-    ["Capture customer questions", "Let visitors ask questions and get useful first answers from the front desk.", "/assets/product/front-desk-inbox.png", "Vonza Front Desk preview conversation"],
-    ["Prioritize leads and replies", "Review warm leads, unhappy customers, and unresolved questions first.", "/assets/product/customers-crm.png", "Vonza customers page with prioritized customer records"],
-    ["Respond faster", "Use the latest context and suggested next step to decide what to do next.", "/assets/product/dashboard-home.png", "Vonza Home page with service priorities"],
-    ["Track performance", "See customer question themes, weak-answer areas, and outcomes in Analytics.", "/assets/product/analytics-overview.png", "Vonza analytics overview with chart"],
+    ["Front Desk page", "Give customers a hosted AI Front Desk where they can ask questions, request quotes, leave details, and get grounded first answers.", PRODUCT_IMAGES.frontDeskPage, "Vonza public Front Desk page"],
+    ["Dashboard", "Use Home, Customers, Front Desk, Analytics, Install, and Settings to run the assistant from one owner workspace.", PRODUCT_IMAGES.dashboardHome, "Vonza dashboard Home screen"],
+    ["Training and feedback loop", "Practice questions, review weak answers, and turn approved corrections into better answers for next time.", PRODUCT_IMAGES.dashboardFrontDesk, "Vonza Front Desk practice and training workspace"],
+    ["Customers and conversations", "Review guest or identified customer conversations, follow-up context, and recent customer details without claiming a full contact-management suite.", PRODUCT_IMAGES.dashboardCustomers, "Vonza Customers dashboard with conversation detail"],
+    ["Analytics", "Measure conversations, messages, captured leads, source breakdown, and repeated customer questions.", PRODUCT_IMAGES.dashboardAnalytics, "Vonza Analytics dashboard source breakdown"],
+    ["Install and distribution", "Publish with WordPress, smart embed, hosted page, QR/direct link, or the optional website widget bubble.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Front Desk page choices"],
+    ["Settings and customization", "Adjust Front Desk identity, welcome copy, page content, design, voice options, and business context where configured.", PRODUCT_IMAGES.dashboardSettings, "Vonza Settings screen for Front Desk customization"],
   ];
 
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>How Vonza moves a customer question into a clear next step.</h1>
-        <p>From the full-page Front Desk to the daily dashboard, every part of the product is built around answering faster and losing fewer customer opportunities.</p>
+        <h1>The product surface starts with a full-page Front Desk.</h1>
+        <p>Vonza gives customers a focused assistant page and gives owners the dashboard they need to review conversations, train better answers, track sources, and install the experience.</p>
       </div>
       ${renderAppImage({
-        src: "/assets/product/dashboard-home.png",
-        alt: "Vonza Home page showing customer priorities and service metrics",
+        src: PRODUCT_IMAGES.frontDeskAnswer,
+        alt: "Vonza Front Desk showing a customer answer state",
         className: "page-hero-frame",
         loading: "eager",
       })}
@@ -407,6 +512,14 @@ function renderProductPage() {
       `).join("")}
     </section>
 
+    <section class="section connected-section">
+      <div class="connected-note" data-reveal>
+        <h2>Voice and widget support are optional surfaces, not the core promise.</h2>
+        <p>Voice input and spoken replies appear where configured. The website bubble remains useful, but the product is positioned around the full-page AI Front Desk and owner dashboard.</p>
+        <span>Current product scope</span>
+      </div>
+    </section>
+
     ${renderFinalCta()}
   `;
 }
@@ -415,8 +528,8 @@ function renderPricingPage() {
   return `
     <section class="page-hero">
       <div data-reveal>
-        <h1>Simple plans for launching an AI front desk.</h1>
-        <p>Choose the plan that matches the amount of customer conversation you want Vonza to help organize and answer.</p>
+        <h1>Simple plans for launching an AI Front Desk.</h1>
+        <p>Pricing follows the current billing setup: the core Front Desk experience is the same, and plans differ by monthly AI usage capacity.</p>
       </div>
     </section>
     ${renderMarketingPricingSection()}
@@ -426,10 +539,11 @@ function renderPricingPage() {
       </div>
       <div class="faq-grid">
         ${[
-          ["Can I start without a technical setup?", "Yes. Vonza gives you an install snippet and verification flow so setup stays clear."],
+          ["What is included in each plan?", "The AI Front Desk page, dashboard, conversations, install options, training loop, analytics, and optional widget are part of the core product experience."],
+          ["Can I start without a technical setup?", "Yes. The hosted Front Desk page can be shared directly, and Install guides WordPress, smart embed, QR/direct link, and optional widget setup."],
           ["Can I change plans later?", "Yes. Plan movement is handled from the dashboard billing experience when billing is configured."],
-          ["What happens if traffic is quiet?", "The dashboard still shows setup readiness, weak areas, and what needs attention as activity grows."],
-          ["Is this replacing my team?", "No. Vonza handles common first questions and keeps the human follow-up work visible."],
+          ["Is the widget required?", "No. The website bubble is optional. Vonza is now centered on the customer-facing Front Desk page."],
+          ["Is this replacing my team?", "No. Vonza answers common first questions and keeps human follow-up work visible."],
         ].map(([title, copy]) => `
           <article data-reveal>
             <h3>${escapeHtml(title)}</h3>
@@ -446,16 +560,16 @@ function renderAboutPage() {
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>Vonza is built for businesses that answer customer questions while doing the work.</h1>
-        <p>It gives small teams a sharper front desk: helpful first responses for visitors, a cleaner place for customer follow-up, and visibility into what people keep asking.</p>
+        <h1>Vonza is building an AI Front Desk for small businesses.</h1>
+        <p>The goal is practical: help owners answer common customer questions, capture useful lead details, review conversations, and improve replies without pretending the assistant knows facts it has not been taught.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Create your Front Desk</a>
           <a class="button button-secondary" href="mailto:support@vonza.app">Contact</a>
         </div>
       </div>
       ${renderAppImage({
-        src: "/assets/product/dashboard-home.png",
-        alt: "Vonza dashboard home for customer-service operations",
+        src: PRODUCT_IMAGES.dashboardCustomers,
+        alt: "Vonza dashboard showing customer conversations and follow-up context",
         className: "page-hero-frame",
         loading: "eager",
       })}
@@ -464,11 +578,11 @@ function renderAboutPage() {
     <section class="section about-grid">
       <article data-reveal>
         <h2>Product principle</h2>
-        <p>Vonza stays focused on customer service work: answer what can be answered, capture useful context, and make the next human action obvious.</p>
+        <p>Answer what can be answered, say when details are missing, capture useful context, and make the next human action obvious.</p>
       </article>
       <article data-reveal style="--reveal-delay: 80ms;">
         <h2>Who it serves</h2>
-        <p>Service businesses, ecommerce teams, creators, and support operators that need fewer missed messages and clearer reply priorities.</p>
+        <p>Small businesses that need a better customer-facing page for questions, quote requests, booking intent, and follow-up details.</p>
       </article>
       <article data-reveal style="--reveal-delay: 160ms;">
         <h2>Contact</h2>
@@ -483,28 +597,28 @@ function renderAboutPage() {
 
 const MARKETING_PAGES = {
   home: {
-    title: "Vonza | AI front desk for customer questions",
-    description: "Vonza answers customer questions, detects warm leads, and organizes reply priorities in a polished dashboard for small teams.",
+    title: "Vonza | AI Front Desk page for small businesses",
+    description: "Vonza gives small businesses an AI Front Desk page for customer questions, quote requests, details, and follow-up.",
     body: renderMarketingHomePage,
   },
   features: {
-    title: "Vonza Features | AI customer assistant and front desk",
-    description: "Explore Vonza features for AI customer assistance, customer inbox, lead detection, reply prioritization, analytics, settings, and install.",
+    title: "Vonza Features | AI Front Desk page, training, install, and analytics",
+    description: "Explore Vonza features for the AI Front Desk page, WordPress, smart embed, QR links, conversations, approved answers, training, analytics, and optional widget.",
     body: renderFeaturesPage,
   },
   product: {
-    title: "Vonza Product | How the AI front desk works",
-    description: "See how Vonza moves from installation to customer question capture, lead prioritization, faster replies, and performance tracking.",
+    title: "Vonza Product | How the AI Front Desk works",
+    description: "See how Vonza connects the public Front Desk page, dashboard, conversations, training, install options, analytics, and customization.",
     body: renderProductPage,
   },
   pricing: {
-    title: "Vonza Pricing | Plans for an AI front desk",
-    description: "Review Vonza pricing plans for launching an AI front desk and organizing customer questions.",
+    title: "Vonza Pricing | Plans for an AI Front Desk",
+    description: "Review Vonza pricing plans for launching an AI Front Desk page and organizing customer questions.",
     body: renderPricingPage,
   },
   about: {
-    title: "About Vonza | AI front desk for busy teams",
-    description: "Learn about Vonza, the AI front desk built for small teams that need faster customer replies and fewer missed messages.",
+    title: "About Vonza | AI Front Desk for small businesses",
+    description: "Learn about Vonza, the AI Front Desk built for small businesses that need clearer customer answers and follow-up.",
     body: renderAboutPage,
   },
 };

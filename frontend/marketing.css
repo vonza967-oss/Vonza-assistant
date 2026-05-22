@@ -234,7 +234,7 @@ button:hover {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 0.72fr) minmax(460px, 1fr);
+  grid-template-columns: minmax(0, 0.92fr) minmax(500px, 1fr);
   gap: 36px;
   align-items: center;
   padding: 64px 0 20px;
@@ -257,7 +257,7 @@ button:hover {
 }
 
 .hero h1 {
-  font-size: clamp(42px, 5vw, 64px);
+  font-size: clamp(40px, 4.2vw, 56px);
 }
 
 .hero-text,
@@ -419,10 +419,33 @@ button:hover {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.channel-grid,
+.step-grid,
+.trust-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.channel-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.step-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trust-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .feature-preview-card,
 .use-case-grid article,
 .faq-grid article,
-.about-grid article {
+.about-grid article,
+.channel-grid article,
+.step-grid article,
+.trust-grid article,
+.install-option-list article {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.78);
@@ -442,7 +465,11 @@ button:hover {
 .feature-preview-card h3,
 .use-case-grid h3,
 .faq-grid h3,
-.about-grid h2 {
+.about-grid h2,
+.channel-grid h3,
+.step-grid h3,
+.trust-grid h3,
+.install-option-list h3 {
   margin: 0;
   color: var(--ink);
   font-size: 18px;
@@ -457,11 +484,48 @@ button:hover {
 .feature-preview-card p,
 .use-case-grid p,
 .faq-grid p,
-.about-grid p {
+.about-grid p,
+.channel-grid p,
+.step-grid p,
+.trust-grid p,
+.install-option-list p {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.52;
+}
+
+.channel-grid article,
+.step-grid article,
+.trust-grid article,
+.install-option-list article {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.channel-grid article:first-child,
+.trust-grid article:first-child {
+  background:
+    linear-gradient(180deg, rgba(21, 94, 239, 0.08), rgba(255, 255, 255, 0.82)),
+    #ffffff;
+  border-color: rgba(21, 94, 239, 0.2);
+}
+
+.step-grid span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #111827;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.product-shot-grid .feature-preview-card {
+  min-width: 0;
 }
 
 .product-story {
@@ -487,6 +551,18 @@ button:hover {
   display: grid;
   gap: 8px;
   padding: 18px;
+}
+
+.install-option-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.46fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.install-option-list {
+  display: grid;
+  gap: 14px;
 }
 
 .page-hero {
@@ -824,7 +900,11 @@ button:hover {
   }
 
   .feature-preview-grid,
-  .pricing-grid {
+  .pricing-grid,
+  .channel-grid,
+  .step-grid,
+  .trust-grid,
+  .install-option-layout {
     grid-template-columns: 1fr;
   }
 
@@ -934,7 +1014,7 @@ button:hover {
 
   .hero h1,
   .page-hero h1 {
-    font-size: 39px;
+    font-size: 35px;
   }
 
   .hero-text,
@@ -959,7 +1039,10 @@ button:hover {
   }
 
   .use-case-grid,
-  .about-grid {
+  .about-grid,
+  .channel-grid,
+  .step-grid,
+  .trust-grid {
     grid-template-columns: 1fr;
   }
 
