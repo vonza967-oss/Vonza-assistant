@@ -1354,8 +1354,17 @@ test("marketing homepage and app routes load without broken handoff paths", { co
           dashboard.text.indexOf("/dashboard-analytics.css") < dashboard.text.indexOf("/settings/settings.css"),
           "settings CSS should remain after dashboard analytics CSS"
         );
+        assert.ok(
+          dashboard.text.indexOf("/dashboard-analytics.css") < dashboard.text.indexOf("/dashboard-front-desk.css"),
+          "dashboard-front-desk.css should load after dashboard analytics CSS"
+        );
+        assert.ok(
+          dashboard.text.indexOf("/dashboard-front-desk.css") < dashboard.text.indexOf("/settings/settings.css"),
+          "settings CSS should remain after dashboard front desk CSS"
+        );
         assert.match(dashboard.text, /\/dashboard-install\.css/);
         assert.match(dashboard.text, /\/dashboard-analytics\.css/);
+        assert.match(dashboard.text, /\/dashboard-front-desk\.css/);
         assert.match(dashboard.text, /\/settings\/settings\.css/);
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboardState\.js/);
@@ -1466,6 +1475,14 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboardAnalyticsCss.text, /\.dashboard-v2-production-shell \.v2-data-table\s*\{/);
         assert.match(dashboardInstallCss.text, /\.install-method-card\s*\{/);
 
+        const dashboardFrontDeskCss = await getText(server.baseUrl, "/dashboard-front-desk.css");
+        assert.equal(dashboardFrontDeskCss.status, 200);
+        assert.match(dashboardFrontDeskCss.text, /\.frontdesk-workspace-panel\s*\{/);
+        assert.match(dashboardFrontDeskCss.text, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-layout\s*\{/);
+        assert.match(dashboardFrontDeskCss.text, /\.frontdesk-practice-canvas\s*\{/);
+        assert.match(dashboardFrontDeskCss.text, /\.frontdesk-improvement-list\s*,\s*\.frontdesk-library-grid\s*\{/);
+        assert.match(dashboardFrontDeskCss.text, /\.frontdesk-compact-row\s*\{/);
+
         const dashboardCss = await getText(server.baseUrl, "/dashboard.css");
         assert.equal(dashboardCss.status, 200);
         assert.match(dashboardCss.text, /\.home-grid\s*\{/);
@@ -1473,6 +1490,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboardCss.text, /\.placeholder-card\s*\{/);
         assert.doesNotMatch(dashboardCss.text, /\.settings-layout\s*\{/);
         assert.doesNotMatch(dashboardCss.text, /\.settings-frontdesk-subnav\s*\{/);
+        assert.doesNotMatch(dashboardCss.text, /\.frontdesk-practice-canvas\s*\{/);
+        assert.doesNotMatch(dashboardCss.text, /\.frontdesk-compact-row\s*\{/);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);

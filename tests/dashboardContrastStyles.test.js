@@ -16,6 +16,10 @@ function readDashboardAnalyticsCss() {
   return readFileSync(path.join(repoRoot, "frontend", "dashboard-analytics.css"), "utf8");
 }
 
+function readDashboardFrontDeskCss() {
+  return readFileSync(path.join(repoRoot, "frontend", "dashboard-front-desk.css"), "utf8");
+}
+
 function readSettingsCss() {
   return readFileSync(path.join(repoRoot, "frontend", "settings", "settings.css"), "utf8");
 }
@@ -111,9 +115,9 @@ test("dashboard light-workspace badges and summary cards keep dark-on-light text
 });
 
 test("dashboard Front Desk light shell keeps settings navigation and content readable", () => {
-  const css = readDashboardCss();
+  const frontDeskCss = readDashboardFrontDeskCss();
   const settingsCss = readSettingsCss();
-  const frontdeskPanel = getCssBlock(css, ".workspace-pages .frontdesk-main-panel");
+  const frontdeskPanel = getCssBlock(frontDeskCss, ".workspace-pages .frontdesk-main-panel");
   const navButton = getCssBlock(settingsCss, ".workspace-pages .settings-nav-button");
   const navButtonActive = getCssBlock(settingsCss, ".workspace-pages .settings-nav-button.active");
 
@@ -124,24 +128,25 @@ test("dashboard Front Desk light shell keeps settings navigation and content rea
   assert.match(navButtonActive, /background:\s*#e4f3f0/i);
   assert.match(settingsCss, /\.workspace-pages \.settings-page-title\s*\{[^}]*color:\s*var\(--light-surface-title\)/i);
   assert.match(settingsCss, /\.workspace-pages \.settings-page-copy\s*\{[^}]*color:\s*var\(--light-surface-text\)/i);
-  assert.match(css, /\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
-  assert.match(css, /\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-polished-panel\s*\{[^}]*border-radius:\s*10px;[^}]*background:\s*#ffffff/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(280px,\s*340px\)/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-canvas\s*\{[^}]*border:\s*1px solid #cbd7e8/i);
-  assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-context-panel \.frontdesk-detail-stack\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/i);
+  assert.match(frontDeskCss, /\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(frontDeskCss, /\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(frontDeskCss, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-polished-panel\s*\{[^}]*border-radius:\s*10px;[^}]*background:\s*#ffffff/i);
+  assert.match(frontDeskCss, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(280px,\s*340px\)/i);
+  assert.match(frontDeskCss, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-canvas\s*\{[^}]*border:\s*1px solid #cbd7e8/i);
+  assert.match(frontDeskCss, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-context-panel \.frontdesk-detail-stack\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/i);
 });
 
 test("dashboard contrast pass covers analytics, chips, active rows, and settings shell text", () => {
   const dashboardCss = readDashboardCss();
   const analyticsCss = readDashboardAnalyticsCss();
+  const frontDeskCss = readDashboardFrontDeskCss();
   const settingsCss = readSettingsCss();
 
   assert.match(dashboardCss, /--light-surface-text:\s*#40516c/i);
   assert.match(dashboardCss, /--light-surface-muted-strong:\s*#435775/i);
   assert.match(analyticsCss, /\.workspace-page \.analytics-report-title,[^}]*color:\s*var\(--light-surface-title\)/i);
   assert.match(analyticsCss, /\.workspace-page \.analytics-report-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
-  assert.match(dashboardCss, /\.workspace-page \.frontdesk-section-copy,[^}]*\.workspace-page \.field-help,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(frontDeskCss, /\.workspace-page \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
   assert.match(analyticsCss, /\.workspace-page \.analytics-report-metric-note\.tone-neutral,[^}]*color:\s*var\(--light-surface-text\)/i);
   assert.match(dashboardCss, /\.workspace-page \.toolbar-chip,[^}]*\.workspace-page \.local-section-button,[^}]*\.workspace-page \.prompt-chip,[^}]*color:\s*var\(--light-pill-text\)/i);
   assert.match(dashboardCss, /\.workspace-record-row\.active,[^}]*\.contact-row\.active\s*\{[^}]*background:\s*var\(--light-active-bg\);[^}]*box-shadow:\s*inset 3px 0 0 #0f8f7f;/i);

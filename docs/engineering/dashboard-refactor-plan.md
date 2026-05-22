@@ -875,6 +875,117 @@ Recommended Sprint 10:
 
 - Split Front Desk CSS next. Sprint 9 left Front Desk-adjacent mixed groups in `dashboard.css`, and Front Desk is the largest remaining dashboard CSS surface that directly touches the primary customer-facing product direction.
 
+## Sprint 10 - Front Desk CSS Split
+
+Starting baseline before edits:
+
+| Item | Value |
+| --- | ---: |
+| `frontend/dashboard.js` | 18,551 lines |
+| `frontend/dashboard.css` | 15,630 lines |
+| `frontend/dashboard-install.css` | 1,234 lines |
+| `frontend/dashboard-analytics.css` | 1,966 lines |
+| `frontend/settings/settings.css` | 2,857 lines |
+| Lint warnings | 4 |
+
+Starting CSS load order:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `dashboard-analytics.css`
+4. `settings/settings.css`
+
+Starting Front Desk CSS boundaries in `frontend/dashboard.css`:
+
+- Legacy Front Desk page layout and preview side-stack selectors around lines 1,669-1,685.
+- Front Desk workspace panel, main panel, section intro, step list, step body, and step label selectors around lines 2,250-2,338.
+- Older Front Desk context grid and mobile layout selectors around lines 4,206, 4,546, and 6,708-6,780.
+- Light workspace Front Desk title, copy, divider, detail, and step readability groups around lines 5,684-5,747 and 8,052-8,192.
+- Current Dashboard -> Front Desk tab workspace selectors for polished panels, readiness cards, knowledge/detail blocks, preview blocks, practice/test panel, compact training rows, improvements, answer library, and responsive collapse around lines 8,398-8,692.
+- Dark theme Front Desk selector fragments around lines 8,881-9,035 and 12,414-12,417.
+- Later density and V2 visual groups containing Front Desk-specific selectors around lines 9,541-9,807, 10,525-10,845, 11,902-11,955, 12,313-12,513, 13,069-13,115, 14,054-14,171, and 15,369-15,573.
+
+Files changed in Sprint 10:
+
+- `dashboard.html`
+- `frontend/dashboard.css`
+- `frontend/dashboard-front-desk.css`
+- `src/app/createApp.js`
+- `src/routes/publicRoutes.js`
+- `src/utils/securityHeaders.js`
+- `tests/dashboardContrastStyles.test.js`
+- `tests/smoke.test.js`
+- `docs/engineering/dashboard-refactor-plan.md`
+
+Line counts after Sprint 10:
+
+| File | Before | After |
+| --- | ---: | ---: |
+| `frontend/dashboard.css` | 15,630 | 15,040 |
+| `frontend/dashboard-front-desk.css` | 0 | 737 |
+| `frontend/dashboard-install.css` | 1,234 | 1,234 |
+| `frontend/dashboard-analytics.css` | 1,966 | 1,966 |
+| `frontend/settings/settings.css` | 2,857 | 2,857 |
+| `frontend/dashboard.js` | 18,551 | 18,551 |
+
+CSS load order after Sprint 10:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `dashboard-analytics.css`
+4. `dashboard-front-desk.css`
+5. `settings/settings.css`
+
+Front Desk CSS moved:
+
+- Front Desk page layout, preview shell, side stack, workspace panels, main panels, section intro, step list, step bodies, and step labels.
+- Front Desk light-shell readability selectors for section titles/copy, detail rows, readiness items, support notes, preview guide/frame blocks, and step numbers.
+- Dashboard -> Front Desk tab workspace selectors for polished panels, Practice, Improvements, Knowledge, Answer Library, Launch, compact improvement rows, training cards, approved answer cards, library grids, and responsive one-column collapse.
+- Front Desk dark-theme fragments and narrower Front Desk card, step, title, copy, and V2 token overrides where selectors were clearly Front Desk-owned.
+
+Styles intentionally left in `dashboard.css`:
+
+- Shared shell/sidebar/page layout, Home, Customers, Install, Analytics, Settings, generic V2 cards/grids, base buttons, base forms, pills, badges, metric cards, typography, and global responsive utilities.
+- Broad mixed V2 density groups that still include Front Desk selectors alongside Home, Customers, Analytics, Install, Settings, and generic V2 primitives. Those remain in `dashboard.css` because they are dashboard-wide sizing passes rather than Front Desk-owned component rules.
+- Action queue, operator workspace, and workspace record selectors used by multiple dashboard surfaces.
+
+Static guard updated:
+
+- Smoke coverage asserts `dashboard-front-desk.css` exists, loads after `dashboard-analytics.css`, loads before `settings/settings.css`, serves successfully, and contains key Front Desk selectors.
+- Smoke coverage keeps key Install selectors in `dashboard-install.css`, Analytics selectors in `dashboard-analytics.css`, Settings selectors in `settings/settings.css`, and shared selectors in `dashboard.css`.
+- Dashboard contrast tests now read moved Front Desk readability selectors from `dashboard-front-desk.css`.
+- Dashboard asset versioning, no-store headers, and dashboard CSP asset classification now include `/dashboard-front-desk.css`.
+
+Browser checks run:
+
+- Front Desk fixture at desktop width for Practice, Improvements, Knowledge, Answer Library, and Launch using the tab buttons, with no relevant console errors, no framework overlay, correct visible section state, and no horizontal overflow.
+- Front Desk fixture at tablet and mobile widths for Practice, verifying `dashboard-front-desk.css` load order and no horizontal overflow.
+- Quick fixture checks for Home, Customers, Analytics, Install, and Settings -> Front Desk.
+- Public quick checks for hosted full-page assistant, normal widget, and smart embed matrix. Local unavailable-assistant/widget warnings remain expected for dummy local assistant keys and are covered by smoke tests.
+
+Remaining CSS risks:
+
+- A small number of Front Desk selector fragments remain in broad dashboard-wide V2 density groups inside `dashboard.css`; moving them separately would split shared sizing rules across every major dashboard surface.
+- The cascade now depends on five ordered dashboard CSS files. Keep the smoke load-order guard with any future CSS asset changes.
+- Browser checks use the local fixture for populated dashboard state; production data variation should be monitored during beta.
+
+Sprint 10 verification:
+
+- Required `node --check` coverage for dashboard helpers, public scripts, Settings shell, and assistant embed passed.
+- Focused dashboard visibility, operator workspace, and Analytics tests passed.
+- Smoke, schema sync, lint, and whitespace checks passed.
+- `npm run lint` still reports the same four unrelated warnings recorded at baseline.
+
+Final refactor-phase status:
+
+- Planned dashboard maintainability CSS sprints are complete. Stop maintainability sprints here and return to controlled beta preparation.
+
+Recommended next work:
+
+- Return to controlled beta preparation.
+- Monitor real customer conversations.
+- Fix real beta issues only.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 5:

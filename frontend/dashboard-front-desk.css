@@ -1,0 +1,737 @@
+/* Dashboard Front Desk page styles. Loaded after dashboard-analytics.css and before Settings so Front Desk-specific overrides stay scoped. */
+
+.frontdesk-page-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.frontdesk-preview-shell {
+  min-height: 100%;
+}
+
+.frontdesk-side-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.frontdesk-workspace-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.frontdesk-workspace-panel {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.028));
+  box-shadow: var(--surface-highlight);
+}
+
+.frontdesk-main-panel {
+  gap: 24px;
+  padding: 24px 26px;
+  border-radius: 24px;
+  border-color: rgba(148, 163, 184, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
+    rgba(9, 13, 24, 0.9);
+  box-shadow: 0 24px 48px rgba(4, 8, 20, 0.2);
+}
+
+.frontdesk-section-intro,
+.frontdesk-readiness-head,
+.frontdesk-step-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.frontdesk-step-list {
+  display: grid;
+  gap: 14px;
+}
+
+.frontdesk-step {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.042);
+  box-shadow: var(--surface-highlight);
+}
+
+.frontdesk-step-number {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #13233a 0%, #174238 100%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 15px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.frontdesk-step-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.frontdesk-step .frontdesk-step-head {
+  align-items: flex-start;
+}
+
+.frontdesk-step-label {
+  display: block;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.frontdesk-context-grid {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+
+.frontdesk-context-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.workspace-pages .frontdesk-detail-kicker,
+.workspace-pages .frontdesk-detail-row-label,
+.workspace-pages .frontdesk-step-label {
+  color: var(--light-surface-muted-strong);
+}
+
+.workspace-pages .frontdesk-section-title,
+.workspace-pages .frontdesk-detail-title,
+.workspace-pages .frontdesk-support-title,
+.workspace-pages .frontdesk-preview-frame-title,
+.workspace-pages .frontdesk-step-title,
+.workspace-pages .frontdesk-detail-row-value {
+  color: var(--light-surface-title);
+}
+
+.workspace-pages .frontdesk-section-copy,
+.workspace-pages .frontdesk-readiness-copy,
+.workspace-pages .frontdesk-detail-copy,
+.workspace-pages .frontdesk-step-copy,
+.workspace-pages .frontdesk-support-copy {
+  color: var(--light-surface-text);
+}
+
+.workspace-pages .frontdesk-section-divider,
+.workspace-pages .frontdesk-readiness-item,
+.workspace-pages .frontdesk-detail-block,
+.workspace-pages .frontdesk-detail-list,
+.workspace-pages .frontdesk-detail-row {
+  border-color: #dbe4ef;
+}
+
+.workspace-pages .frontdesk-main-panel {
+  border-color: #dbe4ef;
+  background: #ffffff;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
+}
+
+.workspace-pages .frontdesk-step,
+.workspace-pages .frontdesk-support-note,
+.workspace-pages .frontdesk-preview-guide,
+.workspace-pages .frontdesk-preview-frame-shell {
+  border-color: #dbe4ef;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+}
+
+.workspace-pages .frontdesk-step-number {
+  background: linear-gradient(135deg, #17304f 0%, #0f766e 100%);
+  border-color: rgba(15, 118, 110, 0.18);
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+.frontdesk-context-grid,
+.frontdesk-page-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .frontdesk-main-panel {
+    padding: 22px 20px;
+  }
+
+  .frontdesk-detail-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  }
+
+.frontdesk-workspace-panel {
+  border: 1px solid #dbe5f1;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.frontdesk-workspace-panel {
+  border-radius: 0;
+}
+
+.frontdesk-context-grid {
+  gap: 16px;
+}
+
+.frontdesk-workspace-panel,
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell,
+.frontdesk-readiness-item,
+.frontdesk-detail-block {
+  border-color: var(--light-surface-border);
+}
+.frontdesk-workspace-panel,
+.frontdesk-step,
+.frontdesk-support-note,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell,
+.frontdesk-readiness-item,
+.frontdesk-detail-block {
+  background: var(--light-surface-bg);
+}
+.workspace-page .frontdesk-detail-kicker,
+.workspace-page .frontdesk-detail-row-label,
+.workspace-page .frontdesk-step-label {
+  color: var(--light-surface-muted-strong);
+}
+.workspace-page .frontdesk-section-title,
+.workspace-page .frontdesk-detail-title,
+.workspace-page .frontdesk-support-title,
+.workspace-page .frontdesk-preview-frame-title,
+.workspace-page .frontdesk-step-title,
+.workspace-page .frontdesk-detail-row-value {
+  color: var(--light-surface-title);
+}
+.workspace-page .frontdesk-section-copy,
+.workspace-page .frontdesk-readiness-copy,
+.workspace-page .frontdesk-detail-copy,
+.workspace-page .frontdesk-step-copy,
+.workspace-page .frontdesk-support-copy {
+  color: var(--light-surface-text);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  gap: 20px;
+  padding: 24px;
+  border-radius: 10px;
+  border: 1px solid #d8e2ef;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(20, 28, 38, 0.055);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-intro {
+  padding: 2px 2px 18px;
+  border-bottom: 1px solid #e4ebf5;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-divider {
+  display: none;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
+  padding: 18px;
+  border: 1px solid #dfe7f2;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
+  align-content: start;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-support-note {
+  border-color: #cfe0dc;
+  background: #f1f8f6;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #e4ebf5;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-row {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header {
+  background: #f6f8fb;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-status-row {
+  margin-top: 0;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
+  margin-bottom: -4px;
+  background: #f6f8fb;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-frame {
+  margin-top: 0;
+  border-color: #cad7e8;
+  border-radius: 10px;
+  background: #0f172a;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-practice-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-practice-canvas {
+  min-height: 640px;
+  display: grid;
+  grid-template-rows: auto minmax(360px, 1fr) auto auto;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #cbd7e8;
+  border-radius: 10px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 252, 0.94)),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 22%, transparent), transparent 34%);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+
+.frontdesk-practice-topbar,
+.frontdesk-teaching-head,
+.frontdesk-compact-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.frontdesk-practice-topbar h3 {
+  margin: 6px 0 0;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.frontdesk-practice-label {
+  display: inline-flex;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.frontdesk-practice-status {
+  padding: 6px 9px;
+  border: 1px solid #cfe0dc;
+  border-radius: 999px;
+  color: #155e56;
+  background: #eef8f5;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.frontdesk-practice-thread {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.frontdesk-practice-message {
+  max-width: min(680px, 88%);
+  display: grid;
+  gap: 7px;
+  padding: 13px 14px;
+  border: 1px solid #d9e4ef;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055);
+}
+
+.frontdesk-practice-message.user {
+  justify-self: end;
+  border-color: color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 42%, #d9e4ef);
+  background: color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 13%, #ffffff);
+}
+
+.frontdesk-practice-message span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.frontdesk-practice-message p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.frontdesk-practice-actions,
+.frontdesk-practice-composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.frontdesk-practice-composer {
+  padding: 12px;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.frontdesk-practice-composer input {
+  flex: 1 1 260px;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #111827;
+  font-size: 14px;
+}
+
+.frontdesk-teaching-shell {
+  padding: 16px;
+  border: 1px solid #cbd7e8;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.frontdesk-teaching-form {
+  display: grid;
+  gap: 14px;
+}
+
+.frontdesk-practice-side-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.frontdesk-compact-section,
+.frontdesk-improvement-card,
+.frontdesk-library-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #dfe7f2;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.frontdesk-compact-heading span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.frontdesk-compact-heading strong {
+  color: #0f766e;
+  font-size: 13px;
+}
+
+.frontdesk-compact-row {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid #e0e8f2;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #172033;
+  text-align: left;
+  cursor: pointer;
+}
+
+.frontdesk-compact-row span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.frontdesk-compact-row small,
+.frontdesk-compact-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.frontdesk-improvement-list,
+.frontdesk-library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 980px) {
+  .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
+  .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack,
+  .workspace-page[data-shell-section="customize"] .frontdesk-practice-layout,
+  .frontdesk-improvement-list,
+  .frontdesk-library-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page[data-shell-section="customize"] .frontdesk-practice-canvas {
+    min-height: 560px;
+  }
+
+}
+html[data-dashboard-theme="dark"] .frontdesk-polished-panel,
+html[data-dashboard-theme="dark"] .frontdesk-readiness-item,
+html[data-dashboard-theme="dark"] .frontdesk-detail-block,
+html[data-dashboard-theme="dark"] .frontdesk-step,
+html[data-dashboard-theme="dark"] .frontdesk-support-note,
+html[data-dashboard-theme="dark"] .frontdesk-preview-guide,
+html[data-dashboard-theme="dark"] .frontdesk-preview-frame-shell {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+  color: var(--theme-copy);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-polished-panel,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
+  border-color: var(--theme-border);
+  background: var(--theme-panel);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .frontdesk-section-title,
+html[data-dashboard-theme="dark"] .frontdesk-detail-title,
+html[data-dashboard-theme="dark"] .frontdesk-support-title,
+html[data-dashboard-theme="dark"] .frontdesk-preview-frame-title,
+html[data-dashboard-theme="dark"] .frontdesk-step-title {
+  color: var(--theme-text);
+}
+html[data-dashboard-theme="dark"] .frontdesk-section-copy,
+html[data-dashboard-theme="dark"] .frontdesk-detail-copy,
+html[data-dashboard-theme="dark"] .frontdesk-step-copy,
+html[data-dashboard-theme="dark"] .frontdesk-support-copy {
+  color: var(--theme-copy);
+}
+.frontdesk-workspace-panel,
+.frontdesk-step {
+  padding: 14px;
+}
+
+.frontdesk-section-copy {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.frontdesk-main-panel,
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 14px;
+}
+
+.frontdesk-step {
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.frontdesk-step-number {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.frontdesk-workspace-panel {
+  border-color: var(--dashboard-panel-line);
+  border-radius: 10px;
+  background: var(--dashboard-panel-bg);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  border-radius: 10px;
+}
+.frontdesk-readiness-item,
+.frontdesk-detail-block,
+.frontdesk-step,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell {
+  border-color: var(--dashboard-panel-line);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(20, 28, 38, 0.04);
+}
+
+.frontdesk-step-number {
+  background: linear-gradient(135deg, #233142 0%, var(--dashboard-accent) 100%);
+  box-shadow: 0 10px 18px rgba(20, 28, 38, 0.12);
+}
+
+.frontdesk-workspace-panel,
+.frontdesk-step,
+.frontdesk-readiness-item,
+.frontdesk-detail-block,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell {
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: var(--dashboard-panel-bg);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.frontdesk-workspace-panel {
+  padding: 22px;
+}
+.frontdesk-section-title {
+  color: var(--dashboard-ink);
+  letter-spacing: 0;
+}
+.frontdesk-section-copy {
+  color: var(--dashboard-muted);
+}
+.frontdesk-detail-kicker,
+.frontdesk-step-label {
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frontdesk-workspace-panel,
+.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
+  border-radius: var(--dashboard-card-radius);
+  background: #ffffff;
+}
+
+.frontdesk-section-intro {
+  gap: 16px;
+}
+
+.frontdesk-readiness-list,
+.frontdesk-detail-stack {
+  gap: 14px;
+}
+
+.frontdesk-readiness-item,
+.frontdesk-detail-block,
+.frontdesk-step,
+.frontdesk-preview-guide,
+.frontdesk-preview-frame-shell {
+  padding: 18px;
+}
+
+.frontdesk-section-divider {
+  border-color: var(--dashboard-panel-line);
+}
+
+.frontdesk-step-number {
+  background: var(--dashboard-accent-soft);
+  color: var(--dashboard-accent-hover);
+  box-shadow: none;
+}
+
+.frontdesk-preview-panel .preview-header,
+.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header {
+  padding: 14px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: #f6f8fb;
+}
+
+html[data-dashboard-theme="dark"] .frontdesk-workspace-panel,
+html[data-dashboard-theme="dark"] .frontdesk-step,
+html[data-dashboard-theme="dark"] .frontdesk-readiness-item,
+html[data-dashboard-theme="dark"] .frontdesk-detail-block {
+  border-color: var(--dashboard-panel-line);
+  background: var(--dashboard-panel-bg);
+}
+
+@media (max-width: 700px) {.frontdesk-workspace-panel {
+    padding: 16px;
+  }
+
+  }
+
+.dashboard-v2-production-shell .frontdesk-workspace-panel,
+.dashboard-v2-production-shell .frontdesk-step,
+.dashboard-v2-production-shell .frontdesk-readiness-item,
+.dashboard-v2-production-shell .frontdesk-detail-block,
+.dashboard-v2-production-shell .frontdesk-preview-guide,
+.dashboard-v2-production-shell .frontdesk-preview-frame-shell {
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: var(--dashboard-card-radius);
+  background: var(--dashboard-panel-bg);
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.dashboard-v2-production-shell .frontdesk-workspace-panel {
+  padding: 22px;
+}
+.dashboard-v2-production-shell .frontdesk-section-title {
+  color: var(--dashboard-ink);
+  letter-spacing: 0;
+}
+.dashboard-v2-production-shell .frontdesk-section-copy {
+  color: var(--dashboard-muted);
+}
+.dashboard-v2-production-shell .frontdesk-detail-kicker,
+.dashboard-v2-production-shell .frontdesk-step-label {
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

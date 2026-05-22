@@ -1666,7 +1666,6 @@ a.ghost-button:hover {
   line-height: 1.45;
 }
 
-.frontdesk-page-layout,
 .install-page-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
@@ -1674,14 +1673,8 @@ a.ghost-button:hover {
   align-items: start;
 }
 
-.frontdesk-preview-shell,
 .install-page-main {
   min-height: 100%;
-}
-
-.frontdesk-side-stack {
-  display: grid;
-  gap: 18px;
 }
 
 .overview-shell {
@@ -2247,7 +2240,6 @@ a.ghost-button:hover {
 .today-side-column,
 .contacts-list-shell,
 .contacts-detail-shell,
-.frontdesk-workspace-panel,
 .flat-section {
   display: grid;
   gap: 14px;
@@ -2258,83 +2250,12 @@ a.ghost-button:hover {
   border-right: 1px solid var(--surface-border);
 }
 
-.flat-section,
-.frontdesk-workspace-panel {
+.flat-section {
   padding: 16px 18px;
   border-radius: 18px;
   border: 1px solid var(--surface-border);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.046), rgba(255, 255, 255, 0.028));
   box-shadow: var(--surface-highlight);
-}
-
-.frontdesk-main-panel {
-  gap: 24px;
-  padding: 24px 26px;
-  border-radius: 24px;
-  border-color: rgba(148, 163, 184, 0.12);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.022), rgba(255, 255, 255, 0.008)),
-    rgba(9, 13, 24, 0.9);
-  box-shadow: 0 24px 48px rgba(4, 8, 20, 0.2);
-}
-
-.frontdesk-section-intro,
-.frontdesk-readiness-head,
-.frontdesk-step-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-}
-
-.frontdesk-step-list {
-  display: grid;
-  gap: 14px;
-}
-
-.frontdesk-step {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  padding: 18px;
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.042);
-  box-shadow: var(--surface-highlight);
-}
-
-.frontdesk-step-number {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #ffffff;
-  background: linear-gradient(135deg, #13233a 0%, #174238 100%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 15px;
-  font-weight: 800;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
-}
-
-.frontdesk-step-body {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.frontdesk-step .frontdesk-step-head {
-  align-items: flex-start;
-}
-
-.frontdesk-step-label {
-  display: block;
-  margin: 0 0 5px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .today-main-header,
@@ -4202,8 +4123,7 @@ body {
 .contact-row-column,
 .contact-row-actions,
 .detail-panel-section,
-.contact-detail-panel,
-.frontdesk-context-grid {
+.contact-detail-panel {
   display: grid;
   gap: 10px;
   text-align: left;
@@ -4541,11 +4461,6 @@ body {
 .detail-inline-form-row {
   display: flex;
   gap: 10px;
-}
-
-.frontdesk-context-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 22px;
 }
 
 .contact-card {
@@ -5681,43 +5596,6 @@ body {
   background: #8a4d00;
 }
 
-.workspace-pages .frontdesk-detail-kicker,
-.workspace-pages .frontdesk-detail-row-label,
-.workspace-pages .frontdesk-step-label {
-  color: var(--light-surface-muted-strong);
-}
-
-.workspace-pages .frontdesk-section-title,
-.workspace-pages .frontdesk-detail-title,
-.workspace-pages .frontdesk-support-title,
-.workspace-pages .frontdesk-preview-frame-title,
-.workspace-pages .frontdesk-step-title,
-.workspace-pages .frontdesk-detail-row-value {
-  color: var(--light-surface-title);
-}
-
-.workspace-pages .frontdesk-section-copy,
-.workspace-pages .frontdesk-readiness-copy,
-.workspace-pages .frontdesk-detail-copy,
-.workspace-pages .frontdesk-step-copy,
-.workspace-pages .frontdesk-support-copy {
-  color: var(--light-surface-text);
-}
-
-.workspace-pages .frontdesk-section-divider,
-.workspace-pages .frontdesk-readiness-item,
-.workspace-pages .frontdesk-detail-block,
-.workspace-pages .frontdesk-detail-list,
-.workspace-pages .frontdesk-detail-row {
-  border-color: #dbe4ef;
-}
-
-.workspace-pages .frontdesk-main-panel {
-  border-color: #dbe4ef;
-  background: #ffffff;
-  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.08);
-}
-
 .workspace-pages .customer-row-identity,
 .workspace-pages .customer-timeline-copy {
   color: var(--light-surface-text);
@@ -5729,21 +5607,6 @@ body {
 
 .workspace-pages .customer-row-meta-value {
   color: var(--light-surface-title);
-}
-
-.workspace-pages .frontdesk-step,
-.workspace-pages .frontdesk-support-note,
-.workspace-pages .frontdesk-preview-guide,
-.workspace-pages .frontdesk-preview-frame-shell {
-  border-color: #dbe4ef;
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
-}
-
-.workspace-pages .frontdesk-step-number {
-  background: linear-gradient(135deg, #17304f 0%, #0f766e 100%);
-  border-color: rgba(15, 118, 110, 0.18);
-  color: #ffffff;
 }
 
 .hero-meta {
@@ -6695,13 +6558,11 @@ body {
 .email-preview-counts,
 .contact-row,
 .contact-detail-grid,
-.frontdesk-context-grid,
 .contact-meta-grid,
 .action-queue-details,
 .action-queue-handoff-summary,
 .person-snippets,
 .plan-options-grid,
-.frontdesk-page-layout,
 .install-page-layout,
 .install-options-grid,
 .results-workspace,
@@ -6770,15 +6631,6 @@ body {
     min-width: 0;
     justify-self: stretch;
   }
-  .frontdesk-main-panel {
-    padding: 22px 20px;
-  }
-
-  .frontdesk-detail-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
   .today-side-column {
     position: static;
     top: auto;
@@ -7160,7 +7012,6 @@ body {
 .workspace-records-detail-shell,
 .contact-detail-panel,
 .workspace-inline-panel,
-.frontdesk-workspace-panel,
 .install-page-main {
   border: 1px solid #dbe5f1;
   border-radius: 0;
@@ -7170,7 +7021,6 @@ body {
 
 .workspace-connection-strip,
 .workspace-inline-panel,
-.frontdesk-workspace-panel,
 .install-page-main,
 .today-queue-shell,
 .today-review-drawer-frame,
@@ -7383,7 +7233,6 @@ body {
   border-top: 0;
   padding-top: 0;
 }
-.frontdesk-context-grid,
 .install-page-layout {
   gap: 16px;
 }
@@ -8035,18 +7884,11 @@ body {
 .workspace-records-detail-shell,
 .contact-detail-panel,
 .workspace-inline-panel,
-.frontdesk-workspace-panel,
 .install-page-main,
 .metric-card,
 .install-step,
 .studio-group,
 .guidance-card,
-.frontdesk-step,
-.frontdesk-support-note,
-.frontdesk-preview-guide,
-.frontdesk-preview-frame-shell,
-.frontdesk-readiness-item,
-.frontdesk-detail-block,
 .customer-detail-card,
 .customer-draft-card,
 .customer-risk-note {
@@ -8060,18 +7902,11 @@ body {
 .workspace-records-detail-shell,
 .contact-detail-panel,
 .workspace-inline-panel,
-.frontdesk-workspace-panel,
 .install-page-main,
 .metric-card,
 .install-step,
 .studio-group,
 .guidance-card,
-.frontdesk-step,
-.frontdesk-support-note,
-.frontdesk-preview-guide,
-.frontdesk-preview-frame-shell,
-.frontdesk-readiness-item,
-.frontdesk-detail-block,
 .customer-detail-card,
 .customer-draft-card {
   background: var(--light-surface-bg);
@@ -8085,9 +7920,6 @@ body {
 .workspace-page .detail-kv-label,
 .workspace-page .contact-row-column-label,
 .workspace-page .disclosure-detail-label,
-.workspace-page .frontdesk-detail-kicker,
-.workspace-page .frontdesk-detail-row-label,
-.workspace-page .frontdesk-step-label,
 .workspace-page .install-copy-field label,
 .workspace-page .action-queue-filter-label,
 .workspace-page .action-queue-control-label,
@@ -8120,12 +7952,6 @@ body {
 .workspace-page .results-list-item strong,
 .workspace-page .question-row strong,
 .workspace-page .timeline-row strong,
-.workspace-page .frontdesk-section-title,
-.workspace-page .frontdesk-detail-title,
-.workspace-page .frontdesk-support-title,
-.workspace-page .frontdesk-preview-frame-title,
-.workspace-page .frontdesk-step-title,
-.workspace-page .frontdesk-detail-row-value,
 .workspace-page .install-option-title,
 .workspace-page .install-step-title,
 .workspace-page .section-heading,
@@ -8164,11 +7990,6 @@ body {
 .workspace-page .results-list-item span,
 .workspace-page .timeline-row,
 .workspace-page .question-row,
-.workspace-page .frontdesk-section-copy,
-.workspace-page .frontdesk-readiness-copy,
-.workspace-page .frontdesk-detail-copy,
-.workspace-page .frontdesk-step-copy,
-.workspace-page .frontdesk-support-copy,
 .workspace-page .install-option-copy,
 .workspace-page .install-step-copy,
 .workspace-page .install-help,
@@ -8395,303 +8216,6 @@ body {
   color: var(--light-warning-text);
 }
 
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
-  gap: 20px;
-  padding: 24px;
-  border-radius: 10px;
-  border: 1px solid #d8e2ef;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgba(20, 28, 38, 0.055);
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-intro {
-  padding: 2px 2px 18px;
-  border-bottom: 1px solid #e4ebf5;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel .frontdesk-section-divider {
-  display: none;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block,
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
-  padding: 18px;
-  border: 1px solid #dfe7f2;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: none;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
-  align-content: start;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-support-note {
-  border-color: #cfe0dc;
-  background: #f1f8f6;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid #e4ebf5;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-row {
-  display: grid;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header {
-  background: #f6f8fb;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-status-row {
-  margin-top: 0;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell {
-  margin-bottom: -4px;
-  background: #f6f8fb;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-frame {
-  margin-top: 0;
-  border-color: #cad7e8;
-  border-radius: 10px;
-  background: #0f172a;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-practice-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  gap: 18px;
-  align-items: start;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-practice-canvas {
-  min-height: 640px;
-  display: grid;
-  grid-template-rows: auto minmax(360px, 1fr) auto auto;
-  gap: 16px;
-  padding: 22px;
-  border: 1px solid #cbd7e8;
-  border-radius: 10px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(246, 249, 252, 0.94)),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 22%, transparent), transparent 34%);
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
-}
-
-.frontdesk-practice-topbar,
-.frontdesk-teaching-head,
-.frontdesk-compact-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.frontdesk-practice-topbar h3 {
-  margin: 6px 0 0;
-  color: #0f172a;
-  font-size: 22px;
-  font-weight: 800;
-}
-
-.frontdesk-practice-label {
-  display: inline-flex;
-  color: #0f766e;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.frontdesk-practice-status {
-  padding: 6px 9px;
-  border: 1px solid #cfe0dc;
-  border-radius: 999px;
-  color: #155e56;
-  background: #eef8f5;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.frontdesk-practice-thread {
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  overflow: auto;
-  padding: 16px;
-  border: 1px solid #dbe5ef;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.frontdesk-practice-message {
-  max-width: min(680px, 88%);
-  display: grid;
-  gap: 7px;
-  padding: 13px 14px;
-  border: 1px solid #d9e4ef;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #172033;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055);
-}
-
-.frontdesk-practice-message.user {
-  justify-self: end;
-  border-color: color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 42%, #d9e4ef);
-  background: color-mix(in srgb, var(--frontdesk-practice-primary, #14b8a6) 13%, #ffffff);
-}
-
-.frontdesk-practice-message span {
-  color: #64748b;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.frontdesk-practice-message p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.55;
-}
-
-.frontdesk-practice-actions,
-.frontdesk-practice-composer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.frontdesk-practice-composer {
-  padding: 12px;
-  border: 1px solid #dbe5ef;
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.frontdesk-practice-composer input {
-  flex: 1 1 260px;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  color: #111827;
-  font-size: 14px;
-}
-
-.frontdesk-teaching-shell {
-  padding: 16px;
-  border: 1px solid #cbd7e8;
-  border-radius: 10px;
-  background: #ffffff;
-}
-
-.frontdesk-teaching-form {
-  display: grid;
-  gap: 14px;
-}
-
-.frontdesk-practice-side-panel {
-  display: grid;
-  gap: 12px;
-}
-
-.frontdesk-compact-section,
-.frontdesk-improvement-card,
-.frontdesk-library-card {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #dfe7f2;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: none;
-}
-
-.frontdesk-compact-heading span {
-  color: #334155;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.frontdesk-compact-heading strong {
-  color: #0f766e;
-  font-size: 13px;
-}
-
-.frontdesk-compact-row {
-  width: 100%;
-  display: grid;
-  gap: 4px;
-  margin-top: 8px;
-  padding: 10px;
-  border: 1px solid #e0e8f2;
-  border-radius: 8px;
-  background: #f8fafc;
-  color: #172033;
-  text-align: left;
-  cursor: pointer;
-}
-
-.frontdesk-compact-row span {
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.frontdesk-compact-row small,
-.frontdesk-compact-empty {
-  margin: 0;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.frontdesk-improvement-list,
-.frontdesk-library-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 980px) {
-  .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-list,
-  .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-stack,
-  .workspace-page[data-shell-section="customize"] .frontdesk-practice-layout,
-  .frontdesk-improvement-list,
-  .frontdesk-library-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .workspace-page[data-shell-section="customize"] .frontdesk-practice-canvas {
-    min-height: 560px;
-  }
-
-}
 .home-daily-banner-kicker,
 .home-improve-panel .workspace-panel-copy,
 .customer-focus-banner .studio-kicker,
@@ -8878,13 +8402,6 @@ html[data-dashboard-theme="dark"] .metric-card,
 html[data-dashboard-theme="dark"] .placeholder-card,
 html[data-dashboard-theme="dark"] .operator-focus-card,
 html[data-dashboard-theme="dark"] .operator-briefing-card,
-html[data-dashboard-theme="dark"] .frontdesk-polished-panel,
-html[data-dashboard-theme="dark"] .frontdesk-readiness-item,
-html[data-dashboard-theme="dark"] .frontdesk-detail-block,
-html[data-dashboard-theme="dark"] .frontdesk-step,
-html[data-dashboard-theme="dark"] .frontdesk-support-note,
-html[data-dashboard-theme="dark"] .frontdesk-preview-guide,
-html[data-dashboard-theme="dark"] .frontdesk-preview-frame-shell,
 html[data-dashboard-theme="dark"] .install-page-main,
 html[data-dashboard-theme="dark"] .install-step,
 html[data-dashboard-theme="dark"] .studio-group,
@@ -8921,13 +8438,7 @@ html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"]
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-row,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-detail-card,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-draft-card,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-risk-note,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-polished-panel,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-guide,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .frontdesk-preview-frame-shell,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-overview-panel .frontdesk-readiness-item,
-html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="customize"] .frontdesk-context-panel .frontdesk-detail-block {
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="contacts"] .customer-risk-note {
   border-color: var(--theme-border);
   background: var(--theme-panel);
   box-shadow: none;
@@ -8997,11 +8508,6 @@ html[data-dashboard-theme="dark"] .contact-row-name,
 html[data-dashboard-theme="dark"] .customer-row-summary,
 html[data-dashboard-theme="dark"] .contact-detail-title,
 html[data-dashboard-theme="dark"] .timeline-row strong,
-html[data-dashboard-theme="dark"] .frontdesk-section-title,
-html[data-dashboard-theme="dark"] .frontdesk-detail-title,
-html[data-dashboard-theme="dark"] .frontdesk-support-title,
-html[data-dashboard-theme="dark"] .frontdesk-preview-frame-title,
-html[data-dashboard-theme="dark"] .frontdesk-step-title,
 html[data-dashboard-theme="dark"] .install-option-title,
 html[data-dashboard-theme="dark"] .install-step-title,
 html[data-dashboard-theme="dark"] .studio-group-title,
@@ -9023,10 +8529,6 @@ html[data-dashboard-theme="dark"] .home-priority-why,
 html[data-dashboard-theme="dark"] .home-priority-change,
 html[data-dashboard-theme="dark"] .home-win-row p,
 html[data-dashboard-theme="dark"] .home-win-row span,
-html[data-dashboard-theme="dark"] .frontdesk-section-copy,
-html[data-dashboard-theme="dark"] .frontdesk-detail-copy,
-html[data-dashboard-theme="dark"] .frontdesk-step-copy,
-html[data-dashboard-theme="dark"] .frontdesk-support-copy,
 html[data-dashboard-theme="dark"] .install-option-copy,
 html[data-dashboard-theme="dark"] .install-step-copy,
 html[data-dashboard-theme="dark"] .studio-group-copy,
@@ -9531,14 +9033,12 @@ html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
 .workspace-panel,
 .overview-card,
 .support-panel,
-.frontdesk-workspace-panel,
 .install-page-main,
 .contact-detail-panel,
 .customer-detail-card,
 .customer-draft-card,
 .studio-group,
-.install-step,
-.frontdesk-step {
+.install-step {
   padding: 14px;
 }
 
@@ -9556,7 +9056,6 @@ html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
 }
 .workspace-panel-copy,
 .support-panel-copy,
-.frontdesk-section-copy,
 .install-step-copy,
 .studio-group-copy,
 .field-help {
@@ -9786,24 +9285,6 @@ html[data-dashboard-theme="dark"] .workspace-page .test-link.disabled {
 .timeline-row,
 .question-row {
   padding: 10px 0;
-}
-
-.frontdesk-main-panel,
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
-  gap: 16px;
-  padding: 18px;
-  border-radius: 14px;
-}
-
-.frontdesk-step {
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 12px;
-}
-
-.frontdesk-step-number {
-  width: 32px;
-  height: 32px;
-  font-size: 12px;
 }
 
 .shell-status-banner,
@@ -10518,7 +9999,6 @@ body {
 }
 .workspace-card-soft,
 .flat-section,
-.frontdesk-workspace-panel,
 .contact-detail-panel,
 .overview-card,
 .metric-card,
@@ -10816,16 +10296,10 @@ textarea::placeholder {
   background: #eefaf7;
 }
 
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel,
 .workspace-page[data-shell-section="install"] .workspace-card-soft,
 .workspace-page[data-shell-section="settings"] .workspace-card-soft {
   border-radius: 10px;
 }
-.frontdesk-readiness-item,
-.frontdesk-detail-block,
-.frontdesk-step,
-.frontdesk-preview-guide,
-.frontdesk-preview-frame-shell,
 .install-option-card,
 .install-step,
 .overview-list-item,
@@ -10838,7 +10312,6 @@ textarea::placeholder {
   box-shadow: 0 8px 18px rgba(20, 28, 38, 0.04);
 }
 
-.frontdesk-step-number,
 .install-step-number {
   background: linear-gradient(135deg, #233142 0%, var(--dashboard-accent) 100%);
   box-shadow: 0 10px 18px rgba(20, 28, 38, 0.12);
@@ -11875,7 +11348,6 @@ body {
 }
 .workspace-card-soft,
 .flat-section,
-.frontdesk-workspace-panel,
 .contact-detail-panel,
 .customer-detail-card,
 .customer-draft-card,
@@ -11891,11 +11363,6 @@ body {
 .install-status-card,
 .install-method-card,
 .install-next-step,
-.frontdesk-step,
-.frontdesk-readiness-item,
-.frontdesk-detail-block,
-.frontdesk-preview-guide,
-.frontdesk-preview-frame-shell,
 .overview-list-item,
 .results-list-item,
 .question-row,
@@ -11907,7 +11374,6 @@ body {
 }
 
 .workspace-card-soft,
-.frontdesk-workspace-panel,
 .install-page-main {
   padding: 22px;
 }
@@ -11920,7 +11386,6 @@ body {
 .workspace-pages .workspace-panel-title,
 .overview-card-title,
 .flat-section-title,
-.frontdesk-section-title,
 .settings-section-title,
 .install-option-title,
 .install-status-title,
@@ -11932,7 +11397,6 @@ body {
 .workspace-pages .workspace-panel-copy,
 .overview-card-copy,
 .flat-section-copy,
-.frontdesk-section-copy,
 .settings-section-copy,
 .install-option-copy,
 .install-step-copy,
@@ -11944,9 +11408,7 @@ body {
 .studio-kicker,
 .overview-label,
 .metric-label,
-.summary-strip-label,
-.frontdesk-detail-kicker,
-.frontdesk-step-label {
+.summary-strip-label {
   color: var(--dashboard-muted);
   font-size: 11px;
   font-weight: 800;
@@ -12309,47 +11771,11 @@ select:focus-visible {
   background: var(--dashboard-panel-soft);
 }
 
-.frontdesk-workspace-panel,
-.workspace-page[data-shell-section="customize"] .frontdesk-polished-panel {
-  border-radius: var(--dashboard-card-radius);
-  background: #ffffff;
-}
-
-.frontdesk-section-intro {
-  gap: 16px;
-}
-
-.frontdesk-readiness-list,
-.frontdesk-detail-stack {
-  gap: 14px;
-}
-
-.frontdesk-readiness-item,
-.frontdesk-detail-block,
-.frontdesk-step,
-.frontdesk-preview-guide,
-.frontdesk-preview-frame-shell {
-  padding: 18px;
-}
-
-.frontdesk-section-divider {
-  border-color: var(--dashboard-panel-line);
-}
-
-.frontdesk-step-number,
 .install-step-number,
 .install-method-icon {
   background: var(--dashboard-accent-soft);
   color: var(--dashboard-accent-hover);
   box-shadow: none;
-}
-
-.frontdesk-preview-panel .preview-header,
-.workspace-page[data-shell-section="customize"] .frontdesk-preview-panel .preview-header {
-  padding: 14px;
-  border: 1px solid var(--dashboard-panel-line);
-  border-radius: var(--dashboard-card-radius);
-  background: #f6f8fb;
 }
 
 .placeholder-card,
@@ -12388,7 +11814,6 @@ html[data-dashboard-theme="dark"] .sidebar-shell {
 }
 html[data-dashboard-theme="dark"] .workspace-card-soft,
 html[data-dashboard-theme="dark"] .flat-section,
-html[data-dashboard-theme="dark"] .frontdesk-workspace-panel,
 html[data-dashboard-theme="dark"] .contact-detail-panel,
 html[data-dashboard-theme="dark"] .customer-detail-card,
 html[data-dashboard-theme="dark"] .customer-draft-card,
@@ -12406,9 +11831,6 @@ html[data-dashboard-theme="dark"] .install-page-main,
 html[data-dashboard-theme="dark"] .install-option-card,
 html[data-dashboard-theme="dark"] .install-status-card,
 html[data-dashboard-theme="dark"] .install-method-card,
-html[data-dashboard-theme="dark"] .frontdesk-step,
-html[data-dashboard-theme="dark"] .frontdesk-readiness-item,
-html[data-dashboard-theme="dark"] .frontdesk-detail-block,
 html[data-dashboard-theme="dark"] .overview-list-item,
 html[data-dashboard-theme="dark"] .customer-row,
 html[data-dashboard-theme="dark"] .settings-shell-theme-option {
@@ -12507,8 +11929,7 @@ html[data-dashboard-theme="dark"] select {
   }
 
   .workspace-card-soft,
-  .frontdesk-workspace-panel,
-  .install-page-main {
+.install-page-main {
     padding: 16px;
   }
 
@@ -13042,7 +12463,6 @@ html[data-dashboard-theme="dark"] select {
 }
 .dashboard-v2-production-shell .workspace-card-soft,
 .dashboard-v2-production-shell .flat-section,
-.dashboard-v2-production-shell .frontdesk-workspace-panel,
 .dashboard-v2-production-shell .contact-detail-panel,
 .dashboard-v2-production-shell .customer-detail-card,
 .dashboard-v2-production-shell .customer-draft-card,
@@ -13058,11 +12478,6 @@ html[data-dashboard-theme="dark"] select {
 .dashboard-v2-production-shell .install-status-card,
 .dashboard-v2-production-shell .install-method-card,
 .dashboard-v2-production-shell .install-next-step,
-.dashboard-v2-production-shell .frontdesk-step,
-.dashboard-v2-production-shell .frontdesk-readiness-item,
-.dashboard-v2-production-shell .frontdesk-detail-block,
-.dashboard-v2-production-shell .frontdesk-preview-guide,
-.dashboard-v2-production-shell .frontdesk-preview-frame-shell,
 .dashboard-v2-production-shell .overview-list-item,
 .dashboard-v2-production-shell .results-list-item,
 .dashboard-v2-production-shell .question-row,
@@ -13074,14 +12489,12 @@ html[data-dashboard-theme="dark"] select {
 }
 
 .dashboard-v2-production-shell .workspace-card-soft,
-.dashboard-v2-production-shell .frontdesk-workspace-panel,
 .dashboard-v2-production-shell .install-page-main {
   padding: 22px;
 }
 .dashboard-v2-production-shell .workspace-panel-title,
 .dashboard-v2-production-shell .overview-card-title,
 .dashboard-v2-production-shell .flat-section-title,
-.dashboard-v2-production-shell .frontdesk-section-title,
 .dashboard-v2-production-shell .settings-section-title,
 .dashboard-v2-production-shell .install-option-title,
 .dashboard-v2-production-shell .install-status-title,
@@ -13092,7 +12505,6 @@ html[data-dashboard-theme="dark"] select {
 .dashboard-v2-production-shell .workspace-panel-copy,
 .dashboard-v2-production-shell .overview-card-copy,
 .dashboard-v2-production-shell .flat-section-copy,
-.dashboard-v2-production-shell .frontdesk-section-copy,
 .dashboard-v2-production-shell .settings-section-copy,
 .dashboard-v2-production-shell .install-option-copy,
 .dashboard-v2-production-shell .install-step-copy,
@@ -13104,9 +12516,7 @@ html[data-dashboard-theme="dark"] select {
 .dashboard-v2-production-shell .studio-kicker,
 .dashboard-v2-production-shell .overview-label,
 .dashboard-v2-production-shell .metric-label,
-.dashboard-v2-production-shell .summary-strip-label,
-.dashboard-v2-production-shell .frontdesk-detail-kicker,
-.dashboard-v2-production-shell .frontdesk-step-label {
+.dashboard-v2-production-shell .summary-strip-label {
   color: var(--dashboard-muted);
   font-size: 11px;
   font-weight: 800;
