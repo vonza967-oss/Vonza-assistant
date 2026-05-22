@@ -63,6 +63,8 @@ function renderDashboardDocument(rootDir, { localFixture = false } = {}) {
     "/i18n/dashboardI18n.js",
     "/settings/SettingsShell.js",
     "/dashboardHelpers.js",
+    "/dashboardState.js",
+    "/dashboardLabels.js",
     "/dashboard.js",
   ].forEach((assetPath) => {
     html = html.replaceAll(

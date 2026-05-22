@@ -54,6 +54,8 @@ function createFakeElement(id) {
 function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   const i18nScript = readFileSync(path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js"), "utf8");
   const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
+  const dashboardStateScript = readFileSync(path.join(repoRoot, "frontend", "dashboardState.js"), "utf8");
+  const dashboardLabelsScript = readFileSync(path.join(repoRoot, "frontend", "dashboardLabels.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
@@ -157,6 +159,8 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
 
   vm.runInNewContext(i18nScript, context, { filename: "frontend/i18n/dashboardI18n.js" });
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
+  vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
+  vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }
@@ -2335,7 +2339,6 @@ test("customers render as a polished workspace without inactive controls", () =>
             lifecycleState: "active_lead",
             lastCustomerMessageAt: "2026-04-05T09:00:00.000Z",
             mostRecentActivityAt: "2026-04-05T09:00:00.000Z",
-            lastCustomerMessageAt: "2026-04-05T09:00:00.000Z",
             latestCustomerMessageSummary: "Visitor asked for pricing.",
             chatMessages: [
               {

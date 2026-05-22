@@ -3,6 +3,8 @@ const rootEl = document.getElementById("dashboard-root");
 const statusBanner = document.getElementById("status-banner");
 const topbarMeta = document.getElementById("topbar-meta");
 const dashboardHelpers = window.VonzaDashboardHelpers || {};
+const dashboardState = window.VonzaDashboardState || {};
+const dashboardLabels = window.VonzaDashboardLabels || {};
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
@@ -54,72 +56,9 @@ let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
-const INSTALL_METHODS = ["full-page", "qr", "widget"];
-const INSTALL_METHOD_PANEL_KEYS = Object.freeze({
-  widget: "widget",
-  "full-page": "page",
-  qr: "qr",
-});
-const INSTALL_METHOD_HASH_SEGMENTS = Object.freeze({
-  widget: "widget",
-  "full-page": "full-page",
-  qr: "qr",
-});
-const INSTALL_FULL_PAGE_OPTIONS = ["share", "section", "dedicated", "takeover", "iframe"];
-const FRONT_DESK_SECTION_HASH_SEGMENTS = Object.freeze({
-  practice: "practice",
-  improvements: "improvements",
-  knowledge: "knowledge",
-  library: "answer-library",
-  launch: "launch",
-});
-const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
-  settingsMainTab: "general",
-  settingsFrontDeskTab: "identity-welcome",
-  settingsFullPageTab: "content",
-  installMethod: "full-page",
-  installFullPageOption: "share",
-  frontDeskTab: "practice",
-  customersFilter: "all",
-  selectedCustomerKey: "",
-  selectedConversationKey: "",
-  todayFilter: "all",
-});
-const DASHBOARD_UI_STATE_PERSISTED_KEYS = Object.freeze([
-  "settingsMainTab",
-  "settingsFrontDeskTab",
-  "settingsFullPageTab",
-  "installMethod",
-  "installFullPageOption",
-  "frontDeskTab",
-  "todayFilter",
-]);
-const DASHBOARD_SECTION_HASH_ALIASES = Object.freeze({
-  home: "overview",
-  today: "overview",
-  overview: "overview",
-  customers: "contacts",
-  customer: "contacts",
-  contacts: "contacts",
-  "follow-ups": "contacts",
-  followups: "contacts",
-  "front-desk": "customize",
-  frontdesk: "customize",
-  conversations: "customize",
-  customize: "customize",
-  analytics: "analytics",
-  install: "install",
-  settings: "settings",
-  privacy: "settings",
-});
-const DASHBOARD_SECTION_HASHES = Object.freeze({
-  overview: "",
-  contacts: "customers",
-  customize: "front-desk",
-  analytics: "analytics",
-  install: "install",
-  settings: "settings",
-});
+const DASHBOARD_UI_STATE_DEFAULTS = dashboardState.DASHBOARD_UI_STATE_DEFAULTS;
+const DASHBOARD_UI_STATE_PERSISTED_KEYS = dashboardState.DASHBOARD_UI_STATE_PERSISTED_KEYS;
+const DASHBOARD_SECTION_HASHES = dashboardState.DASHBOARD_SECTION_HASHES;
 const DASHBOARD_HELP_SECTION_LABELS = {
   overview: "Home",
   contacts: "Customers",
@@ -432,7 +371,6 @@ let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
 let workspaceRefreshTimeout = null;
 let dashboardLanguage = window.VonzaDashboardI18n?.getCachedLanguage?.() || "en";
-let dashboardLanguageLoadFailed = false;
 
 function isDevFakeBillingEnabled() {
   return Boolean(window.VONZA_DEV_FAKE_BILLING);
@@ -463,10 +401,6 @@ function getDefaultInstallStatus(agent = {}) {
 
 function isInstallSeen(status) {
   return ["seen_recently", "seen_stale"].includes(status?.state);
-}
-
-function isInstallRecent(status) {
-  return status?.state === "seen_recently";
 }
 
 function isInstallDetected(status) {
@@ -638,36 +572,6 @@ function replaceBillingPlanInUrl(planKey) {
   const url = new URL(window.location.href);
   url.searchParams.set("plan", normalizedPlanKey);
   window.history.replaceState({}, "", url.toString());
-}
-
-function formatPercent(value) {
-  if (typeof dashboardHelpers.formatPercent === "function") {
-    return dashboardHelpers.formatPercent(value);
-  }
-
-  return `${Math.round(Number(value || 0))}%`;
-}
-
-function formatBillingDate(value) {
-  if (typeof dashboardHelpers.formatBillingDate === "function") {
-    return dashboardHelpers.formatBillingDate(value);
-  }
-
-  if (!trimText(value)) {
-    return "Not available yet";
-  }
-
-  const timestamp = new Date(value).getTime();
-
-  if (!Number.isFinite(timestamp)) {
-    return "Not available yet";
-  }
-
-  return new Date(timestamp).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function getCapabilityState(capabilityKey) {
@@ -1686,7 +1590,6 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Setup status": "Beállítás állapota",
   "Core business facts": "Alapvető vállalkozási adatok",
   "Before you go live": "Élesítés előtt",
-  "Move Vonza from preview into the live website with a clear install path, verification, and honest status reporting.": "Vidd át a Vonzát az előnézetből az éles weboldalra világos telepítési úttal, ellenőrzéssel és őszinte állapotjelzéssel.",
   "Front desk ready for launch": "A Front Desk készen áll az élesítésre",
   "Front desk still needs setup": "A Front Desk még beállítást igényel",
   "Preview confidence": "Előnézeti biztonság",
@@ -1884,14 +1787,12 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Service explanations are too vague": "A szolgáltatásmagyarázatok túl általánosak",
   "Weak-answer theme needs review": "A gyenge válasz témája áttekintést igényel",
   "closing complaint and support conversations faster": "panasz- és támogatási beszélgetések gyorsabb lezárása",
-  "turning pricing questions into confident next steps": "árazási kérdések magabiztos következő lépésekké alakítása",
   "capturing more contact details from warm visitors": "több kapcsolatadat rögzítése meleg látogatóktól",
   "building more live conversation volume": "több élő beszélgetési adat gyűjtése",
   "turning warm conversations into leads": "meleg beszélgetések érdeklődőkké alakítása",
   "There is some conversation history, but not enough recent live usage to show a stronger trend yet.": "Van beszélgetési előzmény, de még nincs elég friss élő használat erősebb trendhez.",
   "Live customer traffic will appear here.": "Itt jelenik meg az élő ügyfélforgalom.",
   "Lead capture is keeping pace with demand": "Az érdeklődőrögzítés lépést tart az igénnyel",
-  "No complaint risk recorded yet": "Még nincs rögzített panasz-kockázat",
   "Estimated from strong service-quality signals": "Erős szolgáltatásminőségi jelzések alapján becsülve",
   "Estimated as good, with room to tighten answers": "Jónak becsülve, némi válaszpontosítási lehetőséggel",
   "Estimated friction risk from current service signals": "Súrlódási kockázat a jelenlegi szolgáltatási jelzések alapján",
@@ -1911,7 +1812,6 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Nothing here yet": "Itt még nincs tartalom",
   "Vonza will fill this area as soon as there is something useful to show.": "A Vonza feltölti ezt a részt, amint hasznos tartalom érkezik ide.",
   "Actions": "Műveletek",
-  "Overview": "Áttekintés",
   "Preview": "Előnézet",
   "Website / Context": "Weboldal / Kontextus",
   "Install / Launch": "Telepítés / Élesítés",
@@ -2237,10 +2137,6 @@ function localizeDashboardHtml(html = "") {
   return output;
 }
 
-function tn(key, count, params = {}) {
-  return t(key, { ...params, count });
-}
-
 function applyDashboardLanguage(language = getDashboardLanguage()) {
   dashboardLanguage = normalizeDashboardLanguage(language);
 
@@ -2264,7 +2160,9 @@ function cacheDashboardLanguage(language) {
 
   try {
     window.localStorage.setItem(DASHBOARD_LANGUAGE_STORAGE_KEY, normalizedLanguage);
-  } catch {}
+  } catch {
+    // Language preference caching is optional when storage is blocked.
+  }
 
   return normalizedLanguage;
 }
@@ -2306,7 +2204,9 @@ function saveDashboardTheme(theme) {
 
   try {
     window.localStorage.setItem(DASHBOARD_THEME_STORAGE_KEY, normalizedTheme);
-  } catch {}
+  } catch {
+    // Theme persistence is optional when storage is blocked.
+  }
 
   applyDashboardTheme(normalizedTheme);
   return normalizedTheme;
@@ -2394,150 +2294,47 @@ function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorksp
 }
 
 function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
-  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
-
-  if (!rawHash) {
-    return "";
-  }
-
-  const hashParams = rawHash.includes("=") ? new URLSearchParams(rawHash) : null;
-  const pathRoot = getDashboardHashRoot();
-  const hashKey = trimText(hashParams?.get("section") || hashParams?.get("tab") || hashParams?.get("page") || pathRoot);
-
-  const normalizedHash = hashKey
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, "-");
-  const section = DASHBOARD_SECTION_HASH_ALIASES[normalizedHash] || "";
-
-  return availableSections.includes(section) ? section : "";
+  return dashboardState.getShellSectionFromHash(window.location.hash, availableSections);
 }
 
 function getDashboardHashSearchParams() {
-  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
-  const queryIndex = rawHash.indexOf("?");
-
-  if (queryIndex === -1) {
-    return new URLSearchParams();
-  }
-
-  return new URLSearchParams(rawHash.slice(queryIndex + 1));
+  return dashboardState.getDashboardHashSearchParams(window.location.hash);
 }
 
 function getDashboardHashPathParts() {
-  const rawHash = trimText(window.location.hash).replace(/^#\/?/, "");
-
-  if (!rawHash) {
-    return [];
-  }
-
-  const hashPath = rawHash.split(/[?&]/)[0];
-  return hashPath
-    .split("/")
-    .map((part) => trimText(part).toLowerCase().replace(/_/g, "-"))
-    .filter(Boolean);
+  return dashboardState.getDashboardHashPathParts(window.location.hash);
 }
 
 function getDashboardHashRoot() {
-  return getDashboardHashPathParts()[0] || "";
+  return dashboardState.getDashboardHashRoot(window.location.hash);
 }
 
 function normalizeInstallMethod(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
-  const aliases = {
-    page: "full-page",
-    "full-page-assistant": "full-page",
-    fullpage: "full-page",
-    full: "full-page",
-    assistant: "full-page",
-    website: "widget",
-    "website-widget": "widget",
-    qr: "qr",
-    "qr-code": "qr",
-  };
-  const candidate = aliases[normalized] || normalized;
-
-  return INSTALL_METHODS.includes(candidate) ? candidate : "full-page";
+  return dashboardState.normalizeInstallMethod(value);
 }
 
 function getInstallMethodPanelKey(method = "") {
-  return INSTALL_METHOD_PANEL_KEYS[normalizeInstallMethod(method)] || "page";
+  return dashboardState.getInstallMethodPanelKey(method);
 }
 
 function getInstallMethodHashSegment(method = "") {
-  return INSTALL_METHOD_HASH_SEGMENTS[normalizeInstallMethod(method)] || "full-page";
+  return dashboardState.getInstallMethodHashSegment(method);
 }
 
 function normalizeInstallFullPageOption(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
-  return INSTALL_FULL_PAGE_OPTIONS.includes(normalized) ? normalized : "share";
+  return dashboardState.normalizeInstallFullPageOption(value);
 }
 
 function normalizeFrontDeskSection(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
-  const aliases = {
-    context: "knowledge",
-    overview: "practice",
-    preview: "practice",
-    test: "practice",
-    approved: "library",
-    answers: "library",
-    "answer-library": "library",
-    library: "library",
-    queue: "improvements",
-    training: "improvements",
-    "training-queue": "improvements",
-  };
-  const candidate = aliases[normalized] || normalized;
-
-  return FRONT_DESK_SECTIONS.includes(candidate) ? candidate : "practice";
+  return dashboardState.normalizeFrontDeskSection(value);
 }
 
 function getFrontDeskSectionHashSegment(section = "") {
-  return FRONT_DESK_SECTION_HASH_SEGMENTS[normalizeFrontDeskSection(section)] || "practice";
+  return dashboardState.getFrontDeskSectionHashSegment(section);
 }
 
 function getDashboardUiStateHashUpdates() {
-  const parts = getDashboardHashPathParts();
-  const root = parts[0] || "";
-  const updates = {};
-
-  if (["settings"].includes(root)) {
-    if (parts[1]) {
-      updates.settingsMainTab = parts[1];
-    }
-    if (["front-desk", "frontdesk", "front_desk"].includes(parts[1]) && parts[2]) {
-      updates.settingsFrontDeskTab = parts[2];
-    }
-    return updates;
-  }
-
-  if (root === "install") {
-    if (parts[1]) {
-      updates.installMethod = normalizeInstallMethod(parts[1]);
-    }
-    return updates;
-  }
-
-  if (["front-desk", "frontdesk", "customize"].includes(root)) {
-    if (parts[1]) {
-      updates.frontDeskTab = getFrontDeskSectionHashSegment(parts[1]);
-    }
-    return updates;
-  }
-
-  if (["customers", "customer", "contacts"].includes(root)) {
-    const filter = normalizeCustomerFilterKey(getDashboardHashSearchParams().get("filter") || "");
-    const customer = trimText(getDashboardHashSearchParams().get("customer") || getDashboardHashSearchParams().get("contact"));
-    if (filter) {
-      updates.customersFilter = filter;
-    }
-    if (customer) {
-      updates.selectedCustomerKey = customer;
-    }
-  }
-
-  return updates;
+  return dashboardState.getDashboardUiStateHashUpdates(window.location.hash);
 }
 
 function loadDashboardUiState() {
@@ -2598,38 +2395,11 @@ function getDashboardUiStateValue(key) {
 }
 
 function normalizeDashboardUiStateValue(key, value) {
-  switch (key) {
-    case "installMethod":
-      return normalizeInstallMethod(value);
-    case "installFullPageOption":
-      return normalizeInstallFullPageOption(value);
-    case "frontDeskTab":
-      return getFrontDeskSectionHashSegment(value);
-    case "customersFilter":
-      return normalizeCustomerFilterKey(value) || "all";
-    case "selectedCustomerKey":
-    case "selectedConversationKey":
-      return trimText(value);
-    case "settingsMainTab":
-    case "settingsFrontDeskTab":
-    case "settingsFullPageTab":
-    case "todayFilter":
-      return trimText(value) || DASHBOARD_UI_STATE_DEFAULTS[key];
-    default:
-      return value ?? DASHBOARD_UI_STATE_DEFAULTS[key];
-  }
+  return dashboardState.normalizeDashboardUiStateValue(key, value);
 }
 
 function normalizeCustomerFilterKey(value = "") {
-  const normalized = trimText(value).toLowerCase().replace(/-/g, "_");
-  const aliases = {
-    needs_review: "needs_review",
-    needs_reply: "needs_review",
-    needs_follow_up: "needs_follow_up",
-    follow_up_possible: "needs_follow_up",
-  };
-
-  return aliases[normalized] || normalized;
+  return dashboardState.normalizeCustomerFilterKey(value);
 }
 
 function getContactFilterFromHash() {
@@ -4929,19 +4699,7 @@ function buildSidebarShell(
 }
 
 function formatDateTimeLocalValue(value) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60 * 1000);
-  return local.toISOString().slice(0, 16);
+  return dashboardLabels.formatDateTimeLocalValue(value);
 }
 
 function formatOperatorCount(value, singular, plural = `${singular}s`) {
@@ -5077,9 +4835,7 @@ function buildRowActionMenu(label = "Actions", contentMarkup = "") {
 }
 
 function formatContactLifecycleLabel(value = "") {
-  const normalized = trimText(value).replaceAll("_", " ");
-  const english = normalized ? normalized.replace(/\b\w/g, (match) => match.toUpperCase()) : "New";
-  return translateDashboardText(english);
+  return translateDashboardText(dashboardLabels.formatContactLifecycleLabel(value));
 }
 
 function buildContactSources(contact = {}) {
@@ -5095,47 +4851,7 @@ function buildContactSources(contact = {}) {
 }
 
 function getCustomerSourceLabel(source = "") {
-  const normalized = trimText(source)
-    .toLowerCase()
-    .replace(/[_-]+/g, " ");
-
-  if (!normalized) {
-    return "";
-  }
-
-  if (normalized.includes("qr")) {
-    return "QR / direct link";
-  }
-
-  if (normalized.includes("full page") || normalized === "page" || normalized.includes("assistant page")) {
-    return "Front Desk page";
-  }
-
-  if (normalized.includes("widget") || normalized.includes("chat")) {
-    return "Website widget";
-  }
-
-  if (normalized.includes("inbox") || normalized.includes("email")) {
-    return "Inbox";
-  }
-
-  if (normalized.includes("calendar")) {
-    return "Calendar";
-  }
-
-  if (normalized.includes("campaign")) {
-    return "Campaign";
-  }
-
-  if (normalized.includes("follow up") || normalized.includes("follow-up")) {
-    return "Follow-up";
-  }
-
-  if (normalized.includes("conversion")) {
-    return "Recorded outcome";
-  }
-
-  return normalized.replace(/\b\w/g, (match) => match.toUpperCase());
+  return dashboardLabels.getCustomerSourceLabel(source);
 }
 
 function getCustomerSourceLabels(contact = {}) {
@@ -12296,21 +12012,11 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
 }
 
 function normalizeActionQueueStatus(value) {
-  const normalized = trimText(value).toLowerCase();
-  return ACTION_QUEUE_STATUSES.includes(normalized) ? normalized : "new";
+  return dashboardLabels.normalizeActionQueueStatus(value, ACTION_QUEUE_STATUSES);
 }
 
 function getActionQueueStatusLabel(status) {
-  switch (normalizeActionQueueStatus(status)) {
-    case "reviewed":
-      return "Reviewed";
-    case "done":
-      return "Done";
-    case "dismissed":
-      return "Dismissed";
-    default:
-      return "New";
-  }
+  return dashboardLabels.getActionQueueStatusLabel(status, ACTION_QUEUE_STATUSES);
 }
 
 function getActionQueueStatusBadgeClass(status) {
@@ -12546,24 +12252,7 @@ function getOperatorActionTypeLabel(item = {}) {
 }
 
 function getFollowUpStatusLabel(value) {
-  const normalized = trimText(value).toLowerCase();
-
-  switch (normalized) {
-    case "draft":
-      return "Draft";
-    case "ready":
-      return "Ready";
-    case "sent":
-      return "Sent";
-    case "failed":
-      return "Failed";
-    case "dismissed":
-      return "Dismissed";
-    case "missing_contact":
-      return "Missing contact";
-    default:
-      return "Not prepared";
-  }
+  return dashboardLabels.getFollowUpStatusLabel(value);
 }
 
 function getFollowUpStatusBadgeClass(value) {
@@ -12589,25 +12278,7 @@ function getFollowUpStatusBadgeClass(value) {
 }
 
 function getKnowledgeFixStatusLabel(value) {
-  const normalized = trimText(value).toLowerCase();
-
-  switch (normalized) {
-    case "new":
-    case "draft":
-      return "New";
-    case "reviewing":
-    case "ready":
-      return "Reviewing";
-    case "approved_fixed":
-    case "applied":
-      return "Approved/fixed";
-    case "dismissed":
-      return "Dismissed";
-    case "failed":
-      return "Failed";
-    default:
-      return "Not prepared";
-  }
+  return dashboardLabels.getKnowledgeFixStatusLabel(value);
 }
 
 function getKnowledgeFixStatusBadgeClass(value) {
@@ -12689,12 +12360,7 @@ function buildPeopleSummaryPills(summary = {}) {
 }
 
 function formatCaptureRate(value) {
-  const numeric = Number(value || 0);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    return "0%";
-  }
-
-  return `${Math.round(numeric * 100)}%`;
+  return dashboardLabels.formatCaptureRate(value);
 }
 
 function buildConversionSummaryPills(summary = {}) {
@@ -12713,46 +12379,7 @@ function buildConversionSummaryPills(summary = {}) {
 }
 
 function getOutcomeTypeLabel(value) {
-  switch (trimText(value).toLowerCase()) {
-    case "booking_started":
-      return "Booking started";
-    case "booking_confirmed":
-      return "Booking confirmed";
-    case "quote_requested":
-      return "Quote requested";
-    case "quote_sent":
-      return "Quote sent";
-    case "quote_accepted":
-      return "Quote accepted";
-    case "checkout_started":
-      return "Checkout started";
-    case "checkout_completed":
-      return "Checkout completed";
-    case "contact_clicked":
-      return "Contact clicked";
-    case "email_clicked":
-      return "Email clicked";
-    case "phone_clicked":
-      return "Phone clicked";
-    case "follow_up_sent":
-      return "Follow-up sent";
-    case "follow_up_replied":
-      return "Follow-up replied";
-    case "complaint_opened":
-      return "Complaint opened";
-    case "complaint_resolved":
-      return "Complaint resolved";
-    case "campaign_sent":
-      return "Campaign sent";
-    case "campaign_replied":
-      return "Campaign replied";
-    case "campaign_converted":
-      return "Campaign converted";
-    case "manual_outcome_marked":
-      return "Fallback outcome";
-    default:
-      return "Outcome";
-  }
+  return dashboardLabels.getOutcomeTypeLabel(value);
 }
 
 function formatPersonIdentity(person = {}) {
@@ -16589,7 +16216,7 @@ async function loadOperatorWorkspace(agentId, options = {}) {
 async function loadOperatorWorkspaceSafe(agentId, options = {}) {
   try {
     return await loadOperatorWorkspace(agentId, options);
-  } catch (error) {
+  } catch {
     return normalizeOperatorWorkspace({
       ...createEmptyOperatorWorkspace(),
       health: {
@@ -21397,7 +21024,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 function renderLocalDashboardV2Fixture() {
   authSession = { access_token: "local-dashboard-v2-fixture" };
   authUser = { id: "local-v2-owner", email: "local.owner@example.test" };
-  dashboardLanguageLoadFailed = false;
   applyDashboardLanguage(getDashboardLanguage());
 
   const now = new Date().toISOString();
@@ -21844,10 +21470,8 @@ async function boot() {
 
     try {
       const preferences = await loadDashboardPreferences();
-      dashboardLanguageLoadFailed = false;
 
       if (preferences.persistenceAvailable === false) {
-        dashboardLanguageLoadFailed = true;
         if (!hasCachedDashboardLanguage()) {
           applyDashboardLanguage("en");
         }
@@ -21860,8 +21484,7 @@ async function boot() {
       } else {
         applyDashboardLanguage(getDashboardLanguage());
       }
-    } catch (error) {
-      dashboardLanguageLoadFailed = true;
+    } catch {
       if (!hasCachedDashboardLanguage()) {
         applyDashboardLanguage("en");
       }

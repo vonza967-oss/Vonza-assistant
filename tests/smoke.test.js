@@ -1344,6 +1344,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/supabase-auth\.js/);
         assert.match(dashboard.text, /\/settings\/settings\.css/);
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
+        assert.match(dashboard.text, /\/dashboardState\.js/);
+        assert.match(dashboard.text, /\/dashboardLabels\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
         assert.match(dashboard.text, /Preparing your workspace/);
         assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
@@ -1648,7 +1650,9 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
 
       try {
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
+        const dashboardLabelsScript = await getText(server.baseUrl, "/dashboardLabels.js");
         assert.equal(dashboardScript.status, 200);
+        assert.equal(dashboardLabelsScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
         assert.match(dashboardScript.text, /Sign in to continue into Vonza/);
         assert.match(dashboardScript.text, /Create account/);
@@ -1720,7 +1724,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Owner follow-up state/);
         assert.match(dashboardScript.text, /Conversation summary/);
         assert.match(dashboardScript.text, /Visitor thread/);
-        assert.match(dashboardScript.text, /Approved\/fixed/);
+        assert.match(dashboardLabelsScript.text, /Approved\/fixed/);
         assert.match(dashboardScript.text, /Drafted guidance to add/);
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open follow-up note/);

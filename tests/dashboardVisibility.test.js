@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
 const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.js");
+const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
+const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -44,6 +46,8 @@ function createDashboardHarness({
   operatorWorkspaceFlag = true,
 } = {}) {
   const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
+  const dashboardStateScript = readFileSync(dashboardStatePath, "utf8");
+  const dashboardLabelsScript = readFileSync(dashboardLabelsPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -342,6 +346,8 @@ function createDashboardHarness({
   window.fetch = fetchImpl;
 
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
+  vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
+  vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -460,10 +466,14 @@ test("dashboard bundle parses cleanly", () => {
 
 test("dashboard helper bundle parses and exposes low-risk utility helpers", () => {
   const helperBundle = readFileSync(dashboardHelpersPath, "utf8");
-  const context = { window: {} };
+  const stateBundle = readFileSync(dashboardStatePath, "utf8");
+  const labelsBundle = readFileSync(dashboardLabelsPath, "utf8");
+  const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
     new vm.Script(helperBundle, { filename: "frontend/dashboardHelpers.js" }).runInNewContext(context);
+    new vm.Script(stateBundle, { filename: "frontend/dashboardState.js" }).runInNewContext(context);
+    new vm.Script(labelsBundle, { filename: "frontend/dashboardLabels.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
@@ -473,6 +483,20 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     "starter"
   );
   assert.equal(context.window.VonzaDashboardHelpers.normalizeBillingPlanKey("bad", [{ key: "starter" }], "growth"), "growth");
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(context.window.VonzaDashboardState.getDashboardUiStateHashUpdates("#settings/front-desk/voice"))),
+    { settingsMainTab: "front-desk", settingsFrontDeskTab: "voice" }
+  );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(context.window.VonzaDashboardState.getDashboardUiStateHashUpdates("#install/qr"))),
+    { installMethod: "qr" }
+  );
+  assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("full-page-assistant"), "page");
+  assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("qr-code"), "qr");
+  assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("full_page_assistant"), "Front Desk page");
+  assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("widget_chat"), "Website widget");
+  assert.equal(context.window.VonzaDashboardLabels.getActionQueueStatusLabel("reviewed", ["new", "reviewed"]), "Reviewed");
+  assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
 });
 
 test("dashboard shows a visible loading state before workspace data resolves", async () => {
