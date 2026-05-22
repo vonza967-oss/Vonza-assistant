@@ -554,8 +554,8 @@ test("settings hash routes open the matching Settings tab content", async () => 
 
   assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
   assert.match(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
-  assert.match(harness.getRootHtml(), /Widget purpose/);
-  assert.match(harness.getRootHtml(), /Full-page assistant/);
+  assert.match(harness.getRootHtml(), /Front Desk purpose/);
+  assert.match(harness.getRootHtml(), /Front Desk page/);
   assert.match(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
   assert.match(harness.getRootHtml(), /placeholder="Front Desk"/);
   assert.match(harness.getRootHtml(), /Leave blank to show the default title, Front Desk\./);
@@ -685,7 +685,7 @@ test("Customers labels separate guest review from reachable follow-up", async ()
       latestSummary: "Asked for pricing and wants an email reply.",
       lastMessageAt: now,
       timeline: [
-        { at: now, label: "Full-page assistant", source: "page", summary: "Pricing question needs owner review." },
+        { at: now, label: "Front Desk page", source: "page", summary: "Pricing question needs owner review." },
       ],
     },
     {
@@ -759,7 +759,7 @@ test("Customers labels separate guest review from reachable follow-up", async ()
   assert.match(html, /Needs review \(\d+\)/);
   assert.match(html, /Follow-up possible \(\d+\)/);
   assert.match(html, /Website widget \(\d+\)/);
-  assert.match(html, /Full-page assistant \(\d+\)/);
+  assert.match(html, /Front Desk page \(\d+\)/);
 });
 
 test("Home review actions route to Customers while analytics actions say analytics", async () => {
@@ -987,7 +987,7 @@ test("operator workspace disabled still keeps the dashboard visible", async () =
   assert.match(harness.getRootHtml(), /Front Desk/);
   assert.match(harness.getRootHtml(), /Analytics/);
   assert.match(harness.getRootHtml(), /Your AI customer service snapshot for today/i);
-  assert.match(harness.getRootHtml(), /Workspace unlocked/i);
+  assert.match(harness.getRootHtml(), /Ready to use/i);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="inbox"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="calendar"/);
   assert.doesNotMatch(harness.getRootHtml(), /data-shell-target="automations"/);

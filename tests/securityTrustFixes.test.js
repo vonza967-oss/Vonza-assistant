@@ -1167,6 +1167,161 @@ test("chat response language follows customer messages instead of website contex
   assert.match(calls[0].messages[0].content, /Reply in Hungarian/);
 });
 
+test("front-desk answers use low temperature and repair invented pricing when pricing data is missing", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Vonza Plumbing",
+        meta_description: "Plumbing help",
+        content: "Vonza Plumbing handles customer requests through a contact form. No prices are published.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+  const calls = [];
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: calls.length === 1
+                      ? "Emergency plumbing starts at $99. What time do you need help?"
+                      : "I do not have a published emergency plumbing price from the business details here. Would you like to share what happened so the team can quote the right next step?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      visitor_session_key: "session-pricing-guard",
+      message: "What is the emergency plumbing price?",
+    },
+  });
+
+  assert.equal(calls[0].temperature, 0.3);
+  assert.equal(calls[1].temperature, 0.25);
+  assert.doesNotMatch(result.reply, /\$99/);
+  assert.match(result.reply, /do not have a published emergency plumbing price/i);
+});
+
+test("front-desk answer repair removes invented services when service data is missing", async () => {
+  const supabase = createFakeSupabase({
+    ...buildChatState(),
+    website_content: [
+      {
+        business_id: "business-1",
+        website_url: "https://allowed.example",
+        page_title: "Vonza Office",
+        meta_description: "Contact page",
+        content: "Vonza Office has a contact form for customer questions. The site does not describe work categories.",
+        crawled_urls: [],
+        page_count: 1,
+      },
+    ],
+  });
+  const calls = [];
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: calls.length === 1
+                      ? "They offer plumbing repair and HVAC installation. Which service do you need?"
+                      : "I do not have a published service list from the business details here. What kind of help are you looking for?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/services",
+      visitor_session_key: "session-service-guard",
+      message: "What services do you offer?",
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.doesNotMatch(result.reply, /HVAC installation/i);
+  assert.match(result.reply, /do not have a published service list/i);
+});
+
+test("owner-approved answers are included as the highest-priority trusted source", async () => {
+  const supabase = createFakeSupabase(buildChatState());
+  const calls = [];
+
+  const result = await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: "Emergency visits require a custom quote. Would you like to share the issue and contact details?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/pricing",
+      visitor_session_key: "session-approved-answer",
+      message: "What is emergency pricing?",
+    },
+  }, {
+    selectRelevantApprovedAnswers: async () => [
+      {
+        id: "approved-1",
+        triggerText: "emergency pricing",
+        answerText: "Emergency visits require a custom quote.",
+        tags: ["pricing"],
+      },
+    ],
+  });
+
+  assert.match(calls[0].messages[0].content, /Owner-approved answers/);
+  assert.match(calls[0].messages[0].content, /highest-priority trusted business source/);
+  assert.match(calls[0].messages[0].content, /Emergency visits require a custom quote/);
+  assert.match(result.reply, /custom quote/i);
+});
+
 test("/chat persists explicit visitor identity on stored messages", async () => {
   const supabase = createFakeSupabase(buildChatState());
 
@@ -1285,7 +1440,7 @@ test("widget lead capture UI posts to the live capture endpoint without raw cont
   assert.match(widget, /identity-choice-panel/);
   assert.match(widget, /Continue as guest/);
   assert.match(widget, /Continue with email/);
-  assert.match(script, /fetch\(\"\/chat\/capture\"/);
+  assert.match(script, /fetch\("\/chat\/capture"/);
   assert.match(script, /reveal_capture/);
   assert.doesNotMatch(script, /contactHash/);
   assert.doesNotMatch(script, /replyHash/);

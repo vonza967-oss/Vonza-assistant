@@ -64,7 +64,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Manage workspace, assistant, business, account, and privacy settings.",
+    "settings.copy": "Manage workspace, Front Desk, business, account, and privacy settings.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
     "settings.light": "Light",
@@ -1202,7 +1202,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Front Desk</p>
             <h2 class="settings-shell-page-title">Front Desk</h2>
-            <p class="settings-shell-page-copy">Adjust how the customer-facing assistant speaks, routes, and appears to visitors.</p>
+            <p class="settings-shell-page-copy">Adjust how the customer-facing Front Desk speaks, routes, and appears to visitors.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
@@ -1213,7 +1213,7 @@
         <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("identity")}" type="button" data-frontdesk-settings-tab="identity" aria-selected="${frontDeskTabSelected("identity")}">Identity & welcome</button>
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("voice")}" type="button" data-frontdesk-settings-tab="voice" aria-selected="${frontDeskTabSelected("voice")}">Voice</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Full-page assistant</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Front Desk page</button>
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("routing")}" type="button" data-frontdesk-settings-tab="routing" aria-selected="${frontDeskTabSelected("routing")}">Routing</button>
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("appearance")}" type="button" data-frontdesk-settings-tab="appearance" aria-selected="${frontDeskTabSelected("appearance")}">Widget appearance</button>
         </div>
@@ -1223,8 +1223,8 @@
             <section class="settings-shell-section" data-frontdesk-settings-panel="identity" ${frontDeskPanelAttrs("identity")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Widget purpose</h3>
-                  <p class="settings-shell-section-copy">What should your widget mainly help visitors do?</p>
+                  <h3 class="settings-shell-section-title">Front Desk purpose</h3>
+                  <p class="settings-shell-section-copy">What should your customer-facing Front Desk mainly help visitors do?</p>
                 </div>
               </div>
               <div class="settings-shell-choice-list">
@@ -1262,7 +1262,7 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label for="assistant-button-label">Launcher text</label>
+                  <label for="assistant-button-label">Website bubble launcher text</label>
                   <input id="assistant-button-label" name="button_label" type="text" value="${escapeHtml(agent.buttonLabel || "")}">
                 </div>
                 <div class="field">
@@ -1336,11 +1336,11 @@
             <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" ${frontDeskPanelAttrs("full_page")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Full-page assistant</h3>
-                  <p class="settings-shell-section-copy">Customize the title, supporting copy, and starter actions for support links, booking/help pages, QR codes, and iframe embeds.</p>
+                  <h3 class="settings-shell-section-title">Front Desk page</h3>
+                  <p class="settings-shell-section-copy">Customize the primary Front Desk page customers open from links, WordPress pages, smart embeds, QR codes, and direct assistant pages.</p>
                 </div>
               </div>
-              <div class="settings-full-page-subnav" role="tablist" aria-label="Full-page assistant customization sections">
+              <div class="settings-full-page-subnav" role="tablist" aria-label="Front Desk page customization sections">
                 <button class="settings-full-page-subnav-button ${fullPageTabClass("content")}" type="button" data-full-page-settings-tab="content" aria-selected="${fullPageTabSelected("content")}">Content</button>
                 <button class="settings-full-page-subnav-button ${fullPageTabClass("design")}" type="button" data-full-page-settings-tab="design" aria-selected="${fullPageTabSelected("design")}">Design</button>
                 <button class="settings-full-page-subnav-button ${fullPageTabClass("layout")}" type="button" data-full-page-settings-tab="layout" aria-selected="${fullPageTabSelected("layout")}">Layout</button>
@@ -1349,8 +1349,8 @@
                 <div class="settings-shell-field-stack" data-full-page-settings-panel="content" ${fullPagePanelAttrs("content")}>
                   <div class="settings-shell-choice-row">
                     <div class="settings-shell-choice-main">
-                      <p class="settings-shell-choice-title">Public full-page access</p>
-                      <p class="settings-shell-key-value-copy">When enabled, anyone with the protected public link can open this hosted assistant page.</p>
+                      <p class="settings-shell-choice-title">${fullPageConfig.publicPageEnabled ? "Your Front Desk page is live" : "Your Front Desk page is disabled"}</p>
+                      <p class="settings-shell-key-value-copy">${fullPageConfig.publicPageEnabled ? "Anyone with the protected public link can open this customer-facing Front Desk page." : "Enable public Front Desk page access before sharing links, embeds, or QR codes."}</p>
                     </div>
                     <input name="full_page_public_enabled" type="checkbox" ${fullPageConfig.publicPageEnabled ? "checked" : ""}>
                   </div>
@@ -1372,7 +1372,7 @@
                     <div class="field">
                       <label for="full-page-logo-url">Logo/avatar URL</label>
                       <input id="full-page-logo-url" name="full_page_logo_url" type="url" value="${escapeHtml(fullPageConfig.logoUrl || "")}" placeholder="https://example.com/logo.png">
-                      <p class="field-help">Optional. Leave blank to use the assistant initial or widget logo.</p>
+                      <p class="field-help">Optional. Leave blank to use the assistant initial or optional website bubble logo.</p>
                     </div>
                   </div>
                   <div class="settings-full-page-toggle-row">
@@ -1523,7 +1523,7 @@
                     </div>
                   </div>
                 </div>
-                <aside class="settings-full-page-preview-card settings-full-page-preview-card--canvas" aria-label="Full-page assistant preview" data-full-page-design-preview data-background-type="${escapeHtml(fullPageDesign.backgroundType)}" data-text-theme="${escapeHtml(fullPageDesign.textTheme)}" data-chip-style="${escapeHtml(fullPageDesign.chipStyle)}" data-composer-style="${escapeHtml(fullPageDesign.composerStyle)}" data-status-style="${escapeHtml(fullPageDesign.statusStyle)}" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)};--full-page-preview-bg:${escapeHtml(fullPageDesign.backgroundColor)};--full-page-preview-gradient:${escapeHtml(fullPageDesign.backgroundGradientTo)};--full-page-preview-overlay:${escapeHtml(fullPageDesign.backgroundOverlayColor)};--full-page-preview-overlay-opacity:${escapeHtml(String(fullPageDesign.backgroundOverlayOpacity))};--full-page-preview-image:${fullPageDesign.backgroundImageUrl ? `url('${escapeHtml(fullPageDesign.backgroundImageUrl)}')` : "none"};--full-page-preview-blur:${escapeHtml(String(fullPageDesign.backgroundBlur))}px;--full-page-preview-position:${escapeHtml(fullPageDesign.backgroundFocalPoint)}">
+                <aside class="settings-full-page-preview-card settings-full-page-preview-card--canvas" aria-label="Front Desk page preview" data-full-page-design-preview data-background-type="${escapeHtml(fullPageDesign.backgroundType)}" data-text-theme="${escapeHtml(fullPageDesign.textTheme)}" data-chip-style="${escapeHtml(fullPageDesign.chipStyle)}" data-composer-style="${escapeHtml(fullPageDesign.composerStyle)}" data-status-style="${escapeHtml(fullPageDesign.statusStyle)}" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)};--full-page-preview-bg:${escapeHtml(fullPageDesign.backgroundColor)};--full-page-preview-gradient:${escapeHtml(fullPageDesign.backgroundGradientTo)};--full-page-preview-overlay:${escapeHtml(fullPageDesign.backgroundOverlayColor)};--full-page-preview-overlay-opacity:${escapeHtml(String(fullPageDesign.backgroundOverlayOpacity))};--full-page-preview-image:${fullPageDesign.backgroundImageUrl ? `url('${escapeHtml(fullPageDesign.backgroundImageUrl)}')` : "none"};--full-page-preview-blur:${escapeHtml(String(fullPageDesign.backgroundBlur))}px;--full-page-preview-position:${escapeHtml(fullPageDesign.backgroundFocalPoint)}">
                   <video class="settings-full-page-preview-video" data-full-page-preview-video muted loop playsinline ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? `src="${escapeHtml(fullPageDesign.backgroundVideoUrl)}"` : ""} ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? "" : "hidden"}></video>
                   <div class="settings-full-page-preview-header">
                     <span class="settings-full-page-preview-logo" aria-hidden="true">
@@ -1554,7 +1554,7 @@
                 </aside>
               </div>
 
-              <div class="settings-full-page-action-editor" aria-label="Full-page assistant action cards" data-full-page-settings-panel="layout" ${fullPagePanelAttrs("layout")}>
+              <div class="settings-full-page-action-editor" aria-label="Front Desk page action cards" data-full-page-settings-panel="layout" ${fullPagePanelAttrs("layout")}>
                 <div class="settings-full-page-action-editor-head">
                   <h4 class="settings-shell-section-title settings-shell-section-title--compact">Action cards</h4>
                   <p class="settings-shell-section-copy">Edit the starter prompts customers can click on the hosted page.</p>
@@ -1701,8 +1701,8 @@
             <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" ${frontDeskPanelAttrs("appearance")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Widget logo</h3>
-                  <p class="settings-shell-section-copy">Upload the logo or avatar that appears in the widget header.</p>
+                  <h3 class="settings-shell-section-title">Optional website bubble</h3>
+                  <p class="settings-shell-section-copy">Configure the compact website chat bubble. This does not control the primary Front Desk page.</p>
                 </div>
               </div>
               <div class="settings-shell-field-stack">
@@ -1763,7 +1763,7 @@
                 <div class="settings-shell-key-value-list">
                   <div class="settings-shell-key-value-row">
                     <div class="settings-shell-key-value-main">
-                      <p class="settings-shell-key-value-label">Widget purpose</p>
+                      <p class="settings-shell-key-value-label">Front Desk purpose</p>
                       <h4 class="settings-shell-key-value-title">${escapeHtml(selectedPurposeOption.label)}</h4>
                       <p class="settings-shell-key-value-copy">${escapeHtml(selectedPurposeOption.description)}</p>
                     </div>

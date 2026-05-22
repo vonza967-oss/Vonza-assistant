@@ -224,7 +224,7 @@ class Vonza_Front_Desk_Admin {
 
 				<section class="vonza-front-desk-card">
 					<h2><?php echo esc_html__( 'Front Desk page', 'vonza-front-desk' ); ?></h2>
-					<p><?php echo esc_html__( 'Create or adopt a WordPress page that renders your Vonza Front Desk embed.', 'vonza-front-desk' ); ?></p>
+					<p><?php echo esc_html__( 'For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.', 'vonza-front-desk' ); ?></p>
 					<p><strong><?php echo esc_html__( 'Selected Front Desk page:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( $page ? get_the_title( $page ) : __( 'None selected', 'vonza-front-desk' ) ); ?></p>
 					<p><strong><?php echo esc_html__( 'Page mode:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( 'template' === $options['front_desk_page_mode'] ? __( 'Template page', 'vonza-front-desk' ) : __( 'Shortcode fallback', 'vonza-front-desk' ) ); ?></p>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -244,6 +244,7 @@ class Vonza_Front_Desk_Admin {
 				<section class="vonza-front-desk-card">
 					<h2><?php echo esc_html__( 'Snippets', 'vonza-front-desk' ); ?></h2>
 					<p><strong><?php echo esc_html__( 'Current Agent ID:', 'vonza-front-desk' ); ?></strong> <?php echo esc_html( $options['agent_id'] ?: __( 'Not set', 'vonza-front-desk' ) ); ?></p>
+					<p><?php echo esc_html__( 'Use the Front Desk shortcode for page content. The floating widget shortcode is optional for a compact website bubble.', 'vonza-front-desk' ); ?></p>
 					<code>[vonza_front_desk layout="page-takeover"]</code>
 					<code>[vonza_front_desk layout="section"]</code>
 					<code>[vonza_widget]</code>

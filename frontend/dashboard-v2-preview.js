@@ -20,7 +20,7 @@
     },
     install: {
       title: "Install",
-      subtitle: "Add Vonza to your site, full-page assistant, and QR touchpoints.",
+      subtitle: "Publish your AI Front Desk page through WordPress, smart embed, QR/direct link, or the optional website bubble.",
     },
     settings: {
       title: "Settings",
@@ -235,7 +235,7 @@
   ];
 
   let frontDeskTab = "overview";
-  let installMethod = "widget";
+  let installMethod = "full-page";
   const notAvailableLabel = "not available yet";
 
   function icon(name, className = "") {
@@ -412,8 +412,8 @@
         <article class="v2-card">
           <div class="v2-section-header">
             <div>
-              <h2 class="v2-section-title">Assistant readiness</h2>
-              <p class="v2-section-subtitle">Compact launch health for daily operations.</p>
+              <h2 class="v2-section-title">Front Desk readiness</h2>
+              <p class="v2-section-subtitle">Launch health for the customer-facing Front Desk page.</p>
             </div>
             ${pill(notAvailableLabel, "gray")}
           </div>
@@ -478,7 +478,7 @@
       ["Business profile", notAvailableLabel],
       ["Website knowledge", notAvailableLabel],
       ["Suggested replies", notAvailableLabel],
-      ["Full-page assistant", notAvailableLabel],
+      ["Front Desk page", notAvailableLabel],
     ].map(([title, copy]) => ({ title, copy, status: notAvailableLabel, tone: "gray" }));
   }
 
@@ -767,7 +767,7 @@
       <section class="v2-grid v2-grid-3">
         ${readinessCard("Assistant basics", "92%", ["Name and tone configured", "Fallback behavior set", "Lead capture enabled"], "teal")}
         ${readinessCard("Website knowledge", "86%", ["23 website pages indexed", "Services extracted", "Pricing gaps flagged"], "blue")}
-        ${readinessCard("Live install", "2/3", ["Widget installed", "QR touchpoints live", "Full-page pending"], "amber")}
+        ${readinessCard("Front Desk launch", "2/3", ["Front Desk page live", "QR / direct links live", "Optional bubble pending"], "amber")}
       </section>
       <section class="v2-card v2-section">
         <div class="v2-section-header">
@@ -778,7 +778,7 @@
           ${pill("3 items", "blue")}
         </div>
         <div class="v2-list">
-          ${actionRow("Verify full-page assistant", "Open the public assistant page and confirm it loads.", "Set up", "blue", "window")}
+          ${actionRow("Verify Front Desk page", "Open the public assistant page and confirm it loads.", "Set up", "blue", "window")}
           ${actionRow("Add booking constraints", "Tell Vonza when customers can request demos.", "Edit", "teal", "calendar")}
           ${actionRow("Review pricing answer", "A pricing question was answered with limited detail.", "Improve", "amber", "sparkle")}
         </div>
@@ -875,9 +875,9 @@
             ${pill("2 live", "green")}
           </div>
           <div class="v2-list">
-            ${statusRow("Widget", "Detected on your site", "Installed", "green", "check")}
-            ${statusRow("Full-page assistant", "Needs verification before sharing", "Verify", "amber", "window")}
-            ${statusRow("QR codes", "4 QR codes generated", "Live", "green", "qr")}
+            ${statusRow("Front Desk page", "Live and ready to share", "Recommended", "green", "window")}
+            ${statusRow("Website widget bubble", "Optional add-on detected on your site", "Optional", "green", "check")}
+            ${statusRow("QR / direct links", "4 Front Desk page QR codes generated", "Live", "green", "qr")}
           </div>
         </article>
         <article class="v2-card">
@@ -888,9 +888,9 @@
             </div>
           </div>
           <div class="v2-list">
-            ${linkRow("Open website widget preview", "/dashboard-v2-preview#install", "external")}
-            ${linkRow("Copy full-page assistant URL", "https://vonza.com/a/smith-co", "copy")}
-            ${linkRow("Download front desk QR", "QR touchpoint package", "download")}
+            ${linkRow("Open Front Desk page", "/dashboard-v2-preview#install", "external")}
+            ${linkRow("Copy Front Desk page link", "https://vonza.com/a/smith-co", "copy")}
+            ${linkRow("Download Front Desk QR", "QR / direct link package", "download")}
           </div>
         </article>
       </section>
@@ -1029,9 +1029,9 @@
   function renderSourceBreakdown() {
     const rows = [
       ["Website widget", "56%", "699", "teal"],
-      ["Full-page assistant", "22%", "274", "blue"],
-      ["QR code", "14%", "174", "soft-blue"],
-      ["Direct link", "8%", "101", "gray"],
+      ["Front Desk page", "22%", "274", "blue"],
+      ["QR / direct link", "14%", "174", "soft-blue"],
+      ["Embedded assistant", "8%", "101", "gray"],
     ];
     return `
       <article class="v2-card">
@@ -1179,13 +1179,13 @@
   }
 
   function renderInstall() {
-    const actions = `${button("Copy install code", "copy", "v2-button-primary")}${button("Verify installation", "check")}`;
+    const actions = `${button("Copy Front Desk link", "copy", "v2-button-primary")}${button("Verify installation", "check")}`;
     return `
       ${pageHeader(pageMeta.install.title, pageMeta.install.subtitle, actions)}
       <section class="v2-install-methods">
-        ${installMethodCard("widget", "Widget", "Embed the Vonza widget on your website.", "Recommended", "code", "teal")}
-        ${installMethodCard("full-page", "Full-page assistant", "Create a dedicated assistant page.", "Great for discovery", "window", "blue")}
-        ${installMethodCard("qr", "QR code", "Create QR touchpoints for any channel.", "Offline to online", "qr", "teal")}
+        ${installMethodCard("full-page", "Front Desk page", "Create and share the dedicated assistant page.", "Recommended", "window", "blue")}
+        ${installMethodCard("qr", "QR / direct link", "Open the Front Desk page from any channel.", "Offline to online", "qr", "teal")}
+        ${installMethodCard("widget", "Website widget bubble", "Optional compact bubble for normal website pages.", "Optional", "code", "teal")}
       </section>
       <section class="v2-install-layout">
         <div>
@@ -1221,7 +1221,7 @@
         <article class="v2-method-detail">
           <div class="v2-section-header">
             <div>
-              <h2 class="v2-section-title">Full-page assistant URL</h2>
+              <h2 class="v2-section-title">Front Desk page link</h2>
               <p class="v2-section-subtitle">Share this page when customers need a focused assistant experience.</p>
             </div>
             ${pill("Needs verification", "amber")}
@@ -1248,13 +1248,13 @@
             <div class="v2-qr-code">${qrSvg(9)}</div>
             <div>
               <div class="v2-row-title">Front Desk QR</div>
-              <div class="v2-row-copy">Scans open the Vonza full-page assistant for this workspace.</div>
+              <div class="v2-row-copy">Scans open the Vonza Front Desk page for this workspace.</div>
               <ul class="v2-muted-list">
                 <li>Reception desks and checkout counters</li>
                 <li>Flyers, direct mail, and service menus</li>
                 <li>Window signs and event materials</li>
               </ul>
-              <div class="v2-toolbar" style="margin-top: 14px">${button("Download QR", "download", "v2-button-primary")}${button("Copy full-page URL", "copy")}</div>
+              <div class="v2-toolbar" style="margin-top: 14px">${button("Download QR", "download", "v2-button-primary")}${button("Copy Front Desk link", "copy")}</div>
             </div>
           </div>
         </article>
@@ -1265,8 +1265,8 @@
       <article class="v2-method-detail">
         <div class="v2-section-header">
           <div>
-            <h2 class="v2-section-title">Install the Vonza widget</h2>
-            <p class="v2-section-subtitle">Add this script to every page where the widget should appear.</p>
+            <h2 class="v2-section-title">Website widget bubble</h2>
+            <p class="v2-section-subtitle">Optional compact bubble for normal website pages.</p>
           </div>
           ${pill("Installed", "green")}
         </div>
@@ -1301,8 +1301,8 @@
             <div class="v2-install-step-head">
               <div class="v2-step-number">1</div>
               <div>
-                <h2 class="v2-section-title">Install the Vonza widget</h2>
-                <p class="v2-section-subtitle">Add the script to every page where the widget should appear.</p>
+                <h2 class="v2-section-title">Publish Front Desk page</h2>
+                <p class="v2-section-subtitle">Share the dedicated AI Front Desk page first.</p>
               </div>
               ${pill("Installed", "green")}
             </div>
@@ -1311,8 +1311,8 @@
             <div class="v2-install-step-head">
               <div class="v2-step-number">2</div>
               <div>
-                <h2 class="v2-section-title">Verify full-page assistant</h2>
-                <p class="v2-section-subtitle">Confirm the dedicated assistant page loads before sharing it.</p>
+                <h2 class="v2-section-title">Add WordPress or smart embed</h2>
+                <p class="v2-section-subtitle">Use the plugin or smart snippet when the Front Desk belongs on a website page.</p>
               </div>
               ${pill("Needs verification", "amber")}
             </div>
@@ -1321,8 +1321,8 @@
             <div class="v2-install-step-head">
               <div class="v2-step-number">3</div>
               <div>
-                <h2 class="v2-section-title">Publish QR touchpoints</h2>
-                <p class="v2-section-subtitle">Download QR codes for counters, flyers, signs, and direct mail.</p>
+                <h2 class="v2-section-title">Share QR / direct link</h2>
+                <p class="v2-section-subtitle">Download a QR code that opens the Front Desk page.</p>
               </div>
               ${pill("Live", "green")}
             </div>
@@ -1334,22 +1334,22 @@
 
   function renderQrTouchpoints() {
     const cards = [
-      ["Front Door", "Main entrance", "124", "+18%", 1],
-      ["Flyer", "Marketing flyer", "87", "+12%", 2],
-      ["Invoice", "Customer invoices", "56", "+8%", 3],
-      ["Business Card", "Team cards", "42", "+5%", 4],
+      ["Front Door", "Main entrance", "Reception and walk-in signs", 1],
+      ["Flyer", "Marketing flyer", "Printed promos and direct mail", 2],
+      ["Invoice", "Customer invoices", "Post-service follow-up", 3],
+      ["Business Card", "Team cards", "Owner and staff cards", 4],
     ];
     return `
       <article class="v2-card v2-section">
         <div class="v2-section-header">
           <div>
-            <h2 class="v2-section-title">Your QR touchpoints</h2>
-            <p class="v2-section-subtitle">Scan stats update in real time.</p>
+            <h2 class="v2-section-title">QR / direct link</h2>
+            <p class="v2-section-subtitle">Each QR code opens the same customer-facing Front Desk page.</p>
           </div>
           ${button("Download all", "download")}
         </div>
         <div class="v2-qr-grid">
-          ${cards.map(([title, subtitle, scans, trend, seed]) => `
+          ${cards.map(([title, subtitle, placement, seed]) => `
             <div class="v2-qr-card">
               <div class="v2-qr-head">
                 <div>
@@ -1360,8 +1360,8 @@
               </div>
               <div class="v2-qr-code">${qrSvg(seed)}</div>
               <div class="v2-table-footer" style="padding: 0; border-top: 0">
-                <span>Scans (30d)<br><strong style="color:#0f172a">${scans}</strong></span>
-                <span class="v2-trend-up">${icon("arrowUp")} ${trend}</span>
+                <span>Use case<br><strong style="color:#0f172a">${placement}</strong></span>
+                <span class="v2-pill">Direct link</span>
               </div>
               <button class="v2-button" type="button" style="width:100%; margin-top: 10px">Download</button>
             </div>
@@ -1379,9 +1379,9 @@
           ${icon("clock")}
         </div>
         <div class="v2-list">
-          ${statusRow("Widget", "Detected on your site", "Installed", "green", "check")}
-          ${statusRow("Full-page assistant", "Verify your assistant page", "Needs verification", "amber", "window")}
-          ${statusRow("QR codes", "4 QR codes generated", "Live", "green", "qr")}
+          ${statusRow("Front Desk page", "Live and ready to share", "Recommended", "green", "window")}
+          ${statusRow("Website widget bubble", "Optional add-on detected on your site", "Optional", "green", "check")}
+          ${statusRow("QR / direct links", "4 QR codes generated", "Live", "green", "qr")}
         </div>
       </article>
     `;

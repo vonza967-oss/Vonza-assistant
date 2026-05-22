@@ -29,7 +29,7 @@ function buildReferenceContext(referenceBlocks = []) {
 async function rewriteAssistantReply({
   openai,
   model = "gpt-4o-mini",
-  temperature = 0.45,
+  temperature = 0.3,
   reply,
   userMessage,
   history = [],
@@ -88,7 +88,7 @@ export async function generateAssistantReply({
   referenceBlocks = [],
   conversationGuidance = "",
   model = "gpt-4o-mini",
-  temperature = 0.6,
+  temperature = 0.3,
   presencePenalty = 0,
   frequencyPenalty = 0,
   postProcess = null,
@@ -171,7 +171,7 @@ export async function generateAssistantReply({
       reply = await rewriteAssistantReply({
         openai,
         model: repair.model || model,
-        temperature: repair.temperature ?? 0.45,
+        temperature: repair.temperature ?? 0.3,
         reply,
         userMessage,
         history,

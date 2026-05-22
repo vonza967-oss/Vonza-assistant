@@ -394,6 +394,7 @@ export function buildApprovedAnswersPrompt(approvedAnswers = []) {
   return [
     "Owner-approved answers:",
     "Use these only when they match the visitor's question. Treat matching approved answers as the highest-priority trusted business source and prefer them over weaker website excerpts. Answer naturally and do not mention internal labels.",
+    "Public customer answers use only active, same-agent approved answers. Draft, archived, and cross-agent training items are not trusted public sources.",
     ...items.map((item) => [
       `${item.number}. Use when: ${item.trigger}`,
       item.tags ? `Tags: ${item.tags}` : "",

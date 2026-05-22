@@ -46,7 +46,7 @@ test("dashboard V2 preview renders home sections from available preview data", (
   assert.equal(document.title, "Vonza V2 Preview | Home");
   assert.match(html, /class="v2-app"/);
   assert.match(html, /Today&#39;s priority|Today's priority/);
-  assert.match(html, /Assistant readiness/);
+  assert.match(html, /Front Desk readiness/);
   assert.match(html, /Source activity/);
   assert.match(html, /not available yet/);
   assert.match(html, /Jessica Smith: Warm lead/);

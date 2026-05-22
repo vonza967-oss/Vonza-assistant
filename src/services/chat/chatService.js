@@ -9,6 +9,7 @@ import {
   buildBusinessReplyRepairPrompt,
   buildChatSystemPrompt,
   buildConversationGuidance,
+  getFactualReplyGuardrailIssues,
   getReplyRepairIssues,
 } from "./prompting.js";
 import { generateAssistantReply } from "./assistantReplyService.js";
@@ -451,7 +452,7 @@ export async function handleChatRequest({
     visitorIdentity,
   });
   const usageEntries = [];
-  let finalReply = "";
+  let finalReply;
 
   try {
     finalReply = await generateAssistantReplyImpl({
@@ -467,13 +468,22 @@ export async function handleChatRequest({
       ],
       conversationGuidance,
       model: "gpt-4o-mini",
-      temperature: 0.85,
-      presencePenalty: 0.3,
-      frequencyPenalty: 0.35,
+      temperature: 0.3,
+      presencePenalty: 0,
+      frequencyPenalty: 0.1,
       postProcess: stripRawAssetUrls,
       repair: {
         getIssues: (reply) => {
-          const issues = getReplyRepairIssues(reply, language);
+          const issues = [
+            ...getReplyRepairIssues(reply, language),
+            ...getFactualReplyGuardrailIssues({
+              reply,
+              userMessage: effectiveUserText,
+              history,
+              businessContext,
+              approvedAnswersPrompt,
+            }),
+          ];
           logChatMetadata("reply_repair_checked", {
             agentId: agent.id,
             businessId: business.id,
@@ -489,7 +499,7 @@ export async function handleChatRequest({
           return issues;
         },
         buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
-        temperature: 0.5,
+        temperature: 0.25,
       },
       onUsage(entry) {
         usageEntries.push(entry);

@@ -1908,7 +1908,7 @@ export function createAgentRouter(deps = {}) {
 
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
       if (agent?.fullPageConfig?.publicPageEnabled !== true || !cleanText(agent?.fullPageConfig?.publicPageKey)) {
-        const error = new Error("Enable the public full-page assistant before downloading a QR code.");
+        const error = new Error("Enable the public Front Desk page before downloading a QR code.");
         error.statusCode = 409;
         throw error;
       }

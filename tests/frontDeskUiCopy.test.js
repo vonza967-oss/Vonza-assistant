@@ -8,7 +8,7 @@ const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
 
 test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Identity & welcome/);
-  assert.match(settingsShellScript, /Full-page assistant/);
+  assert.match(settingsShellScript, /Front Desk page/);
   assert.match(settingsShellScript, /Routing/);
   assert.match(settingsShellScript, /Voice/);
   assert.match(settingsShellScript, /Widget appearance/);

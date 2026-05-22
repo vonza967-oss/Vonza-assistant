@@ -3586,7 +3586,7 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /True page takeover snippet/);
   assert.match(dashboard, /Advanced iframe snippet/);
   assert.match(dashboard, /Raw iframe fallback/);
-  assert.match(dashboard, /Dedicated page embed makes the assistant the page body below your site header/);
+  assert.match(dashboard, /Dedicated page embed makes the Front Desk the page body below your site header/);
   assert.match(dashboard, /Use this on a blank assistant page\. It may hide the page footer and remove extra page spacing\./);
   assert.match(dashboard, /Raw iframe backgrounds stay inside the iframe\. Use the smart dedicated page embed when you want the background to fill the page area\./);
   assert.match(dashboard, /Recommended\. Automatically adjusts to most website layouts\./);
@@ -3602,7 +3602,7 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(dashboard, /layout: "canvas"/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "standard"\)/);
   assert.match(dashboard, /buildEmbeddedFullPageAssistantUrl\(agent, "full", \{ surface: "flat", layout: "canvas", showTitle: options\.showTitle \}\)/);
-  assert.match(dashboard, /Place the assistant inside part of an existing page/);
+  assert.match(dashboard, /Place the Front Desk inside part of an existing page/);
   assert.match(dashboard, /Use this when Front Desk is the main content of a page on your website/);
   assert.match(dashboard, /\["compact", "standard", "tall", "full"\]/);
   assert.match(dashboard, /surface: "flat"/);
@@ -3633,6 +3633,6 @@ test("dashboard install iframes separate section embed and full-page iframe whil
   assert.match(script, /FULL_PAGE_BACKGROUND_SCOPES/);
   assert.match(script, /embedded-background-scope-\$\{/);
   assert.match(script, /\["card", "flat", "transparent"\]/);
-  assert.match(dashboard, /Customize full-page assistant/);
+  assert.match(dashboard, /Customize Front Desk page/);
   assert.match(dashboard, /data-settings-target="front_desk"/);
 });

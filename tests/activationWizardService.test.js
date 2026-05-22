@@ -191,7 +191,7 @@ test("each activation step exposes the correct next action", () => {
     }),
   });
   assert.equal(installWizard.currentStep, "install_widget");
-  assert.equal(installWizard.nextAction.action, "copy_install");
+  assert.equal(installWizard.nextAction.action, "open_install");
 });
 
 test("skip and return behavior keeps dashboard usable", async () => {

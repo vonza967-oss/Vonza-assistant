@@ -13,7 +13,7 @@ const STEP_LABELS = Object.freeze({
   business_basics: "Business Basics",
   import_knowledge: "Import Knowledge",
   configure_assistant: "Configure Assistant",
-  install_widget: "Install Widget",
+  install_widget: "Publish Front Desk",
   test_improve: "Test and Improve",
 });
 
@@ -34,8 +34,8 @@ const STEP_NEXT_ACTIONS = Object.freeze({
     target: "settings",
   },
   install_widget: {
-    label: "Copy install code",
-    action: "copy_install",
+    label: "Open install",
+    action: "open_install",
     target: "install",
   },
   test_improve: {
@@ -156,6 +156,8 @@ export function deriveActivationWizardSignals({
   const installState = cleanText(agent.installStatus?.state).toLowerCase();
   const hasLiveInstall = ["seen_recently", "seen_stale"].includes(installState);
   const hasDetectedInstall = hasLiveInstall || installState === "installed_unseen";
+  const publicFrontDeskPageEnabled = (agent.fullPageConfig?.publicPageEnabled === true || agent.full_page_config?.public_page_enabled === true)
+    && Boolean(cleanText(agent.fullPageConfig?.publicPageKey || agent.full_page_config?.public_page_key || agent.publicAgentKey));
   const knowledgeState = cleanText(agent.knowledge?.state).toLowerCase();
   const knowledgeImported = ["ready", "limited"].includes(knowledgeState);
   const hasAssistantConfig = Boolean(
@@ -192,6 +194,7 @@ export function deriveActivationWizardSignals({
     hasAssistantConfig,
     hasDetectedInstall,
     hasLiveInstall,
+    publicFrontDeskPageEnabled,
     installState: installState || "not_installed",
     hasPreviewTest: hasUserMessage && hasAssistantMessage,
     weakAnswerCount,
@@ -212,7 +215,7 @@ function deriveCompletedSteps(signals) {
   if (signals.hasAssistantConfig) {
     completed.push("configure_assistant");
   }
-  if (signals.hasLiveInstall) {
+  if (signals.publicFrontDeskPageEnabled || signals.hasLiveInstall) {
     completed.push("install_widget");
   }
   if (signals.hasPreviewTest) {
@@ -259,13 +262,16 @@ function buildStepCopy(stepKey, signals, progress) {
   }
 
   if (stepKey === "install_widget") {
+    if (signals.publicFrontDeskPageEnabled) {
+      return "Your public Front Desk page is live. Choose any optional distribution channels in Install.";
+    }
     if (signals.hasLiveInstall) {
-      return "You are live. Vonza has received a widget ping from the website.";
+      return "You are live. Vonza has received a ping from the optional website bubble.";
     }
     if (signals.hasDetectedInstall) {
-      return "The snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
+      return "The optional website bubble snippet was found. Open the live site once so Vonza can confirm a real page-load ping.";
     }
-    return "Copy the install snippet, publish it on the live website, then verify installation.";
+    return "Enable and share the Front Desk page first, then use Install for WordPress, smart embed, QR/direct link, or the optional website bubble.";
   }
 
   if (signals.needsImprovement) {

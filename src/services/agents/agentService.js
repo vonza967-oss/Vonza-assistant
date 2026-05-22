@@ -2851,7 +2851,7 @@ export async function updateAgentSettings(
   if (widgetError && isMissingFullPageConfigColumnError(widgetError)) {
     if (hasSubmittedFullPageConfig) {
       throw buildAgentSettingsError(
-        "Full-page assistant customization could not be saved because the server schema is missing the full_page_config field. Apply the full-page assistant config migration and try again.",
+        "Front Desk page customization could not be saved because the server schema is missing the full_page_config field. Apply the full-page assistant config migration and try again.",
         503,
         widgetError?.code || "full_page_config_persistence_unavailable"
       );

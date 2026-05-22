@@ -15,6 +15,7 @@ import {
   buildBusinessContextForChat,
   buildChatSystemPrompt,
   buildConversationGuidance,
+  getFactualReplyGuardrailIssues,
 } from "../src/services/chat/prompting.js";
 import { generateAssistantReply } from "../src/services/chat/assistantReplyService.js";
 
@@ -143,6 +144,39 @@ test("assistant system prompt forbids unsupported launch-sensitive claims", () =
   assert.match(prompt, /policies, availability, legal claims, discounts/i);
   assert.match(prompt, /not in the approved answers or business context/i);
   assert.match(prompt, /Prefer owner-approved answers over website excerpts/i);
+  assert.match(prompt, /Never invent prices/i);
+  assert.match(prompt, /Never invent services/i);
+  assert.match(prompt, /Never invent availability/i);
+  assert.match(prompt, /Never invent policies/i);
+  assert.match(prompt, /draft or archived training items are not trusted sources/i);
+  assert.match(prompt, /Cross-agent training is never trusted/i);
+});
+
+test("factual guardrails flag invented pricing and services when trusted data is missing", () => {
+  const pricingIssues = getFactualReplyGuardrailIssues({
+    userMessage: "How much does the emergency visit cost?",
+    businessContext: "Most relevant website excerpts:\nContact us for help.",
+    reply: "Emergency visits cost $99. What time works?",
+  });
+  assert.ok(pricingIssues.some((issue) => /invents a price/i.test(issue)));
+
+  const serviceIssues = getFactualReplyGuardrailIssues({
+    userMessage: "What services do you offer?",
+    businessContext: "Most relevant website excerpts:\nContact us through the form.",
+    reply: "We offer plumbing repair and HVAC installation. Which service do you need?",
+  });
+  assert.ok(serviceIssues.some((issue) => /invents a service/i.test(issue)));
+});
+
+test("approved answers allow relevant factual details to override weaker website context", () => {
+  const issues = getFactualReplyGuardrailIssues({
+    userMessage: "How much is the emergency visit?",
+    businessContext: "Most relevant website excerpts:\nThe website asks visitors to request a quote.",
+    approvedAnswersPrompt: "Owner-approved answers:\nApproved answer: Emergency visits start at $120 after triage.",
+    reply: "Emergency visits start at $120 after triage. Would you like to share what happened?",
+  });
+
+  assert.deepEqual(issues, []);
 });
 
 test("assistant reply generation preserves paragraph spacing through post-processing", async () => {

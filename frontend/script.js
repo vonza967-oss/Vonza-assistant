@@ -3295,7 +3295,7 @@ async function sendMessage(messageOverride = "") {
       "No assistant configured yet. Please create one first.",
       { error: true }
     );
-    setComposerStatus("Set up your assistant in Vonza before testing the widget here.");
+    setComposerStatus("Set up your Front Desk in Vonza before testing this assistant page.");
     return;
   }
 

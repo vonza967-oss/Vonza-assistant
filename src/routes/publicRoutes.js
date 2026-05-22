@@ -169,7 +169,7 @@ function renderFinalCta() {
     <section class="final-cta" data-reveal>
       <div>
         <h2>Open a sharper front desk for every customer question.</h2>
-        <p>Set up Vonza, install the widget, and keep the customer work moving from one focused dashboard.</p>
+        <p>Create a customer-facing AI Front Desk page, publish it through links, QR, WordPress, smart embeds, or the optional website bubble, and keep customer work moving from one focused dashboard.</p>
       </div>
       <div class="final-cta-actions">
         <a class="button button-primary" data-app-link href="/dashboard?from=site">Open dashboard</a>
@@ -242,7 +242,7 @@ function renderMarketingHomePage() {
     <section class="section product-story">
       <div class="story-copy" data-reveal>
         <h2>One path from install to faster replies.</h2>
-        <p>Install the widget, let Vonza capture customer questions, review priority replies, and use analytics to tighten the answers customers rely on.</p>
+        <p>Launch the Front Desk page, let Vonza capture customer questions, review priority replies, and use analytics to tighten the answers customers rely on.</p>
         <a class="button button-secondary" href="/product">How it works</a>
       </div>
       ${renderAppImage({
@@ -320,7 +320,7 @@ function renderFeaturesPage() {
     },
     {
       title: "Settings / installation",
-      copy: "Keep business profile, widget behavior, installation, and verification clear without changing the daily dashboard flow.",
+      copy: "Keep business profile, Front Desk page settings, installation, and verification clear without changing the daily dashboard flow.",
       src: "/assets/product/settings-install.png",
       alt: "Vonza settings and install configuration screens",
     },
@@ -362,7 +362,7 @@ function renderFeaturesPage() {
 
 function renderProductPage() {
   const steps = [
-    ["Install", "Add Vonza to the website and verify the live embed.", "/assets/product/settings-install.png", "Vonza install page with setup steps"],
+    ["Publish Front Desk page", "Choose WordPress, smart embed, QR/direct link, or the optional website bubble and verify any website embed.", "/assets/product/settings-install.png", "Vonza install page with setup steps"],
     ["Connect or configure", "Set the business profile, tone, routing, and the knowledge Vonza should trust.", "/assets/product/settings-install.png", "Vonza settings page with business profile controls"],
     ["Capture customer questions", "Let visitors ask questions and get useful first answers from the front desk.", "/assets/product/front-desk-inbox.png", "Vonza Front Desk preview conversation"],
     ["Prioritize leads and replies", "Review warm leads, unhappy customers, and unresolved questions first.", "/assets/product/customers-crm.png", "Vonza customers page with prioritized customer records"],
@@ -374,7 +374,7 @@ function renderProductPage() {
     <section class="page-hero page-hero-split">
       <div data-reveal>
         <h1>How Vonza moves a customer question into a clear next step.</h1>
-        <p>From the website widget to the daily dashboard, every part of the product is built around answering faster and losing fewer customer opportunities.</p>
+        <p>From the full-page Front Desk to the daily dashboard, every part of the product is built around answering faster and losing fewer customer opportunities.</p>
       </div>
       ${renderAppImage({
         src: "/assets/product/dashboard-home.png",
@@ -690,7 +690,7 @@ function renderAssistantEmbedMatrixPage(options = {}) {
     </section>
     <section class="matrix-case landing-page">
       <h2>Full-width landing page</h2>
-      <p>Full-page assistant as the primary page content.</p>
+      <p>Front Desk page as the primary page content.</p>
       ${smartFullPage}
     </section>
     <section class="matrix-case landing-page footer-close">

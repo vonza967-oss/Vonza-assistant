@@ -54,7 +54,7 @@ let activationWizardState = null;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
-const INSTALL_METHODS = ["widget", "full-page", "qr"];
+const INSTALL_METHODS = ["full-page", "qr", "widget"];
 const INSTALL_METHOD_PANEL_KEYS = Object.freeze({
   widget: "widget",
   "full-page": "page",
@@ -77,7 +77,7 @@ const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
   settingsMainTab: "general",
   settingsFrontDeskTab: "identity-welcome",
   settingsFullPageTab: "content",
-  installMethod: "widget",
+  installMethod: "full-page",
   installFullPageOption: "share",
   frontDeskTab: "practice",
   customersFilter: "all",
@@ -330,7 +330,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.export": "Export",
   "analytics.aiHandled": "AI handled",
   "analytics.humanFollowUps": "Human follow-ups",
-  "analytics.fullPageActivity": "Full-page activity",
+  "analytics.fullPageActivity": "Front Desk page activity",
   "analytics.qrScans": "QR scans",
   "analytics.notTracked": "Not tracked",
   "analytics.qrScanAnalyticsUnavailable": "QR scan analytics unavailable",
@@ -338,7 +338,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.handledWithoutTeamReply": "handled without team reply",
   "analytics.needsOwnerAttention": "Needs or received owner attention",
   "analytics.capturedFromRealCustomerSignals": "Captured from real customer signals",
-  "analytics.fullPageConversationsRecorded": "Full-page conversations recorded",
+  "analytics.fullPageConversationsRecorded": "Front Desk page conversations recorded",
   "analytics.conversationsOverTime": "Conversations over time",
   "analytics.liveCurrentWorkspace": "Live activity from the current workspace",
   "analytics.daily": "Daily",
@@ -1838,7 +1838,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Policies": "Szabályzatok",
   "Service areas / locations": "Kiszolgálási területek / helyszínek",
   "Operating hours": "Nyitvatartás",
-  "Widget purpose": "Widget célja",
+  "Front Desk purpose": "Front Desk célja",
   "Identity and welcome": "Identitás és üdvözlés",
   "Routing defaults": "Alapértelmezett útvonalak",
   "Outcome routing and tracking": "Eredményútvonalak és mérés",
@@ -2457,15 +2457,15 @@ function normalizeInstallMethod(value = "") {
   };
   const candidate = aliases[normalized] || normalized;
 
-  return INSTALL_METHODS.includes(candidate) ? candidate : "widget";
+  return INSTALL_METHODS.includes(candidate) ? candidate : "full-page";
 }
 
 function getInstallMethodPanelKey(method = "") {
-  return INSTALL_METHOD_PANEL_KEYS[normalizeInstallMethod(method)] || "widget";
+  return INSTALL_METHOD_PANEL_KEYS[normalizeInstallMethod(method)] || "page";
 }
 
 function getInstallMethodHashSegment(method = "") {
-  return INSTALL_METHOD_HASH_SEGMENTS[normalizeInstallMethod(method)] || "widget";
+  return INSTALL_METHOD_HASH_SEGMENTS[normalizeInstallMethod(method)] || "full-page";
 }
 
 function normalizeInstallFullPageOption(value = "") {
@@ -2990,6 +2990,10 @@ function buildScript(agent) {
 
 function buildWidgetUrl(agentKey) {
   return `${getPublicAppUrl()}/widget?agent_key=${encodeURIComponent(agentKey)}`;
+}
+
+function buildFrontDeskPreviewUrl(agent = {}) {
+  return buildFullPageAssistantUrl(agent) || (trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "");
 }
 
 function getPublicFullPageConfig(agent = {}) {
@@ -4869,7 +4873,7 @@ function buildSidebarShell(
     {
       key: "install",
       label: t("nav.install"),
-      note: "Widget, full-page, and QR",
+      note: "Front Desk page, QR, and optional bubble",
     },
     {
       key: "settings",
@@ -5098,11 +5102,11 @@ function getCustomerSourceLabel(source = "") {
   }
 
   if (normalized.includes("qr")) {
-    return "QR touchpoint";
+    return "QR / direct link";
   }
 
   if (normalized.includes("full page") || normalized === "page" || normalized.includes("assistant page")) {
-    return "Full-page assistant";
+    return "Front Desk page";
   }
 
   if (normalized.includes("widget") || normalized.includes("chat")) {
@@ -5885,9 +5889,9 @@ function buildCustomerFilterDefinitions(contacts = []) {
     },
     {
       key: "full_page_assistant",
-      label: translateDashboardText("Full-page assistant"),
+      label: translateDashboardText("Front Desk page"),
       count: countMatching((contact) =>
-        getCustomerSourceLabels(contact).some((label) => ["Full-page assistant", "QR touchpoint"].includes(label))
+        getCustomerSourceLabels(contact).some((label) => ["Front Desk page", "Full-page assistant", "QR / direct link", "QR touchpoint"].includes(label))
       ),
     },
   ];
@@ -8262,7 +8266,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       tone: "slate",
       title: "Make contacting you easier",
       why: "If the front desk is not visible or verified, customers may leave before getting help with pricing, services, booking, or contact.",
-      change: "Confirm the widget is installed on the right site so visitors can get support at the moment they need it.",
+      change: "Confirm the Front Desk page is live and any optional website bubble is installed on the right site.",
       action: { type: "focus", value: "install", label: "Open install" },
     });
   }
@@ -8553,7 +8557,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   );
   const sourceAnalyticsAvailable = Boolean(sourceBreakdown);
   const readinessReadyCount = setupStatusItems.filter((item) => item.done).length;
-  const visibleReadinessRows = setupStatusItems.slice(0, 4);
+  const visibleReadinessRows = setupStatusItems;
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
@@ -8618,8 +8622,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
             <article class="v2-card">
               <div class="v2-section-header">
                 <div>
-                  <h2 class="v2-section-title">Assistant readiness</h2>
-                  <p class="v2-section-subtitle">Compact launch health for daily operations.</p>
+                  <h2 class="v2-section-title">Front Desk readiness</h2>
+                  <p class="v2-section-subtitle">Launch health for the customer-facing Front Desk page.</p>
                 </div>
                 <span class="v2-pill ${readinessReadyCount === visibleReadinessRows.length ? "green" : "amber"}">${escapeHtml(`${readinessReadyCount} of ${visibleReadinessRows.length} ready`)}</span>
               </div>
@@ -8795,12 +8799,12 @@ function buildFrontDeskSettingsForm(agent, setup) {
       <div class="studio-layout">
         <div class="studio-groups">
           <section class="studio-group">
-            <p class="studio-kicker">Widget purpose</p>
-            <h3 class="studio-group-title">What should your widget mainly help visitors do?</h3>
+            <p class="studio-kicker">Front Desk purpose</p>
+            <h3 class="studio-group-title">What should your customer-facing Front Desk mainly help visitors do?</h3>
             <p class="studio-group-copy">Choose the customer-facing job Vonza should prioritize when it answers, guides, and suggests next steps.</p>
             <div class="form-grid">
               <div class="field">
-                <label for="assistant-widget-purpose">Widget purpose</label>
+                <label for="assistant-widget-purpose">Front Desk purpose</label>
                 <select id="assistant-widget-purpose" name="widget_purpose">
                   ${WIDGET_PURPOSE_OPTIONS.map((option) => `
                     <option value="${escapeHtml(option.value)}" ${selectedPurpose === option.value ? "selected" : ""}>${escapeHtml(option.label)} - ${escapeHtml(option.description)}</option>
@@ -9346,9 +9350,9 @@ function getAssistantSourceLabel(item = {}) {
 
   if (isEmbedded) return "Embedded assistant";
   if (mode === "widget" || isWidget) return "Website widget";
-  if ((mode === "page" && isFullPage) || isFullPage) return "Full-page assistant";
-  if (mode === "page") return "Full-page assistant";
-  if (route.includes("hosted")) return "Hosted assistant page";
+  if ((mode === "page" && isFullPage) || isFullPage) return "Front Desk page";
+  if (mode === "page") return "Front Desk page";
+  if (route.includes("hosted")) return "Front Desk page";
   return "Unknown source";
 }
 
@@ -9662,10 +9666,11 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
   const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
     ? `${businessReadiness.missingCount} area${businessReadiness.missingCount === 1 ? "" : "s"} could use a quick review before the Front Desk feels fully grounded.`
     : "Business context is in a strong place for customer-facing conversations.";
-  const launchHeadline = setup.isReady ? "You’re close to going live." : "A few essentials still need attention before you publish.";
+  const publicFrontDeskLive = isPublicFullPageEnabled(agent);
+  const launchHeadline = setup.isReady ? "Your Front Desk page is close to launch." : "A few essentials still need attention before you publish.";
   const launchCopy = setup.isReady
-    ? "Confirm the experience, move into Install, and make sure the live site is sending real traffic back into Vonza."
-    : "This space keeps the launch path clear by showing what still needs attention before Install and verification.";
+    ? "Confirm the experience, enable the public Front Desk page, then choose WordPress, smart embed, QR/direct link, or the optional website bubble."
+    : "This space keeps the launch path clear by showing what still needs attention before Install and distribution.";
   const liveVerificationLabel = isInstallSeen(installStatus)
     ? "Live traffic confirmed"
     : isInstallDetected(installStatus)
@@ -9776,20 +9781,20 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
           <div class="frontdesk-section-divider"></div>
           <div class="frontdesk-detail-list frontdesk-launch-status-list">
             <div class="frontdesk-detail-row">
-              <span class="frontdesk-detail-row-label">Widget status</span>
-              <strong class="frontdesk-detail-row-value">${escapeHtml(installStatus.label || "Not installed yet")}</strong>
+              <span class="frontdesk-detail-row-label">Public Front Desk page</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(publicFrontDeskLive ? "Your Front Desk page is live" : "Your Front Desk page is disabled")}</strong>
             </div>
             <div class="frontdesk-detail-row">
-              <span class="frontdesk-detail-row-label">Full-page assistant URL</span>
-              <strong class="frontdesk-detail-row-value">${escapeHtml(fullPageUrl || "Available after the assistant is saved.")}</strong>
+              <span class="frontdesk-detail-row-label">Front Desk page link</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(fullPageUrl || "Enable the public Front Desk page to generate a shareable link.")}</strong>
             </div>
             <div class="frontdesk-detail-row">
               <span class="frontdesk-detail-row-label">QR code</span>
-              <strong class="frontdesk-detail-row-value">${escapeHtml(qrEndpoint ? "Available in Install" : "Available after the assistant is saved.")}</strong>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(qrEndpoint ? "Available in Install" : "Available after the public Front Desk page is enabled.")}</strong>
             </div>
             <div class="frontdesk-detail-row">
-              <span class="frontdesk-detail-row-label">Verification</span>
-              <strong class="frontdesk-detail-row-value">${escapeHtml(liveVerificationLabel)}</strong>
+              <span class="frontdesk-detail-row-label">Optional website bubble</span>
+              <strong class="frontdesk-detail-row-value">${escapeHtml(installStatus.label || liveVerificationLabel)}</strong>
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
@@ -9833,16 +9838,16 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
                 <p class="frontdesk-step-copy">${escapeHtml(isInstallSeen(installStatus)
                   ? "Vonza is already seeing live traffic from the site. Keep Install handy for quick verification checks."
                   : isInstallDetected(installStatus)
-                    ? "The snippet is in place, and the next step is simply confirming the first live visit."
+                    ? "The optional website bubble snippet is in place, and the next step is simply confirming the first live visit."
                     : installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed"
                       ? "Verification needs attention before the launch can be treated as confidently live."
-                      : "The site still needs the snippet and first verification pass before launch is complete.")}</p>
+                      : "Use Install to choose WordPress, smart embed, QR/direct link, or the optional website bubble before launch is complete.")}</p>
               </div>
             </article>
           </div>
           <div class="frontdesk-support-note">
             <p class="frontdesk-support-title">Why Install still lives separately</p>
-            <p class="frontdesk-support-copy">Front Desk owns the launch handoff, while the snippet, verification, and domain checks stay in the Install view where they are easier to manage.</p>
+            <p class="frontdesk-support-copy">Front Desk owns practice, training, answer quality, and launch readiness. Install only manages distribution channels and verification.</p>
           </div>
         </section>
       </div>
@@ -9853,14 +9858,14 @@ function buildFrontDeskPanel(agent, setup, operatorWorkspace = createEmptyOperat
 function buildInstallPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), messages = [], actionQueue = createEmptyActionQueue()) {
   const actionsMarkup = [
     `<button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>`,
-    `<button class="ghost-button" type="button" data-install-method-jump="widget">View instructions</button>`,
+    `<button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>`,
   ].join("");
 
   return localizeDashboardHtml(`
     <section class="workspace-page" data-shell-section="install" hidden>
       ${buildPageHeader({
         title: t("install.title"),
-        copy: "Add Vonza to your website, assistant page, or QR touchpoint.",
+        copy: "Publish your AI Front Desk page through WordPress, smart embed, QR/direct link, or the optional website widget bubble.",
         actionsMarkup,
       })}
       <div class="workspace-page-body install-page-layout">
@@ -9912,7 +9917,7 @@ function buildAppearanceStudio(agent) {
                 <div class="field">
                   <label for="assistant-name">Assistant name</label>
                   <input id="assistant-name" name="assistant_name" type="text" value="${escapeHtml(agent.assistantName || agent.name)}">
-                  <p class="field-help">Use the name you want customers to see in the widget header and first interaction.</p>
+                  <p class="field-help">Use the name you want customers to see on the Front Desk page and first interaction.</p>
                 </div>
               </div>
             </section>
@@ -9949,7 +9954,7 @@ function buildAppearanceStudio(agent) {
                   <p class="field-help">Used to support the main color and add depth to the widget feel.</p>
                 </div>
               </div>
-              <p class="section-note">More appearance controls like logo upload and richer widget variants can come later. For now, Vonza uses your real live text and colors only.</p>
+              <p class="section-note">More appearance controls like logo upload and richer Front Desk variants can come later. For now, Vonza uses your real live text and colors only.</p>
             </section>
 
             <div class="studio-save-row">
@@ -9977,7 +9982,7 @@ function buildAppearanceStudio(agent) {
                     <div id="brand-widget-avatar" class="brand-widget-avatar" style="--brand-primary:${escapeHtml(agent.primaryColor || "#14b8a6")};--brand-secondary:${escapeHtml(agent.secondaryColor || "#0f766e")}">V</div>
                     <div>
                       <p id="brand-widget-title" class="brand-widget-title">${escapeHtml(agent.assistantName || agent.name)}</p>
-                      <p class="brand-widget-subtitle">Your website front desk</p>
+                      <p class="brand-widget-subtitle">Your AI Front Desk</p>
                     </div>
                   </div>
                   <div id="brand-widget-message" class="brand-message">${escapeHtml(agent.welcomeMessage || "Welcome. I’m here to answer questions, route ready visitors to the right next step, and capture follow-up when needed.")}</div>
@@ -11032,7 +11037,7 @@ function createEmptyOwnerAnalyticsDashboard() {
     },
     page: {
       key: "page",
-      label: "Full-page assistant",
+      label: "Front Desk page",
       conversationCount: 0,
       messageCount: 0,
       visitorQuestionCount: 0,
@@ -11791,7 +11796,7 @@ function buildAssistantSourceMarkup(sourceBreakdown = {}) {
       ...page,
       note: page.conversationCount > 0
         ? `${formatAnalyticsReportNumber(page.messageCount)} message${page.messageCount === 1 ? "" : "s"}`
-        : "No full-page assistant conversations yet.",
+        : "No Front Desk page conversations yet.",
     },
   ];
 
@@ -11808,7 +11813,7 @@ function buildAssistantSourceMarkup(sourceBreakdown = {}) {
         <div>
           <p class="overview-label">Source breakdown</p>
           <h3 class="flat-section-title">Source breakdown</h3>
-          <p class="analytics-report-section-copy">See whether visitors are using the website widget, the full-page assistant, or older activity.</p>
+          <p class="analytics-report-section-copy">See whether visitors are using the Front Desk page, embedded assistant, website widget, or older activity.</p>
         </div>
       </div>
       <div class="analytics-source-grid">
@@ -13427,6 +13432,10 @@ function buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), o
 
 function buildOverviewState(agent, messages, setup, actionQueue = createEmptyActionQueue()) {
   const installStatus = getDefaultInstallStatus(agent);
+  const fullPageEnabled = isPublicFullPageEnabled(agent);
+  const hasFrontDeskPage = Boolean(trimText(agent.id || agent.publicAgentKey));
+  const hasConversation = messages.some((message) => trimText(message?.role).toLowerCase() === "user");
+  const hasDistributionChannel = fullPageEnabled || Boolean(trimText(agent.installId)) || isInstallDetected(installStatus);
   const signals = analyzeConversationSignals(messages);
   const analyticsSummary = getAnalyticsSummary(actionQueue, agent, messages);
   const messageCount = Number(analyticsSummary.totalMessages || 0);
@@ -13454,12 +13463,12 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   const nextActions = [];
   let primaryAction = null;
-  let title = "Your front desk and workspace";
-  let copy = "Your front desk is set up in Vonza and ready for the next step.";
+  let title = "Create and manage your AI Front Desk page";
+  let copy = "Your customer-facing Front Desk is set up in Vonza and ready for testing, training, and launch.";
 
   if (!setup.isReady) {
-    title = "Home is open. The next step is finishing the front desk setup.";
-    copy = "Use Front Desk and Settings to shape the experience, confirm routing and website knowledge, and make sure the customer-facing flow feels ready before you install it.";
+    title = "Home is open. The next step is finishing the Front Desk page.";
+    copy = "Use Front Desk and Settings to shape the experience, confirm routing and website knowledge, and make sure the customer-facing page feels ready before you share it.";
     primaryAction = {
       label: "Continue setup",
       type: "section",
@@ -13541,17 +13550,30 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
         type: "preview",
       });
     }
-  } else if (installStatus.state === "installed_unseen") {
-    title = "Your front desk is published and waiting for first live traffic";
-    copy = "Vonza found the install snippet on the website. The next step is letting a real page load trigger the first live ping.";
+  } else if (fullPageEnabled) {
+    title = "Your Front Desk page is live";
+    copy = "The public assistant page is enabled. Test the Front Desk, keep improving answer quality, and choose the distribution channels that fit the business.";
     primaryAction = {
-      label: "Verify installation",
-      type: "focus",
-      value: "install",
+      label: "Open Front Desk page",
+      type: "preview",
     };
     nextActions.push({
-      label: "Copy install code",
-      type: "install",
+      label: "Open Front Desk",
+      type: "section",
+      value: "customize",
+    });
+  } else if (installStatus.state === "installed_unseen") {
+    title = "Your website bubble is published and waiting for first live traffic";
+    copy = "Vonza found the optional website widget snippet. The primary launch step is still enabling and testing the public Front Desk page.";
+    primaryAction = {
+      label: "Enable Front Desk page",
+      type: "section",
+      value: "settings",
+    };
+    nextActions.push({
+      label: "Review install",
+      type: "focus",
+      value: "install",
     });
   } else if (installStatus.state === "domain_mismatch") {
     title = "Your install needs a quick fix";
@@ -13578,16 +13600,17 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
       type: "install",
     });
   } else {
-    title = "Your front desk is almost ready to go live";
-    copy = "The setup is in place, and the next step is getting the widget onto your live site so Vonza can start answering, routing, and capturing real visitor intent.";
+    title = "Your Front Desk page is almost ready to go live";
+    copy = "The setup is in place. Enable the public Front Desk page, test a real customer question, then choose a distribution channel such as WordPress, smart embed, QR/direct link, or the optional website bubble.";
     primaryAction = {
-      label: "Add to website",
+      label: "Open install",
       type: "focus",
       value: "install",
     };
     nextActions.push({
-      label: "Copy install code",
-      type: "install",
+      label: "Open Front Desk",
+      type: "section",
+      value: "customize",
     });
   }
 
@@ -13603,23 +13626,46 @@ function buildOverviewState(agent, messages, setup, actionQueue = createEmptyAct
 
   const progressItems = [
     {
-      title: "Workspace unlocked",
-      copy: "You are inside the paid Vonza workspace.",
-      done: true,
+      title: "Front Desk created",
+      copy: hasFrontDeskPage
+        ? "The AI Front Desk workspace exists."
+        : "Create the Front Desk workspace first.",
+      done: hasFrontDeskPage,
     },
     {
-      title: "Front-desk setup",
+      title: "Public Front Desk page",
+      copy: fullPageEnabled
+        ? "Your Front Desk page is live."
+        : "Enable the public assistant page before sharing QR codes or links.",
+      done: fullPageEnabled,
+    },
+    {
+      title: "Front Desk customized",
       copy: setup.isReady
         ? "The front desk has the core details it needs."
         : "The front desk still needs a few setup details before launch.",
       done: setup.isReady,
     },
     {
-      title: "Website install",
-      copy: isInstallSeen(installStatus)
-        ? "Vonza has already been detected on the live site."
-        : "The next milestone is getting Vonza onto the live website.",
-      done: isInstallSeen(installStatus),
+      title: "Training ready",
+      copy: setup.knowledgeReady
+        ? "Website knowledge and grounding are ready for practice."
+        : "Strengthen website knowledge and improvements before launch.",
+      done: setup.knowledgeReady,
+    },
+    {
+      title: "First test conversation",
+      copy: hasConversation
+        ? "A test or customer conversation exists."
+        : "Run one realistic Front Desk conversation.",
+      done: hasConversation,
+    },
+    {
+      title: "Distribution channel selected",
+      copy: hasDistributionChannel
+        ? "At least one Front Desk distribution path is available."
+        : "Choose WordPress, smart embed, QR/direct link, or the optional website bubble.",
+      done: hasDistributionChannel,
     },
   ];
 
@@ -13715,7 +13761,8 @@ function buildOverviewActionMarkup(agent, action = null, { primary = false } = {
   }
 
   if (action.type === "preview") {
-    return `<a class="${primary ? "primary-button" : "test-link"}" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">${escapeHtml(actionLabel)}</a>`;
+    const previewUrl = buildFrontDeskPreviewUrl(agent);
+    return `<a class="${primary ? "primary-button" : "test-link"} ${previewUrl ? "" : "disabled"}" data-action="open-preview" href="${previewUrl ? escapeHtml(previewUrl) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(actionLabel)}</a>`;
   }
 
   return "";
@@ -13845,23 +13892,24 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
   if (stepKey === "install_widget") {
     const installStatus = getDefaultInstallStatus(agent);
     const live = isInstallSeen(installStatus);
+    const frontDeskPageLive = isPublicFullPageEnabled(agent);
     return `
       <div class="activation-install-summary">
         <div class="activation-detail-row">
           <span>Status</span>
-          <strong>${escapeHtml(live ? "You are live" : installStatus.label || "Not installed yet")}</strong>
+          <strong>${escapeHtml(frontDeskPageLive ? "Front Desk page live" : live ? "Optional website bubble live" : installStatus.label || "Front Desk page not enabled yet")}</strong>
         </div>
         <div class="activation-detail-row">
-          <span>Install id</span>
-          <strong>${escapeHtml(agent.installId || "Not generated yet")}</strong>
+          <span>Front Desk page</span>
+          <strong>${escapeHtml(frontDeskPageLive ? "Enabled" : "Disabled")}</strong>
         </div>
-        <p>${escapeHtml(live ? "Vonza has detected the widget on the live site. Test one customer question next." : "Copy the snippet, publish it on the live site, then verify. If verification cannot find it yet, keep the dashboard usable and return later.")}</p>
+        <p>${escapeHtml(frontDeskPageLive ? "Your public Front Desk page is ready to share. Test one customer question next." : live ? "Vonza has detected the optional website bubble on the live site. Enable and test the Front Desk page next." : "Enable the Front Desk page first, then use the optional website bubble snippet only if you want a compact launcher on the live site.")}</p>
       </div>
       <div class="activation-actions">
-        ${live
+        ${frontDeskPageLive || live
           ? `<button class="primary-button" type="button" data-activation-complete="${escapeHtml(stepKey)}">Continue to test</button>`
-          : `<button class="primary-button" type="button" data-action="copy-install" ${trimText(agent.installId) ? "" : "disabled"}>${escapeHtml(action.label || "Copy install code")}</button>
-             <button class="ghost-button" type="button" data-action="verify-install" ${trimText(agent.installId) ? "" : "disabled"}>Verify installation</button>`}
+          : `<button class="primary-button" type="button" data-shell-target="install">${escapeHtml(action.label || "Open install")}</button>
+             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable Front Desk page</button>`}
         <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
       </div>
     `;
@@ -14050,7 +14098,8 @@ function buildOverviewSection(agent, messages, setup, actionQueue = createEmptyA
     }
 
     if (action.type === "preview") {
-      return `<a class="${options.primary ? "primary-button" : "test-link"}" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">${action.label}</a>`;
+      const previewUrl = buildFrontDeskPreviewUrl(agent);
+      return `<a class="${options.primary ? "primary-button" : "test-link"} ${previewUrl ? "" : "disabled"}" data-action="open-preview" href="${previewUrl ? escapeHtml(previewUrl) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(action.label)}</a>`;
     }
 
     return "";
@@ -15126,9 +15175,10 @@ function buildAutomationsPanel(agent, operatorWorkspace = createEmptyOperatorWor
 
 function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const workspaceMode = getWorkspaceMode(operatorWorkspace);
+  const previewUrl = buildFrontDeskPreviewUrl(agent);
   const secondaryActions = [
-    trimText(agent.publicAgentKey)
-      ? `<a class="test-link" data-action="open-preview" href="${buildWidgetUrl(agent.publicAgentKey)}" target="_blank" rel="noreferrer">Try front desk</a>`
+    previewUrl
+      ? `<a class="test-link" data-action="open-preview" href="${escapeHtml(previewUrl)}" target="_blank" rel="noreferrer">Open Front Desk page</a>`
       : "",
     setup.isReady
       ? `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`
@@ -15351,7 +15401,7 @@ function getInstallStatusCopy(installStatus = {}) {
   }
 
   if (installStatus.state === "installed_unseen") {
-    return "The snippet was found on the site, but Vonza has not yet received a live widget ping from a visitor page.";
+    return "The optional website bubble snippet was found on the site, but Vonza has not yet received a live visitor ping.";
   }
 
   if (installStatus.state === "domain_mismatch") {
@@ -15362,7 +15412,7 @@ function getInstallStatusCopy(installStatus = {}) {
     return "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.";
   }
 
-  return "Not installed yet. Paste the website widget code onto the live site, then run verification.";
+  return "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.";
 }
 
 function getInstallStatusTone(installStatus = {}) {
@@ -15416,30 +15466,32 @@ function buildInstallProgressItem({ title, done, detail }) {
 function buildInstallSetupProgress(agent, setup, installStatus, progress, messages = []) {
   const hasConversation = Array.isArray(messages)
     && messages.some((message) => trimText(message?.content) && ["user", "assistant"].includes(trimText(message?.role)));
+  const fullPageEnabled = isPublicFullPageEnabled(agent);
+  const hasDistributionChannel = fullPageEnabled || Boolean(trimText(agent.installId)) || isInstallDetected(installStatus);
   const items = [
     {
-      title: "Assistant created",
+      title: "Front Desk created",
       done: Boolean(trimText(agent.id || agent.publicAgentKey)),
-      detail: trimText(agent.assistantName || agent.name) || "Assistant workspace",
+      detail: trimText(agent.assistantName || agent.name) || "Front Desk workspace",
     },
     {
-      title: "Website knowledge imported",
+      title: "Public Front Desk page enabled",
+      done: fullPageEnabled,
+      detail: fullPageEnabled ? "Your Front Desk page is live" : "Enable public access before sharing links or QR",
+    },
+    {
+      title: "Front Desk customized",
+      done: hasFullPageAssistantCustomization(agent) || setup.isReady,
+      detail: hasFullPageAssistantCustomization(agent) ? "Custom full-page settings saved" : "Review identity, welcome, and page design",
+    },
+    {
+      title: "Training and knowledge ready",
       done: setup.knowledgeReady === true,
       detail: setup.knowledgeReady
         ? "Website knowledge is ready"
         : setup.knowledgeLimited
           ? "Website knowledge is still growing"
           : "Website knowledge is missing",
-    },
-    {
-      title: "Widget configured",
-      done: Boolean(trimText(agent.installId)),
-      detail: trimText(agent.installId) ? "Install code is ready" : "Install code is not ready yet",
-    },
-    {
-      title: "Install detected",
-      done: isInstallDetected(installStatus),
-      detail: installStatus.host || installStatus.label || "No live install detected yet",
     },
     {
       title: "First test conversation",
@@ -15451,9 +15503,11 @@ function buildInstallSetupProgress(agent, setup, installStatus, progress, messag
           : "No test conversation yet",
     },
     {
-      title: "Full-page assistant customized",
-      done: hasFullPageAssistantCustomization(agent),
-      detail: hasFullPageAssistantCustomization(agent) ? "Custom full-page settings saved" : "Default full-page settings",
+      title: "Distribution channel selected",
+      done: hasDistributionChannel,
+      detail: hasDistributionChannel
+        ? "Front Desk page, QR/direct link, smart embed, WordPress, or optional bubble is ready"
+        : "Choose a launch channel in Install",
     },
   ];
 
@@ -15477,7 +15531,7 @@ function buildInstallStageProgress(installStatus, hasInstall, fullPageUrl, qrEnd
       number: "1",
       title: "Choose method",
       state: "active",
-      copy: "Pick website, page, or QR.",
+      copy: "Pick Front Desk page, QR/direct link, or optional bubble.",
     },
     {
       number: "2",
@@ -15489,7 +15543,7 @@ function buildInstallStageProgress(installStatus, hasInstall, fullPageUrl, qrEnd
       number: "3",
       title: "Verify",
       state: verifyDone ? "done" : "pending",
-      copy: "Confirm the website install.",
+      copy: "Confirm any website embed or bubble install.",
     },
     {
       number: "4",
@@ -15565,8 +15619,8 @@ function buildInstallSidePanel(agent, setup, messages = []) {
       tone: installStatus.host ? "Ready" : "Pending",
     },
     {
-      label: "Full-page assistant",
-      value: fullPageEnabled ? "Ready to share" : "Disabled until enabled by the owner.",
+      label: "Front Desk page",
+      value: fullPageEnabled ? "Your Front Desk page is live" : "Your Front Desk page is disabled.",
       tone: fullPageEnabled ? "Ready" : "Pending",
     },
     {
@@ -15612,16 +15666,17 @@ function buildInstallSidePanel(agent, setup, messages = []) {
           <span class="install-preview-avatar">${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>
           <div>
             <strong>${escapeHtml(agent.assistantName || agent.name || "Your assistant")}</strong>
-            <p>${escapeHtml(agent.welcomeMessage || "Preview the customer-facing front desk before sharing it.")}</p>
+            <p>${escapeHtml(agent.welcomeMessage || "Preview the customer-facing Front Desk page before sharing it.")}</p>
           </div>
         </div>
-        <a class="test-link ${trimText(agent.publicAgentKey) ? "" : "disabled"}" data-action="open-preview" href="${trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test front desk</a>
+        <a class="test-link ${buildFrontDeskPreviewUrl(agent) ? "" : "disabled"}" data-action="open-preview" href="${buildFrontDeskPreviewUrl(agent) ? escapeHtml(buildFrontDeskPreviewUrl(agent)) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
       </section>
       <section class="install-side-card install-resource-card">
         <p class="overview-label">Resources</p>
-        <button class="ghost-button" type="button" data-install-method-jump="widget">View website instructions</button>
-        <button class="ghost-button" type="button" data-action="copy-install-instructions" ${hasInstall ? "" : "disabled"}>Copy widget instructions</button>
-        <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize full-page assistant</button>
+        <button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>
+        <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
+        <button class="ghost-button" type="button" data-install-method-jump="widget">View optional website bubble</button>
+        <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
       </section>
     </aside>
   `;
@@ -15664,34 +15719,46 @@ function buildInstallSection(agent, options = {}) {
   const qrEndpoint = buildFullPageQrEndpoint(agent);
   const methodCards = [
     {
-      key: "widget",
-      icon: "install",
-      title: "Website widget",
-      copy: "Add the chat launcher to your website.",
-      status: isInstallDetected(installStatus)
-        ? "Installed"
-        : hasInstall
-          ? "Needs verification"
-          : "Recommended",
-      tone: isInstallDetected(installStatus) ? "ready" : hasInstall ? "warning" : "neutral",
-    },
-    {
       key: "page",
       icon: "frontdesk",
-      title: "Full-page assistant",
-      copy: "Share a hosted page or embed it on your own site.",
-      status: fullPageEnabled ? "Enabled" : "Disabled",
-      tone: fullPageEnabled ? "ready" : "warning",
+      title: "Front Desk page",
+      copy: "Share the hosted AI Front Desk page or publish it as the main content of a website page.",
+      status: "Recommended",
+      tone: "ready",
     },
     {
       key: "qr",
       icon: "review",
-      title: "QR code",
-      copy: "Print a code that opens the assistant page.",
-      status: qrEndpoint ? "Print/download" : "Enable page first",
+      title: "QR / direct link",
+      copy: "Open the same Front Desk page from signs, menus, invoices, emails, or direct links.",
+      status: qrEndpoint ? "Ready" : "Enable page first",
       tone: qrEndpoint ? "neutral" : "warning",
     },
+    {
+      key: "widget",
+      icon: "install",
+      title: "Website widget bubble",
+      copy: "Also add a compact chat bubble to normal website pages.",
+      status: isInstallDetected(installStatus)
+        ? "Optional installed"
+        : hasInstall
+          ? "Optional"
+          : "Optional",
+      tone: isInstallDetected(installStatus) ? "ready" : "neutral",
+    },
   ];
+  const publicPageStatusBadge = fullPageEnabled
+    ? `<span class="${getBadgeClass("Ready")}">Your Front Desk page is live</span>`
+    : `<span class="${getBadgeClass("Pending")}">Your Front Desk page is disabled</span>`;
+  const wordpressCallout = `
+    <div class="operator-inline-alert install-wordpress-callout">
+      <strong>WordPress Front Desk page</strong>
+      <p>For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.</p>
+      <div class="inline-actions">
+        <button class="ghost-button" type="button" data-full-page-option="dedicated">Use dedicated page embed</button>
+      </div>
+    </div>
+  `;
 
   return `
     ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
@@ -15722,28 +15789,28 @@ function buildInstallSection(agent, options = {}) {
       <section class="install-option-card ${activeInstallMethod === "widget" ? "active" : ""}" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget" ${activeInstallMethod === "widget" ? "" : "hidden"}>
         <div class="install-option-header">
           <div>
-            <p class="install-option-eyebrow">Selected method</p>
-            <h3 class="install-option-title">Website widget</h3>
-            <p class="install-option-copy">Paste this code into your website header once. Vonza will appear as a compact chat launcher on normal website pages.</p>
+            <p class="install-option-eyebrow">Optional add-on</p>
+            <h3 class="install-option-title">Website widget bubble</h3>
+            <p class="install-option-copy">Paste this code into your website header only if you also want a compact chat launcher on normal website pages. Your Front Desk page stays the primary product.</p>
           </div>
-          <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Needs attention" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Installed" : hasInstall ? "Needs verification" : "Not ready")}</span>
+          <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Optional installed" : hasInstall ? "Optional" : "Optional")}</span>
         </div>
         <div class="install-cta-row">
-          <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.copyInstallCode"))}</button>
+          <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy website bubble code</button>
           <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
-          <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">${escapeHtml(t("install.testFrontDesk"))}</a>
+          <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test website bubble</a>
         </div>
         ${buildInstallCopyBlock({
           id: "install-script-output",
-          label: "Website widget code",
+          label: "Website widget bubble code",
           value: script,
           rows: 5,
           buttonAction: "copy-install",
-          buttonLabel: "Copy install code",
+          buttonLabel: "Copy bubble code",
           disabled: !hasInstall,
           className: "install-code-block",
         })}
-        <p class="install-help">Paste this once into your site header.</p>
+        <p class="install-help">Paste this once into your site header only when you want the optional bubble.</p>
         <div class="install-detail-grid">
           <div class="install-detail-card">
             <span>Allowed domains</span>
@@ -15762,32 +15829,33 @@ function buildInstallSection(agent, options = {}) {
       <section class="install-option-card ${activeInstallMethod === "page" ? "active" : ""}" id="install-panel-page" role="tabpanel" data-install-method-panel="page" ${activeInstallMethod === "page" ? "" : "hidden"}>
         <div class="install-option-header">
           <div>
-            <p class="install-option-eyebrow">Selected method</p>
-            <h3 class="install-option-title">Full-page assistant</h3>
-            <p class="install-option-copy">Choose how customers should open the assistant. Vonza will generate the right link or website code automatically.</p>
+            <p class="install-option-eyebrow">Recommended method</p>
+            <h3 class="install-option-title">Front Desk page</h3>
+            <p class="install-option-copy">Choose how customers should open the AI Front Desk page. Vonza generates the right link, WordPress guidance, smart embed, or fallback iframe.</p>
           </div>
-          <span class="${getBadgeClass(fullPageEnabled ? "Ready" : "Pending")}">${escapeHtml(fullPageEnabled ? "Enabled" : "Disabled")}</span>
+          ${publicPageStatusBadge}
         </div>
+        ${wordpressCallout}
         ${!fullPageEnabled ? `
           <div class="operator-inline-alert">
-            Enable the public full-page assistant in Front Desk settings before sharing links, embeds, or QR codes.
+            Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing links, embeds, or QR codes.
             <div class="inline-actions">
-              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable in settings</button>
+              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>
             </div>
           </div>
         ` : ""}
-        <div class="full-page-install-selector" role="tablist" aria-label="Full-page assistant install options">
+        <div class="full-page-install-selector" role="tablist" aria-label="Front Desk page install options">
           <button class="full-page-install-choice ${activeFullPageInstallOption === "share" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "share" ? "true" : "false"}" aria-controls="full-page-option-share" data-full-page-option="share">
-            <strong>Shareable link</strong>
+            <strong>Front Desk page link</strong>
             <span>Use this for QR codes, buttons, menus, emails, and direct links.</span>
           </button>
           <button class="full-page-install-choice ${activeFullPageInstallOption === "section" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "section" ? "true" : "false"}" aria-controls="full-page-option-section" data-full-page-option="section">
-            <strong>Section embed</strong>
-            <span>Place the assistant inside part of an existing page.</span>
+            <strong>Smart embed</strong>
+            <span>Place the Front Desk inside part of an existing page.</span>
           </button>
           <button class="full-page-install-choice ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "dedicated" ? "true" : "false"}" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
-            <strong>Dedicated page embed</strong>
-            <span>Use this when Front Desk is the main content of a page on your website.</span>
+            <strong>WordPress / dedicated page</strong>
+            <span>Use this when Front Desk is the main content of a website page.</span>
           </button>
           <button class="full-page-install-choice ${activeFullPageInstallOption === "takeover" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "takeover" ? "true" : "false"}" aria-controls="full-page-option-takeover" data-full-page-option="takeover">
             <strong>True page takeover</strong>
@@ -15800,23 +15868,23 @@ function buildInstallSection(agent, options = {}) {
         </div>
         <div class="full-page-install-output ${activeFullPageInstallOption === "share" ? "active" : ""}" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share" ${activeFullPageInstallOption === "share" ? "" : "hidden"}>
           <div class="install-cta-row">
-            <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
-            <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open full-page assistant</a>
-            <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize full-page assistant</button>
+            <button class="primary-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+            <a class="test-link ${fullPageUrl ? "" : "disabled"}" href="${fullPageUrl ? escapeHtml(fullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
+            <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
           </div>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-url",
-            label: "Full-page assistant URL",
+            label: "Front Desk page link",
             value: fullPageUrl,
             rows: 2,
             buttonAction: "copy-full-page-url",
-            buttonLabel: "Copy full-page URL",
+            buttonLabel: "Copy Front Desk page link",
             disabled: !fullPageUrl,
             className: "full-page-url-output",
           })}
         </div>
         <div class="full-page-install-output ${activeFullPageInstallOption === "section" ? "active" : ""}" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" ${activeFullPageInstallOption === "section" ? "" : "hidden"}>
-          <p class="install-help">Place the assistant inside part of an existing page.</p>
+          <p class="install-help">Place the Front Desk inside part of an existing page.</p>
           <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
           ${buildInstallCopyBlock({
             id: "section-assistant-smart-embed",
@@ -15841,8 +15909,9 @@ function buildInstallSection(agent, options = {}) {
           })}
         </div>
         <div class="full-page-install-output ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" ${activeFullPageInstallOption === "dedicated" ? "" : "hidden"}>
-          <p class="install-help"><strong>Dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your website.</p>
-          <p class="install-help">Dedicated page embed makes the assistant the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
+          <p class="install-help"><strong>WordPress / dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your website.</p>
+          <p class="install-help">For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.</p>
+          <p class="install-help">Dedicated page embed makes the Front Desk the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
           ${buildInstallCopyBlock({
             id: "full-page-assistant-smart-embed",
             label: "Dedicated page embed snippet",
@@ -15887,25 +15956,25 @@ function buildInstallSection(agent, options = {}) {
         <div class="install-option-header">
           <div>
             <p class="install-option-eyebrow">Selected method</p>
-            <h3 class="install-option-title">QR code</h3>
-            <p class="install-option-copy">Use this QR code on menus, flyers, signs, invoices, and reception desks.</p>
+            <h3 class="install-option-title">QR / direct link</h3>
+            <p class="install-option-copy">Use a QR code or direct link that opens the full-page Front Desk page.</p>
           </div>
           <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
         </div>
         <div class="install-qr-section">
-          <div class="install-qr-preview" data-full-page-qr-preview aria-label="Full-page assistant QR code">
+          <div class="install-qr-preview" data-full-page-qr-preview aria-label="Front Desk page QR code">
             <p class="install-qr-status">Loading QR code...</p>
           </div>
           <div class="install-qr-copy">
             <div class="install-target-url">
-              <span>Target URL</span>
+              <span>Front Desk page link</span>
               <strong>${escapeHtml(fullPageUrl || "Available after the assistant is saved.")}</strong>
             </div>
-            <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public full-page assistant before downloading or sharing a QR code.")}</p>
-            <p class="install-help">Scan tracking is not available yet.</p>
+            <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public Front Desk page before downloading or sharing a QR code.")}</p>
+            <p class="install-help">The QR code opens the same customer-facing Front Desk page link.</p>
             <div class="install-cta-row">
-              <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy full-page URL</button>
-              ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public page</button>' : ""}
+              <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+              ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>' : ""}
               <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
             </div>
           </div>
@@ -17430,7 +17499,7 @@ async function copyDashboardText(value, successMessage, fallbackElementId = "") 
 async function copyFullPageAssistantUrl(agent) {
   await copyDashboardText(
     buildFullPageAssistantUrl(agent),
-    "Full-page assistant URL copied.",
+    "Front Desk page link copied.",
     "full-page-assistant-url"
   );
 }
@@ -17503,7 +17572,7 @@ async function loadFullPageAssistantQr(agent) {
   }
 
   if (!endpoint) {
-    preview.innerHTML = '<p class="install-qr-status">QR code will be available after the assistant is ready.</p>';
+    preview.innerHTML = '<p class="install-qr-status">QR code will be available after the Front Desk page is enabled.</p>';
     downloadButton.disabled = true;
     return;
   }
@@ -17602,13 +17671,13 @@ function bindInstallMethodTabs() {
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      activateMethod(tab.dataset.installMethodTab || "widget");
+      activateMethod(tab.dataset.installMethodTab || "page");
     });
   });
 
   jumps.forEach((jump) => {
     jump.addEventListener("click", () => {
-      activateMethod(jump.dataset.installMethodJump || "widget", { scroll: true });
+      activateMethod(jump.dataset.installMethodJump || "page", { scroll: true });
     });
   });
 
@@ -18567,7 +18636,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
           visible = sourceLabels.includes("Website widget");
           break;
         case "full_page_assistant":
-          visible = sourceLabels.some((label) => ["Full-page assistant", "QR touchpoint"].includes(label));
+          visible = sourceLabels.some((label) => ["Front Desk page", "Full-page assistant", "QR / direct link", "QR touchpoint"].includes(label));
           break;
         case "leads":
           visible = statuses.includes("lead") || ["active_lead", "qualified", "new"].includes(lifecycle);
@@ -21461,7 +21530,7 @@ function renderLocalDashboardV2Fixture() {
         },
         page: {
           key: "page",
-          label: "Full-page assistant",
+          label: "Front Desk page",
           conversationCount: 1,
           messageCount: 1,
           visitorQuestionCount: 1,
@@ -21557,7 +21626,7 @@ function renderLocalDashboardV2Fixture() {
             { role: "vonza", label: "Vonza", content: "Yes. Share your preferred day and contact details.", createdAt: now },
           ],
           timeline: [
-            { at: now, label: "Widget conversation", summary: "Booking question captured by the front desk." },
+            { at: now, label: "Website widget", summary: "Booking question captured by the front desk." },
           ],
         },
         {
@@ -21578,7 +21647,7 @@ function renderLocalDashboardV2Fixture() {
             { role: "customer", label: "Customer", content: "What affects the quote?", createdAt: now },
           ],
           timeline: [
-            { at: now, label: "Full-page assistant", summary: "Pricing question needs a clearer follow-up path." },
+            { at: now, label: "Front Desk page", summary: "Pricing question needs a clearer follow-up path." },
           ],
         },
         {

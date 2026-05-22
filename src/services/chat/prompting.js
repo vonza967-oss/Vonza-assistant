@@ -232,6 +232,11 @@ Hard rules:
 - If pricing is not shown, say that clearly and offer quote/contact capture
 - If contact details exist, use them directly in bullets
 - Do not say "I recommend contacting them directly" when specific email, phone, or contact instructions are available
+- Never invent prices
+- Never invent services
+- Never invent availability
+- Never invent policies
+- For public customer answers, draft or archived training items are not trusted sources. Cross-agent training is never trusted.
 - Never invent or output placeholder contact details such as example.com emails or demo phone numbers
 - If services are clearly listed, name them directly
 - Preserve business names, service names, URLs, addresses, emails, and phone numbers exactly as provided
@@ -401,6 +406,58 @@ export function getReplyRepairIssues(reply, language) {
   return issues;
 }
 
+function extractTrustedFactText(context = "") {
+  const text = cleanText(context);
+  const marker = "Most relevant website excerpts:";
+  const markerIndex = text.indexOf(marker);
+  return markerIndex === -1 ? text : text.slice(markerIndex + marker.length);
+}
+
+function hasTrustedPricingEvidence(context = "") {
+  const normalized = extractTrustedFactText(context).toLowerCase();
+  return /(\$|€|£|ft\b|huf\b|usd\b|eur\b|\b\d+(?:[.,]\d+)?\s*(?:dollars?|eur|euros?|forint|huf|usd|ft)\b|\bpricing starts\b|\bprice starts\b|\bfrom\s+\d+\b|\bstarting at\b|\bfixed pricing\b|\bár\b|\bárak\b|\bára\b)/i.test(normalized);
+}
+
+function hasTrustedServiceEvidence(context = "") {
+  const normalized = extractTrustedFactText(context).toLowerCase();
+  if (/services or offers mentioned on the site:\s*[^\n.]+/i.test(context)) {
+    return true;
+  }
+
+  return /(service|services|offer|offers|we provide|provides|specializes in|repairs?|installation|maintenance|consulting|booking|webshop|weboldal|szolgáltatás|szolgáltatások|kínál)/i.test(normalized);
+}
+
+function replyContainsPriceAmount(reply = "") {
+  return /(\$|€|£)\s?\d+|\b\d+(?:[.,]\d+)?\s?(?:dollars?|eur|euros?|usd|huf|forint|ft)\b|\b\d+\s?(?:\/|per)\s?(?:hour|hr|month|visit|project)\b/i.test(cleanText(reply));
+}
+
+function replyClaimsSpecificServices(reply = "") {
+  const normalized = cleanText(reply).toLowerCase();
+  return /\b(offer|offers|provide|provides|services include|can help with|specializes in|repair|installation|maintenance|consulting|design|development|cleaning|plumbing|booking)\b/i.test(normalized);
+}
+
+export function getFactualReplyGuardrailIssues({
+  reply = "",
+  userMessage = "",
+  history = [],
+  businessContext = "",
+  approvedAnswersPrompt = "",
+} = {}) {
+  const issues = [];
+  const trustedContext = [businessContext, approvedAnswersPrompt].map((value) => cleanText(value)).filter(Boolean).join("\n\n");
+  const intent = detectUserIntent(userMessage, history);
+
+  if (intent === "pricing" && !hasTrustedPricingEvidence(trustedContext) && replyContainsPriceAmount(reply)) {
+    issues.push("reply invents a price that is not present in approved answers or business context");
+  }
+
+  if (intent === "services" && !hasTrustedServiceEvidence(trustedContext) && replyClaimsSpecificServices(reply)) {
+    issues.push("reply invents a service that is not present in approved answers or business context");
+  }
+
+  return issues;
+}
+
 export function buildBusinessReplyRepairPrompt(language) {
   return `Rewrite the reply so it sounds like a smart front-desk assistant.
 - Reply in ${language}; this language was selected from the customer's latest message unless the customer explicitly asked for another language
@@ -418,6 +475,9 @@ export function buildBusinessReplyRepairPrompt(language) {
 - Vary the phrasing so it feels conversational and not formulaic
 - Remove generic filler like "Based on the information provided" or "It seems that"
 - If the website content is missing the requested detail, say that plainly instead of softening it with vague phrasing
+- Never invent prices, services, availability, policies, guarantees, timelines, discounts, or legal claims
+- If the reply contains a price, service, policy, or availability detail that is not in the approved answers or business context, remove it and say that detail is not available
+- Prefer owner-approved answers over weaker website context when they match the visitor's question
 - Keep any next-step suggestion short, natural, and helpful
 - If the reply can gently move the user toward a useful action, do it without sounding salesy or pushy
 - If contact details are available, present them clearly instead of saying only to contact the business directly

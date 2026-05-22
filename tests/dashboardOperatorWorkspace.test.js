@@ -412,7 +412,7 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
   assert.match(markup, /AI handled/);
   assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
-  assert.match(markup, /Assistant readiness/);
+  assert.match(markup, /Front Desk readiness/);
   assert.match(markup, /Source activity/);
   assert.match(markup, /not available yet/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
@@ -463,7 +463,7 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
   assert.match(markup, /data-action="verify-install"/);
   assert.match(markup, /https:\/\/app\.example\.com\/embed\.js/);
   assert.match(markup, /data-install-id=(?:"|&quot;)install-1(?:"|&quot;)/);
-  assert.match(markup, /Full-page assistant/);
+  assert.match(markup, /Front Desk page/);
   assert.match(markup, /https:\/\/app\.example\.com\/a\/public-agent-key/);
   assert.match(markup, /data-action="copy-full-page-url"/);
   assert.match(markup, /assistant-embed\.js/);
@@ -475,7 +475,7 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
   assert.match(markup, /QR code/);
   assert.match(markup, /data-full-page-qr-preview/);
   assert.match(markup, /data-action="download-full-page-qr"/);
-  assert.match(markup, /Scan tracking is not available yet/);
+  assert.doesNotMatch(markup, /Scan tracking|QR scans|scans today/i);
   assert.match(markup, /Status/);
   assert.match(markup, /Domain status/);
   assert.match(markup, /Resources/);
@@ -557,7 +557,7 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
         },
         page: {
           key: "page",
-          label: "Full-page assistant",
+          label: "Front Desk page",
           conversationCount: 3,
           messageCount: 7,
           visitorQuestionCount: 3,
@@ -586,7 +586,7 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
 
   assert.match(markup, /Entry point \/ source breakdown/);
   assert.match(markup, /Website widget/);
-  assert.match(markup, /Full-page assistant/);
+  assert.match(markup, /Front Desk page/);
   assert.match(markup, /Legacy\/unknown/);
   assert.match(markup, /Performance by source/);
   assert.doesNotMatch(markup, /QR scans/);
@@ -600,7 +600,7 @@ test("dashboard V2 Analytics source cards render real widget, page, and legacy c
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /Full-page assistant/);
+  assert.match(emptyMarkup, /Front Desk page/);
   assert.doesNotMatch(emptyMarkup, /QR scans/);
   assert.doesNotMatch(emptyMarkup, /QR code/);
   assert.doesNotMatch(emptyMarkup, /QR scan analytics unavailable/);
@@ -999,7 +999,7 @@ test("English dashboard still renders the supported dashboard UI in English", ()
 
   assert.match(settings, /Workspace preferences/);
   assert.match(settings, /Dashboard language/);
-  assert.match(install, /View website instructions/);
+  assert.match(install, /View Front Desk page setup/);
   assert.match(analytics, /Conversations over time/);
   assert.equal(harness.t("settings.title"), "Settings");
 });
@@ -1594,9 +1594,9 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
   assert.doesNotMatch(overview, /data-target-id="knowledge-improvement"/);
   assert.match(overview, /Review replies/);
   assert.match(overview, /View analytics/);
-  assert.match(overview, /Assistant readiness/);
-  assert.match(overview, /Website knowledge/);
-  assert.match(overview, /Website install/);
+  assert.match(overview, /Front Desk readiness/);
+  assert.match(overview, /Public Front Desk page/);
+  assert.match(overview, /Distribution channel selected/);
 
   const sparseOverview = harness.buildOverviewPanel(
     { installId: "install-1", installStatus: { state: "seen_recently", label: "Seen recently" } },
@@ -1779,10 +1779,10 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(general, /data-dashboard-theme-choice/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
-  assert.doesNotMatch(general, /Widget purpose|business-summary|assistant-welcome|Website knowledge/);
+  assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);
 
   assert.match(frontDesk, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
-  assert.match(frontDesk, /Widget purpose/);
+  assert.match(frontDesk, /Front Desk purpose/);
   assert.match(frontDesk, /assistant-welcome/);
   assert.match(frontDesk, /assistant-tone/);
   assert.match(frontDesk, /settings-primary-color/);
@@ -1798,7 +1798,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(businessProfile, /Save Business Profile/);
   assert.match(businessProfile, /data-form-kind="business-context"/);
   assert.match(businessProfile, /data-form-kind="customize"/);
-  assert.doesNotMatch(businessProfile, /assistant-welcome|assistant-tone|Widget purpose|Launcher text/);
+  assert.doesNotMatch(businessProfile, /assistant-welcome|assistant-tone|Front Desk purpose|Launcher text/);
 
   assert.match(accountBilling, /<h2 class="settings-shell-page-title">Account &amp; Billing<\/h2>|<h2 class="settings-shell-page-title">Account & Billing<\/h2>/);
   assert.match(accountBilling, /Billing and usage/);
@@ -1976,7 +1976,7 @@ test("today workspace render uses a dominant queue and support rail shell", () =
   assert.doesNotMatch(overviewPanel, /Vonza needs stronger support context/);
   assert.doesNotMatch(overviewPanel, /Finish the live launch/);
   assert.match(overviewPanel, /Recent activity/);
-  assert.match(overviewPanel, /Assistant readiness/);
+  assert.match(overviewPanel, /Front Desk readiness/);
   assert.match(overviewPanel, /Source activity/);
   assert.match(overviewPanel, /What to improve next/);
   assert.doesNotMatch(overviewPanel, /Today Copilot/);
@@ -2569,10 +2569,10 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /Recently published improvements/);
   assert.match(panel, /Published answers Front Desk can use when visitors ask similar questions/);
   assert.match(panel, /Open install/);
-  assert.match(panel, /Widget status/);
-  assert.match(panel, /Full-page assistant URL/);
+  assert.match(panel, /Optional website bubble/);
+  assert.match(panel, /Front Desk page link/);
   assert.match(panel, /QR code/);
-  assert.match(panel, /Verification/);
+  assert.match(panel, /distribution channels and verification/);
   assert.doesNotMatch(panel, /display_mode/);
   assert.doesNotMatch(panel, /primaryCtaMode/);
   assert.match(panel, /frontdesk-polished-panel frontdesk-practice-panel/);
@@ -2668,7 +2668,7 @@ test("front desk improvements hide empty notes and maps page and embedded source
   }, "improvements");
 
   assert.match(noNoteMarkup, /Reason: Incorrect/);
-  assert.match(noNoteMarkup, /Assistant source: Full-page assistant/);
+  assert.match(noNoteMarkup, /Assistant source: Front Desk page/);
   assert.doesNotMatch(noNoteMarkup, /Note:/);
   assert.doesNotMatch(noNoteMarkup, /\/assistant\/agent-key|displayMode|sourceRoute/);
   assert.match(embeddedMarkup, /Reason: Did not answer/);
@@ -3333,7 +3333,7 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
         },
         page: {
           key: "page",
-          label: "Full-page assistant",
+          label: "Front Desk page",
           conversationCount: 1,
           messageCount: 2,
           visitorQuestionCount: 1,
@@ -3364,7 +3364,7 @@ test("analytics renders assistant source breakdown for widget, page, and legacy 
   assert.match(analyticsPanel, /Entry point \/ source breakdown/);
   assert.match(analyticsPanel, /Performance by source/);
   assert.match(analyticsPanel, /Website widget/);
-  assert.match(analyticsPanel, /Full-page assistant/);
+  assert.match(analyticsPanel, /Front Desk page/);
   assert.match(analyticsPanel, /Legacy\/unknown/);
   assert.match(analyticsPanel, /Conversion rate/);
   assert.match(analyticsPanel, /AI handled/);
@@ -3390,7 +3390,7 @@ test("analytics assistant source shows clean full-page empty state", () => {
         },
         page: {
           key: "page",
-          label: "Full-page assistant",
+          label: "Front Desk page",
           conversationCount: 0,
           messageCount: 0,
         },
@@ -3414,7 +3414,7 @@ test("analytics assistant source shows clean full-page empty state", () => {
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(analyticsPanel, /Full-page assistant/);
+  assert.match(analyticsPanel, /Front Desk page/);
   assert.match(analyticsPanel, /Not tracked/);
   assert.doesNotMatch(analyticsPanel, /Legacy\/unknown/);
 });
@@ -3468,12 +3468,12 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /Identified/);
   assert.match(contactsPanel, /Guest visitor/);
   assert.match(contactsPanel, /Website widget/);
-  assert.match(contactsPanel, /Full-page assistant/);
-  assert.match(contactsPanel, /QR touchpoint/);
+  assert.match(contactsPanel, /Front Desk page/);
+  assert.match(contactsPanel, /QR \/ direct link/);
   assert.match(contactsPanel, /data-contact-identity="identified"/);
   assert.match(contactsPanel, /data-contact-identity="guest"/);
   assert.match(contactsPanel, /data-contact-source-labels="Website widget"/);
-  assert.match(contactsPanel, /data-contact-source-labels="Full-page assistant\|QR touchpoint"/);
+  assert.match(contactsPanel, /data-contact-source-labels="Front Desk page\|QR \/ direct link"/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /Conversation summary/);
@@ -3639,25 +3639,25 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
-  assert.match(markup, />Website widget</);
-  assert.match(markup, />Full-page assistant</);
-  assert.match(markup, />QR code</);
+  assert.match(markup, />Website widget bubble</);
+  assert.match(markup, />Front Desk page</);
+  assert.match(markup, />QR \/ direct link</);
   assert.match(markup, /id="install-panel-widget"/);
-  assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page" hidden/);
+  assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page"/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
-  assert.match(widgetPanel, /Website widget code/);
+  assert.match(widgetPanel, /Website widget bubble code/);
   assert.match(widgetPanel, /data-action="copy-install"/);
-  assert.match(widgetPanel, /Paste this once into your site header\./);
+  assert.match(widgetPanel, /Paste this once into your site header only when you want the optional bubble\./);
   assert.match(widgetPanel, /Detected install status/);
   assert.match(widgetPanel, /example\.com/);
   assert.match(widgetPanel, /data-action="verify-install"/);
-  assert.match(widgetPanel, /Test front desk/);
+  assert.match(widgetPanel, /Test website bubble/);
   assert.doesNotMatch(widgetPanel, /full-page-assistant-iframe|Iframe snippet|data-full-page-qr-preview|Target URL/);
-  assert.match(pagePanel, /Choose how customers should open the assistant/);
-  assert.match(pagePanel, /Shareable link/);
+  assert.match(pagePanel, /Choose how customers should open the AI Front Desk page/);
+  assert.match(pagePanel, /Front Desk page link/);
   assert.match(pagePanel, /Use this for QR codes, buttons, menus, emails, and direct links\./);
-  assert.match(pagePanel, /Section embed/);
-  assert.match(pagePanel, /Place the assistant inside part of an existing page\./);
+  assert.match(pagePanel, /Smart embed/);
+  assert.match(pagePanel, /Place the Front Desk inside part of an existing page\./);
   assert.match(pagePanel, /Dedicated page embed/);
   assert.match(pagePanel, /Use this when Front Desk is the main content of a page on your website\./);
   assert.match(pagePanel, /True page takeover/);
@@ -3695,7 +3695,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(pagePanel, /assistant-embed\.js/);
   assert.match(pagePanel, /mode=page&amp;embedded=1&amp;size=standard|mode=page&embedded=1&size=standard/);
   assert.match(pagePanel, /min-height:640px;border:0;border-radius:18px;overflow:hidden/);
-  assert.match(pagePanel, /Dedicated page embed makes the assistant the page body below your site header/);
+  assert.match(pagePanel, /Dedicated page embed makes the Front Desk the page body below your site header/);
   assert.match(pagePanel, /Use this on a blank assistant page\. It may hide the page footer and remove extra page spacing\./);
   assert.match(pagePanel, /Raw iframe backgrounds stay inside the iframe\. Use the smart dedicated page embed when you want the background to fill the page area\./);
   assert.match(pagePanel, /height:calc\(100vh - 120px\);min-height:760px;border:0;display:block/);
@@ -3707,14 +3707,14 @@ test("install section stays focused on install methods and verification", () => 
   assert.doesNotMatch(pagePanel, /full-width wrapper snippet/);
   assert.doesNotMatch(pagePanel, /Use <code>size=compact<\/code>|Use <code>surface=flat<\/code>/);
   assert.doesNotMatch(pagePanel, /min-height:520px/);
-  assert.match(pagePanel, /Customize full-page assistant/);
-  assert.doesNotMatch(pagePanel, /install-script-output|Website widget code|Allowed domains/);
+  assert.match(pagePanel, /Customize Front Desk page/);
+  assert.doesNotMatch(pagePanel, /install-script-output|Website widget bubble code|Allowed domains/);
   assert.match(qrPanel, /data-full-page-qr-preview/);
   assert.match(qrPanel, /Download QR code/);
-  assert.match(qrPanel, /Copy full-page URL/);
-  assert.match(qrPanel, /Target URL/);
+  assert.match(qrPanel, /Copy Front Desk page link/);
+  assert.match(qrPanel, /Front Desk page link/);
   assert.match(qrPanel, /http:\/\/127\.0\.0\.1:3000\/a\/agent-key/);
-  assert.match(qrPanel, /Scan tracking is not available yet\./);
+  assert.match(qrPanel, /opens the same customer-facing Front Desk page link/);
   assert.doesNotMatch(qrPanel, /\d+\s+scans|scan rate|scans today/i);
   assert.doesNotMatch(markup, /You are live/);
   assert.doesNotMatch(markup, /weak answers, leads, and follow-up needs/);
@@ -3762,7 +3762,7 @@ test("install panel shows real status, progress, and resources without unrelated
   );
 
   assert.match(panel, />Install</);
-  assert.match(panel, /Add Vonza to your website, assistant page, or QR touchpoint\./);
+  assert.match(panel, /Publish your AI Front Desk page through WordPress, smart embed, QR\/direct link, or the optional website widget bubble\./);
   assert.match(panel, /data-action="verify-install"/);
   assert.match(panel, /data-install-method-jump="widget"/);
   assert.match(panel, /Installation status/);
@@ -3771,19 +3771,19 @@ test("install panel shows real status, progress, and resources without unrelated
   assert.match(panel, /Detected domain/);
   assert.match(panel, /Last seen/);
   assert.match(panel, /https:\/\/example\.com\/contact/);
-  assert.match(panel, /Full-page assistant/);
-  assert.match(panel, /Ready to share/);
+  assert.match(panel, /Front Desk page/);
+  assert.match(panel, /Your Front Desk page is live/);
   assert.match(panel, /QR code/);
   assert.match(panel, /Downloadable/);
   assert.match(panel, /Setup progress/);
-  assert.match(panel, /Assistant created/);
-  assert.match(panel, /Website knowledge imported/);
-  assert.match(panel, /Widget configured/);
-  assert.match(panel, /Install detected/);
+  assert.match(panel, /Front Desk created/);
+  assert.match(panel, /Training and knowledge ready/);
+  assert.match(panel, /Public Front Desk page enabled/);
+  assert.match(panel, /Distribution channel selected/);
   assert.match(panel, /First test conversation/);
-  assert.match(panel, /Full-page assistant customized/);
-  assert.match(panel, /Copy widget instructions/);
-  assert.match(panel, /Customize full-page assistant/);
+  assert.match(panel, /Front Desk customized/);
+  assert.match(panel, /Copy Front Desk page link/);
+  assert.match(panel, /Customize Front Desk page/);
   assert.doesNotMatch(panel, /Open Home|Open Analytics|Customers dashboard|Front Desk inbox|Settings content/);
   assert.doesNotMatch(panel, /\d+\s+scans|scan rate|scans today/i);
 });
@@ -4438,7 +4438,7 @@ test("invalid nested dashboard hashes fall back without breaking default UI stat
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "widget");
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "page");
 });
 
 test("dashboard refresh buttons use the full live reload path", () => {
