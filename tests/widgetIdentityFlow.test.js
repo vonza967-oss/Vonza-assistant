@@ -400,6 +400,10 @@ function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function waitForCanvasTransition() {
+  return new Promise((resolve) => setTimeout(resolve, 380));
+}
+
 class TestMediaRecorder {
   constructor(stream, options = {}) {
     this.stream = stream;
@@ -2726,7 +2730,9 @@ test("canvas answer state switches to compact workspace, hides topic chips, and 
   assert.ok(answer);
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), false);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-transitioning"), true);
   assert.equal(harness.elements.get("composer-shell").hidden, false);
+  await waitForCanvasTransition();
   assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.equal(harness.elements.get("quick-replies").innerHTML, "");
   const renderedAnswerBody = answer.innerHTML.match(/<div class="vonza-message-body">([\s\S]*?)<\/div>/)?.[1] || "";
@@ -2829,6 +2835,10 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(script, /embedded-size-\$\{size\}/);
   assert.match(script, /embedded-layout-\$\{EMBEDDED_LAYOUT\}/);
   assert.match(script, /vonza-page-layout-canvas/);
+  assert.match(script, /CANVAS_TRANSITION_MS = 340/);
+  assert.match(script, /vonza-canvas-transitioning/);
+  assert.match(script, /function setCanvasAnsweringState/);
+  assert.match(script, /Front Desk is answering\.\.\./);
   assert.match(styles, /embedded-size-compact[\s\S]*--embedded-card-min-height: 520px/);
   assert.match(styles, /--embedded-card-min-height: 640px/);
   assert.match(styles, /embedded-size-tall[\s\S]*--embedded-card-min-height: 720px/);
@@ -2878,6 +2888,11 @@ test("embedded page mode defaults to standard size and supports compact, tall, a
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.chat-feed[\s\S]*max-height: calc\(100dvh - 186px\)[\s\S]*overflow-y: auto/);
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.composer-shell[\s\S]*margin: 0 auto[\s\S]*padding-bottom: max\(0px, env\(safe-area-inset-bottom\)\)/);
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.quick-replies[\s\S]*display: none !important/);
+  assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.quick-replies\.is-exiting[\s\S]*opacity: 0[\s\S]*transform: translateY\(-8px\) scale\(0\.98\)/);
+  assert.match(styles, /canvasAnswerWorkspaceIn/);
+  assert.match(styles, /canvasAnswerControlsIn/);
+  assert.match(styles, /canvasComposerSettle/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*transition-duration: 0\.001ms !important/);
   assert.match(styles, /embedded-layout-canvas\.vonza-canvas-active \.page-identity-legal[\s\S]*display: none/);
   assert.match(styles, /vonza-mode-page \.page-context-panel[\s\S]*text-align: center/);
   assert.match(styles, /vonza-mode-page \.page-action-list[\s\S]*justify-content: center/);
@@ -3607,8 +3622,145 @@ test("clicking a canvas prompt opens the answer workspace with the selected topi
   assert.match(renderedChat, /Pricing depends on the scope/);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("message user")).length, 1);
   assert.equal(chat.children.filter((child) => String(child.className || "").includes("canvas-answer-message")).length, 1);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-transitioning"), true);
+  assert.equal(harness.elements.get("quick-replies").classList.contains("is-exiting"), true);
+  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/>Pricing</g) || []).length, 1);
+  await waitForCanvasTransition();
   assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.equal(harness.elements.get("quick-replies").innerHTML, "");
+});
+
+test("canvas full embedded page mode renders a subtle answering state while chat is pending", async () => {
+  let resolveChat;
+  const chatPending = new Promise((resolve) => {
+    resolveChat = resolve;
+  });
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&embedded=1&size=full&surface=flat&layout=canvas",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: { assistantName: "Acme Assistant" },
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        return chatPending;
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  harness.elements.get("input").value = "What services do you offer?";
+  const sendPromise = harness.hooks.sendMessage();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const chat = harness.elements.get("chat");
+  const loading = chat.children.find((child) => String(child.className || "").includes("canvas-answer-loading"));
+  assert.ok(loading);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-answering"), true);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.match(loading.innerHTML, /Front Desk is answering\.\.\./);
+  assert.match(loading.innerHTML, /typing-dots/);
+
+  resolveChat({
+    ok: true,
+    async json() {
+      return {
+        reply: "We offer strategy, design, and launch support.",
+        visitorIdentity: { mode: "guest", email: "", name: "" },
+      };
+    },
+  });
+  await sendPromise;
+
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-answering"), false);
+  assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot canvas-answer-message")), true);
+});
+
+test("normal widget typing state stays unchanged by canvas transition polish", async () => {
+  let resolveChat;
+  const chatPending = new Promise((resolve) => {
+    resolveChat = resolve;
+  });
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1", name: "Acme Studio" },
+              widgetConfig: { assistantName: "Acme Assistant" },
+            };
+          },
+        };
+      }
+
+      if (String(input).endsWith("/chat")) {
+        return chatPending;
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.elements.get("input").value = "Hello";
+  const sendPromise = harness.hooks.sendMessage();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), false);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-answering"), false);
+  assert.equal(harness.elements.get("chat").children.some((child) => String(child.className || "").includes("canvas-answer-loading")), false);
+  assert.doesNotMatch(renderedChat, /Front Desk is answering/);
+
+  resolveChat({
+    ok: true,
+    async json() {
+      return {
+        reply: "Hello. How can I help?",
+        visitorIdentity: { mode: "guest", email: "", name: "" },
+      };
+    },
+  });
+  await sendPromise;
 });
 
 test("canvas answer contact action opens the compact inline contact form", async () => {
@@ -3843,8 +3995,13 @@ test("canvas full embedded page mode keeps empty state clean and renders message
 
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), false);
   assert.equal(harness.documentElement.classList.contains("vonza-canvas-active"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-transitioning"), true);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message user")), true);
   assert.equal(chat.children.some((child) => String(child.className || "").includes("message bot canvas-answer-message")), true);
+  assert.equal(harness.elements.get("composer-shell").hidden, false);
+  assert.equal(harness.elements.get("quick-replies").classList.contains("is-exiting"), true);
+  assert.equal((harness.elements.get("quick-replies").innerHTML.match(/quick-reply-chip/g) || []).length, 4);
+  await waitForCanvasTransition();
   assert.equal(harness.elements.get("quick-replies").hidden, true);
   assert.equal(harness.elements.get("quick-replies").innerHTML, "");
   const renderedChat = chat.children.map((child) => child.innerHTML).join("\n");

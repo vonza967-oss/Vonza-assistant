@@ -72,6 +72,8 @@ const DEFAULT_WIDGET_CONFIG = {
   secondaryColor: "#7c4dff",
   themeMode: "dark",
 };
+const CANVAS_TRANSITION_MS = 340;
+const CANVAS_MOBILE_TRANSITION_MS = 260;
 const DEFAULT_VOICE_CONFIG = Object.freeze({
   voiceInputEnabled: false,
   spokenRepliesEnabled: false,
@@ -252,6 +254,9 @@ const voiceReplyAudioCache = new Map();
 let lastLeadReferenceMessage = "";
 let quickRepliesDismissed = false;
 let pendingCanvasTopicLabel = "";
+let canvasTransitionTimer = null;
+let canvasQuickRepliesDismissTimer = null;
+let canvasQuickRepliesDismissing = false;
 const sentTelemetryKeys = new Set();
 const leadCapturePromptShownKeys = new Set();
 const submittedReplyFeedbackKeys = new Set();
@@ -335,6 +340,19 @@ function isMobileViewport() {
   }
 
   return Number(window.innerWidth || 0) > 0 && Number(window.innerWidth || 0) <= 720;
+}
+
+function prefersReducedMotion() {
+  return typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function getCanvasTransitionDuration() {
+  if (prefersReducedMotion()) {
+    return 0;
+  }
+
+  return isMobileViewport() ? CANVAS_MOBILE_TRANSITION_MS : CANVAS_TRANSITION_MS;
 }
 
 function shouldShowPageTitle() {
@@ -1726,10 +1744,22 @@ function renderQuickReplies() {
   container.hidden = !showReplies;
 
   if (!showReplies) {
+    if (isCanvasEmbeddedPageMode() && canvasQuickRepliesDismissing) {
+      return;
+    }
+
+    if (isCanvasEmbeddedPageMode() && container.innerHTML && dismissCanvasQuickReplies()) {
+      return;
+    }
+
     container.innerHTML = "";
     return;
   }
 
+  clearTimeout(canvasQuickRepliesDismissTimer);
+  canvasQuickRepliesDismissing = false;
+  container.classList.remove("is-exiting");
+  container.removeAttribute("aria-hidden");
   container.innerHTML = getQuickReplyItems().map((item) => `
     <button
       class="quick-reply-chip"
@@ -1740,6 +1770,32 @@ function renderQuickReplies() {
   `).join("");
 
   queueEmbeddedHeightUpdate();
+}
+
+function dismissCanvasQuickReplies() {
+  const container = getQuickReplies();
+  const duration = getCanvasTransitionDuration();
+
+  if (!container || !container.innerHTML || duration <= 0) {
+    return false;
+  }
+
+  clearTimeout(canvasQuickRepliesDismissTimer);
+  canvasQuickRepliesDismissing = true;
+  container.hidden = false;
+  container.classList.add("is-exiting");
+  container.setAttribute("aria-hidden", "true");
+
+  canvasQuickRepliesDismissTimer = setTimeout(() => {
+    canvasQuickRepliesDismissing = false;
+    container.classList.remove("is-exiting");
+    container.removeAttribute("aria-hidden");
+    container.hidden = true;
+    container.innerHTML = "";
+    queueEmbeddedHeightUpdate();
+  }, duration);
+
+  return true;
 }
 
 function hasCanvasVisibleThread() {
@@ -1753,16 +1809,50 @@ function hasCanvasVisibleThread() {
 
 function updateCanvasConversationState() {
   if (!isCanvasEmbeddedPageMode()) {
-    document.documentElement.classList.remove("vonza-canvas-empty", "vonza-canvas-active");
-    document.body?.classList.remove("vonza-canvas-empty", "vonza-canvas-active");
+    document.documentElement.classList.remove("vonza-canvas-empty", "vonza-canvas-active", "vonza-canvas-transitioning", "vonza-canvas-answering");
+    document.body?.classList.remove("vonza-canvas-empty", "vonza-canvas-active", "vonza-canvas-transitioning", "vonza-canvas-answering");
     return;
   }
 
+  const wasEmpty = document.documentElement.classList.contains("vonza-canvas-empty");
+  const wasActive = document.documentElement.classList.contains("vonza-canvas-active");
   const hasVisibleThread = hasCanvasVisibleThread();
   document.documentElement.classList.toggle("vonza-canvas-empty", !hasVisibleThread);
   document.documentElement.classList.toggle("vonza-canvas-active", hasVisibleThread);
   document.body?.classList.toggle("vonza-canvas-empty", !hasVisibleThread);
   document.body?.classList.toggle("vonza-canvas-active", hasVisibleThread);
+
+  if (hasVisibleThread && wasEmpty && !wasActive) {
+    startCanvasStateTransition();
+  }
+}
+
+function startCanvasStateTransition() {
+  const duration = getCanvasTransitionDuration();
+
+  clearTimeout(canvasTransitionTimer);
+
+  if (duration <= 0) {
+    document.documentElement.classList.remove("vonza-canvas-transitioning");
+    document.body?.classList.remove("vonza-canvas-transitioning");
+    return;
+  }
+
+  document.documentElement.classList.add("vonza-canvas-transitioning");
+  document.body?.classList.add("vonza-canvas-transitioning");
+  canvasTransitionTimer = setTimeout(() => {
+    document.documentElement.classList.remove("vonza-canvas-transitioning");
+    document.body?.classList.remove("vonza-canvas-transitioning");
+  }, duration);
+}
+
+function setCanvasAnsweringState(isAnswering) {
+  if (!isCanvasEmbeddedPageMode()) {
+    return;
+  }
+
+  document.documentElement.classList.toggle("vonza-canvas-answering", isAnswering);
+  document.body?.classList.toggle("vonza-canvas-answering", isAnswering);
 }
 
 function updateComposerAvailability() {
@@ -3259,9 +3349,17 @@ function appendMessage(chat, role, text, options = {}) {
     && !options.typing
     && !options.error
     && trimText(text);
-  wrapper.className = `message ${role}${options.typing ? " typing" : ""}${isCanvasAnswer ? " canvas-answer-message" : ""}`;
+  const isCanvasLoading = isCanvasEmbeddedPageMode()
+    && role === "bot"
+    && options.typing;
+  wrapper.className = `message ${role}${options.typing ? " typing" : ""}${isCanvasAnswer ? " canvas-answer-message" : ""}${isCanvasLoading ? " canvas-answer-loading" : ""}`;
   if (options.error) {
     wrapper.classList.add("error");
+  }
+  if (isCanvasLoading) {
+    wrapper.setAttribute("role", "status");
+    wrapper.setAttribute("aria-live", "polite");
+    setCanvasAnsweringState(true);
   }
   const voiceMessageKey =
     role === "bot" && !options.typing && !options.error && trimText(text)
@@ -3275,7 +3373,7 @@ function appendMessage(chat, role, text, options = {}) {
   const avatar = role === "user" ? "You" : getAssistantMark();
   const label = role === "user" ? "You" : widgetConfig.assistantName;
   const body = options.typing
-    ? `<div class="typing-dots"><span></span><span></span><span></span></div>`
+    ? `${isCanvasLoading ? '<span class="canvas-answering-text">Front Desk is answering...</span>' : ""}<div class="typing-dots"><span></span><span></span><span></span></div>`
     : `<div class="vonza-message-body">${
         role === "bot"
           ? formatAssistantMessageHtml(text)
@@ -3298,7 +3396,9 @@ function appendMessage(chat, role, text, options = {}) {
   `;
 
   chat.appendChild(wrapper);
-  chat.scrollTop = chat.scrollHeight;
+  chat.scrollTop = isCanvasEmbeddedPageMode() && (isCanvasAnswer || isCanvasLoading)
+    ? 0
+    : chat.scrollHeight;
   updateCanvasConversationState();
   queueEmbeddedHeightUpdate();
   return wrapper;
@@ -3447,6 +3547,7 @@ async function sendMessage(messageOverride = "") {
     const data = await res.json();
 
     loading.remove();
+    setCanvasAnsweringState(false);
 
     if (!res.ok) {
       console.error("Vonza assistant backend error:", data.error || "Request failed");
@@ -3507,6 +3608,7 @@ async function sendMessage(messageOverride = "") {
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
     loading.remove();
+    setCanvasAnsweringState(false);
     appendMessage(chat, "bot", "Error connecting to server", { error: true });
     setComposerStatus("Connection was interrupted. Try again when the assistant is ready.");
   } finally {

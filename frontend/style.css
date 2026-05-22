@@ -2631,6 +2631,8 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
   --canvas-status-top: calc(var(--canvas-title-offset) + clamp(8px, 1.5dvh, 18px));
   --canvas-status-edge: clamp(0px, 3vw, 48px);
   --canvas-status-offset: clamp(330px, 31vw, 440px);
+  --canvas-transition-duration: 340ms;
+  --canvas-transition-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --embedded-header-padding: 0;
   --embedded-feed-padding: 0;
   --embedded-composer-padding: 0;
@@ -2685,6 +2687,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ap
   gap: var(--canvas-title-gap);
   padding: var(--embedded-card-padding);
   background: transparent;
+  transition:
+    gap var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .app-shell::before,
@@ -2772,6 +2777,12 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   align-content: start;
   gap: 10px;
   padding-top: var(--canvas-title-offset);
+  transform-origin: top center;
+  transition:
+    gap var(--canvas-transition-duration) var(--canvas-transition-ease),
+    opacity var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding-top var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-title-hidden .page-assistant-hero:not([hidden]),
@@ -2785,6 +2796,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   justify-items: center;
   gap: 12px;
   text-align: center;
+  transform-origin: top center;
+  transition:
+    gap var(--canvas-transition-duration) var(--canvas-transition-ease),
+    opacity var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-context-panel h2,
@@ -2797,6 +2813,13 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   font-weight: 500;
   line-height: 0.96;
   letter-spacing: -0.04em;
+  transform-origin: top center;
+  transition:
+    color var(--canvas-transition-duration) var(--canvas-transition-ease),
+    font-size var(--canvas-transition-duration) var(--canvas-transition-ease),
+    line-height var(--canvas-transition-duration) var(--canvas-transition-ease),
+    letter-spacing var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .page-context-panel h2,
@@ -2842,6 +2865,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   margin-top: 0;
   width: auto;
   max-width: min(34vw, 260px);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row > span,
@@ -2943,6 +2971,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ch
   box-shadow: none;
   backdrop-filter: none;
   overflow: visible;
+  transition:
+    padding-top var(--canvas-transition-duration) var(--canvas-transition-ease),
+    width var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .chat-container,
@@ -2968,6 +2999,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .wi
   min-height: 0;
   height: 100%;
   gap: 18px;
+  transition:
+    gap var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding-bottom var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .widget-phase-chat,
@@ -2983,6 +3017,12 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ch
   background: transparent;
   padding: 0 0 10px;
   overflow-y: auto;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .app-shell,
@@ -2998,11 +3038,13 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   align-content: start;
   gap: 6px;
   padding-top: 0;
+  transform: translateY(-6px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel {
   gap: 4px;
+  transform: scale(0.985);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel h2,
@@ -3010,6 +3052,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   font-size: clamp(1.18rem, 2.2vw, 1.8rem);
   line-height: 1.08;
   letter-spacing: 0;
+  transform: translateY(-2px) scale(0.98);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel #page-assistant-subtitle,
@@ -3023,6 +3066,8 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   justify-content: center;
   width: auto;
   max-width: 100%;
+  opacity: 0.92;
+  transform: translateY(-2px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-trust-row > span,
@@ -3055,11 +3100,14 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   padding: 0 4px 6px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  animation: canvasAnswerWorkspaceIn var(--canvas-transition-duration) var(--canvas-transition-ease) both;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .chat-feed,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .chat-feed {
   display: none;
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message,
@@ -3081,6 +3129,43 @@ html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .me
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message {
   width: min(100%, 760px);
   align-self: center;
+  animation: canvasAnswerWorkspaceIn var(--canvas-transition-duration) var(--canvas-transition-ease) both;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading {
+  width: min(100%, 760px);
+  align-self: center;
+  opacity: 0.86;
+  animation: canvasAnswerWorkspaceIn var(--canvas-transition-duration) var(--canvas-transition-ease) both;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .avatar,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .avatar,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .message-label,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .message-label {
+  display: none;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .bubble,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .message.canvas-answer-loading .bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+  min-width: 0;
+  padding: 8px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #667085;
+  box-shadow: none;
+}
+
+.canvas-answering-text {
+  color: #667085;
+  font-size: 0.84rem;
+  font-weight: 760;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .message.canvas-answer-message .avatar,
@@ -3122,7 +3207,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .ca
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-message .vonza-message-body,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-message .vonza-message-body,
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-topic,
-html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-topic {
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answer-topic,
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answering-text,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.full-page-design-text-light .canvas-answering-text {
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -3131,6 +3218,12 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.ful
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 18px;
+  animation: canvasAnswerControlsIn 260ms var(--canvas-transition-ease) 120ms both;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-answer-message .reply-feedback,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-answer-message .reply-feedback {
+  animation: canvasAnswerControlsIn 260ms var(--canvas-transition-ease) 140ms both;
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .reply-feedback,
@@ -3174,6 +3267,13 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .co
   padding: 0;
   border-top: 0;
   background: transparent;
+  transform: translateY(0);
+  transition:
+    gap var(--canvas-transition-duration) var(--canvas-transition-ease),
+    margin var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding-bottom var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease),
+    width var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .composer-shell,
@@ -3183,6 +3283,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   margin: 0 auto;
   gap: 6px;
   padding-bottom: max(0px, env(safe-area-inset-bottom));
+  transform: translateY(-2px);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-empty .composer-shell,
@@ -3198,6 +3299,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   font-size: 0.86rem;
   line-height: 1.5;
   text-align: center;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--canvas-transition-duration) var(--canvas-transition-ease),
+    transform var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-intro-line:not([hidden]),
@@ -3216,6 +3322,11 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .qu
   gap: 12px;
   padding-bottom: 0;
   overflow-x: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 260ms var(--canvas-transition-ease),
+    transform 260ms var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-reply-chip,
@@ -3241,6 +3352,14 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-replies,
 html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-replies {
   display: none !important;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-replies.is-exiting,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .quick-replies.is-exiting {
+  display: flex !important;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.98);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.full-page-design-chip-soft .quick-reply-chip,
@@ -3276,6 +3395,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .in
   border-color: #d7dce5;
   background: #ffffff;
   box-shadow: 0 20px 52px rgba(15, 23, 42, 0.12);
+  transition:
+    border-radius var(--canvas-transition-duration) var(--canvas-transition-ease),
+    box-shadow var(--canvas-transition-duration) var(--canvas-transition-ease),
+    padding var(--canvas-transition-duration) var(--canvas-transition-ease);
 }
 
 html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .input-area,
@@ -3377,6 +3500,64 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   padding: 12px;
   border-radius: 12px;
   box-shadow: none;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-transitioning.vonza-canvas-active .page-trust-row,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-transitioning.vonza-canvas-active .page-trust-row {
+  animation: canvasStatusSettle var(--canvas-transition-duration) var(--canvas-transition-ease) both;
+}
+
+html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-transitioning.vonza-canvas-active .composer-shell,
+html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-transitioning.vonza-canvas-active .composer-shell {
+  animation: canvasComposerSettle var(--canvas-transition-duration) var(--canvas-transition-ease) both;
+}
+
+@keyframes canvasAnswerWorkspaceIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes canvasAnswerControlsIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes canvasStatusSettle {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 0.92;
+    transform: translateY(-2px) scale(1);
+  }
+}
+
+@keyframes canvasComposerSettle {
+  from {
+    opacity: 0.92;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
 }
 
 @media (min-width: 1100px) {
@@ -3627,6 +3808,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     --canvas-chat-stage-height: clamp(300px, 48dvh, 380px);
     --canvas-status-top: auto;
     --canvas-status-edge: auto;
+    --canvas-transition-duration: 260ms;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .app-shell,
@@ -3645,6 +3827,15 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-context-panel h2,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-context-panel h2 {
     font-size: clamp(2rem, 10vw, 2.5rem);
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-assistant-hero:not([hidden]),
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-assistant-hero:not([hidden]),
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel,
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel h2,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-context-panel h2 {
+    transform: none;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row,
@@ -3695,5 +3886,19 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .pa
     display: block;
     font-size: 0.64rem;
     line-height: 1.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas *,
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas *::before,
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas *::after,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas *,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas *::before,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 }
