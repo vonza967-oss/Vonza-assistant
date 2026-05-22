@@ -44,6 +44,84 @@ function normalizeBooleanEnv(value, fallback = false) {
   return fallback;
 }
 
+function normalizeIntegerEnv(value, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+  const parsed = Number.parseInt(String(value || "").trim(), 10);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(parsed, max));
+}
+
+function normalizeNumberEnv(value, fallback, { min = 0, max = Number.MAX_SAFE_INTEGER } = {}) {
+  const parsed = Number.parseFloat(String(value || "").trim());
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(parsed, max));
+}
+
+export function getRagEmbeddingModel() {
+  return String(process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small").trim();
+}
+
+export function getRagEmbeddingDimensions() {
+  return normalizeIntegerEnv(process.env.RAG_EMBEDDING_DIMENSIONS, 1536, {
+    min: 1,
+    max: 4096,
+  });
+}
+
+export function isRagEmbeddingsEnabled() {
+  return normalizeBooleanEnv(process.env.RAG_EMBEDDINGS_ENABLED, true);
+}
+
+export function getRagMaxContextChunks() {
+  return normalizeIntegerEnv(process.env.RAG_MAX_CONTEXT_CHUNKS, 6, {
+    min: 1,
+    max: 12,
+  });
+}
+
+export function getRagMinSimilarity() {
+  return normalizeNumberEnv(process.env.RAG_MIN_SIMILARITY, 0.25, {
+    min: 0,
+    max: 1,
+  });
+}
+
+export function getRagMaxChunkChars() {
+  return normalizeIntegerEnv(process.env.RAG_MAX_CHUNK_CHARS, 1200, {
+    min: 300,
+    max: 4000,
+  });
+}
+
+export function getRagChunkOverlapChars() {
+  return normalizeIntegerEnv(process.env.RAG_CHUNK_OVERLAP_CHARS, 150, {
+    min: 0,
+    max: 600,
+  });
+}
+
+export function getRagConfig() {
+  const minSimilarity = getRagMinSimilarity();
+
+  return {
+    embeddingsEnabled: isRagEmbeddingsEnabled(),
+    embeddingModel: getRagEmbeddingModel(),
+    embeddingDimensions: getRagEmbeddingDimensions(),
+    maxContextChunks: getRagMaxContextChunks(),
+    minSimilarity,
+    strongSimilarity: Math.min(0.9, Math.max(0.45, minSimilarity + 0.2)),
+    maxChunkChars: getRagMaxChunkChars(),
+    chunkOverlapChars: getRagChunkOverlapChars(),
+  };
+}
+
 export function getGoogleClientId() {
   return String(process.env.GOOGLE_CLIENT_ID || "");
 }

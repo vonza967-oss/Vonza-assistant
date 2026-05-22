@@ -9,6 +9,7 @@ import {
   buildBusinessReplyRepairPrompt,
   buildChatSystemPrompt,
   buildConversationGuidance,
+  buildRetrievedBusinessContextForChat,
   getFactualReplyGuardrailIssues,
   getReplyRepairIssues,
 } from "./prompting.js";
@@ -35,6 +36,11 @@ import {
   buildApprovedAnswersPrompt,
   selectRelevantApprovedAnswers,
 } from "../training/frontDeskTrainingService.js";
+import {
+  buildBusinessProfileKnowledgeText,
+  retrieveSemanticKnowledge,
+} from "../rag/frontDeskRagService.js";
+import { getOperatorBusinessProfile } from "../operator/operatorBusinessProfileService.js";
 import {
   buildEffectiveUserText,
   cleanText,
@@ -267,6 +273,10 @@ export async function handleChatRequest({
   const storeMessagesImpl = deps.storeAgentMessages || storeAgentMessages;
   const selectRelevantApprovedAnswersImpl =
     deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers;
+  const retrieveSemanticKnowledgeImpl =
+    deps.retrieveSemanticKnowledge || retrieveSemanticKnowledge;
+  const getOperatorBusinessProfileImpl =
+    deps.getOperatorBusinessProfile || getOperatorBusinessProfile;
   const message = body.message;
   const agentId = body.agent_id || body.agentId;
   const agentKey = body.agent_key || body.agentKey;
@@ -439,11 +449,50 @@ export async function handleChatRequest({
     })
     : [];
   const approvedAnswersPrompt = buildApprovedAnswersPrompt(relevantApprovedAnswers);
+  const businessProfile = cleanText(agentWithBusinessContext.ownerUserId)
+    ? await getOperatorBusinessProfileImpl(supabase, {
+      agent: agentWithBusinessContext,
+      ownerUserId: agentWithBusinessContext.ownerUserId,
+    }).catch((error) => {
+      console.warn("[front-desk rag] Could not load business profile facts:", error?.message || error);
+      return null;
+    })
+    : null;
+  const businessProfileFacts = buildBusinessProfileKnowledgeText(businessProfile || {});
   const systemPrompt = [
     buildChatSystemPromptImpl(language, agentWithBusinessContext),
     approvedAnswersPrompt,
   ].filter(Boolean).join("\n\n");
   const openaiClient = typeof openai === "function" ? openai() : openai;
+  const semanticRetrieval = await retrieveSemanticKnowledgeImpl(supabase, openaiClient, {
+    agentId: agent.id,
+    ownerUserId: agentWithBusinessContext.ownerUserId,
+    queryText: effectiveUserText,
+    approvedAnswerCount: relevantApprovedAnswers.length,
+    businessProfileFacts,
+  }).catch((error) => {
+    console.warn("[front-desk rag] Semantic retrieval failed:", error?.message || error);
+    return {
+      chunks: [],
+      confidence: businessProfileFacts || relevantApprovedAnswers.length ? "medium" : "low",
+      sourceLabels: [],
+      semanticAvailable: false,
+      error: error?.message || "Semantic retrieval failed.",
+    };
+  });
+  const semanticHasWebsiteContext = semanticRetrieval.chunks?.some((chunk) =>
+    ["website", "manual"].includes(chunk.sourceType)
+  );
+  const retrievedBusinessContext = buildRetrievedBusinessContextForChat({
+    approvedAnswers: relevantApprovedAnswers,
+    businessProfileFacts,
+    semanticChunks: semanticRetrieval.chunks || [],
+    keywordFallbackContext: semanticHasWebsiteContext ? "" : businessContext,
+    retrievalConfidence: semanticHasWebsiteContext || relevantApprovedAnswers.length || businessProfileFacts
+      ? semanticRetrieval.confidence
+      : "low",
+    semanticError: semanticRetrieval.error,
+  });
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,
     widgetConfig,
@@ -462,8 +511,8 @@ export async function handleChatRequest({
       systemPrompt,
       referenceBlocks: [
         {
-          label: "Business reference",
-          content: businessContext,
+          label: "Front Desk retrieved business context",
+          content: retrievedBusinessContext,
         },
       ],
       conversationGuidance,
@@ -480,7 +529,10 @@ export async function handleChatRequest({
               reply,
               userMessage: effectiveUserText,
               history,
-              businessContext,
+              businessContext: [
+                businessContext,
+                retrievedBusinessContext,
+              ].join("\n\n"),
               approvedAnswersPrompt,
             }),
           ];

@@ -20,7 +20,11 @@ const frontDeskTrainingMigrationSql = readFileSync(
   "supabase/migrations/20260520000000_front_desk_training_items.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}`;
+const frontDeskRagMigrationSql = readFileSync(
+  "supabase/migrations/20260522001000_front_desk_rag_chunks.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -76,6 +80,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "operator_tasks",
     "agent_visitor_reply_feedback",
     "front_desk_training_items",
+    "front_desk_knowledge_chunks",
   ].forEach((tableName) => {
     assert.match(
       postRlsMigrationSql,

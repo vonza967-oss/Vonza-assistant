@@ -5,6 +5,7 @@ import {
   getAppVersion,
   getBuildSha,
   getPublicAppUrl,
+  getRagConfig,
   getSupabaseAnonKey,
   getSupabasePublicUrl,
   isTodayCopilotEnabled,
@@ -937,6 +938,14 @@ window.VONZA_BILLING_PLANS = ${JSON.stringify(listPublicBillingPlans())};
       ok: checks.every((check) => check.present),
       dev_fake_billing: true,
       checks,
+      embeddings: {
+        enabled: getRagConfig().embeddingsEnabled,
+        openai_api_key_present: Boolean(String(process.env.OPENAI_API_KEY || "").trim()),
+        model: getRagConfig().embeddingModel,
+        dimensions: getRagConfig().embeddingDimensions,
+        max_context_chunks: getRagConfig().maxContextChunks,
+        min_similarity: getRagConfig().minSimilarity,
+      },
       production: {
         rate_limit: getDistributedRateLimitReadiness({
           ...process.env,

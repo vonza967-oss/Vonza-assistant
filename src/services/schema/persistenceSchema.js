@@ -360,6 +360,27 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.front_desk_training_items],
   },
+  front_desk_knowledge_chunks: {
+    requiredColumns: [
+      "id",
+      "owner_user_id",
+      "agent_id",
+      "source_type",
+      "source_id",
+      "source_url",
+      "title",
+      "content",
+      "content_hash",
+      "chunk_index",
+      "metadata",
+      "embedding",
+      "embedding_model",
+      "is_active",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.front_desk_rag_chunks],
+  },
   agent_human_follow_up_statuses: {
     requiredColumns: [
       "id",

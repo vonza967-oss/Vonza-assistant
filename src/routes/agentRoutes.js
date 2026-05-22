@@ -147,6 +147,11 @@ import {
   updateFrontDeskTrainingItemStatus,
 } from "../services/training/frontDeskTrainingService.js";
 import {
+  countActiveKnowledgeChunks,
+  reindexFrontDeskKnowledge,
+  syncApprovedAnswerKnowledgeChunk,
+} from "../services/rag/frontDeskRagService.js";
+import {
   getDashboardPreferences,
   normalizeDashboardLanguage,
   saveDashboardLanguagePreference,
@@ -281,6 +286,12 @@ export function createAgentRouter(deps = {}) {
     deps.selectRelevantPracticeAnswers || selectRelevantPracticeAnswers;
   const updateFrontDeskTrainingItemStatusImpl =
     deps.updateFrontDeskTrainingItemStatus || updateFrontDeskTrainingItemStatus;
+  const reindexFrontDeskKnowledgeImpl =
+    deps.reindexFrontDeskKnowledge || reindexFrontDeskKnowledge;
+  const syncApprovedAnswerKnowledgeChunkImpl =
+    deps.syncApprovedAnswerKnowledgeChunk || syncApprovedAnswerKnowledgeChunk;
+  const countActiveKnowledgeChunksImpl =
+    deps.countActiveKnowledgeChunks || countActiveKnowledgeChunks;
   const handleChatRequestImpl = deps.handleChatRequest || handleChatRequest;
   const getActivationWizardStateImpl = deps.getActivationWizardState || getActivationWizardState;
   const updateActivationWizardProgressImpl =
@@ -1070,6 +1081,16 @@ export function createAgentRouter(deps = {}) {
         status: req.body.status,
       });
 
+      try {
+        await syncApprovedAnswerKnowledgeChunkImpl(supabase, getOpenAI(), {
+          item: result.item,
+          agentId,
+          ownerUserId: user.id,
+        });
+      } catch (error) {
+        console.warn("[front-desk rag] Approved answer indexing skipped:", error?.message || error);
+      }
+
       res.json(result);
     } catch (err) {
       console.error(err);
@@ -1098,7 +1119,83 @@ export function createAgentRouter(deps = {}) {
         status: req.body.status,
       });
 
+      try {
+        await syncApprovedAnswerKnowledgeChunkImpl(supabase, getOpenAI(), {
+          item: result.item,
+          agentId,
+          ownerUserId: user.id,
+        });
+      } catch (error) {
+        console.warn("[front-desk rag] Approved answer indexing skipped:", error?.message || error);
+      }
+
       res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.get("/api/agents/:agentId/rag/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const result = await countActiveKnowledgeChunksImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+      });
+
+      res.json({
+        ok: true,
+        agentId,
+        semanticKnowledgeIndexed: result.count,
+        storageUnavailable: result.storageUnavailable,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+      });
+    }
+  });
+
+  router.post("/api/agents/:agentId/rag/reindex", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
+      const result = await reindexFrontDeskKnowledgeImpl(supabase, getOpenAI(), {
+        agent,
+        ownerUserId: user.id,
+      });
+
+      res.json({
+        ok: result.ok,
+        agentId,
+        chunksCreated: result.chunksCreated,
+        chunksUpdated: result.chunksUpdated,
+        chunksSkipped: result.chunksSkipped,
+        embeddingsCreated: result.embeddingsCreated,
+        errors: result.errors,
+      });
     } catch (err) {
       console.error(err);
       res.status(err.statusCode || 500).json({
@@ -1419,6 +1516,17 @@ export function createAgentRouter(deps = {}) {
       const websiteContent = cleanText(agent.businessId)
         ? await getStoredWebsiteContentImpl(supabase, agent.businessId)
         : null;
+
+      try {
+        await reindexFrontDeskKnowledgeImpl(supabase, getOpenAI(), {
+          agent,
+          ownerUserId: user.id,
+          websiteContent,
+          businessProfile: profile,
+        });
+      } catch (error) {
+        console.warn("[front-desk rag] Business profile indexing skipped:", error?.message || error);
+      }
 
       res.json({
         ok: true,
@@ -3169,6 +3277,18 @@ export function createAgentRouter(deps = {}) {
         businessId: context.business.id,
         websiteUrl: context.business.website_url,
       });
+
+      if (cleanText(context.agent?.ownerUserId)) {
+        try {
+          await reindexFrontDeskKnowledgeImpl(supabase, getOpenAI(), {
+            agent: context.agent,
+            ownerUserId: context.agent.ownerUserId,
+            websiteContent: result,
+          });
+        } catch (error) {
+          console.warn("[front-desk rag] Website content indexing skipped:", error?.message || error);
+        }
+      }
 
       res.json(result);
     } catch (err) {

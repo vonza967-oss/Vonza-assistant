@@ -271,6 +271,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds Phase 1 Front Desk voice input and spoken reply settings on widget_configs with safe runtime defaults.",
   }),
+  Object.freeze({
+    id: "front_desk_rag_chunks",
+    version: "20260522001000",
+    name: "front_desk_rag_chunks",
+    file: "supabase/migrations/20260522001000_front_desk_rag_chunks.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds pgvector-backed semantic Front Desk knowledge chunks and scoped match RPC for owner-approved answers, business profile facts, and website context.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
