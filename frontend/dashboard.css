@@ -1679,147 +1679,9 @@ a.ghost-button:hover {
   min-height: 100%;
 }
 
-.frontdesk-side-stack,
-.settings-panel-stack {
+.frontdesk-side-stack {
   display: grid;
   gap: 18px;
-}
-
-.settings-layout {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
-}
-
-.settings-sidebar {
-  position: sticky;
-  top: 24px;
-}
-
-.settings-nav {
-  display: grid;
-  gap: 10px;
-}
-
-.settings-nav-compact {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.settings-nav-button {
-  width: 100%;
-  text-align: left;
-  padding: 14px 15px;
-  border-radius: 16px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: none;
-  display: grid;
-  gap: 6px;
-}
-
-.settings-nav-button.active {
-  border-color: rgba(20, 184, 166, 0.28);
-  background: rgba(20, 184, 166, 0.1);
-}
-
-.settings-nav-label {
-  color: white;
-  font-weight: 700;
-}
-
-.settings-nav-note {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-}
-
-.settings-mobile-nav {
-  display: none;
-}
-
-.settings-content {
-  display: grid;
-  gap: 18px;
-  min-width: 0;
-}
-
-.settings-content-panel {
-  display: grid;
-  gap: 18px;
-}
-
-.settings-section-intro {
-  display: grid;
-  gap: 8px;
-}
-
-.settings-section-title {
-  margin: 0;
-  color: white;
-  font-size: 1.35rem;
-  letter-spacing: -0.02em;
-}
-
-.settings-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.settings-title-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 5px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #f7f9fc;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.settings-section-copy {
-  margin: 0;
-  color: var(--soft);
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.settings-form-shell {
-  display: grid;
-  gap: 18px;
-}
-
-.settings-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.settings-summary-card {
-  display: grid;
-  gap: 8px;
-  padding: 18px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-}
-
-.settings-summary-title {
-  margin: 0;
-  color: white;
-  font-size: 1.2rem;
-  letter-spacing: -0.02em;
-}
-
-.settings-summary-copy {
-  margin: 0;
-  color: var(--soft);
-  line-height: 1.7;
-  font-size: 14px;
 }
 
 .overview-shell {
@@ -5819,37 +5681,12 @@ body {
   background: #8a4d00;
 }
 
-.workspace-pages .settings-sidebar {
-  border-right-color: #dbe4ef;
-}
-
-.workspace-pages .settings-nav-shell.is-mobile {
-  border-bottom-color: #dbe4ef;
-}
-
-.workspace-pages .settings-nav-heading,
 .workspace-pages .frontdesk-detail-kicker,
 .workspace-pages .frontdesk-detail-row-label,
 .workspace-pages .frontdesk-step-label {
   color: var(--light-surface-muted-strong);
 }
 
-.workspace-pages .settings-nav-button {
-  color: #5b6f8d;
-}
-
-.workspace-pages .settings-nav-button:hover {
-  color: var(--light-surface-title);
-  background: #f4f7fb;
-}
-
-.workspace-pages .settings-nav-button.active {
-  color: #0b766c;
-  border-left-color: #0f8f7f;
-  background: #e4f3f0;
-}
-
-.workspace-pages .settings-page-title,
 .workspace-pages .frontdesk-section-title,
 .workspace-pages .frontdesk-detail-title,
 .workspace-pages .frontdesk-support-title,
@@ -5859,7 +5696,6 @@ body {
   color: var(--light-surface-title);
 }
 
-.workspace-pages .settings-page-copy,
 .workspace-pages .frontdesk-section-copy,
 .workspace-pages .frontdesk-readiness-copy,
 .workspace-pages .frontdesk-detail-copy,
@@ -5868,7 +5704,6 @@ body {
   color: var(--light-surface-text);
 }
 
-.workspace-pages .settings-page-header,
 .workspace-pages .frontdesk-section-divider,
 .workspace-pages .frontdesk-readiness-item,
 .workspace-pages .frontdesk-detail-block,
@@ -6790,18 +6625,6 @@ body {
     pointer-events: auto;
   }
 
-  .settings-sidebar {
-    display: none;
-  }
-
-  .settings-mobile-nav {
-    display: block;
-  }
-
-  .settings-content-panel {
-    padding: 22px 20px;
-  }
-
   .today-review-drawer-backdrop {
     display: block;
     position: fixed;
@@ -6878,11 +6701,9 @@ body {
 .action-queue-handoff-summary,
 .person-snippets,
 .plan-options-grid,
-.settings-summary-grid,
 .frontdesk-page-layout,
 .install-page-layout,
 .install-options-grid,
-.settings-layout,
 .results-workspace,
 .results-secondary-grid {
     grid-template-columns: 1fr;
@@ -7026,10 +6847,6 @@ body {
 
   .contact-card-head-meta {
     text-align: left;
-  }
-
-  .settings-nav-compact {
-    grid-template-columns: 1fr;
   }
 
 }
@@ -15794,99 +15611,6 @@ html[data-dashboard-theme="dark"] select {
     font-size: 10px;
   }
 
-  .dashboard-v2-production-shell .settings-shell-layout,
-  .dashboard-v2-production-shell .settings-shell-overview {
-    gap: 8px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-top-nav-group,
-  .dashboard-v2-production-shell .settings-shell-nav-group,
-  .dashboard-v2-production-shell .settings-shell-nav {
-    gap: 5px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-nav-button {
-    min-height: 28px;
-    height: 28px;
-    padding: 0 8px;
-    font-size: 10.5px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-nav-button svg {
-    width: 14px;
-    height: 14px;
-  }
-
-  .dashboard-v2-production-shell .settings-overview-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .dashboard-v2-production-shell .settings-overview-card {
-    gap: 8px;
-    padding: 8px;
-    border-radius: var(--dashboard-card-radius);
-  }
-
-  .dashboard-v2-production-shell .settings-overview-card--wide,
-  .dashboard-v2-production-shell .settings-preferences-card,
-  .dashboard-v2-production-shell .settings-workspace-preferences {
-    grid-column: span 2;
-  }
-
-  .dashboard-v2-production-shell .settings-card-heading,
-  .dashboard-v2-production-shell .settings-card-heading--split {
-    gap: 6px;
-    align-items: start;
-  }
-
-  .dashboard-v2-production-shell .settings-card-logo {
-    width: 30px;
-    height: 30px;
-    border-radius: 8px;
-    font-size: 11px;
-  }
-
-  .dashboard-v2-production-shell .settings-card-logo--small,
-  .dashboard-v2-production-shell .settings-member-avatar {
-    width: 24px;
-    height: 24px;
-    font-size: 9.5px;
-  }
-
-  .dashboard-v2-production-shell .settings-card-title {
-    margin: 0;
-    font-size: 12.5px;
-    line-height: 1.12;
-  }
-
-  .dashboard-v2-production-shell .settings-card-copy,
-  .dashboard-v2-production-shell .settings-card-note,
-  .dashboard-v2-production-shell .settings-status-row span,
-  .dashboard-v2-production-shell .settings-member-row span,
-  .dashboard-v2-production-shell .settings-billing-meta,
-  .dashboard-v2-production-shell .settings-billing-panel p {
-    font-size: 10.2px;
-    line-height: 1.2;
-  }
-
-  .dashboard-v2-production-shell .settings-field-grid,
-  .dashboard-v2-production-shell .settings-field-grid--two,
-  .dashboard-v2-production-shell .settings-field-stack,
-  .dashboard-v2-production-shell .settings-privacy-form,
-  .dashboard-v2-production-shell .settings-status-list,
-  .dashboard-v2-production-shell .settings-member-list,
-  .dashboard-v2-production-shell .settings-billing-panel,
-  .dashboard-v2-production-shell .settings-brand-preview,
-  .dashboard-v2-production-shell .settings-card-actions,
-  .dashboard-v2-production-shell .settings-card-footer {
-    gap: 6px;
-  }
-
-  .dashboard-v2-production-shell .settings-field-stack {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .dashboard-v2-production-shell .field {
     gap: 3px;
   }
@@ -15894,171 +15618,6 @@ html[data-dashboard-theme="dark"] select {
   .dashboard-v2-production-shell .field label {
     font-size: 10px;
     line-height: 1.1;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-root input,
-  .dashboard-v2-production-shell .settings-shell-root select,
-  .dashboard-v2-production-shell .settings-shell-root textarea {
-    min-height: 28px;
-    height: 28px;
-    padding: 5px 8px;
-    font-size: 10.5px;
-    line-height: 1.15;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-root textarea {
-    height: 64px;
-  }
-
-  .dashboard-v2-production-shell .settings-brand-preview,
-  .dashboard-v2-production-shell .settings-card-footer,
-  .dashboard-v2-production-shell .settings-status-row,
-  .dashboard-v2-production-shell .settings-member-row,
-  .dashboard-v2-production-shell .settings-billing-panel {
-    padding: 8px;
-    border-radius: var(--dashboard-card-radius);
-  }
-
-  .dashboard-v2-production-shell .settings-card-actions--wrap {
-    gap: 5px;
-  }
-
-  .dashboard-v2-production-shell .settings-link-button {
-    min-height: 28px;
-    padding: 0 8px;
-    border-radius: var(--dashboard-control-radius);
-    font-size: 10px;
-  }
-
-  .dashboard-v2-production-shell .settings-link-button svg {
-    width: 13px;
-    height: 13px;
-  }
-
-  .dashboard-v2-production-shell .settings-details-stack {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    align-items: start;
-  }
-
-  .dashboard-v2-production-shell .settings-general-section {
-    display: grid;
-    gap: 8px;
-    min-width: 0;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-form {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    align-items: start;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-page-header,
-  .dashboard-v2-production-shell .settings-shell-sticky-save {
-    grid-column: 1 / -1;
-    gap: 6px;
-    min-height: 0;
-    padding: 8px;
-    border-radius: var(--dashboard-card-radius);
-  }
-
-  .dashboard-v2-production-shell .settings-shell-page-header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-page-header .settings-shell-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-section {
-    gap: 7px;
-    min-width: 0;
-    padding: 8px;
-    border-radius: var(--dashboard-card-radius);
-  }
-
-  .dashboard-v2-production-shell .settings-shell-section-header {
-    gap: 4px;
-    margin-bottom: 2px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-section-title,
-  .dashboard-v2-production-shell .settings-shell-choice-title,
-  .dashboard-v2-production-shell .settings-shell-status-value {
-    font-size: 12px;
-    line-height: 1.12;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-section-copy,
-  .dashboard-v2-production-shell .settings-shell-key-value-copy,
-  .dashboard-v2-production-shell .settings-shell-status-copy,
-  .dashboard-v2-production-shell .settings-shell-status-label {
-    font-size: 10px;
-    line-height: 1.18;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-status-list,
-  .dashboard-v2-production-shell .settings-shell-field-stack,
-  .dashboard-v2-production-shell .settings-shell-choice-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-status-row,
-  .dashboard-v2-production-shell .settings-shell-choice-row {
-    min-height: 0;
-    gap: 6px;
-    padding: 6px;
-    border-radius: var(--dashboard-card-radius);
-  }
-
-  .dashboard-v2-production-shell .settings-shell-status-main,
-  .dashboard-v2-production-shell .settings-shell-choice-main {
-    gap: 2px;
-    min-height: 0;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-choice-row input[type="radio"] {
-    width: 14px;
-    height: 14px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-choice-row select,
-  .dashboard-v2-production-shell .settings-shell-form input,
-  .dashboard-v2-production-shell .settings-shell-form select {
-    min-height: 26px;
-    height: 26px;
-    padding: 4px 7px;
-    font-size: 10px;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-form textarea {
-    min-height: 42px;
-    height: 42px;
-    padding: 5px 7px;
-    font-size: 10px;
-    line-height: 1.2;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-form .field {
-    min-width: 0;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-form .field-help {
-    font-size: 9.5px;
-    line-height: 1.15;
-  }
-
-  .dashboard-v2-production-shell .settings-shell-sticky-save {
-    position: static;
-    grid-template-columns: minmax(0, 1fr) auto;
-    margin: 0;
   }
 
 }

@@ -112,17 +112,20 @@ test("dashboard light-workspace badges and summary cards keep dark-on-light text
 
 test("dashboard Front Desk light shell keeps settings navigation and content readable", () => {
   const css = readDashboardCss();
+  const settingsCss = readSettingsCss();
   const frontdeskPanel = getCssBlock(css, ".workspace-pages .frontdesk-main-panel");
-  const navButton = getCssBlock(css, ".workspace-pages .settings-nav-button");
-  const navButtonActive = getCssBlock(css, ".workspace-pages .settings-nav-button.active");
+  const navButton = getCssBlock(settingsCss, ".workspace-pages .settings-nav-button");
+  const navButtonActive = getCssBlock(settingsCss, ".workspace-pages .settings-nav-button.active");
 
   assert.match(frontdeskPanel, /border-color:\s*#dbe4ef/i);
   assert.match(frontdeskPanel, /background:\s*#ffffff/i);
   assert.match(navButton, /color:\s*#5b6f8d/i);
   assert.match(navButtonActive, /color:\s*#0b766c/i);
   assert.match(navButtonActive, /background:\s*#e4f3f0/i);
-  assert.match(css, /\.workspace-pages \.settings-page-title,\s*\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
-  assert.match(css, /\.workspace-pages \.settings-page-copy,\s*\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(settingsCss, /\.workspace-pages \.settings-page-title\s*\{[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(settingsCss, /\.workspace-pages \.settings-page-copy\s*\{[^}]*color:\s*var\(--light-surface-text\)/i);
+  assert.match(css, /\.workspace-pages \.frontdesk-section-title,[^}]*color:\s*var\(--light-surface-title\)/i);
+  assert.match(css, /\.workspace-pages \.frontdesk-section-copy,[^}]*color:\s*var\(--light-surface-text\)/i);
   assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-polished-panel\s*\{[^}]*border-radius:\s*10px;[^}]*background:\s*#ffffff/i);
   assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(280px,\s*340px\)/i);
   assert.match(css, /\.workspace-page\[data-shell-section="customize"\] \.frontdesk-practice-canvas\s*\{[^}]*border:\s*1px solid #cbd7e8/i);

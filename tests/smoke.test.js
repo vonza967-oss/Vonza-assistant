@@ -1444,6 +1444,12 @@ test("marketing homepage and app routes load without broken handoff paths", { co
 
         const settingsShellCss = await getText(server.baseUrl, "/settings/settings.css");
         assert.equal(settingsShellCss.status, 200);
+        assert.match(settingsShellCss.text, /\.settings-layout\s*\{/);
+        assert.match(settingsShellCss.text, /\.settings-summary-grid\s*\{/);
+        assert.match(settingsShellCss.text, /\.settings-frontdesk-subnav\s*\{/);
+        assert.match(settingsShellCss.text, /\.settings-full-page-preview-card\s*,\s*\.settings-full-page-action-card\s*\{/);
+        assert.match(settingsShellCss.text, /\.settings-shell-sticky-save\s*\{/);
+        assert.match(settingsShellCss.text, /\.dashboard-v2-production-shell \.settings-shell-form\s*\{/);
 
         const dashboardInstallCss = await getText(server.baseUrl, "/dashboard-install.css");
         assert.equal(dashboardInstallCss.status, 200);
@@ -1465,6 +1471,8 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboardCss.text, /\.home-grid\s*\{/);
         assert.match(dashboardCss.text, /\.dashboard-v2-production-shell \.v2-card,\s*\.dashboard-v2-production-shell \.v2-metric-card,\s*\.dashboard-v2-production-shell \.v2-table-card\s*\{/);
         assert.match(dashboardCss.text, /\.placeholder-card\s*\{/);
+        assert.doesNotMatch(dashboardCss.text, /\.settings-layout\s*\{/);
+        assert.doesNotMatch(dashboardCss.text, /\.settings-frontdesk-subnav\s*\{/);
 
         const marketingScript = await getText(server.baseUrl, "/marketing.js");
         assert.equal(marketingScript.status, 200);

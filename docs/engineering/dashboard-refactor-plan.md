@@ -776,6 +776,105 @@ Recommended Sprint 9:
 
 - Split Settings CSS next. Settings already has a separately loaded `settings/settings.css`, but `dashboard.css` still owns shared/legacy Settings selector fragments and density interactions; that makes it the next CSS-risk reduction step before returning to JavaScript helper extraction.
 
+## Sprint 9 - Settings CSS Split
+
+Starting baseline before edits:
+
+| Item | Value |
+| --- | ---: |
+| `frontend/dashboard.js` | 18,551 lines |
+| `frontend/dashboard.css` | 16,071 lines |
+| `frontend/dashboard-install.css` | 1,234 lines |
+| `frontend/dashboard-analytics.css` | 1,966 lines |
+| `frontend/settings/settings.css` | 2,390 lines |
+| Lint warnings | 4 |
+
+Starting CSS load order:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `dashboard-analytics.css`
+4. `settings/settings.css`
+
+Starting Settings CSS boundaries in `frontend/dashboard.css`:
+
+- Legacy Settings layout, nav, section intro, form shell, and summary card selectors around lines 1,682-1,823.
+- Light workspace Settings nav, page title/copy/header, and mixed Front Desk readability groups around lines 5,822-5,877.
+- Responsive legacy Settings sidebar/mobile nav/content adjustments around lines 6,793-6,803 and 7,031-7,033.
+- Mixed dashboard readability groups that still include Settings summary, title, copy, label, and shell status selectors around lines 8,213-8,361.
+- Shared form-control color rules that include Settings shell selects around lines 10,807-10,115.
+- Dashboard token and dark-theme groups that include Settings section/title/copy/theme-option selectors around lines 12,107-12,125 and 12,597.
+- V2 token groups that include Settings section title/copy selectors around lines 13,268-13,284 and responsive mixed typography groups around lines 14,310-14,354.
+- Ultra-compact density Settings groups around lines 15,554-16,062, including Settings-only shell, overview, form, sticky-save, card, nav, and link-button selectors.
+
+Files changed in Sprint 9:
+
+- `frontend/dashboard.css`
+- `frontend/settings/settings.css`
+- `tests/smoke.test.js`
+- `tests/dashboardContrastStyles.test.js`
+- `docs/engineering/dashboard-refactor-plan.md`
+
+Line counts after Sprint 9:
+
+| File | Before | After |
+| --- | ---: | ---: |
+| `frontend/dashboard.css` | 16,071 | 15,630 |
+| `frontend/settings/settings.css` | 2,390 | 2,857 |
+| `frontend/dashboard-install.css` | 1,234 | 1,234 |
+| `frontend/dashboard-analytics.css` | 1,966 | 1,966 |
+| `frontend/dashboard.js` | 18,551 | 18,551 |
+
+CSS load order after Sprint 9:
+
+1. `dashboard.css`
+2. `dashboard-install.css`
+3. `dashboard-analytics.css`
+4. `settings/settings.css`
+
+Settings CSS moved:
+
+- Legacy `.settings-*` layout, side/mobile nav, content panel, section intro, form shell, and summary grid/card/title/copy selectors.
+- Light workspace Settings nav, page title, page copy, page header, and mobile Settings content adjustments.
+- Settings responsive layout rules for `.settings-layout`, `.settings-summary-grid`, and `.settings-nav-compact`.
+- Ultra-compact V2 Settings density rules for `.settings-shell-*`, `.settings-overview-*`, `.settings-card-*`, Settings form controls, sticky save rows, details grids, link buttons, and billing/readout panels.
+
+Styles intentionally left in `dashboard.css`:
+
+- Shared dashboard shell/sidebar/page layout, base buttons, base inputs/selects/textareas, generic V2 cards, badges, pills, metric cards, placeholder cards, and shared responsive/density rules.
+- Mixed Front Desk/Settings/Install/Home/Customers typography and density groups where splitting individual selectors would increase cascade risk without clear Settings-only ownership.
+- `html[data-dashboard-theme="dark"]` dashboard-wide token groups and broad mixed dark-mode groups that still coordinate multiple dashboard surfaces.
+
+Static guard updated:
+
+- Smoke coverage asserts `settings/settings.css` exists, is loaded after `dashboard-analytics.css`, serves successfully, and contains key Settings selectors including legacy layout, Front Desk subtabs, full-page preview cards, sticky save rows, and compact Settings form rules.
+- Smoke coverage keeps Install selectors in `dashboard-install.css`, Analytics selectors in `dashboard-analytics.css`, shared selectors in `dashboard.css`, and asserts selected moved Settings selectors are no longer in `dashboard.css`.
+- Dashboard contrast tests now read moved Settings nav/readability selectors from `settings/settings.css` while continuing to assert Front Desk and shared contrast selectors from `dashboard.css`.
+
+Browser checks run:
+
+- `http://127.0.0.1:3000/dashboard-v2-fixture#settings` and Settings nested hashes for Front Desk, identity/welcome, voice, full-page assistant, routing, widget appearance, business profile, account/billing, and privacy/legal at desktop width.
+- Mobile and tablet checks for Settings overview, full-page assistant, account/billing, voice, and privacy/legal using the in-app browser viewport override.
+- Quick dashboard checks for Home, Customers, Front Desk, Analytics, and Install on the dashboard fixture.
+- Public checks for `/dashboard`, `/widget`, `/widget?agent_id=agent-1&mode=page`, `/assistant-embed-matrix`, and `/a/agent-key`.
+
+Remaining CSS risks:
+
+- `dashboard.css` still contains some Settings selector fragments inside broad mixed dashboard contrast, token, dark-mode, and density groups. Those were left because they also own Front Desk, Home, Customers, Install, Analytics, or generic dashboard behavior.
+- The cascade now depends on four ordered dashboard CSS files, with `settings/settings.css` last. Keep the smoke load-order guard in place for future splits.
+- The local full-page assistant check for `/a/agent-key` renders the expected unavailable assistant state and logs the existing local dummy-key bootstrap warning; smoke tests cover the configured full-page and smart embed paths more deeply.
+
+Sprint 9 verification:
+
+- Required `node --check` coverage for dashboard helpers, public scripts, Settings shell, and assistant embed passed.
+- Focused dashboard visibility, operator workspace, and Analytics tests passed.
+- Smoke, schema sync, lint, and whitespace checks passed.
+- `npm run lint` still reports the same four unrelated warnings recorded at baseline.
+
+Recommended Sprint 10:
+
+- Split Front Desk CSS next. Sprint 9 left Front Desk-adjacent mixed groups in `dashboard.css`, and Front Desk is the largest remaining dashboard CSS surface that directly touches the primary customer-facing product direction.
+
 ## Dashboard.js Section Map
 
 Approximate current line ranges after Sprint 5:
