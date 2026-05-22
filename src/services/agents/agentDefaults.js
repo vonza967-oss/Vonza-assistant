@@ -29,6 +29,31 @@ export const DEFAULT_WIDGET_CONFIG = {
   businessHoursNote: "",
 };
 
+export const VOICE_TTS_VOICES = Object.freeze([
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "nova",
+  "onyx",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+]);
+
+export const DEFAULT_VOICE_CONFIG = Object.freeze({
+  voiceInputEnabled: true,
+  spokenRepliesEnabled: false,
+  autoSendTranscript: false,
+  autoPlaySpokenReplies: false,
+  voice: "alloy",
+  languageBehavior: "auto",
+});
+
 export const FULL_PAGE_ACTION_CARD_TYPES = Object.freeze([
   "services",
   "pricing",

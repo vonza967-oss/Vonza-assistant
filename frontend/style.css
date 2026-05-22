@@ -1303,7 +1303,108 @@ button:hover {
   border-radius: 16px;
 }
 
+.voice-icon-button {
+  position: relative;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 14px;
+  background: #f2f4f7;
+  color: #344054;
+  box-shadow: none;
+}
+
+.voice-icon-button svg,
+.voice-reply-button svg {
+  width: 19px;
+  height: 19px;
+  fill: currentColor;
+}
+
+.voice-icon-button:hover {
+  background: #e8edf3;
+  box-shadow: none;
+}
+
+.voice-icon-button.is-recording {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+.voice-pulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 18px;
+  border: 2px solid rgba(180, 35, 24, 0.24);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.voice-icon-button.is-recording .voice-pulse {
+  animation: voicePulse 1100ms ease-out infinite;
+}
+
+.voice-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-toggle-button,
+.voice-reply-button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #344054;
+  box-shadow: none;
+  font-size: 0.76rem;
+  line-height: 1.1;
+}
+
+.voice-toggle-button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--brand-primary) 13%, #ffffff 87%);
+  color: var(--brand-ink);
+}
+
+.voice-reply-button {
+  margin-top: 8px;
+}
+
+.voice-toggle-button:hover,
+.voice-reply-button:hover {
+  box-shadow: none;
+}
+
+.voice-disclosure {
+  flex: 1 1 180px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.voice-disclosure a {
+  color: inherit;
+  font-weight: 800;
+}
+
+.message.is-speaking .bubble {
+  border-color: color-mix(in srgb, var(--brand-primary) 24%, rgba(94, 110, 152, 0.14) 76%);
+}
+
 html.vonza-mode-page .send-button {
+  border-radius: 8px;
+}
+
+html.vonza-mode-page .voice-icon-button {
   border-radius: 8px;
 }
 
@@ -1497,6 +1598,17 @@ input:focus-visible {
   40% {
     opacity: 1;
     transform: translateY(-2px);
+  }
+}
+
+@keyframes voicePulse {
+  0% {
+    opacity: 0.64;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
   }
 }
 

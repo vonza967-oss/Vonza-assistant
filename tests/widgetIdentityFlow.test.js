@@ -154,6 +154,10 @@ function createWidgetHarness({
     "input",
     "send-button",
     "composer-status",
+    "voice-input-button",
+    "voice-controls",
+    "speak-replies-toggle",
+    "voice-disclosure",
     "page-identity-inline",
     "page-identity-note",
     "page-identity-email-button",
@@ -279,6 +283,36 @@ function createWidgetHarness({
   Object.entries(initialLocalStorage).forEach(([key, value]) => {
     localStorage.setItem(key, value);
   });
+  function TestURL(input, base) {
+    return new URL(input, base);
+  }
+  Object.setPrototypeOf(TestURL, URL);
+  TestURL.prototype = URL.prototype;
+  TestURL.createObjectURL = () => "blob:voice-test";
+  TestURL.revokeObjectURL = () => {};
+
+  class TestAudio {
+    constructor(src) {
+      this.src = src;
+      this.currentTime = 0;
+      this.listeners = new Map();
+      TestAudio.instances.push(this);
+    }
+
+    addEventListener(type, handler) {
+      this.listeners.set(type, handler);
+    }
+
+    async play() {
+      this.played = true;
+    }
+
+    pause() {
+      this.paused = true;
+    }
+  }
+  TestAudio.instances = [];
+
   const context = {
     console,
     document,
@@ -297,7 +331,9 @@ function createWidgetHarness({
       };
     },
     navigator: {},
-    URL,
+    Blob,
+    Audio: TestAudio,
+    URL: TestURL,
     URLSearchParams,
     window: {
       location: {
@@ -314,6 +350,9 @@ function createWidgetHarness({
         },
       },
       VonzaWidgetConfig: widgetRuntimeConfig,
+      Audio: TestAudio,
+      Blob,
+      MediaRecorder: null,
       addEventListener() {},
       innerWidth,
       matchMedia(query) {
@@ -341,6 +380,7 @@ function createWidgetHarness({
     hooks: context.window.__VONZA_WIDGET_TEST_HOOKS__,
     elements,
     fetchCalls,
+    audioInstances: TestAudio.instances,
     localStorage,
     documentElement,
     body: document.body,
@@ -439,6 +479,175 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   assert.equal(harness.elements.get("chat-state").hidden, true);
   assert.equal(harness.elements.get("welcome-panel").hidden, false);
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
+});
+
+test("voice input controls render safely and hide when disabled", () => {
+  const harness = createWidgetHarness();
+  const micButton = harness.elements.get("voice-input-button");
+  const voiceControls = harness.elements.get("voice-controls");
+  const disclosure = harness.elements.get("voice-disclosure");
+
+  assert.equal(micButton.hidden, false);
+  assert.equal(micButton.disabled, true);
+  assert.equal(micButton.title, "Voice input is not supported in this browser.");
+  assert.equal(voiceControls.hidden, false);
+  assert.equal(disclosure.hidden, false);
+  assert.deepEqual(plain(harness.hooks.getVoiceConfig()), {
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: false,
+    autoSendTranscript: false,
+    autoPlaySpokenReplies: false,
+    voice: "alloy",
+    languageBehavior: "auto",
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: false,
+      spoken_replies_enabled: false,
+    },
+  });
+
+  assert.equal(micButton.hidden, true);
+  assert.equal(voiceControls.hidden, true);
+  assert.equal(disclosure.hidden, true);
+});
+
+test("voice transcription fills the composer without auto-sending by default", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&origin=https%3A%2F%2Fexample.com",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&origin=https%3A%2F%2Fexample.com",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  auto_send_transcript: false,
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url.includes("/api/voice/transcribe")) {
+        assert.match(url, /duration_ms=1400/);
+        return {
+          ok: true,
+          async json() {
+            return {
+              text: "What services do you offer?",
+              duration: 1.4,
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  await harness.hooks.handleVoiceRecordingComplete(1400, "audio/webm");
+
+  assert.equal(harness.elements.get("input").value, "What services do you offer?");
+  assert.equal(harness.elements.get("composer-status").textContent, "Transcript ready");
+  assert.equal(harness.fetchCalls.some((call) => call.input === "/chat"), false);
+});
+
+test("voice transcription auto-sends only when configured", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  auto_send_transcript: true,
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "Can I request a quote?" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.message, "Can I request a quote?");
+        assert.equal(payload.display_mode, "widget");
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Yes. Share what you need and the team can follow up.",
+              agentId: "agent-1",
+              businessId: "business-1",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  await harness.hooks.handleVoiceRecordingComplete(900, "audio/webm");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(harness.fetchCalls.find((call) => call.input === "/chat"));
+  assert.equal(harness.elements.get("input").value, "");
 });
 
 test("explicit widget mode keeps the widget shell as the default display", () => {
@@ -1604,6 +1813,140 @@ test("embedded page mode keeps page display tracking and compact production hook
   assert.equal(JSON.parse(chatCall.options.body).display_mode, "page");
   assert.equal(harness.hooks.getDisplayMode(), "page");
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
+});
+
+test("spoken replies render play controls and stop current audio on repeat click", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  spoken_replies_enabled: true,
+                  auto_play_spoken_replies: false,
+                  voice: "sage",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "We can explain the available services.",
+              agentId: "agent-1",
+              businessId: "business-1",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      if (url === "/api/voice/speech") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.text, "We can explain the available services.");
+        assert.equal(payload.voice, "sage");
+        return {
+          ok: true,
+          async blob() {
+            return new Blob(["mp3"], { type: "audio/mpeg" });
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.elements.get("input").value = "What services do you offer?";
+  await harness.hooks.sendMessage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
+  assert.match(renderedChat, /data-voice-reply-button/);
+  assert.match(renderedChat, /Play reply/);
+  assert.equal(harness.fetchCalls.some((call) => call.input === "/api/voice/speech"), false);
+
+  const messageClasses = new Set();
+  const messageElement = {
+    dataset: {
+      voiceReplyText: "We can explain the available services.",
+      voiceMessageKey: "voice-key-1",
+    },
+    classList: {
+      add(token) {
+        messageClasses.add(token);
+      },
+      remove(token) {
+        messageClasses.delete(token);
+      },
+    },
+  };
+  const voiceButton = {
+    dataset: { voiceMessageKey: "voice-key-1" },
+    disabled: false,
+    textContent: "Play reply",
+    setAttribute(name, value) {
+      this[name] = value;
+    },
+    closest(selector) {
+      return selector === ".message" ? messageElement : null;
+    },
+  };
+
+  harness.elements.get("chat").dispatch("click", {
+    target: {
+      closest(selector) {
+        return selector === "[data-voice-reply-button]" ? voiceButton : null;
+      },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(voiceButton.textContent, "Stop");
+  assert.equal(messageClasses.has("is-speaking"), true);
+  assert.equal(harness.audioInstances.length, 1);
+  assert.equal(harness.audioInstances[0].played, true);
+
+  harness.elements.get("chat").dispatch("click", {
+    target: {
+      closest(selector) {
+        return selector === "[data-voice-reply-button]" ? voiceButton : null;
+      },
+    },
+  });
+
+  assert.equal(voiceButton.textContent, "Play reply");
+  assert.equal(messageClasses.has("is-speaking"), false);
+  assert.equal(harness.audioInstances[0].paused, true);
+  assert.equal(harness.elements.get("composer-status").textContent, "Spoken reply stopped.");
 });
 
 test("embedded quick chips keep compact labels while submitting full prompts", async () => {

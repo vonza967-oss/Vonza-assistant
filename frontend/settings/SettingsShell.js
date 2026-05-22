@@ -228,6 +228,22 @@
     backgroundScope: "section",
     disableVideoOnMobile: true,
   });
+  const VOICE_STYLE_OPTIONS = Object.freeze([
+    { value: "alloy", label: "Alloy" },
+    { value: "ash", label: "Ash" },
+    { value: "coral", label: "Coral" },
+    { value: "nova", label: "Nova" },
+    { value: "sage", label: "Sage" },
+    { value: "shimmer", label: "Shimmer" },
+  ]);
+  const DEFAULT_VOICE_CONFIG = Object.freeze({
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: false,
+    autoSendTranscript: false,
+    autoPlaySpokenReplies: false,
+    voice: "alloy",
+    languageBehavior: "auto",
+  });
 
   function defaultTrimText(value) {
     return String(value || "").trim();
@@ -406,6 +422,36 @@
     }
 
     return fallbackValue;
+  }
+
+  function normalizeVoiceConfig(agent = {}) {
+    const config = agent.voiceConfig || agent.voice_config || {};
+    const voice = defaultTrimText(config.voice || config.voice_style).toLowerCase();
+    const languageBehavior = defaultTrimText(config.languageBehavior || config.language_behavior).toLowerCase();
+    const allowedVoices = VOICE_STYLE_OPTIONS.map((option) => option.value);
+
+    return {
+      voiceInputEnabled: normalizeBoolean(
+        config.voiceInputEnabled ?? config.voice_input_enabled,
+        DEFAULT_VOICE_CONFIG.voiceInputEnabled
+      ),
+      spokenRepliesEnabled: normalizeBoolean(
+        config.spokenRepliesEnabled ?? config.spoken_replies_enabled,
+        DEFAULT_VOICE_CONFIG.spokenRepliesEnabled
+      ),
+      autoSendTranscript: normalizeBoolean(
+        config.autoSendTranscript ?? config.auto_send_transcript,
+        DEFAULT_VOICE_CONFIG.autoSendTranscript
+      ),
+      autoPlaySpokenReplies: normalizeBoolean(
+        config.autoPlaySpokenReplies ?? config.auto_play_spoken_replies,
+        DEFAULT_VOICE_CONFIG.autoPlaySpokenReplies
+      ),
+      voice: allowedVoices.includes(voice) ? voice : DEFAULT_VOICE_CONFIG.voice,
+      languageBehavior: ["auto", "business"].includes(languageBehavior)
+        ? languageBehavior
+        : DEFAULT_VOICE_CONFIG.languageBehavior,
+    };
   }
 
   function hasBookingSupport(agent = {}) {
@@ -1010,6 +1056,7 @@
     const selectedPurposeOption = getWidgetPurposeOption(selectedPurpose);
     const primaryColor = agent.primaryColor || "#14b8a6";
     const fullPageConfig = normalizeFullPageConfig(agent);
+    const voiceConfig = normalizeVoiceConfig(agent);
     const fullPageDesign = fullPageConfig.design;
     const fullPageHeadline = fullPageConfig.headline || "Front Desk";
     const fullPageSubtitle = fullPageConfig.subtitle || "Ask about services, pricing, quotes, or contact details.";
@@ -1042,6 +1089,7 @@
 
         <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
           <button class="settings-frontdesk-subnav-button active" type="button" data-frontdesk-settings-tab="identity">Identity & welcome</button>
+          <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="voice">Voice</button>
           <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="full_page">Full-page assistant</button>
           <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="routing">Routing</button>
           <button class="settings-frontdesk-subnav-button" type="button" data-frontdesk-settings-tab="appearance">Widget appearance</button>
@@ -1103,6 +1151,63 @@
                   <textarea id="assistant-welcome" name="welcome_message">${escapeHtml(agent.welcomeMessage || "")}</textarea>
                 </div>
               </div>
+            </section>
+
+            <section class="settings-shell-section" data-frontdesk-settings-panel="voice" hidden>
+              <div class="settings-shell-section-header">
+                <div>
+                  <h3 class="settings-shell-section-title">Voice</h3>
+                  <p class="settings-shell-section-copy">Visitors can speak their question. Vonza transcribes it, answers using your existing Front Desk setup, and can optionally read the answer aloud.</p>
+                </div>
+              </div>
+              <div class="settings-shell-choice-list">
+                <label class="settings-shell-choice-row" for="voice-input-enabled">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">Enable voice input</p>
+                    <p class="settings-shell-key-value-copy">Show a microphone button so visitors can record a short question.</p>
+                  </div>
+                  <input id="voice-input-enabled" name="voice_input_enabled" type="checkbox" ${voiceConfig.voiceInputEnabled ? "checked" : ""}>
+                </label>
+                <label class="settings-shell-choice-row" for="spoken-replies-enabled">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">Enable spoken replies</p>
+                    <p class="settings-shell-key-value-copy">Allow visitors to play Vonza's text answer as AI-generated voice.</p>
+                  </div>
+                  <input id="spoken-replies-enabled" name="spoken_replies_enabled" type="checkbox" ${voiceConfig.spokenRepliesEnabled ? "checked" : ""}>
+                </label>
+                <label class="settings-shell-choice-row" for="auto-send-transcript">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">Auto-send transcript after speaking</p>
+                    <p class="settings-shell-key-value-copy">Send the transcript immediately after recording instead of placing it in the composer.</p>
+                  </div>
+                  <input id="auto-send-transcript" name="auto_send_transcript" type="checkbox" ${voiceConfig.autoSendTranscript ? "checked" : ""}>
+                </label>
+                <label class="settings-shell-choice-row" for="auto-play-spoken-replies">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">Auto-play spoken replies</p>
+                    <p class="settings-shell-key-value-copy">Start audio playback after each answer when the visitor has enabled spoken replies.</p>
+                  </div>
+                  <input id="auto-play-spoken-replies" name="auto_play_spoken_replies" type="checkbox" ${voiceConfig.autoPlaySpokenReplies ? "checked" : ""}>
+                </label>
+              </div>
+              <div class="settings-field-grid settings-field-grid--two">
+                <div class="field">
+                  <label for="voice-style">Voice style</label>
+                  <select id="voice-style" name="voice">
+                    ${VOICE_STYLE_OPTIONS.map((option) => `<option value="${escapeHtml(option.value)}" ${voiceConfig.voice === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                  </select>
+                  <p class="field-help">Only built-in AI voices are available. Voice cloning is not supported.</p>
+                </div>
+                <div class="field">
+                  <label for="voice-language-behavior">Language behavior</label>
+                  <select id="voice-language-behavior" name="voice_language_behavior">
+                    <option value="auto" ${voiceConfig.languageBehavior === "auto" ? "selected" : ""}>Auto-detect</option>
+                    <option value="business" ${voiceConfig.languageBehavior === "business" ? "selected" : ""}>Force dashboard/business language</option>
+                  </select>
+                  <p class="field-help">Auto-detect follows the visitor's question when possible.</p>
+                </div>
+              </div>
+              <p class="settings-shell-section-copy">Voice is processed to transcribe the visitor's question. Voice output is AI-generated.</p>
             </section>
 
             <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" hidden>
@@ -2492,7 +2597,7 @@
     });
 
     const showFrontDeskSettingsPanel = (targetPanel = "identity") => {
-      const normalizedPanel = ["identity", "full_page", "routing", "appearance"].includes(targetPanel)
+      const normalizedPanel = ["identity", "voice", "full_page", "routing", "appearance"].includes(targetPanel)
         ? targetPanel
         : "identity";
 

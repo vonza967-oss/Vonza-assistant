@@ -10,12 +10,17 @@ test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Identity & welcome/);
   assert.match(settingsShellScript, /Full-page assistant/);
   assert.match(settingsShellScript, /Routing/);
+  assert.match(settingsShellScript, /Voice/);
   assert.match(settingsShellScript, /Widget appearance/);
+  assert.match(settingsShellScript, /Voice output is AI-generated/);
   assert.match(settingsShellScript, /Current live readout/);
   assert.doesNotMatch(settingsShellScript, /Training queue/);
   assert.doesNotMatch(settingsShellScript, /Approved answers/);
   assert.doesNotMatch(settingsShellScript, /Improve answer/);
   assert.doesNotMatch(settingsShellScript, /Test response/);
+  assert.match(dashboardScript, /function parseVoiceConfigPayload/);
+  assert.match(dashboardScript, /voice_config/);
+  assert.match(dashboardScript, /auto_play_spoken_replies/);
 });
 
 test("Dashboard Front Desk renders training workspace tabs and empty states", () => {

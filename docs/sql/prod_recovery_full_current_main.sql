@@ -1662,3 +1662,7 @@ create policy "Owners can manage reply feedback for their agents."
         and agents.owner_user_id = (select auth.uid())
     )
   );
+
+-- Source: supabase/migrations/20260522000000_voice_config.sql
+alter table if exists public.widget_configs
+  add column if not exists voice_config jsonb not null default '{}'::jsonb;

@@ -19,6 +19,8 @@ export const TRACKED_PRODUCT_EVENTS = [
   "first_lead_captured",
   "first_helpful_feedback",
   "first_not_helpful_feedback",
+  "voice_transcription_completed",
+  "voice_speech_generated",
   "first_follow_up_completed",
   "first_knowledge_fix_approved",
   "notification_read",

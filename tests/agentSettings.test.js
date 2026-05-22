@@ -538,6 +538,101 @@ test("updateAgentSettings persists widget purpose and defaults legacy purpose to
   assert.equal(state.agents[0].purpose, "make_decision");
 });
 
+test("updateAgentSettings persists and reloads Front Desk voice settings with safe defaults", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const defaulted = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    assistantName: "Vonza",
+  });
+
+  assert.deepEqual(defaulted.voiceConfig, {
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: false,
+    autoSendTranscript: false,
+    autoPlaySpokenReplies: false,
+    voice: "alloy",
+    languageBehavior: "auto",
+  });
+  assert.deepEqual(state.widget_configs[0].voice_config, {
+    voice_input_enabled: true,
+    spoken_replies_enabled: false,
+    auto_send_transcript: false,
+    auto_play_spoken_replies: false,
+    voice: "alloy",
+    language_behavior: "auto",
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    voiceConfig: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      auto_send_transcript: true,
+      auto_play_spoken_replies: false,
+      voice: "sage",
+      language_behavior: "business",
+    },
+  });
+
+  assert.deepEqual(result.voiceConfig, {
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: true,
+    autoSendTranscript: true,
+    autoPlaySpokenReplies: false,
+    voice: "sage",
+    languageBehavior: "business",
+  });
+  assert.deepEqual(state.widget_configs[0].voice_config, {
+    voice_input_enabled: true,
+    spoken_replies_enabled: true,
+    auto_send_transcript: true,
+    auto_play_spoken_replies: false,
+    voice: "sage",
+    language_behavior: "business",
+  });
+
+  const reloaded = await getAgentWorkspaceSnapshot(supabase, "agent-1");
+  assert.deepEqual(reloaded.voiceConfig, result.voiceConfig);
+});
+
 test("updateAgentSettings persists clearing the welcome message", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [

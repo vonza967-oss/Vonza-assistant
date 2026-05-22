@@ -23,6 +23,7 @@ import {
   DEFAULT_LANGUAGE,
   DEFAULT_PURPOSE,
   DEFAULT_TONE,
+  DEFAULT_VOICE_CONFIG,
   DEFAULT_WIDGET_CONFIG,
   FULL_PAGE_ACTION_CARD_TYPES,
   FULL_PAGE_BACKGROUND_PRESETS,
@@ -35,6 +36,7 @@ import {
   FULL_PAGE_DESIGN_PRESETS,
   FULL_PAGE_STATUS_STYLES,
   FULL_PAGE_TEXT_THEMES,
+  VOICE_TTS_VOICES,
 } from "./agentDefaults.js";
 import { normalizeWidgetPurpose } from "./widgetPurpose.js";
 import { isTempInstantWorkspaceAccessEnabled } from "../../config/env.js";
@@ -67,6 +69,9 @@ const ROUTING_WIDGET_CONFIG_COLUMNS = [
 const FULL_PAGE_WIDGET_CONFIG_COLUMNS = [
   "full_page_config",
 ];
+const VOICE_WIDGET_CONFIG_COLUMNS = [
+  "voice_config",
+];
 const ROUTING_WIDGET_CONFIG_KEYS = [
   "bookingUrl",
   "quoteUrl",
@@ -87,6 +92,9 @@ const ROUTING_WIDGET_CONFIG_KEYS = [
 const FULL_PAGE_WIDGET_CONFIG_KEYS = [
   "fullPageConfig",
 ];
+const VOICE_WIDGET_CONFIG_KEYS = [
+  "voiceConfig",
+];
 const LEGACY_WIDGET_CONFIG_SELECT = [
   "id",
   "agent_id",
@@ -106,6 +114,42 @@ const LEGACY_WIDGET_CONFIG_SELECT = [
   "last_verification_details",
 ].join(", ");
 const WIDGET_CONFIG_SELECT = [
+  "id",
+  "agent_id",
+  "assistant_name",
+  "welcome_message",
+  "button_label",
+  "primary_color",
+  "secondary_color",
+  "launcher_text",
+  "widget_logo_url",
+  "theme_mode",
+  "booking_url",
+  "quote_url",
+  "checkout_url",
+  "booking_start_url",
+  "quote_start_url",
+  "booking_success_url",
+  "quote_success_url",
+  "checkout_success_url",
+  "success_url_match_mode",
+  "manual_outcome_mode",
+  "contact_email",
+  "contact_phone",
+  "primary_cta_mode",
+  "fallback_cta_mode",
+  "business_hours_note",
+  "install_id",
+  "allowed_domains",
+  "last_verification_status",
+  "last_verified_at",
+  "last_verification_origin",
+  "last_verification_target_url",
+  "last_verification_details",
+  "full_page_config",
+  "voice_config",
+].join(", ");
+const WIDGET_CONFIG_SELECT_WITHOUT_VOICE = [
   "id",
   "agent_id",
   "assistant_name",
@@ -823,6 +867,77 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
   };
 }
 
+function normalizeVoiceConfigInput(value) {
+  if (!value) {
+    return {};
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+
+export function normalizeVoiceConfig(input = {}, previousConfig = DEFAULT_VOICE_CONFIG) {
+  const config = normalizeVoiceConfigInput(input);
+  const previous = normalizeVoiceConfigInput(previousConfig);
+  const fallback = {
+    ...DEFAULT_VOICE_CONFIG,
+    ...previous,
+  };
+  const rawVoice = cleanText(
+    readConfigField(config, "voice", "voice")
+    || readConfigField(config, "voiceStyle", "voice_style")
+    || fallback.voice
+  ).toLowerCase();
+  const rawLanguageBehavior = cleanText(
+    readConfigField(config, "languageBehavior", "language_behavior")
+    || fallback.languageBehavior
+  ).toLowerCase();
+
+  return {
+    voiceInputEnabled: normalizeConfigBoolean(
+      readConfigField(config, "voiceInputEnabled", "voice_input_enabled"),
+      fallback.voiceInputEnabled
+    ),
+    spokenRepliesEnabled: normalizeConfigBoolean(
+      readConfigField(config, "spokenRepliesEnabled", "spoken_replies_enabled"),
+      fallback.spokenRepliesEnabled
+    ),
+    autoSendTranscript: normalizeConfigBoolean(
+      readConfigField(config, "autoSendTranscript", "auto_send_transcript"),
+      fallback.autoSendTranscript
+    ),
+    autoPlaySpokenReplies: normalizeConfigBoolean(
+      readConfigField(config, "autoPlaySpokenReplies", "auto_play_spoken_replies"),
+      fallback.autoPlaySpokenReplies
+    ),
+    voice: VOICE_TTS_VOICES.includes(rawVoice) ? rawVoice : DEFAULT_VOICE_CONFIG.voice,
+    languageBehavior: ["auto", "business"].includes(rawLanguageBehavior)
+      ? rawLanguageBehavior
+      : DEFAULT_VOICE_CONFIG.languageBehavior,
+  };
+}
+
+function serializeVoiceConfig(config = {}) {
+  const normalized = normalizeVoiceConfig(config, DEFAULT_VOICE_CONFIG);
+
+  return {
+    voice_input_enabled: normalized.voiceInputEnabled,
+    spoken_replies_enabled: normalized.spokenRepliesEnabled,
+    auto_send_transcript: normalized.autoSendTranscript,
+    auto_play_spoken_replies: normalized.autoPlaySpokenReplies,
+    voice: normalized.voice,
+    language_behavior: normalized.languageBehavior,
+  };
+}
+
 function serializeFullPageConfig(config = {}) {
   const normalized = normalizeFullPageConfig(config, {
     bookingSupport: config.showBooking === true,
@@ -923,6 +1038,16 @@ function isMissingFullPageConfigColumnError(error) {
   );
 }
 
+function isMissingVoiceConfigColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+
+  return (
+    error?.code === "42703"
+    || error?.code === "PGRST204"
+    || VOICE_WIDGET_CONFIG_COLUMNS.some((columnName) => message.includes(columnName))
+  );
+}
+
 function isMissingBusinessVerticalColumnError(error) {
   const message = cleanText(error?.message || "").toLowerCase();
   return (
@@ -952,6 +1077,10 @@ function buildWidgetConfigUpsertPayload(agentId, config, options = {}) {
 
   if (options.includeFullPageConfigField !== false) {
     payload.full_page_config = serializeFullPageConfig(config.fullPageConfig || {});
+  }
+
+  if (options.includeVoiceConfigField !== false) {
+    payload.voice_config = serializeVoiceConfig(config.voiceConfig || {});
   }
 
   if (options.includeRoutingFields !== false) {
@@ -1090,9 +1219,12 @@ function mapWidgetConfigRow(row) {
     ...normalizedFullPageConfig,
     logoUrl: normalizedFullPageConfig.logoUrl || widgetLogoUrl || null,
   };
+  const voiceConfig = normalizeVoiceConfig(row?.voice_config, DEFAULT_VOICE_CONFIG);
 
   return {
     ...DEFAULT_WIDGET_CONFIG,
+    voiceConfig,
+    voice_config: serializeVoiceConfig(voiceConfig),
     fullPageConfig,
     full_page_config: serializeFullPageConfig(fullPageConfig),
     ...(row
@@ -1185,6 +1317,7 @@ function mapPersistedWidgetConfigRow(row) {
       ...normalizedFullPageConfig,
       logoUrl: normalizedFullPageConfig.logoUrl || widgetLogoUrl || null,
     },
+    voiceConfig: normalizeVoiceConfig(row?.voice_config, DEFAULT_VOICE_CONFIG),
     installId: cleanText(row?.install_id),
     allowedDomainsRaw: normalizeAllowedDomains(row?.allowed_domains, {
       allowEmpty: true,
@@ -1258,6 +1391,14 @@ async function getWidgetConfigRowForAgent(supabase, agentId) {
       .maybeSingle());
   }
 
+  if (error && isMissingVoiceConfigColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_VOICE)
+      .eq("agent_id", agentId)
+      .maybeSingle());
+  }
+
   if (error && isMissingWidgetRoutingColumnError(error)) {
     ({ data, error } = await supabase
       .from(WIDGET_CONFIGS_TABLE)
@@ -1300,8 +1441,19 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
       .from(WIDGET_CONFIGS_TABLE)
       .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, {
         includeFullPageConfigField: false,
+        includeVoiceConfigField: false,
       }), { onConflict: "agent_id" })
       .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+      .single());
+  }
+
+  if (error && isMissingVoiceConfigColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .upsert(buildWidgetConfigUpsertPayload(agentId, DEFAULT_WIDGET_CONFIG, {
+        includeVoiceConfigField: false,
+      }), { onConflict: "agent_id" })
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_VOICE)
       .single());
   }
 
@@ -1312,6 +1464,7 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
         includeRoutingFields: false,
         includeWidgetLogoField: false,
         includeFullPageConfigField: false,
+        includeVoiceConfigField: false,
       }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
@@ -1898,6 +2051,13 @@ export async function listAgents(supabase, options = {}) {
         .in("agent_id", agentIds));
     }
 
+    if (widgetError && isMissingVoiceConfigColumnError(widgetError)) {
+      ({ data: widgetRows, error: widgetError } = await supabase
+        .from(WIDGET_CONFIGS_TABLE)
+        .select(WIDGET_CONFIG_SELECT_WITHOUT_VOICE)
+        .in("agent_id", agentIds));
+    }
+
     if (widgetError && isMissingWidgetRoutingColumnError(widgetError)) {
       ({ data: widgetRows, error: widgetError } = await supabase
         .from(WIDGET_CONFIGS_TABLE)
@@ -2037,6 +2197,8 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
       fullPageConfig:
         widgetConfig?.fullPageConfig || normalizeFullPageConfig(null),
+      voiceConfig:
+        widgetConfig?.voiceConfig || normalizeVoiceConfig(null),
       hasWidgetConfig: Boolean(widgetConfig),
       knowledge,
       installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(widgetConfig, websiteUrl),
@@ -2105,6 +2267,13 @@ export async function listAllAgents(supabase) {
       ({ data: widgetRows, error: widgetError } = await supabase
         .from(WIDGET_CONFIGS_TABLE)
         .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+        .in("agent_id", agentIds));
+    }
+
+    if (widgetError && isMissingVoiceConfigColumnError(widgetError)) {
+      ({ data: widgetRows, error: widgetError } = await supabase
+        .from(WIDGET_CONFIGS_TABLE)
+        .select(WIDGET_CONFIG_SELECT_WITHOUT_VOICE)
         .in("agent_id", agentIds));
     }
 
@@ -2221,6 +2390,8 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.businessHoursNote || DEFAULT_WIDGET_CONFIG.businessHoursNote,
     fullPageConfig:
       widgetConfigsByAgentId.get(row.id)?.fullPageConfig || normalizeFullPageConfig(null),
+    voiceConfig:
+      widgetConfigsByAgentId.get(row.id)?.voiceConfig || normalizeVoiceConfig(null),
     installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(
       widgetConfigsByAgentId.get(row.id),
       businessesById.get(row.business_id)?.website_url || ""
@@ -2302,12 +2473,14 @@ export async function updateAgentSettings(
     fallbackCtaMode,
     businessHoursNote,
     fullPageConfig,
+    voiceConfig,
     regeneratePublicPageKey,
     vertical,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
   const hasSubmittedRoutingField = ROUTING_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
   const hasSubmittedFullPageConfig = FULL_PAGE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
+  const hasSubmittedVoiceConfig = VOICE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
   const normalizedAgentId = cleanText(agentId);
   const providedWebsiteUrl = hasField("websiteUrl") ? cleanText(websiteUrl) : "";
   const normalizedWebsiteUrl = providedWebsiteUrl
@@ -2451,6 +2624,7 @@ export async function updateAgentSettings(
         fallbackCtaMode: currentWidgetConfig.fallbackCtaMode,
         businessHoursNote: currentWidgetConfig.businessHoursNote || "",
         fullPageConfig: currentWidgetConfig.fullPageConfig || normalizeFullPageConfig(null),
+        voiceConfig: currentWidgetConfig.voiceConfig || normalizeVoiceConfig(null),
         installId: currentWidgetConfig.installId || "",
         allowedDomainsRaw: normalizeAllowedDomains(currentWidgetConfig.allowedDomains, {
           allowEmpty: true,
@@ -2543,6 +2717,9 @@ export async function updateAgentSettings(
         { regenerate: regeneratePublicPageKey === true || cleanText(regeneratePublicPageKey).toLowerCase() === "true" }
       )
     : persistedWidgetConfig.fullPageConfig;
+  const nextVoiceConfig = hasField("voiceConfig")
+    ? normalizeVoiceConfig(voiceConfig, persistedWidgetConfig.voiceConfig)
+    : persistedWidgetConfig.voiceConfig;
   const currentBusiness = agent.businessId
     ? await findBusinessByIdentifier(supabase, agent.businessId)
     : null;
@@ -2665,6 +2842,7 @@ export async function updateAgentSettings(
       fallbackCtaMode: nextFallbackCtaMode,
       businessHoursNote: nextBusinessHoursNote,
       fullPageConfig: nextFullPageConfig,
+      voiceConfig: nextVoiceConfig,
       allowedDomains: nextAllowedDomainsRaw,
     }), { onConflict: "agent_id" })
     .select(WIDGET_CONFIG_SELECT)
@@ -2708,8 +2886,53 @@ export async function updateAgentSettings(
         allowedDomains: nextAllowedDomainsRaw,
       }, {
         includeFullPageConfigField: false,
+        includeVoiceConfigField: false,
       }), { onConflict: "agent_id" })
       .select(WIDGET_CONFIG_SELECT_WITHOUT_FULL_PAGE)
+      .single());
+  }
+
+  if (widgetError && isMissingVoiceConfigColumnError(widgetError)) {
+    if (hasSubmittedVoiceConfig) {
+      throw buildAgentSettingsError(
+        "Voice settings could not be saved because the server schema is missing the voice_config field. Apply the voice config migration and try again.",
+        503,
+        widgetError?.code || "voice_config_persistence_unavailable"
+      );
+    }
+
+    ({ data: persistedWidgetRow, error: widgetError } = await supabase
+      .from(WIDGET_CONFIGS_TABLE)
+      .upsert(buildWidgetConfigUpsertPayload(normalizedAgentId, {
+        assistantName: nextAssistantName,
+        welcomeMessage: nextWelcomeMessage,
+        buttonLabel: nextButtonLabel,
+        primaryColor: nextPrimaryColor,
+        secondaryColor: nextSecondaryColor,
+        launcherText: currentWidgetConfig.launcherText,
+        widgetLogoUrl: nextWidgetLogoUrl,
+        themeMode: currentWidgetConfig.themeMode,
+        bookingUrl: nextBookingUrl,
+        quoteUrl: nextQuoteUrl,
+        checkoutUrl: nextCheckoutUrl,
+        bookingStartUrl: nextBookingStartUrl,
+        quoteStartUrl: nextQuoteStartUrl,
+        bookingSuccessUrl: nextBookingSuccessUrl,
+        quoteSuccessUrl: nextQuoteSuccessUrl,
+        checkoutSuccessUrl: nextCheckoutSuccessUrl,
+        successUrlMatchMode: nextSuccessUrlMatchMode,
+        manualOutcomeMode: nextManualOutcomeMode,
+        contactEmail: nextContactEmail,
+        contactPhone: nextContactPhone,
+        primaryCtaMode: nextPrimaryCtaMode,
+        fallbackCtaMode: nextFallbackCtaMode,
+        businessHoursNote: nextBusinessHoursNote,
+        fullPageConfig: nextFullPageConfig,
+        allowedDomains: nextAllowedDomainsRaw,
+      }, {
+        includeVoiceConfigField: false,
+      }), { onConflict: "agent_id" })
+      .select(WIDGET_CONFIG_SELECT_WITHOUT_VOICE)
       .single());
   }
 
@@ -2734,6 +2957,7 @@ export async function updateAgentSettings(
         includeRoutingFields: false,
         includeWidgetLogoField: false,
         includeFullPageConfigField: false,
+        includeVoiceConfigField: false,
       }), { onConflict: "agent_id" })
       .select(LEGACY_WIDGET_CONFIG_SELECT)
       .single());
@@ -2792,6 +3016,7 @@ export async function updateAgentSettings(
     fallbackCtaMode: savedWidgetConfig.fallbackCtaMode,
     businessHoursNote: savedWidgetConfig.businessHoursNote,
     fullPageConfig: savedWidgetConfig.fullPageConfig,
+    voiceConfig: savedWidgetConfig.voiceConfig || nextVoiceConfig,
     installId: savedWidgetConfig.installId || persistedWidgetConfig.installId || currentWidgetConfig.installId,
     allowedDomains: deriveAllowedDomains(savedAllowedDomainsRaw, resolvedWebsiteUrl) || resolvedAllowedDomains,
   };

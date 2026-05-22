@@ -9,6 +9,10 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
+      - key: VOICE_TRANSCRIBE_MODEL
+        value: gpt-4o-mini-transcribe
+      - key: VOICE_TTS_MODEL
+        value: gpt-4o-mini-tts
       - key: ADMIN_TOKEN
         sync: false
       - key: SUPABASE_URL

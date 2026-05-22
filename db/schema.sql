@@ -95,6 +95,7 @@ create table if not exists public.widget_configs (
   last_verification_target_url text,
   last_verification_details jsonb,
   full_page_config jsonb not null default '{}'::jsonb,
+  voice_config jsonb not null default '{}'::jsonb,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );

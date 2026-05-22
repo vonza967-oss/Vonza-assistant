@@ -262,6 +262,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Extends assistant reply feedback with review status, owner/test sources, notes, and approved-answer linkage.",
   }),
+  Object.freeze({
+    id: "voice_config",
+    version: "20260522000000",
+    name: "voice_config",
+    file: "supabase/migrations/20260522000000_voice_config.sql",
+    legacySources: Object.freeze(["db/voice_config.sql"]),
+    tier: "feature-gated",
+    note: "Adds Phase 1 Front Desk voice input and spoken reply settings on widget_configs with safe runtime defaults.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

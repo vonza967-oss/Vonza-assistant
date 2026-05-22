@@ -6,6 +6,8 @@ const DEFAULT_LIMITS = Object.freeze({
   public_chat: { windowMs: 60_000, max: 8 },
   public_chat_capture: { windowMs: 60_000, max: 6 },
   public_chat_feedback: { windowMs: 60_000, max: 10 },
+  public_voice_transcribe: { windowMs: 60_000, max: 5 },
+  public_voice_speech: { windowMs: 60_000, max: 10 },
   widget_bootstrap: { windowMs: 60_000, max: 60 },
   public_install_signal: { windowMs: 60_000, max: 30 },
   auth_adjacent: { windowMs: 60_000, max: 12 },

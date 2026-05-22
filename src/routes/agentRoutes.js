@@ -1487,6 +1487,10 @@ export function createAgentRouter(deps = {}) {
       if (fullPageConfig !== undefined) {
         updateOptions.fullPageConfig = fullPageConfig;
       }
+      const voiceConfig = readBodyField(req.body, "voice_config", "voiceConfig");
+      if (voiceConfig !== undefined) {
+        updateOptions.voiceConfig = voiceConfig;
+      }
       const regeneratePublicPageKey = readBodyField(
         req.body,
         "regenerate_public_page_key",

@@ -16873,6 +16873,21 @@ function parseFullPageConfigPayload(formData) {
   };
 }
 
+function parseVoiceConfigPayload(formData) {
+  const voice = trimText(formData.get("voice")).toLowerCase();
+  const languageBehavior = trimText(formData.get("voice_language_behavior")).toLowerCase();
+  const allowedVoices = ["alloy", "ash", "coral", "nova", "sage", "shimmer"];
+
+  return {
+    voice_input_enabled: formData.has("voice_input_enabled"),
+    spoken_replies_enabled: formData.has("spoken_replies_enabled"),
+    auto_send_transcript: formData.has("auto_send_transcript"),
+    auto_play_spoken_replies: formData.has("auto_play_spoken_replies"),
+    voice: allowedVoices.includes(voice) ? voice : "alloy",
+    language_behavior: languageBehavior === "business" ? "business" : "auto",
+  };
+}
+
 async function saveAssistant(event, agent) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -17006,6 +17021,10 @@ async function saveAssistant(event, agent) {
 
   if (formData.has("full_page_headline")) {
     payload.full_page_config = parseFullPageConfigPayload(formData);
+  }
+
+  if (formData.has("voice_input_enabled") || formData.has("spoken_replies_enabled") || formData.has("voice")) {
+    payload.voice_config = parseVoiceConfigPayload(formData);
   }
 
   submitButton.disabled = true;

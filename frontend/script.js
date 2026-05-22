@@ -72,6 +72,22 @@ const DEFAULT_WIDGET_CONFIG = {
   secondaryColor: "#7c4dff",
   themeMode: "dark",
 };
+const DEFAULT_VOICE_CONFIG = Object.freeze({
+  voiceInputEnabled: true,
+  spokenRepliesEnabled: false,
+  autoSendTranscript: false,
+  autoPlaySpokenReplies: false,
+  voice: "alloy",
+  languageBehavior: "auto",
+});
+const VOICE_TTS_VOICES = Object.freeze(["alloy", "ash", "coral", "nova", "sage", "shimmer"]);
+const VOICE_RECORDING_MAX_MS = 30000;
+const VOICE_RECORDING_MIME_TYPES = Object.freeze([
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "video/webm",
+  "audio/mp4",
+]);
 const DEFAULT_FULL_PAGE_HEADLINE = "Front Desk";
 const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
 const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
@@ -221,6 +237,17 @@ let visitorIdentity = {
   email: "",
   name: "",
 };
+let voiceRecorder = null;
+let voiceRecorderChunks = [];
+let voiceRecordingStartedAt = 0;
+let voiceRecordingStopTimer = 0;
+let voiceTranscriptRequestActive = false;
+let speakRepliesActive = false;
+let speakRepliesUserChanged = false;
+let currentVoiceAudio = null;
+let currentVoiceButton = null;
+let currentVoiceUrl = "";
+const voiceReplyAudioCache = new Map();
 let lastLeadReferenceMessage = "";
 let quickRepliesDismissed = false;
 let pendingCanvasTopicLabel = "";
@@ -1197,6 +1224,7 @@ function normalizeWidgetConfig(input = {}) {
     ),
   };
   next.fullPageConfig = getFullPageConfig(next);
+  next.voiceConfig = normalizeVoiceConfig(next);
   const primaryColor = normalizeHexColor(next.primaryColor);
   const secondaryColor = normalizeHexColor(next.secondaryColor);
   const hasLegacyColors =
@@ -1225,6 +1253,35 @@ function normalizeWidgetConfig(input = {}) {
   }
 
   return next;
+}
+
+function normalizeVoiceConfig(config = widgetConfig) {
+  const rawConfig = config.voiceConfig || config.voice_config || {};
+  const voice = trimText(rawConfig.voice || rawConfig.voice_style).toLowerCase();
+  const languageBehavior = trimText(rawConfig.languageBehavior || rawConfig.language_behavior).toLowerCase();
+
+  return {
+    voiceInputEnabled: normalizeBoolean(
+      rawConfig.voiceInputEnabled ?? rawConfig.voice_input_enabled,
+      DEFAULT_VOICE_CONFIG.voiceInputEnabled
+    ),
+    spokenRepliesEnabled: normalizeBoolean(
+      rawConfig.spokenRepliesEnabled ?? rawConfig.spoken_replies_enabled,
+      DEFAULT_VOICE_CONFIG.spokenRepliesEnabled
+    ),
+    autoSendTranscript: normalizeBoolean(
+      rawConfig.autoSendTranscript ?? rawConfig.auto_send_transcript,
+      DEFAULT_VOICE_CONFIG.autoSendTranscript
+    ),
+    autoPlaySpokenReplies: normalizeBoolean(
+      rawConfig.autoPlaySpokenReplies ?? rawConfig.auto_play_spoken_replies,
+      DEFAULT_VOICE_CONFIG.autoPlaySpokenReplies
+    ),
+    voice: VOICE_TTS_VOICES.includes(voice) ? voice : DEFAULT_VOICE_CONFIG.voice,
+    languageBehavior: ["auto", "business"].includes(languageBehavior)
+      ? languageBehavior
+      : DEFAULT_VOICE_CONFIG.languageBehavior,
+  };
 }
 
 function getPageOrigin() {
@@ -1702,6 +1759,7 @@ function updateComposerAvailability() {
   input.placeholder = isCanvasEmbeddedPageMode() ? "Ask anything..." : "Type your question...";
   inputArea.classList.toggle("is-locked", !chatReady);
   renderQuickReplies();
+  syncVoiceControls();
 }
 
 function normalizeWidgetPhase(value) {
@@ -2312,6 +2370,408 @@ function setComposerStatus(message) {
   }
 }
 
+function getVoiceConfig(config = widgetConfig) {
+  return config.voiceConfig || normalizeVoiceConfig(config);
+}
+
+function browserSupportsVoiceInput() {
+  return Boolean(
+    navigator?.mediaDevices?.getUserMedia
+    && typeof window.MediaRecorder === "function"
+  );
+}
+
+function getPreferredRecordingMimeType() {
+  const MediaRecorderCtor = window.MediaRecorder;
+
+  if (!MediaRecorderCtor || typeof MediaRecorderCtor.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return VOICE_RECORDING_MIME_TYPES.find((type) => MediaRecorderCtor.isTypeSupported(type)) || "";
+}
+
+function getVoiceInputButton() {
+  return document.getElementById("voice-input-button");
+}
+
+function getSpeakRepliesToggle() {
+  return document.getElementById("speak-replies-toggle");
+}
+
+function buildVoiceContextParams() {
+  const params = new URLSearchParams();
+
+  if (resolvedAgentId) params.set("agent_id", resolvedAgentId);
+  if (resolvedAgentKey) params.set("agent_key", resolvedAgentKey);
+  if (resolvedBusinessId) params.set("business_id", resolvedBusinessId);
+  if (INSTALL_ID) params.set("install_id", INSTALL_ID);
+  if (WEBSITE_URL) params.set("website_url", WEBSITE_URL);
+  if (getPageOrigin()) params.set("origin", getPageOrigin());
+  if (getPageUrl()) params.set("page_url", getPageUrl());
+  if (PUBLIC_PAGE_KEY) params.set("public_page_key", PUBLIC_PAGE_KEY);
+  params.set("display_mode", DISPLAY_MODE);
+  params.set("visitor_session_key", getVisitorSessionKey());
+
+  return params;
+}
+
+function buildVoiceJsonContext() {
+  return {
+    agent_id: resolvedAgentId,
+    agent_key: resolvedAgentKey,
+    business_id: resolvedBusinessId,
+    install_id: INSTALL_ID,
+    website_url: WEBSITE_URL,
+    page_url: getPageUrl(),
+    origin: getPageOrigin(),
+    public_page_key: PUBLIC_PAGE_KEY,
+    display_mode: DISPLAY_MODE,
+    visitor_session_key: getVisitorSessionKey(),
+  };
+}
+
+function setVoiceInputState(state, message = "") {
+  const button = getVoiceInputButton();
+  const inputArea = document.querySelector(".input-area");
+  const normalizedState = trimText(state);
+  const label = message || (
+    normalizedState === "listening"
+      ? "Listening..."
+      : normalizedState === "processing"
+        ? "Processing..."
+        : normalizedState === "ready"
+          ? "Transcript ready"
+          : normalizedState === "error"
+            ? "Error"
+            : "Tap to speak"
+  );
+
+  if (button) {
+    button.classList.toggle("is-recording", normalizedState === "listening");
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+  }
+
+  inputArea?.classList?.toggle("is-recording", normalizedState === "listening");
+  if (normalizedState) {
+    setComposerStatus(label);
+  }
+}
+
+function syncSpeakRepliesToggle() {
+  const toggle = getSpeakRepliesToggle();
+  const config = getVoiceConfig();
+  const enabled = config.spokenRepliesEnabled === true;
+
+  if (!toggle) {
+    return;
+  }
+
+  if (!enabled) {
+    speakRepliesActive = false;
+    speakRepliesUserChanged = false;
+  } else if (!speakRepliesUserChanged && config.autoPlaySpokenReplies === true) {
+    speakRepliesActive = true;
+  }
+
+  toggle.hidden = !enabled;
+  toggle.setAttribute("aria-pressed", speakRepliesActive ? "true" : "false");
+  toggle.textContent = speakRepliesActive ? "Speak replies on" : "Speak replies";
+}
+
+function syncVoiceControls() {
+  const config = getVoiceConfig();
+  const micButton = getVoiceInputButton();
+  const voiceControls = document.getElementById("voice-controls");
+  const disclosure = document.getElementById("voice-disclosure");
+  const voiceInputEnabled = config.voiceInputEnabled !== false;
+  const spokenRepliesEnabled = config.spokenRepliesEnabled === true;
+  const supportsVoice = browserSupportsVoiceInput();
+  const chatReady = widgetPhase === WIDGET_PHASES.CHAT;
+
+  if (micButton) {
+    micButton.hidden = !voiceInputEnabled;
+    micButton.disabled = !voiceInputEnabled || !supportsVoice || !chatReady || voiceTranscriptRequestActive;
+    if (voiceInputEnabled && !supportsVoice) {
+      micButton.setAttribute("aria-label", "Voice input is not supported in this browser.");
+      micButton.setAttribute("title", "Voice input is not supported in this browser.");
+    } else if (!voiceRecorder) {
+      micButton.setAttribute("aria-label", "Tap to speak");
+      micButton.setAttribute("title", "Tap to speak");
+    }
+  }
+
+  if (voiceControls) {
+    voiceControls.hidden = !voiceInputEnabled && !spokenRepliesEnabled;
+  }
+
+  if (disclosure) {
+    disclosure.hidden = !voiceInputEnabled && !spokenRepliesEnabled;
+  }
+
+  syncSpeakRepliesToggle();
+}
+
+function stopCurrentVoiceAudio() {
+  if (currentVoiceAudio) {
+    currentVoiceAudio.pause();
+    currentVoiceAudio.currentTime = 0;
+  }
+
+  if (currentVoiceButton) {
+    currentVoiceButton.textContent = "Play reply";
+    currentVoiceButton.setAttribute("aria-label", "Play reply");
+    currentVoiceButton.closest?.(".message")?.classList.remove("is-speaking");
+  }
+
+  if (currentVoiceUrl && !voiceReplyAudioCacheHasUrl(currentVoiceUrl)) {
+    URL.revokeObjectURL(currentVoiceUrl);
+  }
+
+  currentVoiceAudio = null;
+  currentVoiceButton = null;
+  currentVoiceUrl = "";
+}
+
+function voiceReplyAudioCacheHasUrl(url) {
+  return Array.from(voiceReplyAudioCache.values()).includes(url);
+}
+
+async function getSpeechAudioUrl(text, key) {
+  const cacheKey = trimText(key) || buildAssistantMessageKey(text);
+  if (voiceReplyAudioCache.has(cacheKey)) {
+    return voiceReplyAudioCache.get(cacheKey);
+  }
+
+  const response = await fetch("/api/voice/speech", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...buildVoiceJsonContext(),
+      text,
+      voice: getVoiceConfig().voice,
+    }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Speech playback failed.");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  voiceReplyAudioCache.set(cacheKey, url);
+  return url;
+}
+
+async function playSpokenReply(text, button, options = {}) {
+  const replyText = trimText(text);
+
+  if (!replyText || !getVoiceConfig().spokenRepliesEnabled) {
+    return;
+  }
+
+  if (currentVoiceButton === button && currentVoiceAudio) {
+    stopCurrentVoiceAudio();
+    setComposerStatus("Spoken reply stopped.");
+    return;
+  }
+
+  stopCurrentVoiceAudio();
+  const message = button?.closest?.(".message") || null;
+
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Speaking...";
+    }
+    const url = await getSpeechAudioUrl(replyText, options.key);
+    const AudioCtor = window.Audio || globalThis.Audio;
+    if (typeof AudioCtor !== "function") {
+      throw new Error("Audio playback is not supported in this browser.");
+    }
+    const audio = new AudioCtor(url);
+    currentVoiceAudio = audio;
+    currentVoiceButton = button || null;
+    currentVoiceUrl = url;
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Stop";
+      button.setAttribute("aria-label", "Stop spoken reply");
+    }
+    message?.classList.add("is-speaking");
+    setComposerStatus("Speaking...");
+    audio.addEventListener("ended", () => {
+      if (currentVoiceAudio === audio) {
+        stopCurrentVoiceAudio();
+        setComposerStatus("Ask anything else about services, pricing, booking, or contact details.");
+      }
+    });
+    audio.addEventListener("error", () => {
+      if (currentVoiceAudio === audio) {
+        stopCurrentVoiceAudio();
+        setComposerStatus("Spoken reply could not play.");
+      }
+    });
+    await audio.play();
+  } catch (error) {
+    console.warn("Vonza speech playback failed:", error);
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Play reply";
+      button.setAttribute("aria-label", "Play reply");
+    }
+    message?.classList.remove("is-speaking");
+    setComposerStatus(options.auto === true ? "Reply is ready. Use Play reply to hear it." : "Spoken reply could not play.");
+  }
+}
+
+function getVoiceReplyButtonMarkup(messageKey) {
+  if (!getVoiceConfig().spokenRepliesEnabled || !trimText(messageKey)) {
+    return "";
+  }
+
+  return `
+    <button class="voice-reply-button" type="button" data-voice-reply-button data-voice-message-key="${escapeHtml(messageKey)}" aria-label="Play reply">Play reply</button>
+  `;
+}
+
+async function transcribeVoiceBlob(blob, durationMs) {
+  const params = buildVoiceContextParams();
+  params.set("duration_ms", String(Math.max(1, Math.round(durationMs))));
+
+  const response = await fetch(`/api/voice/transcribe?${params.toString()}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": blob.type || "audio/webm",
+      "X-Voice-Duration-Ms": String(Math.max(1, Math.round(durationMs))),
+    },
+    body: blob,
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.error || "Voice transcription failed.");
+  }
+
+  return data;
+}
+
+function clearVoiceRecordingTimer() {
+  if (voiceRecordingStopTimer) {
+    clearTimeout(voiceRecordingStopTimer);
+    voiceRecordingStopTimer = 0;
+  }
+}
+
+function stopVoiceRecording() {
+  if (!voiceRecorder) {
+    return;
+  }
+
+  clearVoiceRecordingTimer();
+  if (voiceRecorder.state !== "inactive") {
+    voiceRecorder.stop();
+  }
+}
+
+async function startVoiceRecording() {
+  if (voiceRecorder) {
+    stopVoiceRecording();
+    return;
+  }
+
+  if (!browserSupportsVoiceInput()) {
+    setVoiceInputState("error", "Voice input is not supported in this browser.");
+    syncVoiceControls();
+    return;
+  }
+
+  if (!hasChosenVisitorIdentity()) {
+    renderWidgetPhase();
+    setComposerStatus("Choose guest or email before using voice input.");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = getPreferredRecordingMimeType();
+    const MediaRecorderCtor = window.MediaRecorder;
+    voiceRecorderChunks = [];
+    voiceRecordingStartedAt = Date.now();
+    voiceRecorder = mimeType
+      ? new MediaRecorderCtor(stream, { mimeType })
+      : new MediaRecorderCtor(stream);
+    voiceRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) {
+        voiceRecorderChunks.push(event.data);
+      }
+    });
+    voiceRecorder.addEventListener("stop", async () => {
+      const stoppedRecorder = voiceRecorder;
+      const durationMs = Math.max(1, Date.now() - voiceRecordingStartedAt);
+      const tracks = stoppedRecorder?.stream?.getTracks?.() || stream.getTracks?.() || [];
+      tracks.forEach((track) => track.stop?.());
+      voiceRecorder = null;
+      clearVoiceRecordingTimer();
+      await handleVoiceRecordingComplete(durationMs, mimeType || stoppedRecorder?.mimeType || "audio/webm");
+    });
+    voiceRecorder.start();
+    setVoiceInputState("listening", "Listening...");
+    syncVoiceControls();
+    voiceRecordingStopTimer = setTimeout(stopVoiceRecording, VOICE_RECORDING_MAX_MS);
+  } catch (error) {
+    console.warn("Vonza microphone recording failed:", error);
+    voiceRecorder = null;
+    clearVoiceRecordingTimer();
+    setVoiceInputState("error", "Microphone access was not available.");
+    syncVoiceControls();
+  }
+}
+
+async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
+  const input = document.getElementById("input");
+  const chunks = voiceRecorderChunks.slice();
+  voiceRecorderChunks = [];
+
+  if (!chunks.length) {
+    setVoiceInputState("error", "No speech was recorded.");
+    syncVoiceControls();
+    return;
+  }
+
+  voiceTranscriptRequestActive = true;
+  setVoiceInputState("processing", "Processing...");
+  syncVoiceControls();
+
+  try {
+    const blobType = chunks.find((chunk) => trimText(chunk.type))?.type || fallbackMimeType || "audio/webm";
+    const blob = new Blob(chunks, { type: blobType });
+    const result = await transcribeVoiceBlob(blob, durationMs);
+    const transcript = trimText(result.text);
+
+    if (!transcript) {
+      throw new Error("No speech was detected in that recording.");
+    }
+
+    if (input) {
+      input.value = transcript;
+      input.focus();
+    }
+    setVoiceInputState("ready", "Transcript ready");
+    if (getVoiceConfig().autoSendTranscript) {
+      await sendMessage(transcript);
+    }
+  } catch (error) {
+    console.warn("Vonza voice transcription failed:", error);
+    setVoiceInputState("error", error.message || "Voice input failed.");
+  } finally {
+    voiceTranscriptRequestActive = false;
+    syncVoiceControls();
+  }
+}
+
 function queueEmbeddedHeightUpdate() {
   if (!EMBEDDED_MODE || typeof window.requestAnimationFrame !== "function") {
     return;
@@ -2445,6 +2905,12 @@ function applyFullPageDesign(config = widgetConfig) {
 
 function applyWidgetConfig(config = {}) {
   widgetConfig = normalizeWidgetConfig(config);
+  if (getVoiceConfig(widgetConfig).spokenRepliesEnabled !== true) {
+    speakRepliesActive = false;
+    speakRepliesUserChanged = false;
+  } else if (!speakRepliesUserChanged && getVoiceConfig(widgetConfig).autoPlaySpokenReplies === true) {
+    speakRepliesActive = true;
+  }
 
   const brandMark = document.querySelector(".brand-mark");
   const welcomeBrandMark = document.querySelector(".welcome-brand-mark");
@@ -2538,6 +3004,7 @@ function applyWidgetConfig(config = {}) {
     ?.setAttribute("content", widgetConfig.assistantName);
   syncWidgetPhaseWithIdentity(visitorIdentity);
   syncPageIdentityInline();
+  syncVoiceControls();
 }
 
 async function loadWidgetBootstrap() {
@@ -2692,6 +3159,14 @@ function appendMessage(chat, role, text, options = {}) {
   if (options.error) {
     wrapper.classList.add("error");
   }
+  const voiceMessageKey =
+    role === "bot" && !options.typing && !options.error && trimText(text)
+      ? trimText(options.voiceKey || options.feedbackKey) || buildAssistantMessageKey(text)
+      : "";
+  if (voiceMessageKey) {
+    wrapper.dataset.voiceMessageKey = voiceMessageKey;
+    wrapper.dataset.voiceReplyText = text || "";
+  }
 
   const avatar = role === "user" ? "You" : getAssistantMark();
   const label = role === "user" ? "You" : widgetConfig.assistantName;
@@ -2713,6 +3188,7 @@ function appendMessage(chat, role, text, options = {}) {
         question: options.feedbackQuestion || "",
         answer: text || "",
       }) : ""}
+      ${voiceMessageKey ? getVoiceReplyButtonMarkup(voiceMessageKey) : ""}
       ${isCanvasAnswer ? buildCanvasAnswerActionsMarkup() : ""}
     </div>
   `;
@@ -2795,6 +3271,9 @@ async function sendMessage(messageOverride = "") {
 
   if (!message) return;
 
+  stopVoiceRecording();
+  stopCurrentVoiceAudio();
+
   if (isPageMode() && !hasChosenVisitorIdentity()) {
     visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
     syncWidgetPhaseWithIdentity(visitorIdentity);
@@ -2827,6 +3306,7 @@ async function sendMessage(messageOverride = "") {
   renderQuickReplies();
   button.disabled = true;
   input.disabled = true;
+  syncVoiceControls();
   setComposerStatus(`${widgetConfig.assistantName} is preparing a reply...`);
 
   const loading = appendMessage(chat, "bot", "", { typing: true });
@@ -2876,7 +3356,7 @@ async function sendMessage(messageOverride = "") {
     }
 
     const feedbackKey = buildAssistantMessageKey(data.reply);
-    appendMessage(chat, "bot", data.reply, {
+    const assistantMessage = appendMessage(chat, "bot", data.reply, {
       feedbackKey,
       feedbackQuestion: message,
       canvasTopicLabel,
@@ -2914,8 +3394,12 @@ async function sendMessage(messageOverride = "") {
     setComposerStatus(
       trimText(data.directRouting?.primaryCta?.label)
         ? "That option is ready if you want the fastest next step."
-      : "Ask anything else about services, pricing, booking, or contact details."
+        : "Ask anything else about services, pricing, booking, or contact details."
     );
+    if (getVoiceConfig().spokenRepliesEnabled && speakRepliesActive) {
+      const voiceButton = assistantMessage.querySelector?.("[data-voice-reply-button]") || null;
+      void playSpokenReply(data.reply, voiceButton, { key: feedbackKey, auto: true });
+    }
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
     loading.remove();
@@ -2924,6 +3408,7 @@ async function sendMessage(messageOverride = "") {
   } finally {
     button.disabled = false;
     input.disabled = false;
+    syncVoiceControls();
     focusComposerInputIfSafe();
   }
 }
@@ -3035,6 +3520,17 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
     }
   }
 
+  const voiceReplyButton = event.target?.closest?.("[data-voice-reply-button]");
+
+  if (voiceReplyButton) {
+    const message = voiceReplyButton.closest?.(".message");
+    const replyText = message?.dataset?.voiceReplyText || "";
+    void playSpokenReply(replyText, voiceReplyButton, {
+      key: voiceReplyButton.dataset.voiceMessageKey || message?.dataset?.voiceMessageKey || "",
+    });
+    return;
+  }
+
   const openReasonsButton = event.target?.closest?.("[data-reply-feedback-open-reasons]");
 
   if (openReasonsButton) {
@@ -3099,6 +3595,28 @@ document.getElementById("input").addEventListener("keydown", (event) => {
     event.preventDefault();
     sendMessage();
   }
+});
+
+getVoiceInputButton()?.addEventListener("click", () => {
+  if (voiceRecorder) {
+    stopVoiceRecording();
+    return;
+  }
+
+  void startVoiceRecording();
+});
+
+getSpeakRepliesToggle()?.addEventListener("click", () => {
+  if (!getVoiceConfig().spokenRepliesEnabled) {
+    return;
+  }
+
+  speakRepliesActive = !speakRepliesActive;
+  speakRepliesUserChanged = true;
+  if (!speakRepliesActive) {
+    stopCurrentVoiceAudio();
+  }
+  syncSpeakRepliesToggle();
 });
 
 getQuickReplies()?.addEventListener("click", (event) => {
@@ -3206,6 +3724,19 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   isFullEmbeddedPageMode,
   isCanvasEmbeddedPageMode,
   hasBookingSupport: () => hasBookingSupport(),
+  getVoiceConfig: () => ({ ...getVoiceConfig() }),
+  syncVoiceControls,
+  startVoiceRecording,
+  stopVoiceRecording,
+  setVoiceRecorderChunks: (chunks) => {
+    voiceRecorderChunks = Array.isArray(chunks) ? chunks : [];
+  },
+  handleVoiceRecordingComplete,
+  setSpeakRepliesActive: (value) => {
+    speakRepliesActive = value === true;
+    speakRepliesUserChanged = true;
+    syncSpeakRepliesToggle();
+  },
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
   saveVisitorIdentity,
