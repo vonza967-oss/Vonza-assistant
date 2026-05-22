@@ -56,6 +56,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   const settingsShellScript = readFileSync(path.join(repoRoot, "frontend", "settings", "SettingsShell.js"), "utf8");
   const dashboardStateScript = readFileSync(path.join(repoRoot, "frontend", "dashboardState.js"), "utf8");
   const dashboardLabelsScript = readFileSync(path.join(repoRoot, "frontend", "dashboardLabels.js"), "utf8");
+  const dashboardInstallScript = readFileSync(path.join(repoRoot, "frontend", "dashboardInstall.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
@@ -161,6 +162,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
+  vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }
@@ -4425,6 +4427,11 @@ test("Settings Front Desk subtabs survive workspace refresh and nested hashes", 
   harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
   await harness.refreshAgentInstallState("agent-1");
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "routing");
+
+  harness.window.location.hash = "#settings/front-desk/widget-appearance";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "widget-appearance");
+  await harness.refreshAgentInstallState("agent-1");
+  assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "appearance");
 });
 
 test("Install selected method survives install status refresh and nested hashes", async () => {
@@ -4452,6 +4459,11 @@ test("Install selected method survives install status refresh and nested hashes"
   harness.setDashboardUiStateValue("installMethod", "qr");
   await harness.refreshAgentInstallState("agent-1");
   assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "qr");
+
+  harness.window.location.hash = "#install/widget";
+  harness.setDashboardUiStateValue("installMethod", "widget");
+  await harness.refreshAgentInstallState("agent-1");
+  assertInstallMethodActive(harness.document.getElementById("dashboard-root").innerHTML, "widget");
 });
 
 test("invalid nested dashboard hashes fall back without breaking default UI state", () => {

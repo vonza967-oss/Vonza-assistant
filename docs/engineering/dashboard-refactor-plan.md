@@ -43,26 +43,134 @@ Lint warnings after Sprint 1: 92 warnings.
 | `no-empty` | 2 |
 | `no-duplicate-imports` | 1 |
 
+## Sprint 2 Baseline
+
+Starting point before Sprint 2 edits:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 21,544 |
+| `frontend/dashboard.css` | 19,040 |
+
+Starting lint warning count: 92 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 71 |
+| `no-useless-assignment` | 15 |
+| `no-unreachable` | 3 |
+| `no-empty` | 2 |
+| `no-duplicate-imports` | 1 |
+
+Starting test status:
+
+- `npm run test:smoke`: passing, 613 tests.
+
+## Sprint 2 Extraction
+
+Extracted:
+
+- `frontend/dashboardInstall.js`
+  - install script generation
+  - optional website widget URL generation
+  - hosted Front Desk page URL generation
+  - embedded Front Desk URL generation
+  - smart embed and iframe snippet generation
+  - QR endpoint generation
+  - public page enabled/key helpers
+  - install status copy/tone helpers
+  - full-page customization detection
+  - Install method metadata
+- `frontend/dashboardState.js`
+  - Settings main tab normalization
+  - Settings main tab hash formatting
+  - Settings Front Desk subtab normalization
+  - Settings Front Desk subtab hash formatting
+  - Settings Front Desk allowed subtab and label lists
+  - nested `#settings/front-desk/...` state updates now normalize through shared helpers
+- `frontend/settings/SettingsShell.js`
+  - delegates Settings and Front Desk tab normalization to `window.VonzaDashboardState` when available, with the existing local fallback preserved.
+
+Line counts after Sprint 2 extraction:
+
+| File | Lines |
+| --- | ---: |
+| `frontend/dashboard.js` | 21,293 |
+| `frontend/dashboard.css` | 19,040 |
+| `frontend/dashboardInstall.js` | 353 |
+| `frontend/dashboardState.js` | 384 |
+
+Lint warnings after Sprint 2: 79 warnings.
+
+| Rule | Count |
+| --- | ---: |
+| `no-unused-vars` | 61 |
+| `no-useless-assignment` | 15 |
+| `no-unreachable` | 3 |
+
+Low-risk lint cleanup completed:
+
+- Removed the duplicate billing plan import.
+- Added intentional comments to two best-effort widget storage catches.
+- Marked several dashboard-only legacy helper functions with the existing underscore convention so they no longer obscure active warnings.
+
+Intentionally not extracted:
+
+- The full Install DOM renderer, because it still owns many class names, copy buttons, QR state, and verification behaviors that are safer to move after this helper split has landed.
+- Install event binding, because it coordinates copy buttons, QR download state, preview tracking, verification, and workspace refresh.
+- Settings form rendering, because `SettingsShell.js` already owns it and Sprint 2 only needed shared tab-state normalization.
+- Public assistant, widget, smart embed runtime, voice, RAG, WordPress plugin, and backend behavior.
+
+Sprint 2 CSS split notes:
+
+- `frontend/dashboard.css` was not changed.
+- Install CSS is spread across base and late override layers:
+  - base install/onboarding block around lines 5,665-7,144
+  - install V2/status overrides around lines 13,428-13,517
+  - install method-card override layer around lines 14,610-14,726
+  - final install wizard overrides around lines 18,580-19,037
+- Front Desk dashboard CSS is spread across:
+  - early Front Desk layout around lines 1,666-2,470
+  - workspace override blocks around lines 6,555-6,632
+  - production Front Desk polish around lines 9,898-10,190
+  - late density/dark/mobile override layers around lines 14,477-18,090
+- Settings / Front Desk form CSS is already concentrated in `frontend/settings/settings.css`, mostly around lines 103-568.
+
+Suggested CSS split order:
+
+1. Keep `dashboard.css` as the ordered bundle until there is a build or explicit load-order plan.
+2. Extract `frontend/settings/settings.css` ownership first only if SettingsShell remains a separately loaded asset.
+3. Extract final Install overrides as the first dashboard CSS source slice, preserving their current late load order.
+4. Extract Front Desk dashboard styles after the Front Desk renderer/helper ownership is clearer.
+
+Remaining Sprint 2 risks:
+
+- `frontend/dashboard.js` still owns the large Install renderer and most shared event binding.
+- The Settings state now has shared helpers and SettingsShell fallbacks; both paths need to stay aligned until SettingsShell can require `dashboardState.js` ordering directly.
+- Several old dashboard helper functions remain in the file for future decisions, even if they are not active today.
+
 Largest remaining warning clusters:
 
 | File | Count |
 | --- | ---: |
-| `frontend/dashboard.js` | 54 |
+| `frontend/dashboard.js` | 44 |
 | `src/services/conversion/conversionOutcomeService.js` | 12 |
-| `frontend/script.js` | 4 |
 | `src/services/operator/contactWorkspaceService.js` | 4 |
 | `src/services/operator/operatorWorkspaceService.js` | 4 |
+| `frontend/script.js` | 2 |
+| `src/services/operator/copilotProposalService.js` | 2 |
+| `src/services/operator/todayCopilotService.js` | 2 |
 
 ## Dashboard.js Section Map
 
-Approximate current line ranges after Sprint 1:
+Approximate current line ranges after Sprint 2:
 
 | Area | Lines | Notes |
 | --- | ---: | --- |
 | Bootstrap constants, auth state, launch flags | 1-760 | Global state, billing config, capability flags, operator normalization. |
 | Auth and dashboard language | 760-2,260 | Auth URL handling, legal links, Hungarian phrase maps, theme/language persistence. |
-| Hash routing and UI state | 2,260-2,690 | Now delegated to `frontend/dashboardState.js` through thin wrappers. |
-| Install/embed URL builders and shared helpers | 2,690-3,430 | Script snippets, hosted Front Desk URLs, QR endpoints, safe text helpers. |
+| Hash routing and UI state | 2,260-2,690 | Delegated to `frontend/dashboardState.js` through thin wrappers. |
+| Install/embed helper bridge and shared helpers | 2,690-3,260 | Install URL/snippet/status helpers now come from `frontend/dashboardInstall.js`. |
 | Setup/access/loading/auth rendering | 3,430-4,240 | Access gates, loading, auth entry, launch/onboarding screens. |
 | Shell primitives and navigation | 4,240-4,900 | Page headers, toolbar, local nav, icons, sidebar. |
 | Customers helpers and renderer | 4,900-6,520 | Customer identity, source labels, filters, rows, detail panel. |
@@ -98,9 +206,9 @@ CSS was not split in Sprint 1. The file contains multiple late override layers, 
 
 ## Proposed Module Boundaries
 
-- `frontend/dashboardState.js`: hash parsing, section aliasing, install method normalization, Front Desk tab normalization, dashboard UI-state normalization.
+- `frontend/dashboardState.js`: hash parsing, section aliasing, install method normalization, Settings tab normalization, Front Desk tab normalization, dashboard UI-state normalization.
 - `frontend/dashboardLabels.js`: stable source/status/outcome labels and small formatting helpers.
-- Future `frontend/dashboardInstall.js`: Install page state, URL snippets, QR helpers, copy button helpers.
+- `frontend/dashboardInstall.js`: Install page URLs, snippets, QR helpers, status copy, method metadata, and public page helpers.
 - Future `frontend/dashboardCustomers.js`: customer identity/source/status helpers and Customers renderer.
 - Future `frontend/dashboardAnalytics.js`: analytics formatting/report helpers.
 - Future CSS split: keep `dashboard.css` as the final bundle initially, then extract source files only if the app has a safe concatenation or explicit ordered load plan.
@@ -160,20 +268,20 @@ Low-risk lint cleanup completed:
 
 ## Next 3 Sprints
 
-Sprint 2:
-
-- Extract Install page URL/snippet/QR helpers and method state.
-- Extract Settings and Front Desk tab state helpers.
-- Create a safe CSS split plan, but only split CSS if load order can be preserved with tests/browser checks.
-
 Sprint 3:
 
-- Extract Customers page helper logic and renderer in one bounded module.
-- Add/adjust tests around customer action wording and state transitions.
-- Reduce `frontend/dashboard.js` by another meaningful chunk without changing UI behavior.
+- Extract the Front Desk workspace renderer/helper logic into a bounded `frontend/dashboardFrontDesk.js` classic-script module.
+- Keep SettingsShell form rendering where it is; focus on Front Desk practice/improvements/knowledge/library/launch renderer helpers and state.
+- Add/adjust tests around Front Desk tab persistence, training queue actions, approved answers, practice mode, and launch readiness.
 
 Sprint 4:
 
-- Burn down lint warnings, starting with duplicate keys, empty catches, useless assignments, and clearly dead helpers.
+- Extract Customers helper logic and renderer in one bounded module.
+- Add/adjust tests around customer action wording and state transitions.
+- Reduce `frontend/dashboard.js` by another meaningful chunk without changing UI behavior.
+
+Sprint 5:
+
+- Burn down lint warnings, starting with useless assignments, connected-tool unreachable bodies after a product decision, and clearly dead helpers.
 - Run a dedicated test isolation cleanup pass.
 - Add CI reliability notes for order-sensitive smoke tests and dashboard browser checks.

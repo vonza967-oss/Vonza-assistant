@@ -5,6 +5,7 @@ const topbarMeta = document.getElementById("topbar-meta");
 const dashboardHelpers = window.VonzaDashboardHelpers || {};
 const dashboardState = window.VonzaDashboardState || {};
 const dashboardLabels = window.VonzaDashboardLabels || {};
+const dashboardInstall = window.VonzaDashboardInstall || {};
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
@@ -2443,9 +2444,9 @@ function syncShellSectionHash(section) {
   }
 
   if (section === "customize") {
-    hash = `front-desk/${getFrontDeskSectionHashSegment(dashboardUiState.frontDeskTab)}`;
+    hash = `front-desk/${getFrontDeskSectionHashSegment(getDashboardUiStateValue("frontDeskTab"))}`;
   } else if (section === "install") {
-    hash = `install/${getInstallMethodHashSegment(dashboardUiState.installMethod)}`;
+    hash = `install/${getInstallMethodHashSegment(getDashboardUiStateValue("installMethod"))}`;
   }
 
   if (!window.history?.replaceState) {
@@ -2748,196 +2749,30 @@ function setStatus(message) {
   statusBanner.textContent = translateDashboardText(message || "");
 }
 
-function buildScript(agent) {
-  const installId = trimText(agent.installId);
-
-  if (!installId) {
-    return "";
-  }
-
-  return `<script async defer src="${getPublicAppUrl()}/embed.js" data-install-id="${installId}"></script>`;
-}
-
-function buildWidgetUrl(agentKey) {
-  return `${getPublicAppUrl()}/widget?agent_key=${encodeURIComponent(agentKey)}`;
-}
-
-function buildFrontDeskPreviewUrl(agent = {}) {
-  return buildFullPageAssistantUrl(agent) || (trimText(agent.publicAgentKey) ? buildWidgetUrl(agent.publicAgentKey) : "");
-}
-
-function getPublicFullPageConfig(agent = {}) {
-  return agent.fullPageConfig || agent.full_page_config || {};
-}
-
-function getPublicPageKey(agent = {}) {
-  const config = getPublicFullPageConfig(agent);
-  return trimText(config.publicPageKey || config.public_page_key);
-}
-
-function isPublicFullPageEnabled(agent = {}) {
-  const config = getPublicFullPageConfig(agent);
-  return (config.publicPageEnabled === true || config.public_page_enabled === true) && Boolean(getPublicPageKey(agent));
-}
-
-function buildFullPageAssistantUrl(agent = {}) {
-  const agentKey = trimText(agent.publicAgentKey);
-  const publicPageKey = getPublicPageKey(agent);
-
-  if (!isPublicFullPageEnabled(agent)) {
-    return "";
-  }
-
-  if (agentKey) {
-    const url = new URL(`/a/${encodeURIComponent(agentKey)}`, getPublicAppUrl());
-    url.searchParams.set("k", publicPageKey);
-    return url.toString();
-  }
-
-  const url = new URL("/widget", getPublicAppUrl());
-  if (trimText(agent.id)) {
-    url.searchParams.set("agent_id", agent.id);
-  }
-  url.searchParams.set("mode", "page");
-  url.searchParams.set("k", publicPageKey);
-  return url.toString();
-}
-
-function buildEmbeddedFullPageAssistantUrl(agent = {}, size = "standard", options = {}) {
-  const normalizedSize = ["compact", "standard", "tall", "full"].includes(trimText(size).toLowerCase())
-    ? trimText(size).toLowerCase()
-    : "standard";
-  const url = new URL("/widget", getPublicAppUrl());
-  if (trimText(agent.id)) {
-    url.searchParams.set("agent_id", agent.id);
-  } else if (trimText(agent.publicAgentKey)) {
-    url.searchParams.set("agent_key", agent.publicAgentKey);
-  }
-  url.searchParams.set("mode", "page");
-  url.searchParams.set("embedded", "1");
-  url.searchParams.set("size", normalizedSize);
-  if (trimText(options.surface)) {
-    url.searchParams.set("surface", trimText(options.surface));
-  }
-  if (trimText(options.layout)) {
-    url.searchParams.set("layout", trimText(options.layout));
-  }
-  if (options.showTitle === false) {
-    url.searchParams.set("show_title", "0");
-  }
-  if (getPublicPageKey(agent)) {
-    url.searchParams.set("k", getPublicPageKey(agent));
-  }
-  return url.toString();
-}
-
-function normalizeFullPageBackgroundScope(value) {
-  const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
-  return ["section", "iframe"].includes(normalized) ? normalized : "section";
-}
-
-function normalizeFullPageAssistantHeight(value) {
-  return trimText(value).toLowerCase().replace(/_/g, "-") === "full-page" ? "full-page" : "auto";
-}
-
-function buildSmartAssistantEmbed(agent = {}, layout = "section", options = {}) {
-  const agentId = trimText(agent.id);
-
-  if (!agentId) {
-    return "";
-  }
-
-  const requestedLayout = trimText(layout).toLowerCase();
-  const normalizedLayout = requestedLayout === "page-takeover"
-    ? "page-takeover"
-    : requestedLayout === "full-page"
-      ? "full-page"
-      : "section";
-  const isCanvasSmartEmbed = normalizedLayout === "full-page" || normalizedLayout === "page-takeover";
-  const backgroundScope = normalizedLayout === "page-takeover"
-    ? (trimText(options.backgroundScope).toLowerCase() === "page" ? "page" : "viewport")
-    : normalizedLayout === "full-page"
-    ? normalizeFullPageBackgroundScope(agent?.fullPageConfig?.design?.backgroundScope || agent?.full_page_config?.design?.background_scope)
-    : "";
-  const surfaceLine = isCanvasSmartEmbed
-    ? '\n  data-surface="flat"'
-    : "";
-  const backgroundScopeLine = isCanvasSmartEmbed
-    ? `\n  data-background-scope="${backgroundScope}"`
-    : "";
-  const publicPageKeyLine = getPublicPageKey(agent)
-    ? `\n  data-public-page-key="${escapeHtml(getPublicPageKey(agent))}"`
-    : "";
-  const heightMode = normalizeFullPageAssistantHeight(options.heightMode);
-  const heightLine = normalizedLayout === "full-page" && heightMode === "full-page"
-    ? '\n  data-height="full-page"'
-    : "";
-  const showTitleLine = normalizedLayout === "full-page" && options.showTitle === false
-    ? '\n  data-show-title="false"'
-    : "";
-  const pageResetLine = normalizedLayout === "page-takeover" && options.pageReset === true
-    ? '\n  data-page-reset="true"'
-    : "";
-  const hidePageFooterLine = normalizedLayout === "page-takeover" && options.hidePageFooter === true
-    ? '\n  data-hide-page-footer="true"'
-    : "";
-  const hidePageTitleLine = normalizedLayout === "page-takeover" && options.hidePageTitle === true
-    ? '\n  data-hide-page-title="true"'
-    : "";
-
-  return `<div
-  data-vonza-assistant
-  data-agent-id="${agentId}"
-  data-layout="${normalizedLayout}"${surfaceLine}${backgroundScopeLine}${heightLine}${showTitleLine}${pageResetLine}${hidePageFooterLine}${hidePageTitleLine}${publicPageKeyLine}
-></div>
-<script async src="${getPublicAppUrl()}/assistant-embed.js"></script>`;
-}
-
-function buildFullPageQrEndpoint(agent = {}) {
-  const agentId = trimText(agent.id);
-
-  if (!agentId || !isPublicFullPageEnabled(agent)) {
-    return "";
-  }
-
-  const url = new URL("/agents/full-page-assistant-qr.svg", window.location.origin);
-  url.searchParams.set("agent_id", agentId);
-  url.searchParams.set("client_id", getClientId());
-  return `${url.pathname}${url.search}`;
-}
-
-function buildSectionAssistantIframe(agent = {}) {
-  return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent, "standard")}"
-  title="AI assistant"
-  allow="microphone; autoplay"
-  style="width:100%;min-height:640px;border:0;border-radius:18px;overflow:hidden;"
-  loading="lazy"
-></iframe>`;
-}
-
-function normalizeWebsiteHeaderHeight(value = 120) {
-  const numericValue = Number.parseInt(value, 10);
-  if (!Number.isFinite(numericValue)) {
-    return 120;
-  }
-  return Math.min(Math.max(numericValue, 0), 400);
-}
-
-function buildFullPageAssistantIframe(agent = {}, headerHeight = 120, options = {}) {
-  const normalizedHeaderHeight = normalizeWebsiteHeaderHeight(headerHeight);
-  return `<iframe
-  src="${buildEmbeddedFullPageAssistantUrl(agent, "full", { surface: "flat", layout: "canvas", showTitle: options.showTitle })}"
-  title="AI assistant"
-  allow="microphone; autoplay"
-  style="width:100%;height:calc(100vh - ${normalizedHeaderHeight}px);min-height:760px;border:0;display:block;"
-  loading="lazy"
-></iframe>`;
-}
-
-function buildSimpleFullPageAssistantIframe(agent = {}, headerHeight = 120) {
-  return buildFullPageAssistantIframe(agent, headerHeight);
-}
+const dashboardInstallHelpers = dashboardInstall.createInstallHelpers({
+  getPublicAppUrl,
+  getClientId,
+  escapeHtml,
+  trimText,
+  formatSeenAt,
+  isInstallSeen,
+});
+const {
+  buildScript,
+  buildWidgetUrl,
+  buildFrontDeskPreviewUrl,
+  isPublicFullPageEnabled,
+  buildFullPageAssistantUrl,
+  buildSmartAssistantEmbed,
+  buildFullPageQrEndpoint,
+  buildSectionAssistantIframe,
+  buildFullPageAssistantIframe,
+  buildSimpleFullPageAssistantIframe,
+  getInstallStatusCopy,
+  getInstallStatusTone,
+  hasFullPageAssistantCustomization,
+  buildInstallMethodCards,
+} = dashboardInstallHelpers;
 
 function escapeHtml(value) {
   if (typeof dashboardHelpers.escapeHtml === "function") {
@@ -4272,7 +4107,7 @@ function buildPageToolbar({
   `;
 }
 
-function buildSummaryStrip(items = []) {
+function _buildSummaryStrip(items = []) {
   const visibleItems = items.filter((item) => item && item.label && item.value !== undefined && item.value !== null);
 
   if (!visibleItems.length) {
@@ -4707,7 +4542,7 @@ function formatOperatorCount(value, singular, plural = `${singular}s`) {
   return formatDashboardCountLabel(count, singular, plural, getDashboardHungarianCountUnit(singular));
 }
 
-function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
+function _buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
   const actionType = trimText(nextAction.actionType || "stay_put");
   const label = normalizeShellCopy(nextAction.buttonLabel || nextAction.title || "Open Home");
   const disabled = nextAction.disabled === true;
@@ -4752,7 +4587,7 @@ function buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = crea
   `;
 }
 
-function buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
+function _buildOperatorChecklistMarkup(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const activation = operatorWorkspace.activation || createEmptyOperatorWorkspace().activation;
   const checklist = activation.checklist || [];
   const googleCapabilities = getGoogleWorkspaceCapabilities(operatorWorkspace);
@@ -4897,11 +4732,11 @@ function buildContactIdentifierParts(contact = {}) {
   ].filter((value, index, values) => value && values.indexOf(value) === index);
 }
 
-function buildContactPrimaryIdentifier(contact = {}) {
+function _buildContactPrimaryIdentifier(contact = {}) {
   return buildContactIdentifierParts(contact)[0] || "No direct identifier yet";
 }
 
-function buildContactIdentitySummary(contact = {}) {
+function _buildContactIdentitySummary(contact = {}) {
   const identifiers = buildContactIdentifierParts(contact);
   return identifiers.join(" · ") || "No direct identifier yet";
 }
@@ -4918,7 +4753,7 @@ function buildContactLatestActivitySummary(contact = {}) {
   return "";
 }
 
-function buildContactCurrentStateTitle(contact = {}) {
+function _buildContactCurrentStateTitle(contact = {}) {
   if (buildContactFlags(contact).includes("complaint")) {
     return "Needs careful follow-up";
   }
@@ -4942,7 +4777,7 @@ function buildContactCurrentStateTitle(contact = {}) {
   return "No urgent work right now";
 }
 
-function buildContactCurrentStateCopy(contact = {}) {
+function _buildContactCurrentStateCopy(contact = {}) {
   if (buildContactFlags(contact).includes("complaint")) {
     return "A support issue or complaint is still part of this relationship, so the next reply should stay measured and clear.";
   }
@@ -4974,7 +4809,7 @@ function buildContactLatestResultCopy(contact = {}) {
   ].filter(Boolean).join(" · ") || "No recorded result yet.";
 }
 
-function buildContactActionMarkup(label = "", attributes = {}, className = "ghost-button") {
+function _buildContactActionMarkup(label = "", attributes = {}, className = "ghost-button") {
   const attributeMarkup = Object.entries(attributes)
     .filter(([, value]) => value !== undefined && value !== null && value !== false && value !== "")
     .map(([key, value]) => value === true ? key : `${key}="${escapeHtml(String(value))}"`)
@@ -5566,7 +5401,7 @@ function getCustomerStatusList(contact = {}) {
   return statuses;
 }
 
-function buildCustomerStatusMarkup(contact = {}, limit = 2) {
+function _buildCustomerStatusMarkup(contact = {}, limit = 2) {
   return getCustomerStatusList(contact)
     .filter((status) => status.key !== "needs_reply")
     .slice(0, limit)
@@ -15020,66 +14855,6 @@ function renderReadyState(agent, messages, actionQueue, operatorWorkspace, front
   renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
 }
 
-function getInstallStatusCopy(installStatus = {}) {
-  if (installStatus.state === "seen_recently") {
-    return `Live install detected on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? `, last seen ${formatSeenAt(installStatus.lastSeenAt)}` : ""}.`;
-  }
-
-  if (installStatus.state === "seen_stale") {
-    return `Vonza was seen on ${installStatus.host || "your website"}${installStatus.lastSeenAt ? ` ${formatSeenAt(installStatus.lastSeenAt)}` : ""}, but no recent live ping has arrived.`;
-  }
-
-  if (installStatus.state === "installed_unseen") {
-    return "The optional website bubble snippet was found on the site, but Vonza has not yet received a live visitor ping.";
-  }
-
-  if (installStatus.state === "domain_mismatch") {
-    return "Vonza found embed markup, but it points at a different install or a blocked domain.";
-  }
-
-  if (installStatus.state === "verify_failed") {
-    return "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.";
-  }
-
-  return "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.";
-}
-
-function getInstallStatusTone(installStatus = {}) {
-  if (isInstallSeen(installStatus)) {
-    return "Ready";
-  }
-
-  if (installStatus.state === "installed_unseen") {
-    return "Limited";
-  }
-
-  if (installStatus.state === "domain_mismatch" || installStatus.state === "verify_failed") {
-    return "Needs attention";
-  }
-
-  return "Pending";
-}
-
-function hasFullPageAssistantCustomization(agent = {}) {
-  const config = agent.fullPageConfig || agent.full_page_config || {};
-
-  if (!config || typeof config !== "object") {
-    return false;
-  }
-
-  const listFields = [
-    config.suggestedQuestions,
-    config.suggested_questions,
-  ];
-
-  return Boolean(
-    trimText(config.headline)
-    || trimText(config.subtitle)
-    || trimText(config.logoUrl || config.logo_url)
-    || listFields.some((items) => Array.isArray(items) && items.some((item) => trimText(item)))
-  );
-}
-
 function buildInstallProgressItem({ title, done, detail }) {
   return `
     <li class="install-progress-item ${done ? "done" : ""}">
@@ -15227,7 +15002,6 @@ function buildInstallCopyBlock({ id, label, value, rows = 5, buttonAction, butto
 
 function buildInstallSidePanel(agent, setup, messages = []) {
   const installStatus = getDefaultInstallStatus(agent);
-  const hasInstall = Boolean(trimText(agent.installId));
   const fullPageEnabled = isPublicFullPageEnabled(agent);
   const qrEndpoint = buildFullPageQrEndpoint(agent);
   const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
@@ -15347,36 +15121,11 @@ function buildInstallSection(agent, options = {}) {
     ? `<p class="install-help">Found install id${verifyDetails.foundInstallIds.length === 1 ? "" : "s"}: ${escapeHtml(verifyDetails.foundInstallIds.join(", "))}</p>`
     : "";
   const qrEndpoint = buildFullPageQrEndpoint(agent);
-  const methodCards = [
-    {
-      key: "page",
-      icon: "frontdesk",
-      title: "Front Desk page",
-      copy: "Share the hosted AI Front Desk page or publish it as the main content of a website page.",
-      status: "Recommended",
-      tone: "ready",
-    },
-    {
-      key: "qr",
-      icon: "review",
-      title: "QR / direct link",
-      copy: "Open the same Front Desk page from signs, menus, invoices, emails, or direct links.",
-      status: qrEndpoint ? "Ready" : "Enable page first",
-      tone: qrEndpoint ? "neutral" : "warning",
-    },
-    {
-      key: "widget",
-      icon: "install",
-      title: "Website widget bubble",
-      copy: "Also add a compact chat bubble to normal website pages.",
-      status: isInstallDetected(installStatus)
-        ? "Optional installed"
-        : hasInstall
-          ? "Optional"
-          : "Optional",
-      tone: isInstallDetected(installStatus) ? "ready" : "neutral",
-    },
-  ];
+  const methodCards = buildInstallMethodCards({
+    qrEndpoint,
+    hasInstall,
+    installDetected: isInstallDetected(installStatus),
+  });
   const publicPageStatusBadge = fullPageEnabled
     ? `<span class="${getBadgeClass("Ready")}">Your Front Desk page is live</span>`
     : `<span class="${getBadgeClass("Pending")}">Your Front Desk page is disabled</span>`;

@@ -12,6 +12,7 @@ const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
 const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.js");
 const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
 const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js");
+const dashboardInstallPath = path.join(repoRoot, "frontend", "dashboardInstall.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -48,6 +49,7 @@ function createDashboardHarness({
   const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
   const dashboardStateScript = readFileSync(dashboardStatePath, "utf8");
   const dashboardLabelsScript = readFileSync(dashboardLabelsPath, "utf8");
+  const dashboardInstallScript = readFileSync(dashboardInstallPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -348,6 +350,7 @@ function createDashboardHarness({
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
+  vm.runInNewContext(dashboardInstallScript, context, { filename: "frontend/dashboardInstall.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -468,12 +471,14 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   const helperBundle = readFileSync(dashboardHelpersPath, "utf8");
   const stateBundle = readFileSync(dashboardStatePath, "utf8");
   const labelsBundle = readFileSync(dashboardLabelsPath, "utf8");
+  const installBundle = readFileSync(dashboardInstallPath, "utf8");
   const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
     new vm.Script(helperBundle, { filename: "frontend/dashboardHelpers.js" }).runInNewContext(context);
     new vm.Script(stateBundle, { filename: "frontend/dashboardState.js" }).runInNewContext(context);
     new vm.Script(labelsBundle, { filename: "frontend/dashboardLabels.js" }).runInNewContext(context);
+    new vm.Script(installBundle, { filename: "frontend/dashboardInstall.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
@@ -492,11 +497,19 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     { installMethod: "qr" }
   );
   assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("full-page-assistant"), "page");
+  assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("front-desk-page"), "page");
   assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("qr-code"), "qr");
+  assert.equal(context.window.VonzaDashboardState.normalizeSettingsMainTab("front-desk"), "front_desk");
+  assert.equal(context.window.VonzaDashboardState.normalizeSettingsFrontDeskTab("widget-appearance"), "appearance");
+  assert.equal(context.window.VonzaDashboardState.getSettingsFrontDeskTabHashSegment("full_page"), "full-page-assistant");
   assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("full_page_assistant"), "Front Desk page");
   assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("widget_chat"), "Website widget");
   assert.equal(context.window.VonzaDashboardLabels.getActionQueueStatusLabel("reviewed", ["new", "reviewed"]), "Reviewed");
   assert.equal(context.window.VonzaDashboardLabels.getFollowUpStatusLabel("missing_contact"), "Missing contact");
+  assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
+  assert.equal(context.window.VonzaDashboardInstall.getPublicPageKey({
+    fullPageConfig: { publicPageKey: "page-key" },
+  }), "page-key");
 });
 
 test("dashboard shows a visible loading state before workspace data resolves", async () => {

@@ -790,7 +790,16 @@
     };
   }
 
+  function getDashboardStateHelpers() {
+    return global.VonzaDashboardState || {};
+  }
+
   function normalizeFrontDeskSettingsTab(tabKey) {
+    const dashboardState = getDashboardStateHelpers();
+    if (typeof dashboardState.normalizeSettingsFrontDeskTab === "function") {
+      return dashboardState.normalizeSettingsFrontDeskTab(tabKey);
+    }
+
     const normalized = defaultTrimText(tabKey).toLowerCase().replace(/_/g, "-");
     const aliases = {
       identity: "identity",
@@ -813,6 +822,11 @@
   }
 
   function getFrontDeskSettingsTabHashSegment(tabKey) {
+    const dashboardState = getDashboardStateHelpers();
+    if (typeof dashboardState.getSettingsFrontDeskTabHashSegment === "function") {
+      return dashboardState.getSettingsFrontDeskTabHashSegment(tabKey);
+    }
+
     return FRONT_DESK_SETTINGS_TAB_HASH_SEGMENTS[normalizeFrontDeskSettingsTab(tabKey)] || "identity-welcome";
   }
 
@@ -859,6 +873,11 @@
   }
 
   function normalizeSettingsSection(sectionKey) {
+    const dashboardState = getDashboardStateHelpers();
+    if (typeof dashboardState.normalizeSettingsMainTab === "function") {
+      return dashboardState.normalizeSettingsMainTab(sectionKey);
+    }
+
     const normalized = defaultTrimText(sectionKey).toLowerCase();
     const normalizedAlias = normalized.replace(/-/g, "_");
 
@@ -894,6 +913,11 @@
   }
 
   function getSettingsHashSegment(sectionKey) {
+    const dashboardState = getDashboardStateHelpers();
+    if (typeof dashboardState.getSettingsMainTabHashSegment === "function") {
+      return dashboardState.getSettingsMainTabHashSegment(sectionKey);
+    }
+
     return normalizeSettingsSection(sectionKey).replace(/_/g, "-");
   }
 

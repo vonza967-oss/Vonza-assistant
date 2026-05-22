@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_BILLING_PLAN_KEY,
+  listPublicBillingPlans,
 } from "../src/config/billingPlans.js";
 import { createHostedCheckoutSession } from "../src/services/billing/checkoutService.js";
-import { listPublicBillingPlans } from "../src/config/billingPlans.js";
 import {
   OWNER_AI_USAGE_LEDGER_TABLE,
   OWNER_BILLING_ACCOUNT_TABLE,

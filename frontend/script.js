@@ -484,7 +484,9 @@ function saveVisitorIdentity(identity) {
       savedAt: new Date().toISOString(),
       expiresAt: new Date(getStoredIdentityExpiry()).toISOString(),
     }));
-  } catch {}
+  } catch {
+    // Identity persistence is best-effort; blocked storage should not stop chat.
+  }
 
   return normalized;
 }
@@ -509,7 +511,9 @@ function loadStoredVisitorIdentity() {
 function clearVisitorIdentity() {
   try {
     window.localStorage.removeItem(getVisitorIdentityStorageKey());
-  } catch {}
+  } catch {
+    // Clearing identity is best-effort when browser storage is unavailable.
+  }
 
   if (isPageMode()) {
     visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });

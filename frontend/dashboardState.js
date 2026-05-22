@@ -18,6 +18,57 @@
     library: "answer-library",
     launch: "launch",
   });
+  const SETTINGS_MAIN_TABS = Object.freeze(["general", "front_desk", "business_profile", "account_billing", "privacy_legal"]);
+  const SETTINGS_MAIN_TAB_HASH_SEGMENTS = Object.freeze({
+    general: "general",
+    front_desk: "front-desk",
+    business_profile: "business-profile",
+    account_billing: "account-billing",
+    privacy_legal: "privacy-legal",
+  });
+  const SETTINGS_MAIN_TAB_ALIASES = Object.freeze({
+    assistant: "general",
+    branding: "general",
+    workspace_preferences: "general",
+    "workspace-preferences": "general",
+    customize: "front_desk",
+    "front-desk": "front_desk",
+    frontdesk: "front_desk",
+    widget: "front_desk",
+    business: "business_profile",
+    business_context: "business_profile",
+    "business-context": "business_profile",
+    business_profile: "business_profile",
+    "business-profile": "business_profile",
+    profile: "business_profile",
+    workspace: "business_profile",
+    account: "account_billing",
+    billing: "account_billing",
+    plan: "account_billing",
+    account_billing: "account_billing",
+    "account-billing": "account_billing",
+    privacy: "privacy_legal",
+    legal: "privacy_legal",
+    privacy_controls: "privacy_legal",
+    "privacy-controls": "privacy_legal",
+    privacy_legal: "privacy_legal",
+    "privacy-legal": "privacy_legal",
+  });
+  const SETTINGS_FRONT_DESK_TABS = Object.freeze(["identity", "voice", "full_page", "routing", "appearance"]);
+  const SETTINGS_FRONT_DESK_TAB_HASH_SEGMENTS = Object.freeze({
+    identity: "identity-welcome",
+    voice: "voice",
+    full_page: "full-page-assistant",
+    routing: "routing",
+    appearance: "widget-appearance",
+  });
+  const SETTINGS_FRONT_DESK_TAB_LABELS = Object.freeze({
+    identity: "Identity & welcome",
+    voice: "Voice",
+    full_page: "Front Desk page",
+    routing: "Routing",
+    appearance: "Widget appearance",
+  });
   const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
     settingsMainTab: "general",
     settingsFrontDeskTab: "identity-welcome",
@@ -123,6 +174,7 @@
     const aliases = {
       page: "full-page",
       "full-page-assistant": "full-page",
+      "front-desk-page": "full-page",
       fullpage: "full-page",
       full: "full-page",
       assistant: "full-page",
@@ -147,6 +199,55 @@
   function normalizeInstallFullPageOption(value = "") {
     const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
     return INSTALL_FULL_PAGE_OPTIONS.includes(normalized) ? normalized : "share";
+  }
+
+  function normalizeSettingsMainTab(value = "") {
+    const normalized = trimText(value).toLowerCase();
+    const normalizedAlias = normalized.replace(/-/g, "_");
+
+    if (SETTINGS_MAIN_TABS.includes(normalized)) {
+      return normalized;
+    }
+
+    if (SETTINGS_MAIN_TABS.includes(normalizedAlias)) {
+      return normalizedAlias;
+    }
+
+    return SETTINGS_MAIN_TAB_ALIASES[normalized] || SETTINGS_MAIN_TAB_ALIASES[normalizedAlias] || "general";
+  }
+
+  function getSettingsMainTabHashSegment(value = "") {
+    return SETTINGS_MAIN_TAB_HASH_SEGMENTS[normalizeSettingsMainTab(value)] || "general";
+  }
+
+  function normalizeSettingsFrontDeskTab(value = "") {
+    const normalized = trimText(value).toLowerCase().replace(/_/g, "-");
+    const aliases = {
+      identity: "identity",
+      "identity-welcome": "identity",
+      welcome: "identity",
+      voice: "voice",
+      full_page: "full_page",
+      "full-page": "full_page",
+      "full-page-assistant": "full_page",
+      page: "full_page",
+      routing: "routing",
+      route: "routing",
+      appearance: "appearance",
+      "widget-appearance": "appearance",
+      widget: "appearance",
+    };
+    const candidate = aliases[normalized] || aliases[normalized.replace(/-/g, "_")] || normalized;
+
+    return SETTINGS_FRONT_DESK_TABS.includes(candidate) ? candidate : "identity";
+  }
+
+  function getSettingsFrontDeskTabHashSegment(value = "") {
+    return SETTINGS_FRONT_DESK_TAB_HASH_SEGMENTS[normalizeSettingsFrontDeskTab(value)] || "identity-welcome";
+  }
+
+  function getSettingsFrontDeskDefaultSubtab() {
+    return "identity";
   }
 
   function normalizeFrontDeskSection(value = "") {
@@ -192,10 +293,10 @@
 
     if (root === "settings") {
       if (parts[1]) {
-        updates.settingsMainTab = parts[1];
+        updates.settingsMainTab = getSettingsMainTabHashSegment(parts[1]);
       }
-      if (["front-desk", "frontdesk", "front_desk"].includes(parts[1]) && parts[2]) {
-        updates.settingsFrontDeskTab = parts[2];
+      if (normalizeSettingsMainTab(parts[1]) === "front_desk" && parts[2]) {
+        updates.settingsFrontDeskTab = getSettingsFrontDeskTabHashSegment(parts[2]);
       }
       return updates;
     }
@@ -243,7 +344,9 @@
       case "selectedConversationKey":
         return trimText(value);
       case "settingsMainTab":
+        return getSettingsMainTabHashSegment(value);
       case "settingsFrontDeskTab":
+        return getSettingsFrontDeskTabHashSegment(value);
       case "settingsFullPageTab":
       case "todayFilter":
         return trimText(value) || DASHBOARD_UI_STATE_DEFAULTS[key];
@@ -264,6 +367,14 @@
     getInstallMethodPanelKey,
     getInstallMethodHashSegment,
     normalizeInstallFullPageOption,
+    SETTINGS_MAIN_TABS,
+    SETTINGS_FRONT_DESK_TABS,
+    SETTINGS_FRONT_DESK_TAB_LABELS,
+    normalizeSettingsMainTab,
+    getSettingsMainTabHashSegment,
+    normalizeSettingsFrontDeskTab,
+    getSettingsFrontDeskTabHashSegment,
+    getSettingsFrontDeskDefaultSubtab,
     normalizeFrontDeskSection,
     getFrontDeskSectionHashSegment,
     normalizeCustomerFilterKey,

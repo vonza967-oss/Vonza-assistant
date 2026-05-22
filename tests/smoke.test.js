@@ -1346,6 +1346,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /\/settings\/SettingsShell\.js/);
         assert.match(dashboard.text, /\/dashboardState\.js/);
         assert.match(dashboard.text, /\/dashboardLabels\.js/);
+        assert.match(dashboard.text, /\/dashboardInstall\.js/);
         assert.match(dashboard.text, /\/dashboard\.js/);
         assert.match(dashboard.text, /Preparing your workspace/);
         assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
