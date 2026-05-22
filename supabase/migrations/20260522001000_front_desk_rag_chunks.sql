@@ -95,7 +95,7 @@ as $$
     chunks.chunk_index,
     chunks.metadata,
     chunks.embedding_model,
-    (1 - (chunks.embedding <=> query_embedding))::double precision as similarity,
+    (1 - (chunks.embedding OPERATOR(extensions.<=>) query_embedding))::double precision as similarity,
     chunks.created_at,
     chunks.updated_at
   from public.front_desk_knowledge_chunks chunks
@@ -103,8 +103,8 @@ as $$
     and chunks.embedding is not null
     and chunks.owner_user_id = match_owner_user_id
     and chunks.agent_id = match_agent_id
-    and (1 - (chunks.embedding <=> query_embedding)) >= min_similarity
-  order by chunks.embedding <=> query_embedding
+    and (1 - (chunks.embedding OPERATOR(extensions.<=>) query_embedding)) >= min_similarity
+  order by chunks.embedding OPERATOR(extensions.<=>) query_embedding
   limit greatest(1, least(coalesce(match_count, 6), 12));
 $$;
 
