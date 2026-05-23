@@ -797,6 +797,10 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /Dark Professional/);
   assert.match(harness.getRootHtml(), /Clean Light Abstract/);
   assert.match(harness.getRootHtml(), /Dark Gold Abstract/);
+  assert.match(harness.getRootHtml(), /Bright Abstract Motion/);
+  assert.match(harness.getRootHtml(), /Dark Abstract Motion/);
+  assert.match(harness.getRootHtml(), /vonza_front_desk_bright_poster\.png/);
+  assert.match(harness.getRootHtml(), /vonza_front_desk_dark_poster\.png/);
   assert.match(harness.getRootHtml(), /data-frontdesk-settings-tab="voice"/);
   assert.match(harness.getRootHtml(), /Enable voice input/);
   assert.match(harness.getRootHtml(), /Enable spoken replies/);
@@ -815,6 +819,7 @@ test("settings hash routes open the matching Settings tab content", async () => 
   assert.match(harness.getRootHtml(), /name="full_page_background_video_file"/);
   assert.match(harness.getRootHtml(), /data-full-page-background-control="image video"/);
   assert.match(harness.getRootHtml(), /data-full-page-background-control="video"/);
+  assert.match(harness.getRootHtml(), /name="full_page_background_video_url"/);
   assert.match(harness.getRootHtml(), /data-full-page-design-preview/);
   assert.match(harness.getRootHtml(), /Type your question\.\.\./);
   assert.doesNotMatch(harness.getRootHtml(), /placeholder="How can we help\?"/);

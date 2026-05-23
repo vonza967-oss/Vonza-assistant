@@ -679,15 +679,15 @@
 
 .settings-full-page-background-presets {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 .settings-background-preset-card {
   appearance: none;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 10px;
   min-width: 0;
   padding: 8px;
@@ -711,7 +711,7 @@
 }
 
 .settings-background-preset-thumb {
-  width: 72px;
+  width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: 6px;
   background-position: center;
@@ -728,6 +728,13 @@
 .settings-background-preset-copy strong {
   color: #0f172a;
   font-size: 13px;
+  line-height: 1.25;
+}
+
+.settings-background-preset-copy small {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
   line-height: 1.25;
 }
 

@@ -656,7 +656,7 @@ export function normalizeFullPageDesignConfig(input = {}) {
   const backgroundType = normalizeFullPageDesignEnum(
     readConfigField(rawDesign, "backgroundType", "background_type"),
     FULL_PAGE_BACKGROUND_TYPES,
-    backgroundPresetDefaults ? "image" : presetDefaults.backgroundType
+    backgroundPresetDefaults?.backgroundType || presetDefaults.backgroundType
   );
   const backgroundSource = backgroundPresetDefaults
     ? "preset"
@@ -702,7 +702,7 @@ export function normalizeFullPageDesignConfig(input = {}) {
       normalizeAccentColor(readConfigField(rawDesign, "backgroundGradientTo", "background_gradient_to"))
       || presetDefaults.backgroundGradientTo,
     backgroundImageUrl: backgroundPresetDefaults?.imageUrl || rawBackgroundImageUrl || null,
-    backgroundVideoUrl: rawBackgroundVideoUrl || null,
+    backgroundVideoUrl: backgroundPresetDefaults?.videoUrl || rawBackgroundVideoUrl || null,
     backgroundOverlayColor:
       normalizeAccentColor(readConfigField(rawDesign, "backgroundOverlayColor", "background_overlay_color"))
       || overlayColorFallback,
@@ -742,7 +742,7 @@ export function normalizeFullPageDesignConfig(input = {}) {
     ),
     disableVideoOnMobile: normalizeConfigBoolean(
       readConfigField(rawDesign, "disableVideoOnMobile", "disable_video_on_mobile"),
-      presetDefaults.disableVideoOnMobile
+      backgroundPresetDefaults?.disableVideoOnMobile ?? presetDefaults.disableVideoOnMobile
     ),
   };
 }

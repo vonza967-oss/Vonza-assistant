@@ -772,6 +772,7 @@ test("/assistant-embed.js applies full-page section video background behind ifra
 
   const video = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-background-video") !== null);
   assert.equal(video.getAttribute("src"), "https://cdn.example.com/hero.webm");
+  assert.equal(video.getAttribute("poster"), "https://cdn.example.com/fallback.webp");
   assert.equal(video.muted, true);
   assert.equal(video.loop, true);
   assert.equal(video.autoplay, true);
@@ -780,6 +781,58 @@ test("/assistant-embed.js applies full-page section video background behind ifra
   assert.equal(video.style.objectFit, "cover");
   assert.equal(video.style.objectPosition, "top");
   assert.equal(video.style.zIndex, "0");
+});
+
+test("/assistant-embed.js maps built-in full-page video background presets", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_source: "preset",
+            background_preset: "bright-abstract-motion",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const video = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-background-video") !== null);
+  assert.equal(video.getAttribute("src"), "https://vonza-assistant.onrender.com/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4");
+  assert.equal(video.getAttribute("poster"), "https://vonza-assistant.onrender.com/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png");
+  assert.equal(video.muted, true);
+  assert.equal(video.loop, true);
+  assert.equal(video.autoplay, true);
+  assert.equal(video.playsInline, true);
+  assert.match(harness.root.style.backgroundImage, /vonza_front_desk_bright_poster\.png/);
+});
+
+test("/assistant-embed.js uses built-in video poster fallback on mobile when disabled", async () => {
+  const harness = createHarness({
+    "data-agent-id": "agent-1",
+    "data-layout": "full-page",
+  }, {
+    matchMedia: (query) => ({ matches: String(query).includes("max-width") }),
+    bootstrapPayload: {
+      widgetConfig: {
+        full_page_config: {
+          design: {
+            background_source: "preset",
+            background_preset: "dark-abstract-motion",
+          },
+        },
+      },
+    },
+  });
+  await settle();
+
+  const video = harness.root.children.find((child) => child.getAttribute("data-vonza-assistant-background-video") !== null);
+  assert.equal(video, undefined);
+  assert.match(harness.root.style.backgroundImage, /vonza_front_desk_dark_poster\.png/);
 });
 
 test("/assistant-embed.js keeps iframe-only background scope inside the iframe", async () => {

@@ -3546,6 +3546,14 @@ test("canvas full embedded page mode applies configured image and video backgrou
     background_source: "preset",
     background_preset: "dark-gold-abstract",
   });
+  const brightVideoPresetHarness = await createCanvasHarness({
+    background_source: "preset",
+    background_preset: "bright-abstract-motion",
+  });
+  const darkVideoPresetHarness = await createCanvasHarness({
+    background_source: "preset",
+    background_preset: "dark-abstract-motion",
+  });
   const uploadHarness = await createCanvasHarness({
     background_type: "image",
     background_source: "upload",
@@ -3567,6 +3575,20 @@ test("canvas full embedded page mode applies configured image and video backgrou
   assert.match(
     presetHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
     /abstract-dark-gold\.png/
+  );
+  assert.equal(brightVideoPresetHarness.documentElement.classList.contains("full-page-design-bg-video"), true);
+  assert.equal(brightVideoPresetHarness.documentElement.classList.contains("full-page-design-text-dark"), true);
+  assert.equal(brightVideoPresetHarness.documentElement.style.getPropertyValue("--canvas-design-overlay-opacity"), "0.1");
+  assert.match(
+    brightVideoPresetHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
+    /vonza_front_desk_bright_poster\.png/
+  );
+  assert.equal(darkVideoPresetHarness.documentElement.classList.contains("full-page-design-bg-video"), true);
+  assert.equal(darkVideoPresetHarness.documentElement.classList.contains("full-page-design-text-light"), true);
+  assert.equal(darkVideoPresetHarness.documentElement.style.getPropertyValue("--canvas-design-overlay-opacity"), "0.24");
+  assert.match(
+    darkVideoPresetHarness.documentElement.style.getPropertyValue("--canvas-design-image"),
+    /vonza_front_desk_dark_poster\.png/
   );
   assert.equal(uploadHarness.documentElement.classList.contains("full-page-design-bg-image"), true);
   assert.match(

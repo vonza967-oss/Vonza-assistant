@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1585,6 +1585,30 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       }
     }
   );
+});
+
+test("built-in Front Desk video background assets are public static files", { concurrency: false }, async () => {
+  const assetExpectations = [
+    ["/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4", "video/mp4"],
+    ["/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4", "video/mp4"],
+    ["/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png", "image/png"],
+    ["/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png", "image/png"],
+  ];
+  const server = await startServer(createTestApp());
+
+  try {
+    for (const [assetPath, contentType] of assetExpectations) {
+      const filePath = path.join(repoRoot, "frontend", assetPath);
+      assert.equal(statSync(filePath).size < 2 * 1024 * 1024, true, `${assetPath} should stay compact`);
+
+      const response = await fetch(`${server.baseUrl}${assetPath}`);
+      assert.equal(response.status, 200, `${assetPath} should be served`);
+      assert.match(response.headers.get("content-type") || "", new RegExp(contentType.replace("/", "\\/")));
+      assert.equal((await response.arrayBuffer()).byteLength, statSync(filePath).size);
+    }
+  } finally {
+    await server.close();
+  }
 });
 
 test("full-page assistant QR endpoint uses clean URL target and enforces owner access", { concurrency: false }, async () => {

@@ -12207,7 +12207,7 @@ function parseFullPageDesignPayload(formData) {
   );
   const backgroundPreset = normalizeFullPageDesignChoice(
     formData.get("full_page_background_preset"),
-    ["clean-light-abstract", "dark-gold-abstract"],
+    ["clean-light-abstract", "dark-gold-abstract", "bright-abstract-motion", "dark-abstract-motion"],
     ""
   );
   const backgroundSource = normalizeFullPageDesignChoice(

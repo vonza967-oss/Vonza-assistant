@@ -37,6 +37,48 @@
     backgroundFocalPoint: "center",
     disableVideoOnMobile: true,
   });
+  const FULL_PAGE_BACKGROUND_PRESETS = Object.freeze({
+    "clean-light-abstract": Object.freeze({
+      key: "clean-light-abstract",
+      backgroundType: "image",
+      imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+      videoUrl: "",
+      backgroundColor: "#f8f4ea",
+      backgroundOverlayColor: "#ffffff",
+      backgroundOverlayOpacity: 0.18,
+      disableVideoOnMobile: true,
+    }),
+    "dark-gold-abstract": Object.freeze({
+      key: "dark-gold-abstract",
+      backgroundType: "image",
+      imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+      videoUrl: "",
+      backgroundColor: "#09090b",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.28,
+      disableVideoOnMobile: true,
+    }),
+    "bright-abstract-motion": Object.freeze({
+      key: "bright-abstract-motion",
+      backgroundType: "video",
+      imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png",
+      videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4",
+      backgroundColor: "#f8fafc",
+      backgroundOverlayColor: "#ffffff",
+      backgroundOverlayOpacity: 0.1,
+      disableVideoOnMobile: true,
+    }),
+    "dark-abstract-motion": Object.freeze({
+      key: "dark-abstract-motion",
+      backgroundType: "video",
+      imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png",
+      videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4",
+      backgroundColor: "#08111f",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.24,
+      disableVideoOnMobile: true,
+    }),
+  });
 
   const state = window[STATE_KEY] || {
     frames: [],
@@ -493,31 +535,35 @@
 
   function normalizePublicDesign(input = {}) {
     const design = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+    const rawPreset = trimText(design.backgroundPreset || design.background_preset).toLowerCase().replace(/_/g, "-");
+    const backgroundPreset = trimText(design.backgroundSource || design.background_source).toLowerCase() === "preset"
+      ? FULL_PAGE_BACKGROUND_PRESETS[rawPreset]
+      : null;
     const backgroundType = normalizeDesignEnum(
       design.backgroundType || design.background_type,
       ["color", "gradient", "image", "video"],
-      DEFAULT_FULL_PAGE_DESIGN.backgroundType
+      backgroundPreset?.backgroundType || DEFAULT_FULL_PAGE_DESIGN.backgroundType
     );
 
     return {
       backgroundType,
       backgroundColor: normalizeColor(
         design.backgroundColor || design.background_color,
-        DEFAULT_FULL_PAGE_DESIGN.backgroundColor
+        backgroundPreset?.backgroundColor || DEFAULT_FULL_PAGE_DESIGN.backgroundColor
       ),
       backgroundGradientTo: normalizeColor(
         design.backgroundGradientTo || design.background_gradient_to,
         DEFAULT_FULL_PAGE_DESIGN.backgroundGradientTo
       ),
-      backgroundImageUrl: resolveMediaUrl(design.backgroundImageUrl || design.background_image_url),
-      backgroundVideoUrl: resolveMediaUrl(design.backgroundVideoUrl || design.background_video_url),
+      backgroundImageUrl: resolveMediaUrl(backgroundPreset?.imageUrl || design.backgroundImageUrl || design.background_image_url),
+      backgroundVideoUrl: resolveMediaUrl(backgroundPreset?.videoUrl || design.backgroundVideoUrl || design.background_video_url),
       backgroundOverlayColor: normalizeColor(
         design.backgroundOverlayColor || design.background_overlay_color,
-        DEFAULT_FULL_PAGE_DESIGN.backgroundOverlayColor
+        backgroundPreset?.backgroundOverlayColor || DEFAULT_FULL_PAGE_DESIGN.backgroundOverlayColor
       ),
       backgroundOverlayOpacity: normalizeDesignNumber(
         design.backgroundOverlayOpacity ?? design.background_overlay_opacity,
-        DEFAULT_FULL_PAGE_DESIGN.backgroundOverlayOpacity,
+        backgroundPreset?.backgroundOverlayOpacity ?? DEFAULT_FULL_PAGE_DESIGN.backgroundOverlayOpacity,
         0,
         0.92,
         2
@@ -535,7 +581,7 @@
       ),
       disableVideoOnMobile: normalizeBoolean(
         design.disableVideoOnMobile ?? design.disable_video_on_mobile,
-        DEFAULT_FULL_PAGE_DESIGN.disableVideoOnMobile
+        backgroundPreset?.disableVideoOnMobile ?? DEFAULT_FULL_PAGE_DESIGN.disableVideoOnMobile
       ),
     };
   }
@@ -644,6 +690,7 @@
     if (entry.video) {
       entry.video.hidden = true;
       entry.video.removeAttribute("src");
+      entry.video.removeAttribute("poster");
     }
   }
 
@@ -710,6 +757,11 @@
         const video = ensureBackgroundVideo(entry);
         video.style.objectPosition = design.backgroundFocalPoint;
         video.style.filter = `blur(${design.backgroundBlur}px) saturate(1.02)`;
+        if (design.backgroundImageUrl) {
+          video.setAttribute("poster", design.backgroundImageUrl);
+        } else {
+          video.removeAttribute("poster");
+        }
         video.hidden = false;
 
         if (video.getAttribute("src") !== design.backgroundVideoUrl) {

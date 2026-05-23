@@ -158,20 +158,54 @@
     "clean-light-abstract": {
       key: "clean-light-abstract",
       label: "Clean Light Abstract",
+      description: "Soft light background with gold linework.",
+      backgroundType: "image",
       imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+      videoUrl: "",
       backgroundColor: "#f8f4ea",
       backgroundOverlayColor: "#ffffff",
       backgroundOverlayOpacity: 0.18,
       textTheme: "dark",
+      disableVideoOnMobile: true,
     },
     "dark-gold-abstract": {
       key: "dark-gold-abstract",
       label: "Dark Gold Abstract",
+      description: "Dark background with gold linework.",
+      backgroundType: "image",
       imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+      videoUrl: "",
       backgroundColor: "#09090b",
       backgroundOverlayColor: "#020617",
       backgroundOverlayOpacity: 0.28,
       textTheme: "light",
+      disableVideoOnMobile: true,
+    },
+    "bright-abstract-motion": {
+      key: "bright-abstract-motion",
+      label: "Bright Abstract Motion",
+      description: "Bright abstract motion for a clean Front Desk page.",
+      backgroundType: "video",
+      imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png",
+      videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4",
+      backgroundColor: "#f8fafc",
+      backgroundOverlayColor: "#ffffff",
+      backgroundOverlayOpacity: 0.1,
+      textTheme: "dark",
+      disableVideoOnMobile: true,
+    },
+    "dark-abstract-motion": {
+      key: "dark-abstract-motion",
+      label: "Dark Abstract Motion",
+      description: "Dark abstract motion with a high-contrast Front Desk style.",
+      backgroundType: "video",
+      imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png",
+      videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4",
+      backgroundColor: "#08111f",
+      backgroundOverlayColor: "#020617",
+      backgroundOverlayOpacity: 0.24,
+      textTheme: "light",
+      disableVideoOnMobile: true,
     },
   });
   const FULL_PAGE_PRESET_OPTIONS = Object.freeze([
@@ -388,7 +422,7 @@
       rawBackgroundPresetDefaults ? "preset" : DEFAULT_FULL_PAGE_DESIGN.backgroundSource
     );
     const backgroundPresetDefaults = rawBackgroundSource === "preset" ? rawBackgroundPresetDefaults : null;
-    const backgroundType = normalizeDesignEnum(design.backgroundType || design.background_type, FULL_PAGE_BACKGROUND_TYPES, backgroundPresetDefaults ? "image" : presetDefaults.backgroundType);
+    const backgroundType = normalizeDesignEnum(design.backgroundType || design.background_type, FULL_PAGE_BACKGROUND_TYPES, backgroundPresetDefaults?.backgroundType || presetDefaults.backgroundType);
     const backgroundSource = backgroundPresetDefaults
       ? "preset"
       : rawBackgroundSource === "preset"
@@ -403,7 +437,7 @@
       backgroundColor: normalizeFullPageColor(design.backgroundColor || design.background_color, backgroundPresetDefaults?.backgroundColor || presetDefaults.backgroundColor),
       backgroundGradientTo: normalizeFullPageColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
       backgroundImageUrl: backgroundPresetDefaults?.imageUrl || defaultTrimText(design.backgroundImageUrl || design.background_image_url),
-      backgroundVideoUrl: defaultTrimText(design.backgroundVideoUrl || design.background_video_url),
+      backgroundVideoUrl: backgroundPresetDefaults?.videoUrl || defaultTrimText(design.backgroundVideoUrl || design.background_video_url),
       backgroundOverlayColor: normalizeFullPageColor(design.backgroundOverlayColor || design.background_overlay_color, backgroundPresetDefaults?.backgroundOverlayColor || presetDefaults.backgroundOverlayColor),
       backgroundOverlayOpacity: normalizeOverlayOpacity(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, backgroundPresetDefaults?.backgroundOverlayOpacity ?? presetDefaults.backgroundOverlayOpacity),
       backgroundBlur: normalizeBackgroundBlur(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur),
@@ -413,7 +447,7 @@
       chipStyle: normalizeDesignEnum(design.chipStyle || design.chip_style, ["outline", "soft", "subtle-fill"], presetDefaults.chipStyle),
       statusStyle: normalizeDesignEnum(design.statusStyle || design.status_style, ["subtle", "pill", "minimal"], presetDefaults.statusStyle),
       backgroundScope: normalizeDesignEnum(design.backgroundScope || design.background_scope, ["section", "iframe"], DEFAULT_FULL_PAGE_DESIGN.backgroundScope),
-      disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
+      disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, backgroundPresetDefaults?.disableVideoOnMobile ?? presetDefaults.disableVideoOnMobile),
     };
   }
 
@@ -1460,11 +1494,24 @@
                     </div>
                   </div>
                   <div class="settings-full-page-background-presets" data-full-page-background-control="image">
-                    ${Object.values(FULL_PAGE_BACKGROUND_PRESETS).map((preset) => `
+                    ${Object.values(FULL_PAGE_BACKGROUND_PRESETS).filter((preset) => preset.backgroundType === "image").map((preset) => `
                       <button class="settings-background-preset-card ${fullPageDesign.backgroundPreset === preset.key ? "selected" : ""}" type="button" data-full-page-background-preset-option="${escapeHtml(preset.key)}" aria-pressed="${fullPageDesign.backgroundPreset === preset.key ? "true" : "false"}">
                         <span class="settings-background-preset-thumb" style="background-image:url('${escapeHtml(preset.imageUrl)}')" aria-hidden="true"></span>
                         <span class="settings-background-preset-copy">
                           <strong>${escapeHtml(preset.label)}</strong>
+                          <small>${escapeHtml(preset.description)}</small>
+                          <span>Use background</span>
+                        </span>
+                      </button>
+                    `).join("")}
+                  </div>
+                  <div class="settings-full-page-background-presets" data-full-page-background-control="video">
+                    ${Object.values(FULL_PAGE_BACKGROUND_PRESETS).filter((preset) => preset.backgroundType === "video").map((preset) => `
+                      <button class="settings-background-preset-card ${fullPageDesign.backgroundPreset === preset.key ? "selected" : ""}" type="button" data-full-page-background-preset-option="${escapeHtml(preset.key)}" aria-pressed="${fullPageDesign.backgroundPreset === preset.key ? "true" : "false"}">
+                        <span class="settings-background-preset-thumb" style="background-image:url('${escapeHtml(preset.imageUrl)}')" aria-hidden="true"></span>
+                        <span class="settings-background-preset-copy">
+                          <strong>${escapeHtml(preset.label)}</strong>
+                          <small>${escapeHtml(preset.description)}</small>
                           <span>Use background</span>
                         </span>
                       </button>
@@ -1548,7 +1595,7 @@
                   </div>
                 </div>
                 <aside class="settings-full-page-preview-card settings-full-page-preview-card--canvas" aria-label="Front Desk page preview" data-full-page-design-preview data-background-type="${escapeHtml(fullPageDesign.backgroundType)}" data-text-theme="${escapeHtml(fullPageDesign.textTheme)}" data-chip-style="${escapeHtml(fullPageDesign.chipStyle)}" data-composer-style="${escapeHtml(fullPageDesign.composerStyle)}" data-status-style="${escapeHtml(fullPageDesign.statusStyle)}" style="--full-page-preview-accent:${escapeHtml(fullPageAccentColor)};--full-page-preview-bg:${escapeHtml(fullPageDesign.backgroundColor)};--full-page-preview-gradient:${escapeHtml(fullPageDesign.backgroundGradientTo)};--full-page-preview-overlay:${escapeHtml(fullPageDesign.backgroundOverlayColor)};--full-page-preview-overlay-opacity:${escapeHtml(String(fullPageDesign.backgroundOverlayOpacity))};--full-page-preview-image:${fullPageDesign.backgroundImageUrl ? `url('${escapeHtml(fullPageDesign.backgroundImageUrl)}')` : "none"};--full-page-preview-blur:${escapeHtml(String(fullPageDesign.backgroundBlur))}px;--full-page-preview-position:${escapeHtml(fullPageDesign.backgroundFocalPoint)}">
-                  <video class="settings-full-page-preview-video" data-full-page-preview-video muted loop playsinline ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? `src="${escapeHtml(fullPageDesign.backgroundVideoUrl)}"` : ""} ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? "" : "hidden"}></video>
+                  <video class="settings-full-page-preview-video" data-full-page-preview-video muted loop playsinline ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? `src="${escapeHtml(fullPageDesign.backgroundVideoUrl)}"` : ""} ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundImageUrl ? `poster="${escapeHtml(fullPageDesign.backgroundImageUrl)}"` : ""} ${fullPageDesign.backgroundType === "video" && fullPageDesign.backgroundVideoUrl ? "" : "hidden"}></video>
                   <div class="settings-full-page-preview-header">
                     <span class="settings-full-page-preview-logo" aria-hidden="true">
                       ${fullPageConfig.logoUrl ? `<img src="${escapeHtml(fullPageConfig.logoUrl)}" alt="">` : `<span>${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>`}
@@ -2837,12 +2884,14 @@
         return;
       }
 
-      setInputValue("full_page_background_type", "image");
+      setInputValue("full_page_background_type", preset.backgroundType);
       setInputValue("full_page_background_color", preset.backgroundColor);
       setInputValue("full_page_background_image_url", preset.imageUrl);
+      setInputValue("full_page_background_video_url", preset.videoUrl || "");
       setInputValue("full_page_background_overlay_color", preset.backgroundOverlayColor);
       setInputValue("full_page_background_overlay_opacity", preset.backgroundOverlayOpacity);
       setInputValue("full_page_text_theme", preset.textTheme);
+      setInputValue("full_page_disable_video_on_mobile", preset.disableVideoOnMobile);
       if (fullPageBackgroundSourceInput) {
         fullPageBackgroundSourceInput.value = "preset";
       }
@@ -2942,11 +2991,17 @@
           if (video.getAttribute("src") !== videoUrl) {
             video.setAttribute("src", videoUrl);
           }
+          if (imageUrl) {
+            video.setAttribute("poster", imageUrl);
+          } else {
+            video.removeAttribute("poster");
+          }
           video.hidden = false;
           video.play?.().catch?.(() => {});
         } else {
           video.hidden = true;
           video.removeAttribute("src");
+          video.removeAttribute("poster");
         }
       }
 
@@ -2988,7 +3043,8 @@
     });
 
     fullPageBackgroundType?.addEventListener("change", () => {
-      if (fullPageBackgroundType.value !== "image") {
+      const selectedPreset = FULL_PAGE_BACKGROUND_PRESETS[fullPageBackgroundPresetInput?.value || ""];
+      if (!selectedPreset || selectedPreset.backgroundType !== fullPageBackgroundType.value) {
         setFullPageBackgroundPresetSelection("");
       }
       if (["color", "gradient"].includes(fullPageBackgroundType.value) && fullPageBackgroundSourceInput) {

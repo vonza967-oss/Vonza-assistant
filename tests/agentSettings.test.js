@@ -12,6 +12,7 @@ import {
   uploadFrontDeskBackground,
   validateFrontDeskBackgroundUpload,
 } from "../src/services/agents/frontDeskBackgroundService.js";
+import { FULL_PAGE_BACKGROUND_PRESETS } from "../src/services/agents/agentDefaults.js";
 
 function createSupabaseStub(initialState) {
   const state = {
@@ -841,7 +842,17 @@ test("normalizeFullPageDesignConfig maps built-in background presets", () => {
     background_source: "preset",
     background_preset: "dark-gold-abstract",
   });
+  const brightVideo = normalizeFullPageDesignConfig({
+    background_source: "preset",
+    background_preset: "bright-abstract-motion",
+  });
+  const darkVideo = normalizeFullPageDesignConfig({
+    background_source: "preset",
+    background_preset: "dark-abstract-motion",
+  });
 
+  assert.equal(FULL_PAGE_BACKGROUND_PRESETS["bright-abstract-motion"].videoUrl, "/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4");
+  assert.equal(FULL_PAGE_BACKGROUND_PRESETS["dark-abstract-motion"].videoUrl, "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4");
   assert.equal(light.backgroundType, "image");
   assert.equal(light.backgroundSource, "preset");
   assert.equal(light.backgroundPreset, "clean-light-abstract");
@@ -853,6 +864,22 @@ test("normalizeFullPageDesignConfig maps built-in background presets", () => {
   assert.equal(dark.backgroundPreset, "dark-gold-abstract");
   assert.equal(dark.backgroundImageUrl, "/assets/front-desk/backgrounds/abstract-dark-gold.png");
   assert.equal(dark.textTheme, "light");
+  assert.equal(brightVideo.backgroundType, "video");
+  assert.equal(brightVideo.backgroundSource, "preset");
+  assert.equal(brightVideo.backgroundPreset, "bright-abstract-motion");
+  assert.equal(brightVideo.backgroundVideoUrl, "/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4");
+  assert.equal(brightVideo.backgroundImageUrl, "/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png");
+  assert.equal(brightVideo.textTheme, "dark");
+  assert.equal(brightVideo.backgroundOverlayOpacity, 0.1);
+  assert.equal(brightVideo.disableVideoOnMobile, true);
+  assert.equal(darkVideo.backgroundType, "video");
+  assert.equal(darkVideo.backgroundSource, "preset");
+  assert.equal(darkVideo.backgroundPreset, "dark-abstract-motion");
+  assert.equal(darkVideo.backgroundVideoUrl, "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4");
+  assert.equal(darkVideo.backgroundImageUrl, "/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png");
+  assert.equal(darkVideo.textTheme, "light");
+  assert.equal(darkVideo.backgroundOverlayOpacity, 0.24);
+  assert.equal(darkVideo.disableVideoOnMobile, true);
 });
 
 test("normalizeFullPageDesignConfig gives media backgrounds readable overlay defaults", () => {
@@ -946,15 +973,18 @@ test("updateAgentSettings persists built-in full-page background preset fields",
     fullPageConfig: {
       design: {
         background_source: "preset",
-        background_preset: "dark-gold-abstract",
+        background_preset: "dark-abstract-motion",
       },
     },
   });
 
-  assert.equal(result.fullPageConfig.design.backgroundPreset, "dark-gold-abstract");
-  assert.equal(result.fullPageConfig.design.backgroundImageUrl, "/assets/front-desk/backgrounds/abstract-dark-gold.png");
+  assert.equal(result.fullPageConfig.design.backgroundPreset, "dark-abstract-motion");
+  assert.equal(result.fullPageConfig.design.backgroundType, "video");
+  assert.equal(result.fullPageConfig.design.backgroundImageUrl, "/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png");
+  assert.equal(result.fullPageConfig.design.backgroundVideoUrl, "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4");
   assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_source, "preset");
-  assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_preset, "dark-gold-abstract");
+  assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_preset, "dark-abstract-motion");
+  assert.equal(supabase.state.widget_configs[0].full_page_config.design.background_video_url, "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4");
 });
 
 test("front desk background upload validation accepts supported image and video files", () => {

@@ -107,19 +107,55 @@ const FULL_PAGE_BACKGROUND_SOURCES = Object.freeze(["preset", "upload", "url"]);
 const FULL_PAGE_BACKGROUND_PRESETS = Object.freeze({
   "clean-light-abstract": {
     key: "clean-light-abstract",
+    label: "Clean Light Abstract",
+    description: "Soft light background with gold linework.",
+    backgroundType: "image",
     imageUrl: "/assets/front-desk/backgrounds/abstract-light-gold.png",
+    videoUrl: "",
     backgroundColor: "#f8f4ea",
     backgroundOverlayColor: "#ffffff",
     backgroundOverlayOpacity: 0.18,
     textTheme: "dark",
+    disableVideoOnMobile: true,
   },
   "dark-gold-abstract": {
     key: "dark-gold-abstract",
+    label: "Dark Gold Abstract",
+    description: "Dark background with gold linework.",
+    backgroundType: "image",
     imageUrl: "/assets/front-desk/backgrounds/abstract-dark-gold.png",
+    videoUrl: "",
     backgroundColor: "#09090b",
     backgroundOverlayColor: "#020617",
     backgroundOverlayOpacity: 0.28,
     textTheme: "light",
+    disableVideoOnMobile: true,
+  },
+  "bright-abstract-motion": {
+    key: "bright-abstract-motion",
+    label: "Bright Abstract Motion",
+    description: "Bright abstract motion for a clean Front Desk page.",
+    backgroundType: "video",
+    imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_poster.png",
+    videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_bright_loop.mp4",
+    backgroundColor: "#f8fafc",
+    backgroundOverlayColor: "#ffffff",
+    backgroundOverlayOpacity: 0.1,
+    textTheme: "dark",
+    disableVideoOnMobile: true,
+  },
+  "dark-abstract-motion": {
+    key: "dark-abstract-motion",
+    label: "Dark Abstract Motion",
+    description: "Dark abstract motion with a high-contrast Front Desk style.",
+    backgroundType: "video",
+    imageUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_poster.png",
+    videoUrl: "/assets/front-desk/backgrounds/vonza_front_desk_dark_loop.mp4",
+    backgroundColor: "#08111f",
+    backgroundOverlayColor: "#020617",
+    backgroundOverlayOpacity: 0.24,
+    textTheme: "light",
+    disableVideoOnMobile: true,
   },
 });
 const FULL_PAGE_FOCAL_POINTS = Object.freeze(["center", "top", "left", "right"]);
@@ -1250,7 +1286,7 @@ function normalizeFullPageDesignConfig(rawDesign = {}) {
   const backgroundType = normalizeFullPageDesignEnum(
     design.backgroundType || design.background_type,
     FULL_PAGE_BACKGROUND_TYPES,
-    backgroundPresetDefaults ? "image" : presetDefaults.backgroundType
+    backgroundPresetDefaults?.backgroundType || presetDefaults.backgroundType
   );
   const backgroundSource = backgroundPresetDefaults
     ? "preset"
@@ -1281,7 +1317,7 @@ function normalizeFullPageDesignConfig(rawDesign = {}) {
     backgroundColor: normalizeFullPageAccentColor(design.backgroundColor || design.background_color, backgroundPresetDefaults?.backgroundColor || presetDefaults.backgroundColor),
     backgroundGradientTo: normalizeFullPageAccentColor(design.backgroundGradientTo || design.background_gradient_to, presetDefaults.backgroundGradientTo),
     backgroundImageUrl: backgroundPresetDefaults?.imageUrl || rawBackgroundImageUrl,
-    backgroundVideoUrl: rawBackgroundVideoUrl,
+    backgroundVideoUrl: backgroundPresetDefaults?.videoUrl || rawBackgroundVideoUrl,
     backgroundOverlayColor: normalizeFullPageAccentColor(design.backgroundOverlayColor || design.background_overlay_color, overlayColorFallback),
     backgroundOverlayOpacity: normalizeFullPageDesignNumber(design.backgroundOverlayOpacity ?? design.background_overlay_opacity, overlayOpacityFallback, 0, 0.92, 2),
     backgroundBlur: normalizeFullPageDesignNumber(design.backgroundBlur ?? design.background_blur, presetDefaults.backgroundBlur, 0, 18),
@@ -1291,7 +1327,7 @@ function normalizeFullPageDesignConfig(rawDesign = {}) {
     chipStyle: normalizeFullPageDesignEnum(design.chipStyle || design.chip_style, FULL_PAGE_CHIP_STYLES, presetDefaults.chipStyle),
     statusStyle: normalizeFullPageDesignEnum(design.statusStyle || design.status_style, FULL_PAGE_STATUS_STYLES, presetDefaults.statusStyle),
     backgroundScope: normalizeFullPageDesignEnum(design.backgroundScope || design.background_scope, FULL_PAGE_BACKGROUND_SCOPES, DEFAULT_FULL_PAGE_DESIGN.backgroundScope),
-    disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, presetDefaults.disableVideoOnMobile),
+    disableVideoOnMobile: normalizeBoolean(design.disableVideoOnMobile ?? design.disable_video_on_mobile, backgroundPresetDefaults?.disableVideoOnMobile ?? presetDefaults.disableVideoOnMobile),
   };
 }
 
@@ -3532,6 +3568,11 @@ function syncFullPageDesignVideo(design) {
 
   if (video.src !== design.backgroundVideoUrl) {
     video.src = design.backgroundVideoUrl;
+  }
+  if (design.backgroundImageUrl) {
+    video.setAttribute("poster", design.backgroundImageUrl);
+  } else {
+    video.removeAttribute("poster");
   }
 
   video.hidden = false;
