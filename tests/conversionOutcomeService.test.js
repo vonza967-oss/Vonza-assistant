@@ -238,9 +238,16 @@ function createOutcomeState() {
         agent_id: "agent-1",
         install_id: "11111111-1111-1111-1111-111111111111",
         allowed_domains: ["example.com"],
+        booking_url: "https://example.com/book",
+        quote_url: "https://example.com/quote",
+        checkout_url: "https://example.com/checkout",
+        booking_start_url: "https://example.com/book/start",
         booking_success_url: "https://example.com/book/thanks",
+        quote_start_url: "https://example.com/quote/start",
         quote_success_url: "https://example.com/quote/thanks",
         checkout_success_url: "https://example.com/checkout/complete",
+        contact_email: "team@example.com",
+        contact_phone: "+1 206 555 0199",
         success_url_match_mode: "path_prefix",
       },
     ],
@@ -298,6 +305,48 @@ test("tracked booking CTA click is persisted and keeps attribution context", asy
   assert.equal(supabase.state.agent_conversion_outcomes[0].lead_id, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
   assert.equal(supabase.state.agent_conversion_outcomes[0].contact_id, "dddddddd-dddd-dddd-dddd-dddddddddddd");
   assert.match(result.redirectUrl, /vz_cta_event_id=/);
+});
+
+test("tracked booking CTA click rejects a mismatched external target", async () => {
+  const supabase = createOutcomeState();
+
+  await assert.rejects(
+    () => recordTrackedCtaClick(supabase, {
+      installId: "11111111-1111-1111-1111-111111111111",
+      sessionId: "session-1",
+      ctaType: "booking",
+      targetType: "url",
+      targetUrl: "https://evil.example/book",
+      relatedIntentType: "booking",
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "cta_target_not_configured");
+      return true;
+    }
+  );
+
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 0);
+});
+
+test("tracked booking CTA click preserves a provided CTA event id in the redirect", async () => {
+  const supabase = createOutcomeState();
+  const ctaEventId = "99999999-9999-4999-8999-999999999999";
+
+  const result = await recordTrackedCtaClick(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    sessionId: "session-1",
+    ctaEventId,
+    ctaType: "booking",
+    targetType: "url",
+    targetUrl: "https://example.com/book",
+    relatedIntentType: "booking",
+  });
+
+  const redirect = new URL(result.redirectUrl);
+  assert.equal(result.ctaEventId, ctaEventId);
+  assert.equal(redirect.searchParams.get("vz_cta_event_id"), ctaEventId);
+  assert.equal(supabase.state.agent_conversion_outcomes[0].cta_event_id, ctaEventId);
 });
 
 test("booking success page creates booking_confirmed and resolves the related queue state", async () => {
@@ -389,7 +438,7 @@ test("contact clicks are tracked separately from confirmed conversions", async (
     sessionId: "session-4",
     ctaType: "contact",
     targetType: "phone",
-    targetUrl: "tel:+15555555555",
+    targetUrl: "tel:+1 206 555 0199",
     actionKey: "action-4",
     relatedIntentType: "contact",
   });

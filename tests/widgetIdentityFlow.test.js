@@ -97,6 +97,12 @@ function createFakeElement(id = "") {
       this.children.push(child);
       return child;
     },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
     remove() {
       this.removed = true;
       if (this.parentNode?.children) {
@@ -1363,6 +1369,83 @@ test("embedded page mode uses configured action card labels for quick chips", as
   ]);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Compare plans/);
   assert.match(harness.elements.get("quick-replies").innerHTML, /Start my estimate/);
+});
+
+test("widget chat renders booking CTA from direct routing response", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1", publicAgentKey: "agent-key" },
+              business: { id: "business-1", name: "Acme Co", websiteUrl: "https://example.com" },
+              install: { installId: "install-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                bookingUrl: "https://example.com/book",
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "You can book directly.",
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+              directRouting: {
+                mode: "direct_cta",
+                routingMode: "direct_cta",
+                decisionKey: "session-1::booking::booking::url::https://example.com/book",
+                intentType: "booking",
+                primaryCta: {
+                  ctaType: "booking",
+                  targetType: "url",
+                  label: "Book now",
+                  href: "https://example.com/book",
+                  targetValue: "https://example.com/book",
+                },
+                secondaryCtas: [],
+                continueButton: { label: "Continue here", action: "dismiss_route" },
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest", email: "", name: "" }, { capture: false });
+  harness.elements.get("input").value = "Can I book a consultation?";
+
+  await harness.hooks.sendMessage();
+
+  const routingHtml = harness.elements.get("direct-routing-slot").innerHTML;
+  assert.equal(harness.elements.get("direct-routing-slot").hidden, false);
+  assert.match(routingHtml, /Ready to book\?/);
+  assert.match(routingHtml, /Book now/);
+  assert.match(routingHtml, /data-href="https:\/\/example\.com\/book"/);
 });
 
 test("embedded page mode honors Hungarian welcome copy over English fallback", async () => {

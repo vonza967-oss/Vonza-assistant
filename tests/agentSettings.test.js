@@ -1193,6 +1193,7 @@ test("updateAgentSettings persists and rehydrates Front Desk routing settings", 
 
   const result = await updateAgentSettings(supabase, {
     agentId: "agent-1",
+    bookingUrl: "https://example.com/book-now",
     bookingStartUrl: "https://example.com/book/start",
     quoteStartUrl: "https://example.com/quote/start",
     bookingSuccessUrl: "https://example.com/book/confirmed",
@@ -1205,6 +1206,9 @@ test("updateAgentSettings persists and rehydrates Front Desk routing settings", 
     businessHoursNote: "Monday-Friday, 9-5",
   });
 
+  assert.equal(result.bookingUrl, "https://example.com/book-now");
+  assert.equal(result.quoteUrl, "https://example.com/quote");
+  assert.equal(result.checkoutUrl, "https://example.com/shop");
   assert.equal(result.bookingStartUrl, "https://example.com/book/start");
   assert.equal(result.quoteStartUrl, "https://example.com/quote/start");
   assert.equal(result.bookingSuccessUrl, "https://example.com/book/confirmed");
@@ -1217,6 +1221,9 @@ test("updateAgentSettings persists and rehydrates Front Desk routing settings", 
   assert.equal(result.businessHoursNote, "Monday-Friday, 9-5");
 
   const savedRow = state.widget_configs[0];
+  assert.equal(savedRow.booking_url, "https://example.com/book-now");
+  assert.equal(savedRow.quote_url, "https://example.com/quote");
+  assert.equal(savedRow.checkout_url, "https://example.com/shop");
   assert.equal(savedRow.booking_start_url, "https://example.com/book/start");
   assert.equal(savedRow.quote_start_url, "https://example.com/quote/start");
   assert.equal(savedRow.booking_success_url, "https://example.com/book/confirmed");
@@ -1229,6 +1236,9 @@ test("updateAgentSettings persists and rehydrates Front Desk routing settings", 
   assert.equal(savedRow.business_hours_note, "Monday-Friday, 9-5");
 
   const reloaded = await getAgentWorkspaceSnapshot(supabase, "agent-1");
+  assert.equal(reloaded.bookingUrl, "https://example.com/book-now");
+  assert.equal(reloaded.quoteUrl, "https://example.com/quote");
+  assert.equal(reloaded.checkoutUrl, "https://example.com/shop");
   assert.equal(reloaded.bookingStartUrl, "https://example.com/book/start");
   assert.equal(reloaded.quoteStartUrl, "https://example.com/quote/start");
   assert.equal(reloaded.bookingSuccessUrl, "https://example.com/book/confirmed");

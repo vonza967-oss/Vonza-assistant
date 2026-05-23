@@ -260,6 +260,87 @@ function normalizeTargetUrl(value) {
   return normalizePageUrl(normalized);
 }
 
+function normalizeConfiguredTargetUrl(value) {
+  const normalized = cleanText(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (normalized.startsWith("mailto:") || normalized.startsWith("tel:")) {
+    return normalized;
+  }
+
+  return normalizeOptionalUrl(normalized);
+}
+
+function buildTrackedCtaDestinationMap(widgetConfig = {}) {
+  const bookingTargets = [
+    widgetConfig.booking_url || widgetConfig.bookingUrl,
+    widgetConfig.booking_start_url || widgetConfig.bookingStartUrl,
+    widgetConfig.booking_success_url || widgetConfig.bookingSuccessUrl,
+  ].map((value) => normalizeConfiguredTargetUrl(value)).filter(Boolean);
+  const quoteTargets = [
+    widgetConfig.quote_url || widgetConfig.quoteUrl,
+    widgetConfig.quote_start_url || widgetConfig.quoteStartUrl,
+    widgetConfig.quote_success_url || widgetConfig.quoteSuccessUrl,
+  ].map((value) => normalizeConfiguredTargetUrl(value)).filter(Boolean);
+  const checkoutTargets = [
+    widgetConfig.checkout_url || widgetConfig.checkoutUrl,
+    widgetConfig.checkout_success_url || widgetConfig.checkoutSuccessUrl,
+  ].map((value) => normalizeConfiguredTargetUrl(value)).filter(Boolean);
+  const contactTargets = [
+    widgetConfig.contact_email || widgetConfig.contactEmail
+      ? `mailto:${cleanText(widgetConfig.contact_email || widgetConfig.contactEmail).toLowerCase()}`
+      : "",
+    widgetConfig.contact_phone || widgetConfig.contactPhone
+      ? `tel:${cleanText(widgetConfig.contact_phone || widgetConfig.contactPhone)}`
+      : "",
+  ].map((value) => normalizeConfiguredTargetUrl(value)).filter(Boolean);
+
+  return {
+    booking: new Set(bookingTargets),
+    quote: new Set(quoteTargets),
+    checkout: new Set(checkoutTargets),
+    contact: new Set(contactTargets),
+    email: new Set(contactTargets.filter((target) => target.startsWith("mailto:"))),
+    phone: new Set(contactTargets.filter((target) => target.startsWith("tel:"))),
+  };
+}
+
+function isConfiguredCtaDestination(widgetConfig = {}, { ctaType = "", targetType = "", targetUrl = "" } = {}) {
+  const normalizedTarget = normalizeConfiguredTargetUrl(targetUrl);
+
+  if (!normalizedTarget) {
+    return false;
+  }
+
+  const destinations = buildTrackedCtaDestinationMap(widgetConfig);
+  const normalizedCtaType = cleanText(ctaType).toLowerCase();
+  const normalizedTargetType = cleanText(targetType).toLowerCase();
+
+  if (normalizedCtaType === "contact") {
+    if (normalizedTargetType === "email") {
+      return destinations.email.has(normalizedTarget);
+    }
+
+    if (normalizedTargetType === "phone") {
+      return destinations.phone.has(normalizedTarget);
+    }
+
+    return destinations.contact.has(normalizedTarget);
+  }
+
+  return destinations[normalizedCtaType]?.has(normalizedTarget) === true;
+}
+
+function buildUnconfiguredCtaTargetError() {
+  const error = new Error("CTA target is not configured for this install.");
+  error.statusCode = 400;
+  error.code = "cta_target_not_configured";
+  return error;
+}
+
 function normalizeOutcomeType(value) {
   const normalized = cleanText(value).toLowerCase();
   const canonical = OUTCOME_TYPE_ALIASES[normalized] || normalized;
@@ -986,6 +1067,14 @@ export async function recordTrackedCtaClick(supabase, input = {}) {
     const error = new Error("Install not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  if (!isConfiguredCtaDestination(context.widgetConfigRow || {}, {
+    ctaType,
+    targetType,
+    targetUrl,
+  })) {
+    throw buildUnconfiguredCtaTargetError();
   }
 
   const leadRecord = await findLikelyLeadRecord(supabase, {

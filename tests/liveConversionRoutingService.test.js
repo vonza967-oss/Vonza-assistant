@@ -31,6 +31,7 @@ test("booking intent with booking URL shows a booking CTA", () => {
   assert.equal(result.mode, "direct_cta");
   assert.equal(result.primaryCta.ctaType, "booking");
   assert.equal(result.primaryCta.label, "Book now");
+  assert.equal(result.primaryCta.href, "https://example.com/book");
 });
 
 test("pricing intent with quote URL shows a quote CTA", () => {

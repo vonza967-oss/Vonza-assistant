@@ -524,6 +524,7 @@ export function createAgentRouter(deps = {}) {
         ctaType: req.query.cta_type || req.query.ctaType,
         targetType: req.query.target_type || req.query.targetType,
         targetUrl: req.query.target_url || req.query.targetUrl,
+        ctaEventId: req.query.cta_event_id || req.query.ctaEventId || req.query.vz_cta_event_id,
         decisionKey: req.query.decision_key || req.query.decisionKey,
         relatedActionType: req.query.related_action_type || req.query.relatedActionType,
         relatedIntentType: req.query.related_intent_type || req.query.relatedIntentType,

@@ -6,7 +6,7 @@ const AGENTS_TABLE = "agents";
 const BUSINESSES_TABLE = "businesses";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WIDGET_CONFIG_SELECT =
-  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, widget_logo_url, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
+  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, widget_logo_url, theme_mode, booking_url, quote_url, checkout_url, booking_start_url, quote_start_url, booking_success_url, quote_success_url, checkout_success_url, contact_email, contact_phone, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
 const LEGACY_WIDGET_CONFIG_SELECT =
   "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
 const INSTALL_STATUS_STALE_HOURS = 72;
