@@ -13589,6 +13589,7 @@ async function saveAssistant(event, agent) {
       saveState.removeAttribute("title");
     }
     await boot();
+    setStatus("Your assistant has been updated.");
   } catch (error) {
     const message = error.message || "We couldn't save those changes just yet.";
     console.error("[dashboard customize] Failed to save assistant settings:", {

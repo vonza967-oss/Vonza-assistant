@@ -10,6 +10,7 @@
     "dev": "node --watch index.js",
     "lint": "eslint .",
     "test:smoke": "node --test tests/*.test.js",
+    "test:browser": "node --test tests/browser/*.test.js",
     "test:supabase": "node test-supabase.js",
     "check:schema-sync": "node scripts/check-schema-sync.js",
     "validate:clean-db": "node scripts/validate-clean-database.js",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.3.0",
-    "globals": "^17.6.0"
+    "globals": "^17.6.0",
+    "playwright": "^1.60.0"
   }
 }

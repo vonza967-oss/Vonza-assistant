@@ -1,4 +1,17 @@
 (function registerVonzaDashboardState(global) {
+  /**
+   * @typedef {Object} DashboardUiState
+   * @property {string} settingsMainTab
+   * @property {string} settingsFrontDeskTab
+   * @property {string} settingsFullPageTab
+   * @property {string} installMethod
+   * @property {string} installFullPageOption
+   * @property {string} frontDeskTab
+   * @property {string} customersFilter
+   * @property {string} selectedCustomerKey
+   * @property {string} selectedConversationKey
+   * @property {string} todayFilter
+   */
   const INSTALL_METHODS = Object.freeze(["full-page", "qr", "widget"]);
   const INSTALL_METHOD_PANEL_KEYS = Object.freeze({
     "full-page": "page",
