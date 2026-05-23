@@ -10,6 +10,7 @@ import { getHostnameFromUrl, normalizeWebsiteUrl } from "../../utils/url.js";
 import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/businessResolution.js";
 import { getAgentMessageStats } from "../chat/messageService.js";
 import { listWidgetEventSummaryByAgentIds } from "../analytics/widgetTelemetryService.js";
+import { listBookingIntegrationStatusesByAgentIds } from "../bookings/bookingIntegrationService.js";
 import { normalizeOutcomeSettings, normalizeSuccessUrlMatchMode } from "../conversion/conversionOutcomeService.js";
 import {
   deriveAllowedDomains,
@@ -2130,6 +2131,7 @@ export async function listAgents(supabase, options = {}) {
   let messageStatsByAgentId = new Map();
   let installStatusByAgentId = new Map();
   let widgetMetricsByAgentId = new Map();
+  let bookingIntegrationsByAgentId = new Map();
 
   if (agentIds.length) {
     let { data: widgetRows, error: widgetError } = await supabase
@@ -2215,6 +2217,7 @@ export async function listAgents(supabase, options = {}) {
   if (agentIds.length) {
     messageStatsByAgentId = await getAgentMessageStats(supabase, agentIds);
     installStatusByAgentId = await listInstallStatusByAgentIds(supabase, agentIds);
+    bookingIntegrationsByAgentId = await listBookingIntegrationStatusesByAgentIds(supabase, agentIds);
     widgetMetricsByAgentId = await listWidgetEventSummaryByAgentIds(supabase, agentIds, {
       sinceByAgentId: new Map(
         agentIds.map((agentId) => [agentId, installStatusByAgentId.get(agentId)?.installedAt || null])
@@ -2292,6 +2295,7 @@ export async function listAgents(supabase, options = {}) {
         widgetConfig?.fullPageConfig || normalizeFullPageConfig(null),
       voiceConfig:
         widgetConfig?.voiceConfig || normalizeVoiceConfig(null),
+      bookingIntegrationStatus: bookingIntegrationsByAgentId.get(row.id) || null,
       hasWidgetConfig: Boolean(widgetConfig),
       knowledge,
       installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(widgetConfig, websiteUrl),
@@ -2349,6 +2353,7 @@ export async function listAllAgents(supabase) {
   let messageStatsByAgentId = new Map();
   let installStatusByAgentId = new Map();
   let widgetMetricsByAgentId = new Map();
+  let bookingIntegrationsByAgentId = new Map();
 
   if (agentIds.length) {
     let { data: widgetRows, error: widgetError } = await supabase
@@ -2413,6 +2418,7 @@ export async function listAllAgents(supabase) {
   if (agentIds.length) {
     messageStatsByAgentId = await getAgentMessageStats(supabase, agentIds);
     installStatusByAgentId = await listInstallStatusByAgentIds(supabase, agentIds);
+    bookingIntegrationsByAgentId = await listBookingIntegrationStatusesByAgentIds(supabase, agentIds);
     widgetMetricsByAgentId = await listWidgetEventSummaryByAgentIds(supabase, agentIds, {
       sinceByAgentId: new Map(
         agentIds.map((agentId) => [agentId, installStatusByAgentId.get(agentId)?.installedAt || null])
@@ -2485,6 +2491,7 @@ export async function listAllAgents(supabase) {
       widgetConfigsByAgentId.get(row.id)?.fullPageConfig || normalizeFullPageConfig(null),
     voiceConfig:
       widgetConfigsByAgentId.get(row.id)?.voiceConfig || normalizeVoiceConfig(null),
+    bookingIntegrationStatus: bookingIntegrationsByAgentId.get(row.id) || null,
     installStatus: installStatusByAgentId.get(row.id) || buildDefaultInstallStatus(
       widgetConfigsByAgentId.get(row.id),
       businessesById.get(row.business_id)?.website_url || ""

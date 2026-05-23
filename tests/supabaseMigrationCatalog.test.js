@@ -71,3 +71,19 @@ test("baseline migration only contains the foundational snapshot", () => {
   assert.doesNotMatch(baselineSql, /operator_inbox_threads/i);
   assert.doesNotMatch(baselineSql, /owner_user_id/i);
 });
+
+test("Calendly booking integration schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260523001000_agent_booking_integrations.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.agent_booking_integrations/i);
+    assert.match(sql, /webhook_endpoint_token_hash text not null/i);
+    assert.match(sql, /webhook_secret_encrypted text/i);
+    assert.match(sql, /agent_booking_integrations_agent_owner_idx/i);
+    assert.match(sql, /Owners can manage booking integrations/i);
+  });
+});

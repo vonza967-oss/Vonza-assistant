@@ -11,6 +11,7 @@ const DEFAULT_LIMITS = Object.freeze({
   widget_bootstrap: { windowMs: 60_000, max: 60 },
   public_install_signal: { windowMs: 60_000, max: 30 },
   public_install_cta: { windowMs: 60_000, max: 20 },
+  booking_webhook: { windowMs: 60_000, max: 60 },
   auth_adjacent: { windowMs: 60_000, max: 12 },
   install_verify: { windowMs: 60_000, max: 5 },
 });

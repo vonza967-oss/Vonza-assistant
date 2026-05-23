@@ -28,7 +28,11 @@ const enterpriseReadinessMigrationSql = readFileSync(
   "supabase/migrations/20260523000000_enterprise_readiness_hardening.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}`;
+const bookingIntegrationsMigrationSql = readFileSync(
+  "supabase/migrations/20260523001000_agent_booking_integrations.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -79,6 +83,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_contact_leads",
     "agent_knowledge_fix_workflows",
     "agent_conversion_outcomes",
+    "agent_booking_integrations",
     "operator_contacts",
     "operator_contact_identities",
     "operator_tasks",

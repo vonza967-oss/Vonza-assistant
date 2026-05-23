@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 
 import { createAgentRouter } from "../routes/agentRoutes.js";
+import { createBookingRouter } from "../routes/bookingRoutes.js";
 import { createBusinessRouter } from "../routes/businessRoutes.js";
 import { createChatRouter } from "../routes/chatRoutes.js";
 import { createPublicRouter } from "../routes/publicRoutes.js";
@@ -22,6 +23,7 @@ export function createApp({ rootDir }) {
   app.use(applySecurityHeaders);
   app.use(applyRouteCors);
   app.use("/stripe/webhook", express.raw({ type: "application/json" }));
+  app.use("/bookings/webhooks/calendly", express.raw({ type: "application/json", limit: "128kb" }));
   app.use(express.json({ limit: "96kb" }));
   app.use(express.static(path.join(rootDir, "frontend"), {
     index: false,
@@ -53,6 +55,7 @@ export function createApp({ rootDir }) {
   }));
 
   app.use(createPublicRouter({ rootDir }));
+  app.use(createBookingRouter());
   app.use(createAgentRouter());
   app.use(createChatRouter());
   app.use(createVoiceRouter());

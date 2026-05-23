@@ -567,6 +567,45 @@
     };
   }
 
+  function getCalendlyWebhookStatus(agent = {}) {
+    const provider = getBookingProvider(agent);
+    const integration = agent.bookingIntegrationStatus || agent.booking_integration_status || {};
+
+    if (provider !== "calendly") {
+      return null;
+    }
+
+    if (!isCalendlyBookingUrl(agent.bookingUrl || agent.booking_url)) {
+      return {
+        label: "Needs attention",
+        tone: "Warning",
+        copy: "Calendly mode needs a public HTTPS Calendly booking link.",
+      };
+    }
+
+    if (integration.state === "needs_attention" || integration.status === "needs_attention") {
+      return {
+        label: "Needs attention",
+        tone: "Warning",
+        copy: "Calendly webhook setup needs review before bookings are trusted.",
+      };
+    }
+
+    if (integration.state === "connected" || integration.webhookConnected === true) {
+      return {
+        label: "Webhook connected",
+        tone: "Ready",
+        copy: "Vonza can record confirmed Calendly bookings from signed webhook events.",
+      };
+    }
+
+    return {
+      label: "Webhook not connected",
+      tone: "Pending",
+      copy: "Bookings can be started from the Calendly link, but confirmed bookings are not trusted until the webhook is connected.",
+    };
+  }
+
   function getDefaultFullPageActionCards(agent = {}) {
     const cards = DEFAULT_FULL_PAGE_ACTION_CARDS.map((card) => ({ ...card }));
 
@@ -1298,6 +1337,7 @@
     const bookingSupported = hasBookingSupport(agent);
     const bookingProvider = getBookingProvider(agent);
     const bookingProviderStatus = getBookingProviderStatus(agent);
+    const calendlyWebhookStatus = getCalendlyWebhookStatus(agent);
     const activeFrontDeskTab = getActiveFrontDeskSettingsTab(helpers);
     const activeFullPageTab = getActiveFullPageSettingsTab(helpers);
     const frontDeskTabClass = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "active" : "";
@@ -1793,6 +1833,15 @@
                   </div>
                   <span class="${helpers.getBadgeClass(bookingProviderStatus.tone)}">${escapeHtml(bookingProvider === "calendly" ? "Calendly" : "Manual")}</span>
                 </div>
+                ${calendlyWebhookStatus ? `
+                  <div class="settings-shell-choice-row">
+                    <div class="settings-shell-choice-main">
+                      <p class="settings-shell-choice-title">${escapeHtml(calendlyWebhookStatus.label)}</p>
+                      <p class="settings-shell-key-value-copy">${escapeHtml(calendlyWebhookStatus.copy)}</p>
+                    </div>
+                    <span class="${helpers.getBadgeClass(calendlyWebhookStatus.tone)}">${escapeHtml(calendlyWebhookStatus.tone)}</span>
+                  </div>
+                ` : ""}
                 <div class="field">
                   <label for="assistant-booking-url">Booking URL</label>
                   <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="${bookingProvider === "calendly" ? "https://calendly.com/example/consultation" : "https://example.com/book"}">

@@ -560,6 +560,32 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationColumns: ["contact_id"],
   },
+  agent_booking_integrations: {
+    requiredColumns: [
+      "id",
+      "agent_id",
+      "owner_user_id",
+      "provider",
+      "status",
+      "booking_url",
+      "webhook_endpoint_token_hash",
+      "webhook_secret_encrypted",
+      "provider_account_id",
+      "provider_event_type_id",
+      "metadata",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [
+      SUPABASE_MIGRATION_FILE_BY_ID.agent_booking_integrations,
+    ],
+    migrationColumns: [
+      "provider",
+      "status",
+      "webhook_endpoint_token_hash",
+      "webhook_secret_encrypted",
+    ],
+  },
   agent_visitor_reply_feedback: {
     requiredColumns: [
       "id",

@@ -7,6 +7,7 @@ export const HUMAN_FOLLOW_UP_STATUS_TABLE = "agent_human_follow_up_statuses";
 export const KNOWLEDGE_FIX_WORKFLOW_TABLE = "agent_knowledge_fix_workflows";
 export const LEAD_CAPTURE_TABLE = "agent_contact_leads";
 export const CONVERSION_OUTCOME_TABLE = "agent_conversion_outcomes";
+export const BOOKING_INTEGRATION_TABLE = "agent_booking_integrations";
 export const VISITOR_REPLY_FEEDBACK_TABLE = "agent_visitor_reply_feedback";
 export const FRONT_DESK_TRAINING_ITEMS_TABLE = "front_desk_training_items";
 export const FRONT_DESK_KNOWLEDGE_CHUNKS_TABLE = "front_desk_knowledge_chunks";

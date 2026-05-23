@@ -4473,6 +4473,12 @@ test("Settings Front Desk routing renders booking provider status", () => {
   });
   const agent = createDashboardUiStateAgent({
     bookingUrl: "https://calendly.com/acme/demo",
+    bookingIntegrationStatus: {
+      provider: "calendly",
+      status: "active",
+      state: "connected",
+      webhookConnected: true,
+    },
     fullPageConfig: {
       publicPageEnabled: true,
       publicPageKey: "page-key",
@@ -4493,7 +4499,43 @@ test("Settings Front Desk routing renders booking provider status", () => {
   assert.match(settingsPanel, /Calendly/);
   assert.match(settingsPanel, /value="calendly" selected/);
   assert.match(settingsPanel, /Calendly link connected/);
+  assert.match(settingsPanel, /Webhook connected/);
   assert.match(settingsPanel, /https:\/\/calendly\.com\/acme\/demo/);
+  assert.doesNotMatch(settingsPanel, /webhook-secret|calendly-webhook-secret|secret-encryption|whsec/i);
+});
+
+test("Settings Front Desk routing renders Calendly webhook missing status without secrets", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const agent = createDashboardUiStateAgent({
+    bookingUrl: "https://calendly.com/acme/demo",
+    bookingIntegrationStatus: {
+      provider: "calendly",
+      status: "pending",
+      state: "not_connected",
+      webhookConnected: false,
+    },
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key",
+      bookingProvider: "calendly",
+    },
+  });
+
+  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
+  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+    agent,
+    setup: {},
+    operatorWorkspace: harness.createEmptyOperatorWorkspace(),
+  });
+
+  assert.match(settingsPanel, /Calendly link connected/);
+  assert.match(settingsPanel, /Webhook not connected/);
+  assert.doesNotMatch(settingsPanel, /webhook-secret|calendly-webhook-secret|secret-encryption|whsec/i);
 });
 
 test("Install selected method survives install status refresh and nested hashes", async () => {

@@ -289,6 +289,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "required",
     note: "Adds admin audit logs, durable website import jobs, and owner-scoped policies for enterprise readiness hardening.",
   }),
+  Object.freeze({
+    id: "agent_booking_integrations",
+    version: "20260523001000",
+    name: "agent_booking_integrations",
+    file: "supabase/migrations/20260523001000_agent_booking_integrations.sql",
+    legacySources: Object.freeze(["db/agent_booking_integrations.sql"]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped Calendly webhook integration storage for trusted booking confirmations.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

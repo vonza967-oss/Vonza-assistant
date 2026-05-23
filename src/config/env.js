@@ -140,6 +140,14 @@ export function getGoogleTokenEncryptionSecret() {
   return String(process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET || "");
 }
 
+export function getBookingWebhookEncryptionSecret() {
+  return String(
+    process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET
+    || process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET
+    || ""
+  );
+}
+
 export function listMissingGoogleOperatorEnvVars() {
   const requiredKeys = [
     ["GOOGLE_CLIENT_ID", getGoogleClientId()],
