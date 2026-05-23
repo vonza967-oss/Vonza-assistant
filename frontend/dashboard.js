@@ -1936,6 +1936,35 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Added": "Hozzáadva",
   "Not added yet": "Még nincs hozzáadva",
   "Business grounding": "Üzleti megalapozás",
+  "Today": "Ma",
+  "Follow-ups": "Utánkövetések",
+  "Performance": "Teljesítmény",
+  "Front Desk page, QR, and optional bubble": "Front Desk oldal, QR és opcionális buborék",
+  "Privacy and workspace": "Adatvédelem és munkaterület",
+  "Not detected on a live site yet": "Még nincs észlelve élő oldalon",
+  "Review replies": "Válaszok áttekintése",
+  "View analytics": "Elemzések megtekintése",
+  "not available yet": "még nem elérhető",
+  "Leads captured": "Rögzített érdeklődők",
+  "All customers": "Minden ügyfél",
+  "Show customers needing help": "Segítséget igénylő ügyfelek",
+  "General": "Általános",
+  "Business Profile": "Üzleti profil",
+  "Account & Billing": "Fiók és számlázás",
+  "Privacy & Legal": "Adatvédelem és jogi információk",
+  "Dashboard language, appearance, and workspace status.": "Irányítópult nyelve, megjelenés és munkaterület-állapot.",
+  "Customer-facing behavior, welcome, routing, and launch readiness.": "Ügyféloldali működés, üdvözlés, útvonalak és élesítési készenlét.",
+  "Business facts Vonza uses to answer customer questions.": "Üzleti tények, amelyekből a Vonza ügyfélkérdésekre válaszol.",
+  "Real account, plan, subscription, and usage status.": "Valós fiók-, csomag-, előfizetés- és használati állapot.",
+  "Public legal pages and privacy links.": "Publikus jogi oldalak és adatvédelmi linkek.",
+  "Settings section": "Beállítási szakasz",
+  "Workspace preferences": "Munkaterület beállításai",
+  "Dashboard language and theme are real workspace preferences for this browser/session.": "Az irányítópult nyelve és témája valós munkaterület-beállítás ebben a böngészőben/munkamenetben.",
+  "Workspace status": "Munkaterület állapota",
+  "Lightweight account and workspace state from the existing auth and activation flow.": "Egyszerű fiók- és munkaterület-állapot a meglévő belépési és aktiválási folyamatból.",
+  "Owner account": "Tulajdonosi fiók",
+  "Workspace mode": "Munkaterület mód",
+  "Your main workspace is ready.": "A fő munkaterületed készen áll.",
   "Run a real practice conversation": "Futtass egy valódi gyakorló beszélgetést",
   "Needs setup": "Beállítás szükséges",
   "Use Practice to confirm how the Front Desk answers, guides the next step, and captures lead intent before you publish it.": "Használd a Gyakorlást annak ellenőrzésére, hogyan válaszol a Front Desk, hogyan vezeti a következő lépést, és hogyan rögzíti az érdeklődői szándékot az élesítés előtt.",
@@ -2100,7 +2129,7 @@ function localizeDashboardHtml(html = "") {
 
   let output = String(html)
     .replace(/<textarea\b[\s\S]*?<\/textarea>/gi, protect)
-    .replace(/\b(value|href|src|placeholder)="[^"]*"/gi, protect);
+    .replace(/\b[\w:-]+="[^"]*"/gi, protect);
 
   Object.entries(DASHBOARD_HU_PHRASES)
     .sort((left, right) => right[0].length - left[0].length)

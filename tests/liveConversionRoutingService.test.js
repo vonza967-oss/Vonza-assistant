@@ -201,3 +201,32 @@ test("placeholder contact config never becomes a live contact CTA", () => {
   assert.ok(!result.primaryCta);
   assert.equal(result.shouldShowCapture, true);
 });
+
+test("Hungarian booking, quote, and contact phrases produce localized CTA labels", () => {
+  const booking = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "Időpontot foglalnék holnapra.",
+    language: "Hungarian",
+  }));
+  assert.equal(booking.mode, "direct_cta");
+  assert.equal(booking.primaryCta.ctaType, "booking");
+  assert.equal(booking.primaryCta.label, "Időpontfoglalás");
+  assert.equal(booking.continueButton.label, "Folytatás itt");
+
+  const quote = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "Mennyibe kerül, tudok árajánlatot kérni?",
+    visitorLanguage: "hu",
+  }));
+  assert.equal(quote.mode, "direct_cta");
+  assert.equal(quote.primaryCta.ctaType, "quote");
+  assert.equal(quote.primaryCta.label, "Ajánlatkérés");
+
+  const contact = evaluateLiveConversionRouting(buildRoutingOptions({
+    userMessage: "Hívjanak vissza telefonon, kérem.",
+    language: "Hungarian",
+  }));
+  assert.equal(contact.mode, "direct_cta");
+  assert.equal(contact.primaryCta.ctaType, "contact");
+  assert.equal(contact.primaryCta.targetType, "phone");
+  assert.equal(contact.primaryCta.label, "Telefonhívás");
+  assert.equal(contact.secondaryCtas[0].label, "Email küldése");
+});

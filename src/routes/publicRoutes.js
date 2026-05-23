@@ -101,21 +101,22 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function renderMarketingPricingSection() {
+function renderMarketingPricingSection(locale = "en") {
   const plans = listPublicBillingPlans();
+  const isHu = locale === "hu";
 
   return `
       <section id="pricing" class="section pricing-section">
         <div class="section-intro" data-reveal>
-          <p class="eyebrow">${escapeHtml(BILLING_USAGE_COPY.sectionEyebrow)}</p>
-          <h2>${escapeHtml(BILLING_USAGE_COPY.sectionHeadline)}</h2>
-          <p class="section-copy">${escapeHtml(BILLING_USAGE_COPY.sectionNote)}</p>
+          <p class="eyebrow">${escapeHtml(isHu ? "Beta hozzáférés" : BILLING_USAGE_COPY.sectionEyebrow)}</p>
+          <h2>${escapeHtml(isHu ? "Egyszerű havi csomagok a Front Desk indulásához." : BILLING_USAGE_COPY.sectionHeadline)}</h2>
+          <p class="section-copy">${escapeHtml(isHu ? "Válaszd ki azt a havi kapacitást, amely elég a magyar beta induláshoz. A csomagok a dashboardból kezelhetők." : BILLING_USAGE_COPY.sectionNote)}</p>
         </div>
 
         <div class="pricing-grid">
           ${plans.map((plan) => `
             <article class="pricing-plan${plan.recommended ? " pricing-plan-featured" : ""}" data-reveal>
-              ${plan.recommended ? '<span class="pricing-plan-badge">Most popular</span>' : ""}
+              ${plan.recommended ? `<span class="pricing-plan-badge">${escapeHtml(isHu ? "Legnépszerűbb" : "Most popular")}</span>` : ""}
               <div class="pricing-plan-header">
                 <div>
                   <h3>${escapeHtml(plan.displayName)}</h3>
@@ -123,21 +124,29 @@ function renderMarketingPricingSection() {
                 </div>
                 <div class="pricing-plan-price">
                   <strong>${escapeHtml(plan.monthlyPriceLabel)}</strong>
-                  <span>Monthly plan</span>
+                  <span>${escapeHtml(isHu ? "Havi csomag" : "Monthly plan")}</span>
                 </div>
               </div>
-              <p class="pricing-plan-summary">${escapeHtml(plan.marketing.summary)}</p>
-              <p class="pricing-plan-detail">${escapeHtml(plan.marketing.detail)}</p>
+              <p class="pricing-plan-summary">${escapeHtml(isHu ? `${plan.displayName} csomag kisvállalkozásoknak, amelyek AI Front Desk oldalt indítanak.` : plan.marketing.summary)}</p>
+              <p class="pricing-plan-detail">${escapeHtml(isHu ? "Tartalmazza a Front Desk oldalt, telepítési útmutatót, beszélgetéseket, javítási kört és alap elemzéseket." : plan.marketing.detail)}</p>
               <ul class="pricing-plan-features" aria-label="${escapeHtml(plan.displayName)} plan features">
-                ${plan.sharedFeatures.map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
-                <li>${escapeHtml(plan.marketing.capacityLabel)}</li>
+                ${(isHu
+                  ? [
+                    "Publikus AI Front Desk oldal",
+                    "WordPress, QR, link vagy beágyazás",
+                    "Dashboard ügyfelekhez és beszélgetésekhez",
+                    "Jóváhagyott válaszok és javítási kör",
+                  ]
+                  : plan.sharedFeatures
+                ).map((feature) => `<li>${escapeHtml(feature)}</li>`).join("")}
+                <li>${escapeHtml(isHu ? plan.marketing.capacityLabel.replace("included AI messages", "AI üzenet havonta") : plan.marketing.capacityLabel)}</li>
               </ul>
               <a
                 class="button ${plan.recommended ? "button-primary" : "button-secondary"}"
                 data-app-link
                 data-plan-key="${escapeHtml(plan.key)}"
                 href="/dashboard?from=site&amp;plan=${escapeHtml(plan.key)}"
-              >${escapeHtml(plan.checkoutLabel)}</a>
+              >${escapeHtml(isHu ? "Indítás ezzel a csomaggal" : plan.checkoutLabel)}</a>
             </article>
           `).join("")}
         </div>
@@ -191,7 +200,35 @@ function renderValueStrip() {
   `;
 }
 
-function renderFinalCta() {
+function renderHungarianValueStrip() {
+  return `
+    <section class="value-strip" aria-label="Vonza érték">
+      ${[
+        "Önálló Front Desk oldal",
+        "WordPress, QR, beágyazás vagy link",
+        "Betanítás jóváhagyott válaszokkal",
+        "Opcionális weboldali widget",
+      ].map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </section>
+  `;
+}
+
+function renderFinalCta(locale = "en") {
+  if (locale === "hu") {
+    return `
+      <section class="final-cta" data-reveal>
+        <div>
+          <h2>Indíts AI Front Desk oldalt, amit az ügyfelek tényleg használni tudnak.</h2>
+          <p>Tedd közzé dedikált oldalként, oszd meg QR-kóddal vagy linkkel, telepítsd WordPressben vagy beágyazással, és javítsd a válaszokat a dashboardból.</p>
+        </div>
+        <div class="final-cta-actions">
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Front Desk létrehozása</a>
+          <a class="button button-secondary" href="/hu#product">Termék áttekintése</a>
+        </div>
+      </section>
+    `;
+  }
+
   return `
     <section class="final-cta" data-reveal>
       <div>
@@ -392,6 +429,95 @@ function renderMarketingHomePage() {
     </section>
 
     ${renderFinalCta()}
+  `;
+}
+
+function renderHungarianMarketingHomePage() {
+  return `
+    <section class="hero">
+      <div class="hero-copy" data-reveal>
+        <h1>AI Front Desk magyar ügyfélkérdésekhez, ajánlatkéréshez, foglaláshoz és utánkövetéshez.</h1>
+        <p class="hero-text">Adj az ügyfeleknek egy önálló oldalt, ahol kérdezhetnek, ajánlatot kérhetnek, megadhatják az elérhetőségüket, és a vállalkozásod adataira épülő választ kapnak.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" data-app-link href="/dashboard?from=site">Front Desk létrehozása</a>
+          <a class="button button-secondary" href="/hu#product">Hogyan működik</a>
+        </div>
+      </div>
+      <div class="hero-media" data-reveal style="--reveal-delay: 100ms;">
+        ${renderAppImage({
+          src: PRODUCT_IMAGES.frontDeskPage,
+          alt: "Vonza publikus Front Desk oldal ügyfélkérdésekhez és következő lépésekhez",
+          caption: "A publikus Front Desk oldal fókuszált helyet ad a kérdéseknek, elérhetőségeknek és következő lépéseknek.",
+          className: "app-frame-hero",
+          loading: "eager",
+        })}
+      </div>
+    </section>
+
+    ${renderHungarianValueStrip()}
+
+    <section id="product" class="section front-desk-first">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>Több mint weboldali chatbuborék.</h2>
+          <p>A Vonza elsődleges felülete a teljes oldalas AI Front Desk. A widget csak másodlagos belépési pont, ha egy meglévő oldalra is kell egy kis indító.</p>
+        </div>
+        <a class="text-arrow" href="/dashboard?from=site" data-app-link>Beta hozzáférés megnyitása</a>
+      </div>
+      <div class="channel-grid">
+        ${[
+          ["Dedikált Front Desk oldal", "Ügyféloldali asszisztensoldal kérdésekhez, ajánlatkéréshez, foglaláshoz és kapcsolatfelvételhez."],
+          ["WordPress Front Desk oldal", "Plugin vagy oldalbeágyazás, amikor az asszisztens teljes oldalként jelenjen meg a weboldalon."],
+          ["Okos beágyazás", "Helyezd a Front Desket egy meglévő oldal fontos részébe, nem csak chatbuborékként."],
+          ["QR-kód és közvetlen link", "Ugyanaz a Front Desk megosztható szórólapon, számlán, étlapon, emailben vagy közösségi profilon."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section how-it-works">
+      <div class="section-intro" data-reveal>
+        <h2>Így indul élesben.</h2>
+        <p>Kapcsold össze a weboldalad és az üzleti adatokat, majd publikáld az ügyféloldali Front Desk oldalt és javítsd valós beszélgetésekből.</p>
+      </div>
+      <div class="step-grid">
+        ${[
+          ["Weboldal és üzleti adatok", "Importáld azokat az oldalakat és üzleti tényeket, amelyekből a Vonza válaszolhat."],
+          ["Front Desk testreszabása", "Állítsd be az üdvözlést, hangot, oldalkinézetet, javasolt kérdéseket és következő lépéseket."],
+          ["Publikálás oldalként, QR-rel vagy beágyazással", "Elsőként a Front Desk oldalt indítsd, majd jöhet a WordPress, az okos beágyazás vagy az opcionális widget."],
+          ["Válaszok javítása", "A beszélgetések, visszajelzések és jóváhagyott válaszok alapján erősítheted a következő választ."],
+        ].map(([title, copy], index) => `
+          <article data-reveal style="--reveal-delay:${index * 70}ms;">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section product-screenshot-section">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>Dashboard a napi ügyfélmunkához.</h2>
+          <p>Home, Customers, Front Desk, Analytics, Install és Settings nézetek segítenek látni, mi működik, mit kell javítani, és hol kell emberi döntés.</p>
+        </div>
+      </div>
+      <div class="feature-preview-grid product-shot-grid">
+        ${[
+          [PRODUCT_IMAGES.dashboardHome, "Vonza dashboard kezdőlap napi áttekintéssel"],
+          [PRODUCT_IMAGES.dashboardCustomers, "Ügyfelek és utánkövetések listája"],
+          [PRODUCT_IMAGES.dashboardAnalytics, "Elemzések és ügyfélkérdés trendek"],
+        ].map(([src, alt]) => renderAppImage({ src, alt })).join("")}
+      </div>
+    </section>
+
+    ${renderMarketingPricingSection("hu")}
+    ${renderFinalCta("hu")}
   `;
 }
 
@@ -625,14 +751,91 @@ const MARKETING_PAGES = {
   },
 };
 
-function renderMarketingPage(rootDir, pageKey = "home") {
+const MARKETING_CHROME = Object.freeze({
+  en: Object.freeze({
+    lang: "en",
+    homeHref: "/",
+    brandLabel: "Vonza home",
+    menuLabel: "Open navigation",
+    navLabel: "Primary",
+    navHome: "Home",
+    navFeatures: "Features",
+    navProduct: "Product",
+    navPricing: "Pricing",
+    navAbout: "About",
+    dashboard: "Dashboard",
+    signIn: "Sign in",
+    primaryCta: "Create Front Desk",
+    footerCopy: "An AI Front Desk page for customer questions, quote requests, details, and better follow-up.",
+    terms: "Terms",
+    privacy: "Privacy",
+    cookies: "Cookies",
+    pathPrefix: "",
+  }),
+  hu: Object.freeze({
+    lang: "hu",
+    homeHref: "/hu",
+    brandLabel: "Vonza kezdőlap",
+    menuLabel: "Navigáció megnyitása",
+    navLabel: "Fő navigáció",
+    navHome: "Kezdőlap",
+    navFeatures: "Funkciók",
+    navProduct: "Termék",
+    navPricing: "Árak",
+    navAbout: "Rólunk",
+    dashboard: "Dashboard",
+    signIn: "Bejelentkezés",
+    primaryCta: "Front Desk létrehozása",
+    footerCopy: "AI Front Desk oldal ügyfélkérdésekhez, ajánlatkéréshez, elérhetőségekhez és jobb utánkövetéshez.",
+    terms: "ÁSZF",
+    privacy: "Adatvédelem",
+    cookies: "Cookie-k",
+    pathPrefix: "/hu",
+  }),
+});
+
+function getMarketingChrome(locale = "en") {
+  return MARKETING_CHROME[locale] || MARKETING_CHROME.en;
+}
+
+function renderMarketingPage(rootDir, pageKey = "home", locale = "en") {
+  const isHu = locale === "hu";
   const page = MARKETING_PAGES[pageKey] || MARKETING_PAGES.home;
+  const chrome = getMarketingChrome(locale);
+  const title = isHu
+    ? "Vonza | AI Front Desk magyar beta vállalkozásoknak"
+    : page.title;
+  const description = isHu
+    ? "Vonza AI Front Desk oldal magyar ügyfélkérdésekhez, ajánlatkéréshez, foglaláshoz, kapcsolatfelvételhez és utánkövetéshez."
+    : page.description;
+  const body = isHu ? renderHungarianMarketingHomePage() : page.body();
   const template = readFileSync(path.join(rootDir, "frontend", "index.html"), "utf8");
   return template
-    .replace("<!-- VONZA_MARKETING_TITLE -->", escapeHtml(page.title))
-    .replace("<!-- VONZA_MARKETING_DESCRIPTION -->", escapeHtml(page.description))
+    .replace("<!-- VONZA_MARKETING_LANG -->", escapeHtml(chrome.lang))
+    .replace("<!-- VONZA_MARKETING_TITLE -->", escapeHtml(title))
+    .replace("<!-- VONZA_MARKETING_DESCRIPTION -->", escapeHtml(description))
     .replace("<!-- VONZA_MARKETING_PAGE_KEY -->", escapeHtml(pageKey))
-    .replace("<!-- VONZA_MARKETING_PAGE_BODY -->", page.body());
+    .replaceAll("<!-- VONZA_MARKETING_HOME_HREF -->", escapeHtml(chrome.homeHref))
+    .replace("<!-- VONZA_MARKETING_BRAND_LABEL -->", escapeHtml(chrome.brandLabel))
+    .replace("<!-- VONZA_MARKETING_MENU_LABEL -->", escapeHtml(chrome.menuLabel))
+    .replace("<!-- VONZA_MARKETING_NAV_LABEL -->", escapeHtml(chrome.navLabel))
+    .replaceAll("<!-- VONZA_MARKETING_FEATURES_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/features`))
+    .replaceAll("<!-- VONZA_MARKETING_PRODUCT_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/product`))
+    .replaceAll("<!-- VONZA_MARKETING_PRICING_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/pricing`))
+    .replaceAll("<!-- VONZA_MARKETING_ABOUT_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/about`))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_HOME -->", escapeHtml(chrome.navHome))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_FEATURES -->", escapeHtml(chrome.navFeatures))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_PRODUCT -->", escapeHtml(chrome.navProduct))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_PRICING -->", escapeHtml(chrome.navPricing))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_ABOUT -->", escapeHtml(chrome.navAbout))
+    .replace("<!-- VONZA_MARKETING_SIGN_IN -->", escapeHtml(chrome.signIn))
+    .replace("<!-- VONZA_MARKETING_PRIMARY_CTA -->", escapeHtml(chrome.primaryCta))
+    .replace("<!-- VONZA_MARKETING_FOOTER_COPY -->", escapeHtml(chrome.footerCopy))
+    .replace("<!-- VONZA_MARKETING_DASHBOARD -->", escapeHtml(chrome.dashboard))
+    .replace("<!-- VONZA_MARKETING_TERMS -->", escapeHtml(chrome.terms))
+    .replace("<!-- VONZA_MARKETING_PRIVACY -->", escapeHtml(chrome.privacy))
+    .replace("<!-- VONZA_MARKETING_COOKIES -->", escapeHtml(chrome.cookies))
+    .replace("<!-- VONZA_MARKETING_PAGE_BODY -->", body);
 }
 
 function renderAssistantEmbedMatrixPage(options = {}) {
@@ -891,6 +1094,14 @@ export function createPublicRouter({ rootDir }) {
 
   router.get("/", (_req, res) => {
     res.type("html").send(renderMarketingPage(rootDir, "home"));
+  });
+
+  router.get("/hu", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "home", "hu"));
+  });
+
+  router.get(["/hu/features", "/hu/product", "/hu/pricing", "/hu/about"], (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "home", "hu"));
   });
 
   router.get("/features", (_req, res) => {

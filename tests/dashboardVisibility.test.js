@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const dashboardBundlePath = path.join(repoRoot, "frontend", "dashboard.js");
+const dashboardI18nPath = path.join(repoRoot, "frontend", "i18n", "dashboardI18n.js");
 const dashboardHelpersPath = path.join(repoRoot, "frontend", "dashboardHelpers.js");
 const dashboardStatePath = path.join(repoRoot, "frontend", "dashboardState.js");
 const dashboardLabelsPath = path.join(repoRoot, "frontend", "dashboardLabels.js");
@@ -49,8 +50,10 @@ function createDashboardHarness({
   getSessionError = null,
   customFetch = null,
   operatorWorkspaceFlag = true,
+  initialLocalStorage = {},
 } = {}) {
   const settingsShellScript = readFileSync(settingsShellBundlePath, "utf8");
+  const dashboardI18nScript = readFileSync(dashboardI18nPath, "utf8");
   const dashboardStateScript = readFileSync(dashboardStatePath, "utf8");
   const dashboardLabelsScript = readFileSync(dashboardLabelsPath, "utf8");
   const dashboardInstallScript = readFileSync(dashboardInstallPath, "utf8");
@@ -265,6 +268,9 @@ function createDashboardHarness({
   };
 
   const storage = createStorageMock();
+  Object.entries(initialLocalStorage).forEach(([key, value]) => {
+    storage.setItem(key, value);
+  });
   const sessionStorage = createStorageMock();
   const window = {
     document,
@@ -355,6 +361,7 @@ function createDashboardHarness({
   context.globalThis = context;
   window.fetch = fetchImpl;
 
+  vm.runInNewContext(dashboardI18nScript, context, { filename: "frontend/i18n/dashboardI18n.js" });
   vm.runInNewContext(settingsShellScript, context, { filename: "frontend/settings/SettingsShell.js" });
   vm.runInNewContext(dashboardStateScript, context, { filename: "frontend/dashboardState.js" });
   vm.runInNewContext(dashboardLabelsScript, context, { filename: "frontend/dashboardLabels.js" });
@@ -705,6 +712,44 @@ test("dashboard hash routes open the matching interior section", async () => {
     await harness.settle();
 
     assert.match(harness.getRootHtml(), expectedMarkup, `${hash} should render the expected dashboard section`);
+  }
+});
+
+test("Hungarian dashboard shipped hash routes render localized primary labels", async () => {
+  const hashRoutes = [
+    ["#today", "overview", [/Kezdőlap/, /Mai AI ügyfélszolgálati áttekintés/]],
+    ["#customers", "contacts", [/Ügyfelek/, /Minden ügyfél|Válaszra vár/]],
+    ["#front-desk", "customize", [/Front Desk/, /Gyakorlás a Front Deskkel|Front Desk kipróbálása/]],
+    ["#analytics", "analytics", [/Elemzések/, /Teljesítmény|Rögzített érdeklődők/]],
+    ["#install", "install", [/Telepítés/, /Telepítés ellenőrzése|Kód megtekintése/]],
+    ["#settings", "settings", [/Beállítások/, /Irányítópult nyelve/]],
+  ];
+  const obviousEnglishLabels = /Your AI customer service snapshot for today|Show customers needing help|Performance insights for your AI front desk|Verify installation|Dashboard language|Create Front Desk|Sign in/i;
+
+  function getSectionHtml(html, sectionKey) {
+    const marker = `data-shell-section="${sectionKey}"`;
+    const start = html.indexOf(marker);
+    if (start < 0) return html;
+    const next = html.indexOf('data-shell-section="', start + marker.length);
+    return html.slice(start, next > start ? next : undefined);
+  }
+
+  for (const [hash, sectionKey, expectedLabels] of hashRoutes) {
+    const harness = createDashboardHarness({
+      hash,
+      agents: () => [createActiveAgent()],
+      initialLocalStorage: {
+        vonza_dashboard_language: "hu",
+      },
+    });
+    await harness.settle();
+
+    const html = harness.getRootHtml();
+    const activeSectionHtml = getSectionHtml(html, sectionKey);
+    expectedLabels.forEach((pattern) => {
+      assert.match(html, pattern, `${hash} should render ${pattern}`);
+    });
+    assert.doesNotMatch(activeSectionHtml, obviousEnglishLabels, `${hash} should not leak obvious shipped English labels`);
   }
 });
 

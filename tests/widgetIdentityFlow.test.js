@@ -158,7 +158,17 @@ function createWidgetHarness({
     "identity-guest-button",
     "identity-email-button",
     "identity-email-cancel",
+    "identity-email-title",
+    "identity-email-copy",
+    "identity-guest-title",
+    "identity-guest-copy",
+    "identity-name-label",
+    "identity-email-label",
+    "identity-email-submit",
+    "identity-trust",
+    "identity-legal",
     "intro-message",
+    "intro-message-label",
     "lead-capture-slot",
     "direct-routing-slot",
     "welcome-panel",
@@ -179,12 +189,25 @@ function createWidgetHarness({
     "page-identity-name",
     "page-identity-email",
     "page-identity-email-cancel",
+    "page-identity-email-submit",
     "page-identity-powered",
+    "page-identity-legal",
     "identity-reset-button",
     "assistant-name",
+    "assistant-loading-eyebrow",
+    "assistant-loading-title",
+    "assistant-loading-copy",
     "welcome-assistant-name",
+    "welcome-brand-subtitle",
     "launcher-text",
     "welcome-message",
+    "status-pill-text",
+    "page-online-status",
+    "send-button-sr",
+    "voice-privacy-link",
+    "voice-ai-note",
+    "page-powered-by",
+    "composer-hint",
     "intro-avatar",
     "brand-mark",
     "brand-mark-logo",
@@ -533,6 +556,35 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   assert.equal(harness.elements.get("welcome-panel").hidden, false);
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
   assert.equal(harness.localStorage.getItem("vonza_visitor_session_default"), null);
+});
+
+test("Hungarian public assistant initial shell renders localized entry copy", () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?language=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?language=hu",
+    },
+  });
+
+  assert.equal(harness.hooks.getAssistantLanguage(), "hu");
+  assert.equal(harness.elements.get("welcome-title").textContent, "Szia! Miben segíthetünk ma?");
+  assert.equal(harness.elements.get("identity-email-title").textContent, "Folytatás emaillel");
+  assert.equal(harness.elements.get("identity-guest-title").textContent, "Folytatás vendégként");
+  assert.equal(harness.elements.get("input").placeholder, "Írd be a kérdésed...");
+  assert.equal(harness.elements.get("composer-status").textContent, "Állítsd be a Front Desket a Vonzában, mielőtt teszteled ezt az asszisztensoldalt.");
+  assert.equal(harness.elements.get("assistant-unavailable-copy").textContent, "Ez az asszisztens most nem elérhető. Kérlek, vedd fel közvetlenül a kapcsolatot a vállalkozással.");
+  assert.equal(harness.elements.get("powered-by").textContent, "Segítünk | Powered by Vonza");
+  assert.doesNotMatch(
+    [
+      harness.elements.get("welcome-title").textContent,
+      harness.elements.get("identity-email-title").textContent,
+      harness.elements.get("identity-guest-title").textContent,
+      harness.elements.get("composer-status").textContent,
+      harness.elements.get("assistant-unavailable-copy").textContent,
+    ].join(" "),
+    /Continue with email|Continue as guest|Type your question|Please contact the business directly|Ask about services/
+  );
 });
 
 test("widget stores visitor session only after explicit identity consent", () => {

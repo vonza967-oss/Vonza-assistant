@@ -115,6 +115,12 @@ function buildLimitedKnowledgeReply(language, agentName, websiteContent) {
   return `${summary} I can still help with the next step. Are you trying to understand their services, pricing, or how to contact ${siteLabel}?`;
 }
 
+export function buildNoWebsiteContentFallbackReply(language) {
+  return language === "Hungarian"
+    ? "Sajnálom, ezt még nem tudom biztosan. Kérlek, vedd fel velünk a kapcsolatot az űrlapon vagy a megadott elérhetőségeken."
+    : "I’m sorry, I don’t know that yet. Please contact us via our form or the listed contact details.";
+}
+
 async function resolveWidgetConversationContext(supabase, options = {}) {
   return resolveAllowedPublicWidgetContext(supabase, options);
 }
@@ -471,10 +477,7 @@ export async function handleChatRequest({
   }
 
   if (!websiteContent) {
-    const fallbackReply =
-      language === "Hungarian"
-        ? "Sajnálom, ezt még nem tudom biztosan. Kérlek vedd fel velünk a kapcsolatot az űrlapon vagy a megadott elérhetőségen."
-        : "I’m sorry, I don’t know that yet. Please contact us via our form or the listed contact details.";
+    const fallbackReply = buildNoWebsiteContentFallbackReply(language);
 
     return buildChatResponseImpl({
       supabase,
@@ -718,6 +721,7 @@ export async function handleChatRequest({
     widgetConfig,
     userMessage: message,
     sessionKey,
+    language,
     leadCapture,
     recentWidgetEvents,
   });

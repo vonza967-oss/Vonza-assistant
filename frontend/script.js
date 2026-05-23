@@ -93,7 +93,6 @@ const VOICE_RECORDING_MIME_TYPES = Object.freeze([
   "video/webm",
   "audio/mp4",
 ]);
-const DEFAULT_FULL_PAGE_HEADLINE = "Front Desk";
 const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
 const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
   "clean-light",
@@ -154,13 +153,6 @@ const WIDGET_PHASES = Object.freeze({
   ENTRY: "entry",
   CHAT: "chat",
 });
-const QUICK_REPLY_TOPICS = Object.freeze([
-  "Services",
-  "Pricing",
-  "Request a quote",
-  "Contact details",
-  "Booking",
-]);
 const PAGE_QUICK_REPLY_TOPICS = Object.freeze([
   "I'd like to request a quote.",
   "How much does it cost?",
@@ -223,11 +215,266 @@ const PAGE_ACTION_CARDS = Object.freeze([
     requiresBooking: true,
   },
 ]);
-const PAGE_TRUST_ITEMS = Object.freeze([
-  "Replies instantly",
-  "AI assistant",
-  "Leave your details if needed",
-]);
+const ASSISTANT_I18N = Object.freeze({
+  en: Object.freeze({
+    "assistant.loading.eyebrow": "Opening assistant",
+    "assistant.loading.title": "Getting everything ready.",
+    "assistant.loading.copy": "One moment while the assistant loads.",
+    "assistant.unavailable.title": "Assistant unavailable",
+    "assistant.unavailable.copy": "This assistant is not available right now. Please contact the business directly.",
+    "assistant.defaultName": "Assistant",
+    "assistant.defaultFullPageHeadline": "Front Desk",
+    "assistant.defaultFullPageSubtitle": "Ask about services, pricing, quotes, or contact details.",
+    "assistant.defaultLauncher": "Business front desk",
+    "assistant.defaultWelcome": "Hi! How can we help today?",
+    "assistant.onlineNow": "Online now",
+    "assistant.logoLabel": "{name} logo",
+    "assistant.status.typical": "Typically replies instantly",
+    "assistant.status.online": "AI assistant online",
+    "assistant.status.instant": "Replies instantly",
+    "assistant.status.assistant": "AI assistant",
+    "assistant.status.leaveDetails": "Leave your details if needed",
+    "assistant.sendTo": "Send a message to {name}",
+    "assistant.label": "Assistant",
+    "assistant.you": "You",
+    "assistant.businessAssistant": "Business assistant",
+    "assistant.chooseContinue": "Choose how to continue",
+    "assistant.startConversation": "Start a conversation",
+    "assistant.continueChoice": "Continue with email if you may want follow-up, or ask as a guest.",
+    "assistant.emailTitle": "Continue with email",
+    "assistant.emailCopy": "Consent to save this session and send the conversation to your inbox.",
+    "assistant.guestTitle": "Continue as guest",
+    "assistant.guestCopy": "Consent to save this session without sharing your email.",
+    "assistant.nameLabel": "Name",
+    "assistant.emailLabel": "Email",
+    "assistant.namePlaceholder": "Your name (optional)",
+    "assistant.emailPlaceholder": "name@example.com",
+    "assistant.continueToChat": "Continue to chat",
+    "assistant.back": "Back",
+    "assistant.cancel": "Cancel",
+    "assistant.privacyTrust": "We respect your privacy.",
+    "assistant.identityLegal": "Continuing lets Vonza store this chat session for replies, safety, and follow-up. You can review how Vonza handles your data, the terms, and cookies.",
+    "assistant.composerPlaceholder": "Type your question...",
+    "assistant.canvasPlaceholder": "Ask anything...",
+    "assistant.send": "Send message",
+    "assistant.composerHint": "Press Enter to send. The assistant replies using the business's latest details.",
+    "assistant.composerStatus": "Ask about services, pricing, booking, quotes, contact details, or the next step.",
+    "assistant.pageIdentityNote": "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.",
+    "assistant.leaveContact": "Leave contact details",
+    "assistant.poweredBy": "Powered by Vonza",
+    "assistant.poweredHelp": "We're here to help | Powered by Vonza",
+    "assistant.pageIdentityLegal": "Sending a message lets Vonza store this chat session for replies, safety, and follow-up. Review data handling, terms, and cookies.",
+    "assistant.voiceTap": "Tap to speak",
+    "assistant.voiceSpeakReplies": "Speak replies",
+    "assistant.voiceDisclosure": "Voice is processed to transcribe your question.",
+    "assistant.voicePrivacy": "Privacy",
+    "assistant.voiceAi": "AI-generated voice.",
+    "assistant.voiceUnavailable": "Voice input is not available in this browser.",
+    "assistant.voiceHttps": "Voice input requires HTTPS.",
+    "assistant.voicePermission": "Microphone permission was blocked.",
+    "assistant.voiceDevice": "Microphone is unavailable on this device.",
+    "assistant.voiceBusy": "Voice input is busy. Please try again in a minute.",
+    "assistant.voiceTranscribeFailed": "Could not transcribe that recording. Please try again.",
+    "assistant.voiceChooseIdentity": "Choose guest or email before using voice input.",
+    "assistant.voiceListening": "Listening...",
+    "assistant.voiceNoSpeechRecorded": "No speech was recorded.",
+    "assistant.voiceProcessing": "Processing...",
+    "assistant.voiceNoSpeechDetected": "No speech was detected in that recording.",
+    "assistant.voiceTranscriptReady": "Transcript ready",
+    "assistant.voiceFailed": "Voice input failed.",
+    "assistant.resetIdentity": "Reset visitor identity",
+    "assistant.resetStatus": "Choose email or guest to start a fresh visitor identity.",
+    "assistant.chooseBeforeSend": "Choose guest or email before sending your first message.",
+    "assistant.chooseThenSend": "Choose email or guest, then send that question.",
+    "assistant.notConfigured": "No assistant configured yet. Please create one first.",
+    "assistant.setupFirst": "Set up your Front Desk in Vonza before testing this assistant page.",
+    "assistant.preparingReply": "{name} is preparing a reply...",
+    "assistant.answering": "Front Desk is answering...",
+    "assistant.requestFailed": "I’m sorry, I can’t answer right now. Please try again in a moment or contact the business directly.",
+    "assistant.requestFailedStatus": "The Front Desk could not answer just now. You can try again or use the contact option.",
+    "assistant.connectionError": "Error connecting to server",
+    "assistant.connectionStatus": "Connection was interrupted. Try again when the assistant is ready.",
+    "assistant.routeOpening": "Opening {label}...",
+    "assistant.routeCaptureStatus": "You can share contact details in chat whenever you want.",
+    "assistant.routeDismissedStatus": "No problem. We can keep going here.",
+    "assistant.routeBookingTitle": "Ready to book?",
+    "assistant.routeQuoteTitle": "Want to request a quote?",
+    "assistant.routeCheckoutTitle": "Ready to continue?",
+    "assistant.routeContactTitle": "Want to contact the team?",
+    "assistant.routeGenericTitle": "Want the next step?",
+    "assistant.routeGenericWithLabel": "Want to {label}?",
+    "assistant.routeCopy": "I can keep helping here, or you can use this direct option.",
+    "assistant.routeContinue": "Continue here",
+    "assistant.routeContinueFallback": "Continue",
+    "assistant.routeOpenFallback": "Open",
+    "assistant.leadSaved": "Thanks. I saved those details so the team can follow up.",
+    "assistant.leadPrompt": "What is the best email or phone number to use?",
+    "assistant.optionReady": "That option is ready if you want the fastest next step.",
+    "assistant.askAnythingElse": "Ask anything else about services, pricing, booking, or contact details.",
+    "assistant.feedbackHelpful": "Thanks for the feedback.",
+    "assistant.feedbackReview": "Thanks. The business can review this.",
+    "assistant.feedbackFailed": "Feedback could not be saved just now.",
+    "assistant.canvasAsk": "Ask another question",
+    "assistant.canvasContact": "Leave contact details",
+    "assistant.canvasQuote": "Request a quote",
+    "quick.services": "Services",
+    "quick.pricing": "Pricing",
+    "quick.quote": "Request a quote",
+    "quick.contact": "Contact details",
+    "quick.booking": "Booking",
+    "prompt.services": "What services do you offer?",
+    "prompt.pricing": "How much does it cost?",
+    "prompt.quote": "I'd like to request a quote.",
+    "prompt.contact": "How can I contact you?",
+    "prompt.booking": "I'd like to book a time.",
+    "card.services.label": "Ask about services",
+    "card.services.copy": "Get a quick overview of what this business can help with.",
+    "card.pricing.label": "Ask about pricing",
+    "card.pricing.copy": "Ask what affects price, scope, and the next step.",
+    "card.quote.label": "Request a quote",
+    "card.quote.copy": "Share what you need so the business can follow up with the right details.",
+    "card.contact.label": "Contact details",
+    "card.contact.copy": "Find the best way to reach the team or leave your details.",
+    "card.booking.label": "Book a time",
+    "card.booking.copy": "Ask about appointments, calls, visits, or the best next step.",
+    "assistant.pageWelcomeBusiness": "Hi, I can help with {businessName}'s services, pricing, quotes, and contact details. What would you like to know?",
+    "assistant.pageWelcome": "Hi, I can help with services, pricing, quotes, and contact details. What would you like to know?",
+    "assistant.canvasWelcomeBusiness": "Welcome to {businessName}. Choose a topic below or ask anything to get started.",
+    "assistant.canvasWelcome": "Choose a topic below or ask anything to get started.",
+    "assistant.quickTopicsLabel": "Common questions",
+    "assistant.actionTopicsLabel": "Common assistant topics",
+    "assistant.nextActionsLabel": "Next actions",
+  }),
+  hu: Object.freeze({
+    "assistant.loading.eyebrow": "Asszisztens megnyitása",
+    "assistant.loading.title": "Mindent előkészítünk.",
+    "assistant.loading.copy": "Egy pillanat, amíg az asszisztens betölt.",
+    "assistant.unavailable.title": "Az asszisztens nem elérhető",
+    "assistant.unavailable.copy": "Ez az asszisztens most nem elérhető. Kérlek, vedd fel közvetlenül a kapcsolatot a vállalkozással.",
+    "assistant.defaultName": "Asszisztens",
+    "assistant.defaultFullPageHeadline": "Front Desk",
+    "assistant.defaultFullPageSubtitle": "Kérdezz szolgáltatásokról, árakról, ajánlatról vagy elérhetőségről.",
+    "assistant.defaultLauncher": "Üzleti front desk",
+    "assistant.defaultWelcome": "Szia! Miben segíthetünk ma?",
+    "assistant.onlineNow": "Elérhető",
+    "assistant.logoLabel": "{name} logó",
+    "assistant.status.typical": "Általában azonnal válaszol",
+    "assistant.status.online": "AI asszisztens online",
+    "assistant.status.instant": "Azonnal válaszol",
+    "assistant.status.assistant": "AI asszisztens",
+    "assistant.status.leaveDetails": "Szükség esetén megadhatod az adataidat",
+    "assistant.sendTo": "Üzenet küldése: {name}",
+    "assistant.label": "Asszisztens",
+    "assistant.you": "Te",
+    "assistant.businessAssistant": "Üzleti asszisztens",
+    "assistant.chooseContinue": "Válaszd ki, hogyan folytatod",
+    "assistant.startConversation": "Beszélgetés indítása",
+    "assistant.continueChoice": "Folytasd emaillel, ha utánkövetést szeretnél, vagy kérdezz vendégként.",
+    "assistant.emailTitle": "Folytatás emaillel",
+    "assistant.emailCopy": "Hozzájárulsz a beszélgetés mentéséhez és az összefoglaló elküldéséhez az email címedre.",
+    "assistant.guestTitle": "Folytatás vendégként",
+    "assistant.guestCopy": "Hozzájárulsz a beszélgetés mentéséhez email megadása nélkül.",
+    "assistant.nameLabel": "Név",
+    "assistant.emailLabel": "Email",
+    "assistant.namePlaceholder": "Neved (opcionális)",
+    "assistant.emailPlaceholder": "nev@example.com",
+    "assistant.continueToChat": "Tovább a chathez",
+    "assistant.back": "Vissza",
+    "assistant.cancel": "Mégse",
+    "assistant.privacyTrust": "Tiszteletben tartjuk az adatvédelmedet.",
+    "assistant.identityLegal": "A folytatással engedélyezed, hogy a Vonza mentse ezt a chatet válaszadás, biztonság és utánkövetés céljából. Átnézheted az adatkezelést, a feltételeket és a cookie tájékoztatót.",
+    "assistant.composerPlaceholder": "Írd be a kérdésed...",
+    "assistant.canvasPlaceholder": "Kérdezz bármit...",
+    "assistant.send": "Üzenet küldése",
+    "assistant.composerHint": "Enterrel küldhetsz. Az asszisztens a vállalkozás legfrissebb adatai alapján válaszol.",
+    "assistant.composerStatus": "Kérdezz szolgáltatásokról, árakról, foglalásról, ajánlatról, elérhetőségről vagy a következő lépésről.",
+    "assistant.pageIdentityNote": "Vendégként kérdezel. Ha utánkövetés kell, az asszisztens elkérheti az elérhetőségedet.",
+    "assistant.leaveContact": "Elérhetőség megadása",
+    "assistant.poweredBy": "Powered by Vonza",
+    "assistant.poweredHelp": "Segítünk | Powered by Vonza",
+    "assistant.pageIdentityLegal": "Üzenet küldésével engedélyezed, hogy a Vonza mentse ezt a chatet válaszadás, biztonság és utánkövetés céljából. Nézd át az adatkezelést, a feltételeket és a cookie tájékoztatót.",
+    "assistant.voiceTap": "Beszéd indítása",
+    "assistant.voiceSpeakReplies": "Válaszok felolvasása",
+    "assistant.voiceDisclosure": "A hangot a kérdésed leírásához dolgozzuk fel.",
+    "assistant.voicePrivacy": "Adatvédelem",
+    "assistant.voiceAi": "AI által generált hang.",
+    "assistant.voiceUnavailable": "A hangbevitel ebben a böngészőben nem elérhető.",
+    "assistant.voiceHttps": "A hangbevitelhez HTTPS szükséges.",
+    "assistant.voicePermission": "A mikrofonengedély le lett tiltva.",
+    "assistant.voiceDevice": "A mikrofon nem elérhető ezen az eszközön.",
+    "assistant.voiceBusy": "A hangbevitel foglalt. Próbáld újra egy perc múlva.",
+    "assistant.voiceTranscribeFailed": "Nem sikerült leírni a felvételt. Próbáld újra.",
+    "assistant.voiceChooseIdentity": "Hangbevitel előtt válassz vendég módot vagy emailes folytatást.",
+    "assistant.voiceListening": "Figyelek...",
+    "assistant.voiceNoSpeechRecorded": "Nem rögzítettünk beszédet.",
+    "assistant.voiceProcessing": "Feldolgozás...",
+    "assistant.voiceNoSpeechDetected": "Nem érzékeltünk beszédet a felvételben.",
+    "assistant.voiceTranscriptReady": "A leirat elkészült",
+    "assistant.voiceFailed": "A hangbevitel nem sikerült.",
+    "assistant.resetIdentity": "Látogatói azonosítás törlése",
+    "assistant.resetStatus": "Válassz emailes vagy vendég folytatást az új látogatói azonosításhoz.",
+    "assistant.chooseBeforeSend": "Az első üzenet elküldése előtt válassz vendég módot vagy emailes folytatást.",
+    "assistant.chooseThenSend": "Válassz emailes vagy vendég folytatást, majd küldd el a kérdést.",
+    "assistant.notConfigured": "Még nincs beállítva asszisztens. Először hozz létre egyet.",
+    "assistant.setupFirst": "Állítsd be a Front Desket a Vonzában, mielőtt teszteled ezt az asszisztensoldalt.",
+    "assistant.preparingReply": "{name} előkészíti a választ...",
+    "assistant.answering": "A Front Desk válaszol...",
+    "assistant.requestFailed": "Sajnálom, most nem tudok válaszolni. Próbáld újra később, vagy vedd fel közvetlenül a kapcsolatot a vállalkozással.",
+    "assistant.requestFailedStatus": "A Front Desk most nem tudott válaszolni. Próbáld újra, vagy használd a kapcsolatfelvételi lehetőséget.",
+    "assistant.connectionError": "Nem sikerült kapcsolódni a szerverhez",
+    "assistant.connectionStatus": "A kapcsolat megszakadt. Próbáld újra, amikor az asszisztens készen áll.",
+    "assistant.routeOpening": "Megnyitás: {label}...",
+    "assistant.routeCaptureStatus": "Bármikor megadhatod az elérhetőségedet a chatben.",
+    "assistant.routeDismissedStatus": "Rendben. Folytathatjuk itt.",
+    "assistant.routeBookingTitle": "Készen állsz időpontot foglalni?",
+    "assistant.routeQuoteTitle": "Szeretnél ajánlatot kérni?",
+    "assistant.routeCheckoutTitle": "Folytatod a következő lépéssel?",
+    "assistant.routeContactTitle": "Szeretnéd felvenni a kapcsolatot a csapattal?",
+    "assistant.routeGenericTitle": "Jöhet a következő lépés?",
+    "assistant.routeGenericWithLabel": "Szeretnéd ezt megnyitni: {label}?",
+    "assistant.routeCopy": "Itt is tudok segíteni, vagy használhatod ezt a közvetlen lehetőséget.",
+    "assistant.routeContinue": "Folytatás itt",
+    "assistant.routeContinueFallback": "Folytatás",
+    "assistant.routeOpenFallback": "Megnyitás",
+    "assistant.leadSaved": "Köszönjük. Mentettem az adatokat, hogy a csapat utánkövethesse.",
+    "assistant.leadPrompt": "Melyik email címen vagy telefonszámon érhetünk el a legjobban?",
+    "assistant.optionReady": "Ez a lehetőség készen áll, ha a leggyorsabb következő lépést szeretnéd.",
+    "assistant.askAnythingElse": "Kérdezz bármi mást szolgáltatásokról, árakról, foglalásról vagy elérhetőségről.",
+    "assistant.feedbackHelpful": "Köszönjük a visszajelzést.",
+    "assistant.feedbackReview": "Köszönjük. A vállalkozás át tudja nézni.",
+    "assistant.feedbackFailed": "A visszajelzést most nem sikerült menteni.",
+    "assistant.canvasAsk": "Új kérdés",
+    "assistant.canvasContact": "Elérhetőség megadása",
+    "assistant.canvasQuote": "Ajánlatkérés",
+    "quick.services": "Szolgáltatások",
+    "quick.pricing": "Árak",
+    "quick.quote": "Ajánlatkérés",
+    "quick.contact": "Elérhetőségek",
+    "quick.booking": "Foglalás",
+    "prompt.services": "Milyen szolgáltatásokat kínáltok?",
+    "prompt.pricing": "Mennyibe kerül?",
+    "prompt.quote": "Szeretnék ajánlatot kérni.",
+    "prompt.contact": "Hogyan tudlak elérni benneteket?",
+    "prompt.booking": "Szeretnék időpontot foglalni.",
+    "card.services.label": "Szolgáltatások",
+    "card.services.copy": "Gyors áttekintés arról, miben tud segíteni a vállalkozás.",
+    "card.pricing.label": "Árak",
+    "card.pricing.copy": "Kérdezz arról, mi befolyásolja az árat, a terjedelmet és a következő lépést.",
+    "card.quote.label": "Ajánlatkérés",
+    "card.quote.copy": "Írd le, mire van szükséged, hogy a vállalkozás megfelelő részletekkel követhessen.",
+    "card.contact.label": "Elérhetőségek",
+    "card.contact.copy": "Találd meg a legjobb kapcsolatfelvételi módot, vagy hagyd meg az adataidat.",
+    "card.booking.label": "Időpontfoglalás",
+    "card.booking.copy": "Kérdezz időpontról, hívásról, helyszíni látogatásról vagy a legjobb következő lépésről.",
+    "assistant.pageWelcomeBusiness": "Szia, segítek {businessName} szolgáltatásaival, áraival, ajánlatkéréssel és elérhetőségeivel kapcsolatban. Mit szeretnél tudni?",
+    "assistant.pageWelcome": "Szia, segítek szolgáltatásokkal, árakkal, ajánlatkéréssel és elérhetőségekkel kapcsolatban. Mit szeretnél tudni?",
+    "assistant.canvasWelcomeBusiness": "Üdvözlünk itt: {businessName}. Válassz témát lent, vagy kérdezz bármit a kezdéshez.",
+    "assistant.canvasWelcome": "Válassz témát lent, vagy kérdezz bármit a kezdéshez.",
+    "assistant.quickTopicsLabel": "Gyakori kérdések",
+    "assistant.actionTopicsLabel": "Gyakori asszisztens témák",
+    "assistant.nextActionsLabel": "Következő lépések",
+  }),
+});
 
 const conversationHistory = [];
 let widgetConfig = { ...DEFAULT_WIDGET_CONFIG };
@@ -419,6 +666,167 @@ function grantVisitorStorageConsent() {
 
 function trimText(value) {
   return String(value || "").trim();
+}
+
+function normalizeAssistantLanguage(value) {
+  const normalized = trimText(value).toLowerCase();
+
+  if (["hu", "hu-hu", "hungarian", "magyar"].includes(normalized)) {
+    return "hu";
+  }
+
+  if (["en", "en-us", "en-gb", "english"].includes(normalized)) {
+    return "en";
+  }
+
+  return "";
+}
+
+function getCachedDashboardLanguage() {
+  try {
+    return normalizeAssistantLanguage(window.localStorage?.getItem("vonza_dashboard_language"));
+  } catch {
+    return "";
+  }
+}
+
+function getAssistantLanguage(config = widgetConfig) {
+  const candidates = [
+    searchParams.get("language"),
+    searchParams.get("lang"),
+    searchParams.get("locale"),
+    searchParams.get("dashboard_language"),
+    config.publicLanguage,
+    config.public_language,
+    config.visitorLanguage,
+    config.visitor_language,
+    config.dashboardLanguage,
+    config.dashboard_language,
+    config.language,
+    window.VonzaWidgetConfig?.publicLanguage,
+    window.VonzaWidgetConfig?.public_language,
+    window.VonzaWidgetConfig?.visitorLanguage,
+    window.VonzaWidgetConfig?.visitor_language,
+    window.VonzaWidgetConfig?.dashboardLanguage,
+    window.VonzaWidgetConfig?.dashboard_language,
+    window.VonzaWidgetConfig?.language,
+    getCachedDashboardLanguage(),
+    document.documentElement?.lang,
+    navigator.language,
+  ];
+
+  for (const candidate of candidates) {
+    const language = normalizeAssistantLanguage(candidate);
+    if (language) {
+      return language;
+    }
+  }
+
+  return "en";
+}
+
+function assistantT(key, params = {}, config = widgetConfig) {
+  const language = getAssistantLanguage(config);
+  const template = ASSISTANT_I18N[language]?.[key] || ASSISTANT_I18N.en[key] || key;
+
+  return String(template).replace(/\{(\w+)\}/g, (_match, name) => (
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : `{${name}}`
+  ));
+}
+
+function setElementText(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+function setElementHtml(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.innerHTML = value;
+  }
+}
+
+function applyPublicAssistantLanguage(config = widgetConfig) {
+  const language = getAssistantLanguage(config);
+
+  if (document.documentElement) {
+    document.documentElement.lang = language === "hu" ? "hu" : "en";
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.assistantLanguage = language;
+  }
+
+  setElementText("assistant-loading-eyebrow", assistantT("assistant.loading.eyebrow", {}, config));
+  setElementText("assistant-loading-title", assistantT("assistant.loading.title", {}, config));
+  setElementText("assistant-loading-copy", assistantT("assistant.loading.copy", {}, config));
+  setElementText("assistant-unavailable-title", assistantT("assistant.unavailable.title", {}, config));
+  setElementText("assistant-unavailable-copy", assistantT("assistant.unavailable.copy", {}, config));
+  setElementText("status-pill-text", assistantT("assistant.status.typical", {}, config));
+  setElementText("page-online-status", assistantT("assistant.status.online", {}, config));
+  setElementText("welcome-brand-subtitle", assistantT("assistant.businessAssistant", {}, config));
+  setElementText("welcome-badge", assistantT("assistant.chooseContinue", {}, config));
+  setElementText("welcome-title", assistantT("assistant.startConversation", {}, config));
+  setElementText("welcome-copy", assistantT("assistant.continueChoice", {}, config));
+  setElementText("identity-email-title", assistantT("assistant.emailTitle", {}, config));
+  setElementText("identity-email-copy", assistantT("assistant.emailCopy", {}, config));
+  setElementText("identity-guest-title", assistantT("assistant.guestTitle", {}, config));
+  setElementText("identity-guest-copy", assistantT("assistant.guestCopy", {}, config));
+  setElementText("identity-name-label", assistantT("assistant.nameLabel", {}, config));
+  setElementText("identity-email-label", assistantT("assistant.emailLabel", {}, config));
+  setElementText("identity-email-submit", assistantT("assistant.continueToChat", {}, config));
+  setElementText("identity-email-cancel", assistantT("assistant.back", {}, config));
+  setElementText("identity-trust", assistantT("assistant.privacyTrust", {}, config));
+  setElementText("intro-message-label", assistantT("assistant.label", {}, config));
+  setElementText("send-button-sr", assistantT("assistant.send", {}, config));
+  setElementText("speak-replies-toggle", assistantT("assistant.voiceSpeakReplies", {}, config));
+  setElementText("voice-privacy-link", assistantT("assistant.voicePrivacy", {}, config));
+  setElementText("voice-ai-note", assistantT("assistant.voiceAi", {}, config));
+  setElementText("page-identity-note", assistantT("assistant.pageIdentityNote", {}, config));
+  setElementText("page-identity-email-button", assistantT("assistant.leaveContact", {}, config));
+  setElementText("page-identity-powered", assistantT("assistant.poweredBy", {}, config));
+  setElementText("page-identity-email-submit", assistantT("assistant.emailTitle", {}, config));
+  setElementText("page-identity-email-cancel", assistantT("assistant.cancel", {}, config));
+  setElementText("identity-reset-button", assistantT("assistant.resetIdentity", {}, config));
+  setElementText("powered-by", assistantT("assistant.poweredHelp", {}, config));
+  setElementText("page-powered-by", assistantT("assistant.poweredBy", {}, config));
+  setElementText("composer-hint", assistantT("assistant.composerHint", {}, config));
+  setElementText("composer-status", assistantT("assistant.composerStatus", {}, config));
+  setElementHtml("identity-legal", escapeHtml(assistantT("assistant.identityLegal", {}, config)));
+  setElementHtml("page-identity-legal", escapeHtml(assistantT("assistant.pageIdentityLegal", {}, config)));
+
+  const input = document.getElementById("input");
+  if (input) {
+    input.placeholder = assistantT("assistant.composerPlaceholder", {}, config);
+  }
+
+  const identityName = document.getElementById("identity-name");
+  if (identityName) {
+    identityName.placeholder = assistantT("assistant.namePlaceholder", {}, config);
+  }
+
+  const identityEmail = document.getElementById("identity-email");
+  if (identityEmail) {
+    identityEmail.placeholder = assistantT("assistant.emailPlaceholder", {}, config);
+  }
+
+  const pageIdentityName = document.getElementById("page-identity-name");
+  if (pageIdentityName) {
+    pageIdentityName.placeholder = assistantT("assistant.namePlaceholder", {}, config);
+  }
+
+  const pageIdentityEmail = document.getElementById("page-identity-email");
+  if (pageIdentityEmail) {
+    pageIdentityEmail.placeholder = assistantT("assistant.emailPlaceholder", {}, config);
+  }
+
+  const voiceInputButton = document.getElementById("voice-input-button");
+  if (voiceInputButton) {
+    voiceInputButton.setAttribute("aria-label", assistantT("assistant.voiceTap", {}, config));
+    voiceInputButton.setAttribute("title", assistantT("assistant.voiceTap", {}, config));
+  }
 }
 
 function normalizeHexColor(value) {
@@ -894,30 +1302,30 @@ function normalizeLimitedText(value, maxLength) {
 function compactEmbeddedPromptLabel(value = "", fallbackType = "") {
   const normalizedType = trimText(fallbackType).toLowerCase();
   if (EMBEDDED_QUICK_REPLY_LABELS[normalizedType]) {
-    return EMBEDDED_QUICK_REPLY_LABELS[normalizedType];
+    return assistantT(`quick.${normalizedType}`);
   }
 
   const text = trimText(value);
   const lower = text.toLowerCase();
 
   if (/\b(service|offer|do you do|help with)\b/.test(lower)) {
-    return EMBEDDED_QUICK_REPLY_LABELS.services;
+    return assistantT("quick.services");
   }
 
   if (/\b(price|pricing|cost|rate|fee|charge)\b/.test(lower)) {
-    return EMBEDDED_QUICK_REPLY_LABELS.pricing;
+    return assistantT("quick.pricing");
   }
 
   if (/\b(quote|estimate|proposal)\b/.test(lower)) {
-    return EMBEDDED_QUICK_REPLY_LABELS.quote;
+    return assistantT("quick.quote");
   }
 
   if (/\b(contact|email|phone|call|reach|get in touch)\b/.test(lower)) {
-    return EMBEDDED_QUICK_REPLY_LABELS.contact;
+    return assistantT("quick.contact");
   }
 
   if (/\b(book|booking|appointment|schedule)\b/.test(lower)) {
-    return EMBEDDED_QUICK_REPLY_LABELS.booking;
+    return assistantT("quick.booking");
   }
 
   return normalizeLimitedText(text, 24);
@@ -931,7 +1339,13 @@ function getRawFullPageConfig(config = widgetConfig) {
 function getDefaultPageActionCards(config = widgetConfig) {
   const bookingEnabled = hasBookingSupport(config);
   return PAGE_ACTION_CARDS.filter((card) => !card.requiresBooking || bookingEnabled)
-    .map((card) => ({ ...card }));
+    .map((card) => ({
+      ...card,
+      label: assistantT(`card.${card.type}.label`, {}, config),
+      copy: assistantT(`card.${card.type}.copy`, {}, config),
+      description: assistantT(`card.${card.type}.copy`, {}, config),
+      prompt: assistantT(`prompt.${card.type}`, {}, config),
+    }));
 }
 
 function normalizePageActionCard(card = {}, fallbackCard = {}) {
@@ -969,7 +1383,11 @@ function getFullPageConfig(config = widgetConfig) {
     ? rawConfig.trustItems
     : Array.isArray(rawConfig.trust_items)
       ? rawConfig.trust_items
-      : PAGE_TRUST_ITEMS
+      : [
+        assistantT("assistant.status.instant", {}, config),
+        assistantT("assistant.status.assistant", {}, config),
+        assistantT("assistant.status.leaveDetails", {}, config),
+      ]
   ).map((item) => normalizeLimitedText(item, 60)).filter(Boolean).slice(0, 3);
   const bookingSupported = hasBookingSupport(config);
 
@@ -993,7 +1411,11 @@ function getFullPageConfig(config = widgetConfig) {
     showBooking: bookingSupported && normalizeBoolean(rawConfig.showBooking ?? rawConfig.show_booking, bookingSupported),
     showQuote: normalizeBoolean(rawConfig.showQuote ?? rawConfig.show_quote, true),
     showContact: normalizeBoolean(rawConfig.showContact ?? rawConfig.show_contact, true),
-    trustItems: trustItems.length ? trustItems : [...PAGE_TRUST_ITEMS],
+    trustItems: trustItems.length ? trustItems : [
+      assistantT("assistant.status.instant", {}, config),
+      assistantT("assistant.status.assistant", {}, config),
+      assistantT("assistant.status.leaveDetails", {}, config),
+    ],
     design: normalizeFullPageDesignConfig(rawConfig.design),
   };
 }
@@ -1103,7 +1525,11 @@ function getEmbeddedQuickReplyItems(config = widgetConfig) {
       return hasBookingSupport(config);
     }
     return true;
-  });
+  }).map((item) => ({
+    ...item,
+    label: assistantT(`quick.${item.type}`, {}, config),
+    prompt: assistantT(`prompt.${item.type}`, {}, config),
+  }));
 
   return dedupeQuickReplyItems([
     ...configuredItems,
@@ -1173,7 +1599,13 @@ function getQuickReplyTopics(config = widgetConfig) {
     return (topics.length ? topics : fallbackTopics).slice(0, EMBEDDED_MODE ? 4 : PAGE_QUICK_REPLY_TOPICS.length);
   }
 
-  return QUICK_REPLY_TOPICS;
+  return [
+    assistantT("quick.services", {}, config),
+    assistantT("quick.pricing", {}, config),
+    assistantT("quick.quote", {}, config),
+    assistantT("quick.contact", {}, config),
+    assistantT("quick.booking", {}, config),
+  ];
 }
 
 function getBusinessDisplayName(business = null, config = widgetConfig) {
@@ -1193,7 +1625,7 @@ function getBusinessDisplayName(business = null, config = widgetConfig) {
     return assistantName;
   }
 
-  return isPageMode() ? "Assistant" : DEFAULT_WIDGET_CONFIG.assistantName;
+  return isPageMode() ? assistantT("assistant.defaultName", {}, config) : DEFAULT_WIDGET_CONFIG.assistantName;
 }
 
 function getBusinessDomainLabel(business = null) {
@@ -1229,10 +1661,10 @@ function getPageWelcomeMessage({ business = null, config = widgetConfig } = {}) 
   );
 
   if (businessName) {
-    return `Hi, I can help with ${businessName}'s services, pricing, quotes, and contact details. What would you like to know?`;
+    return assistantT("assistant.pageWelcomeBusiness", { businessName });
   }
 
-  return "Hi, I can help with services, pricing, quotes, and contact details. What would you like to know?";
+  return assistantT("assistant.pageWelcome");
 }
 
 function getCanvasIcebreakerLine({ business = pageBusinessContext, config = widgetConfig } = {}) {
@@ -1257,10 +1689,10 @@ function getCanvasIcebreakerLine({ business = pageBusinessContext, config = widg
   );
 
   if (businessName) {
-    return `Welcome to ${businessName}. Choose a topic below or ask anything to get started.`;
+    return assistantT("assistant.canvasWelcomeBusiness", { businessName });
   }
 
-  return "Choose a topic below or ask anything to get started.";
+  return assistantT("assistant.canvasWelcome");
 }
 
 function hasAssistantConfig() {
@@ -1315,6 +1747,16 @@ function normalizeWidgetConfig(input = {}) {
 
   if (!trimText(next.launcherText) || trimText(next.launcherText) === LEGACY_WIDGET_DEFAULTS.launcherText) {
     next.launcherText = DEFAULT_WIDGET_CONFIG.launcherText;
+  }
+
+  if (getAssistantLanguage(next) === "hu") {
+    if (isDefaultWelcomeMessage(next.welcomeMessage)) {
+      next.welcomeMessage = assistantT("assistant.defaultWelcome", {}, next);
+    }
+
+    if (trimText(next.launcherText) === DEFAULT_WIDGET_CONFIG.launcherText) {
+      next.launcherText = assistantT("assistant.defaultLauncher", {}, next);
+    }
   }
 
   return next;
@@ -1455,10 +1897,10 @@ function setPageShellState(state, details = {}) {
     const titleEl = document.getElementById("assistant-unavailable-title");
     const copyEl = document.getElementById("assistant-unavailable-copy");
     if (titleEl) {
-      titleEl.textContent = details.title || "Assistant unavailable";
+      titleEl.textContent = details.title || assistantT("assistant.unavailable.title");
     }
     if (copyEl) {
-      copyEl.textContent = details.copy || "This assistant is not available right now. Please contact the business directly.";
+      copyEl.textContent = details.copy || assistantT("assistant.unavailable.copy");
     }
   }
 }
@@ -1468,28 +1910,28 @@ function getFriendlyUnavailableState(error = null) {
 
   if (statusCode === 404) {
     return {
-      title: "Assistant unavailable",
-      copy: "This assistant is not available right now. Please contact the business directly.",
+      title: assistantT("assistant.unavailable.title"),
+      copy: assistantT("assistant.unavailable.copy"),
     };
   }
 
   if (statusCode === 403) {
     return {
-      title: "Assistant unavailable",
-      copy: "This assistant is not available right now. Please contact the business directly.",
+      title: assistantT("assistant.unavailable.title"),
+      copy: assistantT("assistant.unavailable.copy"),
     };
   }
 
   if (statusCode === 400) {
     return {
-      title: "Assistant unavailable",
-      copy: "This assistant is not available right now. Please contact the business directly.",
+      title: assistantT("assistant.unavailable.title"),
+      copy: assistantT("assistant.unavailable.copy"),
     };
   }
 
   return {
-    title: "Assistant unavailable",
-    copy: "This assistant is not available right now. Please contact the business directly.",
+    title: assistantT("assistant.unavailable.title"),
+    copy: assistantT("assistant.unavailable.copy"),
   };
 }
 
@@ -1505,13 +1947,13 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   const fullPageConfig = getFullPageConfig(config);
   const customLogoUrl = trimText(fullPageConfig.logoUrl || config.widgetLogoUrl);
   const mark = getAssistantMark(displayName);
-  const headline = fullPageConfig.headline || DEFAULT_FULL_PAGE_HEADLINE;
+  const headline = fullPageConfig.headline || assistantT("assistant.defaultFullPageHeadline", {}, config);
   const hasCanvasSubtitle = isCanvasEmbeddedPageMode() && hasCustomFullPageSubtitle(config);
   const subtitle = isCanvasEmbeddedPageMode()
     ? hasCanvasSubtitle
       ? fullPageConfig.subtitle
       : ""
-    : fullPageConfig.subtitle || DEFAULT_FULL_PAGE_SUBTITLE;
+    : fullPageConfig.subtitle || assistantT("assistant.defaultFullPageSubtitle", {}, config);
   const showPageTitle = shouldShowPageTitle();
   const assistantNameEl = document.getElementById("page-assistant-name");
   const subtitleEl = document.getElementById("page-assistant-subtitle");
@@ -1568,7 +2010,7 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   applyBrandMark(welcomeBrandMark, welcomeBrandLogo, welcomeBrandInitial, customLogoUrl, mark);
 
   if (brandMark) {
-    brandMark.setAttribute("aria-label", `${assistantDisplayName} logo`);
+    brandMark.setAttribute("aria-label", assistantT("assistant.logoLabel", { name: assistantDisplayName }, config));
   }
 
   if (introAvatar) {
@@ -1595,8 +2037,8 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
     if (isCanvasEmbeddedPageMode()) {
       pageTrustRow.innerHTML = `
         <span class="canvas-status-pill">
-          <span class="canvas-status-title">AI assistant online</span>
-          <span class="canvas-status-instant"><span class="status-dot" aria-hidden="true"></span>Replies instantly</span>
+          <span class="canvas-status-title">${escapeHtml(assistantT("assistant.status.online", {}, config))}</span>
+          <span class="canvas-status-instant"><span class="status-dot" aria-hidden="true"></span>${escapeHtml(assistantT("assistant.status.instant", {}, config))}</span>
         </span>
       `;
     } else {
@@ -1612,12 +2054,13 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (sendButton) {
-    sendButton.setAttribute("aria-label", `Send a message to ${assistantDisplayName}`);
-    sendButton.setAttribute("title", `Send a message to ${assistantDisplayName}`);
+    const sendLabel = assistantT("assistant.sendTo", { name: assistantDisplayName }, config);
+    sendButton.setAttribute("aria-label", sendLabel);
+    sendButton.setAttribute("title", sendLabel);
   }
 
   if (launcherTextEl) {
-    launcherTextEl.textContent = "Online now";
+    launcherTextEl.textContent = assistantT("assistant.onlineNow", {}, config);
   }
 
   if (welcomeAssistantNameEl) {
@@ -1625,19 +2068,19 @@ function syncPageAssistantHeader({ business = pageBusinessContext, config = widg
   }
 
   if (welcomeBrandSubtitleEl) {
-    welcomeBrandSubtitleEl.textContent = "Business assistant";
+    welcomeBrandSubtitleEl.textContent = assistantT("assistant.businessAssistant", {}, config);
   }
 
   if (welcomeBadgeEl) {
-    welcomeBadgeEl.textContent = "Choose how to continue";
+    welcomeBadgeEl.textContent = assistantT("assistant.chooseContinue", {}, config);
   }
 
   if (welcomeTitleEl) {
-    welcomeTitleEl.textContent = "Start a conversation";
+    welcomeTitleEl.textContent = assistantT("assistant.startConversation", {}, config);
   }
 
   if (welcomeCopyEl) {
-    welcomeCopyEl.textContent = "Continue with email if you may want follow-up, or ask as a guest.";
+    welcomeCopyEl.textContent = assistantT("assistant.continueChoice", {}, config);
   }
 
   if (welcomeMessageEl) {
@@ -1810,6 +2253,7 @@ function renderQuickReplies() {
   canvasQuickRepliesDismissing = false;
   container.classList.remove("is-exiting");
   container.removeAttribute("aria-hidden");
+  container.setAttribute("aria-label", assistantT("assistant.quickTopicsLabel"));
   container.innerHTML = getQuickReplyItems().map((item) => `
     <button
       class="quick-reply-chip"
@@ -1930,7 +2374,9 @@ function updateComposerAvailability() {
   composerShell.hidden = !chatReady;
   input.disabled = !chatReady;
   button.disabled = !chatReady;
-  input.placeholder = isCanvasEmbeddedPageMode() ? "Ask anything..." : "Type your question...";
+  input.placeholder = isCanvasEmbeddedPageMode()
+    ? assistantT("assistant.canvasPlaceholder")
+    : assistantT("assistant.composerPlaceholder");
   inputArea.classList.toggle("is-locked", !chatReady);
   renderQuickReplies();
   syncVoiceControls();
@@ -2185,7 +2631,7 @@ function bindDirectRoutingInteractions(slot, routing) {
 
       rememberDismissedRoute(routing.decisionKey);
       renderDirectRouting(null);
-      setComposerStatus(`Opening ${trimText(button.textContent).toLowerCase()}...`);
+      setComposerStatus(assistantT("assistant.routeOpening", { label: trimText(button.textContent).toLowerCase() }));
       const redirectUrl = buildTrackedRedirectUrl(routing, cta);
       void trackWidgetEvent("cta_clicked", buildRoutingMetadata(routing, cta), {
         dedupeKey: `${INSTALL_ID}::cta_clicked::${trimText(routing.decisionKey)}::${trimText(cta.ctaType)}::${trimText(cta.targetType)}`,
@@ -2206,12 +2652,12 @@ function bindDirectRoutingInteractions(slot, routing) {
         }, {
           dedupeKey: `${INSTALL_ID}::capture_fallback_offered::${trimText(routing.decisionKey || getVisitorSessionKey())}`,
         });
-        setComposerStatus("You can share contact details in chat whenever you want.");
+        setComposerStatus(assistantT("assistant.routeCaptureStatus"));
         return;
       }
 
       renderDirectRouting(null);
-      setComposerStatus("No problem. We can keep going here.");
+      setComposerStatus(assistantT("assistant.routeDismissedStatus"));
     });
   }
 }
@@ -2221,22 +2667,24 @@ function getRoutingSuggestionTitle(routing = {}, cta = {}) {
   const label = trimText(cta.label);
 
   if (intentType === "booking") {
-    return "Ready to book?";
+    return assistantT("assistant.routeBookingTitle");
   }
 
   if (intentType === "quote") {
-    return "Want to request a quote?";
+    return assistantT("assistant.routeQuoteTitle");
   }
 
   if (intentType === "checkout") {
-    return "Ready to continue?";
+    return assistantT("assistant.routeCheckoutTitle");
   }
 
   if (intentType === "contact") {
-    return "Want to contact the team?";
+    return assistantT("assistant.routeContactTitle");
   }
 
-  return label ? `Want to ${label.toLowerCase()}?` : "Want the next step?";
+  return label
+    ? assistantT("assistant.routeGenericWithLabel", { label: label.toLowerCase() })
+    : assistantT("assistant.routeGenericTitle");
 }
 
 function renderDirectRouting(routing) {
@@ -2270,7 +2718,7 @@ function renderDirectRouting(routing) {
   slot.innerHTML = `
     <article class="customer-next-step">
       <h3 class="customer-next-step-title">${escapeHtml(getRoutingSuggestionTitle(liveDirectRouting, primaryCta))}</h3>
-      <p class="customer-next-step-copy">I can keep helping here, or you can use this direct option.</p>
+      <p class="customer-next-step-copy">${escapeHtml(assistantT("assistant.routeCopy"))}</p>
       ${trimText(liveDirectRouting.availabilityNote) ? `<p class="customer-next-step-note">${escapeHtml(trimText(liveDirectRouting.availabilityNote))}</p>` : ""}
       <div class="routing-actions">
         <button
@@ -2281,7 +2729,7 @@ function renderDirectRouting(routing) {
           data-target-type="${escapeHtml(trimText(primaryCta.targetType))}"
           data-href="${escapeHtml(trimText(primaryCta.href))}"
           data-target-value="${escapeHtml(trimText(primaryCta.targetValue))}"
-        >${escapeHtml(trimText(primaryCta.label) || "Continue")}</button>
+        >${escapeHtml(trimText(primaryCta.label) || assistantT("assistant.routeContinueFallback"))}</button>
         ${secondaryCtas.map((cta) => `
           <button
             type="button"
@@ -2291,9 +2739,9 @@ function renderDirectRouting(routing) {
             data-target-type="${escapeHtml(trimText(cta.targetType))}"
             data-href="${escapeHtml(trimText(cta.href))}"
             data-target-value="${escapeHtml(trimText(cta.targetValue))}"
-          >${escapeHtml(trimText(cta.label) || "Open")}</button>
+          >${escapeHtml(trimText(cta.label) || assistantT("assistant.routeOpenFallback"))}</button>
         `).join("")}
-        <button type="button" class="ghost-button routing-secondary-button" data-routing-continue>${escapeHtml(trimText(liveDirectRouting.continueButton?.label) || "Continue here")}</button>
+        <button type="button" class="ghost-button routing-secondary-button" data-routing-continue>${escapeHtml(trimText(liveDirectRouting.continueButton?.label) || assistantT("assistant.routeContinue"))}</button>
       </div>
     </article>
   `;
@@ -2332,7 +2780,7 @@ function renderLeadCapture(leadCapture, options = {}) {
     const promptShownKey = `${trimText(liveLeadCapture?.id) || getVisitorSessionKey()}::captured`;
     if (chat && !leadCapturePromptShownKeys.has(promptShownKey)) {
       leadCapturePromptShownKeys.add(promptShownKey);
-      appendMessage(chat, "bot", trimText(liveLeadCapture.message) || "Thanks. I saved those details so the team can follow up.");
+      appendMessage(chat, "bot", trimText(liveLeadCapture.message) || assistantT("assistant.leadSaved"));
     }
     return;
   }
@@ -2349,7 +2797,7 @@ function renderLeadCapture(leadCapture, options = {}) {
   const promptShownKey = trimText(liveLeadCapture?.id) || `${getVisitorSessionKey()}::${trimText(liveLeadCapture?.trigger)}`;
   if (chat && !leadCapturePromptShownKeys.has(promptShownKey)) {
     leadCapturePromptShownKeys.add(promptShownKey);
-    appendMessage(chat, "bot", trimText(liveLeadCapture.prompt?.body) || "What is the best email or phone number to use?");
+    appendMessage(chat, "bot", trimText(liveLeadCapture.prompt?.body) || assistantT("assistant.leadPrompt"));
     void submitLeadCaptureAction("prompt_shown", {}, { silent: true });
   }
 }
@@ -2396,13 +2844,13 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
     }
     setComposerStatus(
       trimText(data.leadCapture?.state).toLowerCase() === "captured"
-        ? "Contact details saved."
-        : "No problem. We can keep chatting here."
+        ? assistantT("assistant.leadSaved")
+        : assistantT("assistant.routeDismissedStatus")
     );
     return data.leadCapture || null;
   } catch (error) {
     if (options.silent !== true) {
-      setComposerStatus("Those contact details could not be saved just now. Try again in a moment.");
+      setComposerStatus(assistantT("assistant.feedbackFailed"));
     }
     console.warn("Vonza lead capture failed:", error);
     return null;
@@ -2531,11 +2979,11 @@ function voiceRequiresHttps() {
 
 function getVoiceUnavailableMessage() {
   if (voiceRequiresHttps()) {
-    return "Voice input requires HTTPS.";
+    return assistantT("assistant.voiceHttps");
   }
 
   if (!navigator?.mediaDevices?.getUserMedia || typeof window.MediaRecorder !== "function") {
-    return "Voice input is not available in this browser.";
+    return assistantT("assistant.voiceUnavailable");
   }
 
   return "";
@@ -2543,23 +2991,23 @@ function getVoiceUnavailableMessage() {
 
 function getMicrophoneStartErrorMessage(error) {
   if (voiceRequiresHttps()) {
-    return "Voice input requires HTTPS.";
+    return assistantT("assistant.voiceHttps");
   }
 
   const errorName = trimText(error?.name);
   if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
-    return "Microphone permission was blocked.";
+    return assistantT("assistant.voicePermission");
   }
 
   if (errorName === "NotFoundError" || errorName === "DevicesNotFoundError") {
-    return "No microphone was found.";
+    return assistantT("assistant.voiceDevice");
   }
 
   if (errorName === "NotReadableError" || errorName === "TrackStartError" || errorName === "SecurityError") {
-    return "Could not start recording. Check your browser microphone permission.";
+    return assistantT("assistant.voicePermission");
   }
 
-  return "Could not start recording. Check your browser microphone permission.";
+  return assistantT("assistant.voicePermission");
 }
 
 function getPreferredRecordingMimeType() {
@@ -2637,14 +3085,14 @@ function setVoiceInputState(state, message = "") {
   voiceInputStatusState = normalizedState;
   const label = message || (
     normalizedState === "listening"
-      ? "Listening..."
+      ? assistantT("assistant.voiceListening")
       : normalizedState === "processing"
-        ? "Processing..."
+        ? assistantT("assistant.voiceProcessing")
         : normalizedState === "ready"
-          ? "Transcript ready"
+          ? assistantT("assistant.voiceTranscriptReady")
           : normalizedState === "error"
             ? "Error"
-            : "Tap to speak"
+            : assistantT("assistant.voiceTap")
   );
 
   if (button) {
@@ -2677,7 +3125,9 @@ function syncSpeakRepliesToggle() {
 
   toggle.hidden = !enabled;
   toggle.setAttribute("aria-pressed", speakRepliesActive ? "true" : "false");
-  toggle.textContent = speakRepliesActive ? "Speak replies on" : "Speak replies";
+  toggle.textContent = speakRepliesActive
+    ? `${assistantT("assistant.voiceSpeakReplies")} on`
+    : assistantT("assistant.voiceSpeakReplies");
 }
 
 function syncVoiceControls() {
@@ -2699,8 +3149,8 @@ function syncVoiceControls() {
       micButton.setAttribute("aria-label", unavailableMessage);
       micButton.setAttribute("title", unavailableMessage);
     } else if (!voiceRecorder && voiceInputStatusState !== "error") {
-      micButton.setAttribute("aria-label", "Tap to speak");
-      micButton.setAttribute("title", "Tap to speak");
+      micButton.setAttribute("aria-label", assistantT("assistant.voiceTap"));
+      micButton.setAttribute("title", assistantT("assistant.voiceTap"));
     }
   }
 
@@ -2857,8 +3307,8 @@ async function transcribeVoiceBlob(blob, durationMs) {
     const message = response.status === 413
       ? "Recording was too large. Try a shorter message."
       : response.status === 429
-        ? "Voice input is busy. Please try again in a minute."
-        : "Could not transcribe that recording. Please try again.";
+        ? assistantT("assistant.voiceBusy")
+        : assistantT("assistant.voiceTranscribeFailed");
     throw new Error(message);
   }
 
@@ -2898,7 +3348,7 @@ async function startVoiceRecording() {
 
   if (!hasChosenVisitorIdentity()) {
     renderWidgetPhase();
-    setComposerStatus("Choose guest or email before using voice input.");
+    setComposerStatus(assistantT("assistant.voiceChooseIdentity"));
     return;
   }
 
@@ -2932,7 +3382,7 @@ async function startVoiceRecording() {
       await handleVoiceRecordingComplete(durationMs, mimeType || stoppedRecorder?.mimeType || "audio/webm");
     });
     voiceRecorder.start();
-    setVoiceInputState("listening", "Listening...");
+    setVoiceInputState("listening", assistantT("assistant.voiceListening"));
     syncVoiceControls();
     voiceRecordingStopTimer = setTimeout(stopVoiceRecording, VOICE_RECORDING_MAX_MS);
   } catch (error) {
@@ -2950,39 +3400,39 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
   voiceRecorderChunks = [];
 
   if (!chunks.length) {
-    setVoiceInputState("error", "No speech was recorded.");
+    setVoiceInputState("error", assistantT("assistant.voiceNoSpeechRecorded"));
     syncVoiceControls();
     return;
   }
 
   voiceTranscriptRequestActive = true;
-  setVoiceInputState("processing", "Processing...");
+  setVoiceInputState("processing", assistantT("assistant.voiceProcessing"));
   syncVoiceControls();
 
   try {
     const blobType = chunks.find((chunk) => trimText(chunk.type))?.type || fallbackMimeType || "audio/webm";
     const blob = new Blob(chunks, { type: blobType });
     if (!blob.size) {
-      throw new Error("No speech was recorded.");
+      throw new Error(assistantT("assistant.voiceNoSpeechRecorded"));
     }
     const result = await transcribeVoiceBlob(blob, durationMs);
     const transcript = trimText(result.text);
 
     if (!transcript) {
-      throw new Error("No speech was detected in that recording.");
+      throw new Error(assistantT("assistant.voiceNoSpeechDetected"));
     }
 
     if (input) {
       input.value = transcript;
       input.focus();
     }
-    setVoiceInputState("ready", "Transcript ready");
+    setVoiceInputState("ready", assistantT("assistant.voiceTranscriptReady"));
     if (getVoiceConfig().autoSendTranscript) {
       await sendMessage(transcript);
     }
   } catch (error) {
     console.warn("Vonza voice transcription failed:", error);
-    setVoiceInputState("error", error.message || "Voice input failed.");
+    setVoiceInputState("error", error.message || assistantT("assistant.voiceFailed"));
   } finally {
     voiceTranscriptRequestActive = false;
     syncVoiceControls();
@@ -3122,6 +3572,7 @@ function applyFullPageDesign(config = widgetConfig) {
 
 function applyWidgetConfig(config = {}) {
   widgetConfig = normalizeWidgetConfig(config);
+  applyPublicAssistantLanguage(widgetConfig);
   if (getVoiceConfig(widgetConfig).spokenRepliesEnabled !== true) {
     speakRepliesActive = false;
     speakRepliesUserChanged = false;
@@ -3184,21 +3635,22 @@ function applyWidgetConfig(config = {}) {
     assistantMark
   );
   if (sendButton) {
-    sendButton.setAttribute("aria-label", `Send a message to ${widgetConfig.assistantName}`);
-    sendButton.setAttribute("title", `Send a message to ${widgetConfig.assistantName}`);
+    const sendLabel = assistantT("assistant.sendTo", { name: widgetConfig.assistantName });
+    sendButton.setAttribute("aria-label", sendLabel);
+    sendButton.setAttribute("title", sendLabel);
   }
   if (poweredBy) {
-    poweredBy.textContent = "We're here to help | Powered by Vonza";
+    poweredBy.textContent = assistantT("assistant.poweredHelp");
   }
   if (!isPageMode()) {
     if (welcomeBadge) {
-      welcomeBadge.textContent = "Quick answers";
+      welcomeBadge.textContent = assistantT("assistant.chooseContinue");
     }
     if (welcomeTitle) {
-      welcomeTitle.textContent = "Hi! How can we help today?";
+      welcomeTitle.textContent = assistantT("assistant.defaultWelcome");
     }
     if (welcomeCopy) {
-      welcomeCopy.textContent = "Ask a question and get a clear answer. Choose how you'd like to continue.";
+      welcomeCopy.textContent = assistantT("assistant.continueChoice");
     }
   }
   syncPageAssistantHeader({ config: widgetConfig });
@@ -3214,7 +3666,7 @@ function applyWidgetConfig(config = {}) {
       capture: false,
     });
   } else {
-    setComposerStatus("Choose how to continue, then ask about services, pricing, contact details, or the next step.");
+    setComposerStatus(assistantT("assistant.composerStatus"));
   }
   document
     .querySelector('meta[name="apple-mobile-web-app-title"]')
@@ -3228,16 +3680,16 @@ async function loadWidgetBootstrap() {
   if (!hasAssistantConfig()) {
     if (isPageMode()) {
       setPageShellState("unavailable", {
-        title: "Assistant unavailable",
-        copy: "This assistant is not available right now. Please contact the business directly.",
+        title: assistantT("assistant.unavailable.title"),
+        copy: assistantT("assistant.unavailable.copy"),
       });
       return;
     }
     applyWidgetConfig({
       ...DEFAULT_WIDGET_CONFIG,
-      welcomeMessage: "No assistant configured yet. Please create one first.",
+      welcomeMessage: assistantT("assistant.notConfigured"),
     });
-    setComposerStatus("Create an assistant first, then return here to preview the customer experience.");
+    setComposerStatus(assistantT("assistant.setupFirst"));
     return;
   }
 
@@ -3288,7 +3740,7 @@ async function loadWidgetBootstrap() {
         capture: false,
       });
     } else {
-      setComposerStatus("Choose how to continue, then start chatting.");
+      setComposerStatus(assistantT("assistant.composerStatus"));
     }
     setPageShellState("ready");
     focusComposerInputIfSafe();
@@ -3302,7 +3754,7 @@ async function loadWidgetBootstrap() {
       return;
     }
     applyWidgetConfig(DEFAULT_WIDGET_CONFIG);
-    setComposerStatus("The assistant loaded with default styling. You can still test the experience.");
+    setComposerStatus(assistantT("assistant.composerStatus"));
   }
 }
 
@@ -3359,10 +3811,10 @@ function buildCanvasAnswerActionsMarkup() {
   }
 
   return `
-    <div class="canvas-answer-actions" aria-label="Next actions">
-      <button type="button" data-canvas-answer-action="ask">Ask another question</button>
-      <button type="button" data-canvas-answer-action="contact">Leave contact details</button>
-      ${canShowCanvasQuoteAction() ? '<button type="button" data-canvas-answer-action="quote">Request a quote</button>' : ""}
+    <div class="canvas-answer-actions" aria-label="${escapeHtml(assistantT("assistant.nextActionsLabel"))}">
+      <button type="button" data-canvas-answer-action="ask">${escapeHtml(assistantT("assistant.canvasAsk"))}</button>
+      <button type="button" data-canvas-answer-action="contact">${escapeHtml(assistantT("assistant.canvasContact"))}</button>
+      ${canShowCanvasQuoteAction() ? `<button type="button" data-canvas-answer-action="quote">${escapeHtml(assistantT("assistant.canvasQuote"))}</button>` : ""}
     </div>
   `;
 }
@@ -3396,10 +3848,10 @@ function appendMessage(chat, role, text, options = {}) {
     wrapper.dataset.voiceReplyText = text || "";
   }
 
-  const avatar = role === "user" ? "You" : getAssistantMark();
-  const label = role === "user" ? "You" : widgetConfig.assistantName;
+  const avatar = role === "user" ? assistantT("assistant.you") : getAssistantMark();
+  const label = role === "user" ? assistantT("assistant.you") : widgetConfig.assistantName;
   const body = options.typing
-    ? `${isCanvasLoading ? '<span class="canvas-answering-text">Front Desk is answering...</span>' : ""}<div class="typing-dots"><span></span><span></span><span></span></div>`
+    ? `${isCanvasLoading ? `<span class="canvas-answering-text">${escapeHtml(assistantT("assistant.answering"))}</span>` : ""}<div class="typing-dots"><span></span><span></span><span></span></div>`
     : `<div class="vonza-message-body">${
         role === "bot"
           ? formatAssistantMessageHtml(text)
@@ -3478,12 +3930,12 @@ async function submitReplyFeedback(messageKey, rating, options = {}) {
       throw new Error(data.error || "Feedback request failed");
     }
 
-    setComposerStatus(normalizedRating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review this.");
+    setComposerStatus(normalizedRating === "helpful" ? assistantT("assistant.feedbackHelpful") : assistantT("assistant.feedbackReview"));
     return data;
   } catch (error) {
     submittedReplyFeedbackKeys.delete(dedupeKey);
     console.warn("Vonza reply feedback failed:", error);
-    setComposerStatus("Feedback could not be saved just now.");
+    setComposerStatus(assistantT("assistant.feedbackFailed"));
     return null;
   }
 }
@@ -3512,7 +3964,7 @@ async function sendMessage(messageOverride = "") {
 
   if (!hasChosenVisitorIdentity()) {
     renderWidgetPhase();
-    setComposerStatus("Choose guest or email before sending your first message.");
+    setComposerStatus(assistantT("assistant.chooseBeforeSend"));
     return;
   }
 
@@ -3523,10 +3975,10 @@ async function sendMessage(messageOverride = "") {
     appendMessage(
       chat,
       "bot",
-      "No assistant configured yet. Please create one first.",
+      assistantT("assistant.notConfigured"),
       { error: true }
     );
-    setComposerStatus("Set up your Front Desk in Vonza before testing this assistant page.");
+    setComposerStatus(assistantT("assistant.setupFirst"));
     return;
   }
 
@@ -3538,7 +3990,7 @@ async function sendMessage(messageOverride = "") {
   button.disabled = true;
   input.disabled = true;
   syncVoiceControls();
-  setComposerStatus(`${widgetConfig.assistantName} is preparing a reply...`);
+  setComposerStatus(assistantT("assistant.preparingReply", { name: widgetConfig.assistantName }));
 
   const loading = appendMessage(chat, "bot", "", { typing: true });
 
@@ -3581,10 +4033,10 @@ async function sendMessage(messageOverride = "") {
       appendMessage(
         chat,
         "bot",
-        "I’m sorry, I can’t answer right now. Please try again in a moment or contact the business directly.",
+        assistantT("assistant.requestFailed"),
         { error: true }
       );
-      setComposerStatus("The Front Desk could not answer just now. You can try again or use the contact option.");
+      setComposerStatus(assistantT("assistant.requestFailedStatus"));
       return;
     }
 
@@ -3630,8 +4082,8 @@ async function sendMessage(messageOverride = "") {
     );
     setComposerStatus(
       trimText(data.directRouting?.primaryCta?.label)
-        ? "That option is ready if you want the fastest next step."
-        : "Ask anything else about services, pricing, booking, or contact details."
+        ? assistantT("assistant.optionReady")
+        : assistantT("assistant.askAnythingElse")
     );
     if (getVoiceConfig().spokenRepliesEnabled && speakRepliesActive) {
       const voiceButton = assistantMessage.querySelector?.("[data-voice-reply-button]") || null;
@@ -3641,8 +4093,8 @@ async function sendMessage(messageOverride = "") {
     console.error("Vonza assistant request failed:", err);
     loading.remove();
     setCanvasAnsweringState(false);
-    appendMessage(chat, "bot", "Error connecting to server", { error: true });
-    setComposerStatus("Connection was interrupted. Try again when the assistant is ready.");
+    appendMessage(chat, "bot", assistantT("assistant.connectionError"), { error: true });
+    setComposerStatus(assistantT("assistant.connectionStatus"));
   } finally {
     button.disabled = false;
     input.disabled = false;
@@ -3701,12 +4153,12 @@ function openPageIdentityContactForm() {
 
   form.hidden = false;
   document.getElementById("page-identity-name")?.focus();
-  setComposerStatus("Add your email if you want the business to follow up.");
+  setComposerStatus(assistantT("assistant.pageIdentityNote"));
 }
 
 document.getElementById("page-identity-email-cancel")?.addEventListener("click", () => {
   getPageIdentityEmailForm()?.setAttribute("hidden", "");
-  setComposerStatus("No problem. You can keep asking as a guest.");
+  setComposerStatus(assistantT("assistant.routeDismissedStatus"));
 });
 
 document.getElementById("page-identity-email-form")?.addEventListener("submit", (event) => {
@@ -3741,7 +4193,7 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
 
     if (action === "ask") {
       focusComposerInputIfSafe({ force: true });
-      setComposerStatus("Ask anything else about the business.");
+      setComposerStatus(assistantT("assistant.askAnythingElse"));
       return;
     }
 
@@ -3752,8 +4204,8 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
 
     if (action === "quote") {
       const quoteCard = getPageActionCards(widgetConfig).find((card) => card.type === "quote" && trimText(card.prompt));
-      pendingCanvasTopicLabel = trimText(quoteCard?.label) || "Request a quote";
-      sendMessage(trimText(quoteCard?.prompt) || "I'd like to request a quote.");
+      pendingCanvasTopicLabel = trimText(quoteCard?.label) || assistantT("quick.quote");
+      sendMessage(trimText(quoteCard?.prompt) || assistantT("prompt.quote"));
       return;
     }
   }
@@ -3813,7 +4265,7 @@ document.getElementById("chat")?.addEventListener("click", (event) => {
     container?.classList.add("submitted");
     const label = container?.querySelector("span");
     if (label) {
-      label.textContent = rating === "helpful" ? "Thanks for the feedback." : "Thanks. The business can review this.";
+      label.textContent = rating === "helpful" ? assistantT("assistant.feedbackHelpful") : assistantT("assistant.feedbackReview");
     }
   });
 });
@@ -3894,7 +4346,7 @@ document.getElementById("page-action-list")?.addEventListener("click", (event) =
   if (input) {
     input.value = topic;
   }
-  setComposerStatus("Choose email or guest, then send that question.");
+  setComposerStatus(assistantT("assistant.chooseThenSend"));
   document.getElementById("identity-guest-button")?.focus();
 });
 
@@ -3956,6 +4408,8 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   isCanvasEmbeddedPageMode,
   hasBookingSupport: () => hasBookingSupport(),
   getVoiceConfig: () => ({ ...getVoiceConfig() }),
+  getAssistantLanguage: () => getAssistantLanguage(),
+  assistantT,
   syncVoiceControls,
   startVoiceRecording,
   stopVoiceRecording,

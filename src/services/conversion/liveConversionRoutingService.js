@@ -6,6 +6,24 @@ import {
 
 const SUPPORTED_CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
 const SUPPORTED_INTENTS = ["booking", "quote", "checkout", "contact", "general"];
+const CTA_LABELS = Object.freeze({
+  en: Object.freeze({
+    booking: "Book now",
+    quote: "Request a quote",
+    checkout: "Go to checkout",
+    call: "Call us",
+    email: "Email us",
+    continueHere: "Continue here",
+  }),
+  hu: Object.freeze({
+    booking: "Időpontfoglalás",
+    quote: "Ajánlatkérés",
+    checkout: "Tovább a fizetéshez",
+    call: "Telefonhívás",
+    email: "Email küldése",
+    continueHere: "Folytatás itt",
+  }),
+});
 
 function normalizeOptionalUrl(value) {
   const normalized = cleanText(value);
@@ -53,6 +71,15 @@ function normalizeCtaMode(value, fallbackValue) {
 function normalizeIntentType(value) {
   const normalized = cleanText(value).toLowerCase();
   return SUPPORTED_INTENTS.includes(normalized) ? normalized : "general";
+}
+
+function normalizeRoutingLanguage(value) {
+  const normalized = cleanText(value).toLowerCase();
+  return ["hu", "hu-hu", "hungarian", "magyar"].includes(normalized) ? "hu" : "en";
+}
+
+function getCtaLabels(language = "") {
+  return CTA_LABELS[normalizeRoutingLanguage(language)] || CTA_LABELS.en;
 }
 
 function normalizeRoutingEvent(row = {}) {
@@ -105,6 +132,9 @@ function detectContactPreference(message = "") {
     || normalized.includes("ring")
     || normalized.includes("callback")
     || normalized.includes("call back")
+    || normalized.includes("telefon")
+    || normalized.includes("hívjanak vissza")
+    || normalized.includes("hivjanak vissza")
   ) {
     return "phone";
   }
@@ -132,6 +162,10 @@ function detectIntentFromMessage(message = "") {
     || normalized.includes("get in touch")
     || normalized.includes("talk to")
     || normalized.includes("speak to")
+    || normalized.includes("hívjanak vissza")
+    || normalized.includes("hivjanak vissza")
+    || normalized.includes("kapcsolat")
+    || normalized.includes("telefon")
   ) {
     return {
       intentType: "contact",
@@ -162,6 +196,12 @@ function detectIntentFromMessage(message = "") {
     || normalized.includes("price")
     || normalized.includes("cost")
     || normalized.includes("how much")
+    || normalized.includes("ajánlat")
+    || normalized.includes("ajanlat")
+    || normalized.includes("árajánlat")
+    || normalized.includes("arajanlat")
+    || normalized.includes("mennyibe kerül")
+    || normalized.includes("mennyibe kerul")
   ) {
     return {
       intentType: "quote",
@@ -179,6 +219,12 @@ function detectIntentFromMessage(message = "") {
     || normalized.includes("reserve")
     || normalized.includes("consultation")
     || normalized.includes("demo")
+    || normalized.includes("foglalás")
+    || normalized.includes("foglalas")
+    || normalized.includes("időpont")
+    || normalized.includes("idopont")
+    || normalized.includes("bejelentkezés")
+    || normalized.includes("bejelentkezes")
   ) {
     return {
       intentType: "booking",
@@ -202,11 +248,13 @@ function shouldOfferDirectRoute(intentType, message = "") {
   }
 
   if (intentType === "quote") {
-    return /\b(quote|estimate|proposal)\b|send (me )?(pricing|price)|pricing details|price details/.test(normalized);
+    return /\b(quote|estimate|proposal)\b|send (me )?(pricing|price)|pricing details|price details/.test(normalized)
+      || /(ajánlat|ajanlat|árajánlat|arajanlat|mennyibe kerül|mennyibe kerul)/.test(normalized);
   }
 
   if (intentType === "booking") {
-    return /\b(book|booking|appointment|schedule|reserve|consultation|demo)\b/.test(normalized);
+    return /\b(book|booking|appointment|schedule|reserve|consultation|demo)\b/.test(normalized)
+      || /(foglalás|foglalas|időpont|idopont|bejelentkezés|bejelentkezes)/.test(normalized);
   }
 
   if (intentType === "checkout") {
@@ -215,7 +263,8 @@ function shouldOfferDirectRoute(intentType, message = "") {
 
   if (intentType === "contact") {
     return /\b(call me|call back|callback|email me|contact me|reach out|get in touch)\b/.test(normalized)
-      || /\b(?:talk|speak)\s+to\s+(?:a\s+)?(?:human|person|someone|agent|representative|team|staff|owner)\b/.test(normalized);
+      || /\b(?:talk|speak)\s+to\s+(?:a\s+)?(?:human|person|someone|agent|representative|team|staff|owner)\b/.test(normalized)
+      || /(hívjanak vissza|hivjanak vissza|kapcsolat|telefon|email)/.test(normalized);
   }
 
   return false;
@@ -266,12 +315,12 @@ function resolveIntent(options = {}) {
   };
 }
 
-function buildContactPrimary(settings, contactPreference = "") {
+function buildContactPrimary(settings, contactPreference = "", labels = CTA_LABELS.en) {
   if (contactPreference === "email" && settings.contactEmail) {
     return {
       ctaType: "contact",
       targetType: "email",
-      label: "Email us",
+      label: labels.email,
       href: `mailto:${settings.contactEmail}`,
       targetValue: settings.contactEmail,
     };
@@ -281,7 +330,7 @@ function buildContactPrimary(settings, contactPreference = "") {
     return {
       ctaType: "contact",
       targetType: "phone",
-      label: "Call us",
+      label: labels.call,
       href: `tel:${settings.contactPhone}`,
       targetValue: settings.contactPhone,
     };
@@ -291,7 +340,7 @@ function buildContactPrimary(settings, contactPreference = "") {
     return {
       ctaType: "contact",
       targetType: "phone",
-      label: "Call us",
+      label: labels.call,
       href: `tel:${settings.contactPhone}`,
       targetValue: settings.contactPhone,
     };
@@ -301,7 +350,7 @@ function buildContactPrimary(settings, contactPreference = "") {
     return {
       ctaType: "contact",
       targetType: "email",
-      label: "Email us",
+      label: labels.email,
       href: `mailto:${settings.contactEmail}`,
       targetValue: settings.contactEmail,
     };
@@ -310,12 +359,12 @@ function buildContactPrimary(settings, contactPreference = "") {
   return null;
 }
 
-function buildAlternateContact(settings, primaryTargetType = "") {
+function buildAlternateContact(settings, primaryTargetType = "", labels = CTA_LABELS.en) {
   if (primaryTargetType !== "phone" && settings.contactPhone) {
     return {
       ctaType: "contact",
       targetType: "phone",
-      label: "Call us",
+      label: labels.call,
       href: `tel:${settings.contactPhone}`,
       targetValue: settings.contactPhone,
     };
@@ -325,7 +374,7 @@ function buildAlternateContact(settings, primaryTargetType = "") {
     return {
       ctaType: "contact",
       targetType: "email",
-      label: "Email us",
+      label: labels.email,
       href: `mailto:${settings.contactEmail}`,
       targetValue: settings.contactEmail,
     };
@@ -334,14 +383,14 @@ function buildAlternateContact(settings, primaryTargetType = "") {
   return null;
 }
 
-function buildConfiguredRoute(ctaMode, settings, contactPreference = "") {
+function buildConfiguredRoute(ctaMode, settings, contactPreference = "", labels = CTA_LABELS.en) {
   switch (normalizeCtaMode(ctaMode, "")) {
     case "booking":
       return settings.bookingUrl
         ? {
           ctaType: "booking",
           targetType: "url",
-          label: "Book now",
+          label: labels.booking,
           href: settings.bookingUrl,
           targetValue: settings.bookingUrl,
         }
@@ -351,7 +400,7 @@ function buildConfiguredRoute(ctaMode, settings, contactPreference = "") {
         ? {
           ctaType: "quote",
           targetType: "url",
-          label: "Request a quote",
+          label: labels.quote,
           href: settings.quoteUrl,
           targetValue: settings.quoteUrl,
         }
@@ -361,28 +410,28 @@ function buildConfiguredRoute(ctaMode, settings, contactPreference = "") {
         ? {
           ctaType: "checkout",
           targetType: "url",
-          label: "Go to checkout",
+          label: labels.checkout,
           href: settings.checkoutUrl,
           targetValue: settings.checkoutUrl,
         }
         : null;
     case "contact":
-      return buildContactPrimary(settings, contactPreference);
+      return buildContactPrimary(settings, contactPreference, labels);
     default:
       return null;
   }
 }
 
-function buildIntentPreferredRoute(intentType, settings, contactPreference = "") {
+function buildIntentPreferredRoute(intentType, settings, contactPreference = "", labels = CTA_LABELS.en) {
   switch (normalizeIntentType(intentType)) {
     case "booking":
-      return buildConfiguredRoute("booking", settings, contactPreference);
+      return buildConfiguredRoute("booking", settings, contactPreference, labels);
     case "quote":
-      return buildConfiguredRoute("quote", settings, contactPreference);
+      return buildConfiguredRoute("quote", settings, contactPreference, labels);
     case "checkout":
-      return buildConfiguredRoute("checkout", settings, contactPreference);
+      return buildConfiguredRoute("checkout", settings, contactPreference, labels);
     case "contact":
-      return buildConfiguredRoute("contact", settings, contactPreference);
+      return buildConfiguredRoute("contact", settings, contactPreference, labels);
     default:
       return null;
   }
@@ -452,13 +501,15 @@ function wasRouteAlreadyHandled(events = [], decisionKey = "") {
 export function evaluateLiveConversionRouting(options = {}) {
   const settings = normalizeDirectRoutingSettings(options.widgetConfig);
   const intent = resolveIntent(options);
+  const labels = getCtaLabels(options.visitorLanguage || options.language || options.dashboardLanguage);
   const directRouteAllowed = shouldOfferDirectRoute(intent.intentType, options.userMessage);
-  const intentRoute = buildIntentPreferredRoute(intent.intentType, settings, intent.contactPreference);
+  const intentRoute = buildIntentPreferredRoute(intent.intentType, settings, intent.contactPreference, labels);
   const fallbackMode = normalizeCtaMode(settings.fallbackCtaMode, "capture");
   const fallbackRoute = intentRoute ? null : buildConfiguredRoute(
     fallbackMode,
     settings,
-    intent.contactPreference
+    intent.contactPreference,
+    labels
   );
   const route = intentRoute || fallbackRoute;
   const sessionContext = options.sessionContext || {};
@@ -541,7 +592,7 @@ export function evaluateLiveConversionRouting(options = {}) {
   }
 
   const alternateContact = route.ctaType === "contact"
-    ? buildAlternateContact(settings, route.targetType)
+    ? buildAlternateContact(settings, route.targetType, labels)
     : null;
   const routingMode = fallbackCaptureAvailable ? "direct_then_capture" : "direct_cta";
 
@@ -557,7 +608,7 @@ export function evaluateLiveConversionRouting(options = {}) {
     primaryCta: route,
     secondaryCtas: alternateContact ? [alternateContact] : [],
     continueButton: {
-      label: "Continue here",
+      label: labels.continueHere,
       action: fallbackCaptureAvailable ? "reveal_capture" : "dismiss_route",
     },
     relatedActionKey,

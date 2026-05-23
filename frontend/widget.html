@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title id="page-title">Vonza AI</title>
   <meta charset="UTF-8">
@@ -56,9 +56,9 @@
 
     <section id="assistant-loading-state" class="assistant-state assistant-loading-state" hidden>
       <div class="assistant-state-spinner" aria-hidden="true"></div>
-      <p class="assistant-state-eyebrow">Opening assistant</p>
-      <h1>Getting everything ready.</h1>
-      <p>One moment while the assistant loads.</p>
+      <p class="assistant-state-eyebrow" id="assistant-loading-eyebrow">Opening assistant</p>
+      <h1 id="assistant-loading-title">Getting everything ready.</h1>
+      <p id="assistant-loading-copy">One moment while the assistant loads.</p>
     </section>
 
     <section id="assistant-unavailable-state" class="assistant-state assistant-unavailable-state" hidden>
@@ -70,7 +70,7 @@
     <section id="page-assistant-hero" class="page-assistant-hero" hidden>
       <div class="page-context-panel canvas-title-group" id="page-context-panel">
         <h2 id="page-help-title" class="page-help-title canvas-page-title">Front Desk</h2>
-        <p id="page-assistant-subtitle">Ask about services, pricing, quotes, or contact details.</p>
+      <p id="page-assistant-subtitle">Ask about services, pricing, quotes, or contact details.</p>
         <div id="page-action-list" class="page-action-list" aria-label="Common assistant topics"></div>
       </div>
       <div class="page-trust-row canvas-status-slot" id="page-trust-row" aria-label="Assistant status">
@@ -90,7 +90,7 @@
             <h1 id="page-assistant-name">Assistant</h1>
           </div>
         </div>
-        <p class="page-online-status"><span class="status-dot"></span>AI assistant online</p>
+        <p class="page-online-status" id="page-online-status"><span class="status-dot"></span>AI assistant online</p>
       </header>
     </section>
 
@@ -106,7 +106,7 @@
             <h1 id="assistant-name">Vonza AI</h1>
             <p class="status-pill">
               <span class="status-dot"></span>
-              Typically replies instantly
+              <span id="status-pill-text">Typically replies instantly</span>
             </p>
           </div>
         </div>
@@ -122,7 +122,7 @@
               </div>
               <div class="welcome-brand-copy">
                 <p class="welcome-brand-name" id="welcome-assistant-name">Vonza AI</p>
-                <p class="welcome-brand-subtitle">Business front desk</p>
+                <p class="welcome-brand-subtitle" id="welcome-brand-subtitle">Business front desk</p>
               </div>
             </div>
             <div class="welcome-badge" id="welcome-badge">Quick answers</div>
@@ -136,8 +136,8 @@
                   </svg>
                 </span>
                 <span class="identity-choice-content">
-                  <span class="identity-choice-title">Continue with email</span>
-                  <span class="identity-choice-copy">Consent to save this session and send the conversation to your inbox.</span>
+                  <span class="identity-choice-title" id="identity-email-title">Continue with email</span>
+                  <span class="identity-choice-copy" id="identity-email-copy">Consent to save this session and send the conversation to your inbox.</span>
                 </span>
                 <span class="identity-choice-arrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -152,8 +152,8 @@
                   </svg>
                 </span>
                 <span class="identity-choice-content">
-                  <span class="identity-choice-title">Continue as guest</span>
-                  <span class="identity-choice-copy">Consent to save this session without sharing your email.</span>
+                  <span class="identity-choice-title" id="identity-guest-title">Continue as guest</span>
+                  <span class="identity-choice-copy" id="identity-guest-copy">Consent to save this session without sharing your email.</span>
                 </span>
                 <span class="identity-choice-arrow" aria-hidden="true">
                   <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -165,24 +165,24 @@
             <form id="identity-email-form" class="identity-email-form" hidden>
               <div class="identity-email-grid">
                 <div class="identity-email-field">
-                  <label for="identity-name">Name</label>
+                  <label id="identity-name-label" for="identity-name">Name</label>
                   <input id="identity-name" name="name" type="text" placeholder="Your name (optional)" autocomplete="name">
                 </div>
                 <div class="identity-email-field">
-                  <label for="identity-email">Email</label>
+                  <label id="identity-email-label" for="identity-email">Email</label>
                   <input id="identity-email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required>
                 </div>
               </div>
               <div class="identity-email-actions">
-                <button type="submit">Continue to chat</button>
+                <button id="identity-email-submit" type="submit">Continue to chat</button>
                 <button id="identity-email-cancel" class="ghost-button" type="button">Back</button>
               </div>
             </form>
           </section>
 
           <div class="welcome-footer">
-            <p class="identity-trust">We respect your privacy.</p>
-            <p class="identity-legal">
+            <p class="identity-trust" id="identity-trust">We respect your privacy.</p>
+            <p class="identity-legal" id="identity-legal">
               Continuing lets Vonza store this chat session for replies, safety, and follow-up. You can review how Vonza handles
               <a href="/adatkezelesi-tajekoztato" target="_blank" rel="noreferrer">your data</a>,
               <a href="/aszf" target="_blank" rel="noreferrer">the terms</a>,
@@ -197,7 +197,7 @@
           <div class="message bot intro" id="intro-message" hidden>
             <div class="avatar" id="intro-avatar">V</div>
             <div class="bubble">
-              <p class="message-label">Assistant</p>
+              <p class="message-label" id="intro-message-label">Assistant</p>
               <p id="welcome-message">Hi! How can we help today?</p>
             </div>
           </div>
@@ -220,12 +220,12 @@
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
                 <path d="M20.72 4.46a1 1 0 0 0-1.04-.16L4.37 10.72a1 1 0 0 0 .08 1.87l6.03 2.17 2.18 6.02a1 1 0 0 0 .9.66h.06a1 1 0 0 0 .92-.77L20.9 5.35a1 1 0 0 0-.18-.89Zm-7.17 13.01-1.43-3.97a1 1 0 0 0-.6-.6L7.55 11.47l10.48-4.4-4.48 10.4Z"></path>
               </svg>
-              <span class="sr-only">Send message</span>
+              <span class="sr-only" id="send-button-sr">Send message</span>
             </button>
           </div>
           <div id="voice-controls" class="voice-controls" hidden>
             <button id="speak-replies-toggle" class="voice-toggle-button" type="button" aria-pressed="false" hidden>Speak replies</button>
-            <p id="voice-disclosure" class="voice-disclosure" hidden>Voice is processed to transcribe your question. <a href="/adatkezelesi-tajekoztato" target="_blank" rel="noreferrer">Privacy</a>. <span>AI-generated voice.</span></p>
+            <p id="voice-disclosure" class="voice-disclosure" hidden>Voice is processed to transcribe your question. <a id="voice-privacy-link" href="/adatkezelesi-tajekoztato" target="_blank" rel="noreferrer">Privacy</a>. <span id="voice-ai-note">AI-generated voice.</span></p>
           </div>
           <p class="composer-hint" id="composer-hint">Press Enter to send. The assistant replies using the business's latest details.</p>
           <p class="composer-status" id="composer-status">Ask about services, pricing, booking, quotes, contact details, or the next step.</p>
@@ -247,7 +247,7 @@
                 </div>
               </div>
               <div class="identity-email-actions">
-                <button type="submit">Continue with email</button>
+                <button id="page-identity-email-submit" type="submit">Continue with email</button>
                 <button id="page-identity-email-cancel" class="ghost-button" type="button">Cancel</button>
               </div>
             </form>

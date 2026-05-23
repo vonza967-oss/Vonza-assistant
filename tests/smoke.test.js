@@ -1363,6 +1363,18 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(productPage.text, /Customers and conversations/i);
         assert.match(productPage.text, /Settings and customization/i);
 
+        const hungarianHome = await getText(server.baseUrl, "/hu");
+        assert.equal(hungarianHome.status, 200);
+        assert.match(hungarianHome.text, /<html lang="hu">/);
+        assert.match(hungarianHome.text, /AI Front Desk magyar ügyfélkérdésekhez/);
+        assert.match(hungarianHome.text, /Front Desk létrehozása/);
+        assert.match(hungarianHome.text, /Funkciók/);
+        assert.match(hungarianHome.text, /Árak/);
+        assert.match(hungarianHome.text, /AI Front Desk oldal ügyfélkérdésekhez/);
+        assert.match(hungarianHome.text, /Adatvédelem/);
+        assert.doesNotMatch(hungarianHome.text, /Features|Pricing|Create Front Desk|An AI Front Desk page for customer questions/);
+        assert.doesNotMatch(hungarianHome.text, /<!-- VONZA_MARKETING_/);
+
         const marketingImageRefs = Array.from(marketingHome.text.matchAll(/<img[^>]+src="([^"]+)"/g), (match) => match[1]);
         assert.ok(marketingImageRefs.length >= 5, "marketing homepage should render product screenshots");
         marketingImageRefs.forEach((src) => {

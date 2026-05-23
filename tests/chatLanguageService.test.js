@@ -9,6 +9,7 @@ import {
   detectExplicitLanguageRequest,
   selectResponseLanguage,
 } from "../src/utils/text.js";
+import { buildNoWebsiteContentFallbackReply } from "../src/services/chat/chatService.js";
 
 test("English latest customer message keeps English despite Hungarian business context", () => {
   const businessContext = buildBusinessContextForChat({
@@ -59,4 +60,13 @@ test("ambiguous short message uses the most recent clear customer language", () 
 test("explicit language requests override the latest customer language", () => {
   assert.equal(detectExplicitLanguageRequest("Válaszolj angolul, kérlek."), "English");
   assert.equal(selectResponseLanguage("Please reply in Hungarian.", []), "Hungarian");
+});
+
+test("Hungarian missing-website-content contact fallback stays Hungarian", () => {
+  const reply = buildNoWebsiteContentFallbackReply("Hungarian");
+
+  assert.match(reply, /Sajnálom/);
+  assert.match(reply, /Kérlek, vedd fel velünk a kapcsolatot/);
+  assert.match(reply, /elérhetőségeken/);
+  assert.doesNotMatch(reply, /Please contact us|listed contact details/i);
 });
