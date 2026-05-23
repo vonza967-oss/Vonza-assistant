@@ -30,6 +30,7 @@ export function createApp({ rootDir }) {
       if (
         normalizedPath.endsWith("/frontend/dashboard.js")
         || normalizedPath.endsWith("/frontend/dashboard.css")
+        || normalizedPath.endsWith("/frontend/dashboard-customers.css")
         || normalizedPath.endsWith("/frontend/dashboard-install.css")
         || normalizedPath.endsWith("/frontend/dashboard-analytics.css")
         || normalizedPath.endsWith("/frontend/dashboard-front-desk.css")

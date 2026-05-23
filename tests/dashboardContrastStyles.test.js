@@ -12,6 +12,10 @@ function readDashboardCss() {
   return readFileSync(path.join(repoRoot, "frontend", "dashboard.css"), "utf8");
 }
 
+function readDashboardCustomersCss() {
+  return readFileSync(path.join(repoRoot, "frontend", "dashboard-customers.css"), "utf8");
+}
+
 function readDashboardAnalyticsCss() {
   return readFileSync(path.join(repoRoot, "frontend", "dashboard-analytics.css"), "utf8");
 }
@@ -55,7 +59,7 @@ test("dashboard light-shell overview keeps metadata and borders readable", () =>
 });
 
 test("dashboard contact detail and row states stay crisp instead of washed out", () => {
-  const css = readDashboardCss();
+  const css = `${readDashboardCss()}\n${readDashboardCustomersCss()}`;
 
   assert.match(css, /\.contact-row\.active\s*\{[^}]*background:\s*rgba\(20,\s*184,\s*166,\s*0\.08\);[^}]*box-shadow:\s*inset 3px 0 0 rgba\(20,\s*184,\s*166,\s*0\.72\)/i);
   assert.match(css, /\.contact-detail-panel\s*\{[^}]*border:\s*1px solid var\(--surface-border\);[^}]*background:\s*linear-gradient/i);
@@ -65,7 +69,7 @@ test("dashboard contact detail and row states stay crisp instead of washed out",
 });
 
 test("dashboard Customers page text uses readable active-content contrast", () => {
-  const css = readDashboardCss();
+  const css = `${readDashboardCss()}\n${readDashboardCustomersCss()}`;
 
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.summary-strip-label\s*\{\s*color:\s*#40516c;/i);
   assert.match(css, /\.workspace-page\[data-shell-section="contacts"\] \.summary-strip-value\s*\{\s*color:\s*#17233f;/i);

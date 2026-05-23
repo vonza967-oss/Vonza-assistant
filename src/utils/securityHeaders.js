@@ -12,6 +12,7 @@ function isDashboardAssetPath(pathname) {
   return [
     "/dashboard.js",
     "/dashboard.css",
+    "/dashboard-customers.css",
     "/dashboard-install.css",
     "/dashboard-analytics.css",
     "/dashboard-front-desk.css",

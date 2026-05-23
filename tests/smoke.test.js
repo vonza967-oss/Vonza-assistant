@@ -1392,6 +1392,14 @@ test("marketing homepage and app routes load without broken handoff paths", { co
           "dashboard-install.css should load after dashboard.css"
         );
         assert.ok(
+          dashboard.text.indexOf("/dashboard.css") < dashboard.text.indexOf("/dashboard-customers.css"),
+          "dashboard-customers.css should load after dashboard.css"
+        );
+        assert.ok(
+          dashboard.text.indexOf("/dashboard-customers.css") < dashboard.text.indexOf("/dashboard-install.css"),
+          "dashboard-install.css should load after dashboard customers CSS"
+        );
+        assert.ok(
           dashboard.text.indexOf("/dashboard-install.css") < dashboard.text.indexOf("/dashboard-analytics.css"),
           "dashboard-analytics.css should load after dashboard install CSS"
         );
@@ -1407,6 +1415,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
           dashboard.text.indexOf("/dashboard-front-desk.css") < dashboard.text.indexOf("/settings/settings.css"),
           "settings CSS should remain after dashboard front desk CSS"
         );
+        assert.match(dashboard.text, /\/dashboard-customers\.css/);
         assert.match(dashboard.text, /\/dashboard-install\.css/);
         assert.match(dashboard.text, /\/dashboard-analytics\.css/);
         assert.match(dashboard.text, /\/dashboard-front-desk\.css/);
@@ -1504,6 +1513,12 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(settingsShellCss.text, /\.settings-full-page-preview-card\s*,\s*\.settings-full-page-action-card\s*\{/);
         assert.match(settingsShellCss.text, /\.settings-shell-sticky-save\s*\{/);
         assert.match(settingsShellCss.text, /\.dashboard-v2-production-shell \.settings-shell-form\s*\{/);
+
+        const dashboardCustomersCss = await getText(server.baseUrl, "/dashboard-customers.css");
+        assert.equal(dashboardCustomersCss.status, 200);
+        assert.match(dashboardCustomersCss.text, /\.contacts-workspace\s*\{/);
+        assert.match(dashboardCustomersCss.text, /\.customer-status-chip\s*\{/);
+        assert.match(dashboardCustomersCss.text, /\.customer-chat-message\s*\{/);
 
         const dashboardInstallCss = await getText(server.baseUrl, "/dashboard-install.css");
         assert.equal(dashboardInstallCss.status, 200);
@@ -1762,9 +1777,11 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
       try {
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         const dashboardLabelsScript = await getText(server.baseUrl, "/dashboardLabels.js");
+        const dashboardInstallScript = await getText(server.baseUrl, "/dashboardInstall.js");
         const dashboardAnalyticsScript = await getText(server.baseUrl, "/dashboardAnalytics.js");
         assert.equal(dashboardScript.status, 200);
         assert.equal(dashboardLabelsScript.status, 200);
+        assert.equal(dashboardInstallScript.status, 200);
         assert.equal(dashboardAnalyticsScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
         assert.match(dashboardScript.text, /Sign in to continue into Vonza/);
@@ -1842,15 +1859,15 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /People view/);
         assert.match(dashboardScript.text, /Open follow-up note/);
         assert.match(dashboardScript.text, /Save follow-up note/);
-        assert.match(dashboardScript.text, /Installation methods/);
-        assert.match(dashboardScript.text, /Front Desk page/);
+        assert.match(dashboardInstallScript.text, /Installation methods/);
+        assert.match(dashboardInstallScript.text, /Front Desk page/);
         assert.match(dashboardAnalyticsScript.text, /Front Desk page/);
-        assert.match(dashboardScript.text, /QR code/);
-        assert.match(dashboardScript.text, /Setup progress/);
-        assert.match(dashboardScript.text, /Domain status/);
-        assert.match(dashboardScript.text, /View Front Desk page setup/);
-        assert.match(dashboardScript.text, /Copy website bubble code/);
-        assert.match(dashboardScript.text, /Verify installation/);
+        assert.match(dashboardInstallScript.text, /QR code/);
+        assert.match(dashboardInstallScript.text, /Setup progress/);
+        assert.match(dashboardInstallScript.text, /Domain status/);
+        assert.match(dashboardInstallScript.text, /View Front Desk page setup/);
+        assert.match(dashboardInstallScript.text, /Copy website bubble code/);
+        assert.match(dashboardInstallScript.text, /Verify installation/);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");

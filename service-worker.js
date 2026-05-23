@@ -20,6 +20,7 @@ self.addEventListener("fetch", (event) => {
     "/dashboard-v2-fixture",
     "/dashboard.js",
     "/dashboard.css",
+    "/dashboard-customers.css",
     "/dashboardHelpers.js",
     "/public-config.js",
     "/i18n/dashboardI18n.js",

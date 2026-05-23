@@ -340,8 +340,570 @@
     });
   }
 
+
+  function createInstallPanelHelpers(dependencies = {}) {
+    const sanitizeText = typeof dependencies.trimText === "function"
+      ? dependencies.trimText
+      : (value) => String(value || "").trim();
+    const sanitizeHtml = typeof dependencies.escapeHtml === "function"
+      ? dependencies.escapeHtml
+      : (value) => String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    const getUiIconMarkup = typeof dependencies.getUiIconMarkup === "function" ? dependencies.getUiIconMarkup : () => "";
+    const getBadgeClass = typeof dependencies.getBadgeClass === "function" ? dependencies.getBadgeClass : () => "status-badge";
+    const translate = typeof dependencies.t === "function" ? dependencies.t : (key) => ({ "common.notInstalled": "Not installed", "install.verifyInstallation": "Verify installation", "install.title": "Install" }[key] || key);
+    const formatSeenAt = typeof dependencies.formatSeenAt === "function" ? dependencies.formatSeenAt : (value) => sanitizeText(value);
+    const getDefaultInstallStatus = typeof dependencies.getDefaultInstallStatus === "function" ? dependencies.getDefaultInstallStatus : () => ({});
+    const getInstallProgress = typeof dependencies.getInstallProgress === "function" ? dependencies.getInstallProgress : () => ({});
+    const getInstallMethodPanelKey = typeof dependencies.getInstallMethodPanelKey === "function" ? dependencies.getInstallMethodPanelKey : (value) => sanitizeText(value) || "page";
+    const getDashboardUiStateValue = typeof dependencies.getDashboardUiStateValue === "function" ? dependencies.getDashboardUiStateValue : () => "";
+    const normalizeInstallFullPageOption = typeof dependencies.normalizeInstallFullPageOption === "function" ? dependencies.normalizeInstallFullPageOption : (value) => sanitizeText(value) || "share";
+    const buildScript = typeof dependencies.buildScript === "function" ? dependencies.buildScript : () => "";
+    const buildWidgetUrl = typeof dependencies.buildWidgetUrl === "function" ? dependencies.buildWidgetUrl : () => "#";
+    const buildFrontDeskPreviewUrl = typeof dependencies.buildFrontDeskPreviewUrl === "function" ? dependencies.buildFrontDeskPreviewUrl : () => "";
+    const isPublicFullPageEnabled = typeof dependencies.isPublicFullPageEnabled === "function" ? dependencies.isPublicFullPageEnabled : () => false;
+    const buildFullPageAssistantUrl = typeof dependencies.buildFullPageAssistantUrl === "function" ? dependencies.buildFullPageAssistantUrl : () => "";
+    const buildSmartAssistantEmbed = typeof dependencies.buildSmartAssistantEmbed === "function" ? dependencies.buildSmartAssistantEmbed : () => "";
+    const buildFullPageQrEndpoint = typeof dependencies.buildFullPageQrEndpoint === "function" ? dependencies.buildFullPageQrEndpoint : () => "";
+    const buildSectionAssistantIframe = typeof dependencies.buildSectionAssistantIframe === "function" ? dependencies.buildSectionAssistantIframe : () => "";
+    const buildFullPageAssistantIframe = typeof dependencies.buildFullPageAssistantIframe === "function" ? dependencies.buildFullPageAssistantIframe : () => "";
+    const getInstallStatusCopy = typeof dependencies.getInstallStatusCopy === "function" ? dependencies.getInstallStatusCopy : () => "";
+    const getInstallStatusTone = typeof dependencies.getInstallStatusTone === "function" ? dependencies.getInstallStatusTone : () => "Pending";
+    const hasFullPageAssistantCustomization = typeof dependencies.hasFullPageAssistantCustomization === "function" ? dependencies.hasFullPageAssistantCustomization : () => false;
+    const buildInstallMethodCards = typeof dependencies.buildInstallMethodCards === "function" ? dependencies.buildInstallMethodCards : () => [];
+    const isInstallSeen = typeof dependencies.isInstallSeen === "function" ? dependencies.isInstallSeen : () => false;
+    const isInstallDetected = typeof dependencies.isInstallDetected === "function" ? dependencies.isInstallDetected : () => false;
+    const escapeHtml = sanitizeHtml;
+    const trimText = sanitizeText;
+    const t = translate;
+
+    function buildInstallProgressItem({ title, done, detail }) {
+      return `
+        <li class="install-progress-item ${done ? "done" : ""}">
+          <span class="install-progress-dot" aria-hidden="true">${done ? getUiIconMarkup("check") : ""}</span>
+          <span class="install-progress-copy">
+            <strong>${escapeHtml(title)}</strong>
+            <small>${escapeHtml(detail)}</small>
+          </span>
+        </li>
+      `;
+    }
+
+    function buildInstallSetupProgress(agent, setup, installStatus, progress, messages = []) {
+      const hasConversation = Array.isArray(messages)
+        && messages.some((message) => trimText(message?.content) && ["user", "assistant"].includes(trimText(message?.role)));
+      const fullPageEnabled = isPublicFullPageEnabled(agent);
+      const hasDistributionChannel = fullPageEnabled || Boolean(trimText(agent.installId)) || isInstallDetected(installStatus);
+      const items = [
+        {
+          title: "Front Desk created",
+          done: Boolean(trimText(agent.id || agent.publicAgentKey)),
+          detail: trimText(agent.assistantName || agent.name) || "Front Desk workspace",
+        },
+        {
+          title: "Public Front Desk page enabled",
+          done: fullPageEnabled,
+          detail: fullPageEnabled ? "Your Front Desk page is live" : "Enable public access before sharing links or QR",
+        },
+        {
+          title: "Front Desk customized",
+          done: hasFullPageAssistantCustomization(agent) || setup.isReady,
+          detail: hasFullPageAssistantCustomization(agent) ? "Custom full-page settings saved" : "Review identity, welcome, and page design",
+        },
+        {
+          title: "Training and knowledge ready",
+          done: setup.knowledgeReady === true,
+          detail: setup.knowledgeReady
+            ? "Website knowledge is ready"
+            : setup.knowledgeLimited
+              ? "Website knowledge is still growing"
+              : "Website knowledge is missing",
+        },
+        {
+          title: "First test conversation",
+          done: hasConversation || progress.previewOpened === true,
+          detail: hasConversation
+            ? "A conversation exists"
+            : progress.previewOpened
+              ? "Front desk preview opened"
+              : "No test conversation yet",
+        },
+        {
+          title: "Distribution channel selected",
+          done: hasDistributionChannel,
+          detail: hasDistributionChannel
+            ? "Front Desk page, QR/direct link, smart embed, WordPress, or optional bubble is ready"
+            : "Choose a launch channel in Install",
+        },
+      ];
+
+      return `
+        <section class="install-progress-card" aria-label="Setup progress">
+          <div class="install-progress-card-header">
+            <p class="overview-label">Setup progress</p>
+            <span>${items.filter((item) => item.done).length}/${items.length}</span>
+          </div>
+          <ol class="install-progress-list">
+            ${items.map((item) => buildInstallProgressItem(item)).join("")}
+          </ol>
+        </section>
+      `;
+    }
+
+    function buildInstallStageProgress(installStatus, hasInstall, fullPageUrl, qrEndpoint) {
+      const verifyDone = isInstallSeen(installStatus) || installStatus.state === "installed_unseen";
+      const stages = [
+        {
+          number: "1",
+          title: "Choose method",
+          state: "active",
+          copy: "Pick Front Desk page, QR/direct link, or optional bubble.",
+        },
+        {
+          number: "2",
+          title: "Configure",
+          state: hasInstall || fullPageUrl || qrEndpoint ? "done" : "pending",
+          copy: "Use the ready code or link.",
+        },
+        {
+          number: "3",
+          title: "Verify",
+          state: verifyDone ? "done" : "pending",
+          copy: "Confirm any website embed or bubble install.",
+        },
+        {
+          number: "4",
+          title: "Go live",
+          state: isInstallSeen(installStatus) ? "done" : "pending",
+          copy: "Share the working entry point.",
+        },
+      ];
+
+      return `
+        <ol class="install-stage-flow" aria-label="Install setup stages">
+          ${stages.map((stage) => `
+            <li class="install-stage-item ${escapeHtml(stage.state)}">
+              <span class="install-stage-number">${escapeHtml(stage.number)}</span>
+              <span>
+                <strong>${escapeHtml(stage.title)}</strong>
+                <small>${escapeHtml(stage.copy)}</small>
+              </span>
+            </li>
+          `).join("")}
+        </ol>
+      `;
+    }
+
+    function buildInstallMethodPill(label, tone = "neutral") {
+      return `<span class="install-method-pill ${escapeHtml(tone)}">${escapeHtml(label)}</span>`;
+    }
+
+    function buildInstallDomainChips(allowedDomains = []) {
+      if (!allowedDomains.length) {
+        return `<p class="install-help">No allowed domains are saved yet.</p>`;
+      }
+
+      return `
+        <div class="install-domain-chips" aria-label="Allowed domains">
+          ${allowedDomains.map((domain) => `<span>${escapeHtml(domain)}</span>`).join("")}
+        </div>
+      `;
+    }
+
+    function buildInstallCopyBlock({ id, label, value, rows = 5, buttonAction, buttonLabel, disabled = false, className = "" }) {
+      return `
+        <div class="install-copy-field ${className}">
+          <div class="install-copy-heading">
+            <label for="${escapeHtml(id)}">${escapeHtml(label)}</label>
+            <button class="ghost-button" type="button" data-action="${escapeHtml(buttonAction)}" ${disabled ? "disabled" : ""}>${escapeHtml(buttonLabel)}</button>
+          </div>
+          <textarea id="${escapeHtml(id)}" rows="${escapeHtml(rows)}" readonly>${escapeHtml(value)}</textarea>
+        </div>
+      `;
+    }
+
+    function buildInstallSidePanel(agent, setup, messages = []) {
+      const installStatus = getDefaultInstallStatus(agent);
+      const fullPageEnabled = isPublicFullPageEnabled(agent);
+      const qrEndpoint = buildFullPageQrEndpoint(agent);
+      const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
+      const statusRows = [
+        {
+          label: "Installation status",
+          value: installStatus.label || t("common.notInstalled"),
+          tone: getInstallStatusTone(installStatus),
+        },
+        {
+          label: "Domain status",
+          value: allowedDomains.length ? allowedDomains.join(", ") : "No domains saved yet.",
+          tone: allowedDomains.length ? "Ready" : "Pending",
+        },
+        {
+          label: "Detected domain",
+          value: installStatus.host || "No live domain detected yet.",
+          tone: installStatus.host ? "Ready" : "Pending",
+        },
+        {
+          label: "Front Desk page",
+          value: fullPageEnabled ? "Your Front Desk page is live" : "Your Front Desk page is disabled.",
+          tone: fullPageEnabled ? "Ready" : "Pending",
+        },
+        {
+          label: "QR code",
+          value: qrEndpoint ? "Downloadable" : "Enable the public page first.",
+          tone: qrEndpoint ? "Ready" : "Pending",
+        },
+      ];
+      if (installStatus.lastSeenAt || installStatus.lastSeenUrl) {
+        const lastSeenValue = installStatus.lastSeenAt && installStatus.lastSeenUrl
+          ? `${formatSeenAt(installStatus.lastSeenAt)} on ${installStatus.lastSeenUrl}`
+          : installStatus.lastSeenAt
+            ? formatSeenAt(installStatus.lastSeenAt)
+            : installStatus.lastSeenUrl;
+        statusRows.splice(3, 0, {
+          label: "Last seen",
+          value: lastSeenValue,
+          tone: "Ready",
+        });
+      }
+
+      return `
+        <aside class="install-side-panel" aria-label="Install status and resources">
+          <section class="install-side-card install-side-card-status">
+            <div class="install-side-card-header">
+              <p class="overview-label">Status</p>
+              <span class="${getBadgeClass(getInstallStatusTone(installStatus))}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : installStatus.state === "installed_unseen" ? "Verified" : "Not live yet")}</span>
+            </div>
+            <p class="install-side-summary">${escapeHtml(getInstallStatusCopy(installStatus))}</p>
+            <div class="install-status-row-list">
+              ${statusRows.map((row) => `
+                <div class="install-status-row">
+                  <span>${escapeHtml(row.label)}</span>
+                  <strong>${escapeHtml(row.value)}</strong>
+                </div>
+              `).join("")}
+            </div>
+          </section>
+          ${buildInstallSetupProgress(agent, setup, installStatus, getInstallProgress(agent.id), messages)}
+          <section class="install-side-card install-preview-card">
+            <p class="overview-label">Preview</p>
+            <div class="install-preview-mini">
+              <span class="install-preview-avatar">${escapeHtml((agent.assistantName || agent.name || "V").trim().charAt(0).toUpperCase() || "V")}</span>
+              <div>
+                <strong>${escapeHtml(agent.assistantName || agent.name || "Your assistant")}</strong>
+                <p>${escapeHtml(agent.welcomeMessage || "Preview the customer-facing Front Desk page before sharing it.")}</p>
+              </div>
+            </div>
+            <a class="test-link ${buildFrontDeskPreviewUrl(agent) ? "" : "disabled"}" data-action="open-preview" href="${buildFrontDeskPreviewUrl(agent) ? escapeHtml(buildFrontDeskPreviewUrl(agent)) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
+          </section>
+          <section class="install-side-card install-resource-card">
+            <p class="overview-label">Resources</p>
+            <button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>
+            <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
+            <button class="ghost-button" type="button" data-install-method-jump="widget">View optional website bubble</button>
+            <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
+          </section>
+        </aside>
+      `;
+    }
+
+    function buildInstallSection(agent, options = {}) {
+      const {
+        upcoming = false,
+      } = options;
+      const activeInstallMethod = getInstallMethodPanelKey(getDashboardUiStateValue("installMethod"));
+      const activeFullPageInstallOption = normalizeInstallFullPageOption(getDashboardUiStateValue("installFullPageOption"));
+      const hasInstall = Boolean(trimText(agent.installId));
+      const script = hasInstall ? buildScript(agent) : "";
+      const fullPageUrl = trimText(agent.id || agent.publicAgentKey) ? buildFullPageAssistantUrl(agent) : "";
+      const fullPageEnabled = isPublicFullPageEnabled(agent);
+      const publicFullPageUrl = fullPageEnabled ? fullPageUrl : "";
+      const sectionSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "section") : "";
+      const sectionIframe = publicFullPageUrl ? buildSectionAssistantIframe(agent) : "";
+      const dedicatedPageSmartEmbed = fullPageEnabled && trimText(agent.id) ? buildSmartAssistantEmbed(agent, "page-takeover") : "";
+      const truePageTakeoverSmartEmbed = fullPageEnabled && trimText(agent.id)
+        ? buildSmartAssistantEmbed(agent, "page-takeover", {
+          backgroundScope: "page",
+          pageReset: true,
+          hidePageFooter: true,
+        })
+        : "";
+      const fullPageIframe = publicFullPageUrl ? buildFullPageAssistantIframe(agent) : "";
+      const installStatus = getDefaultInstallStatus(agent);
+      const allowedDomains = Array.isArray(installStatus.allowedDomains) ? installStatus.allowedDomains : [];
+      const verifyDetails = installStatus.verificationDetails || {};
+      const statusCopy = getInstallStatusCopy(installStatus);
+      const recentSeenMarkup = installStatus.lastSeenUrl
+        ? `<p class="install-help">Last seen page: ${escapeHtml(installStatus.lastSeenUrl)}</p>`
+        : "";
+      const verificationMarkup = installStatus.lastVerifiedAt
+        ? `<p class="install-help">Last verified ${escapeHtml(formatSeenAt(installStatus.lastVerifiedAt))}${installStatus.verificationTargetUrl ? ` against ${escapeHtml(installStatus.verificationTargetUrl)}` : ""}.</p>`
+        : "";
+      const mismatchMarkup = verifyDetails?.foundInstallIds?.length
+        ? `<p class="install-help">Found install id${verifyDetails.foundInstallIds.length === 1 ? "" : "s"}: ${escapeHtml(verifyDetails.foundInstallIds.join(", "))}</p>`
+        : "";
+      const qrEndpoint = buildFullPageQrEndpoint(agent);
+      const methodCards = buildInstallMethodCards({
+        qrEndpoint,
+        hasInstall,
+        installDetected: isInstallDetected(installStatus),
+      });
+      const publicPageStatusBadge = fullPageEnabled
+        ? `<span class="${getBadgeClass("Ready")}">Your Front Desk page is live</span>`
+        : `<span class="${getBadgeClass("Pending")}">Your Front Desk page is disabled</span>`;
+      const wordpressCallout = `
+        <div class="operator-inline-alert install-wordpress-callout">
+          <strong>WordPress Front Desk page</strong>
+          <p>For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.</p>
+          <div class="inline-actions">
+            <button class="ghost-button" type="button" data-full-page-option="dedicated">Use dedicated page embed</button>
+          </div>
+        </div>
+      `;
+
+      return `
+        ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
+        ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
+        <div class="install-method-grid" role="tablist" aria-label="Installation methods">
+          ${methodCards.map((item) => {
+            const isActive = activeInstallMethod === item.key;
+            return `
+            <button
+              class="install-method-card ${isActive ? "active" : ""}"
+              type="button"
+              role="tab"
+              aria-selected="${isActive ? "true" : "false"}"
+              aria-controls="install-panel-${escapeHtml(item.key)}"
+              data-install-method-tab="${escapeHtml(item.key)}"
+            >
+              <span class="install-method-icon" aria-hidden="true">${getUiIconMarkup(item.icon)}</span>
+              <span class="install-method-copy">
+                <strong>${escapeHtml(item.title)}</strong>
+                <small>${escapeHtml(item.copy)}</small>
+                ${item.status ? buildInstallMethodPill(item.status, item.tone) : ""}
+              </span>
+            </button>
+          `;
+          }).join("")}
+        </div>
+        <div class="install-options-grid">
+          <section class="install-option-card ${activeInstallMethod === "widget" ? "active" : ""}" id="install-panel-widget" role="tabpanel" data-install-method-panel="widget" ${activeInstallMethod === "widget" ? "" : "hidden"}>
+            <div class="install-option-header">
+              <div>
+                <p class="install-option-eyebrow">Optional add-on</p>
+                <h3 class="install-option-title">Website widget bubble</h3>
+                <p class="install-option-copy">Paste this code into your website header only if you also want a compact chat launcher on normal website pages. Your Front Desk page stays the primary product.</p>
+              </div>
+              <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Optional installed" : hasInstall ? "Optional" : "Optional")}</span>
+            </div>
+            <div class="install-cta-row">
+              <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy website bubble code</button>
+              <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test website bubble</a>
+            </div>
+            ${buildInstallCopyBlock({
+              id: "install-script-output",
+              label: "Website widget bubble code",
+              value: script,
+              rows: 5,
+              buttonAction: "copy-install",
+              buttonLabel: "Copy bubble code",
+              disabled: !hasInstall,
+              className: "install-code-block",
+            })}
+            <p class="install-help">Paste this once into your site header only when you want the optional bubble.</p>
+            <div class="install-detail-grid">
+              <div class="install-detail-card">
+                <span>Allowed domains</span>
+                ${buildInstallDomainChips(allowedDomains)}
+              </div>
+              <div class="install-detail-card">
+                <span>Detected install status</span>
+                <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
+                <p>${escapeHtml(statusCopy)}</p>
+                ${recentSeenMarkup}
+                ${verificationMarkup}
+                ${mismatchMarkup}
+              </div>
+            </div>
+          </section>
+          <section class="install-option-card ${activeInstallMethod === "page" ? "active" : ""}" id="install-panel-page" role="tabpanel" data-install-method-panel="page" ${activeInstallMethod === "page" ? "" : "hidden"}>
+            <div class="install-option-header">
+              <div>
+                <p class="install-option-eyebrow">Recommended method</p>
+                <h3 class="install-option-title">Front Desk page</h3>
+                <p class="install-option-copy">Choose how customers should open the AI Front Desk page. Vonza generates the right link, WordPress guidance, smart embed, or fallback iframe.</p>
+              </div>
+              ${publicPageStatusBadge}
+            </div>
+            ${wordpressCallout}
+            ${!fullPageEnabled ? `
+              <div class="operator-inline-alert">
+                Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing links, embeds, or QR codes.
+                <div class="inline-actions">
+                  <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>
+                </div>
+              </div>
+            ` : ""}
+            <div class="full-page-install-selector" role="tablist" aria-label="Front Desk page install options">
+              <button class="full-page-install-choice ${activeFullPageInstallOption === "share" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "share" ? "true" : "false"}" aria-controls="full-page-option-share" data-full-page-option="share">
+                <strong>Front Desk page link</strong>
+                <span>Use this for QR codes, buttons, menus, emails, and direct links.</span>
+              </button>
+              <button class="full-page-install-choice ${activeFullPageInstallOption === "section" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "section" ? "true" : "false"}" aria-controls="full-page-option-section" data-full-page-option="section">
+                <strong>Smart embed</strong>
+                <span>Place the Front Desk inside part of an existing page.</span>
+              </button>
+              <button class="full-page-install-choice ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "dedicated" ? "true" : "false"}" aria-controls="full-page-option-dedicated" data-full-page-option="dedicated">
+                <strong>WordPress / dedicated page</strong>
+                <span>Use this when Front Desk is the main content of a website page.</span>
+              </button>
+              <button class="full-page-install-choice ${activeFullPageInstallOption === "takeover" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "takeover" ? "true" : "false"}" aria-controls="full-page-option-takeover" data-full-page-option="takeover">
+                <strong>True page takeover</strong>
+                <span>Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</span>
+              </button>
+              <button class="full-page-install-choice ${activeFullPageInstallOption === "iframe" ? "active" : ""}" type="button" role="tab" aria-selected="${activeFullPageInstallOption === "iframe" ? "true" : "false"}" aria-controls="full-page-option-iframe" data-full-page-option="iframe">
+                <strong>Raw iframe fallback</strong>
+                <span>Use this for builders that block scripts.</span>
+              </button>
+            </div>
+            <div class="full-page-install-output ${activeFullPageInstallOption === "share" ? "active" : ""}" id="full-page-option-share" role="tabpanel" data-full-page-option-panel="share" ${activeFullPageInstallOption === "share" ? "" : "hidden"}>
+              <div class="install-cta-row">
+                <button class="primary-button" type="button" data-action="copy-full-page-url" ${publicFullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+                <a class="test-link ${publicFullPageUrl ? "" : "disabled"}" href="${publicFullPageUrl ? escapeHtml(publicFullPageUrl) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
+                <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
+              </div>
+              ${buildInstallCopyBlock({
+                id: "full-page-assistant-url",
+                label: "Front Desk page link",
+                value: publicFullPageUrl,
+                rows: 2,
+                buttonAction: "copy-full-page-url",
+                buttonLabel: "Copy Front Desk page link",
+                disabled: !publicFullPageUrl,
+                className: "full-page-url-output",
+              })}
+            </div>
+            <div class="full-page-install-output ${activeFullPageInstallOption === "section" ? "active" : ""}" id="full-page-option-section" role="tabpanel" data-full-page-option-panel="section" ${activeFullPageInstallOption === "section" ? "" : "hidden"}>
+              <p class="install-help">Place the Front Desk inside part of an existing page.</p>
+              <p class="install-help"><strong>Smart snippet:</strong> Recommended. Automatically adjusts to most website layouts.</p>
+              ${buildInstallCopyBlock({
+                id: "section-assistant-smart-embed",
+                label: "Recommended smart snippet",
+                value: sectionSmartEmbed,
+                rows: 7,
+                buttonAction: "copy-section-assistant-smart-embed",
+                buttonLabel: "Copy smart snippet",
+                disabled: !sectionSmartEmbed,
+                className: "full-page-iframe-output",
+              })}
+              <p class="install-help"><strong>Iframe:</strong> Advanced fallback. Use this if your website builder does not allow scripts.</p>
+              ${buildInstallCopyBlock({
+                id: "section-assistant-iframe",
+                label: "Advanced iframe snippet",
+                value: sectionIframe,
+                rows: 7,
+                buttonAction: "copy-section-assistant-iframe",
+                buttonLabel: "Copy iframe snippet",
+                disabled: !sectionIframe,
+                className: "full-page-iframe-output",
+              })}
+            </div>
+            <div class="full-page-install-output ${activeFullPageInstallOption === "dedicated" ? "active" : ""}" id="full-page-option-dedicated" role="tabpanel" data-full-page-option-panel="dedicated" ${activeFullPageInstallOption === "dedicated" ? "" : "hidden"}>
+              <p class="install-help"><strong>WordPress / dedicated page embed:</strong> Use this when Front Desk is the main content of a page on your website.</p>
+              <p class="install-help">For WordPress, use the Vonza plugin to create a dedicated Front Desk page. This avoids manual snippets and theme content boxes.</p>
+              <p class="install-help">Dedicated page embed makes the Front Desk the page body below your site header. The selected background fills the takeover area edge-to-edge.</p>
+              ${buildInstallCopyBlock({
+                id: "full-page-assistant-smart-embed",
+                label: "Dedicated page embed snippet",
+                value: dedicatedPageSmartEmbed,
+                rows: 9,
+                buttonAction: "copy-full-page-assistant-smart-embed",
+                buttonLabel: "Copy dedicated page embed",
+                disabled: !dedicatedPageSmartEmbed,
+                className: "full-page-iframe-output",
+              })}
+            </div>
+            <div class="full-page-install-output ${activeFullPageInstallOption === "takeover" ? "active" : ""}" id="full-page-option-takeover" role="tabpanel" data-full-page-option-panel="takeover" ${activeFullPageInstallOption === "takeover" ? "" : "hidden"}>
+              <p class="install-help"><strong>True page takeover:</strong> Advanced. Use this on a blank dedicated page when you want Front Desk to own the full page area.</p>
+              <p class="install-help install-warning">Use this on a blank assistant page. It may hide the page footer and remove extra page spacing.</p>
+              ${buildInstallCopyBlock({
+                id: "full-page-assistant-true-page-takeover",
+                label: "True page takeover snippet",
+                value: truePageTakeoverSmartEmbed,
+                rows: 11,
+                buttonAction: "copy-full-page-assistant-true-page-takeover",
+                buttonLabel: "Copy true page takeover",
+                disabled: !truePageTakeoverSmartEmbed,
+                className: "full-page-iframe-output",
+              })}
+            </div>
+            <div class="full-page-install-output ${activeFullPageInstallOption === "iframe" ? "active" : ""}" id="full-page-option-iframe" role="tabpanel" data-full-page-option-panel="iframe" ${activeFullPageInstallOption === "iframe" ? "" : "hidden"}>
+              <p class="install-help"><strong>Raw iframe:</strong> Fallback for builders that block scripts.</p>
+              <p class="install-help">Raw iframe backgrounds stay inside the iframe. Use the smart dedicated page embed when you want the background to fill the page area.</p>
+              ${buildInstallCopyBlock({
+                id: "full-page-assistant-iframe",
+                label: "Raw iframe fallback",
+                value: fullPageIframe,
+                rows: 9,
+                buttonAction: "copy-full-page-iframe",
+                buttonLabel: "Copy raw iframe",
+                disabled: !fullPageIframe,
+                className: "full-page-iframe-output",
+              })}
+            </div>
+          </section>
+          <section class="install-option-card install-option-card-qr ${activeInstallMethod === "qr" ? "active" : ""}" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" ${activeInstallMethod === "qr" ? "" : "hidden"}>
+            <div class="install-option-header">
+              <div>
+                <p class="install-option-eyebrow">Selected method</p>
+                <h3 class="install-option-title">QR / direct link</h3>
+                <p class="install-option-copy">Use a QR code or direct link that opens the full-page Front Desk page.</p>
+              </div>
+              <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
+            </div>
+            <div class="install-qr-section">
+              <div class="install-qr-preview" data-full-page-qr-preview aria-label="Front Desk page QR code">
+                <p class="install-qr-status">Loading QR code...</p>
+              </div>
+              <div class="install-qr-copy">
+                <div class="install-target-url">
+                  <span>Front Desk page link</span>
+                  <strong>${escapeHtml(publicFullPageUrl || "Enable the public Front Desk page before sharing.")}</strong>
+                </div>
+                <p class="install-help">${escapeHtml(qrEndpoint ? "Use this QR code on menus, flyers, signs, invoices, and reception desks." : "Enable the public Front Desk page before downloading or sharing a QR code.")}</p>
+                <p class="install-help">The QR code opens the same customer-facing Front Desk page link.</p>
+                <div class="install-cta-row">
+                  <button class="ghost-button" type="button" data-action="copy-full-page-url" ${publicFullPageUrl ? "" : "disabled"}>Copy Front Desk page link</button>
+                  ${!qrEndpoint ? '<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>' : ""}
+                  <button class="ghost-button" type="button" data-action="download-full-page-qr" disabled>Download QR code</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      `;
+    }
+
+    return Object.freeze({
+      buildInstallProgressItem,
+      buildInstallSetupProgress,
+      buildInstallStageProgress,
+      buildInstallMethodPill,
+      buildInstallDomainChips,
+      buildInstallCopyBlock,
+      buildInstallSidePanel,
+      buildInstallSection,
+    });
+  }
+
   global.VonzaDashboardInstall = Object.freeze({
     createInstallHelpers,
+    createInstallPanelHelpers,
     getPublicFullPageConfig,
     getPublicPageKey,
     isPublicFullPageEnabled,
