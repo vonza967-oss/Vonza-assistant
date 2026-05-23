@@ -60,6 +60,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   const dashboardFrontDeskScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
   const dashboardCustomersScript = readFileSync(path.join(repoRoot, "frontend", "dashboardCustomers.js"), "utf8");
   const dashboardAnalyticsScript = readFileSync(path.join(repoRoot, "frontend", "dashboardAnalytics.js"), "utf8");
+  const dashboardTodayScript = readFileSync(path.join(repoRoot, "frontend", "dashboardToday.js"), "utf8");
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8")
     .replace(/\nboot\(\)\.catch\(\(error\) => \{\n\s*handleFatalDashboardError\(error, "boot-unhandled"\);\n\}\);\s*$/, "\n")
     .replace(/\nboot\(\);\s*$/, "\n");
@@ -169,6 +170,7 @@ function createDashboardHarness({ windowFlags = {}, fetchImpl } = {}) {
   vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(dashboardCustomersScript, context, { filename: "frontend/dashboardCustomers.js" });
   vm.runInNewContext(dashboardAnalyticsScript, context, { filename: "frontend/dashboardAnalytics.js" });
+  vm.runInNewContext(dashboardTodayScript, context, { filename: "frontend/dashboardToday.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
   return context;
 }

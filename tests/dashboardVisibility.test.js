@@ -16,6 +16,7 @@ const dashboardInstallPath = path.join(repoRoot, "frontend", "dashboardInstall.j
 const dashboardFrontDeskPath = path.join(repoRoot, "frontend", "dashboardFrontDesk.js");
 const dashboardCustomersPath = path.join(repoRoot, "frontend", "dashboardCustomers.js");
 const dashboardAnalyticsPath = path.join(repoRoot, "frontend", "dashboardAnalytics.js");
+const dashboardTodayPath = path.join(repoRoot, "frontend", "dashboardToday.js");
 const settingsShellBundlePath = path.join(repoRoot, "frontend", "settings", "SettingsShell.js");
 
 function createStorageMock() {
@@ -56,6 +57,7 @@ function createDashboardHarness({
   const dashboardFrontDeskScript = readFileSync(dashboardFrontDeskPath, "utf8");
   const dashboardCustomersScript = readFileSync(dashboardCustomersPath, "utf8");
   const dashboardAnalyticsScript = readFileSync(dashboardAnalyticsPath, "utf8");
+  const dashboardTodayScript = readFileSync(dashboardTodayPath, "utf8");
   const script = readFileSync(dashboardBundlePath, "utf8");
   const elements = new Map();
   const fetchCalls = [];
@@ -360,6 +362,7 @@ function createDashboardHarness({
   vm.runInNewContext(dashboardFrontDeskScript, context, { filename: "frontend/dashboardFrontDesk.js" });
   vm.runInNewContext(dashboardCustomersScript, context, { filename: "frontend/dashboardCustomers.js" });
   vm.runInNewContext(dashboardAnalyticsScript, context, { filename: "frontend/dashboardAnalytics.js" });
+  vm.runInNewContext(dashboardTodayScript, context, { filename: "frontend/dashboardToday.js" });
   vm.runInNewContext(script, context, { filename: "frontend/dashboard.js" });
 
   return {
@@ -484,6 +487,7 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   const frontDeskBundle = readFileSync(dashboardFrontDeskPath, "utf8");
   const customersBundle = readFileSync(dashboardCustomersPath, "utf8");
   const analyticsBundle = readFileSync(dashboardAnalyticsPath, "utf8");
+  const todayBundle = readFileSync(dashboardTodayPath, "utf8");
   const context = { window: {}, URLSearchParams };
 
   assert.doesNotThrow(() => {
@@ -494,10 +498,12 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
     new vm.Script(frontDeskBundle, { filename: "frontend/dashboardFrontDesk.js" }).runInNewContext(context);
     new vm.Script(customersBundle, { filename: "frontend/dashboardCustomers.js" }).runInNewContext(context);
     new vm.Script(analyticsBundle, { filename: "frontend/dashboardAnalytics.js" }).runInNewContext(context);
+    new vm.Script(todayBundle, { filename: "frontend/dashboardToday.js" }).runInNewContext(context);
   });
 
   assert.equal(context.window.VonzaDashboardHelpers.escapeHtml("<b>Vonza</b>"), "&lt;b&gt;Vonza&lt;/b&gt;");
   assert.equal(context.window.VonzaDashboardHelpers.trimText("  Vonza  "), "Vonza");
+  assert.equal(typeof context.window.VonzaDashboardToday.createTodayHelpers, "function");
   assert.equal(
     context.window.VonzaDashboardHelpers.normalizeBillingPlanKey("starter", [{ key: "starter" }], "growth"),
     "starter"

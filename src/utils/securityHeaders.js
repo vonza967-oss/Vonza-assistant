@@ -23,6 +23,7 @@ function isDashboardAssetPath(pathname) {
     "/dashboardFrontDesk.js",
     "/dashboardCustomers.js",
     "/dashboardAnalytics.js",
+    "/dashboardToday.js",
     "/i18n/dashboardI18n.js",
     "/settings/SettingsShell.js",
     "/settings/settings.css",
