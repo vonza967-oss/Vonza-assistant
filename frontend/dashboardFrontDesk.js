@@ -853,6 +853,683 @@
   `);
     }
 
+    function bindFrontDeskEvents(options = {}) {
+      const agent = options.agent || {};
+      const fetchJson = typeof options.fetchJson === "function"
+        ? options.fetchJson
+        : () => Promise.reject(new Error("Front Desk request helper is unavailable."));
+      const getClientId = typeof options.getClientId === "function"
+        ? options.getClientId
+        : () => "";
+      const setStatus = typeof options.setStatus === "function" ? options.setStatus : () => {};
+      const boot = typeof options.boot === "function" ? options.boot : async () => {};
+      const setActiveFrontDeskSection = typeof options.setActiveFrontDeskSection === "function"
+        ? options.setActiveFrontDeskSection
+        : () => {};
+      const normalizeSection = typeof options.normalizeFrontDeskSection === "function"
+        ? options.normalizeFrontDeskSection
+        : normalizeFrontDeskTab;
+      const syncDashboardHelpUi = typeof options.syncDashboardHelpUi === "function"
+        ? options.syncDashboardHelpUi
+        : () => {};
+      const frontDeskSectionButtons = document.querySelectorAll("[data-frontdesk-target]");
+      const frontDeskOpenButtons = document.querySelectorAll("[data-frontdesk-open]");
+      const frontDeskSections = document.querySelectorAll("[data-frontdesk-section]");
+      const frontDeskApprovedAnswerForms = document.querySelectorAll("[data-frontdesk-approved-answer-form]");
+      const frontDeskArchiveApprovedAnswerButtons = document.querySelectorAll("[data-frontdesk-archive-approved-answer]");
+      const frontDeskTestAnswerButtons = document.querySelectorAll("[data-frontdesk-test-answer]");
+      const frontDeskSaveQueueApprovedButtons = document.querySelectorAll("[data-frontdesk-save-queue-approved]");
+      const frontDeskImproveQueueItemButtons = document.querySelectorAll("[data-frontdesk-improve-queue-item]");
+      const frontDeskPracticeForms = document.querySelectorAll("[data-frontdesk-practice-form]");
+      const frontDeskPracticeResetButtons = document.querySelectorAll("[data-frontdesk-practice-reset]");
+      const frontDeskTeachingForms = document.querySelectorAll("[data-frontdesk-teaching-form]");
+      const frontDeskTeachingCloseButtons = document.querySelectorAll("[data-frontdesk-teaching-close]");
+      const frontDeskTryAgainButtons = document.querySelectorAll("[data-frontdesk-try-again]");
+      const frontDeskOpenImprovementButtons = document.querySelectorAll("[data-frontdesk-open-improvement]");
+      const frontDeskImproveFeedbackButtons = document.querySelectorAll("[data-frontdesk-improve-feedback]");
+      const frontDeskOpenDraftButtons = document.querySelectorAll("[data-frontdesk-open-draft]");
+      const frontDeskEditDraftButtons = document.querySelectorAll("[data-frontdesk-edit-draft]");
+      const frontDeskPublishItemButtons = document.querySelectorAll("[data-frontdesk-publish-item]");
+      const frontDeskEditLibraryAnswerButtons = document.querySelectorAll("[data-frontdesk-edit-library-answer]");
+      const frontDeskFeedbackStatusButtons = document.querySelectorAll("[data-frontdesk-feedback-status]");
+      const conversationSaveApprovedButtons = document.querySelectorAll("[data-conversation-save-approved-answer]");
+      const conversationImproveAnswerButtons = document.querySelectorAll("[data-conversation-improve-answer]");
+      const conversationNotHelpfulButtons = document.querySelectorAll("[data-conversation-not-helpful]");
+
+      const showFrontDeskSection = (target = "practice", eventOptions = {}) => {
+        const normalizedTarget = normalizeSection(target);
+        setActiveFrontDeskSection(normalizedTarget, {
+          syncHash: eventOptions.syncHash === true,
+        });
+
+        frontDeskSectionButtons.forEach((button) => {
+          button.classList.toggle("active", button.dataset.frontdeskTarget === normalizedTarget);
+        });
+
+        frontDeskSections.forEach((section) => {
+          section.hidden = section.dataset.frontdeskSection !== normalizedTarget;
+        });
+
+        syncDashboardHelpUi();
+        return normalizedTarget;
+      };
+
+      const updateFrontDeskFeedbackStatus = async ({ feedbackId, status, trainingItemId = "" } = {}) => {
+        const normalizedFeedbackId = sanitizeText(feedbackId);
+        if (!normalizedFeedbackId || !sanitizeText(status)) {
+          return null;
+        }
+
+        return fetchJson("/agents/front-desk/feedback/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            feedback_id: normalizedFeedbackId,
+            status,
+            training_item_id: trainingItemId || undefined,
+          }),
+        });
+      };
+
+      const recordOwnerFrontDeskFeedback = async ({
+        question = "",
+        answer = "",
+        messageId = "",
+        sessionKey = "",
+        sourceType = "owner_feedback",
+        reason = "other",
+        note = "",
+      } = {}) => fetchJson("/agents/front-desk/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          rating: "not_helpful",
+          reason,
+          note,
+          user_question: question,
+          assistant_answer: answer,
+          assistant_message_key: messageId,
+          session_key: sessionKey,
+          source_type: sourceType,
+          source_route: "dashboard",
+        }),
+      });
+
+      const getPracticeThread = () => document.querySelector("[data-frontdesk-practice-thread]");
+      const getPracticeTeachingShell = () => document.querySelector("[data-frontdesk-teaching-form-shell]");
+      const getPracticeTeachingForm = () => document.querySelector("[data-frontdesk-teaching-form]");
+      const getSelectedDraftTrainingIds = () => {
+        const shell = getPracticeTeachingShell();
+        const selected = sanitizeText(shell?.dataset.includeDraftTrainingIds || "");
+        return selected ? selected.split(",").map((id) => sanitizeText(id)).filter(Boolean) : [];
+      };
+
+      const setSelectedDraftTrainingId = (itemId = "") => {
+        const shell = getPracticeTeachingShell();
+        const normalizedItemId = sanitizeText(itemId);
+        if (!shell || !normalizedItemId) {
+          return;
+        }
+        shell.dataset.includeDraftTrainingIds = normalizedItemId;
+        shell.querySelector("[data-frontdesk-try-again]")?.removeAttribute("hidden");
+      };
+
+      const appendPracticeMessage = ({ role = "assistant", content = "", question = "", answer = "", draftIds = [] } = {}) => {
+        const thread = getPracticeThread();
+        if (!thread || !sanitizeText(content)) {
+          return null;
+        }
+
+        const messageEl = document.createElement("article");
+        messageEl.className = `frontdesk-practice-message ${role === "user" ? "user" : "assistant"}`;
+        messageEl.innerHTML = `
+      <span>${sanitizeHtml(role === "user" ? "You" : (agent.assistantName || agent.name || "Front Desk"))}</span>
+      <p>${sanitizeHtml(content)}</p>
+      ${role === "assistant" ? `
+        <div class="frontdesk-practice-actions">
+          <button class="ghost-button" type="button" data-frontdesk-response-good>Looks good</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-teach data-question="${sanitizeHtml(question)}" data-answer="${sanitizeHtml(answer || content)}">Teach this answer</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-try-again data-question="${sanitizeHtml(question)}" data-draft-ids="${sanitizeHtml(draftIds.join(","))}">Try again</button>
+          <button class="ghost-button" type="button" data-frontdesk-response-teach data-question="${sanitizeHtml(question)}" data-answer="${sanitizeHtml(answer || content)}">Save as improvement</button>
+        </div>
+      ` : ""}
+    `;
+        thread.appendChild(messageEl);
+        thread.scrollTop = thread.scrollHeight;
+
+        messageEl.querySelector("[data-frontdesk-response-good]")?.addEventListener("click", () => {
+          setStatus("Practice answer marked helpful.");
+        });
+        messageEl.querySelectorAll("[data-frontdesk-response-teach]").forEach((button) => {
+          button.addEventListener("click", () => {
+            openPracticeTeachingForm({
+              question: button.dataset.question || "",
+              currentAnswer: button.dataset.answer || "",
+              answer: "",
+              sourceType: "test",
+            });
+          });
+        });
+        messageEl.querySelector("[data-frontdesk-response-try-again]")?.addEventListener("click", async (buttonEvent) => {
+          const button = buttonEvent.currentTarget;
+          const selectedDraftIds = sanitizeText(button.dataset.draftIds)
+            ? button.dataset.draftIds.split(",").map((id) => sanitizeText(id)).filter(Boolean)
+            : getSelectedDraftTrainingIds();
+          await sendPracticeMessage(button.dataset.question || question, { includeDraftTrainingIds: selectedDraftIds, skipUserEcho: true });
+        });
+
+        return messageEl;
+      };
+
+      const openPracticeTeachingForm = ({
+        question = "",
+        currentAnswer = "",
+        answer = "",
+        tags = "",
+        feedbackId = "",
+        itemId = "",
+        sourceType = "test",
+      } = {}) => {
+        showFrontDeskSection("practice", { syncHash: true });
+        const shell = getPracticeTeachingShell();
+        const form = getPracticeTeachingForm();
+        if (!shell || !form) {
+          return;
+        }
+
+        shell.hidden = false;
+        form.querySelector('[name="item_id"]').value = sanitizeText(itemId);
+        form.querySelector('[name="feedback_id"]').value = sanitizeText(feedbackId);
+        form.querySelector('[name="source_type"]').value = sanitizeText(sourceType) || "test";
+        form.querySelector('[name="trigger_text"]').value = sanitizeText(question);
+        form.querySelector('[name="current_answer"]').value = sanitizeText(currentAnswer || answer);
+        form.querySelector('[name="answer_text"]').value = sanitizeText(answer);
+        form.querySelector('[name="tags"]').value = sanitizeText(tags);
+        shell.scrollIntoView({ behavior: "smooth", block: "center" });
+        form.querySelector('[name="answer_text"]')?.focus();
+      };
+
+      const sendPracticeMessage = async (message, { includeDraftTrainingIds = [], skipUserEcho = false } = {}) => {
+        const normalizedMessage = sanitizeText(message);
+        if (!normalizedMessage) {
+          setStatus("Ask a question as if you were a visitor.");
+          return null;
+        }
+
+        const draftIds = includeDraftTrainingIds.length ? includeDraftTrainingIds : getSelectedDraftTrainingIds();
+        if (!skipUserEcho) {
+          appendPracticeMessage({ role: "user", content: normalizedMessage });
+        }
+        setStatus(draftIds.length ? "Trying again with the draft improvement..." : "Practicing with Front Desk...");
+
+        const result = await fetchJson(`/api/agents/${encodeURIComponent(agent.id)}/front-desk/practice-message`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            message: normalizedMessage,
+            includeDraftTrainingIds: draftIds,
+          }),
+        });
+        const reply = sanitizeText(result.reply) || "No practice response returned.";
+        appendPracticeMessage({
+          role: "assistant",
+          content: reply,
+          question: normalizedMessage,
+          answer: reply,
+          draftIds,
+        });
+        setStatus("Practice response ready.");
+        return result;
+      };
+
+      const saveApprovedAnswer = async ({
+        itemId = "",
+        triggerText,
+        answerText,
+        tags,
+        sourceType = "manual",
+        sourceMessageId = "",
+        feedbackId = "",
+        status = "active",
+        refresh = true,
+      } = {}) => {
+        const normalizedTrigger = sanitizeText(triggerText);
+        const normalizedAnswer = sanitizeText(answerText);
+        const normalizedStatus = sanitizeText(status) === "draft" ? "draft" : "active";
+
+        if (!normalizedTrigger || !normalizedAnswer) {
+          setStatus("Add the question or situation and the better answer.");
+          return null;
+        }
+
+        setStatus(normalizedStatus === "draft" ? "Saving draft..." : "Publishing improvement...");
+        const result = await fetchJson("/agents/front-desk/training-items", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: getClientId(),
+            agent_id: agent.id,
+            type: "approved_answer",
+            title: normalizedTrigger,
+            item_id: sanitizeText(itemId) || undefined,
+            trigger_text: normalizedTrigger,
+            answer_text: normalizedAnswer,
+            tags,
+            source_type: sourceType,
+            source_message_id: sourceMessageId || undefined,
+            status: normalizedStatus,
+          }),
+        });
+        if (feedbackId && result?.item?.id) {
+          await updateFrontDeskFeedbackStatus({
+            feedbackId,
+            status: "resolved",
+            trainingItemId: result.item.id,
+          });
+        }
+        setStatus(normalizedStatus === "draft" ? "Draft improvement saved." : "Improvement published.");
+        if (refresh) {
+          await boot();
+          showFrontDeskSection(normalizedStatus === "draft" ? "improvements" : "library", { syncHash: true });
+        }
+        return result;
+      };
+
+      const fillApprovedAnswerForm = ({ question = "", answer = "", tags = "", feedbackId = "", itemId = "" } = {}) => {
+        showFrontDeskSection("library", { syncHash: true });
+        const form = document.querySelector("[data-frontdesk-approved-answer-form]");
+        if (!form) {
+          return;
+        }
+
+        const itemInput = form.querySelector('[name="item_id"]');
+        const questionInput = form.querySelector('[name="trigger_text"]');
+        const answerInput = form.querySelector('[name="answer_text"]');
+        const tagsInput = form.querySelector('[name="tags"]');
+        const feedbackInput = form.querySelector('[name="feedback_id"]');
+        if (itemInput) itemInput.value = sanitizeText(itemId);
+        if (questionInput) questionInput.value = sanitizeText(question);
+        if (answerInput) answerInput.value = sanitizeText(answer);
+        if (tagsInput) tagsInput.value = sanitizeText(tags);
+        if (feedbackInput) feedbackInput.value = sanitizeText(feedbackId);
+        form.scrollIntoView({ behavior: "smooth", block: "center" });
+        questionInput?.focus();
+      };
+
+      frontDeskSectionButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          showFrontDeskSection(button.dataset.frontdeskTarget || "practice", { syncHash: true });
+        });
+      });
+
+      frontDeskOpenButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = showFrontDeskSection(button.dataset.frontdeskOpen || "practice", { syncHash: true });
+          document.querySelector(`[data-frontdesk-section="${target}"]`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        });
+      });
+
+      frontDeskApprovedAnswerForms.forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const formData = new FormData(form);
+
+          try {
+            await saveApprovedAnswer({
+              itemId: formData.get("item_id"),
+              triggerText: formData.get("trigger_text"),
+              answerText: formData.get("answer_text"),
+              tags: formData.get("tags"),
+              feedbackId: formData.get("feedback_id"),
+              status: "active",
+            });
+          } catch (error) {
+            setStatus(error.message || "We couldn't save that published answer.");
+          }
+        });
+      });
+
+      frontDeskArchiveApprovedAnswerButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const itemId = sanitizeText(button.dataset.itemId);
+          if (!itemId) return;
+
+          setStatus("Archiving answer...");
+          try {
+            await fetchJson("/agents/front-desk/training-items/status", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                client_id: getClientId(),
+                agent_id: agent.id,
+                item_id: itemId,
+                status: "archived",
+              }),
+            });
+            setStatus("Answer archived.");
+            await boot();
+            showFrontDeskSection("library", { syncHash: true });
+          } catch (error) {
+            setStatus(error.message || "We couldn't archive that answer.");
+          }
+        });
+      });
+
+      frontDeskTestAnswerButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          showFrontDeskSection("practice", { syncHash: true });
+          const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
+          if (input) {
+            input.value = button.dataset.frontdeskTestAnswer || "";
+            input.focus();
+          }
+        });
+      });
+
+      frontDeskSaveQueueApprovedButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          fillApprovedAnswerForm({
+            question: button.dataset.question || "",
+            answer: button.dataset.answer || "",
+            feedbackId: button.dataset.feedbackId || "",
+          });
+        });
+      });
+
+      frontDeskImproveQueueItemButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          openPracticeTeachingForm({
+            question: button.dataset.question || "",
+            currentAnswer: button.dataset.answer || "",
+            answer: "",
+            feedbackId: button.dataset.feedbackId || "",
+            sourceType: "conversation",
+          });
+          setStatus("Teach this answer in Practice.");
+        });
+      });
+
+      frontDeskFeedbackStatusButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const feedbackId = sanitizeText(button.dataset.feedbackId);
+          const status = sanitizeText(button.dataset.frontdeskFeedbackStatus);
+          if (!feedbackId || !status) return;
+
+          button.disabled = true;
+          setStatus(status === "ignored" ? "Ignoring feedback..." : "Marking feedback resolved...");
+          try {
+            await updateFrontDeskFeedbackStatus({ feedbackId, status });
+            setStatus(status === "ignored" ? "Feedback ignored." : "Feedback resolved.");
+            await boot();
+            showFrontDeskSection("improvements", { syncHash: true });
+          } catch (error) {
+            button.disabled = false;
+            setStatus(error.message || "We couldn't update that feedback.");
+          }
+        });
+      });
+
+      frontDeskPracticeResetButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const thread = getPracticeThread();
+          if (thread) {
+            thread.innerHTML = `
+          <article class="frontdesk-practice-message assistant">
+            <span>${sanitizeHtml(agent.assistantName || agent.name || "Front Desk")}</span>
+            <p>${sanitizeHtml(agent.welcomeMessage || "Hi, I can help answer questions and point you to the right next step.")}</p>
+          </article>
+        `;
+          }
+          const shell = getPracticeTeachingShell();
+          if (shell) {
+            shell.hidden = true;
+            shell.dataset.includeDraftTrainingIds = "";
+          }
+          setStatus("Practice conversation reset.");
+        });
+      });
+
+      frontDeskPracticeForms.forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const formData = new FormData(form);
+          const message = sanitizeText(formData.get("message"));
+
+          if (!message) {
+            setStatus("Ask a question as if you were a visitor.");
+            return;
+          }
+
+          try {
+            await sendPracticeMessage(message);
+            form.reset();
+          } catch (error) {
+            appendPracticeMessage({
+              role: "assistant",
+              content: error.message || "We couldn't practice with Front Desk right now.",
+              question: message,
+            });
+            setStatus(error.message || "We couldn't practice with Front Desk right now.");
+          }
+        });
+      });
+
+      frontDeskTeachingCloseButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const shell = getPracticeTeachingShell();
+          if (shell) {
+            shell.hidden = true;
+          }
+        });
+      });
+
+      frontDeskTeachingForms.forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const submitter = event.submitter;
+          const formData = new FormData(form);
+          const publish = submitter?.hasAttribute("data-frontdesk-publish-improvement");
+          const feedbackId = sanitizeText(formData.get("feedback_id"));
+
+          try {
+            const result = await saveApprovedAnswer({
+              itemId: formData.get("item_id"),
+              triggerText: formData.get("trigger_text"),
+              answerText: formData.get("answer_text"),
+              tags: formData.get("tags"),
+              sourceType: formData.get("source_type") || "test",
+              feedbackId,
+              status: publish ? "active" : "draft",
+              refresh: false,
+            });
+            if (result?.item?.status === "draft") {
+              setSelectedDraftTrainingId(result.item.id);
+              form.querySelector('[name="item_id"]').value = result.item.id || "";
+              setStatus("Draft improvement saved. Try again when you are ready.");
+            } else if (result?.item?.status === "active") {
+              setStatus("Improvement published.");
+              await boot();
+              showFrontDeskSection("library", { syncHash: true });
+            }
+          } catch (error) {
+            setStatus(error.message || "We couldn't save that improvement.");
+          }
+        });
+      });
+
+      frontDeskTryAgainButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const form = getPracticeTeachingForm();
+          const question = sanitizeText(form?.querySelector('[name="trigger_text"]')?.value || "");
+          try {
+            await sendPracticeMessage(question, {
+              includeDraftTrainingIds: getSelectedDraftTrainingIds(),
+              skipUserEcho: false,
+            });
+          } catch (error) {
+            setStatus(error.message || "We couldn't try that improvement.");
+          }
+        });
+      });
+
+      frontDeskOpenImprovementButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          showFrontDeskSection("practice", { syncHash: true });
+          const input = document.querySelector('[data-frontdesk-practice-form] [name="message"]');
+          if (input) {
+            input.value = button.dataset.question || "";
+            input.focus();
+          }
+          if (button.dataset.answer || button.dataset.feedbackId) {
+            openPracticeTeachingForm({
+              question: button.dataset.question || "",
+              currentAnswer: button.dataset.answer || "",
+              answer: button.dataset.itemId && !button.dataset.feedbackId ? button.dataset.answer || "" : "",
+              feedbackId: button.dataset.feedbackId || "",
+              itemId: button.dataset.itemId || "",
+              sourceType: button.dataset.feedbackId ? "conversation" : "test",
+            });
+          }
+        });
+      });
+
+      frontDeskImproveFeedbackButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          openPracticeTeachingForm({
+            question: button.dataset.question || "",
+            currentAnswer: button.dataset.answer || "",
+            feedbackId: button.dataset.feedbackId || "",
+            sourceType: "conversation",
+          });
+          setStatus("Teach this answer in Practice.");
+        });
+      });
+
+      [...frontDeskOpenDraftButtons, ...frontDeskEditDraftButtons, ...frontDeskEditLibraryAnswerButtons].forEach((button) => {
+        button.addEventListener("click", () => {
+          openPracticeTeachingForm({
+            question: button.dataset.question || "",
+            currentAnswer: button.dataset.answer || "",
+            answer: button.dataset.answer || "",
+            tags: button.dataset.tags || "",
+            itemId: button.dataset.itemId || "",
+            sourceType: "test",
+          });
+          if (button.matches("[data-frontdesk-open-draft]")) {
+            setSelectedDraftTrainingId(button.dataset.itemId || "");
+          }
+        });
+      });
+
+      frontDeskPublishItemButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const itemId = sanitizeText(button.dataset.itemId);
+          if (!itemId) return;
+
+          button.disabled = true;
+          setStatus("Publishing improvement...");
+          try {
+            await fetchJson("/agents/front-desk/training-items/status", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                client_id: getClientId(),
+                agent_id: agent.id,
+                item_id: itemId,
+                status: "active",
+              }),
+            });
+            setStatus("Improvement published.");
+            await boot();
+            showFrontDeskSection("library", { syncHash: true });
+          } catch (error) {
+            button.disabled = false;
+            setStatus(error.message || "We couldn't publish that improvement.");
+          }
+        });
+      });
+
+      conversationSaveApprovedButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          fillApprovedAnswerForm({
+            question: button.dataset.question || "",
+            answer: button.dataset.answer || "",
+          });
+        });
+      });
+
+      conversationImproveAnswerButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          openPracticeTeachingForm({
+            question: button.dataset.question || "",
+            currentAnswer: button.dataset.answer || "",
+            sourceType: "conversation",
+          });
+          setStatus("Teach this answer in Practice.");
+        });
+      });
+
+      conversationNotHelpfulButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const question = sanitizeText(button.dataset.question);
+          const answer = sanitizeText(button.dataset.answer);
+          if (!question || !answer) {
+            setStatus("This message needs a customer question and answer before it can be reviewed.");
+            return;
+          }
+
+          setStatus("Sending this answer to Improvements...");
+          button.disabled = true;
+          try {
+            await recordOwnerFrontDeskFeedback({
+              question,
+              answer,
+              messageId: button.dataset.messageId || "",
+              sessionKey: button.dataset.sessionKey || "",
+              sourceType: "owner_feedback",
+              reason: "other",
+            });
+            setStatus("Marked not helpful and sent to Improvements.");
+            await boot();
+            showFrontDeskSection("improvements", { syncHash: true });
+          } catch (error) {
+            button.disabled = false;
+            setStatus(error.message || "We couldn't mark that answer not helpful.");
+          }
+        });
+      });
+
+      return {
+        appendPracticeMessage,
+        fillApprovedAnswerForm,
+        openPracticeTeachingForm,
+        saveApprovedAnswer,
+        sendPracticeMessage,
+        showSection: showFrontDeskSection,
+        updateFrontDeskFeedbackStatus,
+      };
+    }
+
     return {
       getApprovedAnswerItems,
       getPublishedAnswerItems,
@@ -871,6 +1548,7 @@
       buildKnowledgeSection,
       buildLaunchSection,
       buildFrontDeskPanel,
+      bindFrontDeskEvents,
       renderTrainingQueueItem,
       renderApprovedAnswerCard,
     };

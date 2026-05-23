@@ -1779,11 +1779,13 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         const dashboardLabelsScript = await getText(server.baseUrl, "/dashboardLabels.js");
         const dashboardInstallScript = await getText(server.baseUrl, "/dashboardInstall.js");
+        const dashboardFrontDeskScript = await getText(server.baseUrl, "/dashboardFrontDesk.js");
         const dashboardAnalyticsScript = await getText(server.baseUrl, "/dashboardAnalytics.js");
         const dashboardTodayScript = await getText(server.baseUrl, "/dashboardToday.js");
         assert.equal(dashboardScript.status, 200);
         assert.equal(dashboardLabelsScript.status, 200);
         assert.equal(dashboardInstallScript.status, 200);
+        assert.equal(dashboardFrontDeskScript.status, 200);
         assert.equal(dashboardAnalyticsScript.status, 200);
         assert.equal(dashboardTodayScript.status, 200);
         assert.match(dashboardScript.text, /Create your Vonza account/);
@@ -1834,10 +1836,10 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardScript.text, /Show customers needing help/);
         assert.doesNotMatch(dashboardScript.text, /Export customers/);
         assert.match(dashboardScript.text, /Business profile/);
-        assert.match(dashboardScript.text, /data-frontdesk-target/);
-        assert.match(dashboardScript.text, /Knowledge/);
-        assert.match(dashboardScript.text, /Test/);
-        assert.match(dashboardScript.text, /Launch/);
+        assert.match(dashboardFrontDeskScript.text, /data-frontdesk-target/);
+        assert.match(dashboardFrontDeskScript.text, /Knowledge/);
+        assert.match(dashboardFrontDeskScript.text, /Test/);
+        assert.match(dashboardFrontDeskScript.text, /Launch/);
         assert.match(dashboardScript.text, /What stays out of the way/);
         assert.match(dashboardScript.text, /Vonza loaded with partial data/);
         assert.match(dashboardScript.text, /front-desk launch core/i);

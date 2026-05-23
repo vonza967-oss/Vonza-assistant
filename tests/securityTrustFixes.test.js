@@ -1975,9 +1975,10 @@ test("legacy public admin page source is removed", () => {
 
 test("dashboard Practice mode uses the owner-only practice endpoint instead of iframe prompts", () => {
   const dashboard = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const frontDesk = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
 
-  assert.match(dashboard, /Practice mode — visitors will not see this conversation\./);
-  assert.match(dashboard, /front-desk\/practice-message/);
+  assert.match(`${dashboard}\n${frontDesk}`, /Practice mode — visitors will not see this conversation\./);
+  assert.match(frontDesk, /front-desk\/practice-message/);
   assert.doesNotMatch(dashboard, /previewFrame\.src = buildWidgetUrl/);
 });
 
