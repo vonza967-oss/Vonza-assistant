@@ -54,9 +54,14 @@ async function closeServer(nextServer) {
   await new Promise((resolve, reject) => nextServer.close((error) => (error ? reject(error) : resolve())));
 }
 
-async function newPage() {
+async function newPage({ dashboardLanguage } = {}) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
   page.setDefaultTimeout(8000);
+  if (dashboardLanguage) {
+    await page.addInitScript((language) => {
+      localStorage.setItem("vonza_dashboard_language", language);
+    }, dashboardLanguage);
+  }
   await page.route("**/product-events", async (route) => {
     await route.fulfill({
       status: 200,
@@ -76,6 +81,12 @@ async function newPage() {
 
 async function assertVisibleText(page, text) {
   await page.getByText(text, { exact: false }).first().waitFor({ state: "visible" });
+}
+
+async function assertNoVisibleEnglishLeaks(page, deniedPhrases) {
+  const visibleText = await page.locator("body").innerText();
+  const leakedPhrases = deniedPhrases.filter((phrase) => visibleText.includes(phrase));
+  assert.deepEqual(leakedPhrases, []);
 }
 
 test.before(async () => {
@@ -206,6 +217,73 @@ test("Front Desk practice route renders", async () => {
     await assertVisibleText(page, "Ask a question as if you were a visitor");
   } finally {
     await page.close();
+  }
+});
+
+test("Hungarian dashboard fixture routes do not show audited operator English", async () => {
+  const deniedPhrases = [
+    "Your AI customer service snapshot for today",
+    "Conversations today",
+    "Guided to next step",
+    "Open issues",
+    "Track leads, guests, follow-ups, and recent conversations.",
+    "Search by name, email, phone, or conversation",
+    "All customers",
+    "Source",
+    "Intent",
+    "Status",
+    "Practice with Front Desk",
+    "Ask a question as if you were a visitor",
+    "Prompt starters",
+    "Embedded preview",
+    "Performance insights for your AI front desk.",
+    "Total conversations",
+    "Live customer conversations",
+    "Top customer questions",
+    "Performance by source",
+    "Avg. time to first response",
+    "Publish your AI Front Desk page",
+    "Copy Front Desk page link",
+    "Live install detected",
+    "Choose method",
+    "Configure",
+    "Installation methods",
+    "Website widget bubble",
+    "Copy website bubble code",
+    "Adjust how the customer-facing Front Desk speaks",
+    "Identity & welcome",
+    "What should your customer-facing",
+    "Answer customer questions",
+    "Booking / next step guidance",
+    "Accent color",
+    "Account and billing",
+    "Current account status",
+    "Billing and monthly usage",
+    "Plan options",
+    "TELEPÍTÉSATION",
+    "Nemrégly",
+  ];
+  const routes = [
+    "#home",
+    "#customers",
+    "#front-desk",
+    "#front-desk/practice",
+    "#analytics",
+    "#install",
+    "#settings",
+    "#settings/front-desk",
+  ];
+
+  for (const routeHash of routes) {
+    const page = await newPage({ dashboardLanguage: "hu" });
+
+    try {
+      await page.goto(`${baseUrl}/dashboard-v2-fixture${routeHash}`, { waitUntil: "domcontentloaded" });
+      await page.locator("[data-app-shell]").waitFor({ state: "visible" });
+      await assertNoVisibleEnglishLeaks(page, deniedPhrases);
+    } finally {
+      await page.close();
+    }
   }
 });
 
