@@ -508,6 +508,65 @@
     );
   }
 
+  function isCalendlyBookingUrl(value = "") {
+    const normalized = defaultTrimText(value);
+
+    if (!normalized) {
+      return false;
+    }
+
+    try {
+      const parsed = new URL(normalized);
+      const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+      return parsed.protocol === "https:" && (hostname === "calendly.com" || hostname.endsWith(".calendly.com"));
+    } catch {
+      return false;
+    }
+  }
+
+  function getBookingProvider(agent = {}) {
+    const config = agent.fullPageConfig || agent.full_page_config || {};
+    const configuredProvider = defaultTrimText(
+      agent.bookingProvider
+      || agent.booking_provider
+      || config.bookingProvider
+      || config.booking_provider
+    ).toLowerCase();
+
+    if (configuredProvider === "calendly" || configuredProvider === "manual") {
+      return configuredProvider;
+    }
+
+    return isCalendlyBookingUrl(agent.bookingUrl || agent.booking_url) ? "calendly" : "manual";
+  }
+
+  function getBookingProviderStatus(agent = {}) {
+    const bookingUrl = defaultTrimText(agent.bookingUrl || agent.booking_url);
+    const provider = getBookingProvider(agent);
+
+    if (!bookingUrl) {
+      return {
+        label: "Needs booking link",
+        tone: "Pending",
+        copy: "Add a booking URL before Vonza offers a booking handoff.",
+      };
+    }
+
+    if (provider === "calendly" && isCalendlyBookingUrl(bookingUrl)) {
+      return {
+        label: "Calendly link connected",
+        tone: "Ready",
+        copy: "Vonza will send booking-intent visitors to this Calendly link.",
+      };
+    }
+
+    return {
+      label: "Manual link configured",
+      tone: "Ready",
+      copy: "Vonza will send booking-intent visitors to this booking link.",
+    };
+  }
+
   function getDefaultFullPageActionCards(agent = {}) {
     const cards = DEFAULT_FULL_PAGE_ACTION_CARDS.map((card) => ({ ...card }));
 
@@ -1237,6 +1296,8 @@
     const fullPageSuggestedQuestionsText = fullPageConfig.suggestedQuestions.join("\n");
     const fullPageTrustItemsText = fullPageConfig.trustItems.join("\n");
     const bookingSupported = hasBookingSupport(agent);
+    const bookingProvider = getBookingProvider(agent);
+    const bookingProviderStatus = getBookingProviderStatus(agent);
     const activeFrontDeskTab = getActiveFrontDeskSettingsTab(helpers);
     const activeFullPageTab = getActiveFullPageSettingsTab(helpers);
     const frontDeskTabClass = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "active" : "";
@@ -1718,8 +1779,23 @@
               </div>
               <div class="settings-shell-field-stack">
                 <div class="field">
+                  <label for="assistant-booking-provider">Booking provider</label>
+                  <select id="assistant-booking-provider" name="booking_provider">
+                    <option value="manual" ${bookingProvider === "manual" ? "selected" : ""}>Manual booking link</option>
+                    <option value="calendly" ${bookingProvider === "calendly" ? "selected" : ""}>Calendly</option>
+                  </select>
+                  <p class="field-help">Calendly mode requires a public HTTPS calendly.com booking link.</p>
+                </div>
+                <div class="settings-shell-choice-row">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">${escapeHtml(bookingProviderStatus.label)}</p>
+                    <p class="settings-shell-key-value-copy">${escapeHtml(bookingProviderStatus.copy)}</p>
+                  </div>
+                  <span class="${helpers.getBadgeClass(bookingProviderStatus.tone)}">${escapeHtml(bookingProvider === "calendly" ? "Calendly" : "Manual")}</span>
+                </div>
+                <div class="field">
                   <label for="assistant-booking-url">Booking URL</label>
-                  <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="https://example.com/book">
+                  <input id="assistant-booking-url" name="booking_url" type="text" value="${escapeHtml(agent.bookingUrl || "")}" placeholder="${bookingProvider === "calendly" ? "https://calendly.com/example/consultation" : "https://example.com/book"}">
                 </div>
                 <div class="field">
                   <label for="assistant-quote-url">Quote URL</label>

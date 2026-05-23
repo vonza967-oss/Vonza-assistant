@@ -212,6 +212,45 @@ test("/install/cta accepts configured booking_url and records booking_started", 
   }
 });
 
+test("/install/cta accepts saved Calendly booking_url and records booking_started", async () => {
+  const supabase = createSupabaseStub();
+  supabase.state.widget_configs[0].booking_url = "https://calendly.com/acme/demo";
+  supabase.state.widget_configs[0].booking_start_url = null;
+  const server = await startServer(createApp(supabase));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/install/cta?install_id=11111111-1111-1111-1111-111111111111&session_id=session-calendly&cta_type=booking&target_type=url&target_url=${encodeURIComponent("https://calendly.com/acme/demo")}`, {
+      redirect: "manual",
+    });
+
+    assert.equal(response.status, 302);
+    assert.match(response.headers.get("location") || "", /^https:\/\/calendly\.com\/acme\/demo\?/);
+    assert.equal(supabase.state.agent_conversion_outcomes.length, 1);
+    assert.equal(supabase.state.agent_conversion_outcomes[0].outcome_type, "booking_started");
+  } finally {
+    await server.close();
+  }
+});
+
+test("/install/cta rejects mismatched target_url when Calendly booking_url is saved", async () => {
+  const supabase = createSupabaseStub();
+  supabase.state.widget_configs[0].booking_url = "https://calendly.com/acme/demo";
+  const server = await startServer(createApp(supabase));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/install/cta?install_id=11111111-1111-1111-1111-111111111111&session_id=session-calendly&cta_type=booking&target_type=url&target_url=${encodeURIComponent("https://calendly.com/other/demo")}`, {
+      redirect: "manual",
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "CTA target is not configured for this install.");
+    assert.equal(supabase.state.agent_conversion_outcomes.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
 test("/install/cta rejects external mismatched target_url without recording a click", async () => {
   const supabase = createSupabaseStub();
   const server = await startServer(createApp(supabase));

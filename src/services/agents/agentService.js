@@ -54,6 +54,7 @@ const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may gi
 const DEFAULT_ACCESS_STATUS = "pending";
 const DEFAULT_PRECLAIM_TOKEN_TTL_HOURS = 24;
 const CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
+const BOOKING_PROVIDERS = ["manual", "calendly"];
 const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "booking_url",
   "quote_url",
@@ -316,6 +317,31 @@ function normalizeOptionalUrl(value) {
     requireHttps: true,
     requirePublicHostname: true,
   }) || "";
+}
+
+function normalizeBookingProvider(value, fallbackValue = "manual") {
+  const normalized = cleanText(value).toLowerCase().replace(/_/g, "-");
+  return BOOKING_PROVIDERS.includes(normalized) ? normalized : fallbackValue;
+}
+
+function isCalendlyUrl(value) {
+  const normalized = normalizeOptionalUrl(value);
+
+  if (!normalized) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    return parsed.protocol === "https:" && (hostname === "calendly.com" || hostname.endsWith(".calendly.com"));
+  } catch {
+    return false;
+  }
+}
+
+function buildInvalidCalendlyUrlError() {
+  return buildAgentSettingsError("Enter a public https Calendly URL for the booking route.", 400);
 }
 
 function buildInvalidDirectUrlError(label) {
@@ -868,10 +894,15 @@ export function normalizeFullPageConfig(input = {}, options = {}) {
   const design = normalizeFullPageDesignConfig(
     readConfigField(config, "design") || {}
   );
+  const bookingProvider = normalizeBookingProvider(
+    readConfigField(config, "bookingProvider", "booking_provider"),
+    "manual"
+  );
 
   return {
     publicPageEnabled,
     publicPageKey,
+    bookingProvider,
     headline: normalizeLimitedText(readConfigField(config, "headline"), 80) || null,
     subtitle: normalizeLimitedText(readConfigField(config, "subtitle"), 180) || null,
     actionCards: actionCards.length ? actionCards : defaultCards,
@@ -965,6 +996,7 @@ function serializeFullPageConfig(config = {}) {
   return {
     public_page_enabled: normalized.publicPageEnabled === true,
     public_page_key: normalizePublicPageKey(normalized.publicPageKey) || null,
+    booking_provider: normalizeBookingProvider(normalized.bookingProvider),
     headline: normalized.headline,
     subtitle: normalized.subtitle,
     action_cards: normalized.actionCards.map((card) => ({ ...card })),
@@ -1269,6 +1301,7 @@ function mapWidgetConfigRow(row) {
           widgetLogoUrl,
           themeMode: row.theme_mode ?? DEFAULT_WIDGET_CONFIG.themeMode,
           bookingUrl: normalizeOptionalUrl(row.booking_url) || "",
+          bookingProvider: fullPageConfig.bookingProvider,
           quoteUrl: normalizeOptionalUrl(row.quote_url) || "",
           checkoutUrl: normalizeOptionalUrl(row.checkout_url) || "",
           bookingStartUrl: outcomeSettings.bookingStartUrl,
@@ -1318,6 +1351,7 @@ function mapPersistedWidgetConfigRow(row) {
     widgetLogoUrl,
     themeMode: cleanText(row?.theme_mode),
     bookingUrl: normalizeOptionalUrl(row?.booking_url) || "",
+    bookingProvider: normalizedFullPageConfig.bookingProvider,
     quoteUrl: normalizeOptionalUrl(row?.quote_url) || "",
     checkoutUrl: normalizeOptionalUrl(row?.checkout_url) || "",
     bookingStartUrl: outcomeSettings.bookingStartUrl,
@@ -2519,6 +2553,7 @@ export async function updateAgentSettings(
     bookingUrl,
     quoteUrl,
     checkoutUrl,
+    bookingProvider,
     bookingStartUrl,
     quoteStartUrl,
     bookingSuccessUrl,
@@ -2537,8 +2572,10 @@ export async function updateAgentSettings(
     vertical,
   } = options;
   const hasField = (fieldName) => Object.prototype.hasOwnProperty.call(options, fieldName);
+  const hasSubmittedBookingProvider = hasField("bookingProvider");
   const hasSubmittedRoutingField = ROUTING_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
-  const hasSubmittedFullPageConfig = FULL_PAGE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
+  const hasSubmittedFullPageConfig =
+    FULL_PAGE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName)) || hasSubmittedBookingProvider;
   const hasSubmittedVoiceConfig = VOICE_WIDGET_CONFIG_KEYS.some((fieldName) => hasField(fieldName));
   const normalizedAgentId = cleanText(agentId);
   const providedWebsiteUrl = hasField("websiteUrl") ? cleanText(websiteUrl) : "";
@@ -2559,10 +2596,21 @@ export async function updateAgentSettings(
     throw buildInvalidWebsiteUrlError();
   }
 
+  const requestedFullPageConfig = normalizeFullPageConfigInput(fullPageConfig);
+  const requestedBookingProvider = hasSubmittedBookingProvider
+    ? bookingProvider
+    : readConfigField(requestedFullPageConfig, "bookingProvider", "booking_provider");
+  const normalizedSubmittedBookingProvider = normalizeBookingProvider(requestedBookingProvider, "");
+  if (requestedBookingProvider !== undefined && !normalizedSubmittedBookingProvider) {
+    throw buildAgentSettingsError("Choose a valid booking provider.", 400);
+  }
+
   const providedBookingUrl = hasField("bookingUrl") ? cleanText(bookingUrl) : "";
   const normalizedBookingUrl = normalizeOptionalUrl(providedBookingUrl);
   if (hasField("bookingUrl") && providedBookingUrl && !normalizedBookingUrl) {
-    throw buildInvalidDirectUrlError("the booking route");
+    throw normalizedSubmittedBookingProvider === "calendly"
+      ? buildInvalidCalendlyUrlError()
+      : buildInvalidDirectUrlError("the booking route");
   }
 
   const providedQuoteUrl = hasField("quoteUrl") ? cleanText(quoteUrl) : "";
@@ -2668,6 +2716,7 @@ export async function updateAgentSettings(
         widgetLogoUrl: currentWidgetConfig.widgetLogoUrl || "",
         themeMode: cleanText(currentWidgetConfig.themeMode),
         bookingUrl: currentWidgetConfig.bookingUrl || "",
+        bookingProvider: currentWidgetConfig.bookingProvider || "manual",
         quoteUrl: currentWidgetConfig.quoteUrl || "",
         checkoutUrl: currentWidgetConfig.checkoutUrl || "",
         bookingStartUrl: currentWidgetConfig.bookingStartUrl || "",
@@ -2707,6 +2756,10 @@ export async function updateAgentSettings(
   const nextBookingUrl = hasField("bookingUrl")
     ? normalizedBookingUrl || ""
     : persistedWidgetConfig.bookingUrl;
+  const nextBookingProvider = normalizedSubmittedBookingProvider || persistedWidgetConfig.bookingProvider || "manual";
+  if (nextBookingProvider === "calendly" && nextBookingUrl && !isCalendlyUrl(nextBookingUrl)) {
+    throw buildInvalidCalendlyUrlError();
+  }
   const nextQuoteUrl = hasField("quoteUrl")
     ? normalizedQuoteUrl || ""
     : persistedWidgetConfig.quoteUrl;
@@ -2755,9 +2808,17 @@ export async function updateAgentSettings(
   const nextBusinessHoursNote = hasField("businessHoursNote")
     ? cleanText(businessHoursNote)
     : persistedWidgetConfig.businessHoursNote;
-  const nextFullPageConfig = hasField("fullPageConfig")
+  const nextFullPageConfig = (hasField("fullPageConfig") || hasSubmittedBookingProvider)
     ? resolveFullPageAccessConfig(
-        normalizeFullPageConfig(fullPageConfig, {
+        normalizeFullPageConfig(hasField("fullPageConfig")
+          ? {
+              ...requestedFullPageConfig,
+              bookingProvider: nextBookingProvider,
+            }
+          : {
+              ...persistedWidgetConfig.fullPageConfig,
+              bookingProvider: nextBookingProvider,
+            }, {
           bookingSupport: hasBookingSupportInWidgetConfig({
             ...persistedWidgetConfig,
             bookingUrl: nextBookingUrl,
@@ -3060,6 +3121,7 @@ export async function updateAgentSettings(
     primaryColor: savedWidgetConfig.primaryColor,
     secondaryColor: savedWidgetConfig.secondaryColor,
     bookingUrl: savedWidgetConfig.bookingUrl,
+    bookingProvider: savedWidgetConfig.bookingProvider || savedWidgetConfig.fullPageConfig?.bookingProvider || nextBookingProvider,
     quoteUrl: savedWidgetConfig.quoteUrl,
     checkoutUrl: savedWidgetConfig.checkoutUrl,
     bookingStartUrl: savedWidgetConfig.bookingStartUrl,

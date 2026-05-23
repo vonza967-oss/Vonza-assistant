@@ -2297,6 +2297,16 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Optional. This appears in the handoff card.": "Opcionális. Ez jelenik meg az átadási kártyán.",
   "Outcome routing": "Eredményútvonalak",
   "Map the destinations Vonza can use for booking, quote, checkout, and success-state routing.": "Állítsd be azokat a célokat, amelyeket a Vonza foglaláshoz, ajánlatkéréshez, fizetéshez és sikerállapot-útvonalakhoz használhat.",
+  "Booking provider": "Foglalási szolgáltató",
+  "Manual booking link": "Manuális foglalási link",
+  "Calendly mode requires a public HTTPS calendly.com booking link.": "A Calendly módhoz nyilvános HTTPS calendly.com foglalási link szükséges.",
+  "Manual link configured": "Manuális link beállítva",
+  "Calendly link connected": "Calendly link csatlakoztatva",
+  "Needs booking link": "Foglalási link szükséges",
+  "Add a booking URL before Vonza offers a booking handoff.": "Adj meg foglalási URL-t, mielőtt a Vonza foglalási átadást kínál.",
+  "Vonza will send booking-intent visitors to this Calendly link.": "A Vonza erre a Calendly linkre küldi a foglalási szándékú látogatókat.",
+  "Vonza will send booking-intent visitors to this booking link.": "A Vonza erre a foglalási linkre küldi a foglalási szándékú látogatókat.",
+  "Manual": "Manuális",
   "Booking start URL": "Foglalás kezdő URL",
   "Quote start URL": "Ajánlatkérés kezdő URL",
   "Booking success URL": "Foglalás siker URL",
@@ -12292,6 +12302,7 @@ async function uploadFullPageBackgroundFile(form, agent, kind) {
 
 function parseFullPageConfigPayload(formData) {
   const actionCards = [];
+  const bookingProvider = trimText(formData.get("booking_provider")).toLowerCase();
 
   for (let index = 0; index < 6; index += 1) {
     const labelKey = `full_page_action_${index}_label`;
@@ -12320,6 +12331,7 @@ function parseFullPageConfigPayload(formData) {
   return {
     public_page_enabled: formData.has("full_page_public_enabled"),
     public_page_key: normalizeFullPageFormText(formData.get("full_page_public_page_key"), 80) || null,
+    booking_provider: bookingProvider === "calendly" ? "calendly" : "manual",
     headline: normalizeFullPageFormText(formData.get("full_page_headline"), 80) || null,
     subtitle: normalizeFullPageFormText(formData.get("full_page_subtitle"), 180) || null,
     action_cards: actionCards,
@@ -12425,6 +12437,7 @@ async function saveAssistant(event, agent) {
     "primary_color",
     "secondary_color",
     "allowed_domains",
+    "booking_provider",
     "booking_url",
     "quote_url",
     "checkout_url",

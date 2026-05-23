@@ -1426,6 +1426,10 @@ export function createAgentRouter(deps = {}) {
       if (fullPageConfig !== undefined) {
         updateOptions.fullPageConfig = fullPageConfig;
       }
+      const bookingProvider = readBodyField(req.body, "booking_provider", "bookingProvider");
+      if (bookingProvider !== undefined) {
+        updateOptions.bookingProvider = bookingProvider;
+      }
       const voiceConfig = readBodyField(req.body, "voice_config", "voiceConfig");
       if (voiceConfig !== undefined) {
         updateOptions.voiceConfig = voiceConfig;

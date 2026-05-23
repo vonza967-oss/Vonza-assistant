@@ -1281,6 +1281,177 @@ test("updateAgentSettings persists and rehydrates Front Desk routing settings", 
   assert.equal(reloaded.businessHoursNote, "Monday-Friday, 9-5");
 });
 
+test("updateAgentSettings saves a valid Calendly booking provider link", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Example",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+        full_page_config: {
+          public_page_enabled: true,
+          public_page_key: "page-key",
+        },
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    bookingProvider: "calendly",
+    bookingUrl: "https://calendly.com/acme/demo",
+    primaryCtaMode: "booking",
+  });
+
+  assert.equal(result.bookingProvider, "calendly");
+  assert.equal(result.bookingUrl, "https://calendly.com/acme/demo");
+  assert.equal(result.fullPageConfig.bookingProvider, "calendly");
+  assert.equal(state.widget_configs[0].booking_url, "https://calendly.com/acme/demo");
+  assert.equal(state.widget_configs[0].full_page_config.booking_provider, "calendly");
+});
+
+test("updateAgentSettings rejects invalid Calendly booking provider URLs", async () => {
+  const buildSupabase = () => createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Example",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  for (const bookingUrl of [
+    "https://example.com/book",
+    "http://calendly.com/acme/demo",
+    "https://calendly.com.evil.example/acme/demo",
+    "https://localhost/acme/demo",
+  ]) {
+    const { state, ...supabase } = buildSupabase();
+
+    await assert.rejects(
+      () =>
+        updateAgentSettings(supabase, {
+          agentId: "agent-1",
+          bookingProvider: "calendly",
+          bookingUrl,
+        }),
+      (error) => {
+        assert.equal(error.statusCode, 400);
+        assert.match(error.message, /public https Calendly URL/i);
+        return true;
+      }
+    );
+    assert.equal(state.widget_configs[0].booking_url, undefined);
+  }
+});
+
+test("updateAgentSettings keeps manual booking links working as before", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "stay helpful",
+        tone: "friendly",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Example",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    bookingProvider: "manual",
+    bookingUrl: "https://book.example.com/consultation",
+  });
+
+  assert.equal(result.bookingProvider, "manual");
+  assert.equal(result.bookingUrl, "https://book.example.com/consultation");
+  assert.equal(state.widget_configs[0].booking_url, "https://book.example.com/consultation");
+});
+
 test("updateAgentSettings rejects routing saves when routing columns are unavailable", async () => {
   const { state, ...supabase } = createSupabaseStub({
     agents: [

@@ -4465,6 +4465,37 @@ test("Settings Front Desk subtabs survive workspace refresh and nested hashes", 
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "appearance");
 });
 
+test("Settings Front Desk routing renders booking provider status", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+  const agent = createDashboardUiStateAgent({
+    bookingUrl: "https://calendly.com/acme/demo",
+    fullPageConfig: {
+      publicPageEnabled: true,
+      publicPageKey: "page-key",
+      bookingProvider: "calendly",
+    },
+  });
+
+  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
+  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+    agent,
+    setup: {},
+    operatorWorkspace: harness.createEmptyOperatorWorkspace(),
+  });
+
+  assert.match(settingsPanel, /Booking provider/);
+  assert.match(settingsPanel, /Manual booking link/);
+  assert.match(settingsPanel, /Calendly/);
+  assert.match(settingsPanel, /value="calendly" selected/);
+  assert.match(settingsPanel, /Calendly link connected/);
+  assert.match(settingsPanel, /https:\/\/calendly\.com\/acme\/demo/);
+});
+
 test("Install selected method survives install status refresh and nested hashes", async () => {
   const agent = createDashboardUiStateAgent();
   const harness = createDashboardHarness({
