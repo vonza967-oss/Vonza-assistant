@@ -1731,7 +1731,7 @@ test("public legal pages, aliases, and legal links are exposed without placehold
         assert.match(marketingHome.text, /href="\/cookie-tajekoztato"/);
 
         const widget = await getText(server.baseUrl, "/widget");
-        assert.match(widget.text, /Before you continue, you can review how Vonza handles/);
+        assert.match(widget.text, /Continuing lets Vonza store this chat session for replies, safety, and follow-up/);
         assert.match(widget.text, /href="\/adatkezelesi-tajekoztato"/);
         assert.match(widget.text, /href="\/aszf"/);
         assert.match(widget.text, /href="\/cookie-tajekoztato"/);
@@ -3492,7 +3492,7 @@ test("knowledge-fix updates still enforce active owner access and scoping", { co
   );
 });
 
-test("knowledge import still supports the unauthenticated client bridge during onboarding", { concurrency: false }, async () => {
+test("knowledge import requires owner auth instead of the unauthenticated client bridge", { concurrency: false }, async () => {
   const state = { accessStatus: "pending" };
 
   await withEnv(
@@ -3514,8 +3514,8 @@ test("knowledge import still supports the unauthenticated client bridge during o
             client_id: "client-1",
           }),
         });
-        assert.equal(imported.status, 200);
-        assert.equal(imported.json.ok, true);
+        assert.equal(imported.status, 401);
+        assert.match(imported.json.error, /Unauthorized|Authentication required/i);
       } finally {
         await server.close();
       }

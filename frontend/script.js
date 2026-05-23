@@ -54,8 +54,11 @@ const EMBED_FINGERPRINT =
   searchParams.get("fingerprint") ||
   window.VonzaWidgetConfig?.fingerprint ||
   "";
+let visitorStorageConsentGranted = false;
+let transientVisitorSessionKey = "";
 
 const LEGACY_WIDGET_DEFAULTS = {
+  assistantName: "Vonza AI",
   welcomeMessage: "How may I be of your service today?",
   launcherText: "YOUR PERSONAL ASSISTANT",
   primaryColor: "#10a37f",
@@ -63,10 +66,10 @@ const LEGACY_WIDGET_DEFAULTS = {
 };
 
 const DEFAULT_WIDGET_CONFIG = {
-  assistantName: "Vonza AI",
+  assistantName: "Front Desk",
   welcomeMessage: "Hi! How can we help today?",
-  buttonLabel: "Chat with Vonza",
-  launcherText: "AI front desk for your website",
+  buttonLabel: "Open Front Desk",
+  launcherText: "Business front desk",
   widgetLogoUrl: "",
   primaryColor: "#5b61ff",
   secondaryColor: "#7c4dff",
@@ -380,6 +383,15 @@ function getVisitorIdentityStorageKey() {
 
 function getVisitorSessionKey() {
   const storageKey = getVisitorSessionStorageKey();
+
+  if (!visitorStorageConsentGranted) {
+    if (!transientVisitorSessionKey) {
+      transientVisitorSessionKey = EMBED_SESSION_ID || window.crypto?.randomUUID?.() || `visitor_${Date.now()}`;
+    }
+
+    return transientVisitorSessionKey;
+  }
+
   let sessionKey = window.localStorage.getItem(storageKey);
 
   if (!sessionKey) {
@@ -388,6 +400,21 @@ function getVisitorSessionKey() {
   }
 
   return sessionKey;
+}
+
+function grantVisitorStorageConsent() {
+  if (!transientVisitorSessionKey) {
+    transientVisitorSessionKey = EMBED_SESSION_ID || window.crypto?.randomUUID?.() || `visitor_${Date.now()}`;
+  }
+
+  visitorStorageConsentGranted = true;
+  if (transientVisitorSessionKey) {
+    try {
+      window.localStorage.setItem(getVisitorSessionStorageKey(), transientVisitorSessionKey);
+    } catch {
+      // Storage consent is explicit, but storage availability is still browser-dependent.
+    }
+  }
 }
 
 function trimText(value) {
@@ -474,6 +501,10 @@ function saveVisitorIdentity(identity) {
   const normalized = normalizeVisitorIdentityState(identity);
 
   try {
+    if (!visitorStorageConsentGranted) {
+      return normalized;
+    }
+
     if (!normalized.mode) {
       window.localStorage.removeItem(getVisitorIdentityStorageKey());
       return normalized;
@@ -502,7 +533,12 @@ function loadStoredVisitorIdentity() {
       return normalizeVisitorIdentityState();
     }
 
-    return normalizeVisitorIdentityState(parsed || {});
+    const storedIdentity = normalizeVisitorIdentityState(parsed || {});
+    if (storedIdentity.mode) {
+      visitorStorageConsentGranted = true;
+    }
+
+    return storedIdentity;
   } catch {
     return normalizeVisitorIdentityState();
   }
@@ -1236,6 +1272,7 @@ function normalizeWidgetConfig(input = {}) {
   const hasExplicitAssistantName = Boolean(
     explicitAssistantName
     && explicitAssistantName !== DEFAULT_WIDGET_CONFIG.assistantName
+    && explicitAssistantName !== LEGACY_WIDGET_DEFAULTS.assistantName
   );
   const rawInputFullPageConfig =
     input.fullPageConfig && typeof input.fullPageConfig === "object" && !Array.isArray(input.fullPageConfig)
@@ -1333,7 +1370,7 @@ function getPageUrl() {
 }
 
 function getFingerprint() {
-  return trimText(EMBED_FINGERPRINT);
+  return visitorStorageConsentGranted ? trimText(EMBED_FINGERPRINT) : "";
 }
 
 function applyDisplayModeClasses() {
@@ -1967,6 +2004,10 @@ function setVisitorIdentityState(identity, options = {}) {
 }
 
 function continueIntoChat(identity, options = {}) {
+  if (options.persist !== false) {
+    grantVisitorStorageConsent();
+  }
+
   const normalized = setVisitorIdentityState(identity, options);
 
   if (!normalized.mode) {
@@ -2047,9 +2088,6 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
   }
 }
 
-async function persistIdentifiedVisitorChoice(identity = visitorIdentity) {
-  return persistVisitorIdentityChoice(identity);
-}
 function getDirectRoutingSlot() {
   return document.getElementById("direct-routing-slot");
 }
@@ -2104,9 +2142,6 @@ function buildTrackedRedirectUrl(routing, cta) {
   const url = new URL("/install/cta", window.location.origin);
 
   url.searchParams.set("install_id", INSTALL_ID);
-  url.searchParams.set("session_id", getVisitorSessionKey());
-  url.searchParams.set("visitor_id", getFingerprint() || getVisitorSessionKey());
-  if (getFingerprint()) url.searchParams.set("fingerprint", getFingerprint());
   if (getPageUrl()) url.searchParams.set("page_url", getPageUrl());
   if (getPageOrigin()) url.searchParams.set("origin", getPageOrigin());
   if (trimText(cta?.ctaType)) url.searchParams.set("cta_type", trimText(cta.ctaType));
@@ -2116,10 +2151,6 @@ function buildTrackedRedirectUrl(routing, cta) {
   if (metadata.decisionKey) url.searchParams.set("decision_key", metadata.decisionKey);
   if (metadata.relatedIntentType) url.searchParams.set("related_intent_type", metadata.relatedIntentType);
   if (metadata.relatedActionKey) url.searchParams.set("action_key", metadata.relatedActionKey);
-  if (metadata.relatedConversationId) url.searchParams.set("conversation_id", metadata.relatedConversationId);
-  if (metadata.relatedPersonKey) url.searchParams.set("person_key", metadata.relatedPersonKey);
-  if (metadata.leadId) url.searchParams.set("lead_id", metadata.leadId);
-  if (metadata.followUpId) url.searchParams.set("follow_up_id", metadata.followUpId);
 
   return url.toString();
 }
@@ -2273,36 +2304,6 @@ function renderDirectRouting(routing) {
   });
 }
 
-function bindLeadCaptureInteractions(slot, leadCapture) {
-  const form = slot.querySelector("[data-lead-capture-form]");
-  const declineButton = slot.querySelector("[data-lead-capture-decline]");
-
-  if (form) {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const formData = new FormData(form);
-      await submitLeadCaptureAction("submit", {
-        name: formData.get("name"),
-        email: formData.get("email"),
-        phone: formData.get("phone"),
-        preferred_channel: formData.get("preferred_channel"),
-      });
-    });
-  }
-
-  if (declineButton) {
-    declineButton.addEventListener("click", async () => {
-      await submitLeadCaptureAction("decline");
-    });
-  }
-
-  const promptShownKey = trimText(leadCapture?.id) || `${getVisitorSessionKey()}::${trimText(leadCapture?.trigger)}`;
-  if (leadCapture?.shouldPrompt && !leadCapturePromptShownKeys.has(promptShownKey)) {
-    leadCapturePromptShownKeys.add(promptShownKey);
-    void submitLeadCaptureAction("prompt_shown", {}, { silent: true });
-  }
-}
-
 function renderLeadCapture(leadCapture, options = {}) {
   const slot = getDirectRoutingSlot();
   const chat = document.getElementById("chat");
@@ -2409,7 +2410,7 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
 }
 
 async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
-  if (!INSTALL_ID) {
+  if (!INSTALL_ID || !visitorStorageConsentGranted) {
     return;
   }
 
@@ -2465,7 +2466,7 @@ async function detectConversionOutcomesOnLoad() {
   const pageUrl = getPageUrl();
   const storageKey = getOutcomeDetectionStorageKey();
 
-  if (!INSTALL_ID || !pageUrl || !storageKey) {
+  if (!INSTALL_ID || !pageUrl || !storageKey || !visitorStorageConsentGranted) {
     return;
   }
 
@@ -3576,9 +3577,14 @@ async function sendMessage(messageOverride = "") {
     setCanvasAnsweringState(false);
 
     if (!res.ok) {
-      console.error("Vonza assistant backend error:", data.error || "Request failed");
-      appendMessage(chat, "bot", data.error || "Request failed", { error: true });
-      setComposerStatus("The assistant could not answer that just now. You can try again in a moment.");
+      console.error("Vonza Front Desk request failed:", data.code || res.status || "request_failed");
+      appendMessage(
+        chat,
+        "bot",
+        "I’m sorry, I can’t answer right now. Please try again in a moment or contact the business directly.",
+        { error: true }
+      );
+      setComposerStatus("The Front Desk could not answer just now. You can try again or use the contact option.");
       return;
     }
 

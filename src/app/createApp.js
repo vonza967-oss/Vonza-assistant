@@ -9,6 +9,11 @@ import { createVoiceRouter } from "../routes/voiceRoutes.js";
 import { applyRouteCors } from "../utils/corsPolicy.js";
 import { applySecurityHeaders } from "../utils/securityHeaders.js";
 import { installSafeConsole } from "../utils/safeLogger.js";
+import {
+  getRequestId,
+  logRouteError,
+  sendJsonError,
+} from "../utils/httpErrors.js";
 
 export function createApp({ rootDir }) {
   installSafeConsole();
@@ -51,12 +56,9 @@ export function createApp({ rootDir }) {
   app.use(createVoiceRouter());
   app.use(createBusinessRouter());
   app.use((err, _req, res, _next) => {
-    console.error(err);
-    res.status(err.statusCode || 500).json({
-      error: err.statusCode === 503
-        ? err.message
-        : err.message || "Something went wrong",
-    });
+    const requestId = getRequestId(_req);
+    logRouteError(err, _req, { route: "global" });
+    sendJsonError(res, err, { requestId });
   });
 
   return app;

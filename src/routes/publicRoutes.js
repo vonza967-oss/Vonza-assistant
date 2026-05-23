@@ -19,6 +19,7 @@ import {
 import { getPublicLaunchProfile } from "../config/publicLaunch.js";
 import { renderLegalPage } from "../config/legalContent.js";
 import { getDistributedRateLimitReadiness } from "../utils/rateLimiter.js";
+import { getReadinessStatus } from "../services/operations/readinessService.js";
 
 const SETUP_DOCTOR_KEYS = [
   "PUBLIC_APP_URL",
@@ -26,7 +27,6 @@ const SETUP_DOCTOR_KEYS = [
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "OPENAI_API_KEY",
-  "ADMIN_TOKEN",
   "STRIPE_SECRET_KEY",
   "STRIPE_PRICE_ID_STARTER_MONTHLY",
   "STRIPE_PRICE_ID_GROWTH_MONTHLY",
@@ -925,15 +925,15 @@ export function createPublicRouter({ rootDir }) {
     res.sendFile(path.join(rootDir, "frontend", "widget.html"));
   });
 
-  router.get("/embed.js", (_req, res) => {
+  router.get(["/embed.js", "/embed-v1.js"], (_req, res) => {
     res.type("application/javascript");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
     res.sendFile(path.join(rootDir, "embed.js"));
   });
 
   router.get("/embed-lite.js", (_req, res) => {
     res.setHeader("Content-Type", "application/javascript");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=86400");
     res.sendFile(path.join(rootDir, "embed-lite.js"));
   });
 
@@ -966,11 +966,21 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderDashboardDocument(rootDir, { localFixture: true }));
   });
 
-  router.get("/dashboard-v2-preview", (_req, res) => {
+  router.get("/dashboard-v2-preview", (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
     res.sendFile(path.join(rootDir, "frontend", "dashboard-v2-preview.html"));
   });
 
-  router.get("/full-page-assistant-v2-preview", (_req, res) => {
+  router.get("/full-page-assistant-v2-preview", (req, res) => {
+    if (!isLocalDashboardFixtureAllowed(req)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+
     res.sendFile(path.join(rootDir, "frontend", "full-page-assistant-v2-preview.html"));
   });
 
@@ -1117,6 +1127,14 @@ window.VONZA_BILLING_PLANS = ${JSON.stringify(listPublicBillingPlans())};
       buildSha: getBuildSha() || null,
       operatorWorkspaceV1Enabled: operatorWorkspaceEnabled,
       launchMode: getPublicLaunchProfile({ operatorWorkspaceEnabled }).mode,
+    });
+  });
+
+  router.get("/ready", async (_req, res) => {
+    const readiness = await getReadinessStatus();
+    res.status(readiness.ok ? 200 : 503).json({
+      ok: readiness.ok,
+      checks: readiness.checks,
     });
   });
 

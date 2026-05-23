@@ -14,6 +14,7 @@ import {
   listAgents,
   requirePublicFullPageAccess,
   requireActiveAgentAccess,
+  requirePreClaimAgentAccess,
 } from "../src/services/agents/agentService.js";
 import {
   completeGoogleConnection,
@@ -290,10 +291,10 @@ async function startServer(app) {
   };
 }
 
-async function postJson(baseUrl, pathname, body) {
+async function postJson(baseUrl, pathname, body, options = {}) {
   const response = await fetch(`${baseUrl}${pathname}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     body: JSON.stringify(body),
   });
   const text = await response.text();
@@ -407,6 +408,28 @@ test("client_id-only listing only returns pre-claim onboarding assistants", asyn
   });
 
   assert.deepEqual(result.agents.map((agent) => agent.id), ["preclaim-agent"]);
+});
+
+test("expired pre-claim client_id tokens cannot access setup-only agent routes", async () => {
+  await withEnv({ AGENT_PRECLAIM_TOKEN_TTL_HOURS: "1" }, async () => {
+    const supabase = createFakeSupabase({
+      agents: [
+        buildAgentRow({
+          owner_user_id: "",
+          client_id: "client-1",
+          created_at: "2026-01-01T00:00:00.000Z",
+        }),
+      ],
+    });
+
+    await assert.rejects(
+      () => requirePreClaimAgentAccess(supabase, {
+        agentId: "agent-1",
+        clientId: "client-1",
+      }),
+      (error) => error.statusCode === 401 && error.code === "preclaim_token_expired"
+    );
+  });
 });
 
 test("public full-page access requires an active claimed owner context", () => {
@@ -657,7 +680,8 @@ test("widget reply feedback rejects assistant-message keys replayed from another
     });
 
     assert.equal(response.status, 400);
-    assert.match(response.json.error, /does not match this conversation session/i);
+    assert.equal(response.json.error, "The request could not be processed.");
+    assert.equal(response.json.code, "feedback_session_mismatch");
     assert.equal(supabase.state.agent_visitor_reply_feedback.length, 0);
   } finally {
     await server.close();
@@ -777,7 +801,8 @@ test("/chat rejects disallowed origins across install_id, website_url, agent_id,
       });
 
       assert.equal(response.status, 403, `${entry.label} blocks an unapproved origin`);
-      assert.match(response.json.error, /origin is not allowed/i);
+      assert.equal(response.json.error, "You do not have access to this resource.");
+      assert.equal(response.json.code, "domain_blocked");
     }
 
     assert.equal(openAiCalled, false);
@@ -950,7 +975,8 @@ test("/chat/capture rejects disallowed origins across install_id, website_url, a
       });
 
       assert.equal(response.status, 403, `${entry.label} blocks an unapproved origin`);
-      assert.match(response.json.error, /origin is not allowed/i);
+      assert.equal(response.json.error, "You do not have access to this resource.");
+      assert.equal(response.json.code, "domain_blocked");
     }
   } finally {
     await server.close();
@@ -982,8 +1008,8 @@ test("protected owner routes return 401 when bearer auth is missing", async () =
   }
 });
 
-test("admin APIs reject query-string tokens and accept header tokens", async () => {
-  await withEnv({ ADMIN_TOKEN: "admin-1234" }, async () => {
+test("admin APIs require authenticated RBAC admins and reject static tokens", async () => {
+  await withEnv({ VONZA_ADMIN_USER_IDS: "admin-user-1", ADMIN_TOKEN: "admin-1234" }, async () => {
     const supabase = createFakeSupabase({
       agents: [
         buildAgentRow({
@@ -1011,6 +1037,15 @@ test("admin APIs reject query-string tokens and accept header tokens", async () 
     app.use(express.json());
     app.use(createAgentRouter({
       getSupabaseClient: () => supabase,
+      getAuthenticatedUser: async (_supabase, req) => {
+        const authHeader = String(req.headers.authorization || "");
+        if (authHeader === "Bearer admin-session") {
+          return { id: "admin-user-1", email: "admin@example.com" };
+        }
+        const error = new Error("Unauthorized");
+        error.statusCode = 401;
+        throw error;
+      },
     }));
     const server = await startServer(app);
 
@@ -1020,7 +1055,7 @@ test("admin APIs reject query-string tokens and accept header tokens", async () 
         "/agents/admin-list?token=admin-1234"
       );
       assert.equal(queryTokenResponse.status, 401);
-      assert.match(queryTokenResponse.json.error, /admin token/i);
+      assert.match(queryTokenResponse.json.error, /unauthorized/i);
 
       const headerTokenResponse = await getJson(
         server.baseUrl,
@@ -1031,12 +1066,115 @@ test("admin APIs reject query-string tokens and accept header tokens", async () 
           },
         }
       );
-      assert.equal(headerTokenResponse.status, 200);
-      assert.equal(headerTokenResponse.json.agents.length, 1);
+      assert.equal(headerTokenResponse.status, 401);
+
+      const rbacResponse = await getJson(
+        server.baseUrl,
+        "/agents/admin-list",
+        {
+          headers: {
+            Authorization: "Bearer admin-session",
+          },
+        }
+      );
+      assert.equal(rbacResponse.status, 200);
+      assert.equal(rbacResponse.json.agents.length, 1);
+      assert.equal(supabase.state.admin_audit_logs.length >= 1, true);
     } finally {
       await server.close();
     }
   });
+});
+
+test("/product-events requires owner auth or validated public install context", async () => {
+  const supabase = createFakeSupabase({
+    agents: [
+      buildAgentRow({
+        id: "agent-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+      }),
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://allowed.example",
+      },
+    ],
+    widget_configs: [
+      {
+        agent_id: "agent-1",
+        assistant_name: "Front Desk",
+        install_id: "install-1",
+        allowed_domains: ["allowed.example"],
+      },
+    ],
+  });
+  const app = express();
+  app.use(express.json());
+  app.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+    getAuthenticatedUser: async (_supabase, req) => {
+      if (req.headers.authorization === "Bearer owner-token") {
+        return { id: "owner-1", email: "owner@example.com" };
+      }
+      const error = new Error("Unauthorized");
+      error.statusCode = 401;
+      throw error;
+    },
+  }));
+  const server = await startServer(app);
+
+  try {
+    const forged = await postJson(server.baseUrl, "/product-events", {
+      client_id: "client-1",
+      agent_id: "agent-1",
+      event_name: "preview_opened",
+      source: "forged",
+    });
+
+    assert.equal(forged.status, 400);
+    assert.equal(forged.json.code, "origin_required");
+
+    const ownerEvent = await postJson(server.baseUrl, "/product-events", {
+      client_id: "client-1",
+      agent_id: "agent-1",
+      event_name: "preview_opened",
+      source: "dashboard",
+      metadata: {
+        visitor_email: "person@example.com",
+        surface: "front_desk",
+      },
+    }, {
+      headers: {
+        Authorization: "Bearer owner-token",
+      },
+    });
+
+    assert.equal(ownerEvent.status, 200);
+    assert.equal(ownerEvent.json.ok, true);
+    assert.equal(supabase.state.product_events.length, 1);
+    assert.equal(supabase.state.product_events[0].owner_user_id, "owner-1");
+    assert.deepEqual(supabase.state.product_events[0].metadata, { surface: "front_desk" });
+
+    const duplicate = await postJson(server.baseUrl, "/product-events", {
+      client_id: "client-1",
+      agent_id: "agent-1",
+      event_name: "preview_opened",
+      source: "dashboard",
+    }, {
+      headers: {
+        Authorization: "Bearer owner-token",
+      },
+    });
+
+    assert.equal(duplicate.status, 200);
+    assert.equal(supabase.state.product_events.length, 2);
+    assert.equal(supabase.state.product_events[0].dedupe_key, supabase.state.product_events[1].dedupe_key);
+  } finally {
+    await server.close();
+  }
 });
 
 test("/admin is not publicly reachable as a normal route", async () => {

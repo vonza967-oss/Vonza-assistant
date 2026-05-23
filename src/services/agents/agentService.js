@@ -52,6 +52,7 @@ const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WEBSITE_CONTENT_TABLE = "website_content";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DEFAULT_ACCESS_STATUS = "pending";
+const DEFAULT_PRECLAIM_TOKEN_TTL_HOURS = 24;
 const CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
 const ROUTING_WIDGET_CONFIG_COLUMNS = [
   "booking_url",
@@ -1224,7 +1225,19 @@ function mapAgentRow(row) {
     tone: row.tone || DEFAULT_TONE,
     language: row.language || DEFAULT_LANGUAGE,
     isActive: row.is_active !== false,
+    createdAt: row.created_at || "",
   };
+}
+
+function getPreClaimTokenTtlMs() {
+  const hours = Number(process.env.AGENT_PRECLAIM_TOKEN_TTL_HOURS || DEFAULT_PRECLAIM_TOKEN_TTL_HOURS);
+  const safeHours = Number.isFinite(hours) && hours > 0 ? hours : DEFAULT_PRECLAIM_TOKEN_TTL_HOURS;
+  return safeHours * 60 * 60 * 1000;
+}
+
+function isPreClaimTokenExpired(agent) {
+  const createdAt = new Date(agent?.createdAt || "").getTime();
+  return Number.isFinite(createdAt) && Date.now() - createdAt > getPreClaimTokenTtlMs();
 }
 
 function mapWidgetConfigRow(row) {
@@ -1504,7 +1517,7 @@ async function findAgentById(supabase, agentId) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .eq("id", agentId)
     .eq("is_active", true)
@@ -1535,7 +1548,7 @@ async function findAgentByKey(supabase, agentKey) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .eq("is_active", true);
 
@@ -1564,7 +1577,7 @@ async function findDefaultAgentForBusiness(supabase, businessId, options = {}) {
   let query = supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .eq("business_id", businessId)
     .eq("is_active", true);
@@ -1592,7 +1605,7 @@ async function listActiveAgentsForBusiness(supabase, businessId) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .eq("business_id", businessId)
     .eq("is_active", true);
@@ -1623,7 +1636,7 @@ async function claimAgentOwnershipById(supabase, agentId, ownerUserId) {
     })
     .eq("id", agentId)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .single();
 
@@ -1671,7 +1684,7 @@ export async function ensureAgentForBusiness(supabase, business, options = {}) {
       is_active: true,
     })
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .single();
 
@@ -2052,7 +2065,7 @@ export async function listAgents(supabase, options = {}) {
 
   let query = supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
     .order("name", { ascending: true });
 
   if (normalizedOwnerUserId) {
@@ -2282,7 +2295,7 @@ export async function listAgents(supabase, options = {}) {
 export async function listAllAgents(supabase) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
     .order("name", { ascending: true });
 
   if (error) {
@@ -3110,7 +3123,7 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
 
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active")
+    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
     .eq("client_id", normalizedClientId)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -3127,7 +3140,8 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
 
   const match = (data || []).find((row) => {
     const existingOwnerUserId = cleanText(row.owner_user_id);
-    return !existingOwnerUserId || existingOwnerUserId === normalizedOwnerUserId;
+    return (!existingOwnerUserId || existingOwnerUserId === normalizedOwnerUserId)
+      && !isPreClaimTokenExpired(mapAgentRow(row));
   });
 
   if (!match) {
@@ -3227,6 +3241,13 @@ export async function requireAgentAccess(supabase, options = {}) {
   }
 
   if (normalizedClientId && cleanText(agent.clientId) === normalizedClientId) {
+    if (isPreClaimTokenExpired(agent)) {
+      const error = new Error("This setup link has expired. Sign in to continue.");
+      error.statusCode = 401;
+      error.code = "preclaim_token_expired";
+      throw error;
+    }
+
     return agent;
   }
 
@@ -3295,7 +3316,7 @@ export async function updateAgentAccessStatus(supabase, options = {}) {
     })
     .eq("id", normalizedAgentId)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     )
     .single();
 
@@ -3325,7 +3346,7 @@ export async function updateOwnedAccessStatus(supabase, options = {}) {
     })
     .eq("owner_user_id", normalizedOwnerUserId)
     .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active"
+      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
     );
 
   if (error) {

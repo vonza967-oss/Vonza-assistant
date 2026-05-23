@@ -4,7 +4,7 @@ services:
     runtime: node
     buildCommand: npm install && npm run verify:deploy-readiness
     startCommand: npm run start:prod
-    healthCheckPath: /health
+    healthCheckPath: /ready
     autoDeploy: false
     envVars:
       - key: OPENAI_API_KEY
@@ -13,8 +13,6 @@ services:
         value: gpt-4o-mini-transcribe
       - key: VOICE_TTS_MODEL
         value: gpt-4o-mini-tts
-      - key: ADMIN_TOKEN
-        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

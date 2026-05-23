@@ -22,7 +22,6 @@ export const SUPPORTED_KNOWLEDGE_FIX_ACTION_TYPES = [
 ];
 
 const SUPPORTED_ACTION_TYPE_SET = new Set(SUPPORTED_KNOWLEDGE_FIX_ACTION_TYPES);
-const EDITABLE_KNOWLEDGE_FIX_STATUSES = new Set(["draft", "ready", "failed"]);
 const ACTIVE_KNOWLEDGE_FIX_STATUSES = new Set(["draft", "ready", "failed"]);
 const KNOWLEDGE_FIX_SELECT =
   "id, agent_id, owner_user_id, dedupe_key, source_action_key, linked_action_keys, action_type, status, target_type, target_label, topic, issue_key, issue_summary, matters_summary, proposed_guidance, last_generated_guidance, draft_edited_manually, evidence, occurrence_count, source_hash, applied_guidance, applied_at, dismissed_at, last_error, created_at, updated_at";

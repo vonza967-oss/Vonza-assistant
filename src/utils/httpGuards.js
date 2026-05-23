@@ -163,28 +163,3 @@ export function enforcePublicCaptureAbuseGuards(req, res, next) {
 
   next();
 }
-
-export function requireAdminToken(req, res, next) {
-  const configuredToken = process.env.ADMIN_TOKEN;
-
-  if (!configuredToken) {
-    return res.status(503).json({
-      error: "ADMIN_TOKEN is not configured on the server.",
-    });
-  }
-
-  const requestToken =
-    req.headers["x-admin-token"] ||
-    (typeof req.headers.authorization === "string" &&
-    req.headers.authorization.startsWith("Bearer ")
-      ? req.headers.authorization.slice("Bearer ".length)
-      : "");
-
-  if (!requestToken || requestToken !== configuredToken) {
-    return res.status(401).json({
-      error: "Invalid or missing admin token.",
-    });
-  }
-
-  next();
-}

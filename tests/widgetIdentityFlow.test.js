@@ -526,6 +526,15 @@ test("fresh widget renders only the entry phase before identity is chosen", () =
   assert.equal(harness.elements.get("chat-state").hidden, true);
   assert.equal(harness.elements.get("welcome-panel").hidden, false);
   assert.equal(harness.elements.get("identity-choice-panel").hidden, false);
+  assert.equal(harness.localStorage.getItem("vonza_visitor_session_default"), null);
+});
+
+test("widget stores visitor session only after explicit identity consent", () => {
+  const harness = createWidgetHarness();
+
+  assert.equal(harness.localStorage.getItem("vonza_visitor_session_default"), null);
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  assert.equal(harness.localStorage.getItem("vonza_visitor_session_default"), "uuid-1");
 });
 
 test("voice input controls default off and render safely when enabled", () => {
@@ -878,7 +887,7 @@ test("explicit widget mode keeps the widget shell as the default display", () =>
   assert.equal(harness.elements.get("assistant-unavailable-state").hidden, true);
   assert.equal(harness.elements.get("entry-state").hidden, false);
   assert.equal(harness.elements.get("welcome-title").textContent, "Hi! How can we help today?");
-  assert.equal(harness.elements.get("launcher-text").textContent, "AI front desk for your website");
+  assert.equal(harness.elements.get("launcher-text").textContent, "Business front desk");
 });
 
 test("normal widget quick replies ignore full-page suggested questions", () => {
@@ -2567,7 +2576,7 @@ test("widget modernizes legacy welcome defaults without auto-selecting a visitor
     secondaryColor: "#0c7f75",
   });
 
-  assert.equal(harness.elements.get("launcher-text").textContent, "AI front desk for your website");
+  assert.equal(harness.elements.get("launcher-text").textContent, "Business front desk");
   assert.equal(harness.elements.get("welcome-message").textContent, "Hi! How can we help today?");
   assert.equal(harness.elements.get("welcome-assistant-name").textContent, "Vonza Assistant");
   assert.equal(harness.hooks.hasChosenVisitorIdentity(), false);

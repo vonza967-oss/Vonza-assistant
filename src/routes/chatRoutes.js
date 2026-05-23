@@ -14,6 +14,11 @@ import {
   enforcePublicFeedbackAbuseGuards,
 } from "../utils/httpGuards.js";
 import { createRateLimitMiddleware } from "../utils/rateLimiter.js";
+import {
+  getRequestId,
+  logRouteError,
+  sendJsonError,
+} from "../utils/httpErrors.js";
 import { cleanText } from "../utils/text.js";
 
 function normalizePublicDisplayMode(value) {
@@ -93,10 +98,9 @@ export function createChatRouter(deps = {}) {
 
       res.json(result);
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      const requestId = getRequestId(req);
+      logRouteError(err, req, { route: "/chat" });
+      sendJsonError(res, err, { publicSurface: true, requestId });
     }
   });
 
@@ -126,10 +130,9 @@ export function createChatRouter(deps = {}) {
 
       res.json(result);
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      const requestId = getRequestId(req);
+      logRouteError(err, req, { route: "/chat/capture" });
+      sendJsonError(res, err, { publicSurface: true, requestId });
     }
   });
 
@@ -183,8 +186,9 @@ export function createChatRouter(deps = {}) {
         code: err?.code || null,
         message: err?.message || "Something went wrong",
       });
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
+      sendJsonError(res, err, {
+        publicSurface: true,
+        requestId: getRequestId(req),
       });
     }
   });

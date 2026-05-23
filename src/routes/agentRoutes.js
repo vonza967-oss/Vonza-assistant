@@ -15,10 +15,15 @@ import {
   listAgents,
   requireActiveAgentAccess,
   requirePreClaimAgentAccess,
+  resolveAllowedPublicWidgetContext,
   resolveAgentContext,
   updateAgentAccessStatus,
   updateAgentSettings,
 } from "../services/agents/agentService.js";
+import {
+  recordAdminAuditEvent,
+  requireAdminUser,
+} from "../services/admin/adminAuthorizationService.js";
 import { uploadFrontDeskBackground } from "../services/agents/frontDeskBackgroundService.js";
 import {
   assertMessagesSchemaReady,
@@ -102,12 +107,18 @@ import {
   extractBusinessWebsiteContent,
   getStoredWebsiteContent,
 } from "../services/scraping/websiteContentService.js";
+import { importBusinessWebsiteKnowledge } from "../services/scraping/websiteImportCoordinator.js";
 import {
   recordInstallPing,
   verifyAgentInstallation,
 } from "../services/install/installPresenceService.js";
 import { buildFullPageAssistantUrl } from "../services/install/fullPageAssistantUrlService.js";
 import { createRateLimitMiddleware } from "../utils/rateLimiter.js";
+import {
+  getRequestId,
+  logRouteError,
+  sendJsonError,
+} from "../utils/httpErrors.js";
 import {
   approveCalendarAction,
   approveCampaignDraft,
@@ -226,6 +237,8 @@ export function createAgentRouter(deps = {}) {
   const createAgentForBusinessNameImpl = deps.createAgentForBusinessName || createAgentForBusinessName;
   const requirePreClaimAgentAccessImpl = deps.requirePreClaimAgentAccess || deps.requireAgentAccess || requirePreClaimAgentAccess;
   const requireActiveAgentAccessImpl = deps.requireActiveAgentAccess || requireActiveAgentAccess;
+  const resolveAllowedPublicWidgetContextImpl =
+    deps.resolveAllowedPublicWidgetContext || resolveAllowedPublicWidgetContext;
   const assertMessagesSchemaReadyImpl = deps.assertMessagesSchemaReady || assertMessagesSchemaReady;
   const assertWidgetTelemetrySchemaReadyImpl =
     deps.assertWidgetTelemetrySchemaReady || assertWidgetTelemetrySchemaReady;
@@ -275,6 +288,8 @@ export function createAgentRouter(deps = {}) {
   const updateVisitorReplyFeedbackStatusImpl =
     deps.updateVisitorReplyFeedbackStatus || updateVisitorReplyFeedbackStatus;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
+  const requireAdminUserImpl = deps.requireAdminUser || requireAdminUser;
+  const recordAdminAuditEventImpl = deps.recordAdminAuditEvent || recordAdminAuditEvent;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const uploadFrontDeskBackgroundImpl =
     deps.uploadFrontDeskBackground || uploadFrontDeskBackground;
@@ -302,6 +317,8 @@ export function createAgentRouter(deps = {}) {
   const getEffectiveOwnerWorkspaceAccessStatusImpl =
     deps.getEffectiveOwnerWorkspaceAccessStatus || getEffectiveOwnerWorkspaceAccessStatus;
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
+  const importBusinessWebsiteKnowledgeImpl =
+    deps.importBusinessWebsiteKnowledge || importBusinessWebsiteKnowledge;
   const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
   const getOwnerBillingRecordImpl = deps.getOwnerBillingRecord || getOwnerBillingRecord;
   const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
@@ -406,14 +423,10 @@ export function createAgentRouter(deps = {}) {
     deps.limitAuthAdjacent || createRateLimitMiddleware("auth_adjacent");
   const limitInstallVerify =
     deps.limitInstallVerify || createRateLimitMiddleware("install_verify");
-  const getAdminToken = (req) => {
-    const bearerToken =
-      typeof req.headers.authorization === "string" &&
-      req.headers.authorization.toLowerCase().startsWith("bearer ")
-        ? req.headers.authorization.slice("Bearer ".length)
-        : "";
-
-    return req.headers["x-admin-token"] || bearerToken;
+  const sendRouteError = (req, res, err, context = {}) => {
+    const requestId = getRequestId(req);
+    logRouteError(err, req, context);
+    sendJsonError(res, err, { requestId });
   };
   const readBodyField = (body, snakeCaseKey, camelCaseKey) => {
     if (Object.prototype.hasOwnProperty.call(body, snakeCaseKey)) {
@@ -542,25 +555,25 @@ export function createAgentRouter(deps = {}) {
     return `Vonza setup ${suffix}`;
   }
 
-  function ensureAdminAccess(req) {
-    const configuredToken = process.env.ADMIN_TOKEN;
+  async function requireAdminAccess(supabase, req, action, metadata = {}) {
+    const adminUser = await requireAdminUserImpl(supabase, req, authenticateUser, {
+      env: process.env,
+    });
 
-    if (!configuredToken) {
-      const error = new Error("ADMIN_TOKEN is not configured on the server.");
-      error.statusCode = 503;
-      throw error;
-    }
+    await recordAdminAuditEventImpl(supabase, {
+      adminUserId: adminUser.id,
+      adminEmail: adminUser.email,
+      action,
+      metadata,
+    }).catch((error) => {
+      console.warn("[admin audit] failed", {
+        action,
+        adminUserId: adminUser.id,
+        message: error?.message || "Audit failed",
+      });
+    });
 
-    if (getAdminToken(req) !== configuredToken) {
-      const error = new Error("Invalid or missing admin token.");
-      error.statusCode = 401;
-      throw error;
-    }
-  }
-
-  function hasAdminAccess(req) {
-    const configuredToken = process.env.ADMIN_TOKEN;
-    return Boolean(configuredToken && getAdminToken(req) === configuredToken);
+    return adminUser;
   }
 
   async function getOptionalAuthenticatedUser(supabase, req) {
@@ -992,15 +1005,23 @@ export function createAgentRouter(deps = {}) {
 
   router.get("/agents/admin-list", async (req, res) => {
     try {
-      ensureAdminAccess(req);
-      const agents = await listAllAgents(getSupabase());
-      const funnel = await getProductFunnelSummary(getSupabase(), { days: 7 });
+      const supabase = getSupabase();
+      const adminUser = await requireAdminAccess(supabase, req, "agents.admin_list", {
+        days: 7,
+      });
+      const agents = await listAllAgents(supabase);
+      const funnel = await getProductFunnelSummary(supabase, { days: 7 });
+      await recordAdminAuditEventImpl(supabase, {
+        adminUserId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: "agents.admin_list.completed",
+        metadata: {
+          resultCount: agents.length,
+        },
+      }).catch(() => {});
       res.json({ agents, funnel });
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      sendRouteError(req, res, err, { route: "/agents/admin-list" });
     }
   });
 
@@ -1876,18 +1897,13 @@ export function createAgentRouter(deps = {}) {
     try {
       const supabase = getSupabase();
       const agentId = req.query.agent_id || req.query.agentId;
-      const isAdmin = hasAdminAccess(req);
-      const user = isAdmin
-        ? null
-        : await authenticateUser(supabase, req);
+      const user = await authenticateUser(supabase, req);
 
-      if (!isAdmin) {
-        await requireActiveAgentAccessImpl(supabase, {
-          agentId,
-          ownerUserId: user.id,
-          clientId: req.query.client_id || req.query.clientId,
-        });
-      }
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
 
       await Promise.all([
         assertMessagesSchemaReadyImpl(supabase, { phase: "request" }),
@@ -1897,7 +1913,7 @@ export function createAgentRouter(deps = {}) {
       ]);
 
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
-      const ownerUserId = user?.id || cleanText(req.query.owner_user_id || req.query.ownerUserId) || agent.ownerUserId || "";
+      const ownerUserId = user.id;
 
       const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses, feedback] = await Promise.all([
         listAgentMessagesImpl(supabase, agentId),
@@ -1955,10 +1971,7 @@ export function createAgentRouter(deps = {}) {
         feedback,
       }));
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      sendRouteError(req, res, err, { route: "/dashboard/analytics" });
     }
   });
 
@@ -3250,32 +3263,25 @@ export function createAgentRouter(deps = {}) {
   router.post("/knowledge/import", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
-        }
-        throw error;
-      });
+      const user = await authenticateUser(supabase, req);
       const context = await resolveAgentContextImpl(supabase, {
         agentKey: req.body.agent_key || req.body.agentKey,
         businessId: req.body.business_id || req.body.businessId,
       });
-      if (user) {
-        await requireActiveAgentAccessImpl(supabase, {
-          agentId: context.agent.id,
-          ownerUserId: user.id,
-          clientId: req.body.client_id || req.body.clientId,
-        });
-      } else {
-        await requirePreClaimAgentAccessImpl(supabase, {
-          agentId: context.agent.id,
-          clientId: req.body.client_id || req.body.clientId,
-        });
-      }
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId: context.agent.id,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
 
-      const result = await extractBusinessWebsiteContentImpl(supabase, {
+      const result = await importBusinessWebsiteKnowledgeImpl(supabase, {
         businessId: context.business.id,
         websiteUrl: context.business.website_url,
+        agentId: context.agent.id,
+        ownerUserId: user.id,
+      }, {
+        ensureBusinessRecord: async () => context.business,
+        extractBusinessWebsiteContent: extractBusinessWebsiteContentImpl,
       });
 
       if (cleanText(context.agent?.ownerUserId)) {
@@ -3292,38 +3298,60 @@ export function createAgentRouter(deps = {}) {
 
       res.json(result);
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      sendRouteError(req, res, err, { route: "/knowledge/import" });
     }
   });
 
   router.post("/product-events", async (req, res) => {
     try {
       const supabase = getSupabase();
-      const user = await authenticateUser(supabase, req).catch((error) => {
-        if (error.statusCode === 401) {
-          return null;
+      const user = await getOptionalAuthenticatedUser(supabase, req);
+      let ownerUserId = cleanText(user?.id);
+      let agentId = cleanText(req.body.agent_id || req.body.agentId);
+      let clientId = cleanText(req.body.client_id || req.body.clientId);
+      let source = cleanText(req.body.source);
+
+      if (user) {
+        if (agentId) {
+          await requireActiveAgentAccessImpl(supabase, {
+            agentId,
+            ownerUserId,
+            clientId,
+          });
         }
-        throw error;
-      });
+        clientId = clientId || `owner:${ownerUserId}`;
+      } else {
+        const publicContext = await resolveAllowedPublicWidgetContextImpl(supabase, {
+          installId: req.body.install_id || req.body.installId,
+          agentId,
+          agentKey: req.body.agent_key || req.body.agentKey,
+          businessId: req.body.business_id || req.body.businessId,
+          websiteUrl: req.body.website_url || req.body.websiteUrl,
+          origin: req.body.origin,
+          pageUrl: req.body.page_url || req.body.pageUrl,
+          displayMode: req.body.display_mode || req.body.displayMode || req.body.mode,
+          publicPageKey: req.body.public_page_key || req.body.publicPageKey || req.body.k,
+        });
+
+        agentId = cleanText(publicContext.agent?.id);
+        ownerUserId = cleanText(publicContext.agent?.owner_user_id || publicContext.agent?.ownerUserId);
+        clientId = `agent:${agentId}`;
+        source = source || "public_install";
+      }
+
       const result = await trackProductEventImpl(supabase, {
-        clientId: req.body.client_id || req.body.clientId,
-        agentId: req.body.agent_id || req.body.agentId,
-        ownerUserId: user?.id || "",
+        clientId,
+        agentId,
+        ownerUserId,
         eventName: req.body.event_name || req.body.eventName,
-        source: req.body.source,
+        source,
         metadata: req.body.metadata,
         dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
       });
 
       res.json(result);
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      sendRouteError(req, res, err, { route: "/product-events" });
     }
   });
 
@@ -3520,21 +3548,34 @@ export function createAgentRouter(deps = {}) {
 
   router.post("/agents/access-status", async (req, res) => {
     try {
-      ensureAdminAccess(req);
-      const agent = await updateAgentAccessStatus(getSupabaseClient(), {
+      const supabase = getSupabase();
+      const adminUser = await requireAdminAccess(supabase, req, "agents.access_status.update", {
         agentId: req.body.agent_id || req.body.agentId,
         accessStatus: req.body.access_status || req.body.accessStatus,
       });
+      const agent = await updateAgentAccessStatus(supabase, {
+        agentId: req.body.agent_id || req.body.agentId,
+        accessStatus: req.body.access_status || req.body.accessStatus,
+      });
+      await recordAdminAuditEventImpl(supabase, {
+        adminUserId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: "agents.access_status.updated",
+        targetType: "agent",
+        targetId: agent.id,
+        ownerUserId: agent.ownerUserId,
+        agentId: agent.id,
+        metadata: {
+          accessStatus: agent.accessStatus,
+        },
+      }).catch(() => {});
 
       res.json({
         ok: true,
         agent,
       });
     } catch (err) {
-      console.error(err);
-      res.status(err.statusCode || 500).json({
-        error: err.message || "Something went wrong",
-      });
+      sendRouteError(req, res, err, { route: "/agents/access-status" });
     }
   });
 

@@ -280,6 +280,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds pgvector-backed semantic Front Desk knowledge chunks and scoped match RPC for owner-approved answers, business profile facts, and website context.",
   }),
+  Object.freeze({
+    id: "enterprise_readiness_hardening",
+    version: "20260523000000",
+    name: "enterprise_readiness_hardening",
+    file: "supabase/migrations/20260523000000_enterprise_readiness_hardening.sql",
+    legacySources: Object.freeze([]),
+    tier: "required",
+    note: "Adds admin audit logs, durable website import jobs, and owner-scoped policies for enterprise readiness hardening.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

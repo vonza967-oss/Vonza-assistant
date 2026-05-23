@@ -473,8 +473,8 @@ export async function handleChatRequest({
   if (!websiteContent) {
     const fallbackReply =
       language === "Hungarian"
-        ? "Ehhez még nincs betöltött weboldal-tartalom, ezért nem tudok biztos választ adni a weboldal alapján. Kérlek próbáld újra később, vagy kérd meg az adminisztrátort, hogy futtassa a tartalom importálását."
-        : "I don't have website content for this assistant yet, so I can't answer that from the site. Please try again later or ask an admin to run the content import.";
+        ? "Sajnálom, ezt még nem tudom biztosan. Kérlek vedd fel velünk a kapcsolatot az űrlapon vagy a megadott elérhetőségen."
+        : "I’m sorry, I don’t know that yet. Please contact us via our form or the listed contact details.";
 
     return buildChatResponseImpl({
       supabase,

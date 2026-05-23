@@ -40,6 +40,31 @@ const FUNNEL_STAGES = [
   { key: "added_to_site_confirmed", label: "Added to site confirmed", events: ["added_to_site_confirmed"] },
 ];
 
+const MAX_EVENT_SOURCE_LENGTH = 80;
+const MAX_DEDUPE_KEY_LENGTH = 180;
+
+function normalizeEventSource(value) {
+  const source = cleanText(value);
+  return source.length > MAX_EVENT_SOURCE_LENGTH ? source.slice(0, MAX_EVENT_SOURCE_LENGTH) : source;
+}
+
+function buildDefaultDedupeKey({
+  clientId,
+  agentId,
+  ownerUserId,
+  eventName,
+  source,
+} = {}) {
+  const actor = cleanText(ownerUserId) || cleanText(agentId) || cleanText(clientId);
+  const pieces = [
+    actor,
+    cleanText(eventName),
+    cleanText(source) || "unknown",
+  ].filter(Boolean);
+
+  return pieces.join("::").slice(0, MAX_DEDUPE_KEY_LENGTH);
+}
+
 function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "").toLowerCase();
   return (
@@ -130,6 +155,9 @@ export function sanitizeProductEventMetadata(metadata) {
 export async function trackProductEvent(supabase, input = {}) {
   const clientId = cleanText(input.clientId);
   const eventName = cleanText(input.eventName);
+  const agentId = cleanText(input.agentId);
+  const ownerUserId = cleanText(input.ownerUserId);
+  const source = normalizeEventSource(input.source);
 
   if (!clientId) {
     const error = new Error("client_id is required");
@@ -143,14 +171,22 @@ export async function trackProductEvent(supabase, input = {}) {
     throw error;
   }
 
+  const dedupeKey = cleanText(input.dedupeKey) || buildDefaultDedupeKey({
+    clientId,
+    agentId,
+    ownerUserId,
+    eventName,
+    source,
+  });
+
   const payload = {
     client_id: clientId,
-    agent_id: cleanText(input.agentId) || null,
-    owner_user_id: cleanText(input.ownerUserId) || null,
+    agent_id: agentId || null,
+    owner_user_id: ownerUserId || null,
     event_name: eventName,
-    source: cleanText(input.source) || null,
+    source: source || null,
     metadata: sanitizeProductEventMetadata(input.metadata),
-    dedupe_key: cleanText(input.dedupeKey) || null,
+    dedupe_key: dedupeKey ? dedupeKey.slice(0, MAX_DEDUPE_KEY_LENGTH) : null,
     created_at: new Date().toISOString(),
   };
 

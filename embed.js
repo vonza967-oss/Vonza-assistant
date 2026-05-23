@@ -237,13 +237,7 @@
       body: JSON.stringify(payload),
     });
 
-    let data = null;
-
-    try {
-      data = await response.json();
-    } catch {
-      data = null;
-    }
+    const data = await response.json().catch(() => null);
 
     if (!response.ok) {
       const error = new Error(data?.error || "Request failed");
