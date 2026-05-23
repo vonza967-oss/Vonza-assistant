@@ -378,6 +378,129 @@ test("booking success page creates booking_confirmed and resolves the related qu
   assert.equal(supabase.state.agent_action_queue_statuses[0].follow_up_completed, true);
 });
 
+test("public explicit booking confirmation is rejected without a success URL or valid CTA event", async () => {
+  const supabase = createOutcomeState();
+
+  await assert.rejects(
+    () => detectConversionOutcomesForPage(supabase, {
+      installId: "11111111-1111-1111-1111-111111111111",
+      sessionId: "session-1",
+      pageUrl: "https://example.com/pricing",
+      outcomeType: "booking_confirmed",
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "untrusted_public_outcome");
+      return true;
+    }
+  );
+
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 0);
+});
+
+test("configured success URL records the expected public confirmed outcome without explicit spoofing", async () => {
+  const supabase = createOutcomeState();
+
+  const detected = await detectConversionOutcomesForPage(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    sessionId: "session-1",
+    pageUrl: "https://example.com/book/thanks?confirmation=ok",
+  });
+
+  assert.equal(detected.matched, true);
+  assert.equal(detected.detectedOutcomes.length, 1);
+  assert.equal(detected.detectedOutcomes[0].outcomeType, "booking_confirmed");
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 1);
+  assert.equal(supabase.state.agent_conversion_outcomes[0].outcome_type, "booking_confirmed");
+  assert.equal(supabase.state.agent_conversion_outcomes[0].source_type, "success_url_match");
+});
+
+test("public explicit outcome can use a same-install CTA event that maps to the requested outcome", async () => {
+  const supabase = createOutcomeState();
+  const click = await recordTrackedCtaClick(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    sessionId: "session-1",
+    ctaType: "booking",
+    targetType: "url",
+    targetUrl: "https://example.com/book",
+    actionKey: "action-1",
+  });
+
+  const detected = await detectConversionOutcomesForPage(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    sessionId: "session-1",
+    ctaEventId: click.ctaEventId,
+    outcomeType: "booking_confirmed",
+  });
+
+  assert.equal(detected.matched, true);
+  assert.equal(detected.detectedOutcomes[0].outcomeType, "booking_confirmed");
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 2);
+  assert.equal(supabase.state.agent_conversion_outcomes[1].cta_event_id, click.ctaEventId);
+  assert.equal(supabase.state.agent_conversion_outcomes[1].metadata.matchedBy, "cta_event");
+});
+
+test("public explicit outcome rejects CTA events from a different install or unmapped CTA type", async () => {
+  const supabase = createOutcomeState();
+  const ctaEventId = "77777777-7777-4777-8777-777777777777";
+  supabase.state.agent_conversion_outcomes.push({
+    id: "foreign-click",
+    agent_id: "agent-2",
+    owner_user_id: "owner-2",
+    install_id: "22222222-2222-2222-2222-222222222222",
+    outcome_type: "booking_started",
+    source_type: "direct_route",
+    confirmation_level: "clicked",
+    dedupe_key: "foreign-click",
+    cta_event_id: ctaEventId,
+    related_cta_type: "booking",
+    related_target_type: "url",
+    session_id: "session-1",
+    target_url: "https://example.com/book",
+    occurred_at: new Date().toISOString(),
+  });
+
+  await assert.rejects(
+    () => detectConversionOutcomesForPage(supabase, {
+      installId: "11111111-1111-1111-1111-111111111111",
+      sessionId: "session-1",
+      ctaEventId,
+      outcomeType: "booking_confirmed",
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "untrusted_public_outcome");
+      return true;
+    }
+  );
+
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 1);
+
+  const checkoutClick = await recordTrackedCtaClick(supabase, {
+    installId: "11111111-1111-1111-1111-111111111111",
+    sessionId: "session-1",
+    ctaType: "checkout",
+    targetType: "url",
+    targetUrl: "https://example.com/checkout",
+  });
+
+  await assert.rejects(
+    () => detectConversionOutcomesForPage(supabase, {
+      installId: "11111111-1111-1111-1111-111111111111",
+      sessionId: "session-1",
+      ctaEventId: checkoutClick.ctaEventId,
+      outcomeType: "booking_confirmed",
+    }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "untrusted_public_outcome");
+      return true;
+    }
+  );
+
+  assert.equal(supabase.state.agent_conversion_outcomes.length, 2);
+});
+
 test("quote and checkout success paths create the right canonical outcomes", async () => {
   const supabase = createOutcomeState();
   const quoteClick = await recordTrackedCtaClick(supabase, {

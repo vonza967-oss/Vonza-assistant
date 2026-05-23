@@ -10,6 +10,7 @@ const DEFAULT_LIMITS = Object.freeze({
   public_voice_speech: { windowMs: 60_000, max: 10 },
   widget_bootstrap: { windowMs: 60_000, max: 60 },
   public_install_signal: { windowMs: 60_000, max: 30 },
+  public_install_cta: { windowMs: 60_000, max: 20 },
   auth_adjacent: { windowMs: 60_000, max: 12 },
   install_verify: { windowMs: 60_000, max: 5 },
 });

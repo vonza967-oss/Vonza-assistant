@@ -5,6 +5,7 @@ import http from "node:http";
 import express from "express";
 
 import { createAgentRouter } from "../src/routes/agentRoutes.js";
+import { clearRateLimitForTests } from "../src/utils/rateLimiter.js";
 
 function createSupabaseStub() {
   const state = {
@@ -59,6 +60,12 @@ function createSupabaseStub() {
 
     eq(column, value) {
       this.filters.push((row) => row[column] === value);
+      return this;
+    }
+
+    in(column, values) {
+      const lookup = new Set(values);
+      this.filters.push((row) => lookup.has(row[column]));
       return this;
     }
 
@@ -239,5 +246,55 @@ test("/install/cta preserves valid vz_cta_event_id redirect behavior", async () 
     assert.equal(supabase.state.agent_conversion_outcomes[0].cta_event_id, ctaEventId);
   } finally {
     await server.close();
+  }
+});
+
+test("/install/outcomes/detect rejects arbitrary explicit confirmation without trust", async () => {
+  const supabase = createSupabaseStub();
+  const server = await startServer(createApp(supabase));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/install/outcomes/detect`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        install_id: "11111111-1111-1111-1111-111111111111",
+        session_id: "session-1",
+        page_url: "https://example.com/pricing",
+        outcome_type: "booking_confirmed",
+      }),
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 400);
+    assert.equal(body.error, "Public outcome confirmation requires a configured success URL or a valid CTA event.");
+    assert.equal(supabase.state.agent_conversion_outcomes.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
+test("/install/cta rate limits repeated configured target clicks from the same client", async () => {
+  clearRateLimitForTests();
+  const supabase = createSupabaseStub();
+  const server = await startServer(createApp(supabase));
+  const url = `${server.baseUrl}/install/cta?install_id=11111111-1111-1111-1111-111111111111&session_id=session-rate-limit&cta_type=booking&target_type=url&target_url=${encodeURIComponent("https://example.com/book")}`;
+
+  try {
+    for (let index = 0; index < 20; index += 1) {
+      const response = await fetch(url, { redirect: "manual" });
+      assert.equal(response.status, 302);
+    }
+
+    const limited = await fetch(url, { redirect: "manual" });
+    const body = await limited.json();
+
+    assert.equal(limited.status, 429);
+    assert.equal(body.error, "Too many requests. Please wait a moment and try again.");
+    assert.equal(limited.headers.get("ratelimit-limit"), "20");
+    assert.equal(supabase.state.agent_conversion_outcomes.length, 20);
+  } finally {
+    await server.close();
+    clearRateLimitForTests();
   }
 });

@@ -522,6 +522,26 @@ function mapStartedOutcomeToCompletedType(outcomeType = "") {
   }
 }
 
+function mapCtaClickToTrustedOutcomeType(outcomeType = "") {
+  switch (normalizeOutcomeType(outcomeType)) {
+    case "booking_started":
+      return "booking_confirmed";
+    case "checkout_started":
+      return "checkout_completed";
+    case "quote_requested":
+      return "quote_requested";
+    default:
+      return "";
+  }
+}
+
+function buildUntrustedPublicOutcomeError() {
+  const error = new Error("Public outcome confirmation requires a configured success URL or a valid CTA event.");
+  error.statusCode = 400;
+  error.code = "untrusted_public_outcome";
+  return error;
+}
+
 function mapOutcomeTypeToLabel(outcomeType = "") {
   switch (normalizeOutcomeType(outcomeType)) {
     case "booking_started":
@@ -1183,18 +1203,52 @@ export async function detectConversionOutcomesForPage(supabase, input = {}) {
     throw error;
   }
 
+  if (cleanText(input.outcomeType) && !requestedOutcomeType) {
+    const error = new Error("Unsupported conversion outcome type.");
+    error.statusCode = 400;
+    throw error;
+  }
+
   const settings = normalizeOutcomeSettings(context.widgetConfigRow || {});
   const ctaEventId = cleanUuid(input.ctaEventId) || parseCtaEventIdFromPageUrl(pageUrl);
   const existingCtaOutcomes = ctaEventId
     ? await getOutcomesByCtaEventId(supabase, { ctaEventId })
     : [];
-  const sourceOutcome = existingCtaOutcomes.find((entry) => CLICK_OUTCOME_TYPES.has(entry.outcomeType))
+  const trustedCtaOutcomes = existingCtaOutcomes.filter((entry) => (
+    entry.installId === installId
+    && entry.agentId === context.agent.id
+  ));
+  const trustedCtaSourceOutcome = trustedCtaOutcomes.find((entry) => CLICK_OUTCOME_TYPES.has(entry.outcomeType));
+  const sourceOutcome = trustedCtaSourceOutcome
     || await getLatestSourceOutcomeForSession(supabase, { installId, sessionId });
-  const matchedOutcomes = requestedOutcomeType
-    ? [{ outcomeType: requestedOutcomeType, successUrl: pageUrl }]
-    : getMatchedConfiguredOutcomes(settings, pageUrl, {
-      includeStartMatches: Boolean(ctaEventId),
-    });
+  const configuredMatchedOutcomes = getMatchedConfiguredOutcomes(settings, pageUrl, {
+    includeStartMatches: Boolean(ctaEventId),
+  });
+  let trustSource = "configured_success_url";
+  let matchedOutcomes = configuredMatchedOutcomes;
+
+  if (requestedOutcomeType) {
+    const configuredMatches = configuredMatchedOutcomes.filter(
+      (entry) => normalizeOutcomeType(entry.outcomeType) === requestedOutcomeType
+    );
+    const ctaSourceMatches = trustedCtaSourceOutcome
+      && mapCtaClickToTrustedOutcomeType(trustedCtaSourceOutcome.outcomeType) === requestedOutcomeType
+      ? [{
+        outcomeType: requestedOutcomeType,
+        successUrl: pageUrl || trustedCtaSourceOutcome.successUrl || trustedCtaSourceOutcome.targetUrl,
+      }]
+      : [];
+
+    if (configuredMatches.length) {
+      matchedOutcomes = configuredMatches;
+      trustSource = "configured_success_url";
+    } else if (ctaSourceMatches.length) {
+      matchedOutcomes = ctaSourceMatches;
+      trustSource = "cta_event";
+    } else {
+      throw buildUntrustedPublicOutcomeError();
+    }
+  }
 
   if (!matchedOutcomes.length) {
     return {
@@ -1243,7 +1297,9 @@ export async function detectConversionOutcomesForPage(supabase, input = {}) {
       finalOutcomeType,
       cleanText(match.successUrl || pageUrl),
     ].join("::");
-    const sourceType = input.source === "ping" ? "external_success_ping" : "success_url_match";
+    const sourceType = trustSource === "cta_event"
+      ? "direct_route"
+      : input.source === "ping" ? "external_success_ping" : "success_url_match";
     const matchingExistingOutcome = existingCtaOutcomes.find((entry) => entry.outcomeType === finalOutcomeType)
       || (sourceOutcome?.outcomeType === finalOutcomeType ? sourceOutcome : null);
     let outcome;
@@ -1282,7 +1338,7 @@ export async function detectConversionOutcomesForPage(supabase, input = {}) {
         metadata: {
           ...normalizeMetadata(matchingExistingOutcome.metadata),
           attributionPath,
-          matchedBy: requestedOutcomeType ? "explicit" : "configured_success_url",
+          matchedBy: requestedOutcomeType ? trustSource : "configured_success_url",
           matchedPageUrl: pageUrl,
           sourceOutcomeType: cleanText(sourceOutcome?.outcomeType),
           confirmationSourceType: sourceType,
@@ -1323,7 +1379,7 @@ export async function detectConversionOutcomesForPage(supabase, input = {}) {
       successUrl: match.successUrl || pageUrl,
       metadata: {
         attributionPath,
-        matchedBy: requestedOutcomeType ? "explicit" : "configured_success_url",
+        matchedBy: requestedOutcomeType ? trustSource : "configured_success_url",
         matchedPageUrl: pageUrl,
         sourceOutcomeType: cleanText(sourceOutcome?.outcomeType),
       },

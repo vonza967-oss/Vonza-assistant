@@ -338,6 +338,8 @@ export function createAgentRouter(deps = {}) {
     deps.limitWidgetBootstrap || createRateLimitMiddleware("widget_bootstrap");
   const limitPublicInstallSignal =
     deps.limitPublicInstallSignal || createRateLimitMiddleware("public_install_signal");
+  const limitPublicInstallCta =
+    deps.limitPublicInstallCta || createRateLimitMiddleware("public_install_cta");
   const limitAuthAdjacent =
     deps.limitAuthAdjacent || createRateLimitMiddleware("auth_adjacent");
   const limitInstallVerify =
@@ -512,7 +514,7 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
-  router.get("/install/cta", async (req, res) => {
+  router.get("/install/cta", limitPublicInstallCta, async (req, res) => {
     try {
       const result = await recordTrackedCtaClickImpl(getSupabase(), {
         installId: req.query.install_id || req.query.installId,
