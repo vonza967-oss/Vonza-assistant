@@ -3802,9 +3802,9 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
     --embedded-card-padding: 0 14px 18px;
     --canvas-title-offset: clamp(42px, 8dvh, 58px);
-    --canvas-title-gap: clamp(18px, 4dvh, 34px);
+    --canvas-title-gap: clamp(36px, 6dvh, 54px);
     --canvas-title-hidden-offset: 36px;
-    --canvas-composer-lift: clamp(28px, 7dvh, 56px);
+    --canvas-composer-lift: 0px;
     --canvas-chat-stage-height: clamp(300px, 48dvh, 380px);
     --canvas-status-top: auto;
     --canvas-status-edge: auto;

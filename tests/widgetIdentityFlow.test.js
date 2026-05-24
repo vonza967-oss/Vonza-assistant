@@ -1105,13 +1105,28 @@ test("hosted /a page uses Front Desk as the default full-page title", async () =
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.hooks.isHostedCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasEmbeddedPageMode(), false);
+  assert.equal(harness.documentElement.classList.contains("embedded-mode"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-size-full"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-surface-flat"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-page-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), true);
+  assert.equal(harness.body.classList.contains("embedded"), false);
   assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(harness.elements.get("page-help-title").textContent, "Front Desk");
   assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
-  assert.equal(
-    harness.elements.get("page-assistant-subtitle").textContent,
-    "Ask about services, pricing, quotes, or contact details."
-  );
+  assert.equal(harness.elements.get("page-assistant-subtitle").hidden, true);
+  assert.equal(harness.elements.get("page-assistant-subtitle").textContent, "");
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.equal(harness.elements.get("intro-message").hidden, true);
+  assert.equal(harness.elements.get("quick-replies").hidden, false);
+  assert.match(harness.elements.get("quick-replies").innerHTML, /What services do you offer\?/);
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
 });
 
 test("hosted /assistant page uses Front Desk as the default full-page title", async () => {
@@ -1156,9 +1171,21 @@ test("hosted /assistant page uses Front Desk as the default full-page title", as
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.hooks.isHostedCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasEmbeddedPageMode(), false);
+  assert.equal(harness.documentElement.classList.contains("embedded-mode"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-size-full"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-surface-flat"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-page-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), true);
   assert.equal(harness.elements.get("page-assistant-hero").hidden, false);
   assert.equal(harness.elements.get("page-help-title").textContent, "Front Desk");
   assert.doesNotMatch(harness.elements.get("page-help-title").textContent, /How can we help/i);
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.equal(harness.elements.get("intro-message").hidden, true);
 });
 
 test("embedded page mode uses compact customized prompts once", async () => {
@@ -1630,7 +1657,7 @@ test("assistant slug route defaults to page mode and missing assistant shows una
   assert.doesNotMatch(harness.elements.get("assistant-unavailable-copy").textContent, /agent_id|widget config|API/i);
 });
 
-test("assistant slug route renders a chat-first hosted page", async () => {
+test("assistant slug route renders the canonical hosted canvas page", async () => {
   const harness = createWidgetHarness({
     location: {
       search: "",
@@ -1677,18 +1704,74 @@ test("assistant slug route renders a chat-first hosted page", async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getDisplayMode(), "page");
+  assert.equal(harness.hooks.isHostedCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasPageMode(), true);
+  assert.equal(harness.hooks.isCanvasEmbeddedPageMode(), false);
+  assert.equal(harness.documentElement.classList.contains("embedded-mode"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-size-full"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-surface-flat"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-page-layout-canvas"), true);
+  assert.equal(harness.documentElement.classList.contains("vonza-canvas-empty"), true);
+  assert.equal(harness.documentElement.classList.contains("embedded-background-scope-section"), false);
+  assert.equal(harness.body.classList.contains("embedded"), false);
   assert.equal(harness.hooks.getWidgetPhase(), "chat");
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
   assert.equal(harness.elements.get("identity-choice-panel").hidden, true);
-  assert.equal(harness.elements.get("intro-message").hidden, false);
+  assert.equal(harness.elements.get("intro-message").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
   assert.equal(harness.elements.get("composer-shell").hidden, false);
   assert.equal(harness.elements.get("input").disabled, false);
+  assert.equal(harness.elements.get("input").placeholder, "Ask anything...");
+  assert.equal(harness.elements.get("canvas-intro-line").hidden, false);
   assert.equal(harness.elements.get("welcome-message").textContent, "Ask us anything about Acme.");
   assert.deepEqual(plain(harness.hooks.getVisitorIdentity()), {
     mode: "guest",
     email: "",
     name: "",
   });
+});
+
+test("hosted /assistant layout=classic keeps the legacy full-page shell for debugging", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?layout=classic",
+      pathname: "/assistant/acme-desk",
+      href: "https://example.com/assistant/acme-desk?layout=classic",
+    },
+    customFetch: async (input) => {
+      if (String(input).includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1", publicAgentKey: "acme-desk" },
+              business: { id: "business-1", name: "Acme Co" },
+              widgetConfig: { assistantName: "Acme Assistant" },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.isHostedCanvasPageMode(), false);
+  assert.equal(harness.hooks.isCanvasPageMode(), false);
+  assert.equal(harness.documentElement.classList.contains("embedded-mode"), false);
+  assert.equal(harness.documentElement.classList.contains("embedded-layout-canvas"), false);
+  assert.equal(harness.elements.get("intro-message").hidden, false);
+  assert.match(harness.elements.get("page-action-list").innerHTML, /page-action-card/);
 });
 
 test("hosted /a page applies custom full-page headline and subtitle", async () => {
@@ -1754,7 +1837,12 @@ test("hosted /a page applies custom full-page headline and subtitle", async () =
     harness.elements.get("page-assistant-subtitle").textContent,
     "Ask about repairs, pricing, quotes, or contact details."
   );
-  assert.match(harness.elements.get("page-trust-row").innerHTML, /Usually instant/);
+  assert.equal(harness.elements.get("page-assistant-subtitle").hidden, false);
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.match(harness.elements.get("quick-replies").innerHTML, /What repairs do you offer\?/);
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /AI assistant online/);
+  assert.match(harness.elements.get("page-trust-row").innerHTML, /Replies instantly/);
 });
 
 test("hosted /assistant page uses custom action cards and escapes saved text", async () => {
@@ -1828,12 +1916,15 @@ test("hosted /assistant page uses custom action cards and escapes saved text", a
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const actionHtml = harness.elements.get("page-action-list").innerHTML;
-  assert.match(actionHtml, /&lt;img src=x onerror=alert\(1\)&gt;/);
-  assert.doesNotMatch(actionHtml, /<img/i);
-  assert.match(actionHtml, /I need a custom estimate\./);
-  assert.doesNotMatch(actionHtml, /Book a time/);
-  assert.doesNotMatch(actionHtml, /Hidden card/);
+  const quickRepliesHtml = harness.elements.get("quick-replies").innerHTML;
+  assert.equal(harness.elements.get("page-action-list").hidden, true);
+  assert.equal(harness.elements.get("page-action-list").innerHTML, "");
+  assert.match(quickRepliesHtml, /I need a custom estimate\./);
+  assert.doesNotMatch(quickRepliesHtml, /<img/i);
+  assert.doesNotMatch(quickRepliesHtml, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.match(quickRepliesHtml, /I need a custom estimate\./);
+  assert.doesNotMatch(quickRepliesHtml, /Book a time/);
+  assert.doesNotMatch(quickRepliesHtml, /Hidden card/);
 });
 
 test("page action card prompt submits the configured starter prompt", async () => {

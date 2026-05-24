@@ -17,6 +17,15 @@
       ? "page"
       : "widget";
     document.documentElement.classList.add(`vonza-mode-${vonzaInitialMode}`);
+    const vonzaHostedCanvasPage = vonzaAssistantPathMatch && (vonzaInitialParams.get("layout") || "").toLowerCase() !== "classic";
+    if (vonzaHostedCanvasPage) {
+      document.documentElement.classList.add("embedded-mode");
+      document.documentElement.classList.add("embedded-size-full");
+      document.documentElement.classList.add("embedded-layout-canvas");
+      document.documentElement.classList.add("embedded-surface-flat");
+      document.documentElement.classList.add("vonza-page-layout-canvas");
+      document.documentElement.classList.add("vonza-canvas-empty");
+    }
     if (vonzaInitialParams.get("embedded") === "1") {
       const vonzaEmbeddedSize = ["compact", "standard", "tall", "full"].includes((vonzaInitialParams.get("size") || "").toLowerCase())
         ? vonzaInitialParams.get("size").toLowerCase()
