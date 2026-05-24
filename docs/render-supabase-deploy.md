@@ -23,6 +23,7 @@ Render enforcement:
 - `render.yaml` still runs `npm run verify:deploy-readiness` during the build step.
 - `npm run start:prod` still performs deploy-readiness verification before boot.
 - Startup schema diagnostics now point directly at the manifest-backed `supabase/migrations` mapping and recovery bundles.
+- Set `BOOKING_WEBHOOK_ENCRYPTION_SECRET` in Render before provisioning Calendly webhooks. Use a long random value distinct from the Calendly signing secret; changing it requires re-provisioning stored webhook secrets.
 
 Emergency recovery:
 

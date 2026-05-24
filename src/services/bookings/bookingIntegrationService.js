@@ -199,6 +199,10 @@ export function createBookingWebhookEndpointToken() {
   return randomBytes(24).toString("base64url");
 }
 
+export function createBookingWebhookSigningSecret() {
+  return randomBytes(32).toString("base64url");
+}
+
 export function encryptBookingWebhookSecret(secret) {
   const encryptionSecret = getBookingWebhookEncryptionSecret();
 
@@ -211,6 +215,116 @@ export function encryptBookingWebhookSecret(secret) {
 
 export function hashBookingWebhookEndpointToken(token) {
   return hashToken(token);
+}
+
+export function buildCalendlyWebhookUrl({ publicAppUrl, endpointToken } = {}) {
+  const baseUrl = cleanText(publicAppUrl).replace(/\/$/, "");
+  const token = cleanText(endpointToken);
+
+  if (!baseUrl) {
+    throw buildWebhookError("PUBLIC_APP_URL is required to build a Calendly webhook URL.", 500);
+  }
+
+  if (!token) {
+    throw buildWebhookError("Calendly webhook endpoint token is required.", 500);
+  }
+
+  return `${baseUrl}/bookings/webhooks/calendly/${encodeURIComponent(token)}`;
+}
+
+function normalizeProvisioningStatus(value = "") {
+  const normalized = cleanText(value).toLowerCase() || "active";
+
+  if (!["active", "pending", "disabled", "needs_attention"].includes(normalized)) {
+    throw buildProvisioningError("Calendly booking integration status is invalid.");
+  }
+
+  return normalized;
+}
+
+function buildProvisioningError(message, statusCode = 400, code = "booking_webhook_provisioning_invalid") {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  return error;
+}
+
+async function getProvisioningAgentRow(supabase, { agentId, ownerUserId }) {
+  const { data, error } = await supabase
+    .from("agents")
+    .select("id, owner_user_id, access_status, is_active")
+    .eq("id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || null;
+}
+
+export async function provisionCalendlyBookingIntegration(supabase, input = {}) {
+  const agentId = cleanText(input.agentId || input.agent_id);
+  const ownerUserId = cleanText(input.ownerUserId || input.owner_user_id);
+  const endpointToken = cleanText(input.endpointToken) || createBookingWebhookEndpointToken();
+  const webhookSecret = cleanText(input.webhookSecret) || createBookingWebhookSigningSecret();
+  const publicAppUrl = cleanText(input.publicAppUrl);
+  const metadata = input.metadata && typeof input.metadata === "object" ? input.metadata : {};
+
+  if (!supabase?.from) {
+    throw buildProvisioningError("Supabase client is required.", 500);
+  }
+
+  if (!agentId || !ownerUserId) {
+    throw buildProvisioningError("ownerUserId and agentId are required.");
+  }
+
+  if (!webhookSecret) {
+    throw buildProvisioningError("Calendly webhook signing secret is required.");
+  }
+
+  const agent = await getProvisioningAgentRow(supabase, { agentId, ownerUserId });
+
+  if (!agent) {
+    throw buildProvisioningError("Agent was not found for the supplied owner.", 404, "agent_not_found");
+  }
+
+  const webhookUrl = buildCalendlyWebhookUrl({ publicAppUrl, endpointToken });
+  const payload = {
+    agent_id: agentId,
+    owner_user_id: ownerUserId,
+    provider: "calendly",
+    status: normalizeProvisioningStatus(input.status || "active"),
+    booking_url: cleanText(input.bookingUrl || input.booking_url) || null,
+    webhook_endpoint_token_hash: hashBookingWebhookEndpointToken(endpointToken),
+    webhook_secret_encrypted: encryptBookingWebhookSecret(webhookSecret),
+    provider_account_id: cleanText(input.providerAccountId || input.provider_account_id) || null,
+    provider_event_type_id: cleanText(input.providerEventTypeId || input.provider_event_type_id) || null,
+    metadata: {
+      ...metadata,
+      provisioned_by: cleanText(metadata.provisioned_by) || "internal_cli",
+    },
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from(BOOKING_INTEGRATION_TABLE)
+    .upsert(payload, { onConflict: "agent_id,owner_user_id,provider" })
+    .select(BOOKING_INTEGRATION_SELECT)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    ok: true,
+    webhookUrl,
+    endpointToken,
+    webhookSecretGenerated: !cleanText(input.webhookSecret),
+    integration: buildPublicStatus(data),
+  };
 }
 
 export async function processCalendlyWebhook(supabase, input = {}) {

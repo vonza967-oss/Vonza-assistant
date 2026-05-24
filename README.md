@@ -50,6 +50,7 @@ SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
 OPENAI_API_KEY=...
 ADMIN_TOKEN=...
+BOOKING_WEBHOOK_ENCRYPTION_SECRET=...
 STRIPE_SECRET_KEY=...
 STRIPE_WEBHOOK_SECRET=...
 STRIPE_PRICE_ID_STARTER_MONTHLY=...
@@ -66,6 +67,25 @@ npm start
 ```
 
 Open the dashboard at `http://localhost:3000/dashboard`. Analytics renders inside the dashboard shell and reads JSON from `/dashboard/analytics/summary`; `/dashboard/analytics` is a JSON-only compatibility alias. The widget preview is served at `/widget`; the embeddable scripts are `/embed.js` and `/embed-lite.js`.
+
+## Calendly Webhook Provisioning
+
+Calendly booking confirmations use an internal provisioning script. Set `BOOKING_WEBHOOK_ENCRYPTION_SECRET` to a long random value before provisioning; it encrypts stored Calendly webhook signing secrets and is separate from the Calendly signing secret itself.
+
+Provision an existing owner/agent pair with a signing secret supplied from an environment variable:
+
+```bash
+read -r -s CALENDLY_WEBHOOK_SIGNING_SECRET
+export CALENDLY_WEBHOOK_SIGNING_SECRET
+npm run provision:calendly-webhook -- \
+  --owner-user-id <owner_uuid> \
+  --agent-id <agent_uuid> \
+  --webhook-secret-env CALENDLY_WEBHOOK_SIGNING_SECRET \
+  --booking-url https://calendly.com/example/demo
+unset CALENDLY_WEBHOOK_SIGNING_SECRET
+```
+
+The script upserts `agent_booking_integrations`, stores only the endpoint token hash and encrypted signing secret, and prints the Calendly webhook URL once. It does not register a Calendly webhook automatically.
 
 ## Testing
 

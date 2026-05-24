@@ -54,6 +54,7 @@ test("deploy readiness requires Stripe plan prices for staging and production de
   }).map((entry) => entry.name);
 
   assert.deepEqual(missingNames, [
+    "BOOKING_WEBHOOK_ENCRYPTION_SECRET",
     "STRIPE_PRICE_ID_STARTER_MONTHLY",
     "STRIPE_PRICE_ID_GROWTH_MONTHLY",
     "STRIPE_PRICE_ID_PRO_MONTHLY",
@@ -69,6 +70,7 @@ test("deploy readiness reports missing distributed rate limiter config in produc
     SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_123",
+    BOOKING_WEBHOOK_ENCRYPTION_SECRET: "booking-secret",
     STRIPE_PRICE_ID_STARTER_MONTHLY: "price_starter",
     STRIPE_PRICE_ID_GROWTH_MONTHLY: "price_growth",
     STRIPE_PRICE_ID_PRO_MONTHLY: "price_pro",
@@ -111,6 +113,7 @@ test("Google deploy env vars are required only when operator workspace is explic
     SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_123",
+    BOOKING_WEBHOOK_ENCRYPTION_SECRET: "booking-secret",
     STRIPE_PRICE_ID_STARTER_MONTHLY: "price_starter",
     STRIPE_PRICE_ID_GROWTH_MONTHLY: "price_growth",
     STRIPE_PRICE_ID_PRO_MONTHLY: "price_pro",

@@ -85,6 +85,10 @@ export function getMissingDeployReadinessEnvVars(env = process.env) {
         note: "Required in staging/production so Stripe subscription webhooks can be verified.",
       },
       {
+        name: "BOOKING_WEBHOOK_ENCRYPTION_SECRET",
+        note: "Required in staging/production so Calendly webhook signing secrets can be encrypted at rest.",
+      },
+      {
         name: "STRIPE_PRICE_ID_STARTER_MONTHLY",
         note: "Required in staging/production for Starter checkout.",
       },

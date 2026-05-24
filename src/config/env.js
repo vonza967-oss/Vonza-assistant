@@ -141,11 +141,7 @@ export function getGoogleTokenEncryptionSecret() {
 }
 
 export function getBookingWebhookEncryptionSecret() {
-  return String(
-    process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET
-    || process.env.GOOGLE_TOKEN_ENCRYPTION_SECRET
-    || ""
-  );
+  return String(process.env.BOOKING_WEBHOOK_ENCRYPTION_SECRET || "");
 }
 
 export function listMissingGoogleOperatorEnvVars() {
