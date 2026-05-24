@@ -490,9 +490,9 @@ test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and
   assert.match(markup, /data-full-page-qr-preview/);
   assert.match(markup, /data-action="download-full-page-qr"/);
   assert.doesNotMatch(markup, /Scan tracking|QR scans|scans today/i);
-  assert.match(markup, /Status/);
+  assert.match(markup, /Launch readiness/);
   assert.match(markup, /Domain status/);
-  assert.match(markup, /Resources/);
+  assert.match(markup, /Launch shortcuts/);
   assert.doesNotMatch(markup, /Open Home/);
   assert.doesNotMatch(markup, /Open Analytics/);
   assert.doesNotMatch(markup, /Home already has conversations/);
@@ -2412,8 +2412,9 @@ test("customers render as a polished workspace without inactive controls", () =>
   assert.match(contactsPanel, /<p class="customer-row-identity">Email user · taylor@example\.com<\/p>/);
   assert.match(contactsPanel, /Visitor asked for pricing/);
   assert.match(contactsPanel, /Last message/);
-  assert.match(contactsPanel, /Conversation summary/);
-  assert.match(contactsPanel, /Suggested next action/);
+  assert.match(contactsPanel, /What happened/);
+  assert.match(contactsPanel, /Why it matters/);
+  assert.match(contactsPanel, /Next action/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /data-customer-chat-panel/);
   assert.match(contactsPanel, />Customer</);
@@ -2568,13 +2569,15 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   );
 
   assert.match(panel, /Practice, teach, and publish the answers customers see/);
-  assert.match(panel, />Practice<\/button>/);
-  assert.match(panel, />Improvements<\/button>/);
-  assert.match(panel, />Knowledge<\/button>/);
-  assert.match(panel, />Answer library<\/button>/);
-  assert.match(panel, />Launch<\/button>/);
+  assert.match(panel, /<span>Practice<\/span>/);
+  assert.match(panel, /<span>Improvements<\/span>/);
+  assert.match(panel, /<span>Knowledge<\/span>/);
+  assert.match(panel, /<span>Answer library<\/span>/);
+  assert.match(panel, /<span>Launch<\/span>/);
   assert.match(panel, /Open settings/);
-  assert.match(panel, /Practice with Front Desk/);
+  assert.match(panel, /Practice the answer customers will see/);
+  assert.match(panel, /Next action/);
+  assert.match(panel, /Prepare the hosted Front Desk page/);
   assert.match(panel, /Ask a question as if you were a visitor/);
   assert.match(panel, /Practice mode — visitors will not see this conversation/);
   assert.match(panel, /Draft improvements/);
@@ -2758,7 +2761,7 @@ test("front desk practice section renders a clean owner-only conversation withou
     harness.normalizeOperatorWorkspace({})
   );
 
-  assert.match(panel, /Practice with Front Desk/);
+  assert.match(panel, /Practice the answer customers will see/);
   assert.match(panel, /Practice mode — visitors will not see this conversation/);
   assert.match(panel, /data-frontdesk-practice-form/);
   assert.doesNotMatch(panel, /<iframe/);
@@ -3219,14 +3222,15 @@ test("sidebar rail keeps primary and utility navigation without placeholder conn
     "overview"
   );
 
-  assert.match(sidebar, /Primary/);
+  assert.match(sidebar, /Operate/);
+  assert.match(sidebar, /Front Desk is the primary customer surface/);
   assert.doesNotMatch(sidebar, /Connected Tools/);
   assert.doesNotMatch(sidebar, /\(coming soon\)/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Calendar[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Automations[\s\S]{0,80}Beta/);
   assert.doesNotMatch(sidebar, /Optional/);
-  assert.match(sidebar, /Utilities/);
+  assert.match(sidebar, /Setup/);
   assert.match(sidebar, /Workspace/);
   assert.match(sidebar, /Knowledge/);
   assert.match(sidebar, /Install/);
@@ -3517,7 +3521,9 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /data-contact-source-labels="Front Desk page\|QR \/ direct link"/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /contacts-detail-shell/);
-  assert.match(contactsPanel, /Conversation summary/);
+  assert.match(contactsPanel, /What happened/);
+  assert.match(contactsPanel, /Why it matters/);
+  assert.match(contactsPanel, /Next action/);
   assert.match(contactsPanel, /Chat unavailable/);
   assert.doesNotMatch(contactsPanel, /display_mode/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
@@ -3554,12 +3560,12 @@ test("customer filters separate needs review from follow-up possible counts", ()
   });
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
-  assert.match(contactsPanel, /Needs review \(2\)/);
-  assert.match(contactsPanel, /Follow-up possible \(1\)/);
+  assert.match(contactsPanel, /<span>Needs review<\/span>\s*<strong>2<\/strong>/);
+  assert.match(contactsPanel, /<span>Follow-up possible<\/span>\s*<strong>1<\/strong>/);
   assert.match(contactsPanel, /data-contact-id="guest-review"[\s\S]*data-contact-follow-up-possible="false"/);
   assert.match(contactsPanel, /data-contact-id="identified-follow-up"[\s\S]*data-contact-follow-up-possible="true"/);
-  assert.match(contactsPanel, /Guests \(1\)/);
-  assert.match(contactsPanel, /Identified \(1\)/);
+  assert.match(contactsPanel, /<span>Guests<\/span>\s*<strong>1<\/strong>/);
+  assert.match(contactsPanel, /<span>Identified<\/span>\s*<strong>1<\/strong>/);
   assert.match(contactsPanel, /data-contact-filter="website_widget"/);
   assert.match(contactsPanel, /data-contact-filter="full_page_assistant"/);
 });
@@ -3576,7 +3582,7 @@ test("customers panel uses a polished empty state with no preview customer data"
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
   assert.match(contactsPanel, /No customer conversations yet/);
-  assert.match(contactsPanel, /Customer conversations, leads, and follow-up context will appear here/);
+  assert.match(contactsPanel, /customer records, lead context, and follow-up signals will appear here/);
   assert.doesNotMatch(contactsPanel, /Install Vonza or open your assistant preview to start testing/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
   assert.doesNotMatch(contactsPanel, /fake|mock/i);
@@ -3867,7 +3873,7 @@ test("install panel shows real status, progress, and resources without unrelated
   assert.match(panel, /Front Desk created/);
   assert.match(panel, /Training and knowledge ready/);
   assert.match(panel, /Public Front Desk page enabled/);
-  assert.match(panel, /Distribution channel selected/);
+  assert.match(panel, /Launch path selected/);
   assert.match(panel, /First test conversation/);
   assert.match(panel, /Front Desk customized/);
   assert.match(panel, /Copy Front Desk page link/);

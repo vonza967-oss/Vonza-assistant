@@ -719,7 +719,7 @@ test("Hungarian dashboard shipped hash routes render localized primary labels", 
   const hashRoutes = [
     ["#today", "overview", [/Kezdőlap/, /Mai AI ügyfélszolgálati áttekintés/]],
     ["#customers", "contacts", [/Ügyfelek/, /Minden ügyfél|Válaszra vár/]],
-    ["#front-desk", "customize", [/Front Desk/, /Gyakorlás a Front Deskkel|Front Desk kipróbálása/]],
+    ["#front-desk", "customize", [/Front Desk/, /Gyakorold azt a választ|Gyakorlás a Front Deskkel|Front Desk kipróbálása/]],
     ["#analytics", "analytics", [/Elemzések/, /Teljesítmény|Rögzített érdeklődők/]],
     ["#install", "install", [/Telepítés/, /Telepítés ellenőrzése|Kód megtekintése/]],
     ["#settings", "settings", [/Beállítások/, /Irányítópult nyelve/]],
@@ -840,6 +840,30 @@ test("front desk nested hash routes open the matching tab", async () => {
     assert.match(tabSection, /data-frontdesk-section=/, `${hash} should render ${label}`);
     assert.doesNotMatch(tabSection, /\bhidden\b/, `${hash} should show ${label}`);
   }
+});
+
+test("front desk and install tab clicks sync explicit nested hashes", async () => {
+  const harness = createDashboardHarness({
+    hash: "#front-desk/practice",
+    agents: () => [createActiveAgent()],
+  });
+  await harness.settle();
+
+  harness.getGlobal("setActiveFrontDeskSection")("knowledge", { syncHash: true });
+  assert.equal(harness.getLocation().hash, "#front-desk/knowledge");
+
+  harness.getGlobal("syncShellSectionHash")("install", { installMethod: "qr" });
+  assert.equal(harness.getLocation().hash, "#install/qr");
+
+  harness.getGlobal("syncShellSectionHash")("install", { installMethod: "widget" });
+  assert.equal(harness.getLocation().hash, "#install/embed");
+
+  const embedHarness = createDashboardHarness({
+    hash: "#install/embed",
+    agents: () => [createActiveAgent()],
+  });
+  await embedHarness.settle();
+  assert.match(embedHarness.getRootHtml(), /class="install-option-card active" id="install-panel-widget"/);
 });
 
 test("settings hash routes open the matching Settings tab content", async () => {
@@ -1059,10 +1083,10 @@ test("Customers labels separate guest review from reachable follow-up", async ()
   assert.match(guestDetail, /Mark reviewed/);
   assert.doesNotMatch(guestDetail, /Review suggested reply|Follow up later|Send AI draft/);
 
-  assert.match(html, /Needs review \(\d+\)/);
-  assert.match(html, /Follow-up possible \(\d+\)/);
-  assert.match(html, /Website widget \(\d+\)/);
-  assert.match(html, /Front Desk page \(\d+\)/);
+  assert.match(html, /<span>Needs review<\/span>\s*<strong>\d+<\/strong>/);
+  assert.match(html, /<span>Follow-up possible<\/span>\s*<strong>\d+<\/strong>/);
+  assert.match(html, /<span>Website widget<\/span>\s*<strong>\d+<\/strong>/);
+  assert.match(html, /<span>Front Desk page<\/span>\s*<strong>\d+<\/strong>/);
 });
 
 test("Home review actions route to Customers while analytics actions say analytics", async () => {

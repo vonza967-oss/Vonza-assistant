@@ -5,17 +5,17 @@
     {
       key: "general",
       label: "General",
-      note: "Dashboard language, appearance, and workspace status.",
+      note: "Workspace status, dashboard language, and launch posture.",
     },
     {
       key: "front_desk",
       label: "Front Desk",
-      note: "Customer-facing behavior, welcome, routing, and launch readiness.",
+      note: "Identity, full-page assistant, routing, and optional widget.",
     },
     {
       key: "business_profile",
       label: "Business Profile",
-      note: "Business facts Vonza uses to answer customer questions.",
+      note: "Grounding facts and readiness for customer answers.",
     },
     {
       key: "account_billing",
@@ -25,7 +25,7 @@
     {
       key: "privacy_legal",
       label: "Privacy & Legal",
-      note: "Public legal pages and privacy links.",
+      note: "Public trust, privacy, and legal pages.",
     },
   ];
   const SETTINGS_SECTIONS = Object.freeze(SETTINGS_SECTION_DETAILS.map((section) => section.key));
@@ -1153,7 +1153,7 @@
               data-settings-scroll-target="settings-section-${escapeHtml(section.key)}"
               aria-current="${activeSettingsSection === section.key ? "page" : "false"}"
               title="${escapeHtml(translateDashboardText(section.note))}"
-            >${renderSettingsIcon(section.key)}<span>${escapeHtml(translateDashboardText(section.label))}</span></button>
+            >${renderSettingsIcon(section.key)}<span class="settings-shell-nav-copy"><strong>${escapeHtml(translateDashboardText(section.label))}</strong><small>${escapeHtml(translateDashboardText(section.note))}</small></span></button>
           `).join("")}
         </div>
       </div>
@@ -1193,7 +1193,7 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Business profile</p>
             <h2 class="settings-shell-page-title">Business profile</h2>
-            <p class="settings-shell-page-copy">Keep the core business details Vonza uses to answer customer questions, explain services, and guide visitors toward the right next step.</p>
+            <p class="settings-shell-page-copy">Keep the business facts Vonza should trust when the hosted Front Desk page, QR links, embeds, or optional widget answer customer questions.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs details" : "Profile ready"}</span>
@@ -1201,11 +1201,28 @@
           </div>
         </header>
 
+        <section class="settings-operational-summary settings-operational-summary--business" aria-label="Business profile readiness summary">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Answer grounding</span>
+              <span class="${getBadgeClass(profile.readiness?.missingCount ? "Limited" : "Ready")}">${profile.readiness?.missingCount ? "Needs detail" : "Ready"}</span>
+            </div>
+            <p>${escapeHtml(profile.readiness?.summary || "Business profile readiness will appear here.")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Website knowledge</span>
+              <span class="${getBadgeClass(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing")}</span>
+            </div>
+            <p>${escapeHtml(setup.knowledgeDescription || "Website knowledge status appears after import.")}</p>
+          </article>
+        </section>
+
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
             <div>
-              <h3 class="settings-shell-section-title">Setup status</h3>
-              <p class="settings-shell-section-copy">Review what is ready and what still needs detail before this profile can support customer questions well.</p>
+              <h3 class="settings-shell-section-title">Business Profile readiness</h3>
+              <p class="settings-shell-section-copy">Review what is ready and what still needs detail before this profile supports live customer questions.</p>
             </div>
           </div>
           <div class="settings-shell-status-list">
@@ -1354,6 +1371,37 @@
         return card.enabled !== false;
       })
       .slice(0, 4);
+    const routingDestinationCount = [
+      agent.contactEmail,
+      agent.contactPhone,
+      agent.bookingUrl,
+      agent.quoteUrl,
+      agent.checkoutUrl,
+    ].filter((value) => trimText(value)).length;
+    const frontDeskOperationalRows = [
+      {
+        label: "Hosted full-page assistant",
+        value: fullPageConfig.publicPageEnabled ? "Live" : "Disabled",
+        tone: fullPageConfig.publicPageEnabled ? "Ready" : "Pending",
+        copy: fullPageConfig.publicPageEnabled
+          ? "Ready for direct links, QR codes, WordPress pages, and smart embeds."
+          : "Enable public access before sharing links, QR codes, or page embeds.",
+      },
+      {
+        label: "Launch routing",
+        value: routingDestinationCount ? `${routingDestinationCount} destination${routingDestinationCount === 1 ? "" : "s"}` : "Needs routes",
+        tone: routingDestinationCount ? "Ready" : "Limited",
+        copy: routingDestinationCount
+          ? "Contact, booking, quote, or checkout destinations are available for customer next steps."
+          : "Add contact, booking, quote, or checkout destinations before relying on handoffs.",
+      },
+      {
+        label: "Optional website bubble",
+        value: installStatus.label || "Not installed yet",
+        tone: installStatus.state === "seen_recently" ? "Ready" : installStatus.state === "installed_unseen" ? "Limited" : "Pending",
+        copy: "Secondary launcher. The hosted Front Desk page remains the primary customer-facing surface.",
+      },
+    ];
 
     return `
       <form data-settings-form data-form-kind="customize" data-settings-section="front_desk" class="settings-shell-form settings-shell-form--system settings-frontdesk-form" id="settings-section-front_desk">
@@ -1361,20 +1409,33 @@
           <div class="settings-shell-page-title-group">
             <p class="studio-kicker">Front Desk</p>
             <h2 class="settings-shell-page-title">Front Desk</h2>
-            <p class="settings-shell-page-copy">Adjust how the customer-facing Front Desk speaks, routes, and appears to visitors.</p>
+            <p class="settings-shell-page-copy">Configure the customer-facing Front Desk page first, then routing, appearance, and the optional website widget.</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
+            <span class="${helpers.getBadgeClass(fullPageConfig.publicPageEnabled ? "Ready" : "Pending")}">${escapeHtml(fullPageConfig.publicPageEnabled ? "Hosted page live" : "Hosted page off")}</span>
             <span class="badge success">${escapeHtml(agent.tone || "friendly")}</span>
           </div>
         </header>
 
+        <section class="settings-operational-summary" aria-label="Front Desk launch settings summary">
+          ${frontDeskOperationalRows.map((row) => `
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>${escapeHtml(row.label)}</span>
+                <span class="${helpers.getBadgeClass(row.tone)}">${escapeHtml(row.value)}</span>
+              </div>
+              <p>${escapeHtml(row.copy)}</p>
+            </article>
+          `).join("")}
+        </section>
+
         <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("identity")}" type="button" data-frontdesk-settings-tab="identity" aria-selected="${frontDeskTabSelected("identity")}">Identity & welcome</button>
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("voice")}" type="button" data-frontdesk-settings-tab="voice" aria-selected="${frontDeskTabSelected("voice")}">Voice</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Front Desk page</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Full-page assistant</button>
           <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("routing")}" type="button" data-frontdesk-settings-tab="routing" aria-selected="${frontDeskTabSelected("routing")}">Routing</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("appearance")}" type="button" data-frontdesk-settings-tab="appearance" aria-selected="${frontDeskTabSelected("appearance")}">Widget appearance</button>
+          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("appearance")}" type="button" data-frontdesk-settings-tab="appearance" aria-selected="${frontDeskTabSelected("appearance")}">Optional widget</button>
         </div>
 
         <div class="settings-frontdesk-layout">
@@ -1495,7 +1556,7 @@
             <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" ${frontDeskPanelAttrs("full_page")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Front Desk page</h3>
+                  <h3 class="settings-shell-section-title">Full-page assistant and hosted page</h3>
                   <p class="settings-shell-section-copy">Customize the primary Front Desk page customers open from links, WordPress pages, smart embeds, QR codes, and direct assistant pages.</p>
                 </div>
               </div>
@@ -2287,18 +2348,20 @@
     `;
   }
 
-  function buildGeneralStatusCard(agent, operatorWorkspace, authUser, helpers) {
-    const { escapeHtml, getWorkspaceMode, normalizeAccessStatus } = helpers;
+  function buildGeneralStatusCard(agent, setup, operatorWorkspace, authUser, helpers) {
+    const { escapeHtml, getDefaultInstallStatus, getWorkspaceMode, normalizeAccessStatus } = helpers;
     const owner = getOwnerAccount(agent, authUser);
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const workspaceMode = getWorkspaceMode(operatorWorkspace);
+    const installStatus = getDefaultInstallStatus(agent);
+    const fullPageConfig = normalizeFullPageConfig(agent);
 
     return `
       <article class="settings-overview-card">
         <div class="settings-card-heading settings-card-heading--split">
           <div>
             <h2 class="settings-card-title">Workspace status</h2>
-            <p class="settings-card-copy">Lightweight account and workspace state from the existing auth and activation flow.</p>
+            <p class="settings-card-copy">Operational readiness from the existing auth, activation, install, and Front Desk setup state.</p>
           </div>
           <span class="${accessStatus === "active" ? "badge success" : "badge pending"}">${escapeHtml(accessStatus)}</span>
         </div>
@@ -2311,16 +2374,28 @@
             <strong>Workspace mode</strong>
             <span>${escapeHtml(workspaceMode.title)}</span>
           </div>
+          <div class="settings-status-row">
+            <strong>Hosted Front Desk page</strong>
+            <span>${escapeHtml(fullPageConfig.publicPageEnabled ? "Live for links, QR, and embeds" : "Enable before launch")}</span>
+          </div>
+          <div class="settings-status-row">
+            <strong>Launch readiness</strong>
+            <span>${escapeHtml(setup.isReady ? "Core setup ready" : setup.knowledgeLimited ? "Knowledge limited" : "Needs setup")}</span>
+          </div>
+          <div class="settings-status-row">
+            <strong>Optional widget</strong>
+            <span>${escapeHtml(installStatus.label || "Not installed yet")}</span>
+          </div>
         </div>
       </article>
     `;
   }
 
-  function buildGeneralSettingsSection(agent, operatorWorkspace, authUser, helpers) {
+  function buildGeneralSettingsSection(agent, setup, operatorWorkspace, authUser, helpers) {
     return `
       <section id="settings-section-general" data-settings-section="general" class="settings-general-section">
         ${buildWorkspacePreferencesCard(helpers)}
-        ${buildGeneralStatusCard(agent, operatorWorkspace, authUser, helpers)}
+        ${buildGeneralStatusCard(agent, setup, operatorWorkspace, authUser, helpers)}
       </section>
     `;
   }
@@ -2513,7 +2588,7 @@
   }
 
   function buildAccountBillingSettingsSection(agent, operatorWorkspace, authUser, helpers) {
-    const { escapeHtml, normalizeAccessStatus } = helpers;
+    const { escapeHtml, getBadgeClass, normalizeAccessStatus } = helpers;
     const owner = getOwnerAccount(agent, authUser);
     const accessStatus = normalizeAccessStatus(agent.accessStatus);
     const billing = operatorWorkspace?.billing || defaultBillingSnapshot();
@@ -2537,9 +2612,33 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Account & Billing</p>
               <h2 class="settings-shell-page-title">Account & Billing</h2>
-              <p class="settings-shell-page-copy">Review real account, subscription, plan, and usage information for this workspace.</p>
+              <p class="settings-shell-page-copy">Review the owner account, access status, Stripe-backed plan state, and monthly AI capacity that affect live Front Desk operations.</p>
             </div>
           </header>
+
+          <section class="settings-operational-summary settings-operational-summary--billing" aria-label="Account and billing summary">
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Owner access</span>
+                <span class="${accessStatus === "active" ? "badge success" : "badge pending"}">${escapeHtml(accessStatus)}</span>
+              </div>
+              <p>${escapeHtml(owner.email || owner.name || "Owner account unavailable")}</p>
+            </article>
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Subscription</span>
+                <span class="${billing.hasActiveSubscription ? "badge success" : "badge pending"}">${escapeHtml(billing.subscriptionStatus || "pending")}</span>
+              </div>
+              <p>${escapeHtml(planLabel)}</p>
+            </article>
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Monthly capacity</span>
+                <span class="${getBadgeClass(defaultTrimText(usage.tone).toLowerCase() === "danger" ? "Needs attention" : defaultTrimText(usage.tone).toLowerCase() === "warning" ? "Limited" : "Ready")}">${escapeHtml(`${usagePercentLabel} used`)}</span>
+              </div>
+              <p>${escapeHtml(usage.statusLabel || usage.ownerMessage || "Monthly capacity status appears after billing sync.")}</p>
+            </article>
+          </section>
 
           <section class="settings-shell-section">
             <div class="settings-shell-section-header">
@@ -2643,9 +2742,18 @@
             <div class="settings-shell-page-title-group">
               <p class="studio-kicker">Privacy & Legal</p>
               <h2 class="settings-shell-page-title">Privacy & Legal</h2>
-              <p class="settings-shell-page-copy">Open the real public legal and privacy pages used by the website, app, widget, and checkout.</p>
+              <p class="settings-shell-page-copy">Open the public legal and privacy pages used by the website, app, hosted Front Desk page, optional widget, and checkout.</p>
             </div>
           </header>
+          <section class="settings-operational-summary settings-operational-summary--privacy" aria-label="Privacy and legal summary">
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Public legal pages</span>
+                <span class="badge success">${LEGAL_LINKS.length} links</span>
+              </div>
+              <p>These links are presented as operational references for owner review and public trust checks.</p>
+            </article>
+          </section>
           ${buildPrivacyCard(helpers)}
         </div>
       </section>
@@ -2777,7 +2885,7 @@
         return buildPrivacyLegalSettingsSection(helpers);
       case "general":
       default:
-        return buildGeneralSettingsSection(agent, operatorWorkspace, authUser, helpers);
+        return buildGeneralSettingsSection(agent, setup, operatorWorkspace, authUser, helpers);
     }
   }
 

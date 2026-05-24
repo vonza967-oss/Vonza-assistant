@@ -1052,6 +1052,9 @@
       return `
         <article
           class="contact-row customer-row"
+          role="button"
+          tabindex="0"
+          aria-selected="false"
           data-contact-row
           data-contact-card
           data-contact-id="${escapeHtml(contact.id || "")}"
@@ -1170,6 +1173,7 @@
           `).join("")}
         </div>
       ` : `<div class="placeholder-card">${escapeHtml(localizeDashboardCopy("No timeline details are stored yet.", "Még nincs eltárolt idővonal-részlet."))}</div>`;
+      const customerRiskSummary = getCustomerRiskSummary(contact);
       const detailDisclosureMarkup = buildDisclosureBlock({
         label: localizeDashboardCopy("View timeline", "Idővonal megnyitása"),
         summary: `${contact.timeline?.length || 0} interaction${contact.timeline?.length === 1 ? "" : "s"}`,
@@ -1258,17 +1262,21 @@
             </div>
           </div>
           <div class="customer-detail-card customer-detail-summary-card">
-            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation summary", "Beszélgetés összefoglaló"))}</span>
+            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("What happened", "Mi történt"))}</span>
             <p>${escapeHtml(getCustomerSituationSummary(contact))}</p>
             <span class="customer-intent-chip">${escapeHtml(getCustomerIntentLabel(contact))}</span>
           </div>
+          <div class="customer-detail-card customer-why-card">
+            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Why it matters", "Miért fontos"))}</span>
+            <p>${escapeHtml(customerRiskSummary)}</p>
+          </div>
           <div class="customer-detail-card customer-suggested-action-card">
-            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Suggested next action", "Javasolt következő lépés"))}</span>
+            <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Next action", "Következő lépés"))}</span>
             <strong>${escapeHtml(getCustomerSuggestedAction(contact))}</strong>
           </div>
           <div class="customer-detail-card customer-timeline-card">
             <div class="customer-card-heading">
-              <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Conversation timeline", "Beszélgetés idővonala"))}</span>
+              <span class="detail-kv-label">${escapeHtml(localizeDashboardCopy("Recent activity", "Friss aktivitás"))}</span>
               <span>${escapeHtml(formatDashboardCountLabel(contact.timeline?.length || 0, "interaction", "interactions", "interakció"))}</span>
             </div>
             ${timelineMarkup}
@@ -1284,7 +1292,6 @@
               ${contact.id ? "" : "disabled"}
             >${escapeHtml(localizeDashboardCopy("Mark reviewed", "Áttekintettnek jelölés"))}</button>
           </div>
-          <div class="customer-risk-note">${escapeHtml(getCustomerRiskSummary(contact))}</div>
           ${detailDisclosureMarkup}
         </article>
       `;
@@ -1297,8 +1304,9 @@
       const filtersMarkup = `
         <div class="customer-filter-strip" data-customer-filter-strip>
           ${customerFilters.map((filter, index) => `
-            <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}">
-              ${escapeHtml(`${filter.label} (${filter.count})`)}
+            <button class="contact-filter-button customer-filter-pill ${index === 0 ? "active" : ""}" type="button" data-contact-filter="${escapeHtml(filter.key)}" aria-pressed="${index === 0 ? "true" : "false"}">
+              <span>${escapeHtml(filter.label)}</span>
+              <strong>${escapeHtml(String(filter.count))}</strong>
             </button>
           `).join("")}
         </div>
@@ -1352,7 +1360,7 @@
               ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
               ${!contacts.length ? buildOperatorEmptyState({
                 title: "No customer conversations yet.",
-                copy: "Customer conversations, leads, and follow-up context will appear here after visitors contact the business.",
+                copy: "When visitors use the Front Desk, customer records, lead context, and follow-up signals will appear here.",
               }) : peopleWorkspaceMarkup}
             </div>
           </div>
@@ -1419,7 +1427,7 @@
   }
 
   function renderCustomerFilterTabs(contacts = []) {
-    return '<div class="customer-filter-strip" data-customer-filter-strip>' + buildCustomerFilterDefinitions(contacts).map((filter, index) => '<button class="contact-filter-button customer-filter-pill ' + (index === 0 ? 'active' : '') + '" type="button" data-contact-filter="' + sanitizeHtml(filter.key) + '">' + sanitizeHtml(filter.label + ' (' + filter.count + ')') + '</button>').join('') + '</div>';
+    return '<div class="customer-filter-strip" data-customer-filter-strip>' + buildCustomerFilterDefinitions(contacts).map((filter, index) => '<button class="contact-filter-button customer-filter-pill ' + (index === 0 ? 'active' : '') + '" type="button" data-contact-filter="' + sanitizeHtml(filter.key) + '" aria-pressed="' + (index === 0 ? 'true' : 'false') + '"><span>' + sanitizeHtml(filter.label) + '</span><strong>' + sanitizeHtml(String(filter.count)) + '</strong></button>').join('') + '</div>';
   }
 
   function formatCustomerTime(value = "") {

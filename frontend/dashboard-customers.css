@@ -458,3 +458,97 @@
   border-color: rgba(20, 184, 166, 0.42);
   box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.18), 0 18px 36px rgba(20, 184, 166, 0.12);
 }
+
+/* V2 Customers polish */
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-filter-pill strong {
+  display: inline-grid;
+  min-width: 22px;
+  min-height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #eef3f8;
+  color: #40516c;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-filter-pill.active strong {
+  background: #d8f2eb;
+  color: #0f766e;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row {
+  cursor: pointer;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row:focus-visible {
+  outline: 2px solid rgba(15, 143, 127, 0.48);
+  outline-offset: -2px;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row.active {
+  background: #effaf7;
+  box-shadow: inset 3px 0 0 #0f8f7f;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row-source,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row-intent,
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-row-statuses {
+  min-width: 0;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-source-chip {
+  border-color: #cbd9ef;
+  background: #f3f7fd;
+  color: #33527a;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-detail-card {
+  position: relative;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-detail-summary-card {
+  border-left: 3px solid #2563eb;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-why-card {
+  border-left: 3px solid #b97412;
+  background: #fffaf0;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-suggested-action-card {
+  border-left: 3px solid #0f8f7f;
+  background: #f4fbf9;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-why-card p {
+  margin: 0;
+  color: #4a2a00;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .contact-filter-empty {
+  margin-top: 12px;
+  padding: 18px;
+  border-style: dashed;
+  text-align: left;
+}
+
+@media (max-width: 700px) {
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-filter-strip {
+    justify-content: flex-start;
+  }
+
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="contacts"] .customer-filter-pill {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: space-between;
+  }
+}

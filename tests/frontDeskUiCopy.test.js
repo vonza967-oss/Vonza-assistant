@@ -13,7 +13,7 @@ test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Front Desk page/);
   assert.match(settingsShellScript, /Routing/);
   assert.match(settingsShellScript, /Voice/);
-  assert.match(settingsShellScript, /Widget appearance/);
+  assert.match(settingsShellScript, /Optional widget/);
   assert.match(settingsShellScript, /Voice output is AI-generated/);
   assert.match(settingsShellScript, /Current live readout/);
   assert.doesNotMatch(settingsShellScript, /Training queue/);
@@ -32,13 +32,13 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
     assert.match(frontDeskDashboardSurface, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
-  assert.match(frontDeskDashboardSurface, /Practice with Front Desk/);
+  assert.match(frontDeskDashboardSurface, /Practice the answer customers will see/);
   assert.match(frontDeskDashboardSurface, /Practice mode — visitors will not see this conversation/);
   assert.match(frontDeskDashboardSurface, /Teach this answer/);
   assert.match(frontDeskDashboardSurface, /What should Front Desk say instead/);
   assert.match(frontDeskDashboardSurface, /Save draft/);
   assert.match(frontDeskDashboardSurface, /Publish improvement/);
-  assert.match(frontDeskDashboardSurface, /Nothing needs review right now/);
+  assert.match(frontDeskDashboardSurface, /No answer fixes are waiting/);
   assert.match(frontDeskDashboardSurface, /No published answers yet/);
   assert.match(frontDeskDashboardSurface, /Published answers Front Desk can use when visitors ask similar questions/);
   assert.doesNotMatch(frontDeskDashboardSurface, /Approved answers/);

@@ -53,24 +53,24 @@
         key: "page",
         icon: "frontdesk",
         title: "Front Desk page",
-        copy: "Share the hosted AI Front Desk page or publish it as the main content of a website page.",
-        status: "Recommended",
+        copy: "Launch the hosted Front Desk page first, then use WordPress or smart embed when it should live on your site.",
+        status: "Primary",
         tone: "ready",
       },
       {
         key: "qr",
         icon: "review",
         title: "QR / direct link",
-        copy: "Open the same Front Desk page from signs, menus, invoices, emails, or direct links.",
-        status: qrEndpoint ? "Ready" : "Enable page first",
+        copy: "Open the same hosted Front Desk page from signs, menus, invoices, emails, or direct links.",
+        status: qrEndpoint ? "Primary ready" : "Enable page first",
         tone: qrEndpoint ? "neutral" : "warning",
       },
       {
         key: "widget",
         icon: "install",
         title: "Website widget bubble",
-        copy: "Also add a compact chat bubble to normal website pages.",
-        status: installDetected ? "Optional installed" : hasInstall ? "Optional" : "Optional",
+        copy: "Add a compact chat bubble only after the full-page Front Desk launch path is clear.",
+        status: installDetected ? "Secondary installed" : hasInstall ? "Secondary" : "Secondary",
         tone: installDetected ? "ready" : "neutral",
       },
     ];
@@ -433,11 +433,11 @@
               : "No test conversation yet",
         },
         {
-          title: "Distribution channel selected",
+          title: "Launch path selected",
           done: hasDistributionChannel,
           detail: hasDistributionChannel
-            ? "Front Desk page, QR/direct link, smart embed, WordPress, or optional bubble is ready"
-            : "Choose a launch channel in Install",
+            ? "Hosted page, QR/direct link, WordPress/smart embed, or optional bubble is ready"
+            : "Choose a primary launch path in Install",
         },
       ];
 
@@ -461,25 +461,25 @@
           number: "1",
           title: "Choose method",
           state: "active",
-          copy: "Pick Front Desk page, QR/direct link, or optional bubble.",
+          copy: "Start with hosted page, QR/direct link, or WordPress/smart embed.",
         },
         {
           number: "2",
           title: "Configure",
           state: hasInstall || fullPageUrl || qrEndpoint ? "done" : "pending",
-          copy: "Use the ready code or link.",
+          copy: "Copy the link, page embed, smart snippet, or optional bubble code.",
         },
         {
           number: "3",
           title: "Verify",
           state: verifyDone ? "done" : "pending",
-          copy: "Confirm any website embed or bubble install.",
+          copy: "Confirm website embed or bubble installs after publishing.",
         },
         {
           number: "4",
           title: "Go live",
           state: isInstallSeen(installStatus) ? "done" : "pending",
-          copy: "Share the working entry point.",
+          copy: "Share the hosted page, QR, or embedded page; keep the widget secondary.",
         },
       ];
 
@@ -511,6 +511,68 @@
         <div class="install-domain-chips" aria-label="Allowed domains">
           ${allowedDomains.map((domain) => `<span>${escapeHtml(domain)}</span>`).join("")}
         </div>
+      `;
+    }
+
+    function buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus) {
+      const paths = [
+        {
+          title: "Hosted Front Desk page",
+          label: "Primary",
+          copy: "Fastest launch path. Share the protected hosted page from buttons, menus, emails, and owner follow-ups.",
+          state: fullPageEnabled ? "Live" : "Enable in Settings",
+          tone: fullPageEnabled ? "Ready" : "Pending",
+          action: "page",
+        },
+        {
+          title: "QR / direct link",
+          label: "Primary",
+          copy: "Same hosted page, packaged for print, reception desks, invoices, menus, and offline traffic.",
+          state: qrEndpoint ? "QR available" : "Enable page first",
+          tone: qrEndpoint ? "Ready" : "Pending",
+          action: "qr",
+        },
+        {
+          title: "WordPress / smart embed",
+          label: "Primary",
+          copy: "Use the plugin, dedicated page embed, or smart snippet when Front Desk belongs inside the website.",
+          state: fullPageEnabled ? "Code ready" : "Enable page first",
+          tone: fullPageEnabled ? "Ready" : "Pending",
+          action: "page",
+        },
+        {
+          title: "Website widget bubble",
+          label: "Secondary",
+          copy: "Optional compact launcher for normal website pages after the full-page launch path is prepared.",
+          state: isInstallDetected(installStatus) ? "Seen live" : hasInstall ? "Code ready" : "Not generated",
+          tone: isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending",
+          action: "widget",
+        },
+      ];
+
+      return `
+        <section class="install-launch-paths" aria-label="Launch path comparison">
+          <div class="install-launch-paths-header">
+            <div>
+              <p class="overview-label">Launch path hierarchy</p>
+              <h3>Pick the customer entry point</h3>
+            </div>
+            <span>Full-page first</span>
+          </div>
+          <div class="install-launch-path-grid">
+            ${paths.map((path) => `
+              <article class="install-launch-path-card">
+                <div class="install-launch-path-card-head">
+                  <span>${escapeHtml(path.label)}</span>
+                  <span class="${getBadgeClass(path.tone)}">${escapeHtml(path.state)}</span>
+                </div>
+                <h4>${escapeHtml(path.title)}</h4>
+                <p>${escapeHtml(path.copy)}</p>
+                <button class="ghost-button" type="button" data-install-method-jump="${escapeHtml(path.action)}">View setup</button>
+              </article>
+            `).join("")}
+          </div>
+        </section>
       `;
     }
 
@@ -672,7 +734,7 @@
         <aside class="install-side-panel" aria-label="Install status and resources">
           <section class="install-side-card install-side-card-status">
             <div class="install-side-card-header">
-              <p class="overview-label">Status</p>
+              <p class="overview-label">Launch readiness</p>
               <span class="${getBadgeClass(getInstallStatusTone(installStatus))}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : installStatus.state === "installed_unseen" ? "Verified" : "Not live yet")}</span>
             </div>
             <p class="install-side-summary">${escapeHtml(getInstallStatusCopy(installStatus))}</p>
@@ -698,7 +760,7 @@
             <a class="test-link ${buildFrontDeskPreviewUrl(agent) ? "" : "disabled"}" data-action="open-preview" href="${buildFrontDeskPreviewUrl(agent) ? escapeHtml(buildFrontDeskPreviewUrl(agent)) : "#"}" target="_blank" rel="noreferrer">Open Front Desk page</a>
           </section>
           <section class="install-side-card install-resource-card">
-            <p class="overview-label">Resources</p>
+            <p class="overview-label">Launch shortcuts</p>
             <button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>
             <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
             <button class="ghost-button" type="button" data-install-method-jump="widget">View optional website bubble</button>
@@ -765,6 +827,7 @@
       return `
         ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
         ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
+        ${buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus)}
         <div class="install-method-grid" role="tablist" aria-label="Installation methods">
           ${methodCards.map((item) => {
             const isActive = activeInstallMethod === item.key;
@@ -833,7 +896,7 @@
               <div>
                 <p class="install-option-eyebrow">Recommended method</p>
                 <h3 class="install-option-title">Front Desk page</h3>
-                <p class="install-option-copy">Choose how customers should open the AI Front Desk page. Vonza generates the right link, WordPress guidance, smart embed, or fallback iframe.</p>
+                <p class="install-option-copy">Choose how customers should open the AI Front Desk page. Vonza generates the hosted link, WordPress guidance, smart embed, or fallback iframe.</p>
               </div>
               ${publicPageStatusBadge}
             </div>
@@ -960,7 +1023,7 @@
               <div>
                 <p class="install-option-eyebrow">Selected method</p>
                 <h3 class="install-option-title">QR / direct link</h3>
-                <p class="install-option-copy">Use a QR code or direct link that opens the full-page Front Desk page.</p>
+                <p class="install-option-copy">Use a QR code or direct link that opens the hosted full-page Front Desk page.</p>
               </div>
               <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
             </div>

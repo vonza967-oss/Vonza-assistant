@@ -24,6 +24,8 @@
     "analytics.capturedFromRealCustomerSignals": "Captured from real customer signals",
     "analytics.fullPageActivity": "Front Desk page activity",
     "analytics.fullPageConversationsRecorded": "Front Desk page conversations recorded",
+    "analytics.frontDeskPageConversations": "Hosted Front Desk conversations",
+    "analytics.frontDeskPrimarySurface": "Primary customer-facing surface",
     "analytics.conversationsOverTime": "Conversations over time",
     "analytics.totalConversationLabel": "Total conversations",
     "analytics.liveCurrentWorkspace": "Live activity from the current workspace",
@@ -53,6 +55,13 @@
     "analytics.notTracked": "Not tracked",
     "analytics.instant": "Instant",
     "analytics.avgFirstResponse": "Avg. time to first response",
+    "analytics.satisfactionSignal": "Satisfaction signal",
+    "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
+    "analytics.operatorBrief": "Operator brief",
+    "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
+    "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
+    "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
+    "analytics.whatToWatch": "What to watch",
   });
 
   function trimText(value) {
@@ -238,13 +247,15 @@
     const context = createRenderContext(options);
     const humanFollowUps = Math.max(0, Number(report.conversationCount || 0) - Number(report.autonomousHandledCount || 0));
     const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
+    const satisfactionScore = Number(report.satisfactionScore || 0);
 
     return [
+      { label: context.t("analytics.frontDeskPageConversations"), value: formatMetricValue(fullPageRow.conversationCount || 0), compare: context.t("analytics.frontDeskPrimarySurface"), icon: "window", tone: "blue", priority: true },
       { label: context.t("analytics.totalConversations"), value: formatMetricValue(report.conversationCount), compare: context.t("analytics.liveCustomerConversations"), icon: "chat", tone: "blue" },
       { label: context.t("analytics.aiHandled"), value: formatMetricPercent(report.autonomousHandledRate), compare: `${formatMetricValue(report.autonomousHandledCount)} ${context.t("analytics.handledWithoutTeamReply")}`, icon: "sparkle", tone: "teal" },
       { label: context.t("analytics.humanFollowUps"), value: formatMetricValue(humanFollowUps), compare: context.t("analytics.needsOwnerAttention"), icon: "user", tone: humanFollowUps > 0 ? "blue" : "green", down: humanFollowUps === 0 },
       { label: context.t("analytics.leadsCaptured"), value: formatMetricValue(report.contactsCaptured), compare: context.t("analytics.capturedFromRealCustomerSignals"), icon: "users", tone: "green" },
-      { label: context.t("analytics.fullPageActivity"), value: formatMetricValue(fullPageRow.conversationCount || 0), compare: context.t("analytics.fullPageConversationsRecorded"), icon: "window", tone: "blue" },
+      { label: context.t("analytics.satisfactionSignal"), value: satisfactionScore > 0 ? `${satisfactionScore.toFixed(1).replace(/\.0$/, "")}/5` : "New", compare: context.t("analytics.basedOnAnswerQuality"), icon: "review", tone: satisfactionScore >= 4 ? "green" : "blue" },
     ];
   }
 
@@ -254,7 +265,7 @@
     const trendIcon = metric.down ? "arrowDown" : "arrowUp";
 
     return `
-    <article class="v2-metric-card">
+    <article class="v2-metric-card ${metric.priority ? "v2-metric-card-priority" : ""}">
       <div class="v2-metric-top">
         <div class="v2-metric-label">
           ${context.renderIconBadge(metric.icon || "review", metric.tone || "blue")}
@@ -271,6 +282,65 @@
   `;
   }
 
+  function buildSourceDonutStyle(sourceRows = [], totalConversations = 0) {
+    const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
+    const colorMap = {
+      teal: "#0ea99b",
+      blue: "#4f8df7",
+      "soft-blue": "#8fb7ff",
+      gray: "#d8e1ec",
+    };
+
+    if (total <= 0) {
+      return "background:conic-gradient(#e2e8f0 0 100%);";
+    }
+
+    let cursor = 0;
+    const segments = sourceRows
+      .filter((row) => Number(row.conversationCount || 0) > 0)
+      .map((row) => {
+        const start = cursor;
+        const width = (Number(row.conversationCount || 0) / total) * 100;
+        cursor += width;
+        return `${colorMap[row.color] || colorMap.gray} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+      });
+
+    if (cursor < 100) {
+      segments.push(`#e2e8f0 ${cursor.toFixed(2)}% 100%`);
+    }
+
+    return `background:conic-gradient(${segments.join(",")});`;
+  }
+
+  function renderAnalyticsCommandBrief(report = {}, sourceRows = [], topQuestionItems = [], options = {}) {
+    const context = createRenderContext(options);
+    const totalConversations = Number(report.conversationCount || 0);
+    const fullPageRow = sourceRows.find((row) => row.key === "page") || {};
+    const watchItem = trimText(report.improvementArea)
+      || (topQuestionItems[0]?.label ? `repeated question: ${topQuestionItems[0].label}` : context.t("analytics.whatToWatch"));
+    const title = totalConversations > 0
+      ? `${formatMetricValue(report.autonomousHandledCount)} of ${formatMetricValue(totalConversations)} conversations handled by AI`
+      : context.t("analytics.waitingForTraffic");
+    const copy = totalConversations > 0
+      ? (report.summarySentence || context.t("analytics.operatorBriefCopy"))
+      : context.t("analytics.waitingForTrafficCopy");
+
+    return `
+      <section class="v2-card v2-analytics-brief">
+        <div class="v2-analytics-brief-copy">
+          <p class="v2-row-meta">${escapeHtml(context.t("analytics.operatorBrief"))}</p>
+          <h2>${escapeHtml(title)}</h2>
+          <p>${escapeHtml(copy)}</p>
+        </div>
+        <div class="v2-analytics-brief-status" aria-label="${escapeHtml(context.t("analytics.whatToWatch"))}">
+          <span><strong>${escapeHtml(formatMetricValue(fullPageRow.conversationCount || 0))}</strong> Front Desk page</span>
+          <span><strong>${escapeHtml(formatMetricValue(report.attentionNeeded || 0))}</strong> owner follow-up</span>
+          <span><strong>${escapeHtml(watchItem)}</strong> improvement focus</span>
+        </div>
+      </section>
+    `;
+  }
+
   function renderAssistantSourceCard(sourceRows = [], totalConversations = 0, options = {}) {
     const context = createRenderContext(options);
     const total = Math.max(Number(totalConversations || 0), sourceRows.reduce((sum, row) => sum + Number(row.conversationCount || 0), 0));
@@ -279,15 +349,18 @@
     return `
     <article class="v2-card v2-analytics-source-card">
       <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(context.t("analytics.entrySourceBreakdown"))}</h2>
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(context.t("analytics.entrySourceBreakdown"))}</h2>
+          <p class="v2-section-subtitle">Hosted Front Desk page remains the primary surface; widget and embeds are secondary distribution.</p>
+        </div>
       </div>
       <div class="v2-donut-layout">
-        <div class="v2-donut" aria-hidden="true"></div>
+        <div class="v2-donut" style="${escapeHtml(buildSourceDonutStyle(trackedRows, total))}" aria-hidden="true"></div>
         <div class="v2-donut-legend">
           ${trackedRows.map((row) => {
             const percent = total > 0 ? Math.round((Number(row.conversationCount || 0) / total) * 100) : 0;
             return `
-              <div class="v2-legend-row">
+              <div class="v2-legend-row ${row.key === "page" ? "v2-legend-row-primary" : ""}">
                 <span class="v2-legend-color ${escapeHtml(row.color || "gray")}"></span>
                 <span>${escapeHtml(row.label)}</span>
                 <strong>${escapeHtml(`${percent}%`)}</strong>
@@ -331,8 +404,10 @@
     const fillPath = `${linePath} L${endX} ${bottom} L${startX} ${bottom} Z`;
     const labelIndexes = [0, Math.floor(values.length * 0.25), Math.floor(values.length * 0.5), Math.floor(values.length * 0.75), values.length - 1]
       .filter((index, position, indexes) => index >= 0 && indexes.indexOf(index) === position);
+    const hasData = values.some((value) => Number(value || 0) > 0);
 
     return `
+    <div class="v2-line-chart-shell">
     <svg class="v2-line-chart" viewBox="0 0 ${width} 180" role="img" aria-label="${escapeHtml(context.t("analytics.conversationsOverTime"))} line chart">
       <defs>
         <linearGradient id="v2LineGradientProduction" x1="0" x2="0" y1="0" y2="1">
@@ -351,6 +426,8 @@
         return `<text class="v2-axis-label" x="${escapeHtml(x.toFixed(0))}" y="176">${escapeHtml(labels[index] || "")}</text>`;
       }).join("")}
     </svg>
+    ${hasData ? "" : `<div class="v2-chart-empty">Live conversations will draw this trend after customers start using Front Desk.</div>`}
+    </div>
   `;
   }
 
@@ -361,7 +438,10 @@
     return `
     <article class="v2-card v2-analytics-top-questions-card">
       <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(context.t("analytics.topCustomerQuestions"))}</h2>
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(context.t("analytics.topCustomerQuestions"))}</h2>
+          <p class="v2-section-subtitle">Use repeated questions to decide which answer guidance to improve next.</p>
+        </div>
         ${context.renderButton(context.t("analytics.viewAll"), "")}
       </div>
       ${topQuestionItems.length ? `
@@ -378,7 +458,7 @@
             `;
           }).join("")}
         </div>
-      ` : renderAnalyticsEmptyState(context.t("analytics.noRepeatedQuestions"))}
+      ` : renderAnalyticsEmptyState("No repeated customer questions yet. As Front Desk handles more live questions, recurring themes will appear here.")}
     </article>
   `;
   }
@@ -404,7 +484,7 @@
   }
 
   function renderAnalyticsEmptyState(copy = "No analytics data yet.") {
-    return `<div class="placeholder-card">${escapeHtml(copy)}</div>`;
+    return `<div class="placeholder-card analytics-empty-state">${escapeHtml(copy)}</div>`;
   }
 
   function renderHeatmap(userMessages = [], options = {}) {
@@ -476,7 +556,10 @@
     return `
     <article class="v2-card v2-analytics-handling-card">
       <div class="v2-section-header">
-        <h2 class="v2-section-title">${escapeHtml(context.t("analytics.aiVsHumanHandling"))}</h2>
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(context.t("analytics.aiVsHumanHandling"))}</h2>
+          <p class="v2-section-subtitle">Shows work handled by Front Desk versus conversations still needing a person.</p>
+        </div>
       </div>
       <div class="v2-gauge">
         <svg viewBox="0 0 220 140" aria-label="${escapeHtml(context.t("analytics.aiHandled"))} ${escapeHtml(String(rate))} percent">
@@ -578,6 +661,7 @@
       <div class="v2-table-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.performanceBySource"))}</h2>
+          <p class="v2-section-subtitle">Compare Front Desk page, embed, and optional widget outcomes using real conversation data.</p>
         </div>
       </div>
       <div class="v2-data-table-wrap">
@@ -612,6 +696,7 @@
 
     return `
     <div class="dashboard-v2-analytics">
+      ${renderAnalyticsCommandBrief(report, sourceRows, topQuestionItems, context)}
       <section class="v2-grid v2-grid-6">
         ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
       </section>

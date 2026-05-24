@@ -1005,6 +1005,82 @@
   color: #8a5b06;
 }
 
+.install-launch-paths {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--dashboard-panel-line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--dashboard-shadow-soft);
+}
+
+.install-launch-paths-header,
+.install-launch-path-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.install-launch-paths-header h3 {
+  margin: 3px 0 0;
+  color: var(--dashboard-ink);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.install-launch-paths-header > span,
+.install-launch-path-card-head > span:first-child {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid #cfe4df;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #137350;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.install-launch-path-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.install-launch-path-card {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.install-launch-path-card h4 {
+  margin: 0;
+  color: var(--dashboard-ink);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.install-launch-path-card p {
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.install-launch-path-card .ghost-button {
+  justify-content: center;
+  min-height: 32px;
+  margin-top: 2px;
+}
+
 .install-option-header,
 .install-copy-heading,
 .install-side-card-header,
@@ -1289,7 +1365,9 @@
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-page-main,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-method-card,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-option-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-launch-paths,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-platform-card,
+html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-launch-path-card,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-detail-card,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-side-card,
 html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] .install-progress-card,
@@ -1311,10 +1389,13 @@ html[data-dashboard-theme="dark"] .workspace-page[data-shell-section="install"] 
     grid-template-columns: 1fr;
   }
 
+  .install-launch-path-grid,
   .install-platform-grid {
     grid-template-columns: 1fr;
   }
 
+  .install-launch-paths-header,
+  .install-launch-path-card-head,
   .install-option-header,
   .install-copy-heading {
     display: grid;

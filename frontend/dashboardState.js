@@ -21,7 +21,7 @@
   const INSTALL_METHOD_HASH_SEGMENTS = Object.freeze({
     "full-page": "full-page",
     qr: "qr",
-    widget: "widget",
+    widget: "embed",
   });
   const INSTALL_FULL_PAGE_OPTIONS = Object.freeze(["share", "section", "dedicated", "takeover", "iframe"]);
   const FRONT_DESK_SECTION_HASH_SEGMENTS = Object.freeze({
@@ -193,6 +193,9 @@
       assistant: "full-page",
       website: "widget",
       "website-widget": "widget",
+      embed: "widget",
+      embedded: "widget",
+      "website-embed": "widget",
       qr: "qr",
       "qr-code": "qr",
     };

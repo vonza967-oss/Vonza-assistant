@@ -276,6 +276,8 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.aiHandled": "AI handled",
   "analytics.humanFollowUps": "Human follow-ups",
   "analytics.fullPageActivity": "Front Desk page activity",
+  "analytics.frontDeskPageConversations": "Hosted Front Desk conversations",
+  "analytics.frontDeskPrimarySurface": "Primary customer-facing surface",
   "analytics.qrScans": "QR scans",
   "analytics.notTracked": "Not tracked",
   "analytics.qrScanAnalyticsUnavailable": "QR scan analytics unavailable",
@@ -308,6 +310,13 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.leads": "Leads",
   "analytics.avgFirstResponse": "Avg. time to first response",
   "analytics.instant": "Instant",
+  "analytics.satisfactionSignal": "Satisfaction signal",
+  "analytics.basedOnAnswerQuality": "Estimated from weak answers and owner attention",
+  "analytics.operatorBrief": "Operator brief",
+  "analytics.waitingForTraffic": "Waiting for live Front Desk traffic",
+  "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
+  "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
+  "analytics.whatToWatch": "What to watch",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -1873,6 +1882,8 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Try front desk": "Front Desk kipróbálása",
   "Open Front Desk settings": "Front Desk beállítások megnyitása",
   "Practice with Front Desk": "Gyakorlás a Front Deskkel",
+  "Practice the answer customers will see.": "Gyakorold azt a választ, amit az ügyfelek látni fognak.",
+  "Run a visitor-style question, mark the answer good, or teach the exact guidance Front Desk should use next time.": "Futtass látogatói stílusú kérdést, jelöld jónak a választ, vagy tanítsd meg a pontos útmutatást, amelyet a Front Desk legközelebb használjon.",
   "Ask a question as if you were a visitor.": "Tegyél fel kérdést úgy, mintha látogató lennél.",
   "Ask realistic questions, check the next step, and make sure the next step feels helpful and on-brand.": "Tegyél fel valósághű kérdéseket, ellenőrizd a következő lépést, és győződj meg róla, hogy hasznosnak és márkához illőnek hat.",
   "Open full-page assistant": "Teljes oldalas asszisztens megnyitása",
@@ -1883,6 +1894,30 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "More website detail would help": "Több weboldalrészlet segítene",
   "Website detail not loaded yet": "A weboldal részletei még nincsenek betöltve",
   "Practice mode — visitors will not see this conversation.": "Gyakorló mód — a látogatók nem látják ezt a beszélgetést.",
+  "Owner review path": "Tulajdonosi áttekintési út",
+  "Looks good keeps the answer as-is. Teach this answer opens the improvement form. Save as improvement creates guidance you can publish.": "A Jól néz ki változatlanul hagyja a választ. A Tanítsd ezt a választ megnyitja a javító űrlapot. A Mentés javításként közzétehető útmutatást hoz létre.",
+  "Next action": "Következő lépés",
+  "Fix weak answers first": "Először javítsd a gyenge válaszokat",
+  "Publish reviewed guidance": "Tedd közzé az átnézett útmutatást",
+  "Ground Front Desk in real business facts": "Alapozd a Front Desket valós üzleti tényekre",
+  "Finish the Front Desk setup": "Fejezd be a Front Desk beállítását",
+  "Prepare the hosted Front Desk page": "Készítsd elő a hosztolt Front Desk oldalt",
+  "Keep testing the live Front Desk": "Teszteld tovább az élő Front Desket",
+  "Practice once, enable the public page, then share the direct link or QR before treating the optional widget as secondary.": "Gyakorolj egyszer, engedélyezd a nyilvános oldalt, majd oszd meg a közvetlen linket vagy QR-t, mielőtt az opcionális widgetet másodlagosként kezelnéd.",
+  "Open improvements": "Javítások megnyitása",
+  "Review drafts": "Piszkozatok áttekintése",
+  "Open knowledge": "Tudás megnyitása",
+  "Open launch": "Élesítés megnyitása",
+  "Practice a reply": "Válasz gyakorlása",
+  "Active section": "Aktív szakasz",
+  "Focused operator view": "Fókuszált operátori nézet",
+  "Answer quality": "Válaszminőség",
+  "No queued fixes": "Nincs sorban álló javítás",
+  "Setup needed": "Beállítás szükséges",
+  "Hosted page first, widget optional": "Először hosztolt oldal, a widget opcionális",
+  "AI Front Desk workspace": "AI Front Desk munkaterület",
+  "Operator command center": "Operátori vezérlőközpont",
+  "Front Desk is the primary customer surface.": "A Front Desk az elsődleges ügyféloldali felület.",
   "No website URL": "Nincs megadott weboldal URL",
   "Prompt starters": "Indító kérdések",
   "Use a few realistic customer questions to see whether the Front Desk sounds grounded and offers the right next step.": "Használj néhány valósághű ügyfélkérdést, hogy lásd, mennyire megalapozott a Front Desk, és a megfelelő következő lépést ajánlja-e.",
@@ -1953,6 +1988,37 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Business Profile": "Üzleti profil",
   "Account & Billing": "Fiók és számlázás",
   "Privacy & Legal": "Adatvédelem és jogi információk",
+  "Workspace status, dashboard language, and launch posture.": "Munkaterület állapota, irányítópult nyelve és élesítési állapot.",
+  "Identity, full-page assistant, routing, and optional widget.": "Identitás, teljes oldalas asszisztens, útvonalak és opcionális widget.",
+  "Grounding facts and readiness for customer answers.": "Megalapozó tények és készenlét az ügyfélválaszokhoz.",
+  "Public trust, privacy, and legal pages.": "Publikus bizalmi, adatvédelmi és jogi oldalak.",
+  "Business profile readiness summary": "Üzleti profil készenléti összefoglaló",
+  "Answer grounding": "Válaszok megalapozása",
+  "Business profile readiness will appear here.": "Az üzleti profil készenléte itt jelenik meg.",
+  "Website knowledge status appears after import.": "A weboldali tudás állapota importálás után jelenik meg.",
+  "Business Profile readiness": "Üzleti profil készenléte",
+  "Review what is ready and what still needs detail before this profile supports live customer questions.": "Nézd át, mi áll készen és mi igényel még részleteket, mielőtt ez a profil élő ügyfélkérdéseket támogat.",
+  "Front Desk launch settings summary": "Front Desk élesítési beállítások összefoglalója",
+  "Hosted full-page assistant": "Hosztolt teljes oldalas asszisztens",
+  "Ready for direct links, QR codes, WordPress pages, and smart embeds.": "Kész közvetlen linkekhez, QR-kódokhoz, WordPress oldalakhoz és okos beágyazásokhoz.",
+  "Enable public access before sharing links, QR codes, or page embeds.": "Engedélyezd a publikus hozzáférést linkek, QR-kódok vagy oldalbeágyazások megosztása előtt.",
+  "Launch routing": "Élesítési útvonalak",
+  "Needs routes": "Útvonalak szükségesek",
+  "Contact, booking, quote, or checkout destinations are available for customer next steps.": "Kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célok elérhetők az ügyfél következő lépéseihez.",
+  "Add contact, booking, quote, or checkout destinations before relying on handoffs.": "Adj meg kapcsolatfelvételi, foglalási, ajánlatkérési vagy fizetési célokat, mielőtt az átadásokra támaszkodsz.",
+  "Secondary launcher. The hosted Front Desk page remains the primary customer-facing surface.": "Másodlagos indító. A hosztolt Front Desk oldal marad az elsődleges ügyféloldali felület.",
+  "Hosted page live": "Hosztolt oldal él",
+  "Hosted page off": "Hosztolt oldal kikapcsolva",
+  "Configure the customer-facing Front Desk page first, then routing, appearance, and the optional website widget.": "Először az ügyféloldali Front Desk oldalt állítsd be, utána az útvonalakat, a megjelenést és az opcionális weboldali widgetet.",
+  "Full-page assistant and hosted page": "Teljes oldalas asszisztens és hosztolt oldal",
+  "Account and billing summary": "Fiók- és számlázási összefoglaló",
+  "Owner access": "Tulajdonosi hozzáférés",
+  "Subscription": "Előfizetés",
+  "Monthly capacity": "Havi kapacitás",
+  "Owner account unavailable": "A tulajdonosi fiók nem érhető el",
+  "Monthly capacity status appears after billing sync.": "A havi kapacitás állapota számlázási szinkron után jelenik meg.",
+  "Public legal pages": "Publikus jogi oldalak",
+  "These links are presented as operational references for owner review and public trust checks.": "Ezek a linkek működési hivatkozásként szolgálnak tulajdonosi áttekintéshez és publikus bizalmi ellenőrzésekhez.",
   "Dashboard language, appearance, and workspace status.": "Irányítópult nyelve, megjelenés és munkaterület-állapot.",
   "Customer-facing behavior, welcome, routing, and launch readiness.": "Ügyféloldali működés, üdvözlés, útvonalak és élesítési készenlét.",
   "Business facts Vonza uses to answer customer questions.": "Üzleti tények, amelyekből a Vonza ügyfélkérdésekre válaszol.",
@@ -1962,9 +2028,17 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Workspace preferences": "Munkaterület beállításai",
   "Dashboard language and theme are real workspace preferences for this browser/session.": "Az irányítópult nyelve és témája valós munkaterület-beállítás ebben a böngészőben/munkamenetben.",
   "Workspace status": "Munkaterület állapota",
+  "Operational readiness from the existing auth, activation, install, and Front Desk setup state.": "Működési készenlét a meglévő belépési, aktiválási, telepítési és Front Desk beállítási állapotból.",
   "Lightweight account and workspace state from the existing auth and activation flow.": "Egyszerű fiók- és munkaterület-állapot a meglévő belépési és aktiválási folyamatból.",
   "Owner account": "Tulajdonosi fiók",
   "Workspace mode": "Munkaterület mód",
+  "Hosted Front Desk page": "Hosztolt Front Desk oldal",
+  "Live for links, QR, and embeds": "Élő linkekhez, QR-hez és beágyazásokhoz",
+  "Enable before launch": "Élesítés előtt engedélyezd",
+  "Launch readiness": "Élesítési készenlét",
+  "Core setup ready": "Az alapbeállítás kész",
+  "Knowledge limited": "A tudás korlátozott",
+  "Optional widget": "Opcionális widget",
   "Your main workspace is ready.": "A fő munkaterületed készen áll.",
   "Run a real practice conversation": "Futtass egy valódi gyakorló beszélgetést",
   "Needs setup": "Beállítás szükséges",
@@ -2475,6 +2549,9 @@ const DASHBOARD_HU_REGEX_PHRASES = Object.freeze([
   [/\b(\d+) mentions?\b/g, "$1 említés"],
   [/\b(\d+) active\b/g, "$1 aktív"],
   [/\b(\d+) customers?\b/g, "$1 ügyfél"],
+  [/\b(\d+) destinations?\b/g, "$1 cél"],
+  [/\b(\d+) links\b/g, "$1 link"],
+  [/\b(\d+)% used\b/g, "$1% felhasználva"],
   [/\b(\d+) campaign approvals?\b/g, "$1 kampányjóváhagyás"],
   [/\b(\d+) follow-ups?\b/g, "$1 utánkövetés"],
   [/\b(\d+) follow-ups? and (\d+) campaign approvals? are waiting for review\./g, "$1 utánkövetés és $2 kampányjóváhagyás áttekintésre vár."],
@@ -2844,7 +2921,7 @@ function syncCustomerHash(filterKey = "", contactId = "") {
   window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
 }
 
-function syncShellSectionHash(section) {
+function syncShellSectionHash(section, options = {}) {
   let hash = DASHBOARD_SECTION_HASHES[section] || "";
 
   if (section === "settings") {
@@ -2856,9 +2933,9 @@ function syncShellSectionHash(section) {
   }
 
   if (section === "customize") {
-    hash = `front-desk/${getFrontDeskSectionHashSegment(getDashboardUiStateValue("frontDeskTab"))}`;
+    hash = `front-desk/${getFrontDeskSectionHashSegment(options.frontDeskSection || getDashboardUiStateValue("frontDeskTab"))}`;
   } else if (section === "install") {
-    hash = `install/${getInstallMethodHashSegment(getDashboardUiStateValue("installMethod"))}`;
+    hash = `install/${getInstallMethodHashSegment(options.installMethod || getDashboardUiStateValue("installMethod"))}`;
   }
 
   if (!window.history?.replaceState) {
@@ -2946,7 +3023,7 @@ function setActiveFrontDeskSection(section, options = {}) {
   setDashboardUiStateValue("frontDeskTab", getFrontDeskSectionHashSegment(normalizedSection));
 
   if (options.syncHash === true) {
-    syncShellSectionHash("customize");
+    syncShellSectionHash("customize", { frontDeskSection: normalizedSection });
   }
 }
 
@@ -4924,28 +5001,28 @@ function buildSidebarShell(
       : "Add website details";
   const coreItems = [
     {
+      key: "customize",
+      label: t("nav.frontDesk"),
+      note: "Primary customer page",
+    },
+    {
       key: "overview",
       label: t("nav.home"),
-      note: "Today",
+      note: "Operator command center",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
     },
     {
       key: "contacts",
       label: t("nav.customers"),
-      note: "Follow-ups",
+      note: "People and follow-ups",
       badge: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? String(Math.max(contactsAttention, humanFollowUpOpen)) : "",
       badgeTone: Math.max(contactsAttention, humanFollowUpOpen) > 0 ? "Needs attention" : "Pending",
     },
     {
-      key: "customize",
-      label: t("nav.frontDesk"),
-      note: "Conversations",
-    },
-    {
       key: "analytics",
       label: t("nav.analytics"),
-      note: "Performance",
+      note: "Signals and outcomes",
       badge: notificationUnread > 0 ? String(notificationUnread) : "",
       badgeTone: notificationUnread > 0 ? "Needs attention" : "Pending",
     },
@@ -4955,12 +5032,12 @@ function buildSidebarShell(
     {
       key: "install",
       label: t("nav.install"),
-      note: "Front Desk page, QR, and optional bubble",
+      note: "Page links, QR, optional widget",
     },
     {
       key: "settings",
       label: t("nav.settings"),
-      note: "Privacy and workspace",
+      note: "Workspace, privacy, billing",
     },
   ].filter((item) => availableSections.includes(item.key));
 
@@ -4969,12 +5046,14 @@ function buildSidebarShell(
       <div class="sidebar-identity">
         <div class="sidebar-identity-mark">V</div>
         <div class="sidebar-identity-copy">
-          <p class="sidebar-eyebrow">${escapeHtml(agent.assistantName || agent.name || "Workspace")}</p>
+          <p class="sidebar-eyebrow">${escapeHtml(translateDashboardText("AI Front Desk workspace"))}</p>
           <h2 class="sidebar-title">Vonza</h2>
-          <p class="sidebar-copy">${escapeHtml(agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
+          <p class="sidebar-copy">${escapeHtml(agent.assistantName || agent.name || agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
         </div>
       </div>
-      ${buildSidebarGroup(t("nav.primary"), coreItems, activeSection)}
+      ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
+        note: "Front Desk is the primary customer surface.",
+      })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
           <div class="sidebar-status-item">
@@ -4990,7 +5069,7 @@ function buildSidebarShell(
             <strong>${escapeHtml(translateDashboardText(installStatus.label || t("common.notInstalled")))}</strong>
           </div>
         </div>
-        ${buildSidebarGroup(t("nav.utilities"), utilityItems, activeSection)}
+        ${buildSidebarGroup(translateDashboardText("Setup"), utilityItems, activeSection)}
         <div class="sidebar-user-card">
           <span class="sidebar-user-avatar" aria-hidden="true">${escapeHtml(accountInitials)}</span>
           <span class="sidebar-user-copy">
@@ -6399,6 +6478,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const sourceAnalyticsAvailable = Boolean(sourceBreakdown);
   const readinessReadyCount = setupStatusItems.filter((item) => item.done).length;
   const visibleReadinessRows = setupStatusItems;
+  const homeBriefTitle = priorityOpenCount
+    ? `${priorityOpenCount} customer signal${priorityOpenCount === 1 ? "" : "s"} need a next step`
+    : "The operator queue is clear";
+  const homeBriefCopy = priorityRows.length
+    ? "Start with the highest-impact customer moment, then tighten Front Desk guidance where repeated questions or weak answers are showing up."
+    : "Vonza will bring replies, unhappy customers, warm leads, and repeated-question signals here as soon as they need owner attention.";
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
@@ -6409,6 +6494,18 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       })}
       <div class="workspace-page-body">
         <div class="workspace-section-stack home-surface dashboard-v2-home">
+          <section class="v2-card v2-home-command-brief">
+            <div class="v2-home-command-copy">
+              <p class="v2-row-meta">Operator command center</p>
+              <h2>${escapeHtml(homeBriefTitle)}</h2>
+              <p>${escapeHtml(homeBriefCopy)}</p>
+            </div>
+            <div class="v2-home-command-status" aria-label="${escapeHtml(translateDashboardText("Today status"))}">
+              <span class="v2-pill ${needsReplyOrFollowUpCount ? "amber" : "green"}">${escapeHtml(`${needsReplyOrFollowUpCount} need reply`)}</span>
+              <span class="v2-pill ${openIssueCount ? "amber" : "green"}">${escapeHtml(`${openIssueCount} at risk`)}</span>
+              <span class="v2-pill">${escapeHtml(`${readinessReadyCount}/${visibleReadinessRows.length} ready`)}</span>
+            </div>
+          </section>
           <section class="v2-grid v2-grid-4">
             ${homeMetrics.map((metric) => buildV2MetricCard(metric)).join("")}
           </section>
@@ -12820,7 +12917,7 @@ function bindInstallMethodTabs() {
     const panelKey = getInstallMethodPanelKey(normalizedMethod);
     setDashboardUiStateValue("installMethod", normalizedMethod);
     if (options.syncHash !== false) {
-      syncShellSectionHash("install");
+      syncShellSectionHash("install", { installMethod: normalizedMethod });
     }
 
     tabs.forEach((tab) => {
@@ -13753,7 +13850,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     const searchTerm = trimText(contactSearchInput?.value || "").toLowerCase();
 
     contactFilterButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.contactFilter === activeContactFilter);
+      const isActive = button.dataset.contactFilter === activeContactFilter;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
     });
 
     contactRows.forEach((row) => {
@@ -13848,7 +13947,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
 
     contactRows.forEach((row) => {
-      row.classList.toggle("active", row.dataset.contactId === normalizedContactId);
+      const isActive = row.dataset.contactId === normalizedContactId;
+      row.classList.toggle("active", isActive);
+      row.setAttribute("aria-selected", isActive ? "true" : "false");
     });
 
     contactDetails.forEach((detail) => {
@@ -15044,10 +15145,20 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   });
 
   contactRows.forEach((row) => {
-    row.addEventListener("click", () => {
+    const openContactRow = () => {
       const contactId = row.dataset.contactId || "";
       selectContact(contactId);
       syncCustomerHash(activeContactFilter, contactId);
+    };
+
+    row.addEventListener("click", openContactRow);
+    row.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      openContactRow();
     });
   });
 
@@ -15827,9 +15938,26 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       return;
     }
 
+    const hashFrontDeskSection = hashSection === "customize" ? getActiveFrontDeskSection() : "";
+    const hashContactFilter = hashSection === "contacts" ? getContactFilterFromHash() : "";
+    const hashContactId = hashSection === "contacts" ? getContactIdFromHash() : "";
+
     showShellSection(hashSection, {
       settingsSection: settingsShellController?.getActiveSettingsSection?.(),
     });
+
+    if (hashFrontDeskSection) {
+      frontDeskController?.showSection?.(hashFrontDeskSection);
+    }
+
+    if (hashSection === "contacts") {
+      activeContactFilter = hashContactFilter || activeContactFilter || "all";
+      applyContactFilter(activeContactFilter);
+
+      if (hashContactId) {
+        selectContact(hashContactId);
+      }
+    }
   };
   if (typeof window.addEventListener === "function") {
     window.addEventListener("hashchange", shellHashNavigationHandler);

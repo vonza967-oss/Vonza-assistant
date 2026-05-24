@@ -174,15 +174,31 @@
     return buildOperatorEmptyState({ title, copy });
   }
 
-  function renderFrontDeskTabNav(activeKey = "practice", dependencies = {}) {
-    const buildLocalSectionNav = typeof dependencies.buildLocalSectionNav === "function"
-      ? dependencies.buildLocalSectionNav
-      : () => "";
+  function renderFrontDeskTabNav(activeKey = "practice", _dependencies = {}, tabSummaries = {}) {
+    const activeTab = normalizeFrontDeskTab(activeKey);
+    const tabMeta = {
+      practice: "Test replies",
+      improvements: `${Number(tabSummaries.reviewCount || 0)} to review`,
+      knowledge: tabSummaries.knowledgeReady ? "Grounded" : "Needs review",
+      library: `${Number(tabSummaries.publishedCount || 0)} published`,
+      launch: tabSummaries.publicFrontDeskLive ? "Live page" : "Prepare launch",
+    };
 
-    return buildLocalSectionNav(getFrontDeskTabs(), {
-      attribute: "data-frontdesk-target",
-      activeKey: normalizeFrontDeskTab(activeKey),
-    });
+    return `
+      <div class="local-section-nav frontdesk-tab-nav" aria-label="${escapeHtml("Front Desk sections")}">
+        ${getFrontDeskTabs().map((tab) => `
+          <button
+            class="local-section-button frontdesk-tab-button ${tab.key === activeTab ? "active" : ""}"
+            type="button"
+            data-frontdesk-target="${escapeHtml(tab.key)}"
+            aria-pressed="${tab.key === activeTab ? "true" : "false"}"
+          >
+            <span>${escapeHtml(tab.label)}</span>
+            <small>${escapeHtml(tabMeta[tab.key] || "")}</small>
+          </button>
+        `).join("")}
+      </div>
+    `;
   }
 
   function createFrontDeskHelpers(dependencies = {}) {
@@ -342,6 +358,148 @@
   `;
     }
 
+    function getFrontDeskNextAction({
+      reviewCount = 0,
+      draftCount = 0,
+      knowledgeReady = false,
+      knowledgeLimited = false,
+      hasPreview = false,
+      publicFrontDeskLive = false,
+    } = {}) {
+      if (reviewCount > 0) {
+        return {
+          label: "Next action",
+          title: "Fix weak answers first",
+          copy: `${reviewCount} answer${reviewCount === 1 ? "" : "s"} need owner review before similar customers see the same gap.`,
+          button: "Open improvements",
+          frontDeskTarget: "improvements",
+          tone: "attention",
+        };
+      }
+
+      if (draftCount > 0) {
+        return {
+          label: "Next action",
+          title: "Publish reviewed guidance",
+          copy: `${draftCount} drafted improvement${draftCount === 1 ? "" : "s"} can be tested in Practice and published into the answer library.`,
+          button: "Review drafts",
+          frontDeskTarget: "improvements",
+          tone: "work",
+        };
+      }
+
+      if (!knowledgeReady && !knowledgeLimited) {
+        return {
+          label: "Next action",
+          title: "Ground Front Desk in real business facts",
+          copy: "Import website detail and review the business profile before relying on customer-facing answers.",
+          button: "Open knowledge",
+          frontDeskTarget: "knowledge",
+          tone: "work",
+        };
+      }
+
+      if (!hasPreview) {
+        return {
+          label: "Next action",
+          title: "Finish the Front Desk setup",
+          copy: "Create the public assistant identity so Practice and Launch can use the same customer-facing experience.",
+          button: "Open settings",
+          shellTarget: "settings",
+          settingsTarget: "front_desk",
+          tone: "work",
+        };
+      }
+
+      if (!publicFrontDeskLive) {
+        return {
+          label: "Next action",
+          title: "Prepare the hosted Front Desk page",
+          copy: "Practice once, enable the public page, then share the direct link or QR before treating the optional widget as secondary.",
+          button: "Open launch",
+          frontDeskTarget: "launch",
+          tone: "ready",
+        };
+      }
+
+      return {
+        label: "Next action",
+        title: "Keep testing the live Front Desk",
+        copy: "Use Practice after new customer questions, then publish only the guidance that should apply to future visitors.",
+        button: "Practice a reply",
+        frontDeskTarget: "practice",
+        tone: "ready",
+      };
+    }
+
+    function buildFrontDeskCommandCenter({
+      setup = {},
+      activeFrontDeskSection = "practice",
+      reviewCount = 0,
+      draftCount = 0,
+      publishedCount = 0,
+      hasPreview = false,
+      publicFrontDeskLive = false,
+      installStatus = {},
+    } = {}) {
+      const nextAction = getFrontDeskNextAction({
+        reviewCount,
+        draftCount,
+        knowledgeReady: Boolean(setup.knowledgeReady),
+        knowledgeLimited: Boolean(setup.knowledgeLimited),
+        hasPreview,
+        publicFrontDeskLive,
+      });
+      const actionAttrs = nextAction.frontDeskTarget
+        ? `data-frontdesk-open="${sanitizeHtml(nextAction.frontDeskTarget)}"`
+        : `data-shell-target="${sanitizeHtml(nextAction.shellTarget || "settings")}"${nextAction.settingsTarget ? ` data-settings-target="${sanitizeHtml(nextAction.settingsTarget)}"` : ""}`;
+      const tiles = [
+        {
+          label: "Active section",
+          value: getFrontDeskTabLabel(activeFrontDeskSection),
+          copy: "Focused operator view",
+        },
+        {
+          label: "Answer quality",
+          value: reviewCount ? `${reviewCount} review` : draftCount ? `${draftCount} draft` : "Clear",
+          copy: reviewCount ? "Weak answers queued" : draftCount ? "Drafts waiting" : "No queued fixes",
+        },
+        {
+          label: "Knowledge",
+          value: setup.knowledgeReady ? "Ready" : setup.knowledgeLimited ? "Limited" : "Needs import",
+          copy: setup.knowledgePageCount ? `${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} learned` : "No learned pages yet",
+        },
+        {
+          label: "Launch",
+          value: publicFrontDeskLive ? "Page live" : hasPreview ? "Page prepared" : "Setup needed",
+          copy: installStatus.label || "Hosted page first, widget optional",
+        },
+      ];
+
+      return `
+        <section class="frontdesk-command-center frontdesk-command-center-${sanitizeHtml(nextAction.tone)}">
+          <div class="frontdesk-command-copy">
+            <p class="frontdesk-detail-kicker">${sanitizeHtml(nextAction.label)}</p>
+            <h2>${sanitizeHtml(nextAction.title)}</h2>
+            <p>${sanitizeHtml(nextAction.copy)}</p>
+          </div>
+          <div class="frontdesk-command-actions">
+            <button class="primary-button" type="button" ${actionAttrs}>${sanitizeHtml(nextAction.button)}</button>
+            <span>${sanitizeHtml(`${publishedCount} published answer${publishedCount === 1 ? "" : "s"}`)}</span>
+          </div>
+          <div class="frontdesk-command-grid">
+            ${tiles.map((tile) => `
+              <article class="frontdesk-command-tile">
+                <span>${sanitizeHtml(tile.label)}</span>
+                <strong>${sanitizeHtml(tile.value)}</strong>
+                <p>${sanitizeHtml(tile.copy)}</p>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
     function buildFrontDeskPracticeSection(agent, setup, frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
       const assistantName = sanitizeText(agent.assistantName || agent.name) || "Front Desk";
       const welcomeMessage = sanitizeText(agent.welcomeMessage) || "Hi, I can help answer questions and point you to the right next step.";
@@ -354,8 +512,8 @@
       <div class="frontdesk-section-intro">
         <div>
           <p class="studio-kicker">Practice</p>
-          <h2 class="frontdesk-section-title">Practice with Front Desk</h2>
-          <p class="frontdesk-section-copy">Ask a question as if you were a visitor.</p>
+          <h2 class="frontdesk-section-title">Practice the answer customers will see.</h2>
+          <p class="frontdesk-section-copy">Run a visitor-style question, mark the answer good, or teach the exact guidance Front Desk should use next time.</p>
         </div>
         <div class="frontdesk-section-actions">
           <button class="ghost-button" type="button" data-frontdesk-practice-reset>Reset conversation</button>
@@ -380,6 +538,10 @@
             <input name="message" type="text" autocomplete="off" placeholder="Ask a question as if you were a visitor.">
             <button class="primary-button" type="submit">Send</button>
           </form>
+          <div class="frontdesk-practice-next">
+            <strong>Owner review path</strong>
+            <span>Looks good keeps the answer as-is. Teach this answer opens the improvement form. Save as improvement creates guidance you can publish.</span>
+          </div>
           <div class="frontdesk-teaching-shell" data-frontdesk-teaching-form-shell hidden>
             <form class="frontdesk-teaching-form" data-frontdesk-teaching-form>
               <input name="item_id" type="hidden">
@@ -500,6 +662,29 @@
       const draftItems = getDraftImprovementItems(frontDeskTraining).slice(0, 12);
       const publishedItems = getRecentlyPublishedImprovementItems(frontDeskTraining).slice(0, 8);
       const hasItems = reviewItems.length || draftItems.length || publishedItems.length;
+      const queueGroups = [
+        {
+          label: "Fix weak answers",
+          count: reviewItems.length,
+          copy: "Start here when visitors mark an answer not helpful or a conversation exposes missing detail.",
+          markup: reviewItems.map((item) => renderTrainingQueueItem(item)).join(""),
+          empty: "No weak answers are waiting for owner review.",
+        },
+        {
+          label: "Draft improvements",
+          count: draftItems.length,
+          copy: "Drafts are not customer-facing until they are tested and published.",
+          markup: draftItems.map((item) => renderTrainingQueueItem(item, { variant: "draft" })).join(""),
+          empty: "No draft answer guidance is waiting.",
+        },
+        {
+          label: "Recently published",
+          count: publishedItems.length,
+          copy: "Recently approved guidance that can be re-tested in Practice.",
+          markup: publishedItems.map((item) => renderTrainingQueueItem(item, { variant: "published" })).join(""),
+          empty: "Published improvements will appear here after review.",
+        },
+      ];
 
       return `
     <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-improvements-panel" data-frontdesk-section="improvements" ${activeFrontDeskSection === "improvements" ? "" : "hidden"}>
@@ -511,14 +696,25 @@
         </div>
       </div>
       ${hasItems ? `
-        <div class="frontdesk-improvement-list">
-          ${reviewItems.map((item) => renderTrainingQueueItem(item)).join("")}
-          ${draftItems.map((item) => renderTrainingQueueItem(item, { variant: "draft" })).join("")}
-          ${publishedItems.map((item) => renderTrainingQueueItem(item, { variant: "published" })).join("")}
+        <div class="frontdesk-improvement-board">
+          ${queueGroups.map((group) => `
+            <section class="frontdesk-improvement-lane">
+              <div class="frontdesk-lane-heading">
+                <div>
+                  <p>${sanitizeHtml(group.label)}</p>
+                  <span>${sanitizeHtml(group.copy)}</span>
+                </div>
+                <strong>${sanitizeHtml(String(group.count))}</strong>
+              </div>
+              <div class="frontdesk-improvement-list">
+                ${group.markup || `<p class="frontdesk-compact-empty">${sanitizeHtml(group.empty)}</p>`}
+              </div>
+            </section>
+          `).join("")}
         </div>
       ` : buildOperatorEmptyState({
-        title: "Nothing needs review right now.",
-        copy: "Visitor feedback, owner-marked answers, and draft improvements will appear here.",
+        title: "No answer fixes are waiting.",
+        copy: "When a visitor marks an answer not helpful or Practice exposes a weak reply, the next owner action will appear here with the question, source, and review path.",
       })}
     </section>
   `;
@@ -567,7 +763,7 @@
         </div>
       ` : buildOperatorEmptyState({
         title: "No published answers yet.",
-        copy: "Teach Front Desk in Practice, then publish improvements when they are ready for visitors.",
+        copy: "Use Practice to create guidance from a real question, then publish only answers that should apply to future visitors.",
       })}
       <form class="workspace-card-soft frontdesk-approved-answer-form" data-frontdesk-approved-answer-form>
         <h3 class="studio-group-title">Add or edit a published answer</h3>
@@ -624,6 +820,18 @@
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-knowledge-readiness">
+            <article>
+              <span>Readiness</span>
+              <strong>${sanitizeHtml(setup.knowledgeReady ? "Ready for customer questions" : setup.knowledgeLimited ? "Usable, but needs another pass" : "Import and review needed")}</strong>
+              <p>${sanitizeHtml(summary.customerImpact)}</p>
+            </article>
+            <article>
+              <span>Owner action</span>
+              <strong>${sanitizeHtml(missingSetupFields.length ? "Fill setup gaps" : "Review business profile")}</strong>
+              <p>${sanitizeHtml(missingSetupFields.length ? summary.missingSetup : "Keep services, pricing, hours, location, and policies current.")}</p>
+            </article>
+          </div>
           <div class="frontdesk-detail-stack">
             <section class="frontdesk-detail-block">
               <p class="frontdesk-detail-kicker">Website detail</p>
@@ -739,6 +947,29 @@
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
+          <div class="frontdesk-launch-channel-grid">
+            <article>
+              <span>Primary</span>
+              <strong>Hosted Front Desk page</strong>
+              <p>${sanitizeHtml(fullPageUrl || "Enable the public Front Desk page to create the customer-facing link.")}</p>
+            </article>
+            <article>
+              <span>Direct handoff</span>
+              <strong>QR / direct link</strong>
+              <p>${sanitizeHtml(qrEndpoint ? "Use Install to share the QR code anywhere customers already are." : "QR is available after the public page is enabled.")}</p>
+            </article>
+            <article>
+              <span>Website install</span>
+              <strong>WordPress / smart embed</strong>
+              <p>Use Install for page takeover, smart embed, and live-domain verification.</p>
+            </article>
+            <article>
+              <span>Secondary</span>
+              <strong>Optional website widget</strong>
+              <p>${sanitizeHtml(installStatus.label || liveVerificationLabel)}</p>
+            </article>
+          </div>
+          <div class="frontdesk-section-divider"></div>
           <div class="frontdesk-step-list">
             <article class="frontdesk-step">
               <div class="frontdesk-step-number">1</div>
@@ -804,6 +1035,9 @@
       const missingSetupFields = getFrontDeskMissingSetupFields(agent, setup, operatorWorkspace);
       const profileContentSummary = getBusinessProfileContentSummary(operatorWorkspace);
       const publicFrontDeskLive = isPublicFullPageEnabled(agent);
+      const reviewCount = getFrontDeskReviewItems(actionQueue).length;
+      const draftCount = getDraftImprovementItems(frontDeskTraining).length;
+      const publishedCount = getPublishedAnswerItems(frontDeskTraining).length;
       const liveVerificationLabel = isInstallSeen(installStatus)
         ? "Live traffic confirmed"
         : isInstallDetected(installStatus)
@@ -823,9 +1057,24 @@
         actionsMarkup: pageHeaderActions,
       })}
       ${buildPageToolbar({
-        filtersMarkup: renderFrontDeskTabNav(activeFrontDeskSection, { buildLocalSectionNav }),
+        filtersMarkup: renderFrontDeskTabNav(activeFrontDeskSection, { buildLocalSectionNav }, {
+          reviewCount,
+          publishedCount,
+          knowledgeReady: Boolean(setup.knowledgeReady),
+          publicFrontDeskLive,
+        }),
       })}
       <div class="workspace-page-body">
+        ${buildFrontDeskCommandCenter({
+          setup,
+          activeFrontDeskSection,
+          reviewCount,
+          draftCount,
+          publishedCount,
+          hasPreview,
+          publicFrontDeskLive,
+          installStatus,
+        })}
         ${buildFrontDeskPracticeSection(agent, setup, frontDeskTraining, actionQueue, activeFrontDeskSection)}
         ${buildImprovementsSection(frontDeskTraining, actionQueue, activeFrontDeskSection)}
         ${buildKnowledgeSection({
@@ -903,7 +1152,9 @@
         });
 
         frontDeskSectionButtons.forEach((button) => {
-          button.classList.toggle("active", button.dataset.frontdeskTarget === normalizedTarget);
+          const isActive = button.dataset.frontdeskTarget === normalizedTarget;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", isActive ? "true" : "false");
         });
 
         frontDeskSections.forEach((section) => {
