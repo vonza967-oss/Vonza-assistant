@@ -1112,6 +1112,9 @@
         : () => "";
       const setStatus = typeof options.setStatus === "function" ? options.setStatus : () => {};
       const boot = typeof options.boot === "function" ? options.boot : async () => {};
+      const refreshDashboard = typeof options.refreshDashboard === "function"
+        ? options.refreshDashboard
+        : async () => boot();
       const setActiveFrontDeskSection = typeof options.setActiveFrontDeskSection === "function"
         ? options.setActiveFrontDeskSection
         : () => {};
@@ -1393,7 +1396,7 @@
         }
         setStatus(normalizedStatus === "draft" ? "Draft improvement saved." : "Improvement published.");
         if (refresh) {
-          await boot();
+          await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-approved-answer-save" });
           showFrontDeskSection(normalizedStatus === "draft" ? "improvements" : "library", { syncHash: true });
         }
         return result;
@@ -1476,7 +1479,7 @@
               }),
             });
             setStatus("Answer archived.");
-            await boot();
+            await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-approved-answer-archive" });
             showFrontDeskSection("library", { syncHash: true });
           } catch (error) {
             setStatus(error.message || "We couldn't archive that answer.");
@@ -1529,7 +1532,7 @@
           try {
             await updateFrontDeskFeedbackStatus({ feedbackId, status });
             setStatus(status === "ignored" ? "Feedback ignored." : "Feedback resolved.");
-            await boot();
+            await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-feedback-status" });
             showFrontDeskSection("improvements", { syncHash: true });
           } catch (error) {
             button.disabled = false;
@@ -1617,7 +1620,7 @@
               setStatus("Draft improvement saved. Try again when you are ready.");
             } else if (result?.item?.status === "active") {
               setStatus("Improvement published.");
-              await boot();
+              await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-improvement-save" });
               showFrontDeskSection("library", { syncHash: true });
             }
           } catch (error) {
@@ -1711,7 +1714,7 @@
               }),
             });
             setStatus("Improvement published.");
-            await boot();
+            await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-improvement-publish" });
             showFrontDeskSection("library", { syncHash: true });
           } catch (error) {
             button.disabled = false;
@@ -1761,7 +1764,7 @@
               reason: "other",
             });
             setStatus("Marked not helpful and sent to Improvements.");
-            await boot();
+            await refreshDashboard({ agentId: agent.id, activeAction: "front-desk-feedback-create" });
             showFrontDeskSection("improvements", { syncHash: true });
           } catch (error) {
             button.disabled = false;

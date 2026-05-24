@@ -381,6 +381,12 @@ let authCallbackIssue = null;
 let authStateListenerBound = false;
 let shellHashNavigationHandler = null;
 let workspaceState = null;
+const dashboardRuntimeState = {
+  hasBooted: false,
+  isBootLoading: false,
+  isBackgroundRefreshing: false,
+  activeAction: null,
+};
 let dashboardHelpState = null;
 let workspaceRefreshBound = false;
 let workspaceRefreshAgentId = "";
@@ -4044,6 +4050,26 @@ function renderLoadingState() {
       </div>
     </section>
   `;
+}
+
+function _getDashboardRuntimeState() {
+  return {
+    ...dashboardRuntimeState,
+  };
+}
+
+function markDashboardBooted() {
+  dashboardRuntimeState.hasBooted = true;
+  dashboardRuntimeState.isBootLoading = false;
+}
+
+function setDashboardBackgroundRefreshing(isRefreshing, activeAction = null) {
+  dashboardRuntimeState.isBackgroundRefreshing = Boolean(isRefreshing);
+  dashboardRuntimeState.activeAction = isRefreshing ? activeAction : null;
+}
+
+function shouldRenderBootLoading(options = {}) {
+  return options.forceBootLoading === true || dashboardRuntimeState.hasBooted !== true;
 }
 
 function renderDashboardLanguageChooser(errorMessage = "") {
@@ -11327,6 +11353,7 @@ function renderDashboardV2Shell(
 }
 
 function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
+  markDashboardBooted();
   workspaceState = {
     agent,
     messages,
@@ -11341,6 +11368,7 @@ function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace
 
 function renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   const setup = inferSetup(agent);
+  markDashboardBooted();
   workspaceState = {
     agent,
     messages,
@@ -11932,68 +11960,95 @@ function renderWorkspaceFromState() {
 
 async function refreshAgentInstallState(agentId, options = {}) {
   if (!workspaceState?.agent || workspaceState.agent.id !== agentId) {
-    await boot();
+    await boot({ forceBootLoading: dashboardRuntimeState.hasBooted !== true });
     return;
   }
 
-  const [agentResult, messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
-    loadAgentInstallSnapshot(agentId),
-    loadAgentMessages(agentId),
-    loadFrontDeskTraining(agentId),
-    loadActionQueue(agentId),
-    loadOwnerAnalyticsDashboard(agentId),
-    loadOperatorWorkspaceSafe(agentId, {
-      forceSync: options.forceSync === true,
-    }),
-  ]);
-  const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
-  const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
-  const frontDeskTraining = trainingResult.status === "fulfilled" ? trainingResult.value : createEmptyFrontDeskTraining();
-  const actionQueue = actionQueueResult.status === "fulfilled"
-    ? {
-      ...actionQueueResult.value,
-      ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled"
-        ? ownerAnalyticsResult.value
-        : actionQueueResult.value?.ownerAnalyticsDashboard || null,
-    }
-    : {
-      ...createEmptyActionQueue(),
-      ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled" ? ownerAnalyticsResult.value : null,
-    };
-  const operatorWorkspace = operatorResult.status === "fulfilled"
-    ? operatorResult.value
-    : {
-      ...createEmptyOperatorWorkspace(),
-      health: {
-        ...createEmptyOperatorWorkspace().health,
-        globalError: "We couldn't refresh the customer service workspace.",
-      },
-    };
+  setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
+  try {
+    const [agentResult, messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
+      loadAgentInstallSnapshot(agentId),
+      loadAgentMessages(agentId),
+      loadFrontDeskTraining(agentId),
+      loadActionQueue(agentId),
+      loadOwnerAnalyticsDashboard(agentId),
+      loadOperatorWorkspaceSafe(agentId, {
+        forceSync: options.forceSync === true,
+      }),
+    ]);
+    const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
+    const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
+    const frontDeskTraining = trainingResult.status === "fulfilled" ? trainingResult.value : createEmptyFrontDeskTraining();
+    const actionQueue = actionQueueResult.status === "fulfilled"
+      ? {
+        ...actionQueueResult.value,
+        ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled"
+          ? ownerAnalyticsResult.value
+          : actionQueueResult.value?.ownerAnalyticsDashboard || null,
+      }
+      : {
+        ...createEmptyActionQueue(),
+        ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled" ? ownerAnalyticsResult.value : null,
+      };
+    const operatorWorkspace = operatorResult.status === "fulfilled"
+      ? operatorResult.value
+      : {
+        ...createEmptyOperatorWorkspace(),
+        health: {
+          ...createEmptyOperatorWorkspace().health,
+          globalError: "We couldn't refresh the customer service workspace.",
+        },
+      };
 
-  if (!nextAgent) {
-    await boot();
+    if (!nextAgent) {
+      await boot({ forceBootLoading: dashboardRuntimeState.hasBooted !== true });
+      return;
+    }
+
+    try {
+      activationWizardState = await loadActivationWizard(agentId);
+    } catch (error) {
+      console.warn("[activation wizard] Could not refresh wizard state:", error.message);
+    }
+
+    workspaceState = {
+      ...workspaceState,
+      agent: nextAgent,
+      messages,
+      frontDeskTraining,
+      actionQueue,
+      operatorWorkspace,
+      setup: inferSetup(nextAgent),
+    };
+    renderWorkspaceFromState();
+
+    if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
+      setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
+    }
+  } finally {
+    setDashboardBackgroundRefreshing(false);
+  }
+}
+
+async function refreshDashboardInBackground(options = {}) {
+  const agentId = trimText(options.agentId || workspaceState?.agent?.id);
+
+  if (!agentId) {
+    await boot({ forceBootLoading: dashboardRuntimeState.hasBooted !== true });
     return;
   }
 
   try {
-    activationWizardState = await loadActivationWizard(agentId);
+    await refreshAgentInstallState(agentId, {
+      forceSync: options.forceSync === true,
+      activeAction: options.activeAction || "dashboard-action",
+    });
   } catch (error) {
-    console.warn("[activation wizard] Could not refresh wizard state:", error.message);
-  }
-
-  workspaceState = {
-    ...workspaceState,
-    agent: nextAgent,
-    messages,
-    frontDeskTraining,
-    actionQueue,
-    operatorWorkspace,
-    setup: inferSetup(nextAgent),
-  };
-  renderWorkspaceFromState();
-
-  if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
-    setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
+    setDashboardBackgroundRefreshing(false);
+    setStatus(error.message || "We couldn't refresh the dashboard data.");
+    if (dashboardRuntimeState.hasBooted !== true || !workspaceState?.agent) {
+      await boot({ forceBootLoading: true });
+    }
   }
 }
 
@@ -12093,10 +12148,10 @@ async function runKnowledgeImport(agent) {
       ? "Website knowledge is ready."
       : "Website knowledge was imported with limited detail."
     );
-    await boot();
+    await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-import" });
   } catch (error) {
     setStatus(nextSetup.errorMessage || error.message || "Import failed. The assistant may have limited knowledge.");
-    await boot();
+    await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-import" });
   }
 }
 
@@ -12537,7 +12592,7 @@ async function saveAssistant(event, agent) {
         saveState.className = "save-state saved";
         saveState.removeAttribute("title");
       }
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "business-profile-save" });
     } catch (error) {
       const message = error.message || "We couldn't save that Business Profile just yet.";
       setStatus(message);
@@ -12670,7 +12725,7 @@ async function saveAssistant(event, agent) {
       saveState.className = "save-state saved";
       saveState.removeAttribute("title");
     }
-    await boot();
+    await refreshDashboardInBackground({ agentId: agent.id, activeAction: "assistant-save" });
     setStatus("Your assistant has been updated.");
   } catch (error) {
     const message = error.message || "We couldn't save those changes just yet.";
@@ -13745,7 +13800,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       setStatus(result.message || "Follow-up updated.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "follow-up-save" });
       if (inlineAutomationsFollowUp) {
         showSectionAndHighlight("automations", `[data-follow-up-card][data-follow-up-id="${followUpId}"]`);
       }
@@ -13782,7 +13837,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
 
       setStatus(result.message || "Suggestion applied.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "copilot-apply" });
 
       if (result.result?.section) {
         const resolvedTarget = resolveShellTarget(result.result.section, result.result.id || "");
@@ -13805,7 +13860,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
     } catch (error) {
       setStatus(error.message || "We couldn't apply that Suggestion.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "copilot-apply" });
     } finally {
       button.disabled = false;
     }
@@ -13835,7 +13890,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
 
       setStatus(result.message || "Suggestion dismissed.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "copilot-dismiss" });
     } catch (error) {
       setStatus(error.message || "We couldn't dismiss that Suggestion.");
     } finally {
@@ -14115,7 +14170,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       setActiveTodayQueueSelection(nextQueueKey);
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "appointment-review" });
     } catch (error) {
       setStatus(error.message || "We couldn't update that appointment review.");
       button.disabled = false;
@@ -14155,7 +14210,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       setDashboardFocus("action-queue");
       setStatus(`Action item marked ${getActionQueueStatusLabel(nextStatus).toLowerCase()}.`);
       setActiveTodayQueueSelection(nextQueueKey);
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "today-queue-status" });
     } catch (error) {
       setStatus(error.message || "We couldn't update that queue item.");
       button.disabled = false;
@@ -14228,7 +14283,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       setActiveShellSection("contacts");
       setStatus("Customer status updated.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "customer-status" });
     } catch (error) {
       setStatus(error.message || "We couldn't update that customer.");
     }
@@ -14261,7 +14316,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       setActiveShellSection("contacts");
       setStatus(lifecycleState === "customer" ? "Customer marked resolved." : "Customer status updated.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "customer-status" });
     } catch (error) {
       setStatus(error.message || "We couldn't update that customer.");
       button.disabled = false;
@@ -14335,7 +14390,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
 
       setStatus("Suggested reply prepared for review.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "customer-follow-up-draft" });
       showSectionAndHighlight("automations", `[data-follow-up-card][data-follow-up-id="${result.followUp?.id || ""}"]`);
     } catch (error) {
       setStatus(error.message || "We couldn't prepare that customer follow-up.");
@@ -14364,7 +14419,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
 
       setStatus("Campaign draft created for this customer.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "customer-campaign-draft" });
       showSectionAndHighlight("automations", `[data-campaign-card][data-campaign-id="${result.campaign?.id || ""}"]`);
     } catch (error) {
       setStatus(error.message || "We couldn't create that customer campaign.");
@@ -14397,7 +14452,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       });
 
       setStatus("Calendar action draft prepared.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "customer-calendar-draft" });
       showSectionAndHighlight("calendar");
     } catch (error) {
       setStatus(error.message || "We couldn't prepare that customer calendar action.");
@@ -14434,7 +14489,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       setDashboardFocus("action-queue");
       setStatus(result.message || "Knowledge fix updated.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-fix-save" });
     } catch (error) {
       setStatus(error.message || "We couldn't update that knowledge fix.");
     } finally {
@@ -14483,7 +14538,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       setDashboardFocus(form.dataset.contactId ? "contacts" : "action-queue");
       setStatus(result.outcome?.label ? `${result.outcome.label} recorded.` : "Fallback outcome recorded.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "manual-outcome-save" });
     } catch (error) {
       setStatus(error.message || "We couldn't record that outcome.");
     } finally {
@@ -14593,6 +14648,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     ? dashboardFrontDeskHelpers.bindFrontDeskEvents({
       agent,
       boot,
+      refreshDashboard: refreshDashboardInBackground,
       fetchJson,
       getClientId,
       normalizeFrontDeskSection,
@@ -14877,7 +14933,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       setDashboardFocus(target);
-      boot();
+      refreshDashboardInBackground({ agentId: agent.id, activeAction: "overview-focus" });
     });
   });
 
@@ -14959,7 +15015,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         input.dataset.previousStatus = nextStatus;
         setDashboardFocus("action-queue");
         setStatus(`Action item marked ${getActionQueueStatusLabel(nextStatus).toLowerCase()}.`);
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "action-queue-status" });
       } catch (error) {
         input.value = previousStatus;
         setStatus(error.message || "We couldn't update that action item.");
@@ -15025,7 +15081,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         } else {
           setStatus("Follow-up note saved.");
         }
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "action-queue-follow-up" });
       } catch (error) {
         setStatus(error.message || "We couldn't save that follow-up yet.");
       } finally {
@@ -15310,7 +15366,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
       await completeActivationStep(stepKey);
       setStatus(stepKey === "business_basics" ? "Business basics saved." : "Assistant configuration saved.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-step-save" });
     } catch (error) {
       setStatus(error.message || "We couldn't save that activation step.");
     } finally {
@@ -15347,7 +15403,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         setStatus(nextSetup.knowledgeState === "ready"
           ? "Website knowledge imported."
           : nextSetup.errorMessage || "Website knowledge imported with limited detail.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-import" });
       } catch (error) {
         await saveActivationWizardProgress({
           agent_id: agent.id,
@@ -15371,7 +15427,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         action: "skip_step",
       });
       setStatus("Activation step skipped. You can return later.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-skip" });
     });
   });
 
@@ -15384,7 +15440,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         action: "exit",
       });
       setStatus("Wizard closed. Dashboard remains usable.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-exit" });
     });
   });
 
@@ -15397,7 +15453,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         action: "return",
       });
       setStatus("Activation wizard reopened.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-return" });
     });
   });
 
@@ -15413,7 +15469,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
         });
       }
       setStatus(stepKey === "test_improve" ? "Activation wizard completed." : "Activation step completed.");
-      await boot();
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-complete" });
     });
   });
 
@@ -15520,7 +15576,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("inbox");
         setStatus("Reply draft prepared.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "inbox-reply-draft" });
       } catch (error) {
         setStatus(error.message || "We couldn't prepare that reply.");
       }
@@ -15551,7 +15607,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("inbox");
         setStatus("Reply sent from the connected inbox.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "inbox-reply-send" });
       } catch (error) {
         setStatus(error.message || "We couldn't send that inbox reply.");
       }
@@ -15587,7 +15643,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("calendar");
         setStatus("Calendar draft prepared for owner approval.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "calendar-draft" });
       } catch (error) {
         setStatus(error.message || "We couldn't draft that calendar change.");
       }
@@ -15619,7 +15675,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("calendar");
         setStatus("Calendar update draft prepared.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "calendar-draft" });
       } catch (error) {
         setStatus(error.message || "We couldn't draft that update.");
       }
@@ -15646,7 +15702,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("calendar");
         setStatus("Cancellation draft prepared.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "calendar-cancel" });
       } catch (error) {
         setStatus(error.message || "We couldn't draft that cancellation.");
       }
@@ -15672,7 +15728,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("calendar");
         setStatus("Calendar change approved.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "calendar-approve" });
       } catch (error) {
         setStatus(error.message || "We couldn't approve that calendar change.");
       }
@@ -15702,7 +15758,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("automations");
         setStatus("Campaign draft created.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "campaign-draft" });
       } catch (error) {
         setStatus(error.message || "We couldn't create that campaign draft.");
       }
@@ -15728,7 +15784,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("automations");
         setStatus("Campaign approved and queued.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "campaign-approve" });
       } catch (error) {
         setStatus(error.message || "We couldn't approve that campaign.");
       }
@@ -15754,7 +15810,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("automations");
         setStatus("Due campaign steps sent.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "campaign-send" });
       } catch (error) {
         setStatus(error.message || "We couldn't send those campaign steps.");
       }
@@ -15781,7 +15837,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
         setActiveShellSection("automations");
         setStatus("Owner task updated.");
-        await boot();
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "operator-task-update" });
       } catch (error) {
         setStatus(error.message || "We couldn't update that task.");
       }
@@ -16354,7 +16410,7 @@ function renderLocalDashboardV2Fixture() {
   renderReadyState(agent, messages, actionQueue, operatorWorkspace);
 }
 
-async function boot() {
+async function boot(options = {}) {
   applyDashboardLanguage();
   trackProductEvent("dashboard_arrived", {
     onceKey: "dashboard_arrived",
@@ -16399,9 +16455,16 @@ async function boot() {
     });
   }
 
+  const showBootLoading = shouldRenderBootLoading(options);
+
   try {
-    renderLoadingState();
-    setStatus(authCopy("Preparing your workspace...", "Előkészítjük a munkaterületedet..."));
+    dashboardRuntimeState.isBootLoading = showBootLoading;
+    if (showBootLoading) {
+      renderLoadingState();
+      setStatus(authCopy("Preparing your workspace...", "Előkészítjük a munkaterületedet..."));
+    } else {
+      setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
+    }
     await ensureAuthClient();
     renderTopbarMeta();
 
@@ -16550,10 +16613,18 @@ async function boot() {
   } catch (error) {
     clearLaunchState();
     setStatus(error.message || "We couldn't load your Vonza workspace right now.");
+    if (!showBootLoading && dashboardRuntimeState.hasBooted === true && workspaceState?.agent) {
+      return;
+    }
     renderErrorState(
       "We couldn't load your Vonza workspace.",
       error.message || "Please refresh and try again. If the issue continues, your account and payment state are still safe."
     );
+  } finally {
+    dashboardRuntimeState.isBootLoading = false;
+    if (!showBootLoading) {
+      setDashboardBackgroundRefreshing(false);
+    }
   }
 }
 

@@ -4451,6 +4451,60 @@ test("dashboard refresh reloads live agent messages, summaries, and workspace da
   assert.match(harness.document.getElementById("dashboard-root").innerHTML, /Guest visitor/);
 });
 
+test("background dashboard refresh does not render the full preparing workspace screen after boot", async () => {
+  const agent = createDashboardUiStateAgent();
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+    fetchImpl: createDashboardUiStateFetch(agent),
+  });
+
+  harness.window.location.hash = "#settings/front-desk/voice";
+  harness.renderReadyState(
+    agent,
+    [],
+    harness.createEmptyActionQueue(),
+    harness.createEmptyOperatorWorkspace()
+  );
+
+  const beforeRefresh = harness.document.getElementById("dashboard-root").innerHTML;
+  assert.match(beforeRefresh, /dashboard-v2-shell/);
+  assert.doesNotMatch(beforeRefresh, /Preparing your workspace/);
+  assert.equal(harness._getDashboardRuntimeState().hasBooted, true);
+
+  await harness.refreshDashboardInBackground({
+    agentId: "agent-1",
+    activeAction: "settings-save",
+  });
+
+  const afterRefresh = harness.document.getElementById("dashboard-root").innerHTML;
+  assert.match(afterRefresh, /dashboard-v2-shell/);
+  assert.doesNotMatch(afterRefresh, /Preparing your workspace/);
+  assertSettingsFrontDeskTabActive(afterRefresh, "voice");
+  assert.deepEqual(JSON.parse(JSON.stringify(harness._getDashboardRuntimeState())), {
+    hasBooted: true,
+    isBootLoading: false,
+    isBackgroundRefreshing: false,
+    activeAction: null,
+  });
+});
+
+test("dashboard action handlers use background refresh instead of boot loader reloads", () => {
+  const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const frontDeskScript = readFileSync(path.join(repoRoot, "frontend", "dashboardFrontDesk.js"), "utf8");
+  const saveAssistantSource = dashboardScript.match(/async function saveAssistant[\s\S]*?\n}\n\nasync function copyInstallCode/)?.[0] || "";
+  const sharedEventsSource = dashboardScript.match(/function bindSharedDashboardEvents[\s\S]*?\n}\n\nasync function boot/)?.[0] || "";
+  const frontDeskEventsSource = frontDeskScript.match(/function bindFrontDeskEvents[\s\S]*?\n\s*return \{\n\s*getApprovedAnswerItems/)?.[0] || "";
+
+  assert.match(saveAssistantSource, /refreshDashboardInBackground/);
+  assert.doesNotMatch(saveAssistantSource, /await boot\(\)/);
+  assert.match(sharedEventsSource, /refreshDashboardInBackground/);
+  assert.doesNotMatch(sharedEventsSource, /await boot\(\)/);
+  assert.match(frontDeskEventsSource, /refreshDashboard/);
+  assert.doesNotMatch(frontDeskEventsSource, /await boot\(\)/);
+});
+
 test("Settings Front Desk subtabs survive workspace refresh and nested hashes", async () => {
   const agent = createDashboardUiStateAgent();
   const harness = createDashboardHarness({
