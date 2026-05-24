@@ -753,6 +753,70 @@ test("Hungarian dashboard shipped hash routes render localized primary labels", 
   }
 });
 
+test("Install dashboard renders website platform guidance cards", async () => {
+  const harness = createDashboardHarness({
+    hash: "#install",
+    agents: () => [createActiveAgent({
+      installId: "install-1",
+      fullPageConfig: {
+        publicPageEnabled: true,
+        publicPageKey: "page-key-1",
+      },
+    })],
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  assert.match(html, /Platform quick guides/);
+  assert.match(html, /Install-only website guidance/);
+  ["Generic HTML / smart embed", "WordPress / WooCommerce", "Wix", "Shopify", "Webflow", "Squarespace"].forEach((platform) => {
+    assert.match(html, new RegExp(platform.replace(/\//g, "\\/")), `${platform} should render`);
+  });
+  assert.match(html, /data-install-platform="generic-html-smart-embed"/);
+  assert.match(html, /data-install-platform="wordpress-woocommerce"/);
+  assert.match(html, /data-install-platform="shopify"/);
+  assert.match(html, /Use the hosted Front Desk page for the fastest launch/);
+  assert.match(html, /Website widget bubble/);
+  assert.match(html, /data-install-id=&quot;install-1&quot;|data-install-id="install-1"/);
+  assert.match(html, /data-agent-id=&quot;agent-1&quot;|data-agent-id="agent-1"/);
+  assert.match(html, /data-public-page-key=&quot;page-key-1&quot;|data-public-page-key="page-key-1"/);
+  assert.doesNotMatch(html, /(?:Shopify|Wix|WooCommerce)[\s\S]{0,180}(?:API token|access token|secret key|consumer key|consumer secret|OAuth|marketplace)/i);
+  assert.doesNotMatch(html, /<input[^>]+(?:shopify|wix|woocommerce)[^>]+(?:token|secret|api|key)/i);
+});
+
+test("Hungarian Install dashboard localizes platform guidance", async () => {
+  const harness = createDashboardHarness({
+    hash: "#install",
+    agents: () => [createActiveAgent({
+      installId: "install-1",
+      fullPageConfig: {
+        publicPageEnabled: true,
+        publicPageKey: "page-key-1",
+      },
+    })],
+    initialLocalStorage: {
+      vonza_dashboard_language: "hu",
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+  const marker = 'data-shell-section="install"';
+  const start = html.indexOf(marker);
+  const next = html.indexOf('data-shell-section="', start + marker.length);
+  const installHtml = html.slice(start, next > start ? next : undefined);
+  assert.match(installHtml, /Platform gyors útmutatók/);
+  assert.match(installHtml, /Csak telepítési weboldal útmutató/);
+  assert.match(installHtml, /Általános HTML \/ okos beágyazás/);
+  assert.match(installHtml, /Beillesztés vagy link/);
+  assert.match(installHtml, /Hosztolt oldal vagy beágyazás/);
+  assert.match(installHtml, /Korlát/);
+  assert.match(installHtml, /Ez a telepítési lépés nem kapcsol WooCommerce termék- vagy rendelési adatokat/);
+  assert.match(installHtml, /Ez a telepítési lépés nem kapcsol termékeket, kosarakat vagy rendeléseket/);
+  assert.match(installHtml, /Egyes Wix területek korlátozhatják az egyéni kódot/);
+  assert.doesNotMatch(installHtml, /Platform quick guides|Install-only website guidance|Start with the hosted AI Front Desk page|Paste or link|Hosted page vs embed|Limitation|Products, carts, and orders are not connected|Some Wix areas can restrict custom code/i);
+});
+
 test("front desk nested hash routes open the matching tab", async () => {
   const tabRoutes = [
     ["#front-desk", "practice", "Practice"],

@@ -526,6 +526,103 @@
       `;
     }
 
+    function buildPlatformGuideCard({ platform, recommended, paste, useHosted, limitation, verify }) {
+      return `
+        <article class="install-platform-card" data-install-platform="${escapeHtml(platform.toLowerCase().replace(/[^a-z0-9]+/g, "-"))}">
+          <div class="install-platform-card-header">
+            <h4>${escapeHtml(platform)}</h4>
+            <span>${escapeHtml(recommended)}</span>
+          </div>
+          <dl class="install-platform-steps">
+            <div>
+              <dt>Paste or link</dt>
+              <dd>${escapeHtml(paste)}</dd>
+            </div>
+            <div>
+              <dt>Hosted page vs embed</dt>
+              <dd>${escapeHtml(useHosted)}</dd>
+            </div>
+            <div>
+              <dt>Limitation</dt>
+              <dd>${escapeHtml(limitation)}</dd>
+            </div>
+            <div>
+              <dt>Verify</dt>
+              <dd>${escapeHtml(verify)}</dd>
+            </div>
+          </dl>
+        </article>
+      `;
+    }
+
+    function buildPlatformGuideSection() {
+      const platformGuides = [
+        {
+          platform: "Generic HTML / smart embed",
+          recommended: "Start here",
+          paste: "Paste the smart embed or dedicated page snippet into the page HTML, or add the Front Desk page link to a button or menu.",
+          useHosted: "Use the hosted Front Desk page for the fastest launch. Use the smart embed when Front Desk should live inside an existing page.",
+          limitation: "Use the raw iframe fallback only when the site blocks scripts.",
+          verify: "Publish, open the page as a visitor, and ask one realistic customer question. If you also add the bubble snippet, run Verify installation.",
+        },
+        {
+          platform: "WordPress / WooCommerce",
+          recommended: "Recommended page",
+          paste: "Add the hosted Front Desk page link to a menu or button, or use the Vonza plugin or dedicated page embed on a new WordPress page.",
+          useHosted: "Use the hosted Front Desk page for checkout, order status, and account areas. Use the embed on normal content pages.",
+          limitation: "WooCommerce product and order data are not connected by this install step.",
+          verify: "Publish the page, open it while signed out, and ask a test question. If you add the optional bubble, run Verify installation.",
+        },
+        {
+          platform: "Wix",
+          recommended: "Link first",
+          paste: "Add the hosted Front Desk page link to a site button or menu, or paste the smart embed into an Embed HTML or custom code area.",
+          useHosted: "Use the hosted page when the Wix editor strips scripts. Use the embed only on pages where custom HTML is allowed.",
+          limitation: "Some Wix areas can restrict custom code, so the iframe fallback may be needed.",
+          verify: "Publish the site, open the public page, and complete one visitor-style test question.",
+        },
+        {
+          platform: "Shopify",
+          recommended: "Hosted page first",
+          paste: "Add the Front Desk page link to navigation, a page, or a theme section. Use the smart embed only where the theme allows custom liquid or HTML.",
+          useHosted: "Use the hosted Front Desk page for checkout, customer account, and policy areas where custom scripts may be restricted.",
+          limitation: "Products, carts, and orders are not connected by this install step.",
+          verify: "Publish the theme change, open the storefront as a visitor, and test the Front Desk link or embedded page.",
+        },
+        {
+          platform: "Webflow",
+          recommended: "Embed-ready",
+          paste: "Add the Front Desk page link to a nav item or button, or paste the smart embed into a Webflow Embed element on a dedicated page.",
+          useHosted: "Use the hosted page for quick launch and QR links. Use the embed when the Front Desk should appear within a Webflow page.",
+          limitation: "Custom code publishing can depend on the Webflow site setup.",
+          verify: "Publish to the live domain, open the page in a private window, and send one test question.",
+        },
+        {
+          platform: "Squarespace",
+          recommended: "Link first",
+          paste: "Add the hosted Front Desk page link to navigation or a button, or paste the embed into a Code Block or Code Injection area.",
+          useHosted: "Use the hosted page when Squarespace blocks scripts on the target page. Use the iframe fallback if scripts are not allowed.",
+          limitation: "Some templates and editing areas can limit script embeds.",
+          verify: "Publish, open the public page, and confirm the Front Desk loads before sharing the link.",
+        },
+      ];
+
+      return `
+        <section class="install-platform-guides" aria-label="Platform install guidance">
+          <div class="install-platform-guides-header">
+            <div>
+              <p class="install-option-eyebrow">Platform quick guides</p>
+              <h3 class="install-platform-guides-title">Install-only website guidance</h3>
+              <p class="install-option-copy">Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the website bubble as a secondary launcher.</p>
+            </div>
+          </div>
+          <div class="install-platform-grid">
+            ${platformGuides.map((guide) => buildPlatformGuideCard(guide)).join("")}
+          </div>
+        </section>
+      `;
+    }
+
     function buildInstallSidePanel(agent, setup, messages = []) {
       const installStatus = getDefaultInstallStatus(agent);
       const fullPageEnabled = isPublicFullPageEnabled(agent);
@@ -856,6 +953,7 @@
                 className: "full-page-iframe-output",
               })}
             </div>
+            ${buildPlatformGuideSection()}
           </section>
           <section class="install-option-card install-option-card-qr ${activeInstallMethod === "qr" ? "active" : ""}" id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" ${activeInstallMethod === "qr" ? "" : "hidden"}>
             <div class="install-option-header">
@@ -896,6 +994,8 @@
       buildInstallMethodPill,
       buildInstallDomainChips,
       buildInstallCopyBlock,
+      buildPlatformGuideCard,
+      buildPlatformGuideSection,
       buildInstallSidePanel,
       buildInstallSection,
     });

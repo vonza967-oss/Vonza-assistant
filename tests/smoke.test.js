@@ -1909,6 +1909,11 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardInstallScript.text, /View Front Desk page setup/);
         assert.match(dashboardInstallScript.text, /Copy website bubble code/);
         assert.match(dashboardInstallScript.text, /Verify installation/);
+        assert.match(dashboardInstallScript.text, /Platform quick guides/);
+        assert.match(dashboardInstallScript.text, /Generic HTML \/ smart embed/);
+        assert.match(dashboardInstallScript.text, /WordPress \/ WooCommerce/);
+        assert.match(dashboardInstallScript.text, /Shopify/);
+        assert.doesNotMatch(dashboardInstallScript.text, /(?:Shopify|Wix|WooCommerce)[\s\S]{0,180}(?:API token|access token|secret key|consumer key|consumer secret|OAuth|marketplace)/i);
         assert.match(dashboardScript.text, /No weak-answer signal yet/);
 
         const widgetPreview = await getText(server.baseUrl, "/widget");
