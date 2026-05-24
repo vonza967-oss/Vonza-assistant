@@ -493,6 +493,8 @@ export function createAgentRouter(deps = {}) {
         sessionId: req.body.session_id || req.body.sessionId,
         origin: req.body.origin,
         pageUrl: req.body.page_url || req.body.pageUrl,
+        publicPageKey: req.body.public_page_key || req.body.publicPageKey || req.body.k,
+        displayMode: req.body.display_mode || req.body.displayMode || req.body.mode,
         fingerprint: req.body.fingerprint,
         dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
         metadata: req.body.metadata,

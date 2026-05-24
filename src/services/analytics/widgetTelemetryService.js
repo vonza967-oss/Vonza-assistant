@@ -1,5 +1,10 @@
+import { getPublicAppUrl } from "../../config/env.js";
 import { cleanText } from "../../utils/text.js";
-import { getWidgetInstallContextByInstallId, isMissingRelationError } from "../install/installPresenceService.js";
+import {
+  getWidgetInstallContextByInstallId,
+  isMissingRelationError,
+  requireAllowedTelemetryOriginForWidgetContext,
+} from "../install/installPresenceService.js";
 
 const WIDGET_EVENTS_TABLE = "agent_widget_events";
 
@@ -46,6 +51,46 @@ function normalizeOrigin(value) {
   }
 
   return new URL(pageUrl).origin.toLowerCase();
+}
+
+function normalizePublicPageKey(value) {
+  return cleanText(value).slice(0, 120);
+}
+
+function normalizeDisplayMode(value) {
+  return cleanText(value).toLowerCase().replace(/_/g, "-");
+}
+
+function getConfiguredPublicAppOrigin() {
+  return normalizeOrigin(getPublicAppUrl());
+}
+
+function isHostedFullPageTelemetryAllowed(context, input = {}, normalized = {}) {
+  const metadata = normalizeJsonObject(input.metadata);
+  const displayMode = normalizeDisplayMode(input.displayMode || input.display_mode || metadata.displayMode);
+  const publicPageKey = normalizePublicPageKey(
+    input.publicPageKey || input.public_page_key || input.k || metadata.publicPageKey || metadata.public_page_key
+  );
+  const fullPageConfig = context?.widgetConfigRow?.full_page_config || {};
+  const expectedPublicPageKey = normalizePublicPageKey(
+    fullPageConfig.publicPageKey || fullPageConfig.public_page_key
+  );
+  const publicPageEnabled = fullPageConfig.publicPageEnabled === true || fullPageConfig.public_page_enabled === true;
+  const publicAppOrigin = getConfiguredPublicAppOrigin();
+
+  if (
+    displayMode !== "page"
+    || !publicPageEnabled
+    || !expectedPublicPageKey
+    || publicPageKey !== expectedPublicPageKey
+    || !publicAppOrigin
+    || normalized.origin !== publicAppOrigin
+  ) {
+    return false;
+  }
+
+  const pageOrigin = normalizeOrigin(normalized.pageUrl);
+  return !pageOrigin || pageOrigin === publicAppOrigin;
 }
 
 function buildDefaultDedupeKey({ installId, eventName, sessionId, origin, pageUrl, metadata }) {
@@ -145,6 +190,16 @@ export async function trackWidgetEvent(supabase, input = {}) {
     const error = new Error("Install not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  if (!isHostedFullPageTelemetryAllowed(context, input, { origin, pageUrl })) {
+    requireAllowedTelemetryOriginForWidgetContext(context, {
+      installId,
+      origin,
+      pageUrl,
+      originRequiredMessage: "origin is required for installed widget requests.",
+      blockedMessage: "Origin is not allowed for this install.",
+    });
   }
 
   const dedupeKey = cleanText(input.dedupeKey) || buildDefaultDedupeKey({

@@ -2919,6 +2919,8 @@ async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
         fingerprint: getFingerprint(),
         origin: getPageOrigin(),
         page_url: getPageUrl(),
+        public_page_key: PUBLIC_PAGE_KEY,
+        display_mode: DISPLAY_MODE,
         dedupe_key: dedupeKey,
         metadata: {
           ...metadata,

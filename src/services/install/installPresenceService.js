@@ -6,9 +6,9 @@ const AGENTS_TABLE = "agents";
 const BUSINESSES_TABLE = "businesses";
 const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WIDGET_CONFIG_SELECT =
-  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, widget_logo_url, theme_mode, booking_url, quote_url, checkout_url, booking_start_url, quote_start_url, booking_success_url, quote_success_url, checkout_success_url, contact_email, contact_phone, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
+  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, widget_logo_url, theme_mode, full_page_config, booking_url, quote_url, checkout_url, booking_start_url, quote_start_url, booking_success_url, quote_success_url, checkout_success_url, contact_email, contact_phone, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
 const LEGACY_WIDGET_CONFIG_SELECT =
-  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
+  "agent_id, install_id, allowed_domains, assistant_name, welcome_message, button_label, primary_color, secondary_color, launcher_text, theme_mode, full_page_config, last_verification_status, last_verified_at, last_verification_origin, last_verification_target_url, last_verification_details";
 const INSTALL_STATUS_STALE_HOURS = 72;
 const VERIFICATION_STATUS = {
   FOUND: "found",
@@ -158,6 +158,29 @@ export function requireAllowedOriginForWidgetContext(context, options = {}) {
       message: "Origin is not on the install allowlist.",
     });
     const error = new Error(blockedMessage);
+    error.statusCode = 403;
+    error.code = "domain_blocked";
+    throw error;
+  }
+}
+
+export function requireAllowedTelemetryOriginForWidgetContext(context, options = {}) {
+  requireAllowedOriginForWidgetContext(context, options);
+
+  const pageUrl = cleanText(options.pageUrl);
+  const installId = cleanText(options.installId || context?.widgetConfigRow?.install_id || "");
+  const pageOrigin = normalizeOriginValue(pageUrl);
+
+  if (pageUrl && pageOrigin && !isOriginAllowed(pageOrigin, context?.allowedDomains)) {
+    logWidgetInitFailure({
+      reason: "domain_blocked",
+      installId,
+      origin: pageOrigin,
+      pageUrl,
+      allowedDomains: context?.allowedDomains || [],
+      message: "Page URL is not on the install allowlist.",
+    });
+    const error = new Error(cleanText(options.blockedMessage) || "Origin is not allowed for this install.");
     error.statusCode = 403;
     error.code = "domain_blocked";
     throw error;
@@ -628,26 +651,13 @@ export async function recordInstallPing(
     throw error;
   }
 
-  if (!normalizedOrigin) {
-    const error = new Error("origin is required");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  if (!isOriginAllowed(normalizedOrigin, context.allowedDomains)) {
-    logWidgetInitFailure({
-      reason: "domain_blocked",
-      installId,
-      origin: normalizedOrigin,
-      pageUrl: normalizedPageUrl,
-      allowedDomains: context.allowedDomains,
-      message: "Origin is not on the install allowlist.",
-    });
-    const error = new Error("Origin is not allowed for this install.");
-    error.statusCode = 403;
-    error.code = "domain_blocked";
-    throw error;
-  }
+  requireAllowedTelemetryOriginForWidgetContext(context, {
+    installId,
+    origin: normalizedOrigin,
+    pageUrl: normalizedPageUrl,
+    originRequiredMessage: "origin is required",
+    blockedMessage: "Origin is not allowed for this install.",
+  });
 
   const host = normalizeHost(normalizedOrigin);
   const { data: existingRow, error: lookupError } = await supabase

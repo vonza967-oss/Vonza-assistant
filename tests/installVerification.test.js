@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import express from "express";
+import http from "node:http";
 
+import { createAgentRouter } from "../src/routes/agentRoutes.js";
 import {
   listWidgetEventSummaryByAgentIds,
   trackWidgetEvent,
@@ -227,6 +230,52 @@ function createInstallState() {
   });
 }
 
+async function startServer(app) {
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}`,
+    close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve()))),
+  };
+}
+
+async function postJson(baseUrl, pathname, body) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+
+  return {
+    status: response.status,
+    json: text ? JSON.parse(text) : null,
+  };
+}
+
+function withEnv(overrides, fn) {
+  const previous = new Map();
+
+  for (const [key, value] of Object.entries(overrides)) {
+    previous.set(key, process.env[key]);
+    process.env[key] = value;
+  }
+
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      for (const [key, value] of previous.entries()) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    });
+}
+
 test("widget bootstrap enforces allowlists across install_id, website_url, agent_id, and agent_key", async () => {
   const resolutionCases = [
     {
@@ -438,6 +487,78 @@ test("install ping sets last seen state and fields", async () => {
   assert.equal(status.lastSeenUrl, "https://www.example.com/products");
 });
 
+test("install ping rejects blocked page URLs", async () => {
+  const supabase = createInstallState();
+
+  await assert.rejects(
+    () =>
+      recordInstallPing(supabase, {
+        installId: "11111111-1111-1111-1111-111111111111",
+        origin: "https://example.com",
+        pageUrl: "https://bad.example.net/products",
+        sessionId: "session-1",
+      }),
+    (error) => error.statusCode === 403 && error.code === "domain_blocked"
+  );
+
+  assert.equal(supabase.state.agent_installations.length, 0);
+});
+
+test("/install/events accepts allowed origin", async () => {
+  const supabase = createInstallState();
+  const app = express();
+  app.use(express.json());
+  app.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+  }));
+  const server = await startServer(app);
+
+  try {
+    const response = await postJson(server.baseUrl, "/install/events", {
+      install_id: "11111111-1111-1111-1111-111111111111",
+      event_name: "widget_loaded",
+      session_id: "session-route-1",
+      origin: "https://example.com",
+      page_url: "https://example.com/products",
+      dedupe_key: "route-allowed-widget-loaded",
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(supabase.state.agent_widget_events.length, 1);
+    assert.equal(supabase.state.agent_widget_events[0].origin, "https://example.com");
+  } finally {
+    await server.close();
+  }
+});
+
+test("/install/events rejects blocked origin", async () => {
+  const supabase = createInstallState();
+  const app = express();
+  app.use(express.json());
+  app.use(createAgentRouter({
+    getSupabaseClient: () => supabase,
+  }));
+  const server = await startServer(app);
+
+  try {
+    const response = await postJson(server.baseUrl, "/install/events", {
+      install_id: "11111111-1111-1111-1111-111111111111",
+      event_name: "widget_loaded",
+      session_id: "session-route-2",
+      origin: "https://bad.example.net",
+      page_url: "https://bad.example.net/products",
+      dedupe_key: "route-blocked-widget-loaded",
+    });
+
+    assert.equal(response.status, 403);
+    assert.equal(response.json.error, "Origin is not allowed for this install.");
+    assert.equal(supabase.state.agent_widget_events.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
 test("server verification detects snippet presence and mismatch", async () => {
   const foundSupabase = createInstallState();
   const found = await verifyAgentInstallation(foundSupabase, {
@@ -554,6 +675,63 @@ test("widget telemetry accepts valid events and deduplicates duplicates", async 
   assert.equal(first.ok, true);
   assert.equal(duplicate.duplicate, true);
   assert.equal(supabase.state.agent_widget_events.length, 1);
+});
+
+test("widget telemetry does not record blocked-origin events", async () => {
+  const supabase = createInstallState();
+
+  await assert.rejects(
+    () =>
+      trackWidgetEvent(supabase, {
+        installId: "11111111-1111-1111-1111-111111111111",
+        eventName: "widget_loaded",
+        sessionId: "session-blocked-1",
+        origin: "https://bad.example.net",
+        pageUrl: "https://bad.example.net/products",
+      }),
+    (error) => error.statusCode === 403 && error.code === "domain_blocked"
+  );
+
+  assert.equal(supabase.state.agent_widget_events.length, 0);
+});
+
+test("widget telemetry rejects blocked page URLs even when origin is allowed", async () => {
+  const supabase = createInstallState();
+
+  await assert.rejects(
+    () =>
+      trackWidgetEvent(supabase, {
+        installId: "11111111-1111-1111-1111-111111111111",
+        eventName: "widget_loaded",
+        sessionId: "session-blocked-page-url-1",
+        origin: "https://example.com",
+        pageUrl: "https://bad.example.net/products",
+      }),
+    (error) => error.statusCode === 403 && error.code === "domain_blocked"
+  );
+
+  assert.equal(supabase.state.agent_widget_events.length, 0);
+});
+
+test("hosted full-page assistant and QR direct-link telemetry works from the public app origin", async () => {
+  await withEnv({ PUBLIC_APP_URL: "https://app.example.com" }, async () => {
+    const supabase = createInstallState();
+
+    const result = await trackWidgetEvent(supabase, {
+      installId: "11111111-1111-1111-1111-111111111111",
+      eventName: "conversation_started",
+      sessionId: "hosted-page-session-1",
+      origin: "https://app.example.com",
+      pageUrl: "https://app.example.com/a/agent-key?k=page-key-1",
+      publicPageKey: "page-key-1",
+      displayMode: "page",
+      dedupeKey: "hosted-page-conversation-started",
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(supabase.state.agent_widget_events.length, 1);
+    assert.equal(supabase.state.agent_widget_events[0].origin, "https://app.example.com");
+  });
 });
 
 test("widget telemetry summary reports direct routing metrics", async () => {
