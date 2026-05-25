@@ -55,7 +55,18 @@ async function closeServer(nextServer) {
 }
 
 async function newPage({ clientId = "browser-fixture-client", dashboardLanguage, importPollIntervalMs } = {}) {
-  const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 820 },
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  const closePage = page.close.bind(page);
+  page.close = async (...args) => {
+    if (!page.isClosed()) {
+      await closePage(...args);
+    }
+    await context.close().catch(() => {});
+  };
   page.setDefaultTimeout(8000);
   await page.addInitScript(({ nextClientId, nextImportPollIntervalMs }) => {
     localStorage.setItem("vonza_client_id", nextClientId);
@@ -71,14 +82,14 @@ async function newPage({ clientId = "browser-fixture-client", dashboardLanguage,
       localStorage.setItem("vonza_dashboard_language", language);
     }, dashboardLanguage);
   }
-  await page.route("**/product-events", async (route) => {
+  await page.route(/\/product-events(?:[?#]|$)/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ ok: true }),
     });
   });
-  await page.route("**/install/outcomes/ping", async (route) => {
+  await page.route(/\/install\/outcomes\/ping(?:[?#]|$)/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -92,10 +103,55 @@ async function assertVisibleText(page, text) {
   await page.waitForFunction((expectedText) => globalThis.document.body?.innerText.includes(expectedText), text);
 }
 
+async function assertNoHorizontalOverflow(page) {
+  const overflow = await page.evaluate(() => {
+    const root = globalThis.document.documentElement;
+    const body = globalThis.document.body;
+    return {
+      rootClientWidth: root.clientWidth,
+      rootScrollWidth: root.scrollWidth,
+      bodyClientWidth: body.clientWidth,
+      bodyScrollWidth: body.scrollWidth,
+    };
+  });
+
+  assert.ok(
+    overflow.rootScrollWidth <= overflow.rootClientWidth + 1,
+    `document overflows horizontally: ${JSON.stringify(overflow)}`
+  );
+  assert.ok(
+    overflow.bodyScrollWidth <= overflow.bodyClientWidth + 1,
+    `body overflows horizontally: ${JSON.stringify(overflow)}`
+  );
+}
+
 async function assertNoVisibleEnglishLeaks(page, deniedPhrases) {
   const visibleText = await page.locator("body").innerText();
   const leakedPhrases = deniedPhrases.filter((phrase) => visibleText.includes(phrase));
   assert.deepEqual(leakedPhrases, []);
+}
+
+function assertNoOwnerOnlyFields(payload) {
+  const serialized = JSON.stringify(payload);
+  const deniedPatterns = [
+    /owner_user_id/i,
+    /ownerUserId/,
+    /owner_email/i,
+    /ownerEmail/,
+    /dashboard_client_id/i,
+    /dashboardClientId/,
+    /supabase/i,
+    /service_role/i,
+    /stripe/i,
+  ];
+
+  for (const pattern of deniedPatterns) {
+    assert.equal(
+      pattern.test(serialized),
+      false,
+      `public assistant payload included owner-only data matching ${pattern}: ${serialized}`
+    );
+  }
 }
 
 function createDeferred() {
@@ -611,17 +667,51 @@ test("Hungarian dashboard fixture routes do not show audited operator English", 
   }
 });
 
-test("public full-page assistant route renders", async () => {
+test("hosted full-page Front Desk sends customer question and captures contact details", async () => {
   const page = await newPage();
+  const consoleErrors = [];
+  const bootstrapRequests = [];
+  const chatRequests = [];
+  const captureRequests = [];
+  const installEvents = [];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    consoleErrors.push(error.message);
+  });
+
+  await page.route("https://fonts.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/css",
+      body: "",
+    });
+  });
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    await route.fulfill({
+      status: 204,
+      body: "",
+    });
+  });
 
   await page.route("**/widget/bootstrap**", async (route) => {
+    const url = new URL(route.request().url());
+    bootstrapRequests.push({
+      method: route.request().method(),
+      params: Object.fromEntries(url.searchParams.entries()),
+    });
+
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
         agent: {
-          id: "agent-1",
-          publicAgentKey: "public-agent",
+          id: "agent-page-1",
+          publicAgentKey: "page-key",
         },
         business: {
           id: "business-1",
@@ -645,13 +735,155 @@ test("public full-page assistant route renders", async () => {
       }),
     });
   });
+  await page.route(/\/chat(?:[?#]|$)/, async (route) => {
+    const request = route.request();
+    chatRequests.push({
+      method: request.method(),
+      body: request.postDataJSON(),
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        reply: "Yes. Example Services handles urgent repair requests and can prepare a quote after a few details.",
+        agentId: "agent-page-1",
+        agentKey: "page-key",
+        businessId: "business-1",
+        visitorIdentity: {
+          mode: "guest",
+          email: "",
+          name: "",
+        },
+      }),
+    });
+  });
+  await page.route(/\/chat\/capture(?:[?#]|$)/, async (route) => {
+    const request = route.request();
+    const body = request.postDataJSON();
+    captureRequests.push({
+      method: request.method(),
+      body,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        visitorIdentity: body.visitor_identity || {
+          mode: "identified",
+          email: "customer@example.test",
+          name: "Customer Example",
+        },
+        leadCapture: {
+          id: "lead-page-1",
+          state: "captured",
+          message: "Thanks. I saved those details so the team can follow up.",
+          preferredChannel: "email",
+          contact: {
+            email: "customer@example.test",
+          },
+        },
+      }),
+    });
+  });
+  await page.route(/\/install\/events(?:[?#]|$)/, async (route) => {
+    const request = route.request();
+    installEvents.push({
+      method: request.method(),
+      body: request.postDataJSON(),
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+  await page.route(/\/install\/outcomes\/detect(?:[?#]|$)/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+  await page.route(/\/chat\/feedback(?:[?#]|$)/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
 
   try {
-    await page.goto(`${baseUrl}/assistant/public-agent?k=page-key`, { waitUntil: "domcontentloaded" });
+    const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
+    hostedUrl.searchParams.set("k", "page-key");
+    hostedUrl.searchParams.set("session_id", "session-page-1");
+    hostedUrl.searchParams.set("install_id", "install-page-1");
+    hostedUrl.searchParams.set("origin", "https://customer.example.test");
+    hostedUrl.searchParams.set("page_url", "https://customer.example.test/front-desk");
+
+    await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
     await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
     await assertVisibleText(page, "Example Services");
     await assertVisibleText(page, "Example Services Front Desk");
     await page.locator("#input").waitFor({ state: "visible" });
+    await assertNoHorizontalOverflow(page);
+
+    assert.equal(bootstrapRequests.length, 1);
+    assert.equal(bootstrapRequests[0].method, "GET");
+    assert.equal(bootstrapRequests[0].params.agent_key, "page-key");
+    assert.equal(bootstrapRequests[0].params.k, "page-key");
+    assert.equal(bootstrapRequests[0].params.mode, "page");
+
+    await page.locator("#input").fill("Do you offer emergency plumbing repairs and how can I request a quote?");
+    await page.locator("#send-button").click();
+    await assertVisibleText(
+      page,
+      "Yes. Example Services handles urgent repair requests and can prepare a quote after a few details."
+    );
+
+    assert.equal(chatRequests.length, 1);
+    assert.equal(chatRequests[0].method, "POST");
+    assert.equal(chatRequests[0].body.message, "Do you offer emergency plumbing repairs and how can I request a quote?");
+    assert.equal(chatRequests[0].body.display_mode, "page");
+    assert.equal(chatRequests[0].body.agent_key, "page-key");
+    assert.equal(chatRequests[0].body.public_page_key, "page-key");
+    assert.equal(chatRequests[0].body.visitor_session_key, "session-page-1");
+    assert.equal(chatRequests[0].body.visitor_identity_mode, "guest");
+    assertNoOwnerOnlyFields(chatRequests[0].body);
+
+    await page.locator('[data-canvas-answer-action="contact"]').click();
+    await page.locator("#page-identity-email-form").waitFor({ state: "visible" });
+    await page.locator("#page-identity-name").fill("  Customer Example  ");
+    await page.locator("#page-identity-email").fill("CUSTOMER@EXAMPLE.TEST");
+    await page.locator("#page-identity-email-submit").click();
+    await page.waitForFunction(() =>
+      globalThis.document
+        .getElementById("composer-status")
+        ?.textContent.includes("customer@example.test")
+    );
+
+    assert.equal(captureRequests.length, 1);
+    assert.equal(captureRequests[0].method, "POST");
+    assert.equal(captureRequests[0].body.action, "submit");
+    assert.equal(captureRequests[0].body.display_mode, "page");
+    assert.equal(captureRequests[0].body.agent_key, "page-key");
+    assert.equal(captureRequests[0].body.public_page_key, "page-key");
+    assert.equal(captureRequests[0].body.visitor_session_key, "session-page-1");
+    assert.equal(captureRequests[0].body.name, "Customer Example");
+    assert.equal(captureRequests[0].body.email, "customer@example.test");
+    assert.equal(captureRequests[0].body.preferred_channel, "email");
+    assert.equal(captureRequests[0].body.visitor_identity.mode, "identified");
+    assert.equal(captureRequests[0].body.visitor_identity.email, "customer@example.test");
+    assertNoOwnerOnlyFields(captureRequests[0].body);
+    for (const event of installEvents) {
+      assert.equal(event.method, "POST");
+      assert.equal(event.body.display_mode, "page");
+      assert.equal(event.body.public_page_key, "page-key");
+      assert.equal(event.body.session_id, "session-page-1");
+      assertNoOwnerOnlyFields(event.body);
+    }
+    await assertNoHorizontalOverflow(page);
+    assert.deepEqual(consoleErrors, []);
   } finally {
     await page.close();
   }
