@@ -41,6 +41,10 @@
       return "QR / direct link";
     }
 
+    if (normalized.includes("web call")) {
+      return "Web Call";
+    }
+
     if (normalized.includes("full page") || normalized === "page" || normalized.includes("assistant page")) {
       return "Front Desk page";
     }

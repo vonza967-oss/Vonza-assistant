@@ -157,7 +157,7 @@ test("owner analytics dashboard keeps sparse knowledge improvement state honest"
   assert.match(dashboard.knowledgeImprovement.copy, /No weak-answer pattern is active yet/i);
 });
 
-test("owner analytics dashboard breaks assistant activity down by widget, page, and legacy source", () => {
+test("owner analytics dashboard breaks assistant activity down by widget, page, Web Call, and legacy source", () => {
   const dashboard = buildOwnerAnalyticsDashboard({
     agent: {
       id: "agent-1",
@@ -199,6 +199,22 @@ test("owner analytics dashboard breaks assistant activity down by widget, page, 
       {
         id: "message-5",
         role: "user",
+        content: "Web Call question",
+        sessionKey: "web-call-session",
+        displayMode: "web_call",
+        createdAt: "2026-05-13T09:30:00.000Z",
+      },
+      {
+        id: "message-6",
+        role: "assistant",
+        content: "Web Call answer",
+        sessionKey: "web-call-session",
+        displayMode: "web_call",
+        createdAt: "2026-05-13T09:30:02.000Z",
+      },
+      {
+        id: "message-7",
+        role: "user",
         content: "Legacy question",
         sessionKey: "legacy-session",
         displayMode: null,
@@ -211,6 +227,11 @@ test("owner analytics dashboard breaks assistant activity down by widget, page, 
           captureState: "captured",
           contactEmail: "page@example.com",
           visitorSessionKey: "page-session",
+        },
+        {
+          captureState: "captured",
+          contactEmail: "call@example.com",
+          visitorSessionKey: "web-call-session",
         },
       ],
       persistenceAvailable: true,
@@ -228,8 +249,13 @@ test("owner analytics dashboard breaks assistant activity down by widget, page, 
   assert.equal(dashboard.assistantSource.page.messageCount, 2);
   assert.equal(dashboard.assistantSource.page.visitorQuestionCount, 1);
   assert.equal(dashboard.assistantSource.page.leadsCaptured, 1);
+  assert.equal(dashboard.assistantSource.web_call.label, "Web Call");
+  assert.equal(dashboard.assistantSource.web_call.conversationCount, 1);
+  assert.equal(dashboard.assistantSource.web_call.messageCount, 2);
+  assert.equal(dashboard.assistantSource.web_call.visitorQuestionCount, 1);
+  assert.equal(dashboard.assistantSource.web_call.leadsCaptured, 1);
   assert.equal(dashboard.assistantSource.unknown.conversationCount, 1);
   assert.equal(dashboard.assistantSource.unknown.messageCount, 1);
-  assert.equal(dashboard.assistantSource.totalConversations, 3);
-  assert.equal(dashboard.assistantSource.totalMessages, 5);
+  assert.equal(dashboard.assistantSource.totalConversations, 4);
+  assert.equal(dashboard.assistantSource.totalMessages, 7);
 });

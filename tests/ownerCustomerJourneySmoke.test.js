@@ -589,6 +589,40 @@ test("owner dashboard aggregation keeps a hosted Front Desk customer journey own
   }
 });
 
+test("customer journey labels Web Call messages without changing normal hosted page source", () => {
+  const workspace = buildContactWorkspaceFromRecords({
+    businessId: "business-1",
+    messages: [
+      {
+        id: "msg-page",
+        role: "user",
+        content: "Can I book?",
+        sessionKey: "page-session",
+        displayMode: "page",
+        createdAt: "2026-05-20T10:00:00.000Z",
+      },
+      {
+        id: "msg-call",
+        role: "user",
+        content: "Can I talk to someone?",
+        sessionKey: "call-session",
+        displayMode: "web_call",
+        createdAt: "2026-05-20T10:05:00.000Z",
+      },
+    ],
+  });
+
+  const pageContact = workspace.list.find((contact) => contact.latestMessageId === "msg-page");
+  const webCallContact = workspace.list.find((contact) => contact.latestMessageId === "msg-call");
+
+  assert.ok(pageContact);
+  assert.ok(webCallContact);
+  assert.ok(pageContact.sources.includes("full page assistant"));
+  assert.ok(pageContact.sources.includes("chat"));
+  assert.ok(webCallContact.sources.includes("web call"));
+  assert.ok(webCallContact.sources.includes("chat"));
+});
+
 test("owner customer journey aggregation endpoints deny non-owner access before loading data", async () => {
   const requestedSnapshots = [];
   const authError = new Error("Authentication required");

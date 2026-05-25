@@ -5,6 +5,7 @@ import { getSupabaseClient } from "../clients/supabaseClient.js";
 import {
   handleChatRequest,
   handleLeadCaptureRequest,
+  normalizePublicConversationSource,
 } from "../services/chat/chatService.js";
 import { recordVisitorReplyFeedback } from "../services/analytics/visitorReplyFeedbackService.js";
 import { trackProductEvent } from "../services/analytics/productEventService.js";
@@ -23,6 +24,14 @@ import { cleanText } from "../utils/text.js";
 
 function normalizePublicDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
+}
+
+function getPublicChatEventSource(displayMode, conversationSource) {
+  if (conversationSource === "web_call") {
+    return "public_web_call";
+  }
+
+  return displayMode === "page" ? "public_page" : "public_widget";
 }
 
 export function createChatRouter(deps = {}) {
@@ -78,6 +87,13 @@ export function createChatRouter(deps = {}) {
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
       );
+      const conversationSource = normalizePublicConversationSource(
+        req.body.conversation_source ||
+          req.body.conversationSource ||
+          req.body.source_type ||
+          req.body.sourceType,
+        { displayMode }
+      );
       const result = await handleChatRequestImpl({
         supabase: getSupabase(),
         openai: getOpenAI,
@@ -87,13 +103,14 @@ export function createChatRouter(deps = {}) {
         agentId: result?.agentId,
         installId: req.body.install_id || req.body.installId,
         eventName: "first_widget_chat",
-        source: displayMode === "page" ? "public_page" : "public_widget",
+        source: getPublicChatEventSource(displayMode, conversationSource),
         metadata: {
           display_mode: displayMode,
+          ...(conversationSource ? { conversation_source: conversationSource } : {}),
           lead_capture_state: result?.leadCapture?.state || "",
           direct_routing_mode: result?.directRouting?.mode || "",
         },
-        dedupeKey: `first_widget_chat:${displayMode}:${result?.agentId || ""}`,
+        dedupeKey: `first_widget_chat:${conversationSource || displayMode}:${result?.agentId || ""}`,
       });
 
       res.json(result);

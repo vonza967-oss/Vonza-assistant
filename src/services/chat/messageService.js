@@ -28,10 +28,15 @@ function normalizeDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
 }
 
+function normalizeConversationSource(value) {
+  const normalized = cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
+  return normalized === "web_call" ? "web_call" : "";
+}
+
 function normalizeStoredDisplayMode(value) {
   const normalized = cleanText(value).toLowerCase();
 
-  if (normalized === "page" || normalized === "widget") {
+  if (normalized === "page" || normalized === "widget" || normalized === "web_call") {
     return normalized;
   }
 
@@ -67,6 +72,9 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   const normalizedSessionKey = cleanText(options.sessionKey);
   const visitorIdentity = normalizeVisitorIdentity(options.visitorIdentity || {});
   const displayMode = normalizeDisplayMode(options.displayMode || options.display_mode);
+  const conversationSource = normalizeConversationSource(
+    options.conversationSource || options.conversation_source
+  );
   const seenEntries = new Set();
   const payload = entries
     .map((entry) => ({
@@ -77,7 +85,10 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
       visitor_identity_mode: visitorIdentity.mode || null,
       visitor_email: visitorIdentity.email || null,
       visitor_name: visitorIdentity.name || null,
-      display_mode: normalizeDisplayMode(entry.displayMode || entry.display_mode || displayMode),
+      display_mode:
+        normalizeConversationSource(entry.conversationSource || entry.conversation_source) ||
+        conversationSource ||
+        normalizeDisplayMode(entry.displayMode || entry.display_mode || displayMode),
       created_at: entry.createdAt || entry.created_at || new Date().toISOString(),
     }))
     .filter((entry) => {

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { normalizePublicConversationSource } from "../src/services/chat/chatService.js";
 import { storeAgentMessages } from "../src/services/chat/messageService.js";
 
 function createMessageSupabaseStub({ rejectDisplayMode = false } = {}) {
@@ -67,6 +68,53 @@ test("message persistence records public assistant display mode", async () => {
   assert.equal(supabase.state.messages[0].display_mode, "page");
   assert.equal(supabase.state.messages[1].display_mode, "page");
   assert.equal(rows[0].displayMode, "page");
+});
+
+test("message persistence records sanitized Web Call source without changing request display mode", async () => {
+  const supabase = createMessageSupabaseStub();
+
+  const rows = await storeAgentMessages(
+    supabase,
+    "agent-1",
+    [
+      { role: "user", content: "Can I talk to the front desk?" },
+      { role: "assistant", content: "Yes, I can help by voice." },
+    ],
+    {
+      sessionKey: "session-web-call",
+      displayMode: "page",
+      conversationSource: "web_call",
+    }
+  );
+
+  assert.equal(supabase.state.messages.length, 2);
+  assert.equal(supabase.state.messages[0].display_mode, "web_call");
+  assert.equal(supabase.state.messages[1].display_mode, "web_call");
+  assert.equal(rows[0].displayMode, "web_call");
+});
+
+test("message persistence ignores unsupported public source values", async () => {
+  const supabase = createMessageSupabaseStub();
+
+  await storeAgentMessages(
+    supabase,
+    "agent-1",
+    [{ role: "user", content: "Hello" }],
+    {
+      sessionKey: "session-page",
+      displayMode: "page",
+      conversationSource: "owner_user_id",
+    }
+  );
+
+  assert.equal(supabase.state.messages[0].display_mode, "page");
+});
+
+test("public conversation source accepts only hosted page Web Call", () => {
+  assert.equal(normalizePublicConversationSource("web_call", { displayMode: "page" }), "web_call");
+  assert.equal(normalizePublicConversationSource("Web Call", { displayMode: "page" }), "web_call");
+  assert.equal(normalizePublicConversationSource("web_call", { displayMode: "widget" }), "");
+  assert.equal(normalizePublicConversationSource("owner_user_id", { displayMode: "page" }), "");
 });
 
 test("message persistence falls back safely before display mode migration is applied", async () => {

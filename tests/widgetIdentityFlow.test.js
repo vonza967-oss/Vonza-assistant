@@ -1031,6 +1031,7 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
         const payload = JSON.parse(options.body);
         assert.equal(payload.message, "Can you help with quotes?");
         assert.equal(payload.display_mode, "page");
+        assert.equal(payload.conversation_source, "web_call");
         assert.equal(payload.public_page_key, "page-key");
         return {
           ok: true,
@@ -1097,6 +1098,7 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.ok(calls.some((url) => url.includes("/api/voice/transcribe")));
   assert.ok(calls.includes("/chat"));
   assert.ok(calls.includes("/api/voice/speech"));
+  assert.equal(calls.some((url) => /\/phone\b|twilio/i.test(url)), false);
   assert.equal(harness.hooks.getCallModeState(), "speaking");
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 1");
 
@@ -2628,7 +2630,9 @@ test("embedded page mode keeps page display tracking and compact production hook
 
   const chatCall = harness.fetchCalls.find((call) => call.input === "/chat");
   assert.ok(chatCall);
-  assert.equal(JSON.parse(chatCall.options.body).display_mode, "page");
+  const payload = JSON.parse(chatCall.options.body);
+  assert.equal(payload.display_mode, "page");
+  assert.equal(Object.hasOwn(payload, "conversation_source"), false);
   assert.equal(harness.hooks.getDisplayMode(), "page");
   assert.equal(harness.elements.get("page-assistant-name").textContent, "Acme Co");
 });

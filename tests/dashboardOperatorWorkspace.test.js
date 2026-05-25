@@ -3567,6 +3567,15 @@ test("customers panel renders searchable records with real identity, source, and
         { label: "Visitor message", source: "chat", summary: "Asked which service fits.", at: "2026-05-13T10:05:00.000Z" },
       ],
     },
+    {
+      id: "contact-web-call",
+      partialIdentity: true,
+      lifecycleState: "new",
+      sources: ["web_call"],
+      timeline: [
+        { label: "Visitor message", source: "chat", summary: "Asked by Web Call.", at: "2026-05-13T10:10:00.000Z" },
+      ],
+    },
   ];
 
   const contactsPanel = harness.buildContactsPanel({}, workspace);
@@ -3582,11 +3591,13 @@ test("customers panel renders searchable records with real identity, source, and
   assert.match(contactsPanel, /Guest visitor/);
   assert.match(contactsPanel, /Website widget/);
   assert.match(contactsPanel, /Front Desk page/);
+  assert.match(contactsPanel, /Web Call/);
   assert.match(contactsPanel, /QR \/ direct link/);
   assert.match(contactsPanel, /data-contact-identity="identified"/);
   assert.match(contactsPanel, /data-contact-identity="guest"/);
   assert.match(contactsPanel, /data-contact-source-labels="Website widget"/);
   assert.match(contactsPanel, /data-contact-source-labels="Front Desk page\|QR \/ direct link"/);
+  assert.match(contactsPanel, /data-contact-source-labels="Web Call"/);
   assert.match(contactsPanel, /View chat/);
   assert.match(contactsPanel, /contacts-detail-shell/);
   assert.match(contactsPanel, /What happened/);

@@ -46,6 +46,7 @@ test("Analytics source labels map owner-facing sources", () => {
 
   assert.equal(analytics.getAnalyticsSourceLabel("page"), "Front Desk page");
   assert.equal(analytics.getAnalyticsSourceLabel("full_page_assistant"), "Front Desk page");
+  assert.equal(analytics.getAnalyticsSourceLabel("web_call"), "Web Call");
   assert.equal(analytics.getAnalyticsSourceLabel("widget_chat"), "Website widget");
   assert.equal(analytics.getAnalyticsSourceLabel("embedded_assistant"), "Embedded assistant");
   assert.equal(analytics.normalizeAnalyticsSource("display_mode"), "unknown");
@@ -74,6 +75,7 @@ test("Analytics assistant source rows include real sources and hide empty legacy
   const rows = analytics.buildAssistantSourceRows({
     widget: { key: "widget", conversationCount: 2, messageCount: 4, leadsCaptured: 1 },
     page: { key: "page", conversationCount: 3, messageCount: 5 },
+    web_call: { key: "web_call", conversationCount: 1, messageCount: 2 },
     embedded: { key: "embedded", conversationCount: 1, messageCount: 2 },
     unknown: { key: "unknown", conversationCount: 0, messageCount: 0 },
   });
@@ -81,6 +83,7 @@ test("Analytics assistant source rows include real sources and hide empty legacy
   assert.equal(JSON.stringify(rows.map((row) => row.label)), JSON.stringify([
     "Website widget",
     "Front Desk page",
+    "Web Call",
     "Embedded assistant",
   ]));
   assert.equal(rows.find((row) => row.key === "widget").leadsCaptured, 1);
@@ -133,9 +136,10 @@ test("Analytics page fragment preserves real values without QR or raw display mo
       assistantSource: {
         widget: { key: "widget", conversationCount: 2, messageCount: 5, leadsCaptured: 1 },
         page: { key: "page", conversationCount: 3, messageCount: 7, leadsCaptured: 2 },
+        web_call: { key: "web_call", conversationCount: 1, messageCount: 2, leadsCaptured: 0 },
         embedded: { key: "embedded", conversationCount: 1, messageCount: 2, leadsCaptured: 0 },
         unknown: { key: "display_mode", conversationCount: 0, messageCount: 0 },
-        totalConversations: 6,
+        totalConversations: 7,
       },
     },
     [{ label: "Booking availability", count: 2 }],
@@ -147,6 +151,7 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.match(markup, />6</);
   assert.match(markup, /Website widget/);
   assert.match(markup, /Front Desk page/);
+  assert.match(markup, /Web Call/);
   assert.match(markup, /Embedded assistant/);
   assert.match(markup, /Booking availability/);
   assert.match(markup, /Conversion rate/);

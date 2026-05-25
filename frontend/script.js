@@ -4068,6 +4068,7 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       updateCallModeStats();
       setCallModeState(CALL_MODE_STATES.THINKING);
       const result = await sendMessage(transcript, {
+        conversationSource: "web_call",
         playSpokenReply: true,
         onSpokenReplyStart: () => {
           if (callModeActive) {
@@ -4697,6 +4698,7 @@ async function sendMessage(messageOverride = "", options = {}) {
         origin: getPageOrigin(),
         public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
+        ...(trimText(options.conversationSource) === "web_call" ? { conversation_source: "web_call" } : {}),
         visitor_session_key: sessionKey,
         history: historySnapshot,
         ...buildVisitorIdentityPayload(),

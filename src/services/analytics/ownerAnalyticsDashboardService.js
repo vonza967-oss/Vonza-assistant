@@ -33,7 +33,7 @@ function normalizeMessage(message = {}) {
 function normalizeAssistantSource(value) {
   const normalized = cleanText(value).toLowerCase();
 
-  if (normalized === "widget" || normalized === "page") {
+  if (normalized === "widget" || normalized === "page" || normalized === "web_call") {
     return normalized;
   }
 
@@ -55,11 +55,13 @@ function buildAssistantSourceBreakdown(messages = [], leadCaptures = {}) {
   const buckets = {
     widget: createEmptyAssistantSourceBucket("widget", "Website widget"),
     page: createEmptyAssistantSourceBucket("page", "Front Desk page"),
+    web_call: createEmptyAssistantSourceBucket("web_call", "Web Call"),
     unknown: createEmptyAssistantSourceBucket("unknown", "Legacy/unknown"),
   };
   const sessionsBySource = {
     widget: new Set(),
     page: new Set(),
+    web_call: new Set(),
     unknown: new Set(),
   };
   const sourceBySession = new Map();
@@ -104,9 +106,18 @@ function buildAssistantSourceBreakdown(messages = [], leadCaptures = {}) {
   return {
     widget: buckets.widget,
     page: buckets.page,
+    web_call: buckets.web_call,
     unknown: buckets.unknown,
-    totalConversations: buckets.widget.conversationCount + buckets.page.conversationCount + buckets.unknown.conversationCount,
-    totalMessages: buckets.widget.messageCount + buckets.page.messageCount + buckets.unknown.messageCount,
+    totalConversations:
+      buckets.widget.conversationCount +
+      buckets.page.conversationCount +
+      buckets.web_call.conversationCount +
+      buckets.unknown.conversationCount,
+    totalMessages:
+      buckets.widget.messageCount +
+      buckets.page.messageCount +
+      buckets.web_call.messageCount +
+      buckets.unknown.messageCount,
   };
 }
 

@@ -223,6 +223,20 @@ function formatSourceLabel(source) {
   return cleanText(source).replaceAll("_", " ");
 }
 
+function getMessageSourceKind(message = {}) {
+  const displayMode = cleanText(message.displayMode || message.display_mode).toLowerCase();
+
+  if (displayMode === "web_call") {
+    return "web_call";
+  }
+
+  if (displayMode === "page") {
+    return "full_page_assistant";
+  }
+
+  return "chat";
+}
+
 function mapStoredContactRow(row = {}) {
   return {
     id: cleanText(row.id),
@@ -1547,6 +1561,7 @@ function normalizeWidgetMessage(message = {}) {
     visitorIdentityMode: cleanText(message.visitorIdentityMode || message.visitor_identity_mode),
     visitorEmail: cleanText(message.visitorEmail || message.visitor_email),
     visitorName: cleanText(message.visitorName || message.visitor_name),
+    displayMode: cleanText(message.displayMode || message.display_mode),
     createdAt: message.createdAt || message.created_at || null,
   };
 }
@@ -1863,7 +1878,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
         phone: contactInfo.phone,
         phoneDigits: contactInfo.phoneNormalized,
         sessionKeys: [sessionKey],
-        sourceKinds: ["chat"],
+        sourceKinds: [getMessageSourceKind(message)],
         latestMessageId: message.id,
         lastActivityAt: message.createdAt,
       });

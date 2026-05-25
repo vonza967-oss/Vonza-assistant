@@ -873,6 +873,7 @@ test("hosted full-page Front Desk sends customer question and captures contact d
     assert.equal(chatRequests[0].body.public_page_key, "page-key");
     assert.equal(chatRequests[0].body.visitor_session_key, "session-page-1");
     assert.equal(chatRequests[0].body.visitor_identity_mode, "guest");
+    assert.equal(Object.hasOwn(chatRequests[0].body, "conversation_source"), false);
     assertNoOwnerOnlyFields(chatRequests[0].body);
 
     await page.locator('[data-canvas-answer-action="contact"]').click();
@@ -1113,6 +1114,183 @@ test("hosted full-page Front Desk shows call CTA on mobile when web call is enab
     await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
     await assertVisibleText(page, "Call Front Desk");
     await assertNoHorizontalOverflow(page);
+  } finally {
+    await page.close();
+  }
+});
+
+test("hosted full-page Web Call turn sends source marker without phone traffic", async () => {
+  const page = await newPage();
+  const chatRequests = [];
+  const voiceRequests = [];
+  const speechRequests = [];
+  const phoneOrTelephonyRequests = [];
+
+  page.on("request", (request) => {
+    const url = request.url();
+    if (/\/phone(?:[/?#]|$)|twilio/i.test(url)) {
+      phoneOrTelephonyRequests.push(url);
+    }
+  });
+
+  await page.addInitScript(() => {
+    class TestMediaRecorder {
+      constructor(stream, options = {}) {
+        this.stream = stream;
+        this.mimeType = options.mimeType || "audio/webm";
+        this.state = "inactive";
+        this.listeners = new Map();
+      }
+
+      static isTypeSupported() {
+        return true;
+      }
+
+      addEventListener(type, listener) {
+        this.listeners.set(type, listener);
+      }
+
+      start() {
+        this.state = "recording";
+      }
+
+      stop() {
+        this.state = "inactive";
+        this.listeners.get("dataavailable")?.({
+          data: new Blob(["audio"], { type: this.mimeType }),
+        });
+        this.listeners.get("stop")?.();
+      }
+    }
+
+    Object.defineProperty(globalThis.navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => ({
+          getTracks: () => [{ stop() {} }],
+        }),
+      },
+    });
+    globalThis.MediaRecorder = TestMediaRecorder;
+  });
+
+  await page.route("https://fonts.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/css",
+      body: "",
+    });
+  });
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    await route.fulfill({
+      status: 204,
+      body: "",
+    });
+  });
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agent: {
+          id: "agent-page-1",
+          publicAgentKey: "page-key",
+        },
+        business: {
+          id: "business-1",
+          name: "Example Services",
+          websiteUrl: "https://example.com",
+        },
+        widgetConfig: {
+          assistantName: "Example Front Desk",
+          voice_config: {
+            voice_input_enabled: true,
+            spoken_replies_enabled: true,
+            web_call_enabled: true,
+            voice: "sage",
+          },
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key",
+            headline: "Example Services Front Desk",
+          },
+        },
+      }),
+    });
+  });
+  await page.route(/\/api\/voice\/transcribe(?:[?#]|$)/, async (route) => {
+    voiceRequests.push(route.request().url());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ text: "Can I request a quote by voice?" }),
+    });
+  });
+  await page.route(/\/chat(?:[?#]|$)/, async (route) => {
+    const request = route.request();
+    chatRequests.push({
+      method: request.method(),
+      body: request.postDataJSON(),
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        reply: "Yes. I can help collect quote details.",
+        agentId: "agent-page-1",
+        agentKey: "page-key",
+        businessId: "business-1",
+        speech: {
+          token: "browser-call-speech-token",
+          expiresAt: "2026-05-25T12:05:00.000Z",
+        },
+        visitorIdentity: {
+          mode: "guest",
+          email: "",
+          name: "",
+        },
+      }),
+    });
+  });
+  await page.route(/\/api\/voice\/speech(?:[?#]|$)/, async (route) => {
+    speechRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: "audio/mpeg",
+      body: Buffer.from("mp3"),
+    });
+  });
+
+  try {
+    const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
+    hostedUrl.searchParams.set("k", "page-key");
+    hostedUrl.searchParams.set("session_id", "session-page-web-call-turn");
+    hostedUrl.searchParams.set("install_id", "install-page-1");
+    hostedUrl.searchParams.set("origin", "https://customer.example.test");
+    hostedUrl.searchParams.set("page_url", "https://customer.example.test/front-desk");
+
+    await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
+    await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
+
+    await page.locator("#call-front-desk-start").click();
+    await page.locator("#call-front-desk-stop").waitFor({ state: "visible" });
+    await page.locator("#call-front-desk-stop").click();
+    await assertVisibleText(page, "Yes. I can help collect quote details.");
+
+    assert.equal(voiceRequests.length, 1);
+    assert.equal(chatRequests.length, 1);
+    assert.equal(chatRequests[0].method, "POST");
+    assert.equal(chatRequests[0].body.message, "Can I request a quote by voice?");
+    assert.equal(chatRequests[0].body.display_mode, "page");
+    assert.equal(chatRequests[0].body.conversation_source, "web_call");
+    assert.equal(chatRequests[0].body.public_page_key, "page-key");
+    assert.equal(chatRequests[0].body.visitor_session_key, "session-page-web-call-turn");
+    assertNoOwnerOnlyFields(chatRequests[0].body);
+    assert.equal(speechRequests.length, 1);
+    assert.equal(speechRequests[0].display_mode, "page");
+    assert.equal(speechRequests[0].speech_token, "browser-call-speech-token");
+    assert.deepEqual(phoneOrTelephonyRequests, []);
   } finally {
     await page.close();
   }

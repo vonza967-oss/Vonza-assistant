@@ -67,6 +67,17 @@ function normalizePublicDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
 }
 
+export function normalizePublicConversationSource(value, options = {}) {
+  const normalized = cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
+  const displayMode = normalizePublicDisplayMode(options.displayMode || options.display_mode);
+
+  if (normalized === "web_call" && displayMode === "page") {
+    return "web_call";
+  }
+
+  return "";
+}
+
 function stripRawAssetUrls(reply = "") {
   return normalizeAssistantReply(
     String(reply || "")
@@ -322,6 +333,7 @@ async function buildChatResponse({
   directRouting = null,
   visitorIdentity = null,
   displayMode = "widget",
+  conversationSource = "",
   storeUserMessage = true,
   userMessageCreatedAt = null,
   storeMessages = storeAgentMessages,
@@ -335,6 +347,7 @@ async function buildChatResponse({
     sessionKey,
     visitorIdentity,
     displayMode,
+    conversationSource,
   });
 
   const speech = createSpeechAuthorization({
@@ -401,6 +414,10 @@ export async function handleChatRequest({
   const origin = cleanText(body.origin || "");
   const publicPageKey = cleanText(body.public_page_key || body.publicPageKey || body.k || "");
   const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
+  const conversationSource = normalizePublicConversationSource(
+    body.conversation_source || body.conversationSource || body.source_type || body.sourceType,
+    { displayMode }
+  );
   const history = sanitizeChatHistory(body.history);
   const visitorIdentity = normalizeVisitorIdentity({
     ...(body.visitor_identity || {}),
@@ -484,6 +501,7 @@ export async function handleChatRequest({
       userMessageCreatedAt,
       storeMessages: storeMessagesImpl,
       displayMode,
+      conversationSource,
     });
   }
 
@@ -501,6 +519,7 @@ export async function handleChatRequest({
       visitorIdentity,
       storeMessages: storeMessagesImpl,
       displayMode,
+      conversationSource,
     });
   }
 
@@ -524,6 +543,7 @@ export async function handleChatRequest({
       visitorIdentity,
       storeMessages: storeMessagesImpl,
       displayMode,
+      conversationSource,
     });
   }
 
@@ -773,6 +793,7 @@ export async function handleChatRequest({
     userMessageCreatedAt,
     storeMessages: storeMessagesImpl,
     displayMode,
+    conversationSource,
   });
 }
 

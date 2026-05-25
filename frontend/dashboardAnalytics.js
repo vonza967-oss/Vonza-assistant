@@ -2,6 +2,7 @@
   const SOURCE_LABELS = Object.freeze({
     widget: "Website widget",
     page: "Front Desk page",
+    web_call: "Web Call",
     embedded: "Embedded assistant",
     unknown: "Legacy/unknown",
   });
@@ -9,6 +10,7 @@
   const SOURCE_DESCRIPTIONS = Object.freeze({
     widget: "Customer conversations started from the optional website widget.",
     page: "Customer conversations started from the full-page AI Front Desk.",
+    web_call: "Browser-based Web Call conversations from the hosted Front Desk page.",
     embedded: "Customer conversations started from an embedded assistant surface.",
     unknown: "Older activity without a reliable source label.",
   });
@@ -86,6 +88,10 @@
 
     if (["page", "front_desk_page", "full_page", "full_page_assistant", "assistant_page", "hosted_page"].includes(normalized)) {
       return "page";
+    }
+
+    if (["web_call", "front_desk_web_call", "hosted_web_call"].includes(normalized)) {
+      return "web_call";
     }
 
     if (["embedded", "embedded_assistant", "assistant_embed", "smart_embed", "embed"].includes(normalized)) {
@@ -196,7 +202,18 @@
       },
     ];
     const embedded = normalizeSourceBucket(source.embedded, { key: "embedded" });
+    const webCall = normalizeSourceBucket(source.web_call || source.webCall, { key: "web_call" });
     const unknown = normalizeSourceBucket(source.unknown, { key: "unknown" });
+
+    if (webCall.conversationCount > 0 || webCall.messageCount > 0 || webCall.leadsCaptured > 0) {
+      baseRows.push({
+        ...webCall,
+        icon: "phone",
+        tone: "blue",
+        color: "soft-blue",
+        visits: "",
+      });
+    }
 
     if (embedded.conversationCount > 0 || embedded.messageCount > 0 || embedded.leadsCaptured > 0) {
       baseRows.push({
