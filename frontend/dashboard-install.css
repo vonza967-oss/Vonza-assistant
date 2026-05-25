@@ -176,6 +176,7 @@
 }
 
 .full-page-install-choice:hover,
+.full-page-install-choice:focus-visible,
 .full-page-install-choice.active {
   border-color: rgba(37, 99, 235, 0.55);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);

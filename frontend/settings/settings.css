@@ -768,7 +768,6 @@
 .settings-background-preset-card.selected {
   border-color: rgba(15, 143, 127, 0.42);
   background: #f7fbfa;
-  outline: none;
   transform: none;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }

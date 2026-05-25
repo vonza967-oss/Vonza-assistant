@@ -1,10 +1,11 @@
 # Vonza
 
-Vonza is an AI front-desk SaaS for small businesses. It answers website visitors' questions, captures lead details, and organizes conversations so owners can follow up faster.
+Vonza is an AI Front Desk SaaS for small businesses. Its primary customer-facing surface is a hosted full-page AI Front Desk that owners can share by direct link, QR code, WordPress page, or smart embed. The website widget remains a secondary, optional launcher for normal website pages.
 
 ## Main Features
 
-- Website chat widget with install verification and allowed-domain checks
+- Hosted full-page AI Front Desk for direct links, QR codes, WordPress pages, and smart embeds
+- Optional website chat widget with install verification and allowed-domain checks
 - Website import that turns public site content into chat grounding
 - Configurable system prompt, tone, widget purpose, business context, and industry vertical
 - Lead capture for warm visitors, quote requests, booking intent, and contact handoff
@@ -20,7 +21,7 @@ Vonza is a Node.js and Express application backed by Supabase. The frontend is m
 
 ```text
 Website visitor
-  -> Vonza widget (frontend/widget.html, frontend/script.js)
+  -> Vonza hosted Front Desk page, smart embed, QR/direct link, or optional widget
   -> Express routes (/chat, /widget/bootstrap, /install/events)
   -> Services (chat, prompting, scraping, leads, analytics, billing)
   -> Supabase tables (businesses, agents, widget_configs, messages, leads, outcomes, usage)

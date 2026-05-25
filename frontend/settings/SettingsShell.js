@@ -1286,7 +1286,7 @@
             </div>
           </div>
           <div class="settings-shell-status-list">
-            <div class="settings-shell-status-row settings-shell-status-row--actions">
+            <div class="settings-shell-status-row settings-shell-status-row--actions" role="status" aria-live="polite" aria-label="Website import status">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Import status</p>
                 <h4 class="settings-shell-status-value">${escapeHtml(importState.value)}</h4>
@@ -1294,7 +1294,7 @@
                 ${importState.retryable ? `<p class="settings-shell-status-copy">Retry starts a fresh async import for full-page Front Desk knowledge.</p>` : ""}
               </div>
               <div class="settings-shell-status-actions">
-                <button class="ghost-button" type="button" data-action="import-knowledge" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : knowledgeActionLabel)}</button>
+                <button class="ghost-button" type="button" data-action="import-knowledge" aria-label="${escapeHtml(importState.retryable ? "Retry website knowledge import" : "Import website knowledge")}" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : knowledgeActionLabel)}</button>
               </div>
             </div>
           </div>
@@ -1594,13 +1594,13 @@
               </div>
               <div class="settings-full-page-grid">
                 <div class="settings-shell-field-stack" data-full-page-settings-panel="content" ${fullPagePanelAttrs("content")}>
-                  <div class="settings-shell-choice-row">
+                  <label class="settings-shell-choice-row" for="full-page-public-enabled">
                     <div class="settings-shell-choice-main">
                       <p class="settings-shell-choice-title">${fullPageConfig.publicPageEnabled ? "Your Front Desk page is live" : "Your Front Desk page is disabled"}</p>
                       <p class="settings-shell-key-value-copy">${fullPageConfig.publicPageEnabled ? "Anyone with the protected public link can open this customer-facing Front Desk page." : "Enable public Front Desk page access before sharing links, embeds, or QR codes."}</p>
                     </div>
-                    <input name="full_page_public_enabled" type="checkbox" ${fullPageConfig.publicPageEnabled ? "checked" : ""}>
-                  </div>
+                    <input id="full-page-public-enabled" name="full_page_public_enabled" type="checkbox" ${fullPageConfig.publicPageEnabled ? "checked" : ""}>
+                  </label>
                   <input type="hidden" name="full_page_public_page_key" value="${escapeHtml(fullPageConfig.publicPageKey || "")}">
                   <div class="field">
                     <label for="full-page-headline">Headline</label>

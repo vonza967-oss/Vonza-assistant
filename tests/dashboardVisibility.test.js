@@ -825,6 +825,81 @@ test("Hungarian Install dashboard localizes platform guidance", async () => {
   assert.doesNotMatch(installHtml, /Platform quick guides|Install-only website guidance|Start with the hosted AI Front Desk page|Paste or link|Hosted page vs embed|Limitation|Products, carts, and orders are not connected|Some Wix areas can restrict custom code/i);
 });
 
+test("Hungarian launch path copy localizes release-facing Install Front Desk and Settings strings", async () => {
+  const routes = [
+    {
+      hash: "#install",
+      marker: 'data-shell-section="install"',
+      expected: [/Élesítési útvonalak sorrendje/, /Hosztolt Front Desk oldal/, /WordPress \/ okos beágyazás/, /Weboldali widget buborék/],
+      englishLeak: /Launch path hierarchy|Fastest launch path|Website widget bubble|Copy website bubble code|Use this QR code/i,
+    },
+    {
+      hash: "#front-desk/knowledge",
+      marker: 'data-frontdesk-section="knowledge"',
+      expected: [/Weboldali részletek/, /Üzleti profil áttekintése|Import újrapróbálása/],
+      englishLeak: /Ground answers in the real website|Only saved website knowledge|Review business profile/i,
+    },
+    {
+      hash: "#front-desk/launch",
+      marker: 'data-frontdesk-section="launch"',
+      expected: [/Publikus Front Desk oldal/, /QR \/ direkt link/, /Telepítés megnyitása|Gyakorolj először/],
+      englishLeak: /A few essentials still need attention|Use Install for page takeover|Optional website widget|Why Install still lives separately/i,
+    },
+    {
+      hash: "#settings/front-desk/full-page-assistant",
+      marker: 'data-settings-section="front_desk"',
+      expected: [/Teljes oldalas asszisztens és hosztolt oldal/, /Tartalom/, /Dizájn/, /Elrendezés/, /A Front Desk oldalad/],
+      englishLeak: /Full-page assistant and hosted page|Front Desk page customization sections|Your Front Desk page is disabled|Customize the primary Front Desk page/i,
+    },
+    {
+      hash: "#settings/business-profile",
+      marker: 'data-settings-section="business_profile"',
+      expected: [/Üzleti profil készenléte/, /Weboldali tudás/, /Weboldal mentése/],
+      englishLeak: /Business Profile readiness|Set the website Vonza should learn from|Changing this website uses|Save website/i,
+    },
+  ];
+
+  function getMarkedHtml(html, marker) {
+    const start = html.indexOf(marker);
+    const next = html.indexOf('data-shell-section="', start + marker.length);
+    return start >= 0 ? html.slice(start, next > start ? next : undefined) : html;
+  }
+
+  for (const route of routes) {
+    const harness = createDashboardHarness({
+      hash: route.hash,
+      agents: () => [createActiveAgent({
+        installId: "install-1",
+        fullPageConfig: {
+          publicPageEnabled: true,
+          publicPageKey: "page-key-1",
+        },
+        knowledge: {
+          state: "limited",
+          description: "Website import needs review.",
+          importStatus: {
+            state: "limited",
+            label: "Website import",
+            message: "Website import status will appear here.",
+            retryable: true,
+          },
+        },
+      })],
+      initialLocalStorage: {
+        vonza_dashboard_language: "hu",
+      },
+    });
+    await harness.settle();
+
+    const routeHtml = getMarkedHtml(harness.getRootHtml(), route.marker);
+    const visibleRouteHtml = routeHtml.replace(/\b[\w:-]+="[^"]*"/g, "");
+    route.expected.forEach((pattern) => {
+      assert.match(visibleRouteHtml, pattern, `${route.hash} should render ${pattern}`);
+    });
+    assert.doesNotMatch(visibleRouteHtml, route.englishLeak, `${route.hash} should not leak release-facing English copy`);
+  }
+});
+
 test("front desk nested hash routes open the matching tab", async () => {
   const tabRoutes = [
     ["#front-desk", "practice", "Practice"],

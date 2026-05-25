@@ -536,16 +536,17 @@
               <span class="frontdesk-practice-label">Practice mode — visitors will not see this conversation.</span>
               <h3>${sanitizeHtml(assistantName)}</h3>
             </div>
-            <span class="frontdesk-practice-status">${sanitizeHtml(renderPracticeStatus(hasWebsite))}</span>
+            <span class="frontdesk-practice-status" role="status" aria-live="polite">${sanitizeHtml(renderPracticeStatus(hasWebsite))}</span>
           </div>
-          <div class="frontdesk-practice-thread" data-frontdesk-practice-thread>
+          <div class="frontdesk-practice-thread" data-frontdesk-practice-thread aria-live="polite" aria-label="Front Desk practice conversation">
             <article class="frontdesk-practice-message assistant">
               <span>${sanitizeHtml(assistantName)}</span>
               <p>${sanitizeHtml(welcomeMessage)}</p>
             </article>
           </div>
           <form class="frontdesk-practice-composer" data-frontdesk-practice-form>
-            <input name="message" type="text" autocomplete="off" placeholder="Ask a question as if you were a visitor.">
+            <label class="sr-only" for="frontdesk-practice-message">Practice question</label>
+            <input id="frontdesk-practice-message" name="message" type="text" autocomplete="off" placeholder="Ask a question as if you were a visitor.">
             <button class="primary-button" type="submit">Send</button>
           </form>
           <div class="frontdesk-practice-next">
@@ -848,11 +849,11 @@
               <p>${sanitizeHtml(summary.customerImpact)}</p>
             </article>
             ${importStatus ? `
-              <article class="frontdesk-import-status frontdesk-import-status-${sanitizeHtml(importState || "unknown")}">
+              <article class="frontdesk-import-status frontdesk-import-status-${sanitizeHtml(importState || "unknown")}" role="status" aria-live="polite" aria-label="Website import status">
                 <span>Import status</span>
                 <strong>${sanitizeHtml(importActive ? `${importStatus.label || "Running"} now` : importStatus.label || "Website import")}</strong>
                 <p>${sanitizeHtml(importStatus.message || "Website import status will appear here.")}</p>
-                ${importRetryable ? `<button class="ghost-button" type="button" data-action="import-knowledge" data-import-force="true">Retry website import</button>` : ""}
+                ${importRetryable ? `<button class="ghost-button" type="button" data-action="import-knowledge" data-import-force="true" aria-label="Retry website knowledge import">Retry website import</button>` : ""}
               </article>
             ` : ""}
             <article>

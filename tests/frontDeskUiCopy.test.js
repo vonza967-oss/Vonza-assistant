@@ -4,9 +4,12 @@ import { readFileSync } from "node:fs";
 
 const dashboardScript = readFileSync("frontend/dashboard.js", "utf8");
 const dashboardFrontDeskScript = readFileSync("frontend/dashboardFrontDesk.js", "utf8");
+const dashboardInstallScript = readFileSync("frontend/dashboardInstall.js", "utf8");
 const dashboardCustomersScript = readFileSync("frontend/dashboardCustomers.js", "utf8");
 const settingsShellScript = readFileSync("frontend/settings/SettingsShell.js", "utf8");
 const publicWidgetScript = readFileSync("frontend/script.js", "utf8");
+const dashboardHtml = readFileSync("dashboard.html", "utf8");
+const readme = readFileSync("README.md", "utf8");
 
 test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Identity & welcome/);
@@ -48,6 +51,27 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
   assert.doesNotMatch(frontDeskDashboardSurface, /Training queue/);
   assert.doesNotMatch(frontDeskDashboardSurface, /Test Front Desk/);
   assert.doesNotMatch(frontDeskDashboardSurface, /Send AI draft/);
+});
+
+test("primary launch path exposes status and form accessibility semantics", () => {
+  const launchSurface = `${dashboardHtml}\n${dashboardScript}\n${dashboardInstallScript}\n${dashboardFrontDeskScript}\n${settingsShellScript}`;
+
+  assert.match(dashboardHtml, /id="status-banner"[^>]+role="status"[^>]+aria-live="polite"[^>]+aria-atomic="true"/);
+  assert.match(launchSurface, /data-full-page-qr-preview[^>]+role="status"[^>]+aria-live="polite"/);
+  assert.match(launchSurface, /frontdesk-import-status[\s\S]{0,120}role="status" aria-live="polite" aria-label="Website import status"/);
+  assert.match(launchSurface, /settings-shell-status-row--actions" role="status" aria-live="polite" aria-label="Website import status"/);
+  assert.match(launchSurface, /<label class="sr-only" for="frontdesk-practice-message">Practice question<\/label>/);
+  assert.match(launchSurface, /id="frontdesk-practice-message" name="message"/);
+  assert.match(launchSurface, /aria-label="Retry website knowledge import"/);
+  assert.match(launchSurface, /data-action="import-knowledge"[\s\S]{0,240}Import website knowledge/);
+  assert.match(launchSurface, /<label class="settings-shell-choice-row" for="full-page-public-enabled">/);
+});
+
+test("README leads with full-page Front Desk and treats widget as optional", () => {
+  assert.match(readme, /primary customer-facing surface is a hosted full-page AI Front Desk/i);
+  assert.match(readme, /website widget remains a secondary, optional launcher/i);
+  assert.match(readme, /Hosted full-page AI Front Desk for direct links, QR codes, WordPress pages, and smart embeds/);
+  assert.match(readme, /Optional website chat widget/);
 });
 
 test("conversation detail exposes owner-friendly training actions", () => {

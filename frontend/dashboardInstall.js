@@ -442,7 +442,7 @@
       ];
 
       return `
-        <section class="install-progress-card" aria-label="Setup progress">
+        <section class="install-progress-card" aria-label="Setup progress" role="status" aria-live="polite">
           <div class="install-progress-card-header">
             <p class="overview-label">Setup progress</p>
             <span>${items.filter((item) => item.done).length}/${items.length}</span>
@@ -568,7 +568,7 @@
                 </div>
                 <h4>${escapeHtml(path.title)}</h4>
                 <p>${escapeHtml(path.copy)}</p>
-                <button class="ghost-button" type="button" data-install-method-jump="${escapeHtml(path.action)}">View setup</button>
+                <button class="ghost-button" type="button" data-install-method-jump="${escapeHtml(path.action)}" aria-label="${escapeHtml(`View setup for ${path.title}`)}">View setup</button>
               </article>
             `).join("")}
           </div>
@@ -581,7 +581,7 @@
         <div class="install-copy-field ${className}">
           <div class="install-copy-heading">
             <label for="${escapeHtml(id)}">${escapeHtml(label)}</label>
-            <button class="ghost-button" type="button" data-action="${escapeHtml(buttonAction)}" ${disabled ? "disabled" : ""}>${escapeHtml(buttonLabel)}</button>
+            <button class="ghost-button" type="button" data-action="${escapeHtml(buttonAction)}" aria-label="${escapeHtml(buttonLabel)}" ${disabled ? "disabled" : ""}>${escapeHtml(buttonLabel)}</button>
           </div>
           <textarea id="${escapeHtml(id)}" rows="${escapeHtml(rows)}" readonly>${escapeHtml(value)}</textarea>
         </div>
@@ -732,7 +732,7 @@
 
       return `
         <aside class="install-side-panel" aria-label="Install status and resources">
-          <section class="install-side-card install-side-card-status">
+          <section class="install-side-card install-side-card-status" role="status" aria-live="polite" aria-label="Launch readiness status">
             <div class="install-side-card-header">
               <p class="overview-label">Launch readiness</p>
               <span class="${getBadgeClass(getInstallStatusTone(installStatus))}">${escapeHtml(isInstallSeen(installStatus) ? "Live" : installStatus.state === "installed_unseen" ? "Verified" : "Not live yet")}</span>
@@ -861,8 +861,8 @@
               <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Optional installed" : hasInstall ? "Optional" : "Optional")}</span>
             </div>
             <div class="install-cta-row">
-              <button class="primary-button" data-action="copy-install" ${hasInstall ? "" : "disabled"}>Copy website bubble code</button>
-              <button class="ghost-button" data-action="verify-install" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
+              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy website bubble code" ${hasInstall ? "" : "disabled"}>Copy website bubble code</button>
+              <button class="ghost-button" type="button" data-action="verify-install" aria-label="${escapeHtml(t("install.verifyInstallation"))}" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
               <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test website bubble</a>
             </div>
             ${buildInstallCopyBlock({
@@ -877,7 +877,7 @@
             })}
             <p class="install-help">Paste this once into your site header only when you want the optional bubble.</p>
             <div class="install-detail-grid">
-              <div class="install-detail-card">
+              <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
                 ${buildInstallDomainChips(allowedDomains)}
               </div>
@@ -902,7 +902,7 @@
             </div>
             ${wordpressCallout}
             ${!fullPageEnabled ? `
-              <div class="operator-inline-alert">
+              <div class="operator-inline-alert" role="status" aria-live="polite">
                 Your Front Desk page is disabled. Enable public Front Desk page access in Settings before sharing links, embeds, or QR codes.
                 <div class="inline-actions">
                   <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable public Front Desk page</button>
@@ -1028,7 +1028,7 @@
               <span class="${getBadgeClass(qrEndpoint ? "Ready" : "Pending")}">${escapeHtml(qrEndpoint ? "Print/download" : "Enable page first")}</span>
             </div>
             <div class="install-qr-section">
-              <div class="install-qr-preview" data-full-page-qr-preview aria-label="Front Desk page QR code">
+              <div class="install-qr-preview" data-full-page-qr-preview role="status" aria-live="polite" aria-label="Front Desk page QR code">
                 <p class="install-qr-status">Loading QR code...</p>
               </div>
               <div class="install-qr-copy">
