@@ -35,7 +35,13 @@ function withEnv(overrides, fn) {
 
 function buildResolvedContext(overrides = {}) {
   return {
-    agent: { id: "agent-1", publicAgentKey: "agent-key" },
+    agent: {
+      id: "agent-1",
+      publicAgentKey: "agent-key",
+      ownerUserId: "owner-1",
+      accessStatus: "active",
+      ...overrides.agent,
+    },
     business: { id: "business-1", website_url: "https://allowed.example" },
     widgetConfig: {
       installId: "install-1",
@@ -68,6 +74,13 @@ function createApp(deps = {}) {
     },
     getOpenAIClient: () => deps.openai,
     trackProductEvent: async () => ({ ok: true }),
+    getOwnerBillingSnapshot: async () => ({
+      ownerUserId: "owner-1",
+      currentPeriodStart: "2026-04-01T00:00:00.000Z",
+      currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+      usage: { isCapped: false },
+    }),
+    recordEstimatedUsage: async () => [],
     enforceTranscribeRateLimit: (_req, _res, next) => next(),
     enforceSpeechRateLimit: (_req, _res, next) => next(),
     ...deps.routerDeps,
@@ -225,6 +238,7 @@ test("voice transcription requires a valid public assistant context", async () =
 
 test("voice transcription returns transcript when OpenAI succeeds", async () => {
   let capturedModel = "";
+  let recordedUsage = null;
   const server = await startServer(createApp({
     openai: {
       audio: {
@@ -237,6 +251,12 @@ test("voice transcription returns transcript when OpenAI succeeds", async () => 
             };
           },
         },
+      },
+    },
+    routerDeps: {
+      recordEstimatedUsage: async (_supabase, payload) => {
+        recordedUsage = payload;
+        return [];
       },
     },
   }));
@@ -253,6 +273,163 @@ test("voice transcription returns transcript when OpenAI succeeds", async () => 
     assert.equal(json.text, "What services do you offer?");
     assert.equal(json.duration, 1.2);
     assert.equal(capturedModel, "gpt-4o-mini-transcribe");
+    assert.equal(recordedUsage.ownerUserId, "owner-1");
+    assert.equal(recordedUsage.entries[0].usageSource, "voice_transcription");
+    assert.equal(recordedUsage.entries[0].metadata.audioBytes, 5);
+  } finally {
+    await server.close();
+  }
+});
+
+test("capped owner blocks voice transcription before OpenAI", async () => {
+  let openaiCalled = false;
+  const server = await startServer(createApp({
+    openai: {
+      audio: {
+        transcriptions: {
+          create: async () => {
+            openaiCalled = true;
+            return { text: "not reached" };
+          },
+        },
+      },
+    },
+    routerDeps: {
+      getOwnerBillingSnapshot: async () => ({
+        usage: { isCapped: true },
+      }),
+      recordEstimatedUsage: async () => {
+        throw new Error("usage should not be recorded when capped");
+      },
+    },
+  }));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/voice/transcribe?${voiceQuery()}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/webm" },
+      body: Buffer.from("audio"),
+    });
+    const json = await readJson(response);
+
+    assert.equal(response.status, 402);
+    assert.match(json.error, /reached.*ai capacity/i);
+    assert.equal(openaiCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("inactive owner access blocks voice transcription before OpenAI", async () => {
+  for (const accessStatus of ["suspended", "pending"]) {
+    let billingLookups = 0;
+    let openaiCalled = false;
+    const server = await startServer(createApp({
+      contextOverrides: {
+        agent: { accessStatus },
+      },
+      openai: {
+        audio: {
+          transcriptions: {
+            create: async () => {
+              openaiCalled = true;
+              return { text: "not reached" };
+            },
+          },
+        },
+      },
+      routerDeps: {
+        getOwnerBillingSnapshot: async () => {
+          billingLookups += 1;
+          return { usage: { isCapped: false } };
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/transcribe?${voiceQuery()}`, {
+        method: "POST",
+        headers: { "Content-Type": "audio/webm" },
+        body: Buffer.from("audio"),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 403);
+      assert.match(json.error, /voice is temporarily unavailable/i);
+      assert.equal(billingLookups, 0);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  }
+});
+
+test("billing schema failure returns safe voice transcription error before OpenAI", async () => {
+  let openaiCalled = false;
+  const server = await startServer(createApp({
+    openai: {
+      audio: {
+        transcriptions: {
+          create: async () => {
+            openaiCalled = true;
+            return { text: "not reached" };
+          },
+        },
+      },
+    },
+    routerDeps: {
+      getOwnerBillingSnapshot: async () => {
+        const error = new Error("column owner_ai_usage_ledger.estimated_cost_cents does not exist");
+        error.code = "schema_not_ready";
+        throw error;
+      },
+    },
+  }));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/voice/transcribe?${voiceQuery()}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/webm" },
+      body: Buffer.from("audio"),
+    });
+    const json = await readJson(response);
+
+    assert.equal(response.status, 503);
+    assert.match(json.error, /voice is temporarily unavailable/i);
+    assert.doesNotMatch(json.error, /schema|supabase|ledger|estimated_cost/i);
+    assert.equal(openaiCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("transcription rate limit runs before voice service logic", async () => {
+  let serviceCalled = false;
+  const server = await startServer(createApp({
+    routerDeps: {
+      transcribeAssistantAudio: async () => {
+        serviceCalled = true;
+        return {
+          text: "not reached",
+        };
+      },
+      enforceTranscribeRateLimit: (_req, res) => {
+        res.status(429).json({ error: "Too many requests" });
+      },
+    },
+  }));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/voice/transcribe?${voiceQuery()}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/webm" },
+      body: Buffer.from("audio"),
+    });
+    const json = await readJson(response);
+
+    assert.equal(response.status, 429);
+    assert.equal(json.error, "Too many requests");
+    assert.equal(serviceCalled, false);
   } finally {
     await server.close();
   }
@@ -321,6 +498,7 @@ test("speech endpoint rejects too-long text and invalid voices", async () => {
 test("speech endpoint rejects arbitrary text without token", async () => {
   await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
     let openaiCalled = false;
+    let billingLookups = 0;
     const server = await startServer(createApp({
       openai: {
         audio: {
@@ -330,6 +508,12 @@ test("speech endpoint rejects arbitrary text without token", async () => {
               return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
             },
           },
+        },
+      },
+      routerDeps: {
+        getOwnerBillingSnapshot: async () => {
+          billingLookups += 1;
+          return { usage: { isCapped: false } };
         },
       },
     }));
@@ -350,6 +534,7 @@ test("speech endpoint rejects arbitrary text without token", async () => {
 
       assert.equal(response.status, 401);
       assert.match(json.error, /speech authorization is required/i);
+      assert.equal(billingLookups, 0);
       assert.equal(openaiCalled, false);
     } finally {
       await server.close();
@@ -360,6 +545,7 @@ test("speech endpoint rejects arbitrary text without token", async () => {
 test("speech endpoint rejects changed text with valid token", async () => {
   await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
     let openaiCalled = false;
+    let billingLookups = 0;
     const server = await startServer(createApp({
       openai: {
         audio: {
@@ -369,6 +555,12 @@ test("speech endpoint rejects changed text with valid token", async () => {
               return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
             },
           },
+        },
+      },
+      routerDeps: {
+        getOwnerBillingSnapshot: async () => {
+          billingLookups += 1;
+          return { usage: { isCapped: false } };
         },
       },
     }));
@@ -390,6 +582,7 @@ test("speech endpoint rejects changed text with valid token", async () => {
 
       assert.equal(response.status, 403);
       assert.match(json.error, /speech authorization is invalid/i);
+      assert.equal(billingLookups, 0);
       assert.equal(openaiCalled, false);
     } finally {
       await server.close();
@@ -553,6 +746,7 @@ test("speech endpoint rejects expired token", async () => {
 test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
   await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
     let capturedPayload = null;
+    let recordedUsage = null;
     const text = "Here is the answer.";
     const server = await startServer(createApp({
       openai: {
@@ -565,6 +759,12 @@ test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
               };
             },
           },
+        },
+      },
+      routerDeps: {
+        recordEstimatedUsage: async (_supabase, payload) => {
+          recordedUsage = payload;
+          return [];
         },
       },
     }));
@@ -592,10 +792,202 @@ test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
       assert.equal(capturedPayload.model, "gpt-4o-mini-tts");
       assert.equal(capturedPayload.voice, "sage");
       assert.equal(capturedPayload.response_format, "mp3");
+      assert.equal(recordedUsage.ownerUserId, "owner-1");
+      assert.equal(recordedUsage.entries[0].usageSource, "voice_speech");
+      assert.equal(recordedUsage.entries[0].metadata.textLength, text.length);
+      assert.equal(recordedUsage.entries[0].metadata.voice, "sage");
     } finally {
       await server.close();
     }
   });
+});
+
+test("capped owner blocks speech before OpenAI", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+      routerDeps: {
+        getOwnerBillingSnapshot: async () => ({
+          usage: { isCapped: true },
+        }),
+        recordEstimatedUsage: async () => {
+          throw new Error("usage should not be recorded when capped");
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          session_key: "voice-session",
+          text,
+          speech_token: buildSpeechToken({ text }),
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 402);
+      assert.match(json.error, /reached.*ai capacity/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("billing schema failure returns safe speech error before OpenAI", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+      routerDeps: {
+        getOwnerBillingSnapshot: async () => {
+          const error = new Error("relation owner_billing_accounts was not found");
+          error.code = "schema_not_ready";
+          throw error;
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          session_key: "voice-session",
+          text,
+          speech_token: buildSpeechToken({ text }),
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 503);
+      assert.match(json.error, /voice is temporarily unavailable/i);
+      assert.doesNotMatch(json.error, /schema|supabase|owner_billing|relation/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("inactive owner access blocks speech before OpenAI", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    for (const accessStatus of ["suspended", "pending"]) {
+      let billingLookups = 0;
+      let openaiCalled = false;
+      const text = "Here is the answer.";
+      const server = await startServer(createApp({
+        contextOverrides: {
+          agent: { accessStatus },
+        },
+        openai: {
+          audio: {
+            speech: {
+              create: async () => {
+                openaiCalled = true;
+                return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+              },
+            },
+          },
+        },
+        routerDeps: {
+          getOwnerBillingSnapshot: async () => {
+            billingLookups += 1;
+            return { usage: { isCapped: false } };
+          },
+        },
+      }));
+
+      try {
+        const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            install_id: "install-1",
+            origin: "https://allowed.example",
+            page_url: "https://allowed.example/help",
+            display_mode: "page",
+            session_key: "voice-session",
+            text,
+            speech_token: buildSpeechToken({ text }),
+          }),
+        });
+        const json = await readJson(response);
+
+        assert.equal(response.status, 403);
+        assert.match(json.error, /voice is temporarily unavailable/i);
+        assert.equal(billingLookups, 0);
+        assert.equal(openaiCalled, false);
+      } finally {
+        await server.close();
+      }
+    }
+  });
+});
+
+test("speech rate limit runs before voice service logic", async () => {
+  let serviceCalled = false;
+  const server = await startServer(createApp({
+    routerDeps: {
+      createAssistantSpeech: async () => {
+        serviceCalled = true;
+        return {
+          audioBuffer: Buffer.from([1]),
+          contentType: "audio/mpeg",
+        };
+      },
+      enforceSpeechRateLimit: (_req, res) => {
+        res.status(429).json({ error: "Too many requests" });
+      },
+    },
+  }));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "Here is the answer." }),
+    });
+    const json = await readJson(response);
+
+    assert.equal(response.status, 429);
+    assert.equal(json.error, "Too many requests");
+    assert.equal(serviceCalled, false);
+  } finally {
+    await server.close();
+  }
 });
 
 test("public frontend config does not expose OpenAI API keys", () => {

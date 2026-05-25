@@ -10,7 +10,11 @@ import {
   OWNER_AI_USAGE_LEDGER_TABLE,
   OWNER_BILLING_ACCOUNT_TABLE,
 } from "../src/config/constants.js";
-import { getOwnerBillingSnapshot as getBillingSnapshot } from "../src/services/billing/billingUsageService.js";
+import {
+  buildVoiceSpeechUsageEntry,
+  buildVoiceTranscriptionUsageEntry,
+  getOwnerBillingSnapshot as getBillingSnapshot,
+} from "../src/services/billing/billingUsageService.js";
 
 function withEnv(overrides, fn) {
   const previous = new Map();
@@ -194,12 +198,14 @@ test("billing usage aggregation stays scoped to the active billing period", asyn
         owner_user_id: "owner-1",
         billing_period_start: "2026-04-01T00:00:00.000Z",
         billing_period_end: "2026-05-01T00:00:00.000Z",
+        usage_source: "voice_transcription",
         estimated_cost_cents: 400,
       },
       {
         owner_user_id: "owner-1",
         billing_period_start: "2026-03-01T00:00:00.000Z",
         billing_period_end: "2026-04-01T00:00:00.000Z",
+        usage_source: "voice_speech",
         estimated_cost_cents: 900,
       },
     ],
@@ -209,6 +215,58 @@ test("billing usage aggregation stays scoped to the active billing period", asyn
   assert.equal(snapshot.usage.usedCents, 400);
   assert.equal(snapshot.usage.warningState, "normal");
   assert.equal(snapshot.usage.isCapped, false);
+});
+
+test("voice usage rows aggregate into the existing monthly AI cap", async () => {
+  const snapshot = await getSnapshotForUsage({
+    planKey: "starter",
+    usageRows: [
+      {
+        owner_user_id: "owner-1",
+        billing_period_start: "2026-04-01T00:00:00.000Z",
+        billing_period_end: "2026-05-01T00:00:00.000Z",
+        usage_source: "chat_reply",
+        estimated_cost_cents: 300,
+      },
+      {
+        owner_user_id: "owner-1",
+        billing_period_start: "2026-04-01T00:00:00.000Z",
+        billing_period_end: "2026-05-01T00:00:00.000Z",
+        usage_source: "voice_transcription",
+        estimated_cost_cents: 250,
+      },
+      {
+        owner_user_id: "owner-1",
+        billing_period_start: "2026-04-01T00:00:00.000Z",
+        billing_period_end: "2026-05-01T00:00:00.000Z",
+        usage_source: "voice_speech",
+        estimated_cost_cents: 450,
+      },
+    ],
+  });
+
+  assert.equal(snapshot.usage.usedCents, 1000);
+  assert.equal(snapshot.usage.warningState, "capped");
+  assert.equal(snapshot.usage.isCapped, true);
+});
+
+test("voice usage helper entries use voice sources and conservative fallbacks", () => {
+  const transcriptionEntry = buildVoiceTranscriptionUsageEntry({
+    model: "gpt-4o-mini-transcribe",
+    durationSeconds: 30,
+    audioBytes: 32 * 1024,
+  });
+  const speechEntry = buildVoiceSpeechUsageEntry({
+    model: "gpt-4o-mini-tts",
+    textLength: 1200,
+    voice: "alloy",
+  });
+
+  assert.equal(transcriptionEntry.usageSource, "voice_transcription");
+  assert.equal(speechEntry.usageSource, "voice_speech");
+  assert.equal(transcriptionEntry.estimatedCostCents, 0.5);
+  assert.equal(speechEntry.estimatedCostCents, 1.2);
+  assert.equal(speechEntry.metadata.voice, "alloy");
 });
 
 test("billing usage shows the 80% warning state", async () => {

@@ -32,6 +32,10 @@ const MODEL_USAGE_RATES_CENTS_PER_MILLION = Object.freeze({
     output: 60,
   }),
 });
+const VOICE_TRANSCRIPTION_FALLBACK_CENTS_PER_MINUTE = 1;
+const VOICE_TRANSCRIPTION_BYTES_PER_SECOND_ESTIMATE = 16 * 1024;
+const VOICE_SPEECH_FALLBACK_CENTS_PER_1K_CHARS = 1;
+const MIN_VOICE_USAGE_COST_CENTS = 0.01;
 
 function isMissingRelationError(error, relationName) {
   const message = cleanText(error?.message || "").toLowerCase();
@@ -259,6 +263,76 @@ function getModelUsageRates(modelName = "") {
   return familyKey
     ? MODEL_USAGE_RATES_CENTS_PER_MILLION[familyKey]
     : MODEL_USAGE_RATES_CENTS_PER_MILLION["gpt-4o-mini"];
+}
+
+function readPositiveNumber(...values) {
+  for (const value of values) {
+    const numberValue = Number(value);
+    if (Number.isFinite(numberValue) && numberValue > 0) {
+      return numberValue;
+    }
+  }
+
+  return 0;
+}
+
+function getOpenAiUsagePayload(options = {}) {
+  return options.usage && typeof options.usage === "object" ? options.usage : {};
+}
+
+function extractOpenAiTokenUsage(options = {}) {
+  const usage = getOpenAiUsagePayload(options);
+  const inputDetails = usage.input_token_details || usage.input_tokens_details || {};
+  const promptDetails = usage.prompt_token_details || usage.prompt_tokens_details || {};
+
+  return {
+    inputTokens: readPositiveNumber(
+      options.inputTokens,
+      options.promptTokens,
+      usage.input_tokens,
+      usage.prompt_tokens,
+      usage.total_input_tokens
+    ),
+    cachedInputTokens: readPositiveNumber(
+      options.cachedInputTokens,
+      options.cachedPromptTokens,
+      usage.cached_input_tokens,
+      inputDetails.cached_tokens,
+      promptDetails.cached_tokens
+    ),
+    outputTokens: readPositiveNumber(
+      options.outputTokens,
+      options.completionTokens,
+      usage.output_tokens,
+      usage.completion_tokens,
+      usage.total_output_tokens
+    ),
+  };
+}
+
+function estimateOpenAiUsageCostCents(options = {}) {
+  const directCost = readPositiveNumber(
+    options.estimatedCostCents,
+    options.estimated_cost_cents,
+    options.costCents,
+    getOpenAiUsagePayload(options).estimated_cost_cents,
+    getOpenAiUsagePayload(options).estimatedCostCents
+  );
+
+  if (directCost > 0) {
+    return directCost;
+  }
+
+  const tokenUsage = extractOpenAiTokenUsage(options);
+
+  if (tokenUsage.inputTokens > 0 || tokenUsage.cachedInputTokens > 0 || tokenUsage.outputTokens > 0) {
+    return estimateUsageCostCents({
+      model: options.model,
+      ...tokenUsage,
+    });
+  }
+
+  return 0;
 }
 
 function sumUsageForPeriod(records = [], currentPeriodStart, currentPeriodEnd) {
@@ -524,6 +598,93 @@ export function estimateUsageCostCents(options = {}) {
   );
 }
 
+export function estimateVoiceTranscriptionUsageCostCents(options = {}) {
+  const usageCost = estimateOpenAiUsageCostCents(options);
+
+  if (usageCost > 0) {
+    return usageCost;
+  }
+
+  const durationSeconds = Math.max(
+    0,
+    readPositiveNumber(options.durationSeconds, options.duration)
+  );
+  const audioBytes = Math.max(0, Number(options.audioBytes || 0) || 0);
+  const byteEstimatedSeconds = audioBytes > 0
+    ? audioBytes / VOICE_TRANSCRIPTION_BYTES_PER_SECOND_ESTIMATE
+    : 0;
+  const billableSeconds = Math.max(durationSeconds, byteEstimatedSeconds);
+
+  if (billableSeconds <= 0) {
+    return MIN_VOICE_USAGE_COST_CENTS;
+  }
+
+  return Math.max(
+    MIN_VOICE_USAGE_COST_CENTS,
+    (billableSeconds / 60) * VOICE_TRANSCRIPTION_FALLBACK_CENTS_PER_MINUTE
+  );
+}
+
+export function estimateVoiceSpeechUsageCostCents(options = {}) {
+  const usageCost = estimateOpenAiUsageCostCents(options);
+
+  if (usageCost > 0) {
+    return usageCost;
+  }
+
+  const textLength = Math.max(
+    0,
+    Number(options.textLength || cleanText(options.text).length || 0) || 0
+  );
+
+  if (textLength <= 0) {
+    return MIN_VOICE_USAGE_COST_CENTS;
+  }
+
+  return Math.max(
+    MIN_VOICE_USAGE_COST_CENTS,
+    (textLength / 1000) * VOICE_SPEECH_FALLBACK_CENTS_PER_1K_CHARS
+  );
+}
+
+export function buildVoiceTranscriptionUsageEntry(options = {}) {
+  const tokenUsage = extractOpenAiTokenUsage(options);
+  const durationSeconds = readPositiveNumber(options.durationSeconds, options.duration);
+  const audioBytes = Math.max(0, Number(options.audioBytes || 0) || 0);
+
+  return {
+    usageSource: "voice_transcription",
+    model: cleanText(options.model || "gpt-4o-mini-transcribe"),
+    ...tokenUsage,
+    estimatedCostCents: estimateVoiceTranscriptionUsageCostCents(options),
+    metadata: {
+      phase: "voice_transcription",
+      durationSeconds,
+      audioBytes,
+    },
+  };
+}
+
+export function buildVoiceSpeechUsageEntry(options = {}) {
+  const tokenUsage = extractOpenAiTokenUsage(options);
+  const textLength = Math.max(
+    0,
+    Number(options.textLength || cleanText(options.text).length || 0) || 0
+  );
+
+  return {
+    usageSource: "voice_speech",
+    model: cleanText(options.model || "gpt-4o-mini-tts"),
+    ...tokenUsage,
+    estimatedCostCents: estimateVoiceSpeechUsageCostCents(options),
+    metadata: {
+      phase: "voice_speech",
+      textLength,
+      voice: cleanText(options.voice),
+    },
+  };
+}
+
 export async function recordEstimatedUsage(supabase, options = {}) {
   const normalizedOwnerUserId = cleanText(options.ownerUserId);
   const usageEntries = Array.isArray(options.entries) ? options.entries : [];
@@ -547,10 +708,12 @@ export async function recordEstimatedUsage(supabase, options = {}) {
       Number(entry.cachedPromptTokens || entry.cachedInputTokens || 0) || 0
     ),
     output_tokens: Math.max(0, Number(entry.completionTokens || entry.outputTokens || 0) || 0),
-    estimated_cost_cents: estimateUsageCostCents(entry),
+    estimated_cost_cents: readPositiveNumber(entry.estimatedCostCents, entry.estimated_cost_cents)
+      || estimateUsageCostCents(entry),
     metadata: {
       phase: cleanText(entry.phase),
       modelFamily: cleanText(entry.modelFamily),
+      ...(entry.metadata && typeof entry.metadata === "object" ? entry.metadata : {}),
     },
     occurred_at: toIsoString(entry.occurredAt) || new Date().toISOString(),
     created_at: new Date().toISOString(),

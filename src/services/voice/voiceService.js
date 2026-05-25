@@ -2,6 +2,12 @@ import { toFile } from "openai";
 
 import { DEFAULT_VOICE_CONFIG, VOICE_TTS_VOICES } from "../agents/agentDefaults.js";
 import { normalizeVoiceConfig } from "../agents/agentService.js";
+import {
+  buildVoiceSpeechUsageEntry,
+  buildVoiceTranscriptionUsageEntry,
+  getOwnerBillingSnapshot,
+  recordEstimatedUsage,
+} from "../billing/billingUsageService.js";
 import { verifySpeechAuthorization } from "./voiceSpeechTokenService.js";
 import { cleanText } from "../../utils/text.js";
 
@@ -41,6 +47,14 @@ function buildVoiceError(message, statusCode = 400, code = "") {
     error.code = code;
   }
   return error;
+}
+
+function buildSafeVoiceBillingError(statusCode = 503, code = "voice_billing_unavailable") {
+  return buildVoiceError(
+    "Voice is temporarily unavailable. Please send your message in the chat instead.",
+    statusCode,
+    code
+  );
 }
 
 function getPositiveIntegerEnv(key, fallbackValue) {
@@ -144,6 +158,67 @@ export async function resolveVoiceContext(supabase, options = {}, deps = {}) {
   return resolveAllowedPublicWidgetContextImpl(supabase, options);
 }
 
+function resolveOwnerAccessContext(resolvedContext = {}) {
+  return {
+    ownerUserId: safeText(
+      resolvedContext.agent?.ownerUserId
+      || resolvedContext.agent?.owner_user_id
+    ),
+    accessStatus: safeText(
+      resolvedContext.agent?.accessStatus
+      || resolvedContext.agent?.access_status
+    ).toLowerCase(),
+  };
+}
+
+async function getAllowedVoiceBillingSnapshot(supabase, resolvedContext = {}, deps = {}) {
+  const { ownerUserId, accessStatus } = resolveOwnerAccessContext(resolvedContext);
+
+  if (!ownerUserId || accessStatus !== "active") {
+    throw buildSafeVoiceBillingError(403, "voice_access_inactive");
+  }
+
+  const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
+  let billingSnapshot;
+
+  try {
+    billingSnapshot = await getOwnerBillingSnapshotImpl(supabase, {
+      ownerUserId,
+      accessStatus,
+    });
+  } catch (error) {
+    const safeError = buildSafeVoiceBillingError(503, "voice_billing_unavailable");
+    safeError.cause = error;
+    throw safeError;
+  }
+
+  if (billingSnapshot?.usage?.isCapped) {
+    throw buildVoiceError(
+      "This assistant has reached this month's AI capacity. Please send your message in the chat instead.",
+      402,
+      "voice_ai_capacity_reached"
+    );
+  }
+
+  return {
+    ownerUserId,
+    accessStatus,
+    billingSnapshot,
+  };
+}
+
+async function recordVoiceUsage(supabase, options = {}, deps = {}) {
+  const recordEstimatedUsageImpl = deps.recordEstimatedUsage || recordEstimatedUsage;
+
+  try {
+    await recordEstimatedUsageImpl(supabase, options);
+  } catch (error) {
+    const safeError = buildSafeVoiceBillingError(503, "voice_billing_unavailable");
+    safeError.cause = error;
+    throw safeError;
+  }
+}
+
 function assertVoiceInputEnabled(widgetConfig = {}) {
   const config = normalizeVoiceConfig(widgetConfig.voiceConfig || widgetConfig.voice_config, DEFAULT_VOICE_CONFIG);
   if (config.voiceInputEnabled === false) {
@@ -214,7 +289,9 @@ export async function transcribeAssistantAudio({
     contentType,
     durationMs,
   });
+  const voiceBilling = await getAllowedVoiceBillingSnapshot(supabase, resolvedContext, deps);
   const openaiClient = typeof openai === "function" ? openai() : openai;
+  const model = getVoiceTranscribeModel();
 
   if (!openaiClient?.audio?.transcriptions?.create) {
     throw buildVoiceError("OpenAI transcription is unavailable.", 503, "openai_transcription_unavailable");
@@ -222,18 +299,36 @@ export async function transcribeAssistantAudio({
 
   const transcription = await openaiClient.audio.transcriptions.create({
     file: await toFile(audio, `voice-input.${extension}`, { type: normalizedContentType }),
-    model: getVoiceTranscribeModel(),
+    model,
   });
   const text = safeText(transcription?.text || "");
+  const resolvedDurationSeconds =
+    Number(transcription?.duration || transcription?.usage?.seconds || durationSeconds)
+    || durationSeconds;
 
   if (!text) {
     throw buildVoiceError("No speech was detected in that recording.", 422, "empty_transcript");
   }
 
+  await recordVoiceUsage(supabase, {
+    ownerUserId: voiceBilling.ownerUserId,
+    agentId: resolvedContext.agent?.id || "",
+    businessId: resolvedContext.business?.id || "",
+    billingSnapshot: voiceBilling.billingSnapshot,
+    entries: [
+      buildVoiceTranscriptionUsageEntry({
+        model,
+        usage: transcription?.usage,
+        durationSeconds: resolvedDurationSeconds,
+        audioBytes: audio.length,
+      }),
+    ],
+  }, deps);
+
   return {
     text,
     language: safeText(transcription?.language || ""),
-    duration: Number(transcription?.duration || transcription?.usage?.seconds || durationSeconds) || durationSeconds,
+    duration: resolvedDurationSeconds,
     agentId: resolvedContext.agent?.id || "",
     businessId: resolvedContext.business?.id || "",
     installId: resolvedContext.widgetConfig?.installId || safeText(context.installId),
@@ -285,14 +380,16 @@ export async function createAssistantSpeech({
     resolvedContext,
     requestContext: context,
   });
+  const voiceBilling = await getAllowedVoiceBillingSnapshot(supabase, resolvedContext, deps);
   const openaiClient = typeof openai === "function" ? openai() : openai;
+  const model = getVoiceTtsModel();
 
   if (!openaiClient?.audio?.speech?.create) {
     throw buildVoiceError("OpenAI text-to-speech is unavailable.", 503, "openai_tts_unavailable");
   }
 
   const speech = await openaiClient.audio.speech.create({
-    model: getVoiceTtsModel(),
+    model,
     voice,
     input: text,
     response_format: "mp3",
@@ -302,6 +399,21 @@ export async function createAssistantSpeech({
   if (!audioBuffer.length) {
     throw buildVoiceError("Speech audio could not be generated.", 502, "tts_empty_audio");
   }
+
+  await recordVoiceUsage(supabase, {
+    ownerUserId: voiceBilling.ownerUserId,
+    agentId: resolvedContext.agent?.id || "",
+    businessId: resolvedContext.business?.id || "",
+    billingSnapshot: voiceBilling.billingSnapshot,
+    entries: [
+      buildVoiceSpeechUsageEntry({
+        model,
+        usage: speech?.usage,
+        textLength: text.length,
+        voice,
+      }),
+    ],
+  }, deps);
 
   return {
     audioBuffer,

@@ -115,6 +115,8 @@ export function createVoiceRouter(deps = {}) {
           context,
           deps: {
             resolveAllowedPublicWidgetContext: resolveAllowedPublicWidgetContextImpl,
+            getOwnerBillingSnapshot: deps.getOwnerBillingSnapshot,
+            recordEstimatedUsage: deps.recordEstimatedUsage,
           },
         });
 
@@ -156,6 +158,8 @@ export function createVoiceRouter(deps = {}) {
         body: req.body,
         deps: {
           resolveAllowedPublicWidgetContext: resolveAllowedPublicWidgetContextImpl,
+          getOwnerBillingSnapshot: deps.getOwnerBillingSnapshot,
+          recordEstimatedUsage: deps.recordEstimatedUsage,
         },
       });
 
