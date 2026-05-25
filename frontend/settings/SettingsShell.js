@@ -1443,6 +1443,24 @@
     const voiceQaLanguageLabel = voiceConfig.languageBehavior === "business"
       ? "Prefer dashboard/business language"
       : "Auto-detect voice language";
+    const webCallReadinessItems = [
+      {
+        label: "Voice input",
+        copy: voiceConfig.voiceInputEnabled ? "Ready for microphone recording." : "Enable voice input first.",
+        ready: voiceConfig.voiceInputEnabled === true,
+      },
+      {
+        label: "Spoken replies",
+        copy: voiceConfig.spokenRepliesEnabled ? "Ready to generate browser audio." : "Enable spoken replies next.",
+        ready: voiceConfig.spokenRepliesEnabled === true,
+      },
+      {
+        label: "Web Call Front Desk",
+        copy: voiceConfig.webCallEnabled ? "Ready on the hosted Front Desk page." : "Enable Web Call Front Desk last.",
+        ready: voiceConfig.webCallEnabled === true,
+      },
+    ];
+    const webCallReady = webCallReadinessItems.every((item) => item.ready);
     const frontDeskOperationalRows = [
       {
         label: "Hosted full-page assistant",
@@ -1605,6 +1623,30 @@
                   <input id="auto-play-spoken-replies" name="auto_play_spoken_replies" type="checkbox" ${voiceConfig.autoPlaySpokenReplies ? "checked" : ""}>
                 </label>
               </div>
+              <div class="settings-web-call-readiness" aria-label="${escapeHtml(helpers.translateDashboardText("Web Call readiness checklist"))}">
+                <div class="settings-web-call-readiness-header">
+                  <div>
+                    <h4 class="settings-web-call-readiness-title">Web Call setup</h4>
+                    <p class="settings-web-call-readiness-copy">Internet calling over the visitor's browser, not a phone number. It uses AI capacity and rate limits.</p>
+                  </div>
+                  <span class="${helpers.getBadgeClass(webCallReady ? "Ready" : "Pending")}" data-web-call-readiness-badge>${webCallReady ? "Ready" : "Incomplete"}</span>
+                </div>
+                <ul class="settings-web-call-checklist">
+                  ${webCallReadinessItems.map((item) => `
+                    <li class="${item.ready ? "is-complete" : "is-incomplete"}">
+                      <span class="settings-web-call-checkmark" aria-hidden="true">${item.ready ? "OK" : "!"}</span>
+                      <span>
+                        <strong>${escapeHtml(item.label)}</strong>
+                        <small>${escapeHtml(item.copy)}</small>
+                      </span>
+                    </li>
+                  `).join("")}
+                </ul>
+                <div class="settings-web-call-readiness-footer">
+                  <p>Test the browser voice path before sharing Web Call publicly.</p>
+                  <button class="ghost-button" type="button" data-voice-qa-jump>Open owner voice QA simulator</button>
+                </div>
+              </div>
               <div class="settings-field-grid settings-field-grid--two">
                 <div class="field">
                   <label for="voice-style">Voice style</label>
@@ -1623,6 +1665,7 @@
                 </div>
               </div>
               <div
+                id="settings-voice-qa-simulator"
                 class="settings-voice-qa-simulator ${voiceQaDisabled ? "is-disabled" : ""}"
                 data-voice-qa-panel
                 data-agent-id="${escapeHtml(agent.id || "")}"
@@ -3413,6 +3456,7 @@
       const clearButton = panel.querySelector?.("[data-voice-qa-clear]");
       const copyButton = panel.querySelector?.("[data-voice-qa-copy]");
       const practiceButton = panel.querySelector?.("[data-voice-qa-practice]");
+      const jumpButton = root.querySelector?.("[data-voice-qa-jump]");
       const status = panel.querySelector?.("[data-voice-qa-status]");
       const transcriptPreview = panel.querySelector?.("[data-voice-qa-transcript]");
       const persistedVoiceEnabled = panel.getAttribute("aria-disabled") !== "true";
@@ -3443,6 +3487,11 @@
           clearButton.disabled = !transcript;
         }
       };
+
+      jumpButton?.addEventListener?.("click", () => {
+        panel.scrollIntoView?.({ behavior: "smooth", block: "start" });
+        recordButton?.focus?.({ preventScroll: true });
+      });
 
       const browserSupportsVoiceQa = () => Boolean(
         global.navigator?.mediaDevices?.getUserMedia

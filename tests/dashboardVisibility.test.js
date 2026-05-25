@@ -856,8 +856,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#front-desk/customization/voice",
       marker: 'data-frontdesk-section="customization"',
-      expected: [/Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
-      englishLeak: /Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
+      expected: [/Webes hívás beállítása/, /Internetes hívás a látogató böngészőjén keresztül/, /Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
+      englishLeak: /Web Call setup|Internet calling over the visitor's browser|Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
     },
     {
       hash: "#settings/business-profile",

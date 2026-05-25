@@ -1369,11 +1369,38 @@ button:hover {
 }
 
 .call-front-desk-kicker,
-.call-front-desk-status {
+.call-front-desk-status,
+.call-front-desk-summary,
+.call-front-desk-stats {
   margin: 0;
   color: #667085;
   font-size: 0.76rem;
   line-height: 1.35;
+}
+
+.call-front-desk-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.call-front-desk-stats span {
+  display: inline-flex;
+  min-width: 0;
+  padding: 2px 7px;
+  border: 1px solid rgba(15, 31, 29, 0.08);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 800;
+}
+
+.call-front-desk-summary {
+  color: #40516c;
+}
+
+.call-front-desk-summary[hidden] {
+  display: none;
 }
 
 .call-front-desk-kicker {
@@ -1749,6 +1776,10 @@ input:focus-visible {
   .call-front-desk-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .call-front-desk-stats {
+    width: 100%;
   }
 
   html.vonza-mode-page .app-shell {

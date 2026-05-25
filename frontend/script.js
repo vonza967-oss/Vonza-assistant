@@ -350,18 +350,24 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voicePressPlay": "Press Play to hear the spoken reply.",
     "assistant.callKicker": "Browser call",
     "assistant.callTitle": "Call Front Desk",
-    "assistant.callReady": "Ready",
-    "assistant.callRequesting": "Requesting microphone",
-    "assistant.callListening": "Listening",
-    "assistant.callTranscribing": "Transcribing",
-    "assistant.callThinking": "Thinking",
-    "assistant.callSpeaking": "Speaking",
+    "assistant.callReady": "Ready to start an internet call",
+    "assistant.callRequesting": "Requesting microphone access",
+    "assistant.callListening": "Listening - speak now",
+    "assistant.callTranscribing": "Transcribing your question",
+    "assistant.callThinking": "Front Desk is thinking",
+    "assistant.callSpeaking": "Speaking the answer",
     "assistant.callMutedStopped": "Listening stopped",
     "assistant.callStopped": "Call ended",
     "assistant.callUnavailable": "Call mode is unavailable right now. You can still type your message.",
     "assistant.callStart": "Start call",
     "assistant.callEnd": "End call",
     "assistant.callStopListening": "Stop listening",
+    "assistant.callDuration": "Duration {duration}",
+    "assistant.callTurns": "Turns {turns}",
+    "assistant.callSessionDetails": "Call session details",
+    "assistant.callSummary": "Call ended: {duration}, {turns}. Transcript remains in chat.",
+    "assistant.callOneTurn": "1 turn",
+    "assistant.callTurnCount": "{count} turns",
     "assistant.resetIdentity": "Reset visitor identity",
     "assistant.resetStatus": "Choose email or guest to start a fresh visitor identity.",
     "assistant.chooseBeforeSend": "Choose guest or email before sending your first message.",
@@ -510,18 +516,24 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voicePressPlay": "Nyomd meg a Lejátszás gombot a felolvasáshoz.",
     "assistant.callKicker": "Böngészős hívás",
     "assistant.callTitle": "Front Desk hívása",
-    "assistant.callReady": "Készen áll",
-    "assistant.callRequesting": "Mikrofonengedély kérése",
-    "assistant.callListening": "Figyelek",
-    "assistant.callTranscribing": "Leirat készítése",
-    "assistant.callThinking": "Gondolkodik",
-    "assistant.callSpeaking": "Felolvasás",
+    "assistant.callReady": "Készen áll a böngészős hívásra",
+    "assistant.callRequesting": "Mikrofonhozzáférés kérése",
+    "assistant.callListening": "Figyelek - beszélj most",
+    "assistant.callTranscribing": "A kérdés leírása",
+    "assistant.callThinking": "A Front Desk gondolkodik",
+    "assistant.callSpeaking": "A válasz felolvasása",
     "assistant.callMutedStopped": "A figyelés leállt",
     "assistant.callStopped": "A hívás véget ért",
     "assistant.callUnavailable": "A hívás mód most nem elérhető. Továbbra is beírhatod az üzenetedet.",
     "assistant.callStart": "Hívás indítása",
     "assistant.callEnd": "Hívás befejezése",
     "assistant.callStopListening": "Figyelés leállítása",
+    "assistant.callDuration": "Időtartam {duration}",
+    "assistant.callTurns": "Fordulók {turns}",
+    "assistant.callSessionDetails": "Hívás részletei",
+    "assistant.callSummary": "A hívás véget ért: {duration}, {turns}. A leirat a chatben marad.",
+    "assistant.callOneTurn": "1 forduló",
+    "assistant.callTurnCount": "{count} forduló",
     "assistant.resetIdentity": "Látogatói azonosítás törlése",
     "assistant.resetStatus": "Válassz emailes vagy vendég folytatást az új látogatói azonosításhoz.",
     "assistant.chooseBeforeSend": "Az első üzenet elküldése előtt válassz vendég módot vagy emailes folytatást.",
@@ -610,6 +622,10 @@ let voiceTranscriptRequestActive = false;
 let voiceInputStatusState = "";
 let callModeActive = false;
 let callModeState = CALL_MODE_STATES.READY;
+let callModeStartedAt = 0;
+let callModeEndedDurationMs = 0;
+let callModeTimer = 0;
+let callModeTurnCount = 0;
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -923,6 +939,12 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
   setElementText("call-front-desk-start", assistantT("assistant.callStart", {}, config));
   setElementText("call-front-desk-stop", assistantT("assistant.callStopListening", {}, config));
   setElementText("call-front-desk-end", assistantT("assistant.callEnd", {}, config));
+  document.querySelector?.(".call-front-desk-stats")?.setAttribute(
+    "aria-label",
+    assistantT("assistant.callSessionDetails", {}, config)
+  );
+  setElementText("call-front-desk-status", getCallModeStateMessage(callModeState));
+  updateCallModeStats();
   setElementText("page-identity-note", assistantT("assistant.pageIdentityNote", {}, config));
   setElementText("page-identity-email-button", assistantT("assistant.leaveContact", {}, config));
   setElementText("page-identity-powered", assistantT("assistant.poweredBy", {}, config));
@@ -3275,6 +3297,123 @@ function getCallModeEndButton() {
   return document.getElementById("call-front-desk-end");
 }
 
+function getCallModeDuration() {
+  return document.getElementById("call-front-desk-duration");
+}
+
+function getCallModeTurns() {
+  return document.getElementById("call-front-desk-turns");
+}
+
+function getCallModeSummary() {
+  return document.getElementById("call-front-desk-summary");
+}
+
+function formatCallModeDuration(ms = 0) {
+  const totalSeconds = Math.max(0, Math.floor(Number(ms || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getCallModeElapsedMs() {
+  if (callModeStartedAt) {
+    return Math.max(0, Date.now() - callModeStartedAt);
+  }
+
+  return callModeEndedDurationMs;
+}
+
+function getCallModeTurnText(count = callModeTurnCount) {
+  const normalizedCount = Math.max(0, Number(count || 0));
+  return normalizedCount === 1
+    ? assistantT("assistant.callOneTurn")
+    : assistantT("assistant.callTurnCount", { count: normalizedCount });
+}
+
+function updateCallModeStats() {
+  const duration = getCallModeDuration();
+  const turns = getCallModeTurns();
+  const formattedDuration = formatCallModeDuration(getCallModeElapsedMs());
+
+  if (duration) {
+    duration.textContent = assistantT("assistant.callDuration", { duration: formattedDuration });
+  }
+
+  if (turns) {
+    turns.textContent = assistantT("assistant.callTurns", { turns: callModeTurnCount });
+  }
+}
+
+function stopCallModeTimer() {
+  if (callModeTimer) {
+    if (typeof clearInterval === "function") {
+      clearInterval(callModeTimer);
+    }
+    callModeTimer = 0;
+  }
+}
+
+function startCallModeTimer() {
+  stopCallModeTimer();
+  updateCallModeStats();
+  if (typeof setInterval === "function") {
+    callModeTimer = setInterval(updateCallModeStats, 1000);
+  }
+}
+
+function resetCallModeSummary() {
+  const summary = getCallModeSummary();
+  if (summary) {
+    summary.hidden = true;
+    summary.textContent = "";
+  }
+}
+
+function showCallModeSummary() {
+  const summary = getCallModeSummary();
+  const formattedDuration = formatCallModeDuration(getCallModeElapsedMs());
+  if (summary) {
+    summary.hidden = false;
+    summary.textContent = assistantT("assistant.callSummary", {
+      duration: formattedDuration,
+      turns: getCallModeTurnText(),
+    });
+  }
+}
+
+function startCallModeSession() {
+  if (callModeStartedAt) {
+    return;
+  }
+
+  callModeStartedAt = Date.now();
+  callModeEndedDurationMs = 0;
+  callModeTurnCount = 0;
+  resetCallModeSummary();
+  startCallModeTimer();
+}
+
+function cleanupCallModeMedia(options = {}) {
+  stopCurrentVoiceAudio();
+
+  if (voiceRecorder) {
+    stopVoiceRecording({ cancel: true });
+  }
+
+  if (callModeStartedAt) {
+    callModeEndedDurationMs = getCallModeElapsedMs();
+  }
+
+  callModeStartedAt = 0;
+  stopCallModeTimer();
+  updateCallModeStats();
+
+  if (options.summary === true) {
+    showCallModeSummary();
+  }
+}
+
 function getCallModeStateMessage(state = callModeState) {
   switch (state) {
     case CALL_MODE_STATES.REQUESTING:
@@ -3317,6 +3456,8 @@ function setCallModeState(state, message = "", options = {}) {
     status.textContent = label;
   }
 
+  updateCallModeStats();
+
   if (label && options.silentComposer !== true) {
     setComposerStatus(label);
   }
@@ -3357,6 +3498,7 @@ function syncCallModeControls() {
   const startButton = getCallModeStartButton();
   const stopButton = getCallModeStopButton();
   const endButton = getCallModeEndButton();
+  const summary = getCallModeSummary();
   const config = getVoiceConfig();
   const voiceInputEnabled = config.voiceInputEnabled === true;
   const spokenRepliesEnabled = config.spokenRepliesEnabled === true;
@@ -3381,6 +3523,7 @@ function syncCallModeControls() {
   }
 
   if (!shouldShow) {
+    cleanupCallModeMedia();
     callModeActive = false;
     return;
   }
@@ -3415,6 +3558,10 @@ function syncCallModeControls() {
     endButton.textContent = assistantT("assistant.callEnd");
     endButton.setAttribute("aria-label", assistantT("assistant.callEnd"));
   }
+
+  if (summary && callModeState !== CALL_MODE_STATES.STOPPED && callModeActive) {
+    resetCallModeSummary();
+  }
 }
 
 async function startCallModeTurn() {
@@ -3437,11 +3584,16 @@ async function startCallModeTurn() {
   }
 
   callModeActive = true;
+  startCallModeSession();
   setCallModeState(CALL_MODE_STATES.REQUESTING);
   const started = await startVoiceRecording({ source: "call" });
 
-  if (!started && callModeActive && callModeState === CALL_MODE_STATES.REQUESTING) {
-    setCallModeState(CALL_MODE_STATES.UNAVAILABLE);
+  if (!started) {
+    callModeActive = false;
+    cleanupCallModeMedia();
+    if (callModeState === CALL_MODE_STATES.REQUESTING) {
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE);
+    }
   }
 
   return started;
@@ -3449,12 +3601,7 @@ async function startCallModeTurn() {
 
 function endCallMode() {
   callModeActive = false;
-  stopCurrentVoiceAudio();
-
-  if (voiceRecorder) {
-    stopVoiceRecording({ cancel: true });
-  }
-
+  cleanupCallModeMedia({ summary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED);
 }
 
@@ -3917,6 +4064,8 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
     }
 
     if (recordingSource === "call") {
+      callModeTurnCount += 1;
+      updateCallModeStats();
       setCallModeState(CALL_MODE_STATES.THINKING);
       const result = await sendMessage(transcript, {
         playSpokenReply: true,
@@ -4850,6 +4999,13 @@ document.getElementById("input").addEventListener("keydown", (event) => {
 });
 
 bindVoiceInputButton();
+
+["pagehide", "beforeunload"].forEach((eventName) => {
+  window.addEventListener?.(eventName, () => {
+    callModeActive = false;
+    cleanupCallModeMedia();
+  });
+});
 
 getSpeakRepliesToggle()?.addEventListener("click", () => {
   if (!getVoiceConfig().spokenRepliesEnabled) {

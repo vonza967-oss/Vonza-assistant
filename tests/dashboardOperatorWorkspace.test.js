@@ -1845,6 +1845,28 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(frontDeskCustomization, /settings-primary-color/);
   assert.match(frontDeskCustomization, /Enable Web Call Front Desk/);
   assert.match(frontDeskCustomization, /name="web_call_enabled"/);
+  assert.match(frontDeskCustomization, /Web Call setup/);
+  assert.match(frontDeskCustomization, /Voice input[\s\S]*Enable voice input first/);
+  assert.match(frontDeskCustomization, /Spoken replies[\s\S]*Enable spoken replies next/);
+  assert.match(frontDeskCustomization, /Web Call Front Desk[\s\S]*Enable Web Call Front Desk last/);
+  assert.match(frontDeskCustomization, /Internet calling over the visitor's browser, not a phone number/);
+  assert.match(frontDeskCustomization, /Open owner voice QA simulator/);
+  const completeWebCallSettings = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
+    agent: {
+      ...agent,
+      voiceConfig: {
+        voiceInputEnabled: true,
+        spokenRepliesEnabled: true,
+        webCallEnabled: true,
+      },
+    },
+    setup,
+    operatorWorkspace: workspace,
+  });
+  assert.match(completeWebCallSettings, /data-web-call-readiness-badge[^>]*>Ready<\/span>/);
+  assert.match(completeWebCallSettings, /Voice input[\s\S]*Ready for microphone recording/);
+  assert.match(completeWebCallSettings, /Spoken replies[\s\S]*Ready to generate browser audio/);
+  assert.match(completeWebCallSettings, /Web Call Front Desk[\s\S]*Ready on the hosted Front Desk page/);
   assert.match(frontDeskCustomization, /Current live readout/);
   assert.match(frontDeskCustomization, /data-settings-form data-form-kind="customize"/);
   assert.doesNotMatch(frontDeskCustomization, /business-summary|business-services|Save Business Profile|Website knowledge/);

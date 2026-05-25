@@ -194,6 +194,9 @@ function createWidgetHarness({
     "call-front-desk-kicker",
     "call-front-desk-title",
     "call-front-desk-status",
+    "call-front-desk-duration",
+    "call-front-desk-turns",
+    "call-front-desk-summary",
     "call-front-desk-start",
     "call-front-desk-stop",
     "call-front-desk-end",
@@ -962,7 +965,10 @@ test("call Front Desk CTA is page-only and requires voice input, spoken replies,
 
   assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, false);
   assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Call Front Desk");
+  assert.equal(pageHarness.elements.get("call-front-desk-status").textContent, "Ready to start an internet call");
   assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start call");
+  assert.equal(pageHarness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
+  assert.equal(pageHarness.elements.get("call-front-desk-turns").textContent, "Turns 0");
   assert.equal(pageHarness.fetchCalls.some((call) => /\/api\/voice\//.test(call.input)), false);
   assert.equal(pageHarness.fetchCalls.some((call) => /\/phone\b|twilio/i.test(call.input)), false);
 });
@@ -1078,7 +1084,9 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
 
   assert.equal(TestMediaRecorder.instances.length, 1);
   assert.equal(harness.hooks.getCallModeState(), "listening");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening - speak now");
+  assert.equal(harness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
+  assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 0");
 
   harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
   stopButton.dispatch("click");
@@ -1090,11 +1098,20 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.ok(calls.includes("/chat"));
   assert.ok(calls.includes("/api/voice/speech"));
   assert.equal(harness.hooks.getCallModeState(), "speaking");
+  assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 1");
 
   const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
   assert.match(renderedChat, /Can you help with quotes\?/);
   assert.match(renderedChat, /Yes, I can help collect quote details\./);
   assert.doesNotMatch(renderedChat, /call-speech-token/);
+
+  harness.elements.get("call-front-desk-end").dispatch("click");
+  assert.equal(harness.hooks.getCallModeState(), "stopped");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Call ended");
+  assert.equal(harness.elements.get("call-front-desk-summary").hidden, false);
+  assert.match(harness.elements.get("call-front-desk-summary").textContent, /Call ended: 00:00, 1 turn\. Transcript remains in chat\./);
+  assert.equal(harness.audioInstances[0].paused, true);
+  assert.match(renderedChat, /Can you help with quotes\?/);
 });
 
 test("call Front Desk failure states use safe localized messages", async () => {
@@ -1124,7 +1141,10 @@ test("call Front Desk failure states use safe localized messages", async () => {
   });
 
   assert.equal(harness.elements.get("call-front-desk-title").textContent, "Front Desk hívása");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Készen áll a böngészős hívásra");
   assert.equal(harness.elements.get("call-front-desk-start").textContent, "Hívás indítása");
+  assert.equal(harness.elements.get("call-front-desk-duration").textContent, "Időtartam 00:00");
+  assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Fordulók 0");
 
   await harness.hooks.startCallModeTurn();
 

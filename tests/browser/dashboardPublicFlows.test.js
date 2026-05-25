@@ -847,6 +847,8 @@ test("hosted full-page Front Desk sends customer question and captures contact d
     await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
     await assertVisibleText(page, "Call Front Desk");
     await assertVisibleText(page, "Start call");
+    await assertVisibleText(page, "Duration 00:00");
+    await assertVisibleText(page, "Turns 0");
     await page.locator("#input").waitFor({ state: "visible" });
     await assertNoHorizontalOverflow(page);
 
