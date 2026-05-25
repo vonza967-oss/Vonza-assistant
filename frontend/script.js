@@ -303,22 +303,34 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.pageIdentityLegal": "Sending a message lets Vonza store this chat session for replies, safety, and follow-up. Review data handling, terms, and cookies.",
     "assistant.voiceTap": "Tap to speak",
     "assistant.voiceSpeakReplies": "Speak replies",
+    "assistant.voiceSpeakRepliesOn": "Speak replies on",
+    "assistant.voiceSpeakRepliesOff": "Speak replies off",
     "assistant.voiceDisclosure": "Voice is processed to transcribe your question.",
     "assistant.voicePrivacy": "Privacy",
     "assistant.voiceAi": "AI-generated voice.",
-    "assistant.voiceUnavailable": "Voice input is not available in this browser.",
+    "assistant.voiceUnavailable": "Voice is unavailable right now. You can still type your message.",
     "assistant.voiceHttps": "Voice input requires HTTPS.",
-    "assistant.voicePermission": "Microphone permission was blocked.",
-    "assistant.voiceDevice": "Microphone is unavailable on this device.",
-    "assistant.voiceBusy": "Voice input is busy. Please try again in a minute.",
+    "assistant.voicePermission": "Microphone permission was denied. You can still type your message.",
+    "assistant.voiceDevice": "Microphone is unavailable on this device. You can still type your message.",
+    "assistant.voiceBusy": "Voice is busy right now. Try again in a moment.",
     "assistant.voiceTranscribeFailed": "Could not transcribe that recording. Please try again.",
     "assistant.voiceChooseIdentity": "Choose guest or email before using voice input.",
     "assistant.voiceListening": "Listening...",
     "assistant.voiceNoSpeechRecorded": "No speech was recorded.",
-    "assistant.voiceProcessing": "Processing...",
+    "assistant.voiceProcessing": "Processing voice...",
     "assistant.voiceNoSpeechDetected": "No speech was detected in that recording.",
     "assistant.voiceTranscriptReady": "Transcript ready",
     "assistant.voiceFailed": "Voice input failed.",
+    "assistant.voiceRecordingTooLarge": "That recording was too large. Try a shorter message.",
+    "assistant.voiceUnavailableType": "Voice is unavailable right now. You can still type your message.",
+    "assistant.voiceBusyTryAgain": "Voice is busy right now. Try again in a moment.",
+    "assistant.voicePlayReply": "Play spoken reply",
+    "assistant.voiceStopReply": "Stop spoken reply",
+    "assistant.voiceSpeaking": "Speaking...",
+    "assistant.voiceSpokenStopped": "Spoken reply stopped.",
+    "assistant.voiceSpokenCouldNotPlay": "Spoken reply could not play. You can still read the answer.",
+    "assistant.voiceAudioUnsupported": "Audio playback is not supported in this browser.",
+    "assistant.voicePressPlay": "Press Play to hear the spoken reply.",
     "assistant.resetIdentity": "Reset visitor identity",
     "assistant.resetStatus": "Choose email or guest to start a fresh visitor identity.",
     "assistant.chooseBeforeSend": "Choose guest or email before sending your first message.",
@@ -432,22 +444,34 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.pageIdentityLegal": "Üzenet küldésével engedélyezed, hogy a Vonza mentse ezt a chatet válaszadás, biztonság és utánkövetés céljából. Nézd át az adatkezelést, a feltételeket és a cookie tájékoztatót.",
     "assistant.voiceTap": "Beszéd indítása",
     "assistant.voiceSpeakReplies": "Válaszok felolvasása",
+    "assistant.voiceSpeakRepliesOn": "Válaszok felolvasása bekapcsolva",
+    "assistant.voiceSpeakRepliesOff": "Válaszok felolvasása kikapcsolva",
     "assistant.voiceDisclosure": "A hangot a kérdésed leírásához dolgozzuk fel.",
     "assistant.voicePrivacy": "Adatvédelem",
     "assistant.voiceAi": "AI által generált hang.",
-    "assistant.voiceUnavailable": "A hangbevitel ebben a böngészőben nem elérhető.",
+    "assistant.voiceUnavailable": "A hang most nem elérhető. Továbbra is beírhatod az üzenetedet.",
     "assistant.voiceHttps": "A hangbevitelhez HTTPS szükséges.",
-    "assistant.voicePermission": "A mikrofonengedély le lett tiltva.",
-    "assistant.voiceDevice": "A mikrofon nem elérhető ezen az eszközön.",
-    "assistant.voiceBusy": "A hangbevitel foglalt. Próbáld újra egy perc múlva.",
+    "assistant.voicePermission": "A mikrofonengedély el lett utasítva. Továbbra is beírhatod az üzenetedet.",
+    "assistant.voiceDevice": "A mikrofon nem elérhető ezen az eszközön. Továbbra is beírhatod az üzenetedet.",
+    "assistant.voiceBusy": "A hang most foglalt. Próbáld újra egy pillanat múlva.",
     "assistant.voiceTranscribeFailed": "Nem sikerült leírni a felvételt. Próbáld újra.",
     "assistant.voiceChooseIdentity": "Hangbevitel előtt válassz vendég módot vagy emailes folytatást.",
     "assistant.voiceListening": "Figyelek...",
     "assistant.voiceNoSpeechRecorded": "Nem rögzítettünk beszédet.",
-    "assistant.voiceProcessing": "Feldolgozás...",
+    "assistant.voiceProcessing": "Hang feldolgozása...",
     "assistant.voiceNoSpeechDetected": "Nem érzékeltünk beszédet a felvételben.",
     "assistant.voiceTranscriptReady": "A leirat elkészült",
     "assistant.voiceFailed": "A hangbevitel nem sikerült.",
+    "assistant.voiceRecordingTooLarge": "Ez a felvétel túl nagy volt. Próbálj rövidebb üzenetet.",
+    "assistant.voiceUnavailableType": "A hang most nem elérhető. Továbbra is beírhatod az üzenetedet.",
+    "assistant.voiceBusyTryAgain": "A hang most foglalt. Próbáld újra egy pillanat múlva.",
+    "assistant.voicePlayReply": "Felolvasás indítása",
+    "assistant.voiceStopReply": "Felolvasás leállítása",
+    "assistant.voiceSpeaking": "Felolvasás...",
+    "assistant.voiceSpokenStopped": "A felolvasás leállt.",
+    "assistant.voiceSpokenCouldNotPlay": "A felolvasás nem indult el. A választ továbbra is elolvashatod.",
+    "assistant.voiceAudioUnsupported": "A hanglejátszás ebben a böngészőben nem támogatott.",
+    "assistant.voicePressPlay": "Nyomd meg a Lejátszás gombot a felolvasáshoz.",
     "assistant.resetIdentity": "Látogatói azonosítás törlése",
     "assistant.resetStatus": "Válassz emailes vagy vendég folytatást az új látogatói azonosításhoz.",
     "assistant.chooseBeforeSend": "Az első üzenet elküldése előtt válassz vendég módot vagy emailes folytatást.",
@@ -3104,6 +3128,45 @@ function getMicrophoneStartErrorMessage(error) {
   return assistantT("assistant.voicePermission");
 }
 
+function getVoiceApiFailureMessage(statusCode, fallbackKey = "assistant.voiceTranscribeFailed") {
+  const status = Number(statusCode || 0);
+
+  if ([402, 403, 503].includes(status)) {
+    return assistantT("assistant.voiceUnavailableType");
+  }
+
+  if (status === 429) {
+    return assistantT("assistant.voiceBusyTryAgain");
+  }
+
+  if (status === 413) {
+    return assistantT("assistant.voiceRecordingTooLarge");
+  }
+
+  return assistantT(fallbackKey);
+}
+
+function isAutoplayBlockedError(error) {
+  const errorName = trimText(error?.name);
+  const errorMessage = trimText(error?.message).toLowerCase();
+
+  return errorName === "NotAllowedError"
+    || errorName === "AbortError"
+    || /notallowed|permission|interact|user gesture|autoplay/.test(errorMessage);
+}
+
+function getSpeechPlaybackFailureMessage(error, options = {}) {
+  if (error?.code === "audio_unsupported") {
+    return assistantT("assistant.voiceAudioUnsupported");
+  }
+
+  if (options.auto === true && isAutoplayBlockedError(error)) {
+    return assistantT("assistant.voicePressPlay");
+  }
+
+  return assistantT("assistant.voiceSpokenCouldNotPlay");
+}
+
 function getPreferredRecordingMimeType() {
   const MediaRecorderCtor = window.MediaRecorder;
 
@@ -3220,8 +3283,8 @@ function syncSpeakRepliesToggle() {
   toggle.hidden = !enabled;
   toggle.setAttribute("aria-pressed", speakRepliesActive ? "true" : "false");
   toggle.textContent = speakRepliesActive
-    ? `${assistantT("assistant.voiceSpeakReplies")} on`
-    : assistantT("assistant.voiceSpeakReplies");
+    ? assistantT("assistant.voiceSpeakRepliesOn")
+    : assistantT("assistant.voiceSpeakRepliesOff");
 }
 
 function syncVoiceControls() {
@@ -3266,8 +3329,8 @@ function stopCurrentVoiceAudio() {
   }
 
   if (currentVoiceButton) {
-    currentVoiceButton.textContent = "Play reply";
-    currentVoiceButton.setAttribute("aria-label", "Play reply");
+    currentVoiceButton.textContent = assistantT("assistant.voicePlayReply");
+    currentVoiceButton.setAttribute("aria-label", assistantT("assistant.voicePlayReply"));
     currentVoiceButton.closest?.(".message")?.classList.remove("is-speaking");
   }
 
@@ -3289,7 +3352,7 @@ function getSpeechAuthorizationForMessage(key) {
   const authorization = normalizedKey ? voiceSpeechAuthorizations.get(normalizedKey) : null;
 
   if (!authorization?.token) {
-    const error = new Error("Speech playback is not authorized for this reply.");
+    const error = new Error(assistantT("assistant.voiceSpokenCouldNotPlay"));
     error.code = "speech_authorization_missing";
     throw error;
   }
@@ -3317,8 +3380,13 @@ async function getSpeechAudioUrl(text, key) {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data.error || "Speech playback failed.");
+    const error = new Error(getVoiceApiFailureMessage(
+      response.status,
+      "assistant.voiceSpokenCouldNotPlay"
+    ));
+    error.statusCode = response.status;
+    error.code = "speech_response_failed";
+    throw error;
   }
 
   const blob = await response.blob();
@@ -3336,7 +3404,7 @@ async function playSpokenReply(text, button, options = {}) {
 
   if (currentVoiceButton === button && currentVoiceAudio) {
     stopCurrentVoiceAudio();
-    setComposerStatus("Spoken reply stopped.");
+    setComposerStatus(assistantT("assistant.voiceSpokenStopped"));
     return;
   }
 
@@ -3346,12 +3414,14 @@ async function playSpokenReply(text, button, options = {}) {
   try {
     if (button) {
       button.disabled = true;
-      button.textContent = "Speaking...";
+      button.textContent = assistantT("assistant.voiceSpeaking");
     }
     const url = await getSpeechAudioUrl(replyText, options.key);
     const AudioCtor = window.Audio || globalThis.Audio;
     if (typeof AudioCtor !== "function") {
-      throw new Error("Audio playback is not supported in this browser.");
+      const error = new Error(assistantT("assistant.voiceAudioUnsupported"));
+      error.code = "audio_unsupported";
+      throw error;
     }
     const audio = new AudioCtor(url);
     currentVoiceAudio = audio;
@@ -3359,21 +3429,21 @@ async function playSpokenReply(text, button, options = {}) {
     currentVoiceUrl = url;
     if (button) {
       button.disabled = false;
-      button.textContent = "Stop";
-      button.setAttribute("aria-label", "Stop spoken reply");
+      button.textContent = assistantT("assistant.voiceStopReply");
+      button.setAttribute("aria-label", assistantT("assistant.voiceStopReply"));
     }
     message?.classList.add("is-speaking");
-    setComposerStatus("Speaking...");
+    setComposerStatus(assistantT("assistant.voiceSpeaking"));
     audio.addEventListener("ended", () => {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
-        setComposerStatus("Ask anything else about services, pricing, booking, or contact details.");
+        setComposerStatus(assistantT("assistant.askAnythingElse"));
       }
     });
     audio.addEventListener("error", () => {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
-        setComposerStatus("Spoken reply could not play.");
+        setComposerStatus(assistantT("assistant.voiceSpokenCouldNotPlay"));
       }
     });
     await audio.play();
@@ -3381,11 +3451,11 @@ async function playSpokenReply(text, button, options = {}) {
     console.warn("Vonza speech playback failed:", error);
     if (button) {
       button.disabled = false;
-      button.textContent = "Play reply";
-      button.setAttribute("aria-label", "Play reply");
+      button.textContent = assistantT("assistant.voicePlayReply");
+      button.setAttribute("aria-label", assistantT("assistant.voicePlayReply"));
     }
     message?.classList.remove("is-speaking");
-    setComposerStatus("Spoken reply could not play.");
+    setComposerStatus(getSpeechPlaybackFailureMessage(error, options));
   }
 }
 
@@ -3395,7 +3465,7 @@ function getVoiceReplyButtonMarkup(messageKey) {
   }
 
   return `
-    <button class="voice-reply-button" type="button" data-voice-reply-button data-voice-message-key="${escapeHtml(messageKey)}" aria-label="Play reply">Play reply</button>
+    <button class="voice-reply-button" type="button" data-voice-reply-button data-voice-message-key="${escapeHtml(messageKey)}" aria-label="${escapeHtml(assistantT("assistant.voicePlayReply"))}">${escapeHtml(assistantT("assistant.voicePlayReply"))}</button>
   `;
 }
 
@@ -3414,12 +3484,7 @@ async function transcribeVoiceBlob(blob, durationMs) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = response.status === 413
-      ? "Recording was too large. Try a shorter message."
-      : response.status === 429
-        ? assistantT("assistant.voiceBusy")
-        : assistantT("assistant.voiceTranscribeFailed");
-    throw new Error(message);
+    throw new Error(getVoiceApiFailureMessage(response.status));
   }
 
   return data;
@@ -4422,6 +4487,9 @@ getSpeakRepliesToggle()?.addEventListener("click", () => {
     stopCurrentVoiceAudio();
   }
   syncSpeakRepliesToggle();
+  setComposerStatus(speakRepliesActive
+    ? assistantT("assistant.voiceSpeakRepliesOn")
+    : assistantT("assistant.voiceSpeakRepliesOff"));
 });
 
 getQuickReplies()?.addEventListener("click", (event) => {

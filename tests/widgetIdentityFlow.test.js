@@ -622,7 +622,7 @@ test("voice input controls default off and render safely when enabled", () => {
 
   assert.equal(micButton.hidden, false);
   assert.equal(micButton.disabled, true);
-  assert.equal(micButton.title, "Voice input is not available in this browser.");
+  assert.equal(micButton.title, "Voice is unavailable right now. You can still type your message.");
   assert.equal(voiceControls.hidden, false);
   assert.equal(disclosure.hidden, false);
 });
@@ -693,8 +693,8 @@ test("voice input getUserMedia denial shows a user-facing permission error", asy
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(harness.elements.get("composer-status").textContent, "Microphone permission was blocked.");
-  assert.equal(micButton.title, "Microphone permission was blocked.");
+  assert.equal(harness.elements.get("composer-status").textContent, "Microphone permission was denied. You can still type your message.");
+  assert.equal(micButton.title, "Microphone permission was denied. You can still type your message.");
 });
 
 test("voice input reports HTTPS requirement before requesting the microphone", async () => {
@@ -770,6 +770,81 @@ test("voice transcription failure shows a recoverable user-facing error", async 
     harness.elements.get("composer-status").textContent,
     "Could not transcribe that recording. Please try again."
   );
+});
+
+test("voice transcription API failures use safe localized status messages", async () => {
+  for (const [status, expected] of [
+    [403, "Voice is unavailable right now. You can still type your message."],
+    [429, "Voice is busy right now. Try again in a moment."],
+    [413, "That recording was too large. Try a shorter message."],
+  ]) {
+    const harness = createWidgetHarness({
+      location: {
+        search: "?agent_id=agent-1&install_id=install-1",
+        pathname: "/widget",
+        href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+      },
+      customFetch: async (input) => {
+        const url = String(input);
+
+        if (url.includes("/api/voice/transcribe")) {
+          return {
+            ok: false,
+            status,
+            async json() {
+              return { error: "server detail must stay hidden" };
+            },
+          };
+        }
+
+        return {
+          ok: true,
+          async json() {
+            return {};
+          },
+        };
+      },
+    });
+
+    harness.hooks.applyWidgetConfig({
+      voice_config: {
+        voice_input_enabled: true,
+      },
+    });
+    harness.hooks.continueIntoChat({ mode: "guest" });
+    harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+    await harness.hooks.handleVoiceRecordingComplete(900, "audio/webm");
+
+    assert.equal(harness.elements.get("composer-status").textContent, expected);
+  }
+});
+
+test("Hungarian voice runtime labels use localized copy", () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?lang=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?lang=hu",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+
+  harness.hooks.applyWidgetConfig({
+    language: "hu",
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+    },
+  });
+
+  assert.equal(harness.elements.get("voice-input-button")["aria-label"], "Beszéd indítása");
+  assert.equal(harness.elements.get("speak-replies-toggle").textContent, "Válaszok felolvasása kikapcsolva");
+  assert.equal(harness.hooks.assistantT("assistant.voiceSpokenCouldNotPlay"), "A felolvasás nem indult el. A választ továbbra is elolvashatod.");
 });
 
 test("voice config explicit enabled and disabled states control mic visibility", () => {
@@ -2343,7 +2418,7 @@ test("spoken replies render play controls and stop current audio on repeat click
 
   const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
   assert.match(renderedChat, /data-voice-reply-button/);
-  assert.match(renderedChat, /Play reply/);
+  assert.match(renderedChat, /Play spoken reply/);
   assert.doesNotMatch(renderedChat, /speech-token-1/);
   assert.equal(harness.fetchCalls.some((call) => call.input === "/api/voice/speech"), false);
 
@@ -2371,7 +2446,7 @@ test("spoken replies render play controls and stop current audio on repeat click
   const voiceButton = {
     dataset: { voiceMessageKey },
     disabled: false,
-    textContent: "Play reply",
+    textContent: "Play spoken reply",
     setAttribute(name, value) {
       this[name] = value;
     },
@@ -2390,7 +2465,7 @@ test("spoken replies render play controls and stop current audio on repeat click
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(voiceButton.textContent, "Stop");
+  assert.equal(voiceButton.textContent, "Stop spoken reply");
   assert.equal(messageClasses.has("is-speaking"), true);
   assert.equal(harness.audioInstances.length, 1);
   assert.equal(harness.audioInstances[0].played, true);
@@ -2403,7 +2478,7 @@ test("spoken replies render play controls and stop current audio on repeat click
     },
   });
 
-  assert.equal(voiceButton.textContent, "Play reply");
+  assert.equal(voiceButton.textContent, "Play spoken reply");
   assert.equal(messageClasses.has("is-speaking"), false);
   assert.equal(harness.audioInstances[0].paused, true);
   assert.equal(harness.elements.get("composer-status").textContent, "Spoken reply stopped.");

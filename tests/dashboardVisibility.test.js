@@ -984,7 +984,7 @@ test("legacy Settings Front Desk hash redirects to Front Desk customization cont
   assert.match(harness.getRootHtml(), /Voice style/);
   assert.match(harness.getRootHtml(), /Language behavior/);
   assert.match(harness.getRootHtml(), /Visitors can speak their question/);
-  assert.match(harness.getRootHtml(), /Voice output is AI-generated/);
+  assert.match(harness.getRootHtml(), /Spoken replies are AI-generated on demand/);
   assert.match(harness.getRootHtml(), /name="full_page_background_source"/);
   assert.match(harness.getRootHtml(), /name="full_page_background_scope"/);
   assert.match(harness.getRootHtml(), /Assistant section \(recommended\)/);

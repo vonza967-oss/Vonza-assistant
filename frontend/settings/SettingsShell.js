@@ -1545,35 +1545,35 @@
               <div class="settings-shell-section-header">
                 <div>
                   <h3 class="settings-shell-section-title">Voice</h3>
-                  <p class="settings-shell-section-copy">Visitors can speak their question. Vonza transcribes it, answers using your existing Front Desk setup, and can optionally read the answer aloud.</p>
+                  <p class="settings-shell-section-copy">Visitors can speak their question. Voice uses AI capacity and may stop when access, monthly capacity, or rate limits are reached.</p>
                 </div>
               </div>
               <div class="settings-shell-choice-list">
                 <label class="settings-shell-choice-row" for="voice-input-enabled">
                   <div class="settings-shell-choice-main">
                     <p class="settings-shell-choice-title">Enable voice input</p>
-                    <p class="settings-shell-key-value-copy">Show a microphone button so visitors can record a short question.</p>
+                    <p class="settings-shell-key-value-copy">Show a microphone button so visitors can record a short question for transcription.</p>
                   </div>
                   <input id="voice-input-enabled" name="voice_input_enabled" type="checkbox" ${voiceConfig.voiceInputEnabled ? "checked" : ""}>
                 </label>
                 <label class="settings-shell-choice-row" for="spoken-replies-enabled">
                   <div class="settings-shell-choice-main">
                     <p class="settings-shell-choice-title">Enable spoken replies</p>
-                    <p class="settings-shell-key-value-copy">Allow visitors to play Vonza's text answer as AI-generated voice.</p>
+                    <p class="settings-shell-key-value-copy">Allow visitors to generate and play spoken replies on demand from Vonza's text answer.</p>
                   </div>
                   <input id="spoken-replies-enabled" name="spoken_replies_enabled" type="checkbox" ${voiceConfig.spokenRepliesEnabled ? "checked" : ""}>
                 </label>
                 <label class="settings-shell-choice-row" for="auto-send-transcript">
                   <div class="settings-shell-choice-main">
                     <p class="settings-shell-choice-title">Auto-send transcript after speaking</p>
-                    <p class="settings-shell-key-value-copy">Send the transcript immediately after recording instead of placing it in the composer.</p>
+                    <p class="settings-shell-key-value-copy">Send the transcribed text immediately after recording instead of placing it in the composer.</p>
                   </div>
                   <input id="auto-send-transcript" name="auto_send_transcript" type="checkbox" ${voiceConfig.autoSendTranscript ? "checked" : ""}>
                 </label>
                 <label class="settings-shell-choice-row" for="auto-play-spoken-replies">
                   <div class="settings-shell-choice-main">
                     <p class="settings-shell-choice-title">Auto-play spoken replies</p>
-                    <p class="settings-shell-key-value-copy">Start audio playback after each answer when the visitor has enabled spoken replies.</p>
+                    <p class="settings-shell-key-value-copy">Try to play each generated spoken reply after the visitor has enabled spoken replies.</p>
                   </div>
                   <input id="auto-play-spoken-replies" name="auto_play_spoken_replies" type="checkbox" ${voiceConfig.autoPlaySpokenReplies ? "checked" : ""}>
                 </label>
@@ -1589,13 +1589,13 @@
                 <div class="field">
                   <label for="voice-language-behavior">Language behavior</label>
                   <select id="voice-language-behavior" name="voice_language_behavior">
-                    <option value="auto" ${voiceConfig.languageBehavior === "auto" ? "selected" : ""}>Auto-detect</option>
-                    <option value="business" ${voiceConfig.languageBehavior === "business" ? "selected" : ""}>Force dashboard/business language</option>
+                    <option value="auto" ${voiceConfig.languageBehavior === "auto" ? "selected" : ""}>Auto-detect voice language</option>
+                    <option value="business" ${voiceConfig.languageBehavior === "business" ? "selected" : ""}>Prefer dashboard/business language</option>
                   </select>
-                  <p class="field-help">Auto-detect follows the visitor's question when possible.</p>
+                  <p class="field-help">This guides voice and transcription behavior; it does not force the chat answer language yet.</p>
                 </div>
               </div>
-              <p class="settings-shell-section-copy">Voice is processed to transcribe the visitor's question. Voice output is AI-generated.</p>
+              <p class="settings-shell-section-copy">Voice is processed to transcribe the visitor's question. Spoken replies are AI-generated on demand and count toward the workspace's AI capacity.</p>
             </section>
 
             <section class="settings-shell-section settings-full-page-section" id="settings-front-desk-full-page" data-frontdesk-settings-panel="full_page" ${frontDeskPanelAttrs("full_page")}>

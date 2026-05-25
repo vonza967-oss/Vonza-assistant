@@ -17,7 +17,7 @@ test("Settings Front Desk stays configuration-only", () => {
   assert.match(settingsShellScript, /Routing/);
   assert.match(settingsShellScript, /Voice/);
   assert.match(settingsShellScript, /Optional widget/);
-  assert.match(settingsShellScript, /Voice output is AI-generated/);
+  assert.match(settingsShellScript, /Spoken replies are AI-generated on demand/);
   assert.match(settingsShellScript, /Current live readout/);
   assert.doesNotMatch(settingsShellScript, /Training queue/);
   assert.doesNotMatch(settingsShellScript, /Approved answers/);
