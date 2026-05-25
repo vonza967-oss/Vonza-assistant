@@ -30,6 +30,7 @@
     knowledge: "knowledge",
     library: "answer-library",
     launch: "launch",
+    customization: "customization",
   });
   const SETTINGS_MAIN_TABS = Object.freeze(["general", "front_desk", "business_profile", "account_billing", "privacy_legal"]);
   const SETTINGS_MAIN_TAB_HASH_SEGMENTS = Object.freeze({
@@ -73,14 +74,14 @@
     voice: "voice",
     full_page: "full-page-assistant",
     routing: "routing",
-    appearance: "widget-appearance",
+    appearance: "optional-widget",
   });
   const SETTINGS_FRONT_DESK_TAB_LABELS = Object.freeze({
     identity: "Identity & welcome",
     voice: "Voice",
     full_page: "Front Desk page",
     routing: "Routing",
-    appearance: "Widget appearance",
+    appearance: "Optional widget",
   });
   const DASHBOARD_UI_STATE_DEFAULTS = Object.freeze({
     settingsMainTab: "general",
@@ -250,6 +251,7 @@
       routing: "routing",
       route: "routing",
       appearance: "appearance",
+      "optional-widget": "appearance",
       "widget-appearance": "appearance",
       widget: "appearance",
     };
@@ -280,6 +282,9 @@
       queue: "improvements",
       training: "improvements",
       "training-queue": "improvements",
+      customize: "customization",
+      customization: "customization",
+      settings: "customization",
     };
     const candidate = aliases[normalized] || normalized;
 
@@ -327,6 +332,9 @@
     if (["front-desk", "frontdesk", "customize"].includes(root)) {
       if (parts[1]) {
         updates.frontDeskTab = getFrontDeskSectionHashSegment(parts[1]);
+      }
+      if (normalizeFrontDeskSection(parts[1]) === "customization" && parts[2]) {
+        updates.settingsFrontDeskTab = getSettingsFrontDeskTabHashSegment(parts[2]);
       }
       return updates;
     }

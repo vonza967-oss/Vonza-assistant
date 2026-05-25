@@ -525,8 +525,8 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   );
   assert.equal(context.window.VonzaDashboardHelpers.normalizeBillingPlanKey("bad", [{ key: "starter" }], "growth"), "growth");
   assert.deepEqual(
-    JSON.parse(JSON.stringify(context.window.VonzaDashboardState.getDashboardUiStateHashUpdates("#settings/front-desk/voice"))),
-    { settingsMainTab: "front-desk", settingsFrontDeskTab: "voice" }
+    JSON.parse(JSON.stringify(context.window.VonzaDashboardState.getDashboardUiStateHashUpdates("#front-desk/customization/voice"))),
+    { frontDeskTab: "customization", settingsFrontDeskTab: "voice" }
   );
   assert.deepEqual(
     JSON.parse(JSON.stringify(context.window.VonzaDashboardState.getDashboardUiStateHashUpdates("#install/qr"))),
@@ -537,7 +537,9 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(context.window.VonzaDashboardState.getInstallMethodPanelKey("qr-code"), "qr");
   assert.equal(context.window.VonzaDashboardState.normalizeSettingsMainTab("front-desk"), "front_desk");
   assert.equal(context.window.VonzaDashboardState.normalizeSettingsFrontDeskTab("widget-appearance"), "appearance");
+  assert.equal(context.window.VonzaDashboardState.normalizeSettingsFrontDeskTab("optional-widget"), "appearance");
   assert.equal(context.window.VonzaDashboardState.getSettingsFrontDeskTabHashSegment("full_page"), "full-page-assistant");
+  assert.equal(context.window.VonzaDashboardState.getSettingsFrontDeskTabHashSegment("appearance"), "optional-widget");
   assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("full_page_assistant"), "Front Desk page");
   assert.equal(context.window.VonzaDashboardLabels.getCustomerSourceLabel("widget_chat"), "Website widget");
   assert.equal(context.window.VonzaDashboardLabels.getActionQueueStatusLabel("reviewed", ["new", "reviewed"]), "Reviewed");
@@ -846,8 +848,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
       englishLeak: /A few essentials still need attention|Use Install for page takeover|Optional website widget|Why Install still lives separately/i,
     },
     {
-      hash: "#settings/front-desk/full-page-assistant",
-      marker: 'data-settings-section="front_desk"',
+      hash: "#front-desk/customization/full-page-assistant",
+      marker: 'data-frontdesk-section="customization"',
       expected: [/Teljes oldalas asszisztens és hosztolt oldal/, /Tartalom/, /Dizájn/, /Elrendezés/, /A Front Desk oldalad/],
       englishLeak: /Full-page assistant and hosted page|Front Desk page customization sections|Your Front Desk page is disabled|Customize the primary Front Desk page/i,
     },
@@ -949,14 +951,16 @@ test("front desk and install tab clicks sync explicit nested hashes", async () =
   assert.match(embedHarness.getRootHtml(), /class="install-option-card active" id="install-panel-widget"/);
 });
 
-test("settings hash routes open the matching Settings tab content", async () => {
+test("legacy Settings Front Desk hash redirects to Front Desk customization content", async () => {
   const harness = createDashboardHarness({
     hash: "#settings/front-desk",
     agents: () => [createActiveAgent()],
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
+  assert.equal(harness.getLocation().hash, "#front-desk/customization/identity-welcome");
+  assert.match(harness.getRootHtml(), /data-shell-target="customize"[\s\S]{0,260}aria-current="page"/);
+  assert.match(harness.getRootHtml(), /data-frontdesk-target="customization"[\s\S]{0,260}aria-pressed="true"/);
   assert.match(harness.getRootHtml(), /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.match(harness.getRootHtml(), /Front Desk purpose/);
   assert.match(harness.getRootHtml(), /Front Desk page/);
@@ -1004,10 +1008,15 @@ test("General settings tab does not show full-page assistant customization", asy
   });
   await harness.settle();
 
-  assert.match(harness.getRootHtml(), /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
-  assert.match(harness.getRootHtml(), /Workspace status/);
-  assert.doesNotMatch(harness.getRootHtml(), /id="settings-front-desk-full-page"/);
-  assert.doesNotMatch(harness.getRootHtml(), /Action cards/);
+  const html = harness.getRootHtml();
+  const settingsStart = html.indexOf('data-shell-section="settings"');
+  const nextShell = html.indexOf('data-shell-section="', settingsStart + 1);
+  const settingsHtml = settingsStart >= 0 ? html.slice(settingsStart, nextShell > settingsStart ? nextShell : undefined) : html;
+
+  assert.match(html, /data-shell-target="settings"[\s\S]{0,260}aria-current="page"/);
+  assert.match(settingsHtml, /Workspace status/);
+  assert.doesNotMatch(settingsHtml, /id="settings-front-desk-full-page"/);
+  assert.doesNotMatch(settingsHtml, /Action cards/);
 });
 
 test("dashboard Home renders the real-data V2 snapshot without command-center placeholders", async () => {

@@ -8,11 +8,6 @@
       note: "Workspace status, dashboard language, and launch posture.",
     },
     {
-      key: "front_desk",
-      label: "Front Desk",
-      note: "Identity, full-page assistant, routing, and optional widget.",
-    },
-    {
       key: "business_profile",
       label: "Business Profile",
       note: "Grounding facts and readiness for customer answers.",
@@ -35,7 +30,7 @@
     voice: "voice",
     full_page: "full-page-assistant",
     routing: "routing",
-    appearance: "widget-appearance",
+    appearance: "optional-widget",
   });
   const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
   const SETTINGS_SECTION_ALIASES = Object.freeze({
@@ -64,7 +59,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Manage workspace, Front Desk, business, account, and privacy settings.",
+    "settings.copy": "Manage workspace, business, account, and privacy settings.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
     "settings.light": "Light",
@@ -945,6 +940,7 @@
       routing: "routing",
       route: "routing",
       appearance: "appearance",
+      "optional-widget": "appearance",
       "widget-appearance": "appearance",
       widget: "appearance",
     };
@@ -1037,7 +1033,15 @@
   function getFrontDeskSettingsTabFromHash() {
     const pathParts = getHashPathParts();
 
-    if (pathParts[0] !== "settings" || normalizeSettingsSection(pathParts[1]) !== "front_desk" || !pathParts[2]) {
+    if (
+      ["front-desk", "frontdesk", "customize"].includes(pathParts[0])
+      && ["customization", "settings", "customize"].includes(pathParts[1])
+      && pathParts[2]
+    ) {
+      return normalizeFrontDeskSettingsTab(pathParts[2]);
+    }
+
+    if (pathParts[0] !== "settings" || pathParts[1] !== "front-desk" || !pathParts[2]) {
       return "";
     }
 
@@ -1062,8 +1066,18 @@
     const frontDeskTab = normalizedSection === "front_desk"
       ? normalizeFrontDeskSettingsTab(options.frontDeskTab || getActiveFrontDeskSettingsTab(options.helpers))
       : "";
+    const pathParts = getHashPathParts();
+    const useFrontDeskRoute = frontDeskTab && (
+      options.frontDeskRoute === true
+      || (
+        ["front-desk", "frontdesk", "customize"].includes(pathParts[0])
+        && ["customization", "settings", "customize"].includes(pathParts[1])
+      )
+    );
     const nextHash = frontDeskTab
-      ? `#settings/${getSettingsHashSegment(normalizedSection)}/${getFrontDeskSettingsTabHashSegment(frontDeskTab)}`
+      ? useFrontDeskRoute
+        ? `#front-desk/customization/${getFrontDeskSettingsTabHashSegment(frontDeskTab)}`
+        : `#settings/${getSettingsHashSegment(normalizedSection)}/${getFrontDeskSettingsTabHashSegment(frontDeskTab)}`
       : `#settings/${getSettingsHashSegment(normalizedSection)}`;
     const nextUrl = new URL(global.location.href);
 
@@ -1115,7 +1129,11 @@
   }
 
   function getActiveSettingsSection() {
-    return getSettingsSectionFromHash() || normalizeSettingsSection(global.localStorage?.getItem(SETTINGS_STORAGE_KEY));
+    const hashSection = getSettingsSectionFromHash();
+    const storedSection = normalizeSettingsSection(global.localStorage?.getItem(SETTINGS_STORAGE_KEY));
+    const section = hashSection || storedSection;
+
+    return SETTINGS_SECTIONS.includes(section) ? section : SETTINGS_SECTIONS[0];
   }
 
   function setActiveSettingsSection(section) {
@@ -3391,6 +3409,10 @@
 
   global.VonzaSettingsShell = {
     buildSettingsPanel,
+    buildFrontDeskSettingsForm: function buildFrontDeskSettingsFormForDashboard(options = {}) {
+      const helpers = getHelpers(options);
+      return buildFrontDeskSettingsForm(options.agent || {}, options.setup || {}, helpers);
+    },
     bindSettingsShellEvents,
     SETTINGS_SECTIONS: SETTINGS_SECTIONS.slice(),
   };

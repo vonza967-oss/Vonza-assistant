@@ -424,7 +424,7 @@ test("Settings save flow shows success only after backend confirmation", async (
   });
 
   try {
-    await page.goto(`${baseUrl}/dashboard-v2-fixture#settings/front-desk`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${baseUrl}/dashboard-v2-fixture#front-desk/customization`, { waitUntil: "domcontentloaded" });
     const form = page.locator('form[data-form-kind="customize"]').first();
     await form.waitFor({ state: "visible" });
     await form.locator('[name="assistant_name"]').fill("Confirmed Front Desk");
@@ -651,7 +651,7 @@ test("Hungarian dashboard fixture routes do not show audited operator English", 
     "#analytics",
     "#install",
     "#settings",
-    "#settings/front-desk",
+    "#front-desk/customization",
   ];
 
   for (const routeHash of routes) {

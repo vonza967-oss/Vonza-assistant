@@ -5,6 +5,7 @@
     { key: "knowledge", label: "Knowledge" },
     { key: "library", label: "Answer library" },
     { key: "launch", label: "Launch" },
+    { key: "customization", label: "Settings / Customization" },
   ]);
   const FRONT_DESK_TAB_KEYS = Object.freeze(FRONT_DESK_TABS.map((tab) => tab.key));
   const FRONT_DESK_TAB_LABELS = Object.freeze(
@@ -46,6 +47,8 @@
       queue: "improvements",
       training: "improvements",
       "training-queue": "improvements",
+      customize: "customization",
+      settings: "customization",
     };
     const candidate = aliases[normalized] || normalized;
 
@@ -192,6 +195,7 @@
       knowledge: tabSummaries.knowledgeReady ? "Grounded" : "Needs review",
       library: `${Number(tabSummaries.publishedCount || 0)} published`,
       launch: tabSummaries.publicFrontDeskLive ? "Live page" : "Prepare launch",
+      customization: "Configure",
     };
 
     return `
@@ -259,6 +263,12 @@
     const getBusinessProfileContentSummary = typeof dependencies.getBusinessProfileContentSummary === "function"
       ? dependencies.getBusinessProfileContentSummary
       : () => "";
+    const buildFrontDeskCustomizationPanel = typeof dependencies.buildFrontDeskCustomizationPanel === "function"
+      ? dependencies.buildFrontDeskCustomizationPanel
+      : () => renderFrontDeskEmptyState({
+        title: "Customization unavailable",
+        copy: "The Front Desk customization panel could not be loaded right now.",
+      });
     const getEmptyOperatorWorkspace = typeof dependencies.createEmptyOperatorWorkspace === "function"
       ? dependencies.createEmptyOperatorWorkspace
       : () => ({ businessProfile: { readiness: {} } });
@@ -415,8 +425,7 @@
           title: "Finish the Front Desk setup",
           copy: "Create the public assistant identity so Practice and Launch can use the same customer-facing experience.",
           button: "Open settings",
-          shellTarget: "settings",
-          settingsTarget: "front_desk",
+          frontDeskTarget: "customization",
           tone: "work",
         };
       }
@@ -954,7 +963,7 @@
               <button class="primary-button" type="button" data-shell-target="install">Open install</button>
               ${hasPreview
                 ? `<button class="ghost-button" type="button" data-frontdesk-open="practice">Practice first</button>`
-                : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish Front Desk setup</button>`}
+                : `<button class="ghost-button" type="button" data-frontdesk-open="customization">Finish Front Desk setup</button>`}
             </div>
           </div>
           <div class="frontdesk-section-divider"></div>
@@ -1076,7 +1085,7 @@
             ? "Verification needs attention"
             : "Not live yet";
       const pageHeaderActions = `
-    <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
+    <button class="ghost-button" type="button" data-frontdesk-open="customization">Open customization</button>
   `;
 
       return localizeDashboardHtml(`
@@ -1127,6 +1136,7 @@
           publicFrontDeskLive,
           liveVerificationLabel,
         })}
+        ${buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace, actionQueue, activeFrontDeskSection)}
       </div>
     </section>
   `);

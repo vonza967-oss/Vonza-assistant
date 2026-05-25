@@ -1815,7 +1815,12 @@ test("today copilot renders inside Today when the flag is on", () => {
     knowledgeDescription: "Add a real website to import knowledge.",
   };
   const general = buildSettingsSection(harness, "general", agent, setup, workspace);
-  const frontDesk = buildSettingsSection(harness, "front_desk", agent, setup, workspace);
+  const frontDeskSettingsFallback = buildSettingsSection(harness, "front_desk", agent, setup, workspace);
+  const frontDeskCustomization = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
+    agent,
+    setup,
+    operatorWorkspace: workspace,
+  });
   const businessProfile = buildSettingsSection(harness, "business_profile", agent, setup, workspace);
   const accountBilling = buildSettingsSection(harness, "account_billing", agent, setup, workspace);
   const privacyLegal = buildSettingsSection(harness, "privacy_legal", agent, setup, workspace);
@@ -1827,14 +1832,17 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);
 
-  assert.match(frontDesk, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
-  assert.match(frontDesk, /Front Desk purpose/);
-  assert.match(frontDesk, /assistant-welcome/);
-  assert.match(frontDesk, /assistant-tone/);
-  assert.match(frontDesk, /settings-primary-color/);
-  assert.match(frontDesk, /Current live readout/);
-  assert.match(frontDesk, /data-settings-form data-form-kind="customize"/);
-  assert.doesNotMatch(frontDesk, /business-summary|business-services|Save Business Profile|Website knowledge/);
+  assert.match(frontDeskSettingsFallback, /Workspace preferences/);
+  assert.doesNotMatch(frontDeskSettingsFallback, /<h2 class="settings-shell-page-title">Front Desk<\/h2>|Front Desk purpose/);
+
+  assert.match(frontDeskCustomization, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.match(frontDeskCustomization, /Front Desk purpose/);
+  assert.match(frontDeskCustomization, /assistant-welcome/);
+  assert.match(frontDeskCustomization, /assistant-tone/);
+  assert.match(frontDeskCustomization, /settings-primary-color/);
+  assert.match(frontDeskCustomization, /Current live readout/);
+  assert.match(frontDeskCustomization, /data-settings-form data-form-kind="customize"/);
+  assert.doesNotMatch(frontDeskCustomization, /business-summary|business-services|Save Business Profile|Website knowledge/);
 
   assert.match(businessProfile, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.match(businessProfile, /Website knowledge/);
@@ -1855,7 +1863,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.doesNotMatch(privacyLegal, /business-summary|assistant-welcome|Billing and usage|Invite member|Integrations/);
 
   assert.match(general, /data-settings-nav="desktop"/);
-  assert.doesNotMatch(`${general}${frontDesk}${businessProfile}${accountBilling}${privacyLegal}`, /Team management|Connected tools<\/h2>|data-settings-section="connected_tools"|Save privacy preference|data-privacy-export|install-script-output/);
+  assert.doesNotMatch(`${general}${frontDeskCustomization}${businessProfile}${accountBilling}${privacyLegal}`, /Team management|Connected tools<\/h2>|data-settings-section="connected_tools"|Save privacy preference|data-privacy-export|install-script-output/);
 });
 
 test("today workspace render uses a dominant queue and support rail shell", () => {
@@ -2606,7 +2614,8 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /<span>Knowledge<\/span>/);
   assert.match(panel, /<span>Answer library<\/span>/);
   assert.match(panel, /<span>Launch<\/span>/);
-  assert.match(panel, /Open settings/);
+  assert.match(panel, /<span>Settings \/ Customization<\/span>/);
+  assert.match(panel, /Open customization/);
   assert.match(panel, /Practice the answer customers will see/);
   assert.match(panel, /Next action/);
   assert.match(panel, /Prepare the hosted Front Desk page/);
@@ -4492,7 +4501,7 @@ test("background dashboard refresh does not render the full preparing workspace 
     fetchImpl: createDashboardUiStateFetch(agent),
   });
 
-  harness.window.location.hash = "#settings/front-desk/voice";
+  harness.window.location.hash = "#front-desk/customization/voice";
   harness.renderReadyState(
     agent,
     [],
@@ -4537,7 +4546,7 @@ test("dashboard action handlers use background refresh instead of boot loader re
   assert.doesNotMatch(frontDeskEventsSource, /await boot\(\)/);
 });
 
-test("Settings Front Desk subtabs survive workspace refresh and nested hashes", async () => {
+test("Front Desk customization subtabs survive workspace refresh and nested hashes", async () => {
   const agent = createDashboardUiStateAgent();
   const harness = createDashboardHarness({
     windowFlags: {
@@ -4546,7 +4555,7 @@ test("Settings Front Desk subtabs survive workspace refresh and nested hashes", 
     fetchImpl: createDashboardUiStateFetch(agent),
   });
 
-  harness.window.location.hash = "#settings/front-desk/voice";
+  harness.window.location.hash = "#front-desk/customization/voice";
   harness.renderReadyState(
     agent,
     [],
@@ -4558,18 +4567,18 @@ test("Settings Front Desk subtabs survive workspace refresh and nested hashes", 
   await harness.refreshAgentInstallState("agent-1");
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "voice");
 
-  harness.window.location.hash = "#settings/front-desk/full-page-assistant";
+  harness.window.location.hash = "#front-desk/customization/full-page-assistant";
   harness.setDashboardUiStateValue("settingsFrontDeskTab", "full-page-assistant");
   await harness.refreshAgentInstallState("agent-1");
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "full_page");
 
-  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.window.location.hash = "#front-desk/customization/routing";
   harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
   await harness.refreshAgentInstallState("agent-1");
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "routing");
 
-  harness.window.location.hash = "#settings/front-desk/widget-appearance";
-  harness.setDashboardUiStateValue("settingsFrontDeskTab", "widget-appearance");
+  harness.window.location.hash = "#front-desk/customization/optional-widget";
+  harness.setDashboardUiStateValue("settingsFrontDeskTab", "optional-widget");
   await harness.refreshAgentInstallState("agent-1");
   assertSettingsFrontDeskTabActive(harness.document.getElementById("dashboard-root").innerHTML, "appearance");
 });
@@ -4595,9 +4604,9 @@ test("Settings Front Desk routing renders booking provider status", () => {
     },
   });
 
-  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.window.location.hash = "#front-desk/customization/routing";
   harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
-  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+  const settingsPanel = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
     agent,
     setup: {},
     operatorWorkspace: harness.createEmptyOperatorWorkspace(),
@@ -4634,9 +4643,9 @@ test("Settings Front Desk routing renders Calendly webhook missing status withou
     },
   });
 
-  harness.window.location.hash = "#settings/front-desk/routing";
+  harness.window.location.hash = "#front-desk/customization/routing";
   harness.setDashboardUiStateValue("settingsFrontDeskTab", "routing");
-  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+  const settingsPanel = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
     agent,
     setup: {},
     operatorWorkspace: harness.createEmptyOperatorWorkspace(),
@@ -4687,7 +4696,7 @@ test("invalid nested dashboard hashes fall back without breaking default UI stat
     },
   });
 
-  harness.window.location.hash = "#settings/front-desk/not-a-tab";
+  harness.window.location.hash = "#front-desk/customization/not-a-tab";
   harness.renderReadyState(
     agent,
     [],

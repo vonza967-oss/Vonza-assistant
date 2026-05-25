@@ -66,7 +66,7 @@ let knowledgeImportPollState = null;
 let knowledgeImportStartRequestId = 0;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
-const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
+const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch", "customization"];
 const DASHBOARD_UI_STATE_DEFAULTS = dashboardState.DASHBOARD_UI_STATE_DEFAULTS;
 const DASHBOARD_UI_STATE_PERSISTED_KEYS = dashboardState.DASHBOARD_UI_STATE_PERSISTED_KEYS;
 const DASHBOARD_SECTION_HASHES = dashboardState.DASHBOARD_SECTION_HASHES;
@@ -88,6 +88,7 @@ const DASHBOARD_HELP_SUBSECTION_LABELS = {
     knowledge: "Knowledge",
     library: "Answer library",
     launch: "Launch",
+    customization: "Customization",
   },
 };
 const dashboardUiState = loadDashboardUiState();
@@ -2870,7 +2871,36 @@ function getAvailableShellSections(operatorWorkspace = createEmptyOperatorWorksp
   return getShellSectionsForWorkspace(operatorWorkspace);
 }
 
+function getLegacyFrontDeskSettingsRedirectHash(hash = window.location.hash) {
+  const parts = dashboardState.getDashboardHashPathParts(hash);
+
+  if (parts[0] !== "settings" || parts[1] !== "front-desk") {
+    return "";
+  }
+
+  const tabSegment = dashboardState.getSettingsFrontDeskTabHashSegment(parts[2] || "identity-welcome");
+  return `#front-desk/customization/${tabSegment}`;
+}
+
+function redirectLegacyFrontDeskSettingsHash() {
+  const redirectHash = getLegacyFrontDeskSettingsRedirectHash();
+
+  if (!redirectHash || !window.history?.replaceState) {
+    return false;
+  }
+
+  const nextUrl = new URL(window.location.href);
+  if (nextUrl.hash === redirectHash) {
+    return false;
+  }
+
+  nextUrl.hash = redirectHash;
+  window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+  return true;
+}
+
 function getShellSectionFromHash(availableSections = FULL_SHELL_SECTIONS) {
+  redirectLegacyFrontDeskSettingsHash();
   return dashboardState.getShellSectionFromHash(window.location.hash, availableSections);
 }
 
@@ -3020,6 +3050,10 @@ function syncShellSectionHash(section, options = {}) {
   }
 
   if (section === "contacts" && ["customers", "customer", "contacts"].includes(getDashboardHashRoot())) {
+    return;
+  }
+
+  if (section === "customize" && !options.frontDeskSection && ["front-desk", "frontdesk", "customize"].includes(getDashboardHashRoot()) && getDashboardHashPathParts()[1]) {
     return;
   }
 
@@ -3397,6 +3431,7 @@ function buildInstallSidePanel(agent, setup, messages = []) {
 }
 const dashboardFrontDeskHelpers = dashboardFrontDesk.createFrontDeskHelpers({
   buildFullPageAssistantUrl,
+  buildFrontDeskCustomizationPanel,
   buildFullPageQrEndpoint,
   buildLocalSectionNav,
   buildOperatorEmptyState,
@@ -7255,22 +7290,8 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
   `;
 }
 
-function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
-  const settingsShell = window.VonzaSettingsShell;
-
-  if (!settingsShell || typeof settingsShell.buildSettingsPanel !== "function") {
-    return `
-      <section class="workspace-page" data-shell-section="settings" hidden>
-        ${buildPageHeader({
-          eyebrow: "Utilities",
-          title: "Settings",
-          copy: "The Settings shell could not be loaded right now.",
-        })}
-      </section>
-    `;
-  }
-
-  return settingsShell.buildSettingsPanel({
+function getSettingsShellOptions(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
+  return {
     agent,
     setup,
     operatorWorkspace,
@@ -7299,7 +7320,46 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
       { code: "en", nativeLabel: "English" },
       { code: "hu", nativeLabel: "Magyar" },
     ],
-  });
+  };
+}
+
+function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
+  const settingsShell = window.VonzaSettingsShell;
+
+  if (!settingsShell || typeof settingsShell.buildSettingsPanel !== "function") {
+    return `
+      <section class="workspace-page" data-shell-section="settings" hidden>
+        ${buildPageHeader({
+          eyebrow: "Utilities",
+          title: "Settings",
+          copy: "The Settings shell could not be loaded right now.",
+        })}
+      </section>
+    `;
+  }
+
+  return settingsShell.buildSettingsPanel(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue));
+}
+
+function buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
+  const settingsShell = window.VonzaSettingsShell;
+
+  if (!settingsShell || typeof settingsShell.buildFrontDeskSettingsForm !== "function") {
+    return `
+      <section class="frontdesk-workspace-panel frontdesk-main-panel" data-frontdesk-section="customization" ${activeFrontDeskSection === "customization" ? "" : "hidden"}>
+        ${buildOperatorEmptyState({
+          title: "Customization unavailable",
+          copy: "The Front Desk customization panel could not be loaded right now.",
+        })}
+      </section>
+    `;
+  }
+
+  return `
+    <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-settings-panel" data-frontdesk-section="customization" ${activeFrontDeskSection === "customization" ? "" : "hidden"}>
+      ${settingsShell.buildFrontDeskSettingsForm(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue))}
+    </section>
+  `;
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -10093,7 +10153,7 @@ function _buildActionQueueMarkup(agent, actionQueue = createEmptyActionQueue(), 
             </div>
             <div class="action-queue-secondary-action">
               ${item.messageId ? `<button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(item.messageId)}">Open related conversation</button>` : ""}
-              <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Open settings</button>
+              <button class="ghost-button" type="button" data-shell-target="customize" data-frontdesk-open="customization">Open customization</button>
             </div>
             <div class="action-queue-details">
               <div class="action-queue-detail">
@@ -10867,7 +10927,7 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
         ${frontDeskPageLive || live
           ? `<button class="primary-button" type="button" data-activation-complete="${escapeHtml(stepKey)}">Continue to test</button>`
           : `<button class="primary-button" type="button" data-shell-target="install">${escapeHtml(action.label || "Open install")}</button>
-             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Enable Front Desk page</button>`}
+             <button class="ghost-button" type="button" data-shell-target="customize" data-frontdesk-open="customization">Enable Front Desk page</button>`}
         <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
       </div>
     `;
@@ -11552,7 +11612,7 @@ function buildWorkspaceContextBar(agent, setup, operatorWorkspace = createEmptyO
       : "",
     setup.isReady
       ? `<button class="ghost-button" type="button" data-shell-target="install">Open install</button>`
-      : `<button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Finish setup</button>`,
+      : `<button class="ghost-button" type="button" data-shell-target="customize" data-frontdesk-open="customization">Finish setup</button>`,
   ].filter(Boolean).join("");
 
   return localizeDashboardHtml(`
