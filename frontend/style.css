@@ -1347,6 +1347,81 @@ button:hover {
   animation: voicePulse 1100ms ease-out infinite;
 }
 
+.call-front-desk-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(15, 31, 29, 0.08);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.call-front-desk-panel[hidden] {
+  display: none;
+}
+
+.call-front-desk-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.call-front-desk-kicker,
+.call-front-desk-status {
+  margin: 0;
+  color: #667085;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.call-front-desk-kicker {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.call-front-desk-copy h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 0.98rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.call-front-desk-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.call-front-desk-button {
+  min-height: 38px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.call-front-desk-button-secondary {
+  background: #eef2f6;
+  color: #344054;
+}
+
+.call-front-desk-panel[data-state="listening"] {
+  border-color: rgba(180, 35, 24, 0.18);
+  background: #fff7f6;
+}
+
+.call-front-desk-panel[data-state="speaking"] {
+  border-color: color-mix(in srgb, var(--brand-primary) 24%, rgba(94, 110, 152, 0.14) 76%);
+  background: color-mix(in srgb, var(--brand-primary) 7%, #ffffff 93%);
+}
+
 .voice-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1415,6 +1490,10 @@ html.vonza-mode-page .composer-hint {
 html.vonza-mode-page .composer-status {
   color: #667085;
   font-size: 0.78rem;
+}
+
+html.vonza-mode-widget .call-front-desk-panel {
+  display: none;
 }
 
 html.vonza-mode-page .page-identity-inline {
@@ -1660,9 +1739,16 @@ input:focus-visible {
 
   .routing-primary-button,
   .routing-secondary-button,
+  .call-front-desk-button,
   .identity-email-actions button,
   .lead-capture-actions button {
     width: 100%;
+  }
+
+  .call-front-desk-panel,
+  .call-front-desk-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   html.vonza-mode-page .app-shell {
@@ -3802,7 +3888,7 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas {
     --embedded-card-padding: 0 14px 18px;
     --canvas-title-offset: clamp(42px, 8dvh, 58px);
-    --canvas-title-gap: clamp(36px, 6dvh, 54px);
+    --canvas-title-gap: 96px;
     --canvas-title-hidden-offset: 36px;
     --canvas-composer-lift: 0px;
     --canvas-chat-stage-height: clamp(300px, 48dvh, 380px);
@@ -3826,7 +3912,10 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-context-panel h2,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-context-panel h2 {
-    font-size: clamp(2rem, 10vw, 2.5rem);
+    display: block;
+    font-size: 1.9rem;
+    line-height: 1.08;
+    letter-spacing: 0;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas.vonza-canvas-active .page-assistant-hero:not([hidden]),
@@ -3855,9 +3944,21 @@ html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas.von
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-replies,
   html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .quick-replies {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
+    display: none;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-intro-line,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-intro-line,
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .canvas-intro-line:not([hidden]),
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .canvas-intro-line:not([hidden]) {
+    display: none;
+  }
+
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas #page-assistant-subtitle,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas #page-assistant-subtitle,
+  html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .page-trust-row,
+  html.vonza-mode-page body.embedded.embedded-size-full.embedded-layout-canvas .page-trust-row {
+    display: none;
   }
 
   html.vonza-mode-page.embedded-mode.embedded-size-full.embedded-layout-canvas .quick-reply-chip,

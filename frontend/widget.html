@@ -217,6 +217,18 @@
         <div class="composer-shell canvas-composer-group" id="composer-shell" hidden>
           <p id="canvas-intro-line" class="canvas-intro-line" hidden></p>
           <div id="quick-replies" class="quick-replies" aria-label="Common questions"></div>
+          <section id="call-front-desk-panel" class="call-front-desk-panel" aria-labelledby="call-front-desk-title" hidden>
+            <div class="call-front-desk-copy">
+              <p id="call-front-desk-kicker" class="call-front-desk-kicker">Browser call</p>
+              <h2 id="call-front-desk-title">Call Front Desk</h2>
+              <p id="call-front-desk-status" class="call-front-desk-status" role="status" aria-live="polite" aria-atomic="true">Ready</p>
+            </div>
+            <div class="call-front-desk-actions">
+              <button id="call-front-desk-start" class="call-front-desk-button call-front-desk-button-primary" type="button">Start call</button>
+              <button id="call-front-desk-stop" class="call-front-desk-button call-front-desk-button-secondary" type="button" hidden>Stop listening</button>
+              <button id="call-front-desk-end" class="call-front-desk-button call-front-desk-button-secondary" type="button" hidden>End call</button>
+            </div>
+          </section>
           <div class="input-area">
             <button id="voice-input-button" class="voice-icon-button voice-input-button" type="button" aria-label="Tap to speak" title="Tap to speak" hidden>
               <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">

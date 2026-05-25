@@ -94,6 +94,17 @@ const VOICE_RECORDING_MIME_TYPES = Object.freeze([
   "video/webm",
   "audio/mp4",
 ]);
+const CALL_MODE_STATES = Object.freeze({
+  READY: "ready",
+  REQUESTING: "requesting",
+  LISTENING: "listening",
+  TRANSCRIBING: "transcribing",
+  THINKING: "thinking",
+  SPEAKING: "speaking",
+  MUTED_STOPPED: "muted-stopped",
+  STOPPED: "stopped",
+  UNAVAILABLE: "unavailable",
+});
 const DEFAULT_FULL_PAGE_SUBTITLE = "Ask about services, pricing, quotes, or contact details.";
 const FULL_PAGE_DESIGN_PRESETS = Object.freeze([
   "clean-light",
@@ -336,6 +347,20 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceSpokenCouldNotPlay": "Spoken reply could not play. You can still read the answer.",
     "assistant.voiceAudioUnsupported": "Audio playback is not supported in this browser.",
     "assistant.voicePressPlay": "Press Play to hear the spoken reply.",
+    "assistant.callKicker": "Browser call",
+    "assistant.callTitle": "Call Front Desk",
+    "assistant.callReady": "Ready",
+    "assistant.callRequesting": "Requesting microphone",
+    "assistant.callListening": "Listening",
+    "assistant.callTranscribing": "Transcribing",
+    "assistant.callThinking": "Thinking",
+    "assistant.callSpeaking": "Speaking",
+    "assistant.callMutedStopped": "Listening stopped",
+    "assistant.callStopped": "Call ended",
+    "assistant.callUnavailable": "Call mode is unavailable right now. You can still type your message.",
+    "assistant.callStart": "Start call",
+    "assistant.callEnd": "End call",
+    "assistant.callStopListening": "Stop listening",
     "assistant.resetIdentity": "Reset visitor identity",
     "assistant.resetStatus": "Choose email or guest to start a fresh visitor identity.",
     "assistant.chooseBeforeSend": "Choose guest or email before sending your first message.",
@@ -482,6 +507,20 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceSpokenCouldNotPlay": "A felolvasás nem indult el. A választ továbbra is elolvashatod.",
     "assistant.voiceAudioUnsupported": "A hanglejátszás ebben a böngészőben nem támogatott.",
     "assistant.voicePressPlay": "Nyomd meg a Lejátszás gombot a felolvasáshoz.",
+    "assistant.callKicker": "Böngészős hívás",
+    "assistant.callTitle": "Front Desk hívása",
+    "assistant.callReady": "Készen áll",
+    "assistant.callRequesting": "Mikrofonengedély kérése",
+    "assistant.callListening": "Figyelek",
+    "assistant.callTranscribing": "Leirat készítése",
+    "assistant.callThinking": "Gondolkodik",
+    "assistant.callSpeaking": "Felolvasás",
+    "assistant.callMutedStopped": "A figyelés leállt",
+    "assistant.callStopped": "A hívás véget ért",
+    "assistant.callUnavailable": "A hívás mód most nem elérhető. Továbbra is beírhatod az üzenetedet.",
+    "assistant.callStart": "Hívás indítása",
+    "assistant.callEnd": "Hívás befejezése",
+    "assistant.callStopListening": "Figyelés leállítása",
     "assistant.resetIdentity": "Látogatói azonosítás törlése",
     "assistant.resetStatus": "Válassz emailes vagy vendég folytatást az új látogatói azonosításhoz.",
     "assistant.chooseBeforeSend": "Az első üzenet elküldése előtt válassz vendég módot vagy emailes folytatást.",
@@ -564,8 +603,12 @@ let voiceRecorder = null;
 let voiceRecorderChunks = [];
 let voiceRecordingStartedAt = 0;
 let voiceRecordingStopTimer = 0;
+let voiceRecordingSource = "";
+let voiceRecordingCancelRequested = false;
 let voiceTranscriptRequestActive = false;
 let voiceInputStatusState = "";
+let callModeActive = false;
+let callModeState = CALL_MODE_STATES.READY;
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -874,6 +917,11 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
   }
   setElementText("voice-privacy-link", assistantT("assistant.voicePrivacy", {}, config));
   setElementText("voice-ai-note", assistantT("assistant.voiceAi", {}, config));
+  setElementText("call-front-desk-kicker", assistantT("assistant.callKicker", {}, config));
+  setElementText("call-front-desk-title", assistantT("assistant.callTitle", {}, config));
+  setElementText("call-front-desk-start", assistantT("assistant.callStart", {}, config));
+  setElementText("call-front-desk-stop", assistantT("assistant.callStopListening", {}, config));
+  setElementText("call-front-desk-end", assistantT("assistant.callEnd", {}, config));
   setElementText("page-identity-note", assistantT("assistant.pageIdentityNote", {}, config));
   setElementText("page-identity-email-button", assistantT("assistant.leaveContact", {}, config));
   setElementText("page-identity-powered", assistantT("assistant.poweredBy", {}, config));
@@ -917,6 +965,7 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
     voiceInputButton.setAttribute("aria-label", assistantT("assistant.voiceTap", {}, config));
     voiceInputButton.setAttribute("title", assistantT("assistant.voiceTap", {}, config));
   }
+  setCallModeState(callModeState, "", { silentComposer: true });
 }
 
 function normalizeHexColor(value) {
@@ -3201,6 +3250,202 @@ function getSpeakRepliesToggle() {
   return document.getElementById("speak-replies-toggle");
 }
 
+function getCallModePanel() {
+  return document.getElementById("call-front-desk-panel");
+}
+
+function getCallModeStatus() {
+  return document.getElementById("call-front-desk-status");
+}
+
+function getCallModeStartButton() {
+  return document.getElementById("call-front-desk-start");
+}
+
+function getCallModeStopButton() {
+  return document.getElementById("call-front-desk-stop");
+}
+
+function getCallModeEndButton() {
+  return document.getElementById("call-front-desk-end");
+}
+
+function getCallModeStateMessage(state = callModeState) {
+  switch (state) {
+    case CALL_MODE_STATES.REQUESTING:
+      return assistantT("assistant.callRequesting");
+    case CALL_MODE_STATES.LISTENING:
+      return assistantT("assistant.callListening");
+    case CALL_MODE_STATES.TRANSCRIBING:
+      return assistantT("assistant.callTranscribing");
+    case CALL_MODE_STATES.THINKING:
+      return assistantT("assistant.callThinking");
+    case CALL_MODE_STATES.SPEAKING:
+      return assistantT("assistant.callSpeaking");
+    case CALL_MODE_STATES.MUTED_STOPPED:
+      return assistantT("assistant.callMutedStopped");
+    case CALL_MODE_STATES.STOPPED:
+      return assistantT("assistant.callStopped");
+    case CALL_MODE_STATES.UNAVAILABLE:
+      return assistantT("assistant.callUnavailable");
+    case CALL_MODE_STATES.READY:
+    default:
+      return assistantT("assistant.callReady");
+  }
+}
+
+function setCallModeState(state, message = "", options = {}) {
+  const panel = getCallModePanel();
+  const status = getCallModeStatus();
+  const normalizedState = Object.values(CALL_MODE_STATES).includes(state)
+    ? state
+    : CALL_MODE_STATES.READY;
+  const label = message || getCallModeStateMessage(normalizedState);
+
+  callModeState = normalizedState;
+
+  if (panel) {
+    panel.dataset.state = normalizedState;
+  }
+
+  if (status) {
+    status.textContent = label;
+  }
+
+  if (label && options.silentComposer !== true) {
+    setComposerStatus(label);
+  }
+
+  syncCallModeControls();
+}
+
+function bindCallModeControls() {
+  const startButton = getCallModeStartButton();
+  const stopButton = getCallModeStopButton();
+  const endButton = getCallModeEndButton();
+
+  if (startButton && startButton.dataset.callModeBound !== "true") {
+    startButton.dataset.callModeBound = "true";
+    startButton.addEventListener("click", () => {
+      void startCallModeTurn();
+    });
+  }
+
+  if (stopButton && stopButton.dataset.callModeBound !== "true") {
+    stopButton.dataset.callModeBound = "true";
+    stopButton.addEventListener("click", () => {
+      setCallModeState(CALL_MODE_STATES.MUTED_STOPPED);
+      stopVoiceRecording();
+    });
+  }
+
+  if (endButton && endButton.dataset.callModeBound !== "true") {
+    endButton.dataset.callModeBound = "true";
+    endButton.addEventListener("click", () => {
+      endCallMode();
+    });
+  }
+}
+
+function syncCallModeControls() {
+  const panel = getCallModePanel();
+  const startButton = getCallModeStartButton();
+  const stopButton = getCallModeStopButton();
+  const endButton = getCallModeEndButton();
+  const config = getVoiceConfig();
+  const voiceInputEnabled = config.voiceInputEnabled === true;
+  const shouldShow = isPageMode() && voiceInputEnabled;
+  const unavailableMessage = shouldShow ? getVoiceUnavailableMessage() : "";
+  const busy = voiceTranscriptRequestActive
+    || [
+      CALL_MODE_STATES.REQUESTING,
+      CALL_MODE_STATES.LISTENING,
+      CALL_MODE_STATES.TRANSCRIBING,
+      CALL_MODE_STATES.THINKING,
+      CALL_MODE_STATES.SPEAKING,
+      CALL_MODE_STATES.MUTED_STOPPED,
+    ].includes(callModeState);
+
+  bindCallModeControls();
+
+  if (panel) {
+    panel.hidden = !shouldShow;
+    panel.setAttribute("aria-label", assistantT("assistant.callTitle"));
+  }
+
+  if (!shouldShow) {
+    callModeActive = false;
+    return;
+  }
+
+  if (unavailableMessage && !callModeActive) {
+    const status = getCallModeStatus();
+    if (status) {
+      status.textContent = unavailableMessage;
+    }
+    panel?.setAttribute("data-state", CALL_MODE_STATES.UNAVAILABLE);
+  } else if (getCallModeStatus() && !trimText(getCallModeStatus().textContent)) {
+    setCallModeState(callModeState, "", { silentComposer: true });
+  }
+
+  if (startButton) {
+    startButton.hidden = callModeActive && busy;
+    startButton.disabled = Boolean(unavailableMessage || busy);
+    startButton.textContent = assistantT("assistant.callStart");
+    startButton.setAttribute("aria-label", assistantT("assistant.callStart"));
+  }
+
+  if (stopButton) {
+    stopButton.hidden = !(callModeActive && callModeState === CALL_MODE_STATES.LISTENING && voiceRecorder);
+    stopButton.disabled = stopButton.hidden;
+    stopButton.textContent = assistantT("assistant.callStopListening");
+    stopButton.setAttribute("aria-label", assistantT("assistant.callStopListening"));
+  }
+
+  if (endButton) {
+    endButton.hidden = !callModeActive;
+    endButton.disabled = false;
+    endButton.textContent = assistantT("assistant.callEnd");
+    endButton.setAttribute("aria-label", assistantT("assistant.callEnd"));
+  }
+}
+
+async function startCallModeTurn() {
+  const config = getVoiceConfig();
+
+  if (!isPageMode() || config.voiceInputEnabled !== true) {
+    return false;
+  }
+
+  const unavailableMessage = getVoiceUnavailableMessage();
+  if (unavailableMessage) {
+    callModeActive = false;
+    setCallModeState(CALL_MODE_STATES.UNAVAILABLE, unavailableMessage);
+    return false;
+  }
+
+  callModeActive = true;
+  setCallModeState(CALL_MODE_STATES.REQUESTING);
+  const started = await startVoiceRecording({ source: "call" });
+
+  if (!started && callModeActive && callModeState === CALL_MODE_STATES.REQUESTING) {
+    setCallModeState(CALL_MODE_STATES.UNAVAILABLE);
+  }
+
+  return started;
+}
+
+function endCallMode() {
+  callModeActive = false;
+  stopCurrentVoiceAudio();
+
+  if (voiceRecorder) {
+    stopVoiceRecording({ cancel: true });
+  }
+
+  setCallModeState(CALL_MODE_STATES.STOPPED);
+}
+
 function bindVoiceInputButton() {
   const button = getVoiceInputButton();
 
@@ -3336,6 +3581,7 @@ function syncVoiceControls() {
   }
 
   syncSpeakRepliesToggle();
+  syncCallModeControls();
 }
 
 function stopCurrentVoiceAudio() {
@@ -3415,13 +3661,14 @@ async function playSpokenReply(text, button, options = {}) {
   const replyText = trimText(text);
 
   if (!replyText || !getVoiceConfig().spokenRepliesEnabled) {
-    return;
+    return false;
   }
 
   if (currentVoiceButton === button && currentVoiceAudio) {
     stopCurrentVoiceAudio();
     setComposerStatus(assistantT("assistant.voiceSpokenStopped"));
-    return;
+    options.onPlaybackEnd?.(false);
+    return false;
   }
 
   stopCurrentVoiceAudio();
@@ -3454,15 +3701,19 @@ async function playSpokenReply(text, button, options = {}) {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
         setComposerStatus(assistantT("assistant.askAnythingElse"));
+        options.onPlaybackEnd?.(true);
       }
     });
     audio.addEventListener("error", () => {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
         setComposerStatus(assistantT("assistant.voiceSpokenCouldNotPlay"));
+        options.onPlaybackEnd?.(false);
       }
     });
     await audio.play();
+    options.onPlaybackStart?.();
+    return true;
   } catch (error) {
     console.warn("Vonza speech playback failed:", error);
     if (button) {
@@ -3472,6 +3723,8 @@ async function playSpokenReply(text, button, options = {}) {
     }
     message?.classList.remove("is-speaking");
     setComposerStatus(getSpeechPlaybackFailureMessage(error, options));
+    options.onPlaybackEnd?.(false);
+    return false;
   }
 }
 
@@ -3513,37 +3766,49 @@ function clearVoiceRecordingTimer() {
   }
 }
 
-function stopVoiceRecording() {
+function stopVoiceRecording(options = {}) {
   if (!voiceRecorder) {
     return;
   }
 
+  voiceRecordingCancelRequested = options.cancel === true;
   clearVoiceRecordingTimer();
   if (voiceRecorder.state !== "inactive") {
     voiceRecorder.stop();
   }
 }
 
-async function startVoiceRecording() {
+async function startVoiceRecording(options = {}) {
   if (voiceRecorder) {
     stopVoiceRecording();
-    return;
+    return false;
   }
 
   const unavailableMessage = getVoiceUnavailableMessage();
   if (unavailableMessage) {
     setVoiceInputState("error", unavailableMessage);
+    if (options.source === "call") {
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, unavailableMessage);
+    }
     syncVoiceControls();
-    return;
+    return false;
   }
 
   if (!hasChosenVisitorIdentity()) {
     renderWidgetPhase();
     setComposerStatus(assistantT("assistant.voiceChooseIdentity"));
-    return;
+    if (options.source === "call") {
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.voiceChooseIdentity"));
+    }
+    return false;
   }
 
   try {
+    voiceRecordingSource = options.source === "call" ? "call" : "";
+    voiceRecordingCancelRequested = false;
+    if (voiceRecordingSource === "call") {
+      setCallModeState(CALL_MODE_STATES.REQUESTING);
+    }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mimeType = getPreferredRecordingMimeType();
     const MediaRecorderCtor = window.MediaRecorder;
@@ -3574,30 +3839,56 @@ async function startVoiceRecording() {
     });
     voiceRecorder.start();
     setVoiceInputState("listening", assistantT("assistant.voiceListening"));
+    if (voiceRecordingSource === "call") {
+      setCallModeState(CALL_MODE_STATES.LISTENING);
+    }
     syncVoiceControls();
     voiceRecordingStopTimer = setTimeout(stopVoiceRecording, VOICE_RECORDING_MAX_MS);
+    return true;
   } catch (error) {
     console.warn("Vonza microphone recording failed:", error);
     voiceRecorder = null;
+    voiceRecordingSource = "";
+    voiceRecordingCancelRequested = false;
     clearVoiceRecordingTimer();
     setVoiceInputState("error", getMicrophoneStartErrorMessage(error));
+    if (options.source === "call") {
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, getMicrophoneStartErrorMessage(error));
+    }
     syncVoiceControls();
+    return false;
   }
 }
 
 async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
   const input = document.getElementById("input");
   const chunks = voiceRecorderChunks.slice();
+  const recordingSource = voiceRecordingSource;
+  const recordingCancelled = voiceRecordingCancelRequested;
   voiceRecorderChunks = [];
+  voiceRecordingSource = "";
+  voiceRecordingCancelRequested = false;
+
+  if (recordingCancelled) {
+    syncVoiceControls();
+    return;
+  }
 
   if (!chunks.length) {
     setVoiceInputState("error", assistantT("assistant.voiceNoSpeechRecorded"));
+    if (recordingSource === "call") {
+      callModeActive = false;
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.voiceNoSpeechRecorded"));
+    }
     syncVoiceControls();
     return;
   }
 
   voiceTranscriptRequestActive = true;
   setVoiceInputState("processing", assistantT("assistant.voiceProcessing"));
+  if (recordingSource === "call") {
+    setCallModeState(CALL_MODE_STATES.TRANSCRIBING);
+  }
   syncVoiceControls();
 
   try {
@@ -3613,6 +3904,34 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       throw new Error(assistantT("assistant.voiceNoSpeechDetected"));
     }
 
+    if (recordingSource === "call") {
+      setCallModeState(CALL_MODE_STATES.THINKING);
+      const result = await sendMessage(transcript, {
+        playSpokenReply: true,
+        onSpokenReplyStart: () => {
+          if (callModeActive) {
+            setCallModeState(CALL_MODE_STATES.SPEAKING);
+          }
+        },
+        onSpokenReplyEnd: (played) => {
+          if (callModeActive) {
+            setCallModeState(
+              played ? CALL_MODE_STATES.READY : CALL_MODE_STATES.UNAVAILABLE,
+              played ? "" : assistantT("assistant.voiceSpokenCouldNotPlay")
+            );
+          }
+        },
+      });
+
+      if (!result?.ok) {
+        callModeActive = false;
+        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.requestFailedStatus"));
+      } else if (!result.spokenReplyAttempted) {
+        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.voiceSpokenCouldNotPlay"));
+      }
+      return;
+    }
+
     if (input) {
       input.value = transcript;
       input.focus();
@@ -3624,6 +3943,10 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
   } catch (error) {
     console.warn("Vonza voice transcription failed:", error);
     setVoiceInputState("error", error.message || assistantT("assistant.voiceFailed"));
+    if (recordingSource === "call") {
+      callModeActive = false;
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, error.message || assistantT("assistant.voiceFailed"));
+    }
   } finally {
     voiceTranscriptRequestActive = false;
     syncVoiceControls();
@@ -4136,7 +4459,7 @@ async function submitReplyFeedback(messageKey, rating, options = {}) {
   }
 }
 
-async function sendMessage(messageOverride = "") {
+async function sendMessage(messageOverride = "", options = {}) {
   const input = document.getElementById("input");
   const chat = document.getElementById("chat");
   const button = document.getElementById("send-button");
@@ -4148,7 +4471,7 @@ async function sendMessage(messageOverride = "") {
     : "";
   pendingCanvasTopicLabel = "";
 
-  if (!message) return;
+  if (!message) return { ok: false, reason: "empty" };
 
   stopVoiceRecording();
   stopCurrentVoiceAudio();
@@ -4161,7 +4484,7 @@ async function sendMessage(messageOverride = "") {
   if (!hasChosenVisitorIdentity()) {
     renderWidgetPhase();
     setComposerStatus(assistantT("assistant.chooseBeforeSend"));
-    return;
+    return { ok: false, reason: "identity_required" };
   }
 
   if (!hasAssistantConfig()) {
@@ -4175,7 +4498,7 @@ async function sendMessage(messageOverride = "") {
       { error: true }
     );
     setComposerStatus(assistantT("assistant.setupFirst"));
-    return;
+    return { ok: false, reason: "not_configured" };
   }
 
   appendMessage(chat, "user", message);
@@ -4233,7 +4556,7 @@ async function sendMessage(messageOverride = "") {
         { error: true }
       );
       setComposerStatus(assistantT("assistant.requestFailedStatus"));
-      return;
+      return { ok: false, reason: "request_failed", status: res.status, data };
     }
 
     if (data.widgetConfig) {
@@ -4288,16 +4611,40 @@ async function sendMessage(messageOverride = "") {
         ? assistantT("assistant.optionReady")
         : assistantT("assistant.askAnythingElse")
     );
-    if (getVoiceConfig().spokenRepliesEnabled && speakRepliesActive) {
+    let spokenReplyAttempted = false;
+    let spokenReplyPlayed = false;
+    if (getVoiceConfig().spokenRepliesEnabled && (speakRepliesActive || options.playSpokenReply === true)) {
       const voiceButton = assistantMessage.querySelector?.("[data-voice-reply-button]") || null;
-      void playSpokenReply(data.reply, voiceButton, { key: feedbackKey, auto: true });
+      spokenReplyAttempted = true;
+      const playPromise = playSpokenReply(data.reply, voiceButton, {
+        key: feedbackKey,
+        auto: true,
+        onPlaybackStart: options.onSpokenReplyStart,
+        onPlaybackEnd: options.onSpokenReplyEnd,
+      });
+      if (options.awaitSpokenReply === true) {
+        spokenReplyPlayed = await playPromise;
+      } else {
+        void playPromise;
+      }
     }
+    return {
+      ok: true,
+      data,
+      reply: data.reply,
+      feedbackKey,
+      assistantMessage,
+      speechAuthorization,
+      spokenReplyAttempted,
+      spokenReplyPlayed,
+    };
   } catch (err) {
     console.error("Vonza assistant request failed:", err);
     loading.remove();
     setCanvasAnsweringState(false);
     appendMessage(chat, "bot", assistantT("assistant.connectionError"), { error: true });
     setComposerStatus(assistantT("assistant.connectionStatus"));
+    return { ok: false, reason: "connection_error", error: err };
   } finally {
     button.disabled = false;
     input.disabled = false;
@@ -4619,6 +4966,10 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   getAssistantLanguage: () => getAssistantLanguage(),
   assistantT,
   syncVoiceControls,
+  syncCallModeControls,
+  startCallModeTurn,
+  endCallMode,
+  getCallModeState: () => callModeState,
   startVoiceRecording,
   stopVoiceRecording,
   setVoiceRecorderChunks: (chunks) => {

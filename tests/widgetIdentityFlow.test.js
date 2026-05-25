@@ -190,6 +190,13 @@ function createWidgetHarness({
     "voice-controls",
     "speak-replies-toggle",
     "voice-disclosure",
+    "call-front-desk-panel",
+    "call-front-desk-kicker",
+    "call-front-desk-title",
+    "call-front-desk-status",
+    "call-front-desk-start",
+    "call-front-desk-stop",
+    "call-front-desk-end",
     "page-identity-inline",
     "page-identity-note",
     "page-identity-email-button",
@@ -880,6 +887,225 @@ test("voice config explicit enabled and disabled states control mic visibility",
   });
   assert.equal(harness.hooks.getVoiceConfig().voiceInputEnabled, false);
   assert.equal(micButton.hidden, true);
+});
+
+test("call Front Desk CTA is page-only and follows voice input availability", async () => {
+  const widgetHarness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1",
+    },
+  });
+
+  widgetHarness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+
+  assert.equal(widgetHarness.elements.get("call-front-desk-panel").hidden, true);
+
+  const pageHarness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+
+  pageHarness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: false,
+    },
+  });
+  assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, true);
+
+  pageHarness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+    },
+  });
+
+  assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, false);
+  assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Call Front Desk");
+  assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start call");
+});
+
+test("call Front Desk turn transcribes, sends chat, and speaks with returned token", async () => {
+  const calls = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia(constraints) {
+        assert.equal(constraints.audio, true);
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+      calls.push(url);
+
+      assert.doesNotMatch(url, /\/phone\b|twilio/i);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1", publicAgentKey: "page-key" },
+              business: { id: "business-1", name: "Acme Co" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  spoken_replies_enabled: true,
+                  auto_play_spoken_replies: false,
+                  voice: "sage",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url.includes("/api/voice/transcribe")) {
+        assert.match(url, /display_mode=page/);
+        return {
+          ok: true,
+          async json() {
+            return { text: "Can you help with quotes?" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.message, "Can you help with quotes?");
+        assert.equal(payload.display_mode, "page");
+        assert.equal(payload.public_page_key, "page-key");
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Yes, I can help collect quote details.",
+              agentId: "agent-1",
+              agentKey: "page-key",
+              businessId: "business-1",
+              speech: {
+                token: "call-speech-token",
+                expiresAt: "2026-05-25T12:05:00.000Z",
+              },
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      if (url === "/api/voice/speech") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.text, "Yes, I can help collect quote details.");
+        assert.equal(payload.voice, "sage");
+        assert.equal(payload.speech_token, "call-speech-token");
+        assert.equal(payload.display_mode, "page");
+        return {
+          ok: true,
+          async blob() {
+            return new Blob(["mp3"], { type: "audio/mpeg" });
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const startButton = harness.elements.get("call-front-desk-start");
+  const stopButton = harness.elements.get("call-front-desk-stop");
+  startButton.dispatch("click");
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(TestMediaRecorder.instances.length, 1);
+  assert.equal(harness.hooks.getCallModeState(), "listening");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening");
+
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  stopButton.dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(calls.some((url) => url.includes("/api/voice/transcribe")));
+  assert.ok(calls.includes("/chat"));
+  assert.ok(calls.includes("/api/voice/speech"));
+  assert.equal(harness.hooks.getCallModeState(), "speaking");
+
+  const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
+  assert.match(renderedChat, /Can you help with quotes\?/);
+  assert.match(renderedChat, /Yes, I can help collect quote details\./);
+  assert.doesNotMatch(renderedChat, /call-speech-token/);
+});
+
+test("call Front Desk failure states use safe localized messages", async () => {
+  const deniedError = new Error("Permission denied by test");
+  deniedError.name = "NotAllowedError";
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&mode=page&lang=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&mode=page&lang=hu",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        throw deniedError;
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+  });
+
+  harness.hooks.applyWidgetConfig({
+    language: "hu",
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+    },
+  });
+
+  assert.equal(harness.elements.get("call-front-desk-title").textContent, "Front Desk hívása");
+  assert.equal(harness.elements.get("call-front-desk-start").textContent, "Hívás indítása");
+
+  await harness.hooks.startCallModeTurn();
+
+  assert.equal(harness.hooks.getCallModeState(), "unavailable");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "A mikrofonengedély el lett utasítva. Továbbra is beírhatod az üzenetedet."
+  );
+  assert.doesNotMatch(
+    harness.elements.get("call-front-desk-status").textContent,
+    /Permission denied by test/
+  );
 });
 
 test("voice transcription fills the composer without auto-sending by default", async () => {

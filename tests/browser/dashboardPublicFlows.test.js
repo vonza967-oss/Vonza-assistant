@@ -674,6 +674,7 @@ test("hosted full-page Front Desk sends customer question and captures contact d
   const chatRequests = [];
   const captureRequests = [];
   const installEvents = [];
+  const phoneOrTelephonyRequests = [];
 
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -682,6 +683,12 @@ test("hosted full-page Front Desk sends customer question and captures contact d
   });
   page.on("pageerror", (error) => {
     consoleErrors.push(error.message);
+  });
+  page.on("request", (request) => {
+    const url = request.url();
+    if (/\/phone(?:[/?#]|$)|twilio/i.test(url)) {
+      phoneOrTelephonyRequests.push(url);
+    }
   });
 
   await page.route("https://fonts.googleapis.com/**", async (route) => {
@@ -730,6 +737,12 @@ test("hosted full-page Front Desk sends customer question and captures contact d
             publicPageKey: "page-key",
             headline: "Example Services Front Desk",
             subtitle: "Ask about services, pricing, quotes, or booking.",
+          },
+          voice_config: {
+            voice_input_enabled: true,
+            spoken_replies_enabled: true,
+            auto_play_spoken_replies: false,
+            voice: "sage",
           },
         },
       }),
@@ -825,6 +838,9 @@ test("hosted full-page Front Desk sends customer question and captures contact d
     await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
     await assertVisibleText(page, "Example Services");
     await assertVisibleText(page, "Example Services Front Desk");
+    await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
+    await assertVisibleText(page, "Call Front Desk");
+    await assertVisibleText(page, "Start call");
     await page.locator("#input").waitFor({ state: "visible" });
     await assertNoHorizontalOverflow(page);
 
@@ -882,8 +898,73 @@ test("hosted full-page Front Desk sends customer question and captures contact d
       assert.equal(event.body.session_id, "session-page-1");
       assertNoOwnerOnlyFields(event.body);
     }
+    assert.deepEqual(phoneOrTelephonyRequests, []);
     await assertNoHorizontalOverflow(page);
     assert.deepEqual(consoleErrors, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("hosted full-page Front Desk hides call CTA when voice input is disabled", async () => {
+  const page = await newPage();
+
+  await page.route("https://fonts.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/css",
+      body: "",
+    });
+  });
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    await route.fulfill({
+      status: 204,
+      body: "",
+    });
+  });
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agent: {
+          id: "agent-page-1",
+          publicAgentKey: "page-key",
+        },
+        business: {
+          id: "business-1",
+          name: "Example Services",
+          websiteUrl: "https://example.com",
+        },
+        widgetConfig: {
+          assistantName: "Example Front Desk",
+          voice_config: {
+            voice_input_enabled: false,
+            spoken_replies_enabled: true,
+          },
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key",
+            headline: "Example Services Front Desk",
+          },
+        },
+      }),
+    });
+  });
+
+  try {
+    const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
+    hostedUrl.searchParams.set("k", "page-key");
+    hostedUrl.searchParams.set("session_id", "session-page-voice-disabled");
+    hostedUrl.searchParams.set("install_id", "install-page-1");
+    hostedUrl.searchParams.set("origin", "https://customer.example.test");
+    hostedUrl.searchParams.set("page_url", "https://customer.example.test/front-desk");
+
+    await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
+    await page.locator("#input").waitFor({ state: "visible" });
+
+    assert.equal(await page.locator("#call-front-desk-panel").isVisible(), false);
   } finally {
     await page.close();
   }
