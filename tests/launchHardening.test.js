@@ -62,6 +62,20 @@ async function withServer(app, fn) {
   }
 }
 
+function getCsp(response) {
+  return response.headers.get("content-security-policy") || "";
+}
+
+function assertFramePolicy(response, { frameAncestors, xFrameOptions }) {
+  assert.match(getCsp(response), new RegExp(`frame-ancestors ${frameAncestors}`));
+  assert.equal(response.headers.get("x-frame-options"), xFrameOptions);
+}
+
+function assertMicrophonePolicy(response, expected) {
+  const policy = response.headers.get("permissions-policy") || "";
+  assert.match(policy, new RegExp(`microphone=\\(${expected}\\)`));
+}
+
 function createChatTestApp(deps = {}) {
   const app = express();
   app.use(express.json());
@@ -158,8 +172,7 @@ test("route-specific CORS keeps private routes non-wildcard while public widget 
       });
       assert.equal(dashboard.status, 200);
       assert.equal(dashboard.headers.get("access-control-allow-origin"), null);
-      assert.match(dashboard.headers.get("content-security-policy") || "", /frame-ancestors 'self'/);
-      assert.equal(dashboard.headers.get("x-frame-options"), "DENY");
+      assertFramePolicy(dashboard, { frameAncestors: "'none'", xFrameOptions: "DENY" });
 
       const privatePreflight = await fetch(`${baseUrl}/agents/messages`, {
         method: "OPTIONS",
@@ -182,14 +195,103 @@ test("route-specific CORS keeps private routes non-wildcard while public widget 
       assert.equal(publicPreflight.headers.get("access-control-allow-origin"), "https://customer.example");
       assert.equal(publicPreflight.headers.get("access-control-allow-credentials"), null);
 
-      const widget = await fetch(`${baseUrl}/widget`);
-      assert.equal(widget.status, 200);
-      assert.match(widget.headers.get("content-security-policy") || "", /frame-ancestors \*/);
-      assert.equal(widget.headers.get("x-frame-options"), null);
-      assert.match(widget.headers.get("permissions-policy") || "", /microphone=\(self\)/);
-
       const dashboardPolicy = dashboard.headers.get("permissions-policy") || "";
       assert.match(dashboardPolicy, /microphone=\(\)/);
+    });
+  });
+});
+
+test("route frame policies are explicit for dashboard, embeds, Front Desk pages, and marketing routes", async () => {
+  await withEnv({
+    NODE_ENV: "test",
+    PUBLIC_APP_URL: "http://127.0.0.1:3000",
+    RATE_LIMIT_BACKEND: "memory",
+  }, async () => {
+    const app = createApp({ rootDir: repoRoot });
+
+    await withServer(app, async (baseUrl) => {
+      const dashboard = await fetch(`${baseUrl}/dashboard`);
+      assert.equal(dashboard.status, 200);
+      assertFramePolicy(dashboard, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+      assert.match(getCsp(dashboard), /script-src 'self' 'unsafe-inline'/);
+      assert.match(getCsp(dashboard), /style-src 'self' 'unsafe-inline' https:\/\/fonts\.googleapis\.com/);
+
+      for (const assetPath of ["/dashboard.js", "/dashboard.css", "/settings/SettingsShell.js", "/settings/settings.css"]) {
+        const response = await fetch(`${baseUrl}${assetPath}`);
+        assert.equal(response.status, 200, assetPath);
+        assertFramePolicy(response, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+        assert.equal(response.headers.get("cache-control"), "private, no-store, max-age=0, must-revalidate");
+      }
+
+      for (const assetPath of ["/embed.js", "/embed-v1.js", "/embed-lite.js", "/assistant-embed.js"]) {
+        const response = await fetch(`${baseUrl}${assetPath}`);
+        assert.equal(response.status, 200, assetPath);
+        assertFramePolicy(response, { frameAncestors: "\\*", xFrameOptions: null });
+        assert.match(response.headers.get("content-type") || "", /javascript/);
+        assertMicrophonePolicy(response, "");
+      }
+
+      for (const widgetPath of ["/widget?agent_id=agent-1&embedded=1", "/widget?agent_id=agent-1&mode=page&embedded=1"]) {
+        const response = await fetch(`${baseUrl}${widgetPath}`);
+        assert.equal(response.status, 200, widgetPath);
+        assertFramePolicy(response, { frameAncestors: "\\*", xFrameOptions: null });
+        assertMicrophonePolicy(response, "self");
+      }
+
+      const plainWidget = await fetch(`${baseUrl}/widget`);
+      assert.equal(plainWidget.status, 200);
+      assertFramePolicy(plainWidget, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+      assertMicrophonePolicy(plainWidget, "self");
+
+      for (const hostedPath of ["/a/agent-key", "/assistant/agent-key"]) {
+        const response = await fetch(`${baseUrl}${hostedPath}`);
+        assert.equal(response.status, 200, hostedPath);
+        assertFramePolicy(response, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+        assertMicrophonePolicy(response, "self");
+      }
+
+      for (const previewPath of ["/dashboard-v2-fixture", "/dashboard-v2-preview", "/full-page-assistant-v2-preview"]) {
+        const response = await fetch(`${baseUrl}${previewPath}`);
+        assert.equal(response.status, 200, previewPath);
+        assertFramePolicy(response, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+        assertMicrophonePolicy(response, "");
+      }
+
+      const assistantEmbedMatrix = await fetch(`${baseUrl}/assistant-embed-matrix`);
+      assert.equal(assistantEmbedMatrix.status, 200);
+      assertFramePolicy(assistantEmbedMatrix, { frameAncestors: "'none'", xFrameOptions: "DENY" });
+      assertMicrophonePolicy(assistantEmbedMatrix, "self");
+
+      for (const publicPath of [
+        "/",
+        "/hu",
+        "/hu/features",
+        "/hu/product",
+        "/hu/pricing",
+        "/hu/about",
+        "/features",
+        "/product",
+        "/pricing",
+        "/about",
+        "/aszf",
+        "/impresszum",
+        "/adatkezelesi-tajekoztato",
+        "/cookie-tajekoztato",
+      ]) {
+        const response = await fetch(`${baseUrl}${publicPath}`);
+        assert.equal(response.status, 200, publicPath);
+        assertFramePolicy(response, { frameAncestors: "'self'", xFrameOptions: "SAMEORIGIN" });
+        assert.doesNotMatch(getCsp(response), /frame-ancestors \*/);
+        assertMicrophonePolicy(response, "");
+      }
+
+      for (const publicRedirectPath of ["/how-it-works", "/contact", "/terms", "/privacy", "/cookies", "/imprint"]) {
+        const response = await fetch(`${baseUrl}${publicRedirectPath}`, { redirect: "manual" });
+        assert.equal(response.status, 302, publicRedirectPath);
+        assertFramePolicy(response, { frameAncestors: "'self'", xFrameOptions: "SAMEORIGIN" });
+        assert.doesNotMatch(getCsp(response), /frame-ancestors \*/);
+        assertMicrophonePolicy(response, "");
+      }
     });
   });
 });
