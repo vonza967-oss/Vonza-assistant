@@ -538,6 +538,7 @@ let currentVoiceAudio = null;
 let currentVoiceButton = null;
 let currentVoiceUrl = "";
 const voiceReplyAudioCache = new Map();
+const voiceSpeechAuthorizations = new Map();
 let lastLeadReferenceMessage = "";
 let quickRepliesDismissed = false;
 let pendingCanvasTopicLabel = "";
@@ -954,6 +955,26 @@ function buildAssistantMessageKey(reply, index = conversationHistory.length) {
   return `${getVisitorSessionKey()}::${index}::${Math.abs(hash)}`;
 }
 
+function buildVoiceContextCacheScope() {
+  return [
+    getVisitorSessionKey(),
+    resolvedAgentId,
+    resolvedAgentKey,
+    resolvedBusinessId,
+    INSTALL_ID,
+    WEBSITE_URL,
+    PUBLIC_PAGE_KEY,
+    DISPLAY_MODE,
+  ].map((part) => trimText(part)).join("::");
+}
+
+function buildScopedVoiceMessageKey(key) {
+  const normalizedKey = trimText(key);
+  const scope = buildVoiceContextCacheScope();
+
+  return normalizedKey && scope ? `${scope}::${normalizedKey}` : normalizedKey;
+}
+
 function saveVisitorIdentity(identity) {
   const normalized = normalizeVisitorIdentityState(identity);
 
@@ -1028,6 +1049,20 @@ function addToHistory(role, content) {
   if (conversationHistory.length > 12) {
     conversationHistory.splice(0, conversationHistory.length - 12);
   }
+}
+
+function normalizeSpeechAuthorization(value = null) {
+  const token = trimText(value?.token);
+  const expiresAt = trimText(value?.expiresAt || value?.expires_at);
+
+  if (!token) {
+    return null;
+  }
+
+  return {
+    token,
+    expiresAt,
+  };
 }
 
 function escapeHtml(value) {
@@ -3249,12 +3284,27 @@ function voiceReplyAudioCacheHasUrl(url) {
   return Array.from(voiceReplyAudioCache.values()).includes(url);
 }
 
+function getSpeechAuthorizationForMessage(key) {
+  const normalizedKey = buildScopedVoiceMessageKey(key);
+  const authorization = normalizedKey ? voiceSpeechAuthorizations.get(normalizedKey) : null;
+
+  if (!authorization?.token) {
+    const error = new Error("Speech playback is not authorized for this reply.");
+    error.code = "speech_authorization_missing";
+    throw error;
+  }
+
+  return authorization;
+}
+
 async function getSpeechAudioUrl(text, key) {
-  const cacheKey = trimText(key) || buildAssistantMessageKey(text);
+  const messageKey = trimText(key) || buildAssistantMessageKey(text);
+  const cacheKey = buildScopedVoiceMessageKey(messageKey);
   if (voiceReplyAudioCache.has(cacheKey)) {
     return voiceReplyAudioCache.get(cacheKey);
   }
 
+  const speechAuthorization = getSpeechAuthorizationForMessage(messageKey);
   const response = await fetch("/api/voice/speech", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -3262,6 +3312,7 @@ async function getSpeechAudioUrl(text, key) {
       ...buildVoiceJsonContext(),
       text,
       voice: getVoiceConfig().voice,
+      speech_token: speechAuthorization.token,
     }),
   });
 
@@ -3334,7 +3385,7 @@ async function playSpokenReply(text, button, options = {}) {
       button.setAttribute("aria-label", "Play reply");
     }
     message?.classList.remove("is-speaking");
-    setComposerStatus(options.auto === true ? "Reply is ready. Use Play reply to hear it." : "Spoken reply could not play.");
+    setComposerStatus("Spoken reply could not play.");
   }
 }
 
@@ -4109,6 +4160,13 @@ async function sendMessage(messageOverride = "") {
     }
 
     const feedbackKey = buildAssistantMessageKey(data.reply);
+    const speechAuthorization = normalizeSpeechAuthorization(data.speech);
+    const speechAuthorizationKey = buildScopedVoiceMessageKey(feedbackKey);
+    if (speechAuthorization) {
+      voiceSpeechAuthorizations.set(speechAuthorizationKey, speechAuthorization);
+    } else {
+      voiceSpeechAuthorizations.delete(speechAuthorizationKey);
+    }
     const assistantMessage = appendMessage(chat, "bot", data.reply, {
       feedbackKey,
       feedbackQuestion: message,

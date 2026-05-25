@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import express from "express";
 
 import { createVoiceRouter } from "../src/routes/voiceRoutes.js";
+import { createSpeechAuthorization } from "../src/services/voice/voiceSpeechTokenService.js";
 
 function withEnv(overrides, fn) {
   const previous = new Map();
@@ -100,6 +101,26 @@ function voiceQuery(extra = {}) {
     ...extra,
   });
   return params.toString();
+}
+
+function buildSpeechToken({
+  text = "Here is the answer.",
+  sessionKey = "voice-session",
+  agent = { id: "agent-1", publicAgentKey: "agent-key" },
+  businessId = "business-1",
+  widgetConfig = buildResolvedContext().widgetConfig,
+  displayMode = "page",
+  nowMs,
+} = {}) {
+  return createSpeechAuthorization({
+    agent,
+    businessId,
+    widgetConfig,
+    sessionKey,
+    reply: text,
+    displayMode,
+    nowMs,
+  })?.token;
 }
 
 test("voice transcription rejects unsupported file types", async () => {
@@ -238,8 +259,10 @@ test("voice transcription returns transcript when OpenAI succeeds", async () => 
 });
 
 test("speech endpoint rejects too-long text and invalid voices", async () => {
-  await withEnv({ VOICE_TTS_MAX_CHARS: "12" }, async () => {
+  await withEnv({ VOICE_TTS_MAX_CHARS: "12", VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
     let openaiCalled = false;
+    const tooLongText = "This text is definitely too long.";
+    const invalidVoiceText = "Short text.";
     const server = await startServer(createApp({
       openai: {
         audio: {
@@ -261,7 +284,9 @@ test("speech endpoint rejects too-long text and invalid voices", async () => {
           install_id: "install-1",
           origin: "https://allowed.example",
           page_url: "https://allowed.example/help",
-          text: "This text is definitely too long.",
+          session_key: "voice-session",
+          text: tooLongText,
+          speech_token: buildSpeechToken({ text: tooLongText }),
         }),
       });
       const tooLongJson = await readJson(tooLong);
@@ -276,8 +301,10 @@ test("speech endpoint rejects too-long text and invalid voices", async () => {
           install_id: "install-1",
           origin: "https://allowed.example",
           page_url: "https://allowed.example/help",
-          text: "Short text.",
+          session_key: "voice-session",
+          text: invalidVoiceText,
           voice: "voice_123",
+          speech_token: buildSpeechToken({ text: invalidVoiceText }),
         }),
       });
       const invalidJson = await readJson(invalidVoice);
@@ -291,47 +318,284 @@ test("speech endpoint rejects too-long text and invalid voices", async () => {
   });
 });
 
-test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
-  let capturedPayload = null;
-  const server = await startServer(createApp({
-    openai: {
-      audio: {
-        speech: {
-          create: async (payload) => {
-            capturedPayload = payload;
-            return {
-              arrayBuffer: async () => Uint8Array.from([1, 2, 3, 4]).buffer,
-            };
+test("speech endpoint rejects arbitrary text without token", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
           },
         },
       },
-    },
-  }));
+    }));
 
-  try {
-    const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        install_id: "install-1",
-        origin: "https://allowed.example",
-        page_url: "https://allowed.example/help",
-        display_mode: "page",
-        text: "Here is the answer.",
-        voice: "sage",
-      }),
-    });
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          session_key: "voice-session",
+          text: "Arbitrary text.",
+        }),
+      });
+      const json = await readJson(response);
 
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type"), /audio\/mpeg/);
-    assert.deepEqual(Array.from(bytes), [1, 2, 3, 4]);
-    assert.equal(capturedPayload.model, "gpt-4o-mini-tts");
-    assert.equal(capturedPayload.voice, "sage");
-    assert.equal(capturedPayload.response_format, "mp3");
-  } finally {
-    await server.close();
-  }
+      assert.equal(response.status, 401);
+      assert.match(json.error, /speech authorization is required/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech endpoint rejects changed text with valid token", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          session_key: "voice-session",
+          text: "Changed answer.",
+          speech_token: buildSpeechToken({ text: "Original answer." }),
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 403);
+      assert.match(json.error, /speech authorization is invalid/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech endpoint rejects changed session or agent context", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+      routerDeps: {
+        resolveAllowedPublicWidgetContext: async (_supabase, context) => {
+          if (context.agentId === "agent-2") {
+            return buildResolvedContext({
+              widgetConfig: { installId: "install-2" },
+            });
+          }
+
+          return buildResolvedContext();
+        },
+      },
+    }));
+
+    try {
+      const changedSession = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          session_key: "different-session",
+          text,
+          speech_token: buildSpeechToken({ text, sessionKey: "voice-session" }),
+        }),
+      });
+      const changedSessionJson = await readJson(changedSession);
+
+      assert.equal(changedSession.status, 403);
+      assert.match(changedSessionJson.error, /speech authorization is invalid/i);
+
+      const changedAgent = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_id: "agent-2",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          session_key: "voice-session",
+          text,
+          speech_token: buildSpeechToken({ text, sessionKey: "voice-session" }),
+        }),
+      });
+      const changedAgentJson = await readJson(changedAgent);
+
+      assert.equal(changedAgent.status, 403);
+      assert.match(changedAgentJson.error, /speech authorization is invalid/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech endpoint rejects changed display mode context", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let openaiCalled = false;
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "widget",
+          session_key: "voice-session",
+          text,
+          speech_token: buildSpeechToken({ text, displayMode: "page" }),
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 403);
+      assert.match(json.error, /speech authorization is invalid/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech endpoint rejects expired token", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret", VOICE_SPEECH_TOKEN_TTL_SECONDS: "30" }, async () => {
+    let openaiCalled = false;
+    const text = "Here is the answer.";
+    const token = buildSpeechToken({ text, nowMs: Date.now() - 120_000 });
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              openaiCalled = true;
+              return { arrayBuffer: async () => Uint8Array.from([1]).buffer };
+            },
+          },
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          session_key: "voice-session",
+          text,
+          speech_token: token,
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 401);
+      assert.match(json.error, /expired/i);
+      assert.equal(openaiCalled, false);
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    let capturedPayload = null;
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async (payload) => {
+              capturedPayload = payload;
+              return {
+                arrayBuffer: async () => Uint8Array.from([1, 2, 3, 4]).buffer,
+              };
+            },
+          },
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          session_key: "voice-session",
+          text,
+          voice: "sage",
+          speech_token: buildSpeechToken({ text }),
+        }),
+      });
+      const bytes = new Uint8Array(await response.arrayBuffer());
+
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type"), /audio\/mpeg/);
+      assert.deepEqual(Array.from(bytes), [1, 2, 3, 4]);
+      assert.equal(capturedPayload.model, "gpt-4o-mini-tts");
+      assert.equal(capturedPayload.voice, "sage");
+      assert.equal(capturedPayload.response_format, "mp3");
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 test("public frontend config does not expose OpenAI API keys", () => {

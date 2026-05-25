@@ -2302,6 +2302,10 @@ test("spoken replies render play controls and stop current audio on repeat click
               reply: "We can explain the available services.",
               agentId: "agent-1",
               businessId: "business-1",
+              speech: {
+                token: "speech-token-1",
+                expiresAt: "2026-05-25T12:05:00.000Z",
+              },
               visitorIdentity: { mode: "guest", email: "", name: "" },
             };
           },
@@ -2312,6 +2316,7 @@ test("spoken replies render play controls and stop current audio on repeat click
         const payload = JSON.parse(options.body);
         assert.equal(payload.text, "We can explain the available services.");
         assert.equal(payload.voice, "sage");
+        assert.equal(payload.speech_token, "speech-token-1");
         return {
           ok: true,
           async blob() {
@@ -2339,13 +2344,20 @@ test("spoken replies render play controls and stop current audio on repeat click
   const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
   assert.match(renderedChat, /data-voice-reply-button/);
   assert.match(renderedChat, /Play reply/);
+  assert.doesNotMatch(renderedChat, /speech-token-1/);
   assert.equal(harness.fetchCalls.some((call) => call.input === "/api/voice/speech"), false);
+
+  const assistantMessageElement = harness.elements.get("chat").children.find((child) =>
+    child.dataset?.voiceReplyText === "We can explain the available services."
+  );
+  const voiceMessageKey = assistantMessageElement?.dataset?.voiceMessageKey || "";
+  assert.ok(voiceMessageKey);
 
   const messageClasses = new Set();
   const messageElement = {
     dataset: {
       voiceReplyText: "We can explain the available services.",
-      voiceMessageKey: "voice-key-1",
+      voiceMessageKey,
     },
     classList: {
       add(token) {
@@ -2357,7 +2369,7 @@ test("spoken replies render play controls and stop current audio on repeat click
     },
   };
   const voiceButton = {
-    dataset: { voiceMessageKey: "voice-key-1" },
+    dataset: { voiceMessageKey },
     disabled: false,
     textContent: "Play reply",
     setAttribute(name, value) {
@@ -2395,6 +2407,183 @@ test("spoken replies render play controls and stop current audio on repeat click
   assert.equal(messageClasses.has("is-speaking"), false);
   assert.equal(harness.audioInstances[0].paused, true);
   assert.equal(harness.elements.get("composer-status").textContent, "Spoken reply stopped.");
+});
+
+test("spoken replies include speech token for autoplay and avoid rendering raw token", async () => {
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  spoken_replies_enabled: true,
+                  auto_play_spoken_replies: true,
+                  voice: "sage",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Autoplay can read this answer.",
+              agentId: "agent-1",
+              businessId: "business-1",
+              speech: {
+                token: "speech-token-autoplay",
+                expiresAt: "2026-05-25T12:05:00.000Z",
+              },
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      if (url === "/api/voice/speech") {
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.text, "Autoplay can read this answer.");
+        assert.equal(payload.speech_token, "speech-token-autoplay");
+        return {
+          ok: true,
+          async blob() {
+            return new Blob(["mp3"], { type: "audio/mpeg" });
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+  harness.elements.get("input").value = "Can you help?";
+  await harness.hooks.sendMessage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const speechCalls = harness.fetchCalls.filter((call) => call.input === "/api/voice/speech");
+  const renderedChat = harness.elements.get("chat").children.map((child) => child.innerHTML).join("\n");
+
+  assert.equal(speechCalls.length, 1);
+  assert.doesNotMatch(renderedChat, /speech-token-autoplay/);
+  assert.equal(harness.audioInstances.length, 1);
+  assert.equal(harness.audioInstances[0].played, true);
+});
+
+test("spoken replies keep distinct tokens for repeated same-text replies", async () => {
+  let chatCount = 0;
+  const speechPayloads = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1",
+    },
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1" },
+              business: { id: "business-1" },
+              widgetConfig: {
+                assistantName: "Acme Assistant",
+                voice_config: {
+                  voice_input_enabled: true,
+                  spoken_replies_enabled: true,
+                  auto_play_spoken_replies: true,
+                  voice: "sage",
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        chatCount += 1;
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Same answer.",
+              agentId: "agent-1",
+              businessId: "business-1",
+              speech: {
+                token: `speech-token-${chatCount}`,
+                expiresAt: "2026-05-25T12:05:00.000Z",
+              },
+              visitorIdentity: { mode: "guest", email: "", name: "" },
+            };
+          },
+        };
+      }
+
+      if (url === "/api/voice/speech") {
+        speechPayloads.push(JSON.parse(options.body));
+        return {
+          ok: true,
+          async blob() {
+            return new Blob(["mp3"], { type: "audio/mpeg" });
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  harness.hooks.continueIntoChat({ mode: "guest" });
+
+  harness.elements.get("input").value = "First question";
+  await harness.hooks.sendMessage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  harness.elements.get("input").value = "Second question";
+  await harness.hooks.sendMessage();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(speechPayloads.length, 2);
+  assert.deepEqual(speechPayloads.map((payload) => payload.text), ["Same answer.", "Same answer."]);
+  assert.deepEqual(speechPayloads.map((payload) => payload.speech_token), ["speech-token-1", "speech-token-2"]);
 });
 
 test("embedded quick chips keep compact labels while submitting full prompts", async () => {

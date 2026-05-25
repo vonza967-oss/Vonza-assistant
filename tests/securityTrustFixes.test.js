@@ -1285,6 +1285,81 @@ test("chat logging emits metadata without raw conversation or business content",
   assert.match(logged, /messageLength/);
 });
 
+test("/chat returns speech authorization only for final replies when spoken replies are enabled", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "chat-speech-token-secret" }, async () => {
+    const records = [];
+    const originalConsole = {
+      info: console.info,
+      warn: console.warn,
+      error: console.error,
+    };
+    console.info = (...args) => records.push(args);
+    console.warn = (...args) => records.push(args);
+    console.error = (...args) => records.push(args);
+
+    try {
+      const disabledResult = await handleChatRequest({
+        supabase: createFakeSupabase(buildChatState()),
+        openai: {
+          chat: {
+            completions: {
+              create: async () => ({ choices: [{ message: { content: "Spoken replies are disabled." } }] }),
+            },
+          },
+        },
+        body: {
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/services",
+          visitor_session_key: "session-1",
+          message: "What services do you offer?",
+        },
+      });
+
+      assert.equal(disabledResult.speech, undefined);
+
+      const enabledState = buildChatState();
+      enabledState.widget_configs[0].voice_config = {
+        voice_input_enabled: true,
+        spoken_replies_enabled: true,
+        auto_send_transcript: false,
+        auto_play_spoken_replies: false,
+        voice: "sage",
+        language_behavior: "auto",
+      };
+      const enabledResult = await handleChatRequest({
+        supabase: createFakeSupabase(enabledState),
+        openai: {
+          chat: {
+            completions: {
+              create: async () => ({ choices: [{ message: { content: "We can explain the available services." } }] }),
+            },
+          },
+        },
+        body: {
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/services",
+          visitor_session_key: "session-1",
+          message: "What services do you offer?",
+        },
+      });
+
+      assert.equal(enabledResult.reply, "We can explain the available services.");
+      assert.match(enabledResult.speech?.token || "", /^vst1\./);
+      assert.match(enabledResult.speech?.expiresAt || "", /^\d{4}-\d{2}-\d{2}T/);
+
+      const logged = records.map((entry) => JSON.stringify(entry)).join("\n");
+      assert.doesNotMatch(logged, new RegExp(enabledResult.speech.token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+      assert.doesNotMatch(logged, /chat-speech-token-secret/);
+    } finally {
+      console.info = originalConsole.info;
+      console.warn = originalConsole.warn;
+      console.error = originalConsole.error;
+    }
+  });
+});
+
 test("chat response language follows customer messages instead of website context", async () => {
   const supabase = createFakeSupabase({
     ...buildChatState(),

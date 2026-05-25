@@ -23,6 +23,7 @@ import {
   buildPublicVisitorIdentity,
   normalizeVisitorIdentity,
 } from "./visitorIdentityService.js";
+import { createSpeechAuthorization } from "../voice/voiceSpeechTokenService.js";
 import {
   applyLeadCaptureAction,
   processLiveChatLeadCapture,
@@ -336,6 +337,15 @@ async function buildChatResponse({
     displayMode,
   });
 
+  const speech = createSpeechAuthorization({
+    agent,
+    businessId,
+    widgetConfig,
+    sessionKey,
+    reply,
+    displayMode,
+  });
+
   return {
     reply,
     agentId: agent.id,
@@ -348,6 +358,7 @@ async function buildChatResponse({
     leadCapture,
     directRouting,
     visitorIdentity: buildPublicVisitorIdentity(visitorIdentity),
+    ...(speech ? { speech } : {}),
   };
 }
 

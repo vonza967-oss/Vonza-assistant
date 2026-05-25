@@ -2,6 +2,7 @@ import { toFile } from "openai";
 
 import { DEFAULT_VOICE_CONFIG, VOICE_TTS_VOICES } from "../agents/agentDefaults.js";
 import { normalizeVoiceConfig } from "../agents/agentService.js";
+import { verifySpeechAuthorization } from "./voiceSpeechTokenService.js";
 import { cleanText } from "../../utils/text.js";
 
 export const VOICE_AUDIO_MIME_TYPES = Object.freeze({
@@ -277,6 +278,12 @@ export async function createAssistantSpeech({
     text: body?.text,
     voice: body?.voice,
     fallbackVoice: voiceConfig.voice,
+  });
+  verifySpeechAuthorization({
+    token: body?.speech_token || body?.speechToken || body?.speech?.token,
+    text,
+    resolvedContext,
+    requestContext: context,
   });
   const openaiClient = typeof openai === "function" ? openai() : openai;
 
