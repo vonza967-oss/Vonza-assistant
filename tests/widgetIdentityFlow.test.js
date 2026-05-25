@@ -138,7 +138,15 @@ function createWidgetHarness({
   const fetchCalls = [];
   const getElement = (id) => {
     if (!elements.has(id)) {
-      elements.set(id, createFakeElement(id));
+      const element = createFakeElement(id);
+      if (id === "voice-disclosure") {
+        const disclosureTextNode = {
+          nodeType: 3,
+          textContent: "Voice is processed to transcribe your question. ",
+        };
+        element.childNodes = [disclosureTextNode];
+      }
+      elements.set(id, element);
     }
     return elements.get(id);
   };
@@ -844,6 +852,12 @@ test("Hungarian voice runtime labels use localized copy", () => {
 
   assert.equal(harness.elements.get("voice-input-button")["aria-label"], "Beszéd indítása");
   assert.equal(harness.elements.get("speak-replies-toggle").textContent, "Válaszok felolvasása kikapcsolva");
+  assert.equal(
+    harness.elements.get("voice-disclosure").childNodes[0].textContent,
+    "A hangot a kérdésed leírásához dolgozzuk fel. "
+  );
+  assert.equal(harness.elements.get("voice-privacy-link").textContent, "Adatvédelem");
+  assert.equal(harness.elements.get("voice-ai-note").textContent, "AI által generált hang.");
   assert.equal(harness.hooks.assistantT("assistant.voiceSpokenCouldNotPlay"), "A felolvasás nem indult el. A választ továbbra is elolvashatod.");
 });
 
@@ -1626,6 +1640,7 @@ test("embedded page mode honors Hungarian welcome copy over English fallback", a
               },
               widgetConfig: {
                 assistantName: "Acme Assistant",
+                language: "hu",
                 welcomeMessage: "Szia, miben segithetek ma?",
               },
             };
@@ -1646,6 +1661,9 @@ test("embedded page mode honors Hungarian welcome copy over English fallback", a
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.elements.get("welcome-message").textContent, "Szia, miben segithetek ma?");
+  assert.equal(harness.elements.get("page-identity-note").textContent, "Vendégként kérdezel");
+  assert.equal(harness.elements.get("page-identity-email-button").textContent, "Elérhetőség megadása");
+  assert.equal(harness.elements.get("composer-status").textContent, "Vendégként chatelsz. Kérdezz bármit a vállalkozásról.");
 });
 
 test("embedded page mode supports flat surface query class", async () => {

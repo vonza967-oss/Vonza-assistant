@@ -297,7 +297,12 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.composerHint": "Press Enter to send. The assistant replies using the business's latest details.",
     "assistant.composerStatus": "Ask about services, pricing, booking, quotes, contact details, or the next step.",
     "assistant.pageIdentityNote": "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.",
+    "assistant.identityGuestStatus": "You're chatting as a guest. Ask anything about the business.",
+    "assistant.identityGuestCompactStatus": "Asking as guest",
+    "assistant.identityEmailStatus": "Using {email} so the business can follow up if needed.",
+    "assistant.identityEmailCompactStatus": "Using {email}",
     "assistant.leaveContact": "Leave contact details",
+    "assistant.updateContact": "Update contact details",
     "assistant.poweredBy": "Powered by Vonza",
     "assistant.poweredHelp": "We're here to help | Powered by Vonza",
     "assistant.pageIdentityLegal": "Sending a message lets Vonza store this chat session for replies, safety, and follow-up. Review data handling, terms, and cookies.",
@@ -438,7 +443,12 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.composerHint": "Enterrel küldhetsz. Az asszisztens a vállalkozás legfrissebb adatai alapján válaszol.",
     "assistant.composerStatus": "Kérdezz szolgáltatásokról, árakról, foglalásról, ajánlatról, elérhetőségről vagy a következő lépésről.",
     "assistant.pageIdentityNote": "Vendégként kérdezel. Ha utánkövetés kell, az asszisztens elkérheti az elérhetőségedet.",
+    "assistant.identityGuestStatus": "Vendégként chatelsz. Kérdezz bármit a vállalkozásról.",
+    "assistant.identityGuestCompactStatus": "Vendégként kérdezel",
+    "assistant.identityEmailStatus": "{email} címmel folytatod, hogy a vállalkozás utánkövethessen, ha szükséges.",
+    "assistant.identityEmailCompactStatus": "{email} címmel folytatod",
     "assistant.leaveContact": "Elérhetőség megadása",
+    "assistant.updateContact": "Elérhetőség frissítése",
     "assistant.poweredBy": "Powered by Vonza",
     "assistant.poweredHelp": "Segítünk | Powered by Vonza",
     "assistant.pageIdentityLegal": "Üzenet küldésével engedélyezed, hogy a Vonza mentse ezt a chatet válaszadás, biztonság és utánkövetés céljából. Nézd át az adatkezelést, a feltételeket és a cookie tájékoztatót.",
@@ -856,6 +866,12 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
   setElementText("intro-message-label", assistantT("assistant.label", {}, config));
   setElementText("send-button-sr", assistantT("assistant.send", {}, config));
   setElementText("speak-replies-toggle", assistantT("assistant.voiceSpeakReplies", {}, config));
+  const voiceDisclosure = document.getElementById("voice-disclosure");
+  const voiceDisclosureTextNode = Array.from(voiceDisclosure?.childNodes || [])
+    .find((node) => node?.nodeType === 3);
+  if (voiceDisclosureTextNode) {
+    voiceDisclosureTextNode.textContent = `${assistantT("assistant.voiceDisclosure", {}, config)} `;
+  }
   setElementText("voice-privacy-link", assistantT("assistant.voicePrivacy", {}, config));
   setElementText("voice-ai-note", assistantT("assistant.voiceAi", {}, config));
   setElementText("page-identity-note", assistantT("assistant.pageIdentityNote", {}, config));
@@ -1056,7 +1072,7 @@ function clearVisitorIdentity() {
   if (isPageMode()) {
     visitorIdentity = normalizeVisitorIdentityState({ mode: "guest" });
     syncWidgetPhaseWithIdentity(visitorIdentity);
-    setComposerStatus("You're asking as a guest. Leave contact details only if follow-up is needed.");
+    setComposerStatus(assistantT("assistant.pageIdentityNote"));
     getPageIdentityEmailForm()?.setAttribute("hidden", "");
     return visitorIdentity;
   }
@@ -2277,19 +2293,19 @@ function syncPageIdentityInline() {
   if (note) {
     if (normalized.mode === "identified" && normalized.email) {
       note.textContent = EMBEDDED_MODE
-        ? `Using ${normalized.email}`
-        : `Using ${normalized.email} for follow-up if the business needs it.`;
+        ? assistantT("assistant.identityEmailCompactStatus", { email: normalized.email })
+        : assistantT("assistant.identityEmailStatus", { email: normalized.email });
     } else {
       note.textContent = EMBEDDED_MODE
-        ? "Asking as guest"
-        : "You're asking as a guest. If follow-up is needed, the assistant may ask for your contact details.";
+        ? assistantT("assistant.identityGuestCompactStatus")
+        : assistantT("assistant.pageIdentityNote");
     }
   }
 
   if (button) {
     button.textContent = normalized.mode === "identified" && normalized.email
-      ? "Update contact details"
-      : "Leave contact details";
+      ? assistantT("assistant.updateContact")
+      : assistantT("assistant.leaveContact");
   }
 
   if (resetButton && EMBEDDED_MODE) {
@@ -2577,9 +2593,9 @@ function continueIntoChat(identity, options = {}) {
   }
 
   if (normalized.mode === "identified") {
-    setComposerStatus(`Using ${normalized.email} so the business can follow up if needed.`);
+    setComposerStatus(assistantT("assistant.identityEmailStatus", { email: normalized.email }));
   } else {
-    setComposerStatus("You're chatting as a guest. Ask anything about the business.");
+    setComposerStatus(assistantT("assistant.identityGuestStatus"));
   }
 
   if (options.track !== false) {
