@@ -8,6 +8,7 @@ const DEFAULT_LIMITS = Object.freeze({
   public_chat_feedback: { windowMs: 60_000, max: 10 },
   public_voice_transcribe: { windowMs: 60_000, max: 5 },
   public_voice_speech: { windowMs: 60_000, max: 10 },
+  phone_webhook: { windowMs: 60_000, max: 60 },
   widget_bootstrap: { windowMs: 60_000, max: 60 },
   public_install_signal: { windowMs: 60_000, max: 30 },
   public_install_cta: { windowMs: 60_000, max: 20 },
@@ -53,7 +54,9 @@ function isPublicAssistantRoute(req) {
     || path === "/chat/capture"
     || path === "/chat/feedback"
     || path === "/api/voice/transcribe"
-    || path === "/api/voice/speech";
+    || path === "/api/voice/speech"
+    || path === "/phone/twilio/inbound"
+    || path === "/phone/twilio/status";
 }
 
 function normalizeIpAddress(value = "") {
@@ -91,6 +94,9 @@ function getRequestIdentityPart(req) {
     body.agent_id || body.agentId || query.agent_id || query.agentId,
     body.agent_key || body.agentKey || query.agent_key || query.agentKey,
     body.website_url || body.websiteUrl || query.website_url || query.websiteUrl,
+    body.From || body.from,
+    body.To || body.to,
+    body.CallSid || body.callSid,
   ]
     .map((value) => cleanText(value))
     .filter(Boolean)

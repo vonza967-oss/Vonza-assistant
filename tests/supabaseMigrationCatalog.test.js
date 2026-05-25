@@ -87,3 +87,20 @@ test("Calendly booking integration schema is present in canonical schema and mig
     assert.match(sql, /Owners can manage booking integrations/i);
   });
 });
+
+test("Phone Front Desk schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260525000000_phone_front_desk_phase_1b.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.agent_phone_numbers/i);
+    assert.match(sql, /phone_channel_enabled boolean not null default false/i);
+    assert.match(sql, /create table if not exists public\.agent_phone_call_sessions/i);
+    assert.match(sql, /provider_call_sid text not null/i);
+    assert.match(sql, /Owners can manage phone numbers/i);
+    assert.match(sql, /Owners can manage phone call sessions/i);
+  });
+});

@@ -298,6 +298,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped Calendly webhook integration storage for trusted booking confirmations.",
   }),
+  Object.freeze({
+    id: "phone_front_desk_phase_1b",
+    version: "20260525000000",
+    name: "phone_front_desk_phase_1b",
+    file: "supabase/migrations/20260525000000_phone_front_desk_phase_1b.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped phone number and Twilio call session storage for static Phone Front Desk webhook wiring.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

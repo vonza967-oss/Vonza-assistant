@@ -32,7 +32,11 @@ const bookingIntegrationsMigrationSql = readFileSync(
   "supabase/migrations/20260523001000_agent_booking_integrations.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}`;
+const phoneFrontDeskMigrationSql = readFileSync(
+  "supabase/migrations/20260525000000_phone_front_desk_phase_1b.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -90,6 +94,8 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_visitor_reply_feedback",
     "front_desk_training_items",
     "front_desk_knowledge_chunks",
+    "agent_phone_numbers",
+    "agent_phone_call_sessions",
   ].forEach((tableName) => {
     assert.match(
       postRlsMigrationSql,

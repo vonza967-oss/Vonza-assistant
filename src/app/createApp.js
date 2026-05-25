@@ -5,6 +5,7 @@ import { createAgentRouter } from "../routes/agentRoutes.js";
 import { createBookingRouter } from "../routes/bookingRoutes.js";
 import { createBusinessRouter } from "../routes/businessRoutes.js";
 import { createChatRouter } from "../routes/chatRoutes.js";
+import { createPhoneRouter } from "../routes/phoneRoutes.js";
 import { createPublicRouter } from "../routes/publicRoutes.js";
 import { createVoiceRouter } from "../routes/voiceRoutes.js";
 import { applyRouteCors } from "../utils/corsPolicy.js";
@@ -58,6 +59,7 @@ export function createApp({ rootDir }) {
   app.use(createBookingRouter());
   app.use(createAgentRouter());
   app.use(createChatRouter());
+  app.use(createPhoneRouter());
   app.use(createVoiceRouter());
   app.use(createBusinessRouter());
   app.use((err, _req, res, _next) => {
