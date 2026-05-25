@@ -24,6 +24,10 @@ import {
   recordAdminAuditEvent,
   requireAdminUser,
 } from "../services/admin/adminAuthorizationService.js";
+import {
+  listAdminPhoneNumbersForAgent,
+  upsertAdminPhoneNumberAssignment,
+} from "../services/phone/phoneNumberService.js";
 import { uploadFrontDeskBackground } from "../services/agents/frontDeskBackgroundService.js";
 import {
   assertMessagesSchemaReady,
@@ -246,6 +250,10 @@ export function createAgentRouter(deps = {}) {
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const requireAdminUserImpl = deps.requireAdminUser || requireAdminUser;
   const recordAdminAuditEventImpl = deps.recordAdminAuditEvent || recordAdminAuditEvent;
+  const listAdminPhoneNumbersForAgentImpl =
+    deps.listAdminPhoneNumbersForAgent || listAdminPhoneNumbersForAgent;
+  const upsertAdminPhoneNumberAssignmentImpl =
+    deps.upsertAdminPhoneNumberAssignment || upsertAdminPhoneNumberAssignment;
   const updateAgentSettingsImpl = deps.updateAgentSettings || updateAgentSettings;
   const uploadFrontDeskBackgroundImpl =
     deps.uploadFrontDeskBackground || uploadFrontDeskBackground;
@@ -824,6 +832,83 @@ export function createAgentRouter(deps = {}) {
       res.json({ agents, funnel });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/admin-list" });
+    }
+  });
+
+  router.get("/admin/phone-numbers", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const adminUser = await requireAdminAccess(supabase, req, "phone_numbers.admin_list", {
+        agentId: req.query.agent_id || req.query.agentId,
+      });
+      const phoneNumbers = await listAdminPhoneNumbersForAgentImpl(supabase, {
+        agentId: req.query.agent_id || req.query.agentId,
+        businessId: req.query.business_id || req.query.businessId,
+        ownerUserId: req.query.owner_user_id || req.query.ownerUserId,
+      });
+
+      await recordAdminAuditEventImpl(supabase, {
+        adminUserId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: "phone_numbers.admin_list.completed",
+        targetType: "agent",
+        targetId: req.query.agent_id || req.query.agentId,
+        agentId: req.query.agent_id || req.query.agentId,
+        metadata: {
+          resultCount: phoneNumbers.length,
+        },
+      }).catch(() => {});
+
+      res.json({
+        ok: true,
+        phoneNumbers,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/admin/phone-numbers" });
+    }
+  });
+
+  router.post("/admin/phone-numbers/upsert", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const adminUser = await requireAdminAccess(supabase, req, "phone_numbers.upsert", {
+        agentId: req.body.agent_id || req.body.agentId,
+        phoneNumberE164: req.body.phone_number_e164 || req.body.phoneNumberE164,
+        status: req.body.status,
+      });
+      const phoneNumber = await upsertAdminPhoneNumberAssignmentImpl(supabase, {
+        agentId: req.body.agent_id || req.body.agentId,
+        businessId: req.body.business_id || req.body.businessId,
+        ownerUserId: req.body.owner_user_id || req.body.ownerUserId,
+        phoneNumberE164: req.body.phone_number_e164 || req.body.phoneNumberE164,
+        label: req.body.label,
+        status: req.body.status,
+        phoneChannelEnabled: req.body.phone_channel_enabled ?? req.body.phoneChannelEnabled,
+        greetingText: req.body.greeting_text ?? req.body.greetingText,
+        disclosureText: req.body.disclosure_text ?? req.body.disclosureText,
+        fallbackMode: req.body.fallback_mode ?? req.body.fallbackMode,
+      });
+
+      await recordAdminAuditEventImpl(supabase, {
+        adminUserId: adminUser.id,
+        adminEmail: adminUser.email,
+        action: "phone_numbers.upsert.completed",
+        targetType: "agent_phone_number",
+        targetId: phoneNumber.id,
+        ownerUserId: phoneNumber.ownerUserId,
+        agentId: phoneNumber.agentId,
+        metadata: {
+          status: phoneNumber.status,
+          phoneChannelEnabled: phoneNumber.phoneChannelEnabled,
+        },
+      }).catch(() => {});
+
+      res.json({
+        ok: true,
+        phoneNumber,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/admin/phone-numbers/upsert" });
     }
   });
 
