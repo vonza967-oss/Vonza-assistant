@@ -35,6 +35,9 @@ const LEGAL_DOC_PATHS = Object.freeze({
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DASHBOARD_HELP_UNAVAILABLE_MESSAGE = "I couldn't load Vonza help right now. Please try again.";
 const CONNECTED_TOOLS_SELF_SERVE_ENABLED = false;
+const KNOWLEDGE_IMPORT_TERMINAL_STATES = new Set(["success", "limited", "failed", "stalled"]);
+const KNOWLEDGE_IMPORT_ACTIVE_STATES = new Set(["queued", "running", "crawling", "indexing"]);
+const KNOWLEDGE_IMPORT_MAX_POLLS = 60;
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -59,6 +62,8 @@ const LAUNCH_STEPS = [
 ];
 const trackedEventKeys = new Set();
 let activationWizardState = null;
+let knowledgeImportPollState = null;
+let knowledgeImportStartRequestId = 0;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch"];
@@ -3606,6 +3611,299 @@ function classifyImportResult(result) {
     label: "Ready",
     description: "Your website content is in place, so the Front Desk can answer real customer questions with solid context.",
   };
+}
+
+function getKnowledgeImportPollIntervalMs(attempt = 0) {
+  const configured = Number(window.VONZA_IMPORT_POLL_INTERVAL_MS);
+  const baseInterval = Number.isFinite(configured) && configured >= 0 ? configured : 2000;
+  if (baseInterval === 0) {
+    return 0;
+  }
+  const steppedInterval = baseInterval + Math.min(Math.max(attempt, 0), 4) * 500;
+
+  return Math.min(Math.max(steppedInterval, 0), 6000);
+}
+
+function getOwnerSafeImportErrorMessage() {
+  return "Website import could not finish. Check that the site is reachable, then retry.";
+}
+
+function getKnowledgeImportStatusUrl(agentId, jobId, clientId, statusUrl = "") {
+  const provided = trimText(statusUrl);
+
+  if (provided) {
+    return provided;
+  }
+
+  const url = new URL(`/api/agents/${encodeURIComponent(agentId)}/knowledge/import/status`, window.location.origin);
+  if (jobId) {
+    url.searchParams.set("job_id", jobId);
+  }
+  if (clientId) {
+    url.searchParams.set("client_id", clientId);
+  }
+
+  return `${url.pathname}${url.search}`;
+}
+
+function buildKnowledgeImportMessage(state, status = {}) {
+  const pageCount = Number(status.pageCount || status.knowledge?.pageCount || 0);
+
+  if (state === "queued") {
+    return "Website import is queued. You can keep working while Vonza prepares Front Desk knowledge.";
+  }
+  if (state === "indexing") {
+    return "Website content was imported. Vonza is preparing semantic search for more precise Front Desk answers.";
+  }
+  if (state === "running" || state === "crawling") {
+    return "Vonza is reading the website for Front Desk answers. This can take a few minutes on larger sites.";
+  }
+  if (state === "success") {
+    return pageCount
+      ? `${pageCount} page${pageCount === 1 ? "" : "s"} imported. Website knowledge is ready for Front Desk answers.`
+      : "Website knowledge is ready for Front Desk answers.";
+  }
+  if (state === "limited") {
+    return "Website content is available for the Front Desk, but semantic indexing did not fully finish. Retry import to refresh indexing.";
+  }
+  if (state === "stalled") {
+    return "Website import is taking longer than expected. Retry import if this status does not move soon.";
+  }
+  if (state === "failed") {
+    return getOwnerSafeImportErrorMessage();
+  }
+
+  return "Website import status will appear here.";
+}
+
+function normalizeKnowledgeImportState(value = "") {
+  const normalized = trimText(value).toLowerCase();
+  if (normalized === "queued") return "queued";
+  if (normalized === "indexing") return "indexing";
+  if (normalized === "running" || normalized === "crawling") return normalized;
+  if (normalized === "success" || normalized === "ready" || normalized === "completed") return "success";
+  if (normalized === "limited" || normalized === "partial") return "limited";
+  if (normalized === "failed" || normalized === "error") return "failed";
+  if (normalized === "stalled") return "stalled";
+  return "";
+}
+
+function buildKnowledgeImportDisplayState(input = {}) {
+  const job = input.job || {};
+  const indexing = job.indexing || input.indexing || {};
+  const rawState = normalizeKnowledgeImportState(input.state || job.status || input.status);
+  const rawPhase = normalizeKnowledgeImportState(input.phase || job.phase);
+  let state = rawState || rawPhase || "queued";
+
+  if (job.stalled === true && KNOWLEDGE_IMPORT_ACTIVE_STATES.has(state)) {
+    state = "stalled";
+  } else if ((state === "running" || state === "crawling") && rawPhase === "indexing") {
+    state = "indexing";
+  } else if (state === "success") {
+    const indexingStatus = normalizeKnowledgeImportState(indexing.status);
+    if (indexingStatus === "limited" || indexingStatus === "failed" || trimText(indexing.status).toLowerCase() === "unavailable" || Number(indexing.errorCount || 0) > 0) {
+      state = "limited";
+    }
+  }
+
+  const pageCount = Number(job.pageCount || input.pageCount || input.knowledge?.pageCount || 0);
+  const contentLength = Number(job.contentLength || input.contentLength || input.knowledge?.contentLength || 0);
+  const display = {
+    jobId: trimText(input.jobId || job.id),
+    statusUrl: trimText(input.statusUrl),
+    agentId: trimText(input.agentId),
+    websiteUrl: trimText(input.websiteUrl),
+    state,
+    phase: rawPhase || state,
+    label: state === "success"
+      ? "Ready"
+      : state === "limited"
+        ? "Partial indexing"
+        : state === "failed"
+          ? "Failed"
+          : state === "stalled"
+            ? "Stalled"
+            : state === "indexing"
+              ? "Indexing"
+              : state === "running" || state === "crawling"
+                ? "Crawling"
+                : "Queued",
+    message: buildKnowledgeImportMessage(state, {
+      pageCount,
+      knowledge: input.knowledge,
+    }),
+    pageCount,
+    contentLength,
+    indexingStatus: trimText(indexing.status || ""),
+    indexingMessage: state === "limited"
+      ? "Website content may be ready now. Semantic search needs a retry before answers are fully optimized."
+      : "",
+    terminal: KNOWLEDGE_IMPORT_TERMINAL_STATES.has(state),
+    retryable: state === "limited" || state === "failed" || state === "stalled",
+    updatedAt: trimText(job.updatedAt || input.updatedAt || ""),
+  };
+
+  return display;
+}
+
+function mergeKnowledgeImportIntoSetup(setup = {}, agent = {}) {
+  if (!knowledgeImportPollState || trimText(knowledgeImportPollState.agentId) !== trimText(agent?.id)) {
+    return setup;
+  }
+
+  return {
+    ...setup,
+    importStatus: { ...knowledgeImportPollState.display },
+  };
+}
+
+function getKnowledgeImportDisplayState(agentId = "") {
+  if (!knowledgeImportPollState) {
+    return null;
+  }
+  if (agentId && trimText(knowledgeImportPollState.agentId) !== trimText(agentId)) {
+    return null;
+  }
+  return { ...knowledgeImportPollState.display };
+}
+
+window.VonzaDashboardImportStatus = {
+  getDisplayState: getKnowledgeImportDisplayState,
+};
+
+function stopKnowledgeImportPolling() {
+  if (knowledgeImportPollState?.timerId) {
+    window.clearTimeout(knowledgeImportPollState.timerId);
+  }
+  knowledgeImportPollState = null;
+}
+
+function renderKnowledgeImportProgress() {
+  if (!workspaceState?.agent || !knowledgeImportPollState) {
+    return;
+  }
+  if (trimText(workspaceState.agent.id) !== trimText(knowledgeImportPollState.agentId)) {
+    return;
+  }
+  renderWorkspaceFromState();
+}
+
+async function pollKnowledgeImportStatus() {
+  const state = knowledgeImportPollState;
+  if (!state || state.stopped || state.display?.terminal) {
+    return;
+  }
+
+  if (state.pollCount >= KNOWLEDGE_IMPORT_MAX_POLLS) {
+    state.display = buildKnowledgeImportDisplayState({
+      ...state.display,
+      state: "stalled",
+      jobId: state.jobId,
+      agentId: state.agentId,
+      websiteUrl: state.websiteUrl,
+    });
+    renderKnowledgeImportProgress();
+    return;
+  }
+
+  state.pollCount += 1;
+
+  try {
+    const statusData = await fetchJson(state.statusUrl);
+    if (knowledgeImportPollState !== state || state.stopped) {
+      return;
+    }
+
+    state.display = buildKnowledgeImportDisplayState({
+      ...statusData,
+      jobId: statusData?.job?.id || state.jobId,
+      statusUrl: state.statusUrl,
+      agentId: statusData?.agentId || state.agentId,
+      websiteUrl: statusData?.websiteUrl || state.websiteUrl,
+    });
+    renderKnowledgeImportProgress();
+
+    if (state.display.terminal) {
+      if (state.display.state === "success") {
+        trackProductEvent("knowledge_imported", {
+          agentId: state.agentId,
+          metadata: {
+            mode: "async",
+            pageCount: state.display.pageCount,
+            contentLength: state.display.contentLength,
+          },
+        });
+      } else if (state.display.state === "limited") {
+        trackProductEvent("knowledge_limited", {
+          agentId: state.agentId,
+          metadata: {
+            mode: "async",
+            pageCount: state.display.pageCount,
+            indexingStatus: state.display.indexingStatus,
+          },
+        });
+      }
+      setStatus(state.display.message);
+      await refreshDashboardInBackground({ agentId: state.agentId, activeAction: "knowledge-import" });
+      return;
+    }
+  } catch (error) {
+    if (knowledgeImportPollState !== state || state.stopped) {
+      return;
+    }
+
+    state.lastError = error;
+    if (state.pollCount >= 3) {
+      state.display = buildKnowledgeImportDisplayState({
+        ...state.display,
+        state: "stalled",
+        jobId: state.jobId,
+        agentId: state.agentId,
+        websiteUrl: state.websiteUrl,
+      });
+      setStatus(state.display.message);
+      renderKnowledgeImportProgress();
+      return;
+    }
+  }
+
+  if (knowledgeImportPollState === state && !state.display?.terminal) {
+    state.timerId = window.setTimeout(pollKnowledgeImportStatus, getKnowledgeImportPollIntervalMs(state.pollCount));
+  }
+}
+
+function startKnowledgeImportPolling(agent, importData, options = {}) {
+  const jobId = trimText(importData?.import?.jobId);
+  const agentId = trimText(importData?.agentId || agent?.id);
+  const clientId = trimText(options.clientId || getClientId());
+  const statusUrl = getKnowledgeImportStatusUrl(agentId, jobId, clientId, importData?.statusUrl);
+
+  if (!jobId || !agentId || !statusUrl) {
+    return null;
+  }
+
+  stopKnowledgeImportPolling();
+  const display = buildKnowledgeImportDisplayState({
+    state: importData?.import?.status || "queued",
+    jobId,
+    statusUrl,
+    agentId,
+    websiteUrl: importData?.websiteUrl || agent?.websiteUrl,
+  });
+  knowledgeImportPollState = {
+    agentId,
+    jobId,
+    statusUrl,
+    websiteUrl: display.websiteUrl,
+    pollCount: 0,
+    timerId: null,
+    stopped: false,
+    display,
+  };
+  renderKnowledgeImportProgress();
+  knowledgeImportPollState.timerId = window.setTimeout(pollKnowledgeImportStatus, getKnowledgeImportPollIntervalMs(0));
+
+  return display;
 }
 
 function inferSetup(agent) {
@@ -7203,7 +7501,7 @@ function _buildConfigurationStudio(agent, setup) {
               </div>
             </div>
             <div class="inline-actions">
-              <button class="ghost-button" type="button" data-action="import-knowledge">${knowledgeActionLabel}</button>
+              <button class="ghost-button" type="button" data-action="import-knowledge" ${setup.knowledgeState === "limited" ? 'data-import-force="true"' : ""}>${knowledgeActionLabel}</button>
             </div>
             <p class="section-note">${escapeHtml(setup.knowledgeDescription)}</p>
           </section>
@@ -10328,7 +10626,8 @@ function buildOverviewActionMarkup(agent, action = null, { primary = false } = {
   }
 
   if (action.type === "import") {
-    return `<button class="${buttonClass}" type="button" data-action="import-knowledge">${escapeHtml(actionLabel)}</button>`;
+    const isRetry = /retry|refresh/i.test(actionLabel);
+    return `<button class="${buttonClass}" type="button" data-action="import-knowledge" ${isRetry ? 'data-import-force="true"' : ""}>${escapeHtml(actionLabel)}</button>`;
   }
 
   if (action.type === "install") {
@@ -10458,7 +10757,7 @@ function buildActivationWizardActionMarkup(agent, wizard, activeStep) {
         ${importStatus === "failed" ? `<p class="activation-error">${escapeHtml(wizard?.importError || "Import failed. Retry when the site is reachable.")}</p>` : ""}
       </div>
       <div class="activation-actions">
-        <button class="primary-button" type="button" data-activation-import>${escapeHtml(agent.knowledge?.state === "missing" ? action.label || "Import website knowledge" : "Retry website import")}</button>
+        <button class="primary-button" type="button" data-activation-import ${agent.knowledge?.state === "missing" ? "" : 'data-import-force="true"'}>${escapeHtml(agent.knowledge?.state === "missing" ? action.label || "Import website knowledge" : "Retry website import")}</button>
         <button class="ghost-button" type="button" data-activation-skip="${escapeHtml(stepKey)}">Skip</button>
       </div>
     `;
@@ -11269,6 +11568,8 @@ function renderAssistantShell(
   operatorWorkspace = createEmptyOperatorWorkspace(),
   frontDeskTraining = createEmptyFrontDeskTraining()
 ) {
+  setup = mergeKnowledgeImportIntoSetup(setup, agent);
+
   if (DASHBOARD_V2_ENABLED) {
     renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
     return;
@@ -12088,7 +12389,11 @@ function bindWorkspaceAutoRefresh(agentId) {
   workspaceRefreshBound = true;
 }
 
-async function importKnowledge(agent, options = {}) {
+window.addEventListener?.("pagehide", () => {
+  stopKnowledgeImportPolling();
+});
+
+async function importKnowledgeSync(agent, options = {}) {
   try {
     const importData = await fetchJson("/knowledge/import", {
       method: "POST",
@@ -12099,6 +12404,7 @@ async function importKnowledge(agent, options = {}) {
       body: JSON.stringify({
         agent_key: agent.publicAgentKey,
         client_id: options.clientId || getClientId(),
+        ...(options.force === true ? { force: true } : {}),
       })
     });
 
@@ -12134,21 +12440,123 @@ async function importKnowledge(agent, options = {}) {
     return {
       ...fallbackSetup,
       hadError: true,
-      errorMessage: error.message || "Import failed. The assistant may have limited knowledge.",
+      errorMessage: getOwnerSafeImportErrorMessage(),
     };
   }
 }
 
-async function runKnowledgeImport(agent) {
-  setStatus("Importing website knowledge...");
-  const nextSetup = await importKnowledge(agent);
+function isAsyncKnowledgeImportStart(importData) {
+  return importData?.ok === true
+    && trimText(importData.mode) === "async"
+    && trimText(importData?.import?.jobId)
+    && trimText(importData?.agentId);
+}
+
+function buildSupersededKnowledgeImportResult(agent) {
+  const display = getKnowledgeImportDisplayState(agent?.id);
+
+  if (display) {
+    return {
+      knowledgeState: "limited",
+      label: display.label,
+      description: display.message,
+      importStatus: display,
+      pending: true,
+      hadError: false,
+    };
+  }
+
+  return {
+    knowledgeState: "limited",
+    label: "Import running",
+    description: "A newer website import request is already running.",
+    pending: true,
+    hadError: false,
+  };
+}
+
+async function importKnowledge(agent, options = {}) {
+  if (options.auth === false) {
+    return importKnowledgeSync(agent, options);
+  }
+
+  const requestId = knowledgeImportStartRequestId + 1;
+  knowledgeImportStartRequestId = requestId;
+  stopKnowledgeImportPolling();
 
   try {
-    setStatus(nextSetup.knowledgeState === "ready"
+    const importData = await fetchJson("/knowledge/import", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      auth: options.auth,
+      body: JSON.stringify({
+        agent_key: agent.publicAgentKey,
+        client_id: options.clientId || getClientId(),
+        async: true,
+        ...(options.force === true ? { force: true } : {}),
+      })
+    });
+
+    if (requestId !== knowledgeImportStartRequestId) {
+      return buildSupersededKnowledgeImportResult(agent);
+    }
+
+    if (!isAsyncKnowledgeImportStart(importData)) {
+      return importKnowledgeSync(agent, options);
+    }
+
+    const display = startKnowledgeImportPolling(agent, importData, options);
+    if (!display) {
+      return importKnowledgeSync(agent, options);
+    }
+
+    trackProductEvent("knowledge_import_started", {
+      agentId: agent.id,
+      metadata: {
+        mode: "async",
+        reused: importData?.import?.reused === true,
+      },
+    });
+
+    return {
+      knowledgeState: "limited",
+      label: display.label,
+      description: display.message,
+      importStatus: display,
+      pending: true,
+      hadError: false,
+    };
+  } catch (error) {
+    if (requestId !== knowledgeImportStartRequestId) {
+      return buildSupersededKnowledgeImportResult(agent);
+    }
+
+    trackProductEvent("knowledge_import_async_start_failed", {
+      agentId: agent.id,
+      metadata: {
+        importError: error.message || "Import failed",
+      },
+    });
+    return importKnowledgeSync(agent, options);
+  }
+}
+
+async function runKnowledgeImport(agent, options = {}) {
+  setStatus(options.force === true ? "Retrying website import..." : "Starting website import...");
+  const nextSetup = await importKnowledge(agent, options);
+
+  try {
+    setStatus(nextSetup.importStatus
+      ? nextSetup.importStatus.message
+      : nextSetup.knowledgeState === "ready"
       ? "Website knowledge is ready."
       : "Website knowledge was imported with limited detail."
     );
-    await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-import" });
+    if (!nextSetup.pending) {
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-import" });
+    }
   } catch (error) {
     setStatus(nextSetup.errorMessage || error.message || "Import failed. The assistant may have limited knowledge.");
     await refreshDashboardInBackground({ agentId: agent.id, activeAction: "knowledge-import" });
@@ -15386,6 +15794,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   activationImportButtons.forEach((button) => {
     button.addEventListener("click", async () => {
       button.disabled = true;
+      const force = button.dataset.importForce === "true";
       await saveActivationWizardProgress({
         agent_id: agent.id,
         step: "import_knowledge",
@@ -15395,12 +15804,19 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       setStatus("Importing website knowledge...");
 
       try {
-        const nextSetup = await importKnowledge(agent);
+        const nextSetup = await importKnowledge(agent, { force });
+        if (nextSetup.pending) {
+          setStatus(nextSetup.importStatus?.message || "Website import is running.");
+          return;
+        }
+
         await completeActivationStep("import_knowledge", {
           import_status: nextSetup.hadError ? "failed" : nextSetup.knowledgeState === "ready" ? "success" : "limited",
           import_error: nextSetup.errorMessage || "",
         });
-        setStatus(nextSetup.knowledgeState === "ready"
+        setStatus(nextSetup.importStatus
+          ? nextSetup.importStatus.message
+          : nextSetup.knowledgeState === "ready"
           ? "Website knowledge imported."
           : nextSetup.errorMessage || "Website knowledge imported with limited detail.");
         await refreshDashboardInBackground({ agentId: agent.id, activeAction: "activation-import" });
@@ -15491,7 +15907,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   importButtons.forEach((button) => {
     button.addEventListener("click", async () => {
-      await runKnowledgeImport(agent);
+      const force = button.dataset.importForce === "true" || /retry|refresh/i.test(trimText(button.textContent));
+      await runKnowledgeImport(agent, { force });
       await refreshActivationWizard();
     });
   });

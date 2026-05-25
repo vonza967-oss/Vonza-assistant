@@ -417,6 +417,14 @@ function createActiveAgent(overrides = {}) {
   };
 }
 
+function parseFetchJsonBody(options = {}) {
+  try {
+    return JSON.parse(String(options.body || "{}"));
+  } catch {
+    return {};
+  }
+}
+
 function createOperatorWorkspaceWithContacts(contacts = [], overrides = {}) {
   return {
     connectedAccounts: [],
@@ -1616,4 +1624,252 @@ test("tab switching still leaves the selected section rendered as the active vie
     /shell-nav-button active"[\s\S]*data-shell-target="analytics"/
   );
   assert.match(harness.getRootHtml(), /Conversations over time/);
+});
+
+test("dashboard website import starts async and polls to terminal success", async () => {
+  const agent = createActiveAgent({ knowledge: { state: "limited", description: "Needs import.", pageCount: 0 } });
+  const statuses = [
+    {
+      ok: true,
+      agentId: "agent-1",
+      websiteUrl: "https://example.com/",
+      job: {
+        id: "job-1",
+        status: "running",
+        phase: "crawling",
+        pageCount: 0,
+        contentLength: 0,
+        stalled: false,
+        indexing: { status: "not_started" },
+      },
+      knowledge: null,
+    },
+    {
+      ok: true,
+      agentId: "agent-1",
+      websiteUrl: "https://example.com/",
+      job: {
+        id: "job-1",
+        status: "success",
+        phase: "success",
+        pageCount: 3,
+        contentLength: 900,
+        stalled: false,
+        indexing: { status: "indexed" },
+      },
+      knowledge: { pageCount: 3, contentLength: 900 },
+    },
+  ];
+  const harness = createDashboardHarness({
+    agents: () => [agent],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/knowledge/import") {
+        return buildResponse({
+          status: 202,
+          body: {
+            ok: true,
+            mode: "async",
+            agentId: "agent-1",
+            businessId: "business-1",
+            websiteUrl: "https://example.com/",
+            import: { jobId: "job-1", status: "queued", reused: false },
+            statusUrl: "/api/agents/agent-1/knowledge/import/status?job_id=job-1&client_id=client-1",
+          },
+        });
+      }
+      if (pathname === "/api/agents/agent-1/knowledge/import/status") {
+        return buildResponse({ status: 200, body: statuses.shift() || statuses.at(-1) });
+      }
+      return null;
+    },
+  });
+  harness.getGlobal("window").VONZA_IMPORT_POLL_INTERVAL_MS = 0;
+
+  const result = await harness.getGlobal("importKnowledge")(agent);
+  await harness.settle();
+  await harness.settle();
+
+  const startCall = harness.fetchCalls.find((call) => call.pathname === "/knowledge/import");
+  assert.equal(parseFetchJsonBody(startCall.options).async, true);
+  assert.equal(result.pending, true);
+  assert.match(result.importStatus.message, /queued/i);
+  assert.ok(harness.fetchCalls.some((call) => call.pathname === "/api/agents/agent-1/knowledge/import/status"));
+  assert.equal(harness.getGlobal("getKnowledgeImportDisplayState")("agent-1").state, "success");
+});
+
+test("dashboard async import limited and failed states stay owner-safe and retry with force", async () => {
+  const agent = createActiveAgent();
+  const harness = createDashboardHarness({
+    agents: () => [agent],
+    customFetch: async ({ pathname, options, buildResponse }) => {
+      if (pathname === "/knowledge/import") {
+        const body = parseFetchJsonBody(options);
+        return buildResponse({
+          status: 202,
+          body: {
+            ok: true,
+            mode: "async",
+            agentId: "agent-1",
+            businessId: "business-1",
+            websiteUrl: "https://example.com/",
+            import: { jobId: body.force ? "job-retry" : "job-limited", status: "queued", reused: false },
+            statusUrl: `/api/agents/agent-1/knowledge/import/status?job_id=${body.force ? "job-retry" : "job-limited"}&client_id=client-1`,
+          },
+        });
+      }
+      if (pathname === "/api/agents/agent-1/knowledge/import/status") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            agentId: "agent-1",
+            websiteUrl: "https://example.com/",
+            job: {
+              id: "job-limited",
+              status: "success",
+              phase: "success",
+              pageCount: 2,
+              contentLength: 800,
+              stalled: false,
+              indexing: {
+                status: "partial",
+                message: "raw OpenAI sk-secret stack trace",
+                errorCount: 1,
+              },
+            },
+            knowledge: { pageCount: 2, contentLength: 800 },
+          },
+        });
+      }
+      return null;
+    },
+  });
+  harness.getGlobal("window").VONZA_IMPORT_POLL_INTERVAL_MS = 0;
+
+  await harness.getGlobal("importKnowledge")(agent);
+  await harness.settle();
+  const limitedState = harness.getGlobal("getKnowledgeImportDisplayState")("agent-1");
+
+  assert.equal(limitedState.state, "limited");
+  assert.match(limitedState.message, /semantic indexing/i);
+  assert.doesNotMatch(JSON.stringify(limitedState), /sk-secret|stack trace|OpenAI/);
+
+  await harness.getGlobal("importKnowledge")(agent, { force: true });
+  const retryCall = harness.fetchCalls
+    .filter((call) => call.pathname === "/knowledge/import")
+    .at(-1);
+  assert.equal(parseFetchJsonBody(retryCall.options).force, true);
+});
+
+test("dashboard ignores stale async import starts after a newer retry begins", async () => {
+  const agent = createActiveAgent();
+  const importStarts = [];
+  const harness = createDashboardHarness({
+    agents: () => [agent],
+    customFetch: async ({ pathname, options, url, buildResponse }) => {
+      if (pathname === "/knowledge/import") {
+        const body = parseFetchJsonBody(options);
+        return new Promise((resolve) => {
+          importStarts.push({
+            body,
+            resolve: () => resolve(buildResponse({
+              status: 202,
+              body: {
+                ok: true,
+                mode: "async",
+                agentId: "agent-1",
+                businessId: "business-1",
+                websiteUrl: "https://example.com/",
+                import: { jobId: body.force ? "job-new" : "job-old", status: "queued", reused: false },
+                statusUrl: `/api/agents/agent-1/knowledge/import/status?job_id=${body.force ? "job-new" : "job-old"}&client_id=client-1`,
+              },
+            })),
+          });
+        });
+      }
+
+      if (pathname === "/api/agents/agent-1/knowledge/import/status") {
+        const jobId = new URL(url).searchParams.get("job_id");
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            agentId: "agent-1",
+            websiteUrl: "https://example.com/",
+            job: {
+              id: jobId,
+              status: "success",
+              phase: "success",
+              pageCount: 4,
+              contentLength: 1200,
+              stalled: false,
+              indexing: { status: "indexed" },
+            },
+            knowledge: { pageCount: 4, contentLength: 1200 },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  harness.getGlobal("window").VONZA_IMPORT_POLL_INTERVAL_MS = 0;
+
+  const firstImport = harness.getGlobal("importKnowledge")(agent);
+  await harness.settle();
+  const retryImport = harness.getGlobal("importKnowledge")(agent, { force: true });
+  await harness.settle();
+
+  assert.equal(importStarts.length, 2);
+  importStarts[1].resolve();
+  await retryImport;
+  await harness.settle();
+
+  importStarts[0].resolve();
+  await firstImport;
+  await harness.settle();
+
+  assert.equal(harness.getGlobal("getKnowledgeImportDisplayState")("agent-1").jobId, "job-new");
+  assert.ok(
+    harness.fetchCalls.some((call) => call.pathname === "/api/agents/agent-1/knowledge/import/status" && call.url.includes("job_id=job-new"))
+  );
+  assert.ok(
+    !harness.fetchCalls.some((call) => call.pathname === "/api/agents/agent-1/knowledge/import/status" && call.url.includes("job_id=job-old"))
+  );
+});
+
+test("dashboard import falls back to sync when async start shape is unexpected", async () => {
+  const agent = createActiveAgent();
+  const harness = createDashboardHarness({
+    agents: () => [agent],
+    customFetch: async ({ pathname, options, buildResponse }) => {
+      if (pathname !== "/knowledge/import") {
+        return null;
+      }
+
+      const body = parseFetchJsonBody(options);
+      if (body.async === true) {
+        return buildResponse({ status: 200, body: { ok: true } });
+      }
+
+      return buildResponse({
+        status: 200,
+        body: {
+          ok: true,
+          content: "Useful imported website content for the Front Desk.",
+          pageCount: 1,
+        },
+      });
+    },
+  });
+
+  const result = await harness.getGlobal("importKnowledge")(agent);
+  const importBodies = harness.fetchCalls
+    .filter((call) => call.pathname === "/knowledge/import")
+    .map((call) => parseFetchJsonBody(call.options));
+
+  assert.equal(importBodies[0].async, true);
+  assert.equal(Boolean(importBodies[1].async), false);
+  assert.equal(result.knowledgeState, "ready");
+  assert.equal(result.hadError, false);
 });

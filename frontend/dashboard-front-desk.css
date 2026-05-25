@@ -851,6 +851,26 @@ html[data-dashboard-theme="dark"] .frontdesk-support-copy {
   background: #f8fafc;
 }
 
+.dashboard-v2-production-shell .frontdesk-import-status {
+  border-color: #bfd7ee;
+  background: #f3f8fd;
+}
+
+.dashboard-v2-production-shell .frontdesk-import-status-limited,
+.dashboard-v2-production-shell .frontdesk-import-status-stalled {
+  border-color: #f0d9a8;
+  background: #fffaf0;
+}
+
+.dashboard-v2-production-shell .frontdesk-import-status-failed {
+  border-color: #f1b8b8;
+  background: #fff5f5;
+}
+
+.dashboard-v2-production-shell .frontdesk-import-status .ghost-button {
+  margin-top: 10px;
+}
+
 .dashboard-v2-production-shell .frontdesk-launch-channel-grid article:first-child {
   border-color: #b8d8d2;
   background: #f1f8f6;

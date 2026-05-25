@@ -41,6 +41,9 @@ test("Dashboard Front Desk renders training workspace tabs and empty states", ()
   assert.match(frontDeskDashboardSurface, /No answer fixes are waiting/);
   assert.match(frontDeskDashboardSurface, /No published answers yet/);
   assert.match(frontDeskDashboardSurface, /Published answers Front Desk can use when visitors ask similar questions/);
+  assert.match(frontDeskDashboardSurface, /Import status/);
+  assert.match(frontDeskDashboardSurface, /Retry starts a fresh async import for the full-page Front Desk knowledge base/);
+  assert.match(frontDeskDashboardSurface, /semantic indexing needs a retry/i);
   assert.doesNotMatch(frontDeskDashboardSurface, /Approved answers/);
   assert.doesNotMatch(frontDeskDashboardSurface, /Training queue/);
   assert.doesNotMatch(frontDeskDashboardSurface, /Test Front Desk/);

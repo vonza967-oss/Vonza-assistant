@@ -146,16 +146,26 @@
     const businessContextStatus = Number(businessReadiness.missingCount || 0) > 0
       ? `${businessReadiness.missingCount} area${businessReadiness.missingCount === 1 ? "" : "s"} could use a quick review before the Front Desk feels fully grounded.`
       : "Business context is in a strong place for customer-facing conversations.";
+    const importStatus = setup.importStatus || null;
+    const importActive = ["queued", "running", "crawling", "indexing"].includes(trimText(importStatus?.state).toLowerCase());
+    const importLimited = trimText(importStatus?.state).toLowerCase() === "limited";
+    const importFailed = ["failed", "stalled"].includes(trimText(importStatus?.state).toLowerCase());
 
     return {
       website: agent.websiteUrl || "No website configured",
       pagesLearned: setup.knowledgePageCount ? `${setup.knowledgePageCount} page${setup.knowledgePageCount === 1 ? "" : "s"} imported` : "No pages imported yet",
       missingSetup: missingSetupFields.length ? missingSetupFields.join(", ") : "No required setup gaps are standing out.",
-      customerImpact: setup.knowledgeReady
-        ? "The Front Desk is ready to answer with solid business context."
-        : setup.knowledgeLimited
-          ? "The Front Desk can already help, and another import should make answers stronger."
-          : "Import your site to give the Front Desk more specific business detail.",
+      customerImpact: importActive
+        ? importStatus.message || "Website import is running for Front Desk knowledge."
+        : importLimited
+          ? "Website content is available, but semantic indexing needs a retry before answers are fully optimized."
+          : importFailed
+            ? importStatus.message || "Website import needs a retry before Front Desk knowledge is current."
+            : setup.knowledgeReady
+              ? "The Front Desk is ready to answer with solid business context."
+              : setup.knowledgeLimited
+                ? "The Front Desk can already help, and another import should make answers stronger."
+                : "Import your site to give the Front Desk more specific business detail.",
       businessContextStatus,
       businessContextSummary: businessReadiness.summary || "Business context readiness will appear here once the owner starts reviewing the profile.",
       profileContentSummary,
@@ -806,6 +816,17 @@
         missingSetupFields,
         profileContentSummary,
       });
+      const importStatus = setup.importStatus || null;
+      const importState = trimText(importStatus?.state).toLowerCase();
+      const importActive = ["queued", "running", "crawling", "indexing"].includes(importState);
+      const importRetryable = importStatus?.retryable === true || ["limited", "failed", "stalled"].includes(importState);
+      const readinessTitle = importStatus
+        ? importStatus.label || "Website import"
+        : setup.knowledgeReady
+          ? "Ready for customer questions"
+          : setup.knowledgeLimited
+            ? "Usable, but needs another pass"
+            : "Import and review needed";
 
       return `
         <section class="frontdesk-workspace-panel frontdesk-main-panel frontdesk-polished-panel frontdesk-context-panel" data-frontdesk-section="knowledge" ${activeFrontDeskSection === "knowledge" ? "" : "hidden"}>
@@ -823,13 +844,21 @@
           <div class="frontdesk-knowledge-readiness">
             <article>
               <span>Readiness</span>
-              <strong>${sanitizeHtml(setup.knowledgeReady ? "Ready for customer questions" : setup.knowledgeLimited ? "Usable, but needs another pass" : "Import and review needed")}</strong>
+              <strong>${sanitizeHtml(readinessTitle)}</strong>
               <p>${sanitizeHtml(summary.customerImpact)}</p>
             </article>
+            ${importStatus ? `
+              <article class="frontdesk-import-status frontdesk-import-status-${sanitizeHtml(importState || "unknown")}">
+                <span>Import status</span>
+                <strong>${sanitizeHtml(importActive ? `${importStatus.label || "Running"} now` : importStatus.label || "Website import")}</strong>
+                <p>${sanitizeHtml(importStatus.message || "Website import status will appear here.")}</p>
+                ${importRetryable ? `<button class="ghost-button" type="button" data-action="import-knowledge" data-import-force="true">Retry website import</button>` : ""}
+              </article>
+            ` : ""}
             <article>
               <span>Owner action</span>
-              <strong>${sanitizeHtml(missingSetupFields.length ? "Fill setup gaps" : "Review business profile")}</strong>
-              <p>${sanitizeHtml(missingSetupFields.length ? summary.missingSetup : "Keep services, pricing, hours, location, and policies current.")}</p>
+              <strong>${sanitizeHtml(importRetryable ? "Retry import" : missingSetupFields.length ? "Fill setup gaps" : "Review business profile")}</strong>
+              <p>${sanitizeHtml(importRetryable ? "Retry starts a fresh async import for the full-page Front Desk knowledge base." : missingSetupFields.length ? summary.missingSetup : "Keep services, pricing, hours, location, and policies current.")}</p>
             </article>
           </div>
           <div class="frontdesk-detail-stack">

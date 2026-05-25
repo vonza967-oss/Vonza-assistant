@@ -1079,6 +1079,31 @@
     return SETTINGS_SECTION_DETAILS.find((section) => section.key === normalizeSettingsSection(sectionKey)) || SETTINGS_SECTION_DETAILS[0];
   }
 
+  function getKnowledgeImportSettingsState(setup = {}) {
+    const importStatus = setup.importStatus || null;
+    const state = String(importStatus?.state || "").trim().toLowerCase();
+    const active = ["queued", "running", "crawling", "indexing"].includes(state);
+    const retryable = importStatus?.retryable === true || ["limited", "failed", "stalled"].includes(state);
+
+    if (importStatus) {
+      return {
+        label: importStatus.label || "Website import",
+        value: active ? `${importStatus.label || "Import"} now` : importStatus.label || "Website import",
+        summary: importStatus.message || "Website import status will appear here.",
+        retryable,
+        active,
+      };
+    }
+
+    return {
+      label: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing",
+      value: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing",
+      summary: setup.knowledgeDescription || "Website knowledge status appears after import.",
+      retryable: setup.knowledgeState === "limited",
+      active: false,
+    };
+  }
+
   function buildLegalLinksMarkup() {
     return `
       <div class="app-legal-links">
@@ -1186,6 +1211,7 @@
     const { escapeHtml, getBadgeClass, getBusinessProfileViewModel } = helpers;
     const profile = getBusinessProfileViewModel(operatorWorkspace);
     const knowledgeActionLabel = setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge";
+    const importState = getKnowledgeImportSettingsState(setup);
 
     return `
       <div data-settings-section="business_profile" class="settings-shell-form settings-shell-form--system settings-business-profile-panel" id="settings-section-business_profile">
@@ -1212,9 +1238,9 @@
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Website knowledge</span>
-              <span class="${getBadgeClass(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Pending")}">${escapeHtml(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing")}</span>
+              <span class="${getBadgeClass(importState.active ? "Pending" : setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" || importState.retryable ? "Limited" : "Pending")}">${escapeHtml(importState.value)}</span>
             </div>
-            <p>${escapeHtml(setup.knowledgeDescription || "Website knowledge status appears after import.")}</p>
+            <p>${escapeHtml(importState.summary)}</p>
           </article>
         </section>
 
@@ -1263,11 +1289,12 @@
             <div class="settings-shell-status-row settings-shell-status-row--actions">
               <div class="settings-shell-status-main">
                 <p class="settings-shell-status-label">Import status</p>
-                <h4 class="settings-shell-status-value">${escapeHtml(setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing")}</h4>
-                <p class="settings-shell-status-copy">${escapeHtml(setup.knowledgeDescription || "Website knowledge status appears after import.")}</p>
+                <h4 class="settings-shell-status-value">${escapeHtml(importState.value)}</h4>
+                <p class="settings-shell-status-copy">${escapeHtml(importState.summary)}</p>
+                ${importState.retryable ? `<p class="settings-shell-status-copy">Retry starts a fresh async import for full-page Front Desk knowledge.</p>` : ""}
               </div>
               <div class="settings-shell-status-actions">
-                <button class="ghost-button" type="button" data-action="import-knowledge">${escapeHtml(knowledgeActionLabel)}</button>
+                <button class="ghost-button" type="button" data-action="import-knowledge" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : knowledgeActionLabel)}</button>
               </div>
             </div>
           </div>
@@ -2765,8 +2792,11 @@
     const installStatus = getDefaultInstallStatus(agent);
     const google = getGoogleWorkspaceCapabilities(operatorWorkspace);
     const workspaceMode = getWorkspaceMode(operatorWorkspace);
+    const importState = getKnowledgeImportSettingsState(setup);
     const knowledgeDescription = setup.knowledgeDescription || "";
-    const knowledgeSummary = knowledgeDescription && !(setup.knowledgeState === "ready" && /not (available|imported)|missing/i.test(knowledgeDescription))
+    const knowledgeSummary = setup.importStatus
+      ? importState.summary
+      : knowledgeDescription && !(setup.knowledgeState === "ready" && /not (available|imported)|missing/i.test(knowledgeDescription))
       ? knowledgeDescription
       : setup.knowledgeState === "ready"
         ? "Website knowledge is ready for the assistant."
@@ -2775,7 +2805,7 @@
           : "Website knowledge status appears after import.";
     const capabilities = [
       { label: "Workspace mode", value: workspaceMode.title },
-      { label: "Website knowledge", value: setup.knowledgeState === "ready" ? "Ready" : setup.knowledgeState === "limited" ? "Limited" : "Missing" },
+      { label: "Website knowledge", value: importState.value },
       { label: "Widget install", value: installStatus.label || "Not installed yet" },
       { label: "Gmail read", value: google.gmailRead ? "Connected" : "Not connected" },
       { label: "Calendar write", value: google.calendarWrite ? "Connected" : "Not connected" },
@@ -2788,7 +2818,7 @@
             <h2 class="settings-card-title">Integrations</h2>
             <p class="settings-card-copy">Real install, website knowledge, and connected workspace status.</p>
           </div>
-          <button class="ghost-button" type="button" data-action="import-knowledge">${escapeHtml(setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge")}</button>
+          <button class="ghost-button" type="button" data-action="import-knowledge" ${importState.retryable ? 'data-import-force="true"' : ""}>${escapeHtml(importState.retryable ? "Retry website import" : setup.knowledgeState === "limited" ? "Retry website import" : "Import website knowledge")}</button>
         </div>
         <div class="settings-status-list">
           ${capabilities.map((item) => `

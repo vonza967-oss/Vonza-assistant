@@ -443,6 +443,38 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
   assert.match(emptyMarkup, /Source activity/);
 });
 
+test("Front Desk and Settings render async import progress and safe retry guidance", () => {
+  const harness = createDashboardHarness();
+  const agent = createDashboardUiStateAgent({
+    knowledge: {
+      state: "limited",
+      description: "Website content is partial.",
+      pageCount: 2,
+    },
+  });
+  const setup = {
+    ...harness.inferSetup(agent),
+    importStatus: {
+      state: "limited",
+      label: "Partial indexing",
+      message: "Website content is available for the Front Desk, but semantic indexing did not fully finish. Retry import to refresh indexing.",
+      retryable: true,
+      indexingMessage: "raw OpenAI sk-secret stack trace",
+    },
+  };
+  const workspace = harness.createEmptyOperatorWorkspace();
+
+  const frontDesk = harness.buildFrontDeskPanel(agent, setup, workspace);
+  const settings = buildSettingsSection(harness, "business_profile", agent, setup, workspace);
+
+  assert.match(frontDesk, /Partial indexing/);
+  assert.match(frontDesk, /Retry website import/);
+  assert.match(frontDesk, /full-page Front Desk knowledge/);
+  assert.match(settings, /semantic indexing did not fully finish/);
+  assert.match(settings, /data-import-force="true"/);
+  assert.doesNotMatch(`${frontDesk}\n${settings}`, /sk-secret|stack trace|OpenAI/);
+});
+
 test("dashboard V2 Install keeps real widget, full-page assistant, QR, copy, and verification controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
