@@ -107,7 +107,10 @@ import {
   extractBusinessWebsiteContent,
   getStoredWebsiteContent,
 } from "../services/scraping/websiteContentService.js";
-import { importBusinessWebsiteKnowledge } from "../services/scraping/websiteImportCoordinator.js";
+import {
+  getBusinessWebsiteImportStatus,
+  importBusinessWebsiteKnowledge,
+} from "../services/scraping/websiteImportCoordinator.js";
 import {
   recordInstallPing,
   verifyAgentInstallation,
@@ -272,6 +275,8 @@ export function createAgentRouter(deps = {}) {
   const extractBusinessWebsiteContentImpl = deps.extractBusinessWebsiteContent || extractBusinessWebsiteContent;
   const importBusinessWebsiteKnowledgeImpl =
     deps.importBusinessWebsiteKnowledge || importBusinessWebsiteKnowledge;
+  const getBusinessWebsiteImportStatusImpl =
+    deps.getBusinessWebsiteImportStatus || getBusinessWebsiteImportStatus;
   const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
   const getOwnerBillingRecordImpl = deps.getOwnerBillingRecord || getOwnerBillingRecord;
   const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
@@ -3065,6 +3070,7 @@ export function createAgentRouter(deps = {}) {
     try {
       const supabase = getSupabase();
       const user = await authenticateUser(supabase, req);
+      const clientId = req.body.client_id || req.body.clientId;
       const context = await resolveAgentContextImpl(supabase, {
         agentKey: req.body.agent_key || req.body.agentKey,
         businessId: req.body.business_id || req.body.businessId,
@@ -3072,8 +3078,40 @@ export function createAgentRouter(deps = {}) {
       await requireActiveAgentAccessImpl(supabase, {
         agentId: context.agent.id,
         ownerUserId: user.id,
-        clientId: req.body.client_id || req.body.clientId,
+        clientId,
       });
+
+      if (req.body.async === true) {
+        const statusParams = new URLSearchParams();
+        statusParams.set("job_id", "__JOB_ID__");
+        if (cleanText(clientId)) {
+          statusParams.set("client_id", cleanText(clientId));
+        }
+
+        const result = await importBusinessWebsiteKnowledgeImpl(supabase, {
+          async: true,
+          force: req.body.force === true,
+          businessId: context.business.id,
+          websiteUrl: context.business.website_url,
+          agentId: context.agent.id,
+          ownerUserId: user.id,
+          agent: context.agent,
+          statusUrl: `/api/agents/${encodeURIComponent(context.agent.id)}/knowledge/import/status?${statusParams.toString()}`,
+        }, {
+          ensureBusinessRecord: async () => context.business,
+          extractBusinessWebsiteContent: extractBusinessWebsiteContentImpl,
+          reindexFrontDeskKnowledge: reindexFrontDeskKnowledgeImpl,
+          getOpenAIClient: getOpenAI,
+        });
+
+        const response = {
+          ...result,
+          statusUrl: cleanText(result.statusUrl).replace("__JOB_ID__", encodeURIComponent(result.import?.jobId || "")),
+        };
+
+        res.status(202).json(response);
+        return;
+      }
 
       const result = await importBusinessWebsiteKnowledgeImpl(supabase, {
         businessId: context.business.id,
@@ -3100,6 +3138,34 @@ export function createAgentRouter(deps = {}) {
       res.json(result);
     } catch (err) {
       sendRouteError(req, res, err, { route: "/knowledge/import" });
+    }
+  });
+
+  router.get("/api/agents/:agentId/knowledge/import/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.params.agentId;
+      const clientId = req.query.client_id || req.query.clientId;
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId,
+      });
+
+      const result = await getBusinessWebsiteImportStatusImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        jobId: req.query.job_id || req.query.jobId,
+        clientId,
+      }, {
+        getStoredWebsiteContent: getStoredWebsiteContentImpl,
+      });
+
+      res.json(result);
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/api/agents/:agentId/knowledge/import/status" });
     }
   });
 

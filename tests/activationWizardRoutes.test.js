@@ -129,3 +129,188 @@ test("activation wizard progress route persists skip and return behavior", async
     await server.close();
   }
 });
+
+test("knowledge import keeps synchronous default response shape", async () => {
+  const server = await startServer(createApp(buildDeps({
+    resolveAgentContext: async () => ({
+      agent: {
+        id: "agent-1",
+        ownerUserId: "owner-1",
+        businessId: "business-1",
+      },
+      business: {
+        id: "business-1",
+        website_url: "https://example.com/",
+      },
+    }),
+    importBusinessWebsiteKnowledge: async (_supabase, options) => {
+      assert.equal(options.async, undefined);
+      return {
+        ok: true,
+        businessId: "business-1",
+        websiteUrl: "https://example.com/",
+        content: "Imported content",
+        pageCount: 1,
+        import: {
+          status: "success",
+          jobId: "sync-job",
+        },
+      };
+    },
+    reindexFrontDeskKnowledge: async (_supabase, _openai, payload) => {
+      assert.equal(payload.ownerUserId, "owner-1");
+      assert.equal(payload.websiteContent.import.jobId, "sync-job");
+      return { ok: true };
+    },
+    getOpenAIClient: () => ({}),
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/knowledge/import", {
+      method: "POST",
+      body: JSON.stringify({
+        business_id: "business-1",
+        client_id: "client-1",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.mode, undefined);
+    assert.equal(response.json.import.status, "success");
+    assert.equal(response.json.import.jobId, "sync-job");
+  } finally {
+    await server.close();
+  }
+});
+
+test("knowledge import async mode returns accepted job status URL", async () => {
+  const server = await startServer(createApp(buildDeps({
+    resolveAgentContext: async () => ({
+      agent: {
+        id: "agent-1",
+        ownerUserId: "owner-1",
+        businessId: "business-1",
+      },
+      business: {
+        id: "business-1",
+        website_url: "https://example.com/",
+      },
+    }),
+    importBusinessWebsiteKnowledge: async (_supabase, options) => {
+      assert.equal(options.async, true);
+      assert.equal(options.force, false);
+      assert.equal(options.ownerUserId, "owner-1");
+      assert.match(options.statusUrl, /__JOB_ID__/);
+      return {
+        ok: true,
+        mode: "async",
+        agentId: "agent-1",
+        businessId: "business-1",
+        websiteUrl: "https://example.com/",
+        import: {
+          jobId: "job-async-1",
+          status: "queued",
+          reused: false,
+        },
+        statusUrl: options.statusUrl,
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/knowledge/import", {
+      method: "POST",
+      body: JSON.stringify({
+        async: true,
+        business_id: "business-1",
+        client_id: "client-1",
+      }),
+    });
+
+    assert.equal(response.status, 202);
+    assert.equal(response.json.mode, "async");
+    assert.equal(response.json.import.jobId, "job-async-1");
+    assert.equal(response.json.import.status, "queued");
+    assert.match(response.json.statusUrl, /job_id=job-async-1/);
+    assert.match(response.json.statusUrl, /client_id=client-1/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("knowledge import status route requires authentication before status lookup", async () => {
+  let statusLookupCalled = false;
+  const authError = new Error("Unauthorized");
+  authError.statusCode = 401;
+  const server = await startServer(createApp(buildDeps({
+    getAuthenticatedUser: async () => {
+      throw authError;
+    },
+    getBusinessWebsiteImportStatus: async () => {
+      statusLookupCalled = true;
+      return {};
+    },
+  })));
+
+  try {
+    const response = await requestJson(
+      server.baseUrl,
+      "/api/agents/agent-1/knowledge/import/status?client_id=client-1"
+    );
+
+    assert.equal(response.status, 401);
+    assert.equal(statusLookupCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("knowledge import status route is owner and agent scoped and allows latest lookup", async () => {
+  const server = await startServer(createApp(buildDeps({
+    requireActiveAgentAccess: async (_supabase, payload) => {
+      assert.deepEqual(payload, {
+        agentId: "agent-1",
+        ownerUserId: "owner-1",
+        clientId: "client-1",
+      });
+      return { id: "agent-1" };
+    },
+    getBusinessWebsiteImportStatus: async (_supabase, options) => {
+      assert.equal(options.ownerUserId, "owner-1");
+      assert.equal(options.agentId, "agent-1");
+      assert.equal(options.jobId, undefined);
+      assert.equal(options.clientId, "client-1");
+      return {
+        ok: true,
+        agentId: "agent-1",
+        businessId: "business-1",
+        websiteUrl: "https://example.com/",
+        job: {
+          id: "latest-job",
+          status: "running",
+          phase: "crawling",
+          attempts: 1,
+          pageCount: 0,
+          contentLength: 0,
+          stalled: false,
+          indexing: { status: "not_started" },
+        },
+        knowledge: null,
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(
+      server.baseUrl,
+      "/api/agents/agent-1/knowledge/import/status?client_id=client-1"
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.job.id, "latest-job");
+    assert.equal(response.json.job.phase, "crawling");
+  } finally {
+    await server.close();
+  }
+});
