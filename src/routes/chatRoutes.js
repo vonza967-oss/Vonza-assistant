@@ -126,6 +126,13 @@ export function createChatRouter(deps = {}) {
       const displayMode = normalizePublicDisplayMode(
         req.body.display_mode || req.body.displayMode || req.body.mode
       );
+      const conversationSource = normalizePublicConversationSource(
+        req.body.conversation_source ||
+          req.body.conversationSource ||
+          req.body.source_type ||
+          req.body.sourceType,
+        { displayMode }
+      );
       const result = await handleLeadCaptureRequestImpl({
         supabase: getSupabase(),
         body: req.body,
@@ -138,10 +145,11 @@ export function createChatRouter(deps = {}) {
           source: "lead_capture",
           metadata: {
             display_mode: displayMode,
+            ...(conversationSource ? { conversation_source: conversationSource } : {}),
             state: result.leadCapture.state,
             preferred_channel: result.leadCapture.preferredChannel || "",
           },
-          dedupeKey: `first_lead_captured:${displayMode}:${result.agentId}`,
+          dedupeKey: `first_lead_captured:${conversationSource || displayMode}:${result.agentId}`,
         });
       }
 

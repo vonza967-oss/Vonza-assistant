@@ -200,6 +200,7 @@ function createWidgetHarness({
     "call-front-desk-start",
     "call-front-desk-stop",
     "call-front-desk-end",
+    "call-front-desk-contact",
     "page-identity-inline",
     "page-identity-note",
     "page-identity-email-button",
@@ -975,6 +976,7 @@ test("call Front Desk CTA is page-only and requires voice input, spoken replies,
 
 test("call Front Desk turn transcribes, sends chat, and speaks with returned token", async () => {
   const calls = [];
+  const capturePayloads = [];
   TestMediaRecorder.instances = [];
   const harness = createWidgetHarness({
     location: {
@@ -1065,6 +1067,27 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
         };
       }
 
+      if (url === "/chat/capture") {
+        const payload = JSON.parse(options.body);
+        capturePayloads.push(payload);
+        return {
+          ok: true,
+          async json() {
+            return {
+              leadCapture: {
+                id: "lead-call-1",
+                state: "captured",
+                contact: {
+                  email: payload.email,
+                  name: payload.name,
+                },
+              },
+              visitorIdentity: payload.visitor_identity,
+            };
+          },
+        };
+      }
+
       return {
         ok: true,
         async json() {
@@ -1112,8 +1135,23 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.equal(harness.elements.get("call-front-desk-status").textContent, "Call ended");
   assert.equal(harness.elements.get("call-front-desk-summary").hidden, false);
   assert.match(harness.elements.get("call-front-desk-summary").textContent, /Call ended: 00:00, 1 turn\. Transcript remains in chat\./);
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+  assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
   assert.equal(harness.audioInstances[0].paused, true);
   assert.match(renderedChat, /Can you help with quotes\?/);
+
+  await harness.hooks.persistVisitorIdentityChoice({
+    mode: "identified",
+    email: "CALLER@EXAMPLE.COM",
+    name: "Caller Example",
+  });
+
+  assert.equal(harness.hooks.hasWebCallCaptureContext(), true);
+  assert.equal(capturePayloads.length, 1);
+  assert.equal(capturePayloads[0].display_mode, "page");
+  assert.equal(capturePayloads[0].conversation_source, "web_call");
+  assert.equal(capturePayloads[0].visitor_session_key, "uuid-1");
+  assert.equal(capturePayloads[0].email, "caller@example.com");
 });
 
 test("call Front Desk failure states use safe localized messages", async () => {
@@ -1159,6 +1197,70 @@ test("call Front Desk failure states use safe localized messages", async () => {
     harness.elements.get("call-front-desk-status").textContent,
     /Permission denied by test/
   );
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+  assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Elérhetőség megadása");
+  assert.equal(
+    harness.elements.get("call-front-desk-summary").textContent,
+    "Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet."
+  );
+});
+
+test("call Front Desk transcription failure offers contact fallback without provider details", async () => {
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: false,
+          status: 429,
+          async json() {
+            return { error: "provider quota stack detail" };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  await harness.hooks.startCallModeTurn();
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  harness.elements.get("call-front-desk-stop").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getCallModeState(), "unavailable");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Voice is busy right now. Try again in a moment.");
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+  assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
+  assert.equal(harness.elements.get("call-front-desk-summary").textContent, "You can type your message below or leave contact details.");
+  assert.doesNotMatch(harness.elements.get("call-front-desk-status").textContent, /provider|quota|stack/i);
 });
 
 test("voice transcription fills the composer without auto-sending by default", async () => {
@@ -3306,6 +3408,7 @@ test("widget persists continue-with-email identity as a captured lead", async ()
   assert.equal(payload.visitor_identity_mode, "identified");
   assert.equal(payload.email, "visitor@example.com");
   assert.equal(payload.preferred_channel, "email");
+  assert.equal(Object.hasOwn(payload, "conversation_source"), false);
 });
 
 test("widget does not infer identity from an email without explicit mode", () => {

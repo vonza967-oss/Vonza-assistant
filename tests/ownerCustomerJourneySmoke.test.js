@@ -610,17 +610,35 @@ test("customer journey labels Web Call messages without changing normal hosted p
         createdAt: "2026-05-20T10:05:00.000Z",
       },
     ],
+    leads: [
+      {
+        id: "lead-call",
+        visitorSessionKey: "lead-call-session",
+        captureState: "captured",
+        contactEmail: "caller@example.com",
+        captureSource: "web_call",
+        captureMetadata: {
+          displayMode: "page",
+          conversationSource: "web_call",
+        },
+        lastSeenAt: "2026-05-20T10:08:00.000Z",
+      },
+    ],
   });
 
   const pageContact = workspace.list.find((contact) => contact.latestMessageId === "msg-page");
   const webCallContact = workspace.list.find((contact) => contact.latestMessageId === "msg-call");
+  const webCallLead = workspace.list.find((contact) => contact.email === "caller@example.com");
 
   assert.ok(pageContact);
   assert.ok(webCallContact);
+  assert.ok(webCallLead);
   assert.ok(pageContact.sources.includes("full page assistant"));
   assert.ok(pageContact.sources.includes("chat"));
   assert.ok(webCallContact.sources.includes("web call"));
   assert.ok(webCallContact.sources.includes("chat"));
+  assert.ok(webCallLead.sources.includes("web call"));
+  assert.ok(webCallLead.sources.includes("chat"));
 });
 
 test("owner customer journey aggregation endpoints deny non-owner access before loading data", async () => {

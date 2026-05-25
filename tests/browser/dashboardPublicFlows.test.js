@@ -1124,6 +1124,7 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
   const chatRequests = [];
   const voiceRequests = [];
   const speechRequests = [];
+  const captureRequests = [];
   const phoneOrTelephonyRequests = [];
 
   page.on("request", (request) => {
@@ -1260,6 +1261,28 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
       body: Buffer.from("mp3"),
     });
   });
+  await page.route(/\/chat\/capture(?:[?#]|$)/, async (route) => {
+    const body = route.request().postDataJSON();
+    captureRequests.push(body);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        visitorIdentity: body.visitor_identity,
+        leadCapture: {
+          id: "lead-web-call-1",
+          state: "captured",
+          message: "Thanks. I saved those details so the team can follow up.",
+          preferredChannel: "email",
+          contact: {
+            email: body.email,
+            name: body.name,
+          },
+        },
+      }),
+    });
+  });
 
   try {
     const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
@@ -1290,6 +1313,27 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
     assert.equal(speechRequests.length, 1);
     assert.equal(speechRequests[0].display_mode, "page");
     assert.equal(speechRequests[0].speech_token, "browser-call-speech-token");
+
+    await page.locator("#call-front-desk-end").click();
+    await assertVisibleText(page, "Call ended");
+    await assertVisibleText(page, "Leave contact details");
+    await page.locator("#call-front-desk-contact").click();
+    await page.locator("#page-identity-email-form").waitFor({ state: "visible" });
+    await page.locator("#page-identity-name").fill("Web Caller");
+    await page.locator("#page-identity-email").fill("WEB.CALLER@EXAMPLE.TEST");
+    await page.locator("#page-identity-email-submit").click();
+    await page.waitForFunction(() =>
+      globalThis.document
+        .getElementById("composer-status")
+        ?.textContent.includes("web.caller@example.test")
+    );
+
+    assert.equal(captureRequests.length, 1);
+    assert.equal(captureRequests[0].display_mode, "page");
+    assert.equal(captureRequests[0].conversation_source, "web_call");
+    assert.equal(captureRequests[0].public_page_key, "page-key");
+    assert.equal(captureRequests[0].visitor_session_key, "session-page-web-call-turn");
+    assert.equal(captureRequests[0].email, "web.caller@example.test");
     assert.deepEqual(phoneOrTelephonyRequests, []);
   } finally {
     await page.close();

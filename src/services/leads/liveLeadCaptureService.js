@@ -622,6 +622,16 @@ function mergeLeadPayload(existing, payload) {
   return next;
 }
 
+function getLeadCaptureSource(options = {}) {
+  const conversationSource = cleanText(options.conversationSource || options.conversation_source).toLowerCase();
+
+  if (conversationSource === "web_call") {
+    return "web_call";
+  }
+
+  return "";
+}
+
 function getLeadActivityTimestamp(context = {}, fallback = null) {
   return context.sessionContext?.latestSessionItem?.lastSeenAt
     || context.sessionContext?.latestSessionItem?.createdAt
@@ -1043,9 +1053,12 @@ export async function processLiveChatLeadCapture(supabase, options = {}) {
       captureTrigger: decision.trigger,
       captureReason: decision.reason,
       capturePrompt: decision.prompt?.body || leadRecord?.capturePrompt || "",
+      captureSource: getLeadCaptureSource(options) || leadRecord?.captureSource,
       captureMetadata: {
         isReturningVisitor: context.sessionContext.isReturningVisitor === true,
         visitorIdentityMode: context.visitorIdentity.mode || "",
+        displayMode: cleanText(options.displayMode || options.display_mode),
+        conversationSource: cleanText(options.conversationSource || options.conversation_source),
       },
       blockedAt: decision.nextState === "blocked" ? new Date().toISOString() : leadRecord?.blockedAt || null,
       capturedAt: decision.nextState === "captured"
@@ -1206,9 +1219,12 @@ export async function applyLeadCaptureAction(supabase, options = {}) {
     captureTrigger: cleanText(context.sessionContext.triggerCode || decision.trigger || existing?.captureTrigger),
     captureReason: cleanText(context.sessionContext.triggerItem?.whyFlagged || decision.reason || existing?.captureReason),
     capturePrompt: cleanText(decision.prompt?.body || existing?.capturePrompt),
+    captureSource: getLeadCaptureSource(options) || existing?.captureSource,
     captureMetadata: {
       isReturningVisitor: context.sessionContext.isReturningVisitor === true,
       visitorIdentityMode: context.visitorIdentity.mode || "",
+      displayMode: cleanText(options.displayMode || options.display_mode),
+      conversationSource: cleanText(options.conversationSource || options.conversation_source),
     },
     lastSeenAt: getLeadActivityTimestamp(context),
   });

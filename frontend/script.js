@@ -366,6 +366,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callTurns": "Turns {turns}",
     "assistant.callSessionDetails": "Call session details",
     "assistant.callSummary": "Call ended: {duration}, {turns}. Transcript remains in chat.",
+    "assistant.callFallback": "You can type your message below or leave contact details.",
     "assistant.callOneTurn": "1 turn",
     "assistant.callTurnCount": "{count} turns",
     "assistant.resetIdentity": "Reset visitor identity",
@@ -532,6 +533,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callTurns": "Fordulók {turns}",
     "assistant.callSessionDetails": "Hívás részletei",
     "assistant.callSummary": "A hívás véget ért: {duration}, {turns}. A leirat a chatben marad.",
+    "assistant.callFallback": "Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
     "assistant.resetIdentity": "Látogatói azonosítás törlése",
@@ -626,6 +628,7 @@ let callModeStartedAt = 0;
 let callModeEndedDurationMs = 0;
 let callModeTimer = 0;
 let callModeTurnCount = 0;
+let webCallSessionTouched = false;
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -939,6 +942,7 @@ function applyPublicAssistantLanguage(config = widgetConfig) {
   setElementText("call-front-desk-start", assistantT("assistant.callStart", {}, config));
   setElementText("call-front-desk-stop", assistantT("assistant.callStopListening", {}, config));
   setElementText("call-front-desk-end", assistantT("assistant.callEnd", {}, config));
+  setElementText("call-front-desk-contact", assistantT("assistant.leaveContact", {}, config));
   document.querySelector?.(".call-front-desk-stats")?.setAttribute(
     "aria-label",
     assistantT("assistant.callSessionDetails", {}, config)
@@ -2713,6 +2717,7 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
         origin: getPageOrigin(),
         public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
+        ...buildWebCallCaptureContextPayload(),
         visitor_session_key: getVisitorSessionKey(),
         reference_message: normalized.mode === "guest"
           ? "Visitor continued as guest."
@@ -3030,6 +3035,7 @@ async function submitLeadCaptureAction(action, fields = {}, options = {}) {
         origin: getPageOrigin(),
         public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
+        ...buildWebCallCaptureContextPayload(),
         visitor_session_key: getVisitorSessionKey(),
         reference_message: lastLeadReferenceMessage,
         ...buildVisitorIdentityPayload(),
@@ -3297,6 +3303,10 @@ function getCallModeEndButton() {
   return document.getElementById("call-front-desk-end");
 }
 
+function getCallModeContactButton() {
+  return document.getElementById("call-front-desk-contact");
+}
+
 function getCallModeDuration() {
   return document.getElementById("call-front-desk-duration");
 }
@@ -3370,6 +3380,14 @@ function resetCallModeSummary() {
   }
 }
 
+function showCallModeFallbackSummary() {
+  const summary = getCallModeSummary();
+  if (summary) {
+    summary.hidden = false;
+    summary.textContent = assistantT("assistant.callFallback");
+  }
+}
+
 function showCallModeSummary() {
   const summary = getCallModeSummary();
   const formattedDuration = formatCallModeDuration(getCallModeElapsedMs());
@@ -3387,6 +3405,7 @@ function startCallModeSession() {
     return;
   }
 
+  webCallSessionTouched = true;
   callModeStartedAt = Date.now();
   callModeEndedDurationMs = 0;
   callModeTurnCount = 0;
@@ -3469,6 +3488,7 @@ function bindCallModeControls() {
   const startButton = getCallModeStartButton();
   const stopButton = getCallModeStopButton();
   const endButton = getCallModeEndButton();
+  const contactButton = getCallModeContactButton();
 
   if (startButton && startButton.dataset.callModeBound !== "true") {
     startButton.dataset.callModeBound = "true";
@@ -3491,6 +3511,14 @@ function bindCallModeControls() {
       endCallMode();
     });
   }
+
+  if (contactButton && contactButton.dataset.callModeBound !== "true") {
+    contactButton.dataset.callModeBound = "true";
+    contactButton.addEventListener("click", () => {
+      webCallSessionTouched = true;
+      openPageIdentityContactForm();
+    });
+  }
 }
 
 function syncCallModeControls() {
@@ -3498,6 +3526,7 @@ function syncCallModeControls() {
   const startButton = getCallModeStartButton();
   const stopButton = getCallModeStopButton();
   const endButton = getCallModeEndButton();
+  const contactButton = getCallModeContactButton();
   const summary = getCallModeSummary();
   const config = getVoiceConfig();
   const voiceInputEnabled = config.voiceInputEnabled === true;
@@ -3505,6 +3534,9 @@ function syncCallModeControls() {
   const webCallEnabled = config.webCallEnabled === true;
   const shouldShow = isPageMode() && voiceInputEnabled && spokenRepliesEnabled && webCallEnabled;
   const unavailableMessage = shouldShow ? getVoiceUnavailableMessage() : "";
+  const effectiveState = unavailableMessage && !callModeActive
+    ? CALL_MODE_STATES.UNAVAILABLE
+    : callModeState;
   const busy = voiceTranscriptRequestActive
     || [
       CALL_MODE_STATES.REQUESTING,
@@ -3534,8 +3566,13 @@ function syncCallModeControls() {
       status.textContent = unavailableMessage;
     }
     panel?.setAttribute("data-state", CALL_MODE_STATES.UNAVAILABLE);
+    showCallModeFallbackSummary();
   } else if (getCallModeStatus() && !trimText(getCallModeStatus().textContent)) {
     setCallModeState(callModeState, "", { silentComposer: true });
+  } else if (callModeState === CALL_MODE_STATES.UNAVAILABLE) {
+    showCallModeFallbackSummary();
+  } else if (callModeState !== CALL_MODE_STATES.STOPPED && !callModeActive) {
+    resetCallModeSummary();
   }
 
   if (startButton) {
@@ -3559,7 +3596,20 @@ function syncCallModeControls() {
     endButton.setAttribute("aria-label", assistantT("assistant.callEnd"));
   }
 
-  if (summary && callModeState !== CALL_MODE_STATES.STOPPED && callModeActive) {
+  if (contactButton) {
+    const showContactFallback = effectiveState === CALL_MODE_STATES.STOPPED
+      || effectiveState === CALL_MODE_STATES.UNAVAILABLE;
+    contactButton.hidden = !showContactFallback;
+    contactButton.disabled = !showContactFallback;
+    contactButton.textContent = assistantT("assistant.leaveContact");
+    contactButton.setAttribute("aria-label", assistantT("assistant.leaveContact"));
+  }
+
+  if (
+    summary
+    && ![CALL_MODE_STATES.STOPPED, CALL_MODE_STATES.UNAVAILABLE].includes(callModeState)
+    && callModeActive
+  ) {
     resetCallModeSummary();
   }
 }
@@ -3600,9 +3650,16 @@ async function startCallModeTurn() {
 }
 
 function endCallMode() {
+  webCallSessionTouched = true;
   callModeActive = false;
   cleanupCallModeMedia({ summary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED);
+}
+
+function buildWebCallCaptureContextPayload() {
+  return isPageMode() && webCallSessionTouched
+    ? { conversation_source: "web_call" }
+    : {};
 }
 
 function bindVoiceInputButton() {
@@ -4635,6 +4692,10 @@ async function sendMessage(messageOverride = "", options = {}) {
 
   if (!message) return { ok: false, reason: "empty" };
 
+  if (trimText(options.conversationSource) === "web_call") {
+    webCallSessionTouched = true;
+  }
+
   stopVoiceRecording();
   stopCurrentVoiceAudio();
 
@@ -5140,6 +5201,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   startCallModeTurn,
   endCallMode,
   getCallModeState: () => callModeState,
+  hasWebCallCaptureContext: () => webCallSessionTouched,
   startVoiceRecording,
   stopVoiceRecording,
   setVoiceRecorderChunks: (chunks) => {
@@ -5154,6 +5216,7 @@ window.__VONZA_WIDGET_TEST_HOOKS__ = {
   isWelcomePanelHidden: () => getWelcomePanel()?.hidden === true || getEntryState()?.hidden === true,
   normalizeVisitorIdentityState,
   saveVisitorIdentity,
+  persistVisitorIdentityChoice,
   sendMessage: () => sendMessage(),
   submitReplyFeedback,
 };

@@ -248,6 +248,7 @@ function buildConversationRows(messages, sessionKey = "session-1", startAt = "20
       role: message.role,
       content: message.content,
       session_key: message.sessionKey || sessionKey,
+      display_mode: message.displayMode || message.display_mode || undefined,
       created_at: new Date(baseTime + index * 1000).toISOString(),
     });
   });
@@ -664,6 +665,56 @@ test("successful capture creates a durable lead and updates the follow-up draft"
   assert.equal(supabase.state.agent_follow_up_workflows[0].contact_email, "buyer@example.com");
   assert.equal(supabase.state.agent_action_queue_statuses.length, 1);
   assert.equal(supabase.state.agent_action_queue_statuses[0].follow_up_needed, true);
+});
+
+test("Web Call contact capture keeps source context for leads and follow-up queues", async () => {
+  const supabase = createFakeSupabase({
+    messages: buildConversationRows([
+      { role: "user", content: "Can someone call me with a quote?", display_mode: "web_call" },
+      { role: "assistant", content: "I can collect your details for follow-up.", display_mode: "web_call" },
+    ], "session-web-call"),
+  });
+
+  const captured = await applyLeadCaptureAction(supabase, {
+    agent: buildAgent(),
+    business: buildBusiness(),
+    widgetConfig: buildWidgetConfig(),
+    action: "submit",
+    sessionKey: "session-web-call",
+    language: "English",
+    userMessage: "Can someone call me with a quote?",
+    email: "caller@example.com",
+    name: "Web Caller",
+    preferredChannel: "email",
+    displayMode: "page",
+    conversationSource: "web_call",
+  });
+
+  const actionQueue = buildActionQueue(
+    supabase.state.messages.map((row) => ({
+      id: row.id,
+      agentId: row.agent_id,
+      role: row.role,
+      content: row.content,
+      sessionKey: row.session_key,
+      displayMode: row.display_mode,
+      createdAt: row.created_at,
+    })),
+    []
+  );
+  const hydrated = hydrateActionQueueWithLeadCaptures(actionQueue, {
+    records: supabase.state.agent_contact_leads,
+    followUps: supabase.state.agent_follow_up_workflows,
+  });
+
+  assert.equal(captured.state, "captured");
+  assert.equal(supabase.state.agent_contact_leads.length, 1);
+  assert.equal(supabase.state.agent_contact_leads[0].capture_source, "web_call");
+  assert.equal(supabase.state.agent_contact_leads[0].capture_metadata.displayMode, "page");
+  assert.equal(supabase.state.agent_contact_leads[0].capture_metadata.conversationSource, "web_call");
+  assert.equal(supabase.state.agent_follow_up_workflows.length, 1);
+  assert.equal(hydrated.recentLeadCaptures[0].contact.email, "caller@example.com");
+  assert.equal(hydrated.items[0].leadCapture.state, "captured");
 });
 
 test("repeat high-intent visitor updates the existing lead and follow-up instead of duplicating", async () => {

@@ -237,6 +237,19 @@ function getMessageSourceKind(message = {}) {
   return "chat";
 }
 
+function getLeadSourceKinds(lead = {}) {
+  const sources = ["chat"];
+  const captureSource = cleanText(lead.captureSource || lead.capture_source).toLowerCase();
+  const metadata = lead.captureMetadata || lead.capture_metadata || {};
+  const conversationSource = cleanText(metadata.conversationSource || metadata.conversation_source).toLowerCase();
+
+  if (captureSource === "web_call" || conversationSource === "web_call") {
+    sources.push("web_call");
+  }
+
+  return uniqueText(sources);
+}
+
 function mapStoredContactRow(row = {}) {
   return {
     id: cleanText(row.id),
@@ -1817,7 +1830,7 @@ export function buildContactWorkspaceFromRecords(options = {}) {
       phoneDigits: lead.contactPhoneNormalized,
       personKey: lead.personKey,
       sessionKeys: [lead.visitorSessionKey],
-      sourceKinds: ["chat"],
+      sourceKinds: getLeadSourceKinds(lead),
       flags: getLeadFlags(lead),
       latestMessageId: lead.latestMessageId,
       lastActivityAt: lead.lastSeenAt || lead.updatedAt || lead.createdAt,

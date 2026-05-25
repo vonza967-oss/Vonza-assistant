@@ -486,6 +486,8 @@ export async function handleChatRequest({
       messageCreatedAt: userMessageCreatedAt,
       language,
       visitorIdentity,
+      displayMode,
+      conversationSource,
     });
 
     return buildChatResponseImpl({
@@ -742,6 +744,8 @@ export async function handleChatRequest({
     messageCreatedAt: userMessageCreatedAt,
     language,
     visitorIdentity,
+    displayMode,
+    conversationSource,
   });
   const recentWidgetEvents = await listRecentWidgetEventsImpl(supabase, {
     agentId: agent.id,
@@ -811,6 +815,10 @@ export async function handleLeadCaptureRequest({
   const origin = cleanText(body.origin || "");
   const publicPageKey = cleanText(body.public_page_key || body.publicPageKey || body.k || "");
   const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
+  const conversationSource = normalizePublicConversationSource(
+    body.conversation_source || body.conversationSource || body.source_type || body.sourceType,
+    { displayMode }
+  );
   const action = cleanText(body.action).toLowerCase();
   const referenceMessage = cleanText(body.reference_message || body.referenceMessage || "");
   const language = detectResponseLanguage(referenceMessage);
@@ -862,6 +870,8 @@ export async function handleLeadCaptureRequest({
     phone: body.phone,
     preferredChannel: body.preferred_channel || body.preferredChannel,
     visitorIdentity,
+    displayMode,
+    conversationSource,
   });
 
   return {
