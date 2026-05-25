@@ -81,6 +81,7 @@ const CANVAS_MOBILE_TRANSITION_MS = 260;
 const DEFAULT_VOICE_CONFIG = Object.freeze({
   voiceInputEnabled: false,
   spokenRepliesEnabled: false,
+  webCallEnabled: false,
   autoSendTranscript: false,
   autoPlaySpokenReplies: false,
   voice: "alloy",
@@ -1949,6 +1950,10 @@ function normalizeVoiceConfig(config = widgetConfig) {
       rawConfig.spokenRepliesEnabled ?? rawConfig.spoken_replies_enabled,
       DEFAULT_VOICE_CONFIG.spokenRepliesEnabled
     ),
+    webCallEnabled: normalizeBoolean(
+      rawConfig.webCallEnabled ?? rawConfig.web_call_enabled,
+      DEFAULT_VOICE_CONFIG.webCallEnabled
+    ),
     autoSendTranscript: normalizeBoolean(
       rawConfig.autoSendTranscript ?? rawConfig.auto_send_transcript,
       DEFAULT_VOICE_CONFIG.autoSendTranscript
@@ -3354,7 +3359,9 @@ function syncCallModeControls() {
   const endButton = getCallModeEndButton();
   const config = getVoiceConfig();
   const voiceInputEnabled = config.voiceInputEnabled === true;
-  const shouldShow = isPageMode() && voiceInputEnabled;
+  const spokenRepliesEnabled = config.spokenRepliesEnabled === true;
+  const webCallEnabled = config.webCallEnabled === true;
+  const shouldShow = isPageMode() && voiceInputEnabled && spokenRepliesEnabled && webCallEnabled;
   const unavailableMessage = shouldShow ? getVoiceUnavailableMessage() : "";
   const busy = voiceTranscriptRequestActive
     || [
@@ -3413,7 +3420,12 @@ function syncCallModeControls() {
 async function startCallModeTurn() {
   const config = getVoiceConfig();
 
-  if (!isPageMode() || config.voiceInputEnabled !== true) {
+  if (
+    !isPageMode()
+    || config.voiceInputEnabled !== true
+    || config.spokenRepliesEnabled !== true
+    || config.webCallEnabled !== true
+  ) {
     return false;
   }
 

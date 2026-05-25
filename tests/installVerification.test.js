@@ -347,6 +347,7 @@ test("full-page assistant bootstrap reuses config without weakening installed wi
   assert.deepEqual(page.widgetConfig.voiceConfig, {
     voiceInputEnabled: true,
     spokenRepliesEnabled: false,
+    webCallEnabled: false,
     autoSendTranscript: true,
     autoPlaySpokenReplies: false,
     voice: "sage",
@@ -355,6 +356,7 @@ test("full-page assistant bootstrap reuses config without weakening installed wi
   assert.deepEqual(page.widgetConfig.voice_config, {
     voice_input_enabled: true,
     spoken_replies_enabled: false,
+    web_call_enabled: false,
     auto_send_transcript: true,
     auto_play_spoken_replies: false,
     voice: "sage",

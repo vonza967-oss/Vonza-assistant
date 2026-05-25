@@ -622,6 +622,7 @@ test("voice input controls default off and render safely when enabled", () => {
   assert.deepEqual(plain(harness.hooks.getVoiceConfig()), {
     voiceInputEnabled: false,
     spokenRepliesEnabled: false,
+    webCallEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,
     voice: "alloy",
@@ -889,7 +890,7 @@ test("voice config explicit enabled and disabled states control mic visibility",
   assert.equal(micButton.hidden, true);
 });
 
-test("call Front Desk CTA is page-only and follows voice input availability", async () => {
+test("call Front Desk CTA is page-only and requires voice input, spoken replies, and web call", async () => {
   const widgetHarness = createWidgetHarness({
     location: {
       search: "?agent_id=agent-1",
@@ -901,10 +902,14 @@ test("call Front Desk CTA is page-only and follows voice input availability", as
   widgetHarness.hooks.applyWidgetConfig({
     voice_config: {
       voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
     },
   });
 
   assert.equal(widgetHarness.elements.get("call-front-desk-panel").hidden, true);
+  assert.equal(widgetHarness.fetchCalls.some((call) => /\/api\/voice\//.test(call.input)), false);
+  assert.equal(widgetHarness.fetchCalls.some((call) => /\/phone\b|twilio/i.test(call.input)), false);
 
   const pageHarness = createWidgetHarness({
     location: {
@@ -923,6 +928,8 @@ test("call Front Desk CTA is page-only and follows voice input availability", as
   pageHarness.hooks.applyWidgetConfig({
     voice_config: {
       voice_input_enabled: false,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
     },
   });
   assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, true);
@@ -930,12 +937,34 @@ test("call Front Desk CTA is page-only and follows voice input availability", as
   pageHarness.hooks.applyWidgetConfig({
     voice_config: {
       voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: false,
+    },
+  });
+  assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, true);
+
+  pageHarness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: false,
+      web_call_enabled: true,
+    },
+  });
+  assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, true);
+
+  pageHarness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
     },
   });
 
   assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, false);
   assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Call Front Desk");
   assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start call");
+  assert.equal(pageHarness.fetchCalls.some((call) => /\/api\/voice\//.test(call.input)), false);
+  assert.equal(pageHarness.fetchCalls.some((call) => /\/phone\b|twilio/i.test(call.input)), false);
 });
 
 test("call Front Desk turn transcribes, sends chat, and speaks with returned token", async () => {
@@ -972,6 +1001,7 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
                 voice_config: {
                   voice_input_enabled: true,
                   spoken_replies_enabled: true,
+                  web_call_enabled: true,
                   auto_play_spoken_replies: false,
                   voice: "sage",
                 },
@@ -1089,6 +1119,7 @@ test("call Front Desk failure states use safe localized messages", async () => {
     voice_config: {
       voice_input_enabled: true,
       spoken_replies_enabled: true,
+      web_call_enabled: true,
     },
   });
 

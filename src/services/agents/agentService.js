@@ -961,6 +961,10 @@ export function normalizeVoiceConfig(input = {}, previousConfig = DEFAULT_VOICE_
       readConfigField(config, "spokenRepliesEnabled", "spoken_replies_enabled"),
       fallback.spokenRepliesEnabled
     ),
+    webCallEnabled: normalizeConfigBoolean(
+      readConfigField(config, "webCallEnabled", "web_call_enabled"),
+      fallback.webCallEnabled
+    ),
     autoSendTranscript: normalizeConfigBoolean(
       readConfigField(config, "autoSendTranscript", "auto_send_transcript"),
       fallback.autoSendTranscript
@@ -982,6 +986,7 @@ function serializeVoiceConfig(config = {}) {
   return {
     voice_input_enabled: normalized.voiceInputEnabled,
     spoken_replies_enabled: normalized.spokenRepliesEnabled,
+    web_call_enabled: normalized.webCallEnabled,
     auto_send_transcript: normalized.autoSendTranscript,
     auto_play_spoken_replies: normalized.autoPlaySpokenReplies,
     voice: normalized.voice,

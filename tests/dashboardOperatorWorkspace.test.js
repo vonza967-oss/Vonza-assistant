@@ -690,6 +690,7 @@ test("settings saves only show success after backend confirmation", () => {
   const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
   const saveAssistantSource = script.match(/async function saveAssistant[\s\S]*?\n}\n\nasync function copyInstallCode/)?.[0] || "";
   const businessProfileParserSource = script.match(/function parseBusinessProfilePayload[\s\S]*?\n}/)?.[0] || "";
+  const voiceConfigParserSource = script.match(/function parseVoiceConfigPayload[\s\S]*?\n}/)?.[0] || "";
 
   assert.match(saveAssistantSource, /saveData\?\.ok !== true \|\| !saveData\.profile/);
   assert.match(saveAssistantSource, /Business Profile was not confirmed by the server/);
@@ -697,6 +698,8 @@ test("settings saves only show success after backend confirmation", () => {
   assert.match(saveAssistantSource, /Front Desk changes were not confirmed by the server/);
   assert.match(saveAssistantSource, /Could not save Business Profile/);
   assert.match(saveAssistantSource, /Could not save changes/);
+  assert.match(saveAssistantSource, /formData\.has\("web_call_enabled"\)/);
+  assert.match(voiceConfigParserSource, /web_call_enabled:\s*formData\.has\("web_call_enabled"\)/);
   assert.doesNotMatch(businessProfileParserSource, /approvedContactChannels|approvalPreferences|approved_contact|approval_/);
 });
 
@@ -1840,6 +1843,8 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(frontDeskCustomization, /assistant-welcome/);
   assert.match(frontDeskCustomization, /assistant-tone/);
   assert.match(frontDeskCustomization, /settings-primary-color/);
+  assert.match(frontDeskCustomization, /Enable Web Call Front Desk/);
+  assert.match(frontDeskCustomization, /name="web_call_enabled"/);
   assert.match(frontDeskCustomization, /Current live readout/);
   assert.match(frontDeskCustomization, /data-settings-form data-form-kind="customize"/);
   assert.doesNotMatch(frontDeskCustomization, /business-summary|business-services|Save Business Profile|Website knowledge/);

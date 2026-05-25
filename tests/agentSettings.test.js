@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getAgentWorkspaceSnapshot,
   getFullPageDesignPresetDefaults,
+  normalizeVoiceConfig,
   normalizeFullPageDesignConfig,
   normalizeFullPageConfig,
   updateAgentSettings,
@@ -587,6 +588,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
   assert.deepEqual(defaulted.voiceConfig, {
     voiceInputEnabled: false,
     spokenRepliesEnabled: false,
+    webCallEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,
     voice: "alloy",
@@ -595,6 +597,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
   assert.deepEqual(state.widget_configs[0].voice_config, {
     voice_input_enabled: false,
     spoken_replies_enabled: false,
+    web_call_enabled: false,
     auto_send_transcript: false,
     auto_play_spoken_replies: false,
     voice: "alloy",
@@ -606,6 +609,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
     voiceConfig: {
       voice_input_enabled: true,
       spoken_replies_enabled: true,
+      web_call_enabled: true,
       auto_send_transcript: true,
       auto_play_spoken_replies: false,
       voice: "sage",
@@ -616,6 +620,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
   assert.deepEqual(result.voiceConfig, {
     voiceInputEnabled: true,
     spokenRepliesEnabled: true,
+    webCallEnabled: true,
     autoSendTranscript: true,
     autoPlaySpokenReplies: false,
     voice: "sage",
@@ -624,6 +629,7 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
   assert.deepEqual(state.widget_configs[0].voice_config, {
     voice_input_enabled: true,
     spoken_replies_enabled: true,
+    web_call_enabled: true,
     auto_send_transcript: true,
     auto_play_spoken_replies: false,
     voice: "sage",
@@ -632,6 +638,25 @@ test("updateAgentSettings persists and reloads Front Desk voice settings with sa
 
   const reloaded = await getAgentWorkspaceSnapshot(supabase, "agent-1");
   assert.deepEqual(reloaded.voiceConfig, result.voiceConfig);
+});
+
+test("voice config without web_call_enabled normalizes web call off", () => {
+  assert.deepEqual(normalizeVoiceConfig({
+    voice_input_enabled: true,
+    spoken_replies_enabled: true,
+    auto_send_transcript: true,
+    auto_play_spoken_replies: true,
+    voice: "sage",
+    language_behavior: "business",
+  }), {
+    voiceInputEnabled: true,
+    spokenRepliesEnabled: true,
+    webCallEnabled: false,
+    autoSendTranscript: true,
+    autoPlaySpokenReplies: true,
+    voice: "sage",
+    languageBehavior: "business",
+  });
 });
 
 test("updateAgentSettings persists clearing the welcome message", async () => {

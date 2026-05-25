@@ -2428,6 +2428,8 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Enable spoken replies": "Felolvasott válaszok engedélyezése",
   "Allow visitors to play Vonza's text answer as AI-generated voice.": "Engedd, hogy a látogatók AI-generált hangként lejátszhassák a Vonza szöveges válaszát.",
   "Allow visitors to generate and play spoken replies on demand from Vonza's text answer.": "Engedd, hogy a látogatók igény szerint felolvasott választ generáljanak és játsszanak le a Vonza szöveges válaszából.",
+  "Enable Web Call Front Desk": "Webes Front Desk hívás engedélyezése",
+  "Show the hosted full-page Call Front Desk panel when voice input and spoken replies are also enabled.": "Mutasd a hosztolt teljes oldalas Front Desk híváspanelt, ha a hangbevitel és a felolvasott válaszok is engedélyezve vannak.",
   "Auto-send transcript after speaking": "Átirat automatikus küldése beszéd után",
   "Send the transcript immediately after recording instead of placing it in the composer.": "A rögzítés után azonnal küldje el az átiratot ahelyett, hogy a szövegmezőbe tenné.",
   "Send the transcribed text immediately after recording instead of placing it in the composer.": "A rögzítés után azonnal küldje el az átírt szöveget ahelyett, hogy a szövegmezőbe tenné.",
@@ -2451,10 +2453,13 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Current voice settings": "Aktuális hangbeállítások",
   "Input": "Bevitel",
   "Replies": "Válaszok",
+  "Web Call": "Webes hívás",
   "Language": "Nyelv",
   "Voice input enabled": "Hangbevitel engedélyezve",
   "Spoken replies enabled": "Felolvasott válaszok engedélyezve",
   "Text replies only": "Csak szöveges válaszok",
+  "Web Call enabled": "Webes hívás engedélyezve",
+  "Web Call off": "Webes hívás kikapcsolva",
   "Voice QA steps": "Hang QA lépések",
   "Record a short owner voice sample.": "Rögzíts egy rövid tulajdonosi hangmintát.",
   "Vonza transcribes it with the existing voice route.": "A Vonza a meglévő hangútvonalon írja át.",
@@ -13150,6 +13155,7 @@ function parseVoiceConfigPayload(formData) {
   return {
     voice_input_enabled: formData.has("voice_input_enabled"),
     spoken_replies_enabled: formData.has("spoken_replies_enabled"),
+    web_call_enabled: formData.has("web_call_enabled"),
     auto_send_transcript: formData.has("auto_send_transcript"),
     auto_play_spoken_replies: formData.has("auto_play_spoken_replies"),
     voice: allowedVoices.includes(voice) ? voice : "alloy",
@@ -13293,7 +13299,7 @@ async function saveAssistant(event, agent) {
     payload.full_page_config = parseFullPageConfigPayload(formData);
   }
 
-  if (formData.has("voice_input_enabled") || formData.has("spoken_replies_enabled") || formData.has("voice")) {
+  if (formData.has("voice_input_enabled") || formData.has("spoken_replies_enabled") || formData.has("web_call_enabled") || formData.has("voice")) {
     payload.voice_config = parseVoiceConfigPayload(formData);
   }
 

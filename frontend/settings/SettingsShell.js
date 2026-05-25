@@ -278,6 +278,7 @@
   const DEFAULT_VOICE_CONFIG = Object.freeze({
     voiceInputEnabled: false,
     spokenRepliesEnabled: false,
+    webCallEnabled: false,
     autoSendTranscript: false,
     autoPlaySpokenReplies: false,
     voice: "alloy",
@@ -485,6 +486,10 @@
       spokenRepliesEnabled: normalizeBoolean(
         config.spokenRepliesEnabled ?? config.spoken_replies_enabled,
         DEFAULT_VOICE_CONFIG.spokenRepliesEnabled
+      ),
+      webCallEnabled: normalizeBoolean(
+        config.webCallEnabled ?? config.web_call_enabled,
+        DEFAULT_VOICE_CONFIG.webCallEnabled
       ),
       autoSendTranscript: normalizeBoolean(
         config.autoSendTranscript ?? config.auto_send_transcript,
@@ -1578,6 +1583,13 @@
                   </div>
                   <input id="spoken-replies-enabled" name="spoken_replies_enabled" type="checkbox" ${voiceConfig.spokenRepliesEnabled ? "checked" : ""}>
                 </label>
+                <label class="settings-shell-choice-row" for="web-call-enabled">
+                  <div class="settings-shell-choice-main">
+                    <p class="settings-shell-choice-title">Enable Web Call Front Desk</p>
+                    <p class="settings-shell-key-value-copy">Show the hosted full-page Call Front Desk panel when voice input and spoken replies are also enabled.</p>
+                  </div>
+                  <input id="web-call-enabled" name="web_call_enabled" type="checkbox" ${voiceConfig.webCallEnabled ? "checked" : ""}>
+                </label>
                 <label class="settings-shell-choice-row" for="auto-send-transcript">
                   <div class="settings-shell-choice-main">
                     <p class="settings-shell-choice-title">Auto-send transcript after speaking</p>
@@ -1635,6 +1647,10 @@
                   <div>
                     <dt>Replies</dt>
                     <dd>${voiceConfig.spokenRepliesEnabled ? "Spoken replies enabled" : "Text replies only"}</dd>
+                  </div>
+                  <div>
+                    <dt>Web Call</dt>
+                    <dd>${voiceConfig.webCallEnabled ? "Web Call enabled" : "Web Call off"}</dd>
                   </div>
                   <div>
                     <dt>Voice style</dt>

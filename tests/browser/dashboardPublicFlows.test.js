@@ -54,9 +54,14 @@ async function closeServer(nextServer) {
   await new Promise((resolve, reject) => nextServer.close((error) => (error ? reject(error) : resolve())));
 }
 
-async function newPage({ clientId = "browser-fixture-client", dashboardLanguage, importPollIntervalMs } = {}) {
+async function newPage({
+  clientId = "browser-fixture-client",
+  dashboardLanguage,
+  importPollIntervalMs,
+  viewport = { width: 1280, height: 820 },
+} = {}) {
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 820 },
+    viewport,
     serviceWorkers: "block",
   });
   const page = await context.newPage();
@@ -741,6 +746,7 @@ test("hosted full-page Front Desk sends customer question and captures contact d
           voice_config: {
             voice_input_enabled: true,
             spoken_replies_enabled: true,
+            web_call_enabled: true,
             auto_play_spoken_replies: false,
             voice: "sage",
           },
@@ -965,6 +971,146 @@ test("hosted full-page Front Desk hides call CTA when voice input is disabled", 
     await page.locator("#input").waitFor({ state: "visible" });
 
     assert.equal(await page.locator("#call-front-desk-panel").isVisible(), false);
+  } finally {
+    await page.close();
+  }
+});
+
+test("hosted full-page Front Desk hides call CTA when web call is disabled", async () => {
+  const page = await newPage();
+  const voiceRequests = [];
+
+  await page.route("https://fonts.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/css",
+      body: "",
+    });
+  });
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    await route.fulfill({
+      status: 204,
+      body: "",
+    });
+  });
+  await page.route("**/api/voice/**", async (route) => {
+    voiceRequests.push(route.request().url());
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "passive voice request should not happen" }),
+    });
+  });
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agent: {
+          id: "agent-page-1",
+          publicAgentKey: "page-key",
+        },
+        business: {
+          id: "business-1",
+          name: "Example Services",
+          websiteUrl: "https://example.com",
+        },
+        widgetConfig: {
+          assistantName: "Example Front Desk",
+          voice_config: {
+            voice_input_enabled: true,
+            spoken_replies_enabled: true,
+            web_call_enabled: false,
+          },
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key",
+            headline: "Example Services Front Desk",
+          },
+        },
+      }),
+    });
+  });
+
+  try {
+    const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
+    hostedUrl.searchParams.set("k", "page-key");
+    hostedUrl.searchParams.set("session_id", "session-page-web-call-disabled");
+    hostedUrl.searchParams.set("install_id", "install-page-1");
+    hostedUrl.searchParams.set("origin", "https://customer.example.test");
+    hostedUrl.searchParams.set("page_url", "https://customer.example.test/front-desk");
+
+    await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
+    await page.locator("#input").waitFor({ state: "visible" });
+
+    assert.equal(await page.locator("#call-front-desk-panel").isVisible(), false);
+    assert.deepEqual(voiceRequests, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("hosted full-page Front Desk shows call CTA on mobile when web call is enabled", async () => {
+  const page = await newPage({ viewport: { width: 390, height: 844 } });
+
+  await page.route("https://fonts.googleapis.com/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/css",
+      body: "",
+    });
+  });
+  await page.route("https://fonts.gstatic.com/**", async (route) => {
+    await route.fulfill({
+      status: 204,
+      body: "",
+    });
+  });
+  await page.route("**/widget/bootstrap**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        agent: {
+          id: "agent-page-1",
+          publicAgentKey: "page-key",
+        },
+        business: {
+          id: "business-1",
+          name: "Example Services",
+          websiteUrl: "https://example.com",
+        },
+        widgetConfig: {
+          assistantName: "Example Front Desk",
+          voice_config: {
+            voice_input_enabled: true,
+            spoken_replies_enabled: true,
+            web_call_enabled: true,
+          },
+          fullPageConfig: {
+            publicPageEnabled: true,
+            publicPageKey: "page-key",
+            headline: "Example Services Front Desk",
+          },
+        },
+      }),
+    });
+  });
+
+  try {
+    const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
+    hostedUrl.searchParams.set("k", "page-key");
+    hostedUrl.searchParams.set("session_id", "session-page-mobile-web-call");
+    hostedUrl.searchParams.set("install_id", "install-page-1");
+    hostedUrl.searchParams.set("origin", "https://customer.example.test");
+    hostedUrl.searchParams.set("page_url", "https://customer.example.test/front-desk");
+
+    await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
+    await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
+    await assertVisibleText(page, "Call Front Desk");
+    await assertNoHorizontalOverflow(page);
   } finally {
     await page.close();
   }

@@ -48,6 +48,7 @@ export const VOICE_TTS_VOICES = Object.freeze([
 export const DEFAULT_VOICE_CONFIG = Object.freeze({
   voiceInputEnabled: false,
   spokenRepliesEnabled: false,
+  webCallEnabled: false,
   autoSendTranscript: false,
   autoPlaySpokenReplies: false,
   voice: "alloy",
