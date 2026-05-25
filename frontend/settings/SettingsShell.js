@@ -283,6 +283,14 @@
     voice: "alloy",
     languageBehavior: "auto",
   });
+  const VOICE_QA_RECORDING_MIME_TYPES = Object.freeze([
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/wav",
+  ]);
+  const VOICE_QA_RECORDING_MAX_MS = 30000;
 
   function defaultTrimText(value) {
     return String(value || "").trim();
@@ -1423,6 +1431,13 @@
       agent.quoteUrl,
       agent.checkoutUrl,
     ].filter((value) => trimText(value)).length;
+    const voiceQaDisabled = voiceConfig.voiceInputEnabled !== true;
+    const voiceQaInitialStatus = voiceQaDisabled
+      ? "Voice input is off. Enable and save voice input before recording."
+      : "Ready to record.";
+    const voiceQaLanguageLabel = voiceConfig.languageBehavior === "business"
+      ? "Prefer dashboard/business language"
+      : "Auto-detect voice language";
     const frontDeskOperationalRows = [
       {
         label: "Hosted full-page assistant",
@@ -1593,6 +1608,61 @@
                     <option value="business" ${voiceConfig.languageBehavior === "business" ? "selected" : ""}>Prefer dashboard/business language</option>
                   </select>
                   <p class="field-help">This guides voice and transcription behavior; it does not force the chat answer language yet.</p>
+                </div>
+              </div>
+              <div
+                class="settings-voice-qa-simulator ${voiceQaDisabled ? "is-disabled" : ""}"
+                data-voice-qa-panel
+                data-agent-id="${escapeHtml(agent.id || "")}"
+                data-agent-key="${escapeHtml(agent.publicAgentKey || agent.agentKey || agent.public_agent_key || "")}"
+                data-business-id="${escapeHtml(agent.businessId || agent.business_id || "")}"
+                data-website-url="${escapeHtml(agent.websiteUrl || agent.website_url || "")}"
+                data-public-page-key="${escapeHtml(fullPageConfig.publicPageKey || "")}"
+                aria-disabled="${voiceQaDisabled ? "true" : "false"}"
+              >
+                <div class="settings-voice-qa-header">
+                  <div>
+                    <h4 class="settings-voice-qa-title">Owner voice QA simulator</h4>
+                    <p class="settings-voice-qa-copy">Record a short sample before enabling voice publicly. Voice tests use AI capacity and follow the same access, capacity, and rate-limit checks as public voice input.</p>
+                  </div>
+                  <span class="${helpers.getBadgeClass(voiceQaDisabled ? "Pending" : "Ready")}" data-voice-qa-enabled-badge>${voiceQaDisabled ? "Voice input off" : "Ready"}</span>
+                </div>
+                <dl class="settings-voice-qa-current" aria-label="${escapeHtml(helpers.translateDashboardText("Current voice settings"))}">
+                  <div>
+                    <dt>Input</dt>
+                    <dd>${voiceConfig.voiceInputEnabled ? "Voice input enabled" : "Voice input off"}</dd>
+                  </div>
+                  <div>
+                    <dt>Replies</dt>
+                    <dd>${voiceConfig.spokenRepliesEnabled ? "Spoken replies enabled" : "Text replies only"}</dd>
+                  </div>
+                  <div>
+                    <dt>Voice style</dt>
+                    <dd>${escapeHtml(VOICE_STYLE_OPTIONS.find((option) => option.value === voiceConfig.voice)?.label || "Alloy")}</dd>
+                  </div>
+                  <div>
+                    <dt>Language</dt>
+                    <dd>${escapeHtml(voiceQaLanguageLabel)}</dd>
+                  </div>
+                </dl>
+                <ol class="settings-voice-qa-steps" aria-label="${escapeHtml(helpers.translateDashboardText("Voice QA steps"))}">
+                  <li>Record a short owner voice sample.</li>
+                  <li>Vonza transcribes it with the existing voice route.</li>
+                  <li>Review the transcript, then copy it or use it in Practice.</li>
+                </ol>
+                <div class="settings-voice-qa-actions">
+                  <button class="primary-button" type="button" data-voice-qa-record ${voiceQaDisabled ? "disabled" : ""}>Record sample</button>
+                  <button class="ghost-button" type="button" data-voice-qa-clear disabled>Clear transcript</button>
+                </div>
+                <p class="settings-voice-qa-status" data-voice-qa-status role="status" aria-live="polite">${escapeHtml(voiceQaInitialStatus)}</p>
+                <div class="field settings-field-wide">
+                  <label for="voice-qa-transcript">Transcript preview</label>
+                  <textarea id="voice-qa-transcript" data-voice-qa-transcript readonly placeholder="${escapeHtml(helpers.translateDashboardText("Your transcription preview will appear here."))}"></textarea>
+                  <p class="field-help">Use this transcript as a realistic customer-style practice prompt before publishing voice.</p>
+                </div>
+                <div class="settings-voice-qa-actions">
+                  <button class="ghost-button" type="button" data-voice-qa-copy disabled>Copy transcript</button>
+                  <button class="ghost-button" type="button" data-voice-qa-practice disabled>Use in Practice</button>
                 </div>
               </div>
               <p class="settings-shell-section-copy">Voice is processed to transcribe the visitor's question. Spoken replies are AI-generated on demand and count toward the workspace's AI capacity.</p>
@@ -2974,6 +3044,9 @@
     const bindStudioState = typeof options.bindStudioState === "function" ? options.bindStudioState : null;
     const bindSimpleDirtyState = typeof options.bindSimpleDirtyState === "function" ? options.bindSimpleDirtyState : null;
     const onRequestRerender = typeof options.onRequestRerender === "function" ? options.onRequestRerender : null;
+    const onUseVoicePracticePrompt = typeof options.onUseVoicePracticePrompt === "function"
+      ? options.onUseVoicePracticePrompt
+      : null;
 
     if (!root || typeof root.querySelectorAll !== "function") {
       return {
@@ -3311,6 +3384,316 @@
       getInputChecked("full_page_disable_video_on_mobile");
     }
 
+    function bindVoiceQaSimulator() {
+      const panel = root.querySelector?.("[data-voice-qa-panel]");
+      if (!panel || panel.dataset.voiceQaBound === "true") {
+        return;
+      }
+
+      panel.dataset.voiceQaBound = "true";
+      const helpers = getHelpers(options);
+      const translate = (message) => helpers.translateDashboardText(message);
+      const recordButton = panel.querySelector?.("[data-voice-qa-record]");
+      const clearButton = panel.querySelector?.("[data-voice-qa-clear]");
+      const copyButton = panel.querySelector?.("[data-voice-qa-copy]");
+      const practiceButton = panel.querySelector?.("[data-voice-qa-practice]");
+      const status = panel.querySelector?.("[data-voice-qa-status]");
+      const transcriptPreview = panel.querySelector?.("[data-voice-qa-transcript]");
+      const persistedVoiceEnabled = panel.getAttribute("aria-disabled") !== "true";
+      let recorder = null;
+      let recordingChunks = [];
+      let recordingStartedAt = 0;
+      let stopTimer = 0;
+
+      const setStatusText = (message) => {
+        if (status) {
+          status.textContent = translate(message);
+        }
+      };
+
+      const setTranscript = (value) => {
+        const transcript = helpers.trimText(value);
+        if (transcriptPreview) {
+          transcriptPreview.value = transcript;
+        }
+        if (copyButton) {
+          copyButton.disabled = !transcript;
+        }
+        if (practiceButton) {
+          practiceButton.disabled = !transcript || !onUseVoicePracticePrompt;
+          practiceButton.hidden = !onUseVoicePracticePrompt;
+        }
+        if (clearButton) {
+          clearButton.disabled = !transcript;
+        }
+      };
+
+      const browserSupportsVoiceQa = () => Boolean(
+        global.navigator?.mediaDevices?.getUserMedia
+        && typeof global.MediaRecorder === "function"
+      );
+
+      const isLocalSecureHost = () => {
+        const hostname = helpers.trimText(global.location?.hostname).toLowerCase();
+        return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+      };
+
+      const getUnavailableMessage = () => {
+        if (!persistedVoiceEnabled) {
+          return "Voice input is off. Enable and save voice input before recording.";
+        }
+
+        if (global.isSecureContext === false && !isLocalSecureHost()) {
+          return "Voice test unavailable. Open the dashboard over HTTPS to use the microphone.";
+        }
+
+        if (!browserSupportsVoiceQa()) {
+          return "Voice test unavailable in this browser.";
+        }
+
+        return "";
+      };
+
+      const syncAvailability = () => {
+        const unavailableMessage = getUnavailableMessage();
+        panel.classList.toggle("is-disabled", Boolean(unavailableMessage));
+        panel.setAttribute("aria-disabled", unavailableMessage ? "true" : "false");
+        if (recordButton && !recorder) {
+          recordButton.disabled = Boolean(unavailableMessage);
+        }
+        if (unavailableMessage) {
+          setStatusText(unavailableMessage);
+        }
+      };
+
+      const getPreferredMimeType = () => {
+        const MediaRecorderCtor = global.MediaRecorder;
+        if (!MediaRecorderCtor || typeof MediaRecorderCtor.isTypeSupported !== "function") {
+          return "";
+        }
+
+        return VOICE_QA_RECORDING_MIME_TYPES.find((type) => MediaRecorderCtor.isTypeSupported(type)) || "";
+      };
+
+      const buildVoiceQaParams = (durationMs) => {
+        const params = new URLSearchParams();
+        if (panel.dataset.agentId) params.set("agent_id", panel.dataset.agentId);
+        if (panel.dataset.agentKey) params.set("agent_key", panel.dataset.agentKey);
+        if (panel.dataset.businessId) params.set("business_id", panel.dataset.businessId);
+        if (panel.dataset.websiteUrl) params.set("website_url", panel.dataset.websiteUrl);
+        if (panel.dataset.publicPageKey) params.set("public_page_key", panel.dataset.publicPageKey);
+        if (global.location?.origin) params.set("origin", global.location.origin);
+        if (global.location?.href) params.set("page_url", global.location.href);
+        params.set("display_mode", "page");
+        params.set("visitor_session_key", `owner-voice-qa:${panel.dataset.agentId || "workspace"}`);
+        params.set("duration_ms", String(Math.max(1, Math.round(durationMs))));
+        return params;
+      };
+
+      const getTranscriptionFailureMessage = (statusCode) => {
+        const statusCodeNumber = Number(statusCode || 0);
+        if (statusCodeNumber === 402) {
+          return "Voice test capped: this workspace has reached monthly AI capacity.";
+        }
+        if (statusCodeNumber === 429) {
+          return "Voice test is rate-limited. Try again in a moment.";
+        }
+        if (statusCodeNumber === 403) {
+          return "Voice test unavailable. Check voice input and workspace access.";
+        }
+        if (statusCodeNumber === 413) {
+          return "Voice sample is too long or too large. Record a shorter sample.";
+        }
+        if (statusCodeNumber === 503) {
+          return "Voice test unavailable right now. Try again later.";
+        }
+        return "Could not transcribe that recording. Please try again.";
+      };
+
+      const transcribeVoiceQaBlob = async (blob, durationMs) => {
+        const durationHeader = String(Math.max(1, Math.round(durationMs)));
+        const response = await global.fetch(`/api/voice/transcribe?${buildVoiceQaParams(durationMs).toString()}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": blob.type || "audio/webm",
+            "X-Voice-Duration-Ms": durationHeader,
+          },
+          body: blob,
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(getTranscriptionFailureMessage(response.status));
+        }
+
+        return data;
+      };
+
+      const stopRecording = () => {
+        if (!recorder) {
+          return;
+        }
+
+        if (stopTimer) {
+          global.clearTimeout?.(stopTimer);
+          stopTimer = 0;
+        }
+
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      };
+
+      const handleRecordingComplete = async (durationMs, fallbackMimeType) => {
+        const chunks = recordingChunks.slice();
+        recordingChunks = [];
+        if (!chunks.length) {
+          setStatusText("No voice sample was recorded. Try again.");
+          syncAvailability();
+          return;
+        }
+
+        if (recordButton) {
+          recordButton.disabled = true;
+          recordButton.textContent = translate("Transcribing...");
+        }
+        setStatusText("Transcribing...");
+
+        try {
+          const blobType = chunks.find((chunk) => helpers.trimText(chunk.type))?.type || fallbackMimeType || "audio/webm";
+          const blob = new Blob(chunks, { type: blobType });
+          if (!blob.size) {
+            throw new Error("No voice sample was recorded. Try again.");
+          }
+          const result = await transcribeVoiceQaBlob(blob, durationMs);
+          const transcript = helpers.trimText(result.text);
+          if (!transcript) {
+            throw new Error("No speech was detected in that recording.");
+          }
+          setTranscript(transcript);
+          setStatusText("Transcript ready.");
+        } catch (error) {
+          setStatusText(error.message || "Could not transcribe that recording. Please try again.");
+        } finally {
+          if (recordButton) {
+            recordButton.textContent = translate("Record sample");
+          }
+          syncAvailability();
+        }
+      };
+
+      const startRecording = async () => {
+        const unavailableMessage = getUnavailableMessage();
+        if (unavailableMessage) {
+          setStatusText(unavailableMessage);
+          syncAvailability();
+          return;
+        }
+
+        try {
+          const stream = await global.navigator.mediaDevices.getUserMedia({ audio: true });
+          const mimeType = getPreferredMimeType();
+          const MediaRecorderCtor = global.MediaRecorder;
+          recordingChunks = [];
+          recordingStartedAt = Date.now();
+
+          try {
+            recorder = mimeType
+              ? new MediaRecorderCtor(stream, { mimeType })
+              : new MediaRecorderCtor(stream);
+          } catch (error) {
+            stream.getTracks?.().forEach((track) => track.stop?.());
+            throw error;
+          }
+
+          recorder.addEventListener("dataavailable", (event) => {
+            if (event.data?.size) {
+              recordingChunks.push(event.data);
+            }
+          });
+          recorder.addEventListener("stop", async () => {
+            const stoppedRecorder = recorder;
+            const durationMs = Math.max(1, Date.now() - recordingStartedAt);
+            const tracks = stoppedRecorder?.stream?.getTracks?.() || stream.getTracks?.() || [];
+            tracks.forEach((track) => track.stop?.());
+            recorder = null;
+            if (stopTimer) {
+              global.clearTimeout?.(stopTimer);
+              stopTimer = 0;
+            }
+            await handleRecordingComplete(durationMs, mimeType || stoppedRecorder?.mimeType || "audio/webm");
+          });
+
+          recorder.start();
+          if (recordButton) {
+            recordButton.textContent = translate("Stop recording");
+          }
+          setStatusText("Recording...");
+          stopTimer = global.setTimeout?.(stopRecording, VOICE_QA_RECORDING_MAX_MS) || 0;
+        } catch (_error) {
+          recorder = null;
+          setStatusText("Voice test unavailable. Allow microphone access and try again.");
+          syncAvailability();
+        }
+      };
+
+      recordButton?.addEventListener("click", () => {
+        if (recorder) {
+          stopRecording();
+          return;
+        }
+
+        void startRecording();
+      });
+
+      clearButton?.addEventListener("click", () => {
+        setTranscript("");
+        setStatusText(persistedVoiceEnabled ? "Ready to record." : "Voice input is off. Enable and save voice input before recording.");
+      });
+
+      copyButton?.addEventListener("click", async () => {
+        const transcript = helpers.trimText(transcriptPreview?.value || "");
+        if (!transcript) {
+          setStatusText("Record a voice sample before copying a transcript.");
+          return;
+        }
+
+        try {
+          if (global.navigator?.clipboard?.writeText) {
+            await global.navigator.clipboard.writeText(transcript);
+          } else {
+            transcriptPreview?.focus?.();
+            transcriptPreview?.select?.();
+            global.document?.execCommand?.("copy");
+          }
+          setStatusText("Transcript copied.");
+        } catch (_error) {
+          setStatusText("Could not copy the transcript.");
+        }
+      });
+
+      practiceButton?.addEventListener("click", async () => {
+        const transcript = helpers.trimText(transcriptPreview?.value || "");
+        if (!transcript || !onUseVoicePracticePrompt) {
+          setStatusText("Record a voice sample before using it in Practice.");
+          return;
+        }
+
+        practiceButton.disabled = true;
+        setStatusText("Opening Practice with this transcript...");
+        try {
+          await onUseVoicePracticePrompt(transcript);
+          setStatusText("Transcript sent to Practice.");
+        } catch (error) {
+          setStatusText(error.message || "Could not open Practice with this transcript.");
+          practiceButton.disabled = false;
+        }
+      });
+
+      setTranscript(transcriptPreview?.value || "");
+      syncAvailability();
+    }
+
     frontDeskTabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         showFrontDeskSettingsPanel(button.dataset.frontdeskSettingsTab || "identity");
@@ -3400,6 +3783,7 @@
     showFullPageSettingsPanel(getActiveFullPageSettingsTab(getHelpers(options)));
     syncFullPageBackgroundControls();
     syncFullPagePreview();
+    bindVoiceQaSimulator();
 
     return {
       getActiveSettingsSection,

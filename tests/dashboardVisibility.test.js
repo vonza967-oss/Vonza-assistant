@@ -854,6 +854,12 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
       englishLeak: /Full-page assistant and hosted page|Front Desk page customization sections|Your Front Desk page is disabled|Customize the primary Front Desk page/i,
     },
     {
+      hash: "#front-desk/customization/voice",
+      marker: 'data-frontdesk-section="customization"',
+      expected: [/Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
+      englishLeak: /Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
+    },
+    {
       hash: "#settings/business-profile",
       marker: 'data-settings-section="business_profile"',
       expected: [/Üzleti profil készenléte/, /Weboldali tudás/, /Weboldal mentése/],
@@ -985,6 +991,12 @@ test("legacy Settings Front Desk hash redirects to Front Desk customization cont
   assert.match(harness.getRootHtml(), /Language behavior/);
   assert.match(harness.getRootHtml(), /Visitors can speak their question/);
   assert.match(harness.getRootHtml(), /Spoken replies are AI-generated on demand/);
+  assert.match(harness.getRootHtml(), /Owner voice QA simulator/);
+  assert.match(harness.getRootHtml(), /Record sample/);
+  assert.match(harness.getRootHtml(), /Transcript preview/);
+  assert.match(harness.getRootHtml(), /Use in Practice/);
+  assert.match(harness.getRootHtml(), /data-voice-qa-panel/);
+  assert.match(harness.getRootHtml(), /aria-live="polite"/);
   assert.match(harness.getRootHtml(), /name="full_page_background_source"/);
   assert.match(harness.getRootHtml(), /name="full_page_background_scope"/);
   assert.match(harness.getRootHtml(), /Assistant section \(recommended\)/);
