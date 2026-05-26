@@ -4630,3 +4630,889 @@ html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-fron
     font-size: 27px;
   }
 }
+
+/* Bright Glass reconstruction pass: reusable operating-dashboard layout layer. */
+html[data-dashboard-theme="bright"],
+html[data-dashboard-theme="light"] {
+  --glass-operating-bg: rgba(255, 255, 255, 0.3);
+  --glass-operating-bg-strong: rgba(255, 255, 255, 0.46);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.18);
+  --glass-operating-border: rgba(255, 255, 255, 0.7);
+  --glass-operating-border-soft: rgba(122, 137, 190, 0.2);
+  --glass-operating-shadow: 0 22px 64px rgba(82, 101, 157, 0.16);
+  --glass-operating-shadow-soft: 0 14px 36px rgba(82, 101, 157, 0.12);
+  --glass-operating-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --glass-operating-blur: blur(34px) saturate(1.34);
+}
+
+html[data-dashboard-theme="dark"] {
+  --glass-operating-bg: rgba(25, 33, 58, 0.5);
+  --glass-operating-bg-strong: rgba(31, 40, 69, 0.66);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.07);
+  --glass-operating-border: rgba(255, 255, 255, 0.16);
+  --glass-operating-border-soft: rgba(179, 190, 232, 0.16);
+  --glass-operating-shadow: 0 26px 70px rgba(0, 0, 0, 0.3);
+  --glass-operating-shadow-soft: 0 16px 40px rgba(0, 0, 0, 0.22);
+  --glass-operating-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --glass-operating-blur: blur(32px) saturate(1.2);
+}
+
+html[data-dashboard-theme="bright"] body,
+html[data-dashboard-theme="light"] body {
+  background:
+    linear-gradient(118deg, rgba(255, 255, 255, 0.68), rgba(255, 255, 255, 0.1) 34%, rgba(209, 219, 255, 0.38) 70%, rgba(255, 255, 255, 0.52)),
+    radial-gradient(circle at 9% 12%, rgba(122, 179, 255, 0.52), transparent 33%),
+    radial-gradient(circle at 82% 7%, rgba(196, 165, 255, 0.48), transparent 32%),
+    radial-gradient(circle at 74% 86%, rgba(111, 207, 255, 0.34), transparent 34%),
+    linear-gradient(135deg, #f8fbff 0%, #edf4ff 48%, #fbfdff 100%) !important;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell::before,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell::before {
+  border-color: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68), 0 28px 90px rgba(76, 94, 134, 0.12);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-pages,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-pages {
+  padding-top: 30px;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-shell {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.14)),
+    rgba(255, 255, 255, 0.24);
+  box-shadow: 0 24px 76px rgba(82, 101, 157, 0.15);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-status-dock,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-status-dock,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-user-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-user-card {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.dashboard-v2-production-shell .glass-page-header,
+.dashboard-v2-production-shell .page-header {
+  min-height: 78px;
+}
+
+.dashboard-v2-production-shell .page-header-actions,
+.dashboard-v2-production-shell .glass-page-header-actions {
+  flex-wrap: wrap;
+}
+
+.glass-operating-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 22px;
+  align-items: start;
+}
+
+.glass-operating-main {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+
+.glass-inspector-panel {
+  position: sticky;
+  top: 30px;
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--glass-operating-border);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.16)),
+    var(--glass-operating-bg);
+  box-shadow: var(--glass-operating-shadow);
+  -webkit-backdrop-filter: var(--glass-operating-blur);
+  backdrop-filter: var(--glass-operating-blur);
+}
+
+html[data-dashboard-theme="dark"] .glass-inspector-panel {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)),
+    var(--glass-operating-bg);
+}
+
+.glass-inspector-head {
+  display: grid;
+  gap: 8px;
+}
+
+.glass-inspector-head h2 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.glass-inspector-head p:not(.overview-label),
+.glass-inspector-section p,
+.glass-inspector-mini-list span {
+  margin: 0;
+  color: var(--theme-copy);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.glass-inspector-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.glass-inspector-stat {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid var(--glass-operating-border-soft);
+  border-radius: 16px;
+  background: var(--glass-operating-bg-soft);
+  box-shadow: var(--glass-operating-highlight);
+}
+
+.glass-inspector-stat span,
+.glass-inspector-section .overview-label {
+  color: var(--theme-muted);
+  font-size: 11px;
+  font-weight: 820;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.glass-inspector-stat strong {
+  overflow: hidden;
+  color: var(--theme-text);
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+.glass-inspector-section,
+.glass-inspector-mini-list {
+  display: grid;
+  gap: 12px;
+}
+
+.glass-inspector-mini-list span {
+  padding: 10px 0 0;
+  border-top: 1px solid var(--glass-operating-border-soft);
+}
+
+.glass-inspector-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-v2-production-shell .glass-inspector-actions .ghost-button {
+  width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .glass-hero,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .glass-hero,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-command-center,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-command-center,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-workspace-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-workspace-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contacts-list-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contacts-list-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contacts-detail-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contacts-detail-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-page-main,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-page-main,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-side-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-side-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-section,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-section,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-overview-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-overview-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-metric-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-metric-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-table-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-table-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-chart-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-chart-card {
+  border-color: var(--glass-operating-border);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.15)),
+    var(--glass-operating-bg) !important;
+  box-shadow: var(--glass-operating-shadow-soft);
+  -webkit-backdrop-filter: var(--glass-operating-blur);
+  backdrop-filter: var(--glass-operating-blur);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .glass-hero,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .frontdesk-command-center,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .frontdesk-workspace-panel,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .contacts-list-shell,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .contacts-detail-shell,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .install-page-main,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .install-side-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell-section,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-overview-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-metric-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-table-card,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-chart-card {
+  border-color: var(--glass-operating-border);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+    var(--glass-operating-bg) !important;
+}
+
+.dashboard-v2-production-shell .glass-card,
+.dashboard-v2-production-shell .frontdesk-command-center,
+.dashboard-v2-production-shell .frontdesk-workspace-panel,
+.dashboard-v2-production-shell .contacts-list-shell,
+.dashboard-v2-production-shell .contacts-detail-shell,
+.dashboard-v2-production-shell .install-page-main,
+.dashboard-v2-production-shell .install-side-card,
+.dashboard-v2-production-shell .settings-shell-section,
+.dashboard-v2-production-shell .settings-overview-card,
+.dashboard-v2-production-shell .settings-shell-card,
+.dashboard-v2-production-shell .v2-card,
+.dashboard-v2-production-shell .v2-metric-card,
+.dashboard-v2-production-shell .v2-table-card,
+.dashboard-v2-production-shell .v2-chart-card {
+  border-radius: 22px;
+}
+
+.dashboard-v2-production-shell .quick-action-tile,
+.dashboard-v2-production-shell .frontdesk-command-tile,
+.dashboard-v2-production-shell .summary-strip-item,
+.dashboard-v2-production-shell .customer-v2-metric-card,
+.dashboard-v2-production-shell .install-method-card,
+.dashboard-v2-production-shell .install-stage-item,
+.dashboard-v2-production-shell .install-launch-path-card,
+.dashboard-v2-production-shell .settings-shell-status-row,
+.dashboard-v2-production-shell .settings-status-row,
+.dashboard-v2-production-shell .settings-shell-theme-option,
+.dashboard-v2-production-shell .customer-detail-card,
+.dashboard-v2-production-shell .customer-draft-card,
+.dashboard-v2-production-shell .frontdesk-readiness-item,
+.dashboard-v2-production-shell .frontdesk-detail-block,
+.dashboard-v2-production-shell .frontdesk-step,
+.dashboard-v2-production-shell .frontdesk-compact-section,
+.dashboard-v2-production-shell .frontdesk-improvement-card,
+.dashboard-v2-production-shell .frontdesk-library-card,
+.dashboard-v2-production-shell .install-detail-card,
+.dashboard-v2-production-shell .install-progress-card {
+  border: 1px solid var(--glass-operating-border-soft);
+  background: var(--glass-operating-bg-soft) !important;
+  box-shadow: var(--glass-operating-highlight);
+  -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  backdrop-filter: blur(22px) saturate(1.18);
+}
+
+.dashboard-v2-production-shell .ghost-button,
+.dashboard-v2-production-shell .glass-mini-button,
+.dashboard-v2-production-shell .v2-button,
+.dashboard-v2-production-shell .test-link,
+.dashboard-v2-production-shell .local-section-button,
+.dashboard-v2-production-shell .customer-filter-pill,
+.dashboard-v2-production-shell .settings-shell-nav-button,
+.dashboard-v2-production-shell .settings-frontdesk-subnav-button {
+  border-color: var(--glass-operating-border);
+  background: rgba(255, 255, 255, 0.28);
+  color: var(--theme-text);
+  box-shadow: var(--glass-operating-highlight);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .ghost-button,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .glass-mini-button,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-button,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .test-link,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .local-section-button,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-filter-pill,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell-nav-button,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-frontdesk-subnav-button {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.dashboard-v2-production-shell .ghost-button:hover,
+.dashboard-v2-production-shell .glass-mini-button:hover,
+.dashboard-v2-production-shell .v2-button:hover,
+.dashboard-v2-production-shell .test-link:hover,
+.dashboard-v2-production-shell .local-section-button:hover,
+.dashboard-v2-production-shell .customer-filter-pill:hover,
+.dashboard-v2-production-shell .settings-shell-nav-button:hover,
+.dashboard-v2-production-shell .settings-frontdesk-subnav-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--glass-border-strong);
+  background: var(--glass-operating-bg-strong);
+}
+
+.dashboard-v2-production-shell .local-section-nav,
+.dashboard-v2-production-shell .frontdesk-tab-nav,
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav,
+.settings-frontdesk-subnav,
+.customer-filter-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px;
+  border: 1px solid var(--glass-operating-border);
+  border-radius: 18px;
+  background: var(--glass-operating-bg-soft);
+  -webkit-backdrop-filter: blur(24px) saturate(1.18);
+  backdrop-filter: blur(24px) saturate(1.18);
+}
+
+.dashboard-v2-production-shell .local-section-button,
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button,
+.settings-frontdesk-subnav-button,
+.customer-filter-pill {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.dashboard-v2-production-shell .local-section-button.active,
+.dashboard-v2-production-shell .frontdesk-tab-button.active,
+.dashboard-v2-production-shell .customer-filter-pill.active,
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button.active,
+.settings-frontdesk-subnav-button.active {
+  border-color: rgba(124, 60, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(124, 60, 255, 0.14), rgba(79, 124, 255, 0.09)),
+    rgba(255, 255, 255, 0.34) !important;
+  color: var(--theme-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64), 0 10px 24px rgba(104, 94, 190, 0.12);
+}
+
+.frontdesk-operator-body {
+  gap: 18px;
+}
+
+.frontdesk-operating-main > [hidden] {
+  display: none !important;
+}
+
+.frontdesk-operating-main .frontdesk-workspace-panel {
+  min-height: min(680px, calc(100vh - 220px));
+}
+
+.dashboard-v2-production-shell .frontdesk-command-center {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 18px;
+}
+
+.dashboard-v2-production-shell .frontdesk-command-grid {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-v2-production-shell .frontdesk-command-tile {
+  min-height: 82px;
+  align-content: start;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.dashboard-v2-production-shell .frontdesk-command-tile p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dashboard-v2-production-shell .frontdesk-command-copy h2 {
+  font-size: clamp(20px, 2vw, 28px);
+}
+
+.dashboard-v2-production-shell .frontdesk-command-copy p:last-child {
+  max-width: 620px;
+}
+
+.dashboard-v2-production-shell .frontdesk-practice-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dashboard-v2-production-shell .frontdesk-practice-side-panel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.dashboard-v2-production-shell .frontdesk-settings-panel .settings-shell-frontdesk-root {
+  background: transparent;
+}
+
+.customer-operator-brief {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.52fr);
+  min-height: 190px;
+  margin-bottom: 2px;
+}
+
+.customer-operator-brief-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.customer-operator-brief-metrics {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.customer-operator-brief-metrics span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--glass-operating-border-soft);
+  border-radius: 18px;
+  background: var(--glass-operating-bg-soft);
+  color: var(--theme-muted);
+  font-size: 12px;
+  font-weight: 760;
+  box-shadow: var(--glass-operating-highlight);
+}
+
+.customer-operator-brief-metrics strong {
+  color: var(--theme-text);
+  font-size: 25px;
+  line-height: 1;
+}
+
+.customer-operator-warning {
+  position: relative;
+  z-index: 1;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #9a5c0a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dashboard-v2-production-shell .customer-v2-metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-v2-production-shell .customer-v2-metric-card {
+  min-height: 116px;
+  border-radius: 18px;
+}
+
+.dashboard-v2-production-shell .contacts-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 380px);
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-v2-production-shell .contacts-list-shell {
+  overflow: hidden;
+  padding: 0;
+}
+
+.dashboard-v2-production-shell .contacts-list-header {
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--glass-operating-border-soft);
+}
+
+.dashboard-v2-production-shell .customer-table-head {
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--theme-muted);
+}
+
+.dashboard-v2-production-shell .customer-row {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-color: var(--glass-operating-border-soft);
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.dashboard-v2-production-shell .customer-row:hover,
+.dashboard-v2-production-shell .customer-row.active {
+  background: rgba(255, 255, 255, 0.26) !important;
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-row:hover,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-row.active {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+.dashboard-v2-production-shell .contacts-detail-shell {
+  top: 30px;
+  min-height: auto;
+  padding: 0;
+  overflow: hidden;
+}
+
+.dashboard-v2-production-shell .customer-detail-panel {
+  gap: 14px;
+  padding: 20px;
+}
+
+.dashboard-v2-production-shell .customer-detail-card {
+  border-radius: 16px;
+}
+
+.dashboard-v2-production-shell .customer-detail-disclosure {
+  border: 1px solid var(--glass-operating-border-soft);
+  border-radius: 16px;
+  background: var(--glass-operating-bg-soft);
+}
+
+.dashboard-v2-production-shell .dashboard-v2-analytics {
+  gap: 20px;
+}
+
+.dashboard-v2-production-shell .v2-analytics-brief {
+  min-height: 190px;
+  border-radius: 28px;
+}
+
+.dashboard-v2-production-shell .v2-grid-6 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-metric-card {
+  min-height: 134px;
+  border-radius: 20px;
+}
+
+.dashboard-v2-production-shell .v2-analytics-columns {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+  gap: 20px;
+}
+
+.dashboard-v2-production-shell .v2-analytics-column:nth-child(3) {
+  grid-column: 2;
+}
+
+.dashboard-v2-production-shell .v2-card {
+  overflow: hidden;
+}
+
+.dashboard-v2-production-shell .v2-data-table-wrap {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-layout {
+  grid-template-columns: minmax(560px, 1fr) minmax(280px, 330px);
+  gap: 22px;
+}
+
+.dashboard-v2-production-shell .install-page-main {
+  padding: 20px;
+}
+
+.dashboard-v2-production-shell .install-stage-flow {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-v2-production-shell .install-stage-item {
+  min-height: 112px !important;
+  align-content: start;
+  padding: 16px !important;
+  border-radius: 18px;
+}
+
+.dashboard-v2-production-shell .install-launch-paths {
+  border-radius: 22px;
+}
+
+.dashboard-v2-production-shell .install-launch-path-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.dashboard-v2-production-shell .install-method-grid {
+  position: sticky;
+  top: 20px;
+  z-index: 4;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 6px;
+  border: 1px solid var(--glass-operating-border);
+  border-radius: 22px;
+  background: var(--glass-operating-bg-soft);
+  -webkit-backdrop-filter: blur(26px) saturate(1.2);
+  backdrop-filter: blur(26px) saturate(1.2);
+}
+
+.dashboard-v2-production-shell .install-method-card {
+  min-height: 112px;
+  border-radius: 18px;
+}
+
+.dashboard-v2-production-shell .install-method-card.active {
+  border-color: rgba(124, 60, 255, 0.32);
+  background:
+    linear-gradient(135deg, rgba(124, 60, 255, 0.14), rgba(79, 124, 255, 0.08)),
+    rgba(255, 255, 255, 0.26) !important;
+}
+
+.dashboard-v2-production-shell .install-side-panel {
+  position: sticky;
+  top: 30px;
+  display: grid;
+  gap: 14px;
+}
+
+.dashboard-v2-production-shell .install-options-grid {
+  margin-top: 18px;
+}
+
+.dashboard-v2-production-shell .install-option-card[hidden] {
+  display: none !important;
+}
+
+.dashboard-v2-production-shell .install-option-card {
+  padding: 22px;
+}
+
+.dashboard-v2-production-shell .full-page-install-selector {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 6px;
+  border: 1px solid var(--glass-operating-border-soft);
+  border-radius: 18px;
+  background: var(--glass-operating-bg-soft);
+}
+
+.dashboard-v2-production-shell .full-page-install-choice {
+  border-radius: 14px;
+  background: transparent;
+}
+
+.settings-shell-root .settings-shell-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-shell-root .settings-shell-overview {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-shell-root .settings-active-content {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-shell-root .settings-panel-stack,
+.settings-shell-root .settings-shell-form-body,
+.settings-shell-root .settings-details-stack {
+  gap: 18px;
+}
+
+.settings-shell-root .settings-shell-section,
+.settings-shell-root .settings-overview-card,
+.settings-shell-root .settings-shell-card {
+  padding: 22px;
+}
+
+.settings-shell-root .settings-overview-grid,
+.settings-shell-root .settings-operational-grid,
+.settings-shell-root .settings-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-shell-root .settings-preferences-grid,
+.settings-shell-root .settings-shell-split,
+.settings-shell-root .settings-frontdesk-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.settings-shell-root .settings-shell-choice-row,
+.settings-shell-root .settings-shell-status-row,
+.settings-shell-root .settings-status-row,
+.settings-shell-root .settings-shell-key-value-row {
+  border-radius: 16px;
+}
+
+.dashboard-v2-production-shell .field,
+.dashboard-v2-production-shell .settings-shell-field {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard-v2-production-shell .field label,
+.dashboard-v2-production-shell .settings-shell-field label {
+  color: var(--theme-muted);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.dashboard-v2-production-shell input,
+.dashboard-v2-production-shell textarea,
+.dashboard-v2-production-shell select,
+.dashboard-v2-production-shell .v2-select,
+.dashboard-v2-production-shell .settings-shell-mobile-select {
+  border-color: var(--glass-operating-border) !important;
+  background: rgba(255, 255, 255, 0.36) !important;
+  box-shadow: var(--glass-operating-highlight);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell input,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell textarea,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell select,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell-mobile-select {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+@media (max-width: 1200px) {
+  .glass-operating-split,
+  .dashboard-v2-production-shell .contacts-workspace,
+  .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-page-layout,
+  .settings-shell-root .settings-preferences-grid,
+  .settings-shell-root .settings-shell-split,
+  .settings-shell-root .settings-frontdesk-layout,
+  .customer-operator-brief {
+    grid-template-columns: 1fr;
+  }
+
+  .glass-inspector-panel,
+  .dashboard-v2-production-shell .contacts-detail-shell,
+  .dashboard-v2-production-shell .install-side-panel {
+    position: static;
+  }
+
+  .dashboard-v2-production-shell .v2-analytics-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-v2-production-shell .v2-analytics-column:nth-child(3) {
+    grid-column: auto;
+  }
+
+  .dashboard-v2-production-shell .v2-grid-6,
+  .dashboard-v2-production-shell .customer-v2-metric-grid,
+  .settings-shell-root .settings-overview-grid,
+  .settings-shell-root .settings-operational-grid,
+  .settings-shell-root .settings-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-v2-production-shell .workspace-pages {
+    padding: 8px 0 26px;
+  }
+
+  .dashboard-v2-production-shell .glass-page-header,
+  .dashboard-v2-production-shell .page-header {
+    min-height: 0;
+  }
+
+  .dashboard-v2-production-shell .page-header-actions,
+  .dashboard-v2-production-shell .glass-page-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dashboard-v2-production-shell .frontdesk-command-center,
+  .dashboard-v2-production-shell .frontdesk-command-grid,
+  .dashboard-v2-production-shell .frontdesk-practice-side-panel,
+  .dashboard-v2-production-shell .customer-v2-metric-grid,
+  .dashboard-v2-production-shell .v2-grid-6,
+  .dashboard-v2-production-shell .install-stage-flow,
+  .dashboard-v2-production-shell .install-launch-path-grid,
+  .dashboard-v2-production-shell .install-method-grid,
+  .dashboard-v2-production-shell .full-page-install-selector,
+  .settings-shell-root .settings-overview-grid,
+  .settings-shell-root .settings-operational-grid,
+  .settings-shell-root .settings-summary-grid,
+  .customer-operator-brief-metrics,
+  .glass-inspector-status-grid,
+  .glass-inspector-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-v2-production-shell .frontdesk-operating-main .frontdesk-workspace-panel {
+    min-height: 0;
+  }
+
+  .dashboard-v2-production-shell .customer-table-head {
+    display: none;
+  }
+
+  .dashboard-v2-production-shell .contacts-list-header,
+  .dashboard-v2-production-shell .install-option-card,
+  .settings-shell-root .settings-shell-section,
+  .settings-shell-root .settings-overview-card,
+  .settings-shell-root .settings-shell-card,
+  .glass-inspector-panel {
+    padding: 18px;
+  }
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-stage-item {
+  min-height: 96px !important;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="install"] .install-stage-item small {
+  display: none;
+}
+
+.settings-shell-root .settings-shell-top-nav-group {
+  padding: 6px !important;
+  border: 1px solid var(--glass-operating-border) !important;
+  border-radius: 22px !important;
+  background: var(--glass-operating-bg-soft) !important;
+  box-shadow: var(--glass-operating-highlight) !important;
+}
+
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  overflow-x: auto;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button {
+  width: auto !important;
+  min-width: 168px;
+  min-height: 54px;
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px !important;
+  text-align: left;
+}
+
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button span,
+.settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button strong {
+  min-width: 0;
+}

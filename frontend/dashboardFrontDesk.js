@@ -5,7 +5,7 @@
     { key: "knowledge", label: "Knowledge" },
     { key: "library", label: "Answer library" },
     { key: "launch", label: "Launch" },
-    { key: "customization", label: "Settings / Customization" },
+    { key: "customization", label: "Customization" },
   ]);
   const FRONT_DESK_TAB_KEYS = Object.freeze(FRONT_DESK_TABS.map((tab) => tab.key));
   const FRONT_DESK_TAB_LABELS = Object.freeze(
@@ -1064,6 +1064,72 @@
       `;
     }
 
+    function buildFrontDeskInspectorPanel({
+      activeFrontDeskSection = "practice",
+      installStatus = {},
+      missingSetupFields = [],
+      businessReadiness = {},
+      reviewCount = 0,
+      draftCount = 0,
+      publishedCount = 0,
+      publicFrontDeskLive = false,
+      liveVerificationLabel = "",
+    } = {}) {
+      const activeLabel = getFrontDeskTabLabel(activeFrontDeskSection);
+      const missingCount = missingSetupFields.length;
+      const readinessCopy = missingCount
+        ? `${missingCount} setup area${missingCount === 1 ? "" : "s"} still need review.`
+        : "Core Front Desk setup looks ready for customer-facing work.";
+      const businessContextCopy = Number(businessReadiness.missingCount || 0) > 0
+        ? `${businessReadiness.missingCount} business context area${businessReadiness.missingCount === 1 ? "" : "s"} could be stronger.`
+        : "Business context is in a strong place.";
+
+      return `
+        <aside class="glass-inspector-panel frontdesk-inspector-panel" aria-label="${sanitizeHtml("Front Desk inspector")}">
+          <div class="glass-inspector-head">
+            <p class="overview-label">${sanitizeHtml("Inspector")}</p>
+            <h2>${sanitizeHtml(activeLabel)}</h2>
+            <p>${sanitizeHtml(readinessCopy)}</p>
+          </div>
+          <div class="glass-inspector-status-grid">
+            <article class="glass-inspector-stat">
+              <span>${sanitizeHtml("Live page")}</span>
+              <strong>${sanitizeHtml(publicFrontDeskLive ? "Enabled" : "Disabled")}</strong>
+            </article>
+            <article class="glass-inspector-stat">
+              <span>${sanitizeHtml("Verification")}</span>
+              <strong>${sanitizeHtml(liveVerificationLabel || installStatus.label || "Not live yet")}</strong>
+            </article>
+            <article class="glass-inspector-stat">
+              <span>${sanitizeHtml("Reviews")}</span>
+              <strong>${sanitizeHtml(String(reviewCount))}</strong>
+            </article>
+            <article class="glass-inspector-stat">
+              <span>${sanitizeHtml("Library")}</span>
+              <strong>${sanitizeHtml(`${publishedCount} published`)}</strong>
+            </article>
+          </div>
+          <div class="glass-inspector-section">
+            <div>
+              <p class="overview-label">${sanitizeHtml("Focus")}</p>
+              <p>${sanitizeHtml(activeFrontDeskSection === "customization"
+                ? "Tune the customer-facing identity, greeting, questions, and launch behavior without exposing every control at once."
+                : "Use the current tab for focused work. Secondary setup context stays here instead of crowding the main canvas.")}</p>
+            </div>
+            <div class="glass-inspector-mini-list">
+              <span>${sanitizeHtml(businessContextCopy)}</span>
+              <span>${sanitizeHtml(draftCount ? `${draftCount} draft improvement${draftCount === 1 ? "" : "s"} available.` : "No draft improvements waiting.")}</span>
+              <span>${sanitizeHtml(missingSetupFields.length ? `Review: ${missingSetupFields.slice(0, 3).join(", ")}` : "No major required setup gaps are standing out.")}</span>
+            </div>
+          </div>
+          <div class="glass-inspector-actions">
+            <button class="ghost-button" type="button" data-frontdesk-open="knowledge">${sanitizeHtml("Review knowledge")}</button>
+            <button class="ghost-button" type="button" data-frontdesk-open="launch">${sanitizeHtml("Launch status")}</button>
+          </div>
+        </aside>
+      `;
+    }
+
     function buildFrontDeskPanel(agent, setup, operatorWorkspace = getEmptyOperatorWorkspace(), frontDeskTraining = createEmptyFrontDeskTraining(), actionQueue = createEmptyActionQueue()) {
       const installStatus = getDefaultInstallStatus(agent);
       const activeFrontDeskSection = getActiveFrontDeskSection();
@@ -1103,7 +1169,7 @@
           publicFrontDeskLive,
         }),
       })}
-      <div class="workspace-page-body">
+      <div class="workspace-page-body frontdesk-operator-body">
         ${buildFrontDeskCommandCenter({
           setup,
           activeFrontDeskSection,
@@ -1114,29 +1180,44 @@
           publicFrontDeskLive,
           installStatus,
         })}
-        ${buildFrontDeskPracticeSection(agent, setup, frontDeskTraining, actionQueue, activeFrontDeskSection)}
-        ${buildImprovementsSection(frontDeskTraining, actionQueue, activeFrontDeskSection)}
-        ${buildKnowledgeSection({
-          agent,
-          setup,
-          activeFrontDeskSection,
-          missingSetupFields,
-          businessReadiness,
-          profileContentSummary,
-        })}
-        ${buildAnswerLibrarySection(frontDeskTraining, activeFrontDeskSection)}
-        ${buildLaunchSection({
-          agent,
-          setup,
-          activeFrontDeskSection,
-          installStatus,
-          hasPreview,
-          fullPageUrl,
-          qrEndpoint,
-          publicFrontDeskLive,
-          liveVerificationLabel,
-        })}
-        ${buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace, actionQueue, activeFrontDeskSection)}
+        <div class="glass-operating-split frontdesk-operating-split">
+          <main class="glass-operating-main frontdesk-operating-main">
+            ${buildFrontDeskPracticeSection(agent, setup, frontDeskTraining, actionQueue, activeFrontDeskSection)}
+            ${buildImprovementsSection(frontDeskTraining, actionQueue, activeFrontDeskSection)}
+            ${buildKnowledgeSection({
+              agent,
+              setup,
+              activeFrontDeskSection,
+              missingSetupFields,
+              businessReadiness,
+              profileContentSummary,
+            })}
+            ${buildAnswerLibrarySection(frontDeskTraining, activeFrontDeskSection)}
+            ${buildLaunchSection({
+              agent,
+              setup,
+              activeFrontDeskSection,
+              installStatus,
+              hasPreview,
+              fullPageUrl,
+              qrEndpoint,
+              publicFrontDeskLive,
+              liveVerificationLabel,
+            })}
+            ${buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace, actionQueue, activeFrontDeskSection)}
+          </main>
+          ${buildFrontDeskInspectorPanel({
+            activeFrontDeskSection,
+            installStatus,
+            missingSetupFields,
+            businessReadiness,
+            reviewCount,
+            draftCount,
+            publishedCount,
+            publicFrontDeskLive,
+            liveVerificationLabel,
+          })}
+        </div>
       </div>
     </section>
   `);

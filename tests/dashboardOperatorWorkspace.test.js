@@ -2651,7 +2651,7 @@ test("front desk workspace uses focused sub-navigation and one dominant panel", 
   assert.match(panel, /<span>Knowledge<\/span>/);
   assert.match(panel, /<span>Answer library<\/span>/);
   assert.match(panel, /<span>Launch<\/span>/);
-  assert.match(panel, /<span>Settings \/ Customization<\/span>/);
+  assert.match(panel, /<span>Customization<\/span>/);
   assert.match(panel, /Open customization/);
   assert.match(panel, /Practice the answer customers will see/);
   assert.match(panel, /Next action/);

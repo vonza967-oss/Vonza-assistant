@@ -1297,6 +1297,43 @@
       `;
     }
 
+    function buildCustomerOperatorBrief(contacts = [], contactsHealth = {}) {
+      const totalContacts = contacts.length;
+      const needsReview = contacts.filter(customerNeedsOwnerReview).length;
+      const leads = contacts.filter(isLeadContact).length;
+      const frontDeskPageContacts = contacts.filter((contact) =>
+        buildContactSources(contact).some((source) => normalizeCustomerFilter(source) === "full_page_assistant")
+      ).length;
+      const primaryCopy = totalContacts
+        ? localizeDashboardCopy(
+          "Use the list for scanning, then work the selected customer from the inspector without losing context.",
+          "A listában gyorsan áttekintheted az ügyfeleket, majd a kiválasztott ügyfél részletein dolgozhatsz a kontextus elvesztése nélkül."
+        )
+        : localizeDashboardCopy(
+          "Customer records will appear here after real Front Desk conversations, leads, or follow-ups exist.",
+          "Az ügyfélrekordok akkor jelennek meg itt, amikor valódi Front Desk beszélgetések, érdeklődők vagy utánkövetések jönnek létre."
+        );
+
+      return `
+        <section class="glass-hero customer-operator-brief" aria-label="${escapeHtml(localizeDashboardCopy("Customer operating brief", "Ügyfél operációs összefoglaló"))}">
+          <div class="customer-operator-brief-copy">
+            <p class="glass-kicker">${escapeHtml(localizeDashboardCopy("Customer operations", "Ügyfélműveletek"))}</p>
+            <h2>${escapeHtml(needsReview > 0
+              ? localizeDashboardCopy("Start with customers that need a next step.", "Kezdd azokkal az ügyfelekkel, akiknek következő lépés kell.")
+              : localizeDashboardCopy("Customer workspace is ready.", "Az ügyfélmunkaterület készen áll."))}</h2>
+            <p>${escapeHtml(primaryCopy)}</p>
+          </div>
+          <div class="customer-operator-brief-metrics" aria-label="${escapeHtml(localizeDashboardCopy("Customer summary", "Ügyfélösszegzés"))}">
+            <span><strong>${escapeHtml(String(totalContacts))}</strong>${escapeHtml(localizeDashboardCopy("total", "összesen"))}</span>
+            <span><strong>${escapeHtml(String(needsReview))}</strong>${escapeHtml(localizeDashboardCopy("need review", "áttekintendő"))}</span>
+            <span><strong>${escapeHtml(String(leads))}</strong>${escapeHtml(localizeDashboardCopy("leads", "érdeklődő"))}</span>
+            <span><strong>${escapeHtml(String(frontDeskPageContacts))}</strong>${escapeHtml(localizeDashboardCopy("Front Desk", "Front Desk"))}</span>
+          </div>
+          ${contactsHealth.loadError ? `<p class="customer-operator-warning">${escapeHtml(contactsHealth.loadError)}</p>` : ""}
+        </section>
+      `;
+    }
+
     function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
       const contacts = operatorWorkspace.contacts?.list || [];
       const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
@@ -1318,6 +1355,7 @@
         </div>
       `;
       const peopleWorkspaceMarkup = `
+        ${buildCustomerOperatorBrief(contacts, contactsHealth)}
         ${buildCustomerMetricCards(contacts)}
         <div class="contacts-workspace" data-contacts-workspace>
           <section class="contacts-list-shell">
