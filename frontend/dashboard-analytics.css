@@ -1189,6 +1189,24 @@ html[data-dashboard-theme="dark"] .analytics-report-chart {
   border-top: 1px solid #edf1f6;
 }
 
+.dashboard-v2-production-shell .v2-web-call-health-card {
+  margin-top: 18px;
+}
+
+.dashboard-v2-production-shell .v2-web-call-health-card .analytics-report-contact-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dashboard-v2-production-shell .v2-web-call-failures {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.dashboard-v2-production-shell .v2-web-call-failures .analytics-empty-state {
+  margin: 0;
+}
+
 .dashboard-v2-production-shell .v2-legend-color {
   width: 10px;
   height: 10px;
@@ -1847,6 +1865,18 @@ html[data-dashboard-theme="dark"] .analytics-item {
 .analytics-report-contact-grid {
     grid-template-columns: 1fr;
   }}
+
+@media (max-width: 1100px) {
+  .dashboard-v2-production-shell .v2-web-call-health-card .analytics-report-contact-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard-v2-production-shell .v2-web-call-health-card .analytics-report-contact-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .dashboard-v2-production-shell .analytics-stack {
   gap: 22px;
 }

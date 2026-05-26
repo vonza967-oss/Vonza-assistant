@@ -323,6 +323,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
   "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
   "analytics.whatToWatch": "What to watch",
+  "analytics.webCallHealth": "Web Call health",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -8743,6 +8744,18 @@ function createEmptyOwnerAnalyticsDashboard() {
     },
     notifications: [],
     aiUsage: null,
+    webCallHealth: {
+      available: true,
+      starts: 0,
+      endedCalls: 0,
+      averageDurationSeconds: 0,
+      averageTurns: 0,
+      contactFallbackSubmissions: 0,
+      failureCounts: {},
+      failureCategories: [],
+      failureTotal: 0,
+      latestActivityAt: null,
+    },
   };
 }
 
@@ -8761,6 +8774,19 @@ function normalizeAssistantSourceBucket(bucket = {}, fallback = {}) {
   };
 }
 
+function isSafeWebCallFailureCategory(value = "") {
+  const normalized = trimText(value).toLowerCase();
+  return Boolean(normalized) && normalized.length <= 64 && /^[a-z0-9_]+$/.test(normalized);
+}
+
+function formatWebCallFailureCategoryLabel(category = "") {
+  return trimText(category)
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
 function normalizeOwnerAnalyticsDashboard(data = null) {
   if (!data || typeof data !== "object") {
     return null;
@@ -8777,6 +8803,9 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
     : {};
   const knowledgeImprovement = data.knowledgeImprovement && typeof data.knowledgeImprovement === "object"
     ? data.knowledgeImprovement
+    : {};
+  const webCallHealth = data.webCallHealth && typeof data.webCallHealth === "object"
+    ? data.webCallHealth
     : {};
 
   return {
@@ -8861,6 +8890,31 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
         percentUsed: Number(aiUsage.percentUsed || 0),
       }
       : null,
+    webCallHealth: {
+      ...emptyDashboard.webCallHealth,
+      available: webCallHealth.available !== false,
+      starts: Number(webCallHealth.starts || 0),
+      endedCalls: Number(webCallHealth.endedCalls || 0),
+      averageDurationSeconds: Number(webCallHealth.averageDurationSeconds || 0),
+      averageTurns: Number(webCallHealth.averageTurns || 0),
+      contactFallbackSubmissions: Number(webCallHealth.contactFallbackSubmissions || 0),
+      failureTotal: Number(webCallHealth.failureTotal || 0),
+      failureCounts: webCallHealth.failureCounts && typeof webCallHealth.failureCounts === "object" && !Array.isArray(webCallHealth.failureCounts)
+        ? Object.fromEntries(
+            Object.entries(webCallHealth.failureCounts)
+              .map(([category, count]) => [trimText(category).toLowerCase(), Number(count || 0)])
+              .filter(([category, count]) => isSafeWebCallFailureCategory(category) && count > 0)
+          )
+        : {},
+      failureCategories: Array.isArray(webCallHealth.failureCategories)
+        ? webCallHealth.failureCategories.map((item) => ({
+            category: trimText(item.category).toLowerCase(),
+            label: formatWebCallFailureCategoryLabel(item.category),
+            count: Number(item.count || 0),
+          })).filter((item) => isSafeWebCallFailureCategory(item.category) && item.count > 0)
+        : [],
+      latestActivityAt: webCallHealth.latestActivityAt || null,
+    },
   };
 }
 
@@ -8882,8 +8936,13 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
     || Number(dashboard.assistantSource?.embedded?.conversationCount || 0) > 0
     || Number(dashboard.assistantSource?.web_call?.messageCount || 0) > 0
     || Number(dashboard.assistantSource?.web_call?.conversationCount || 0) > 0;
+  const hasWebCallHealthData = Number(dashboard.webCallHealth?.starts || 0) > 0
+    || Number(dashboard.webCallHealth?.endedCalls || 0) > 0
+    || Number(dashboard.webCallHealth?.contactFallbackSubmissions || 0) > 0
+    || Number(dashboard.webCallHealth?.failureTotal || 0) > 0
+    || Boolean(trimText(dashboard.webCallHealth?.latestActivityAt));
 
-  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage || hasAssistantSourceData ? dashboard : null;
+  return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage || hasAssistantSourceData || hasWebCallHealthData ? dashboard : null;
 }
 
 function getAnalyticsSummary(actionQueue = createEmptyActionQueue(), agent = {}, messages = []) {

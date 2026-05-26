@@ -2,6 +2,58 @@ import { cleanText } from "../../utils/text.js";
 
 const PRODUCT_EVENTS_TABLE = "product_events";
 
+export const WEB_CALL_PRODUCT_EVENTS = [
+  "web_call_started",
+  "web_call_mic_denied",
+  "web_call_transcript_ready",
+  "web_call_transcript_rejected",
+  "web_call_turn_sent",
+  "web_call_reply_ready",
+  "web_call_speech_played",
+  "web_call_speech_failed",
+  "web_call_contact_opened",
+  "web_call_contact_submitted",
+  "web_call_ended",
+  "web_call_max_turns_reached",
+  "web_call_failed_recovery_shown",
+];
+
+const SAFE_WEB_CALL_FAILURE_CATEGORIES = new Set([
+  "audio_too_large",
+  "empty_transcript",
+  "garbled_transcript",
+  "mic_denied",
+  "no_audio",
+  "rate_limited",
+  "repeat_requested",
+  "request_failed",
+  "speech_authorization_missing",
+  "speech_failed",
+  "speech_not_attempted",
+  "transcript_rejected",
+  "transcription_failed",
+  "unknown",
+  "voice_unavailable",
+]);
+
+const WEB_CALL_FAILURE_LABELS = Object.freeze({
+  audio_too_large: "Audio too large",
+  empty_transcript: "Empty transcript",
+  garbled_transcript: "Garbled transcript",
+  mic_denied: "Microphone denied",
+  no_audio: "No audio",
+  rate_limited: "Rate limited",
+  repeat_requested: "Repeat requested",
+  request_failed: "Request failed",
+  speech_authorization_missing: "Speech authorization missing",
+  speech_failed: "Speech playback failed",
+  speech_not_attempted: "Speech not attempted",
+  transcript_rejected: "Transcript rejected",
+  transcription_failed: "Transcription failed",
+  unknown: "Unknown safe category",
+  voice_unavailable: "Voice unavailable",
+});
+
 export const TRACKED_PRODUCT_EVENTS = [
   "dashboard_arrived",
   "onboarding_started",
@@ -21,19 +73,7 @@ export const TRACKED_PRODUCT_EVENTS = [
   "first_not_helpful_feedback",
   "voice_transcription_completed",
   "voice_speech_generated",
-  "web_call_started",
-  "web_call_mic_denied",
-  "web_call_transcript_ready",
-  "web_call_transcript_rejected",
-  "web_call_turn_sent",
-  "web_call_reply_ready",
-  "web_call_speech_played",
-  "web_call_speech_failed",
-  "web_call_contact_opened",
-  "web_call_contact_submitted",
-  "web_call_ended",
-  "web_call_max_turns_reached",
-  "web_call_failed_recovery_shown",
+  ...WEB_CALL_PRODUCT_EVENTS,
   "first_follow_up_completed",
   "first_knowledge_fix_approved",
   "notification_read",
@@ -96,6 +136,153 @@ function getActorKey(row) {
   const agentId = cleanText(row?.agent_id);
   const rowId = cleanText(row?.id);
   return ownerUserId || clientId || (agentId ? `agent:${agentId}` : `event:${rowId}`);
+}
+
+function readSafeNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
+}
+
+function readTimestamp(value) {
+  const timestamp = new Date(value || "").getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function averageRounded(values = []) {
+  const numbers = values
+    .map((value) => readSafeNumber(value))
+    .filter((value) => value !== null);
+
+  if (!numbers.length) {
+    return 0;
+  }
+
+  const average = numbers.reduce((sum, value) => sum + value, 0) / numbers.length;
+  return Number(average.toFixed(1));
+}
+
+function normalizeWebCallFailureCategory(value, eventName = "") {
+  const normalized = cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (SAFE_WEB_CALL_FAILURE_CATEGORIES.has(normalized)) {
+    return normalized;
+  }
+
+  switch (cleanText(eventName)) {
+    case "web_call_mic_denied":
+      return "mic_denied";
+    case "web_call_transcript_rejected":
+      return "transcript_rejected";
+    case "web_call_speech_failed":
+      return "speech_failed";
+    default:
+      return "unknown";
+  }
+}
+
+function getWebCallId(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata
+    : {};
+  return cleanText(metadata.web_call_id || metadata.webCallId) || cleanText(row.id);
+}
+
+function isWebCallFailureEvent(eventName = "") {
+  return [
+    "web_call_mic_denied",
+    "web_call_transcript_rejected",
+    "web_call_speech_failed",
+    "web_call_failed_recovery_shown",
+  ].includes(cleanText(eventName));
+}
+
+function getFailureCategoryRows(failureCounts = {}) {
+  return Object.entries(failureCounts)
+    .map(([category, count]) => ({
+      category,
+      label: WEB_CALL_FAILURE_LABELS[category] || WEB_CALL_FAILURE_LABELS.unknown,
+      count,
+    }))
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
+}
+
+export function createEmptyWebCallHealthSummary() {
+  return {
+    available: true,
+    starts: 0,
+    endedCalls: 0,
+    averageDurationSeconds: 0,
+    averageTurns: 0,
+    contactFallbackSubmissions: 0,
+    failureCounts: {},
+    failureCategories: [],
+    failureTotal: 0,
+    latestActivityAt: null,
+  };
+}
+
+export function buildWebCallHealthSummary(rows = []) {
+  const summary = createEmptyWebCallHealthSummary();
+  const calls = new Map();
+  const endedDurations = [];
+  const endedTurns = [];
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const eventName = cleanText(row?.event_name);
+    const metadata = row?.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? row.metadata
+      : {};
+    const createdAt = row?.created_at || row?.createdAt || null;
+    const callId = getWebCallId(row);
+
+    if (!WEB_CALL_PRODUCT_EVENTS.includes(eventName)) {
+      return;
+    }
+
+    if (readTimestamp(createdAt) > readTimestamp(summary.latestActivityAt)) {
+      summary.latestActivityAt = createdAt;
+    }
+
+    if (!calls.has(callId)) {
+      calls.set(callId, {
+        started: false,
+        ended: false,
+        contactSubmitted: false,
+      });
+    }
+
+    const call = calls.get(callId);
+
+    if (eventName === "web_call_started") {
+      summary.starts += 1;
+      call.started = true;
+    }
+
+    if (eventName === "web_call_ended") {
+      summary.endedCalls += 1;
+      call.ended = true;
+      endedDurations.push(metadata.duration_seconds);
+      endedTurns.push(metadata.turn_count);
+    }
+
+    if (eventName === "web_call_contact_submitted") {
+      summary.contactFallbackSubmissions += 1;
+      call.contactSubmitted = true;
+    }
+
+    if (isWebCallFailureEvent(eventName)) {
+      const category = normalizeWebCallFailureCategory(metadata.failure_category, eventName);
+      summary.failureCounts[category] = Number(summary.failureCounts[category] || 0) + 1;
+      summary.failureTotal += 1;
+    }
+  });
+
+  summary.averageDurationSeconds = averageRounded(endedDurations);
+  summary.averageTurns = averageRounded(endedTurns);
+  summary.failureCategories = getFailureCategoryRows(summary.failureCounts);
+
+  return summary;
 }
 
 function shouldDropMetadataKey(key = "") {
@@ -305,5 +492,55 @@ export async function getProductFunnelSummary(supabase, options = {}) {
       knowledge_imported: breakdown.knowledge_imported.size,
       knowledge_limited: breakdown.knowledge_limited.size,
     },
+  };
+}
+
+export async function listWebCallHealthEvents(supabase, options = {}) {
+  const agentId = cleanText(options.agentId);
+  const ownerUserId = cleanText(options.ownerUserId);
+  const limit = Math.min(Math.max(Number(options.limit || 1000), 1), 5000);
+
+  if (!agentId || !ownerUserId) {
+    return {
+      records: [],
+      summary: {
+        ...createEmptyWebCallHealthSummary(),
+        available: false,
+      },
+      persistenceAvailable: false,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from(PRODUCT_EVENTS_TABLE)
+    .select("id, event_name, metadata, created_at")
+    .eq("agent_id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .in("event_name", WEB_CALL_PRODUCT_EVENTS)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    if (isMissingRelationError(error, PRODUCT_EVENTS_TABLE)) {
+      return {
+        records: [],
+        summary: {
+          ...createEmptyWebCallHealthSummary(),
+          available: false,
+        },
+        persistenceAvailable: false,
+      };
+    }
+
+    console.error(error);
+    throw error;
+  }
+
+  const records = Array.isArray(data) ? data : [];
+
+  return {
+    records,
+    summary: buildWebCallHealthSummary(records),
+    persistenceAvailable: true,
   };
 }

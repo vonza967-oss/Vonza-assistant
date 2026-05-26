@@ -141,6 +141,22 @@ test("Analytics page fragment preserves real values without QR or raw display mo
         unknown: { key: "display_mode", conversationCount: 0, messageCount: 0 },
         totalConversations: 7,
       },
+      webCallHealth: {
+        starts: 2,
+        endedCalls: 1,
+        averageDurationSeconds: 62,
+        averageTurns: 2,
+        contactFallbackSubmissions: 1,
+        failureCategories: [
+          { category: "garbled_transcript", label: "Garbled transcript", count: 1 },
+        ],
+        failureTotal: 1,
+        latestActivityAt: "2026-05-20T11:00:05.000Z",
+        transcriptText: "I need a quote",
+        assistantReplyText: "Sure, I can help.",
+        contactEmail: "lead@example.com",
+        speechToken: "token-123",
+      },
     },
     [{ label: "Booking availability", count: 2 }],
     [{ createdAt: "2026-05-22T10:00:00Z" }],
@@ -155,7 +171,14 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.match(markup, /Embedded assistant/);
   assert.match(markup, /Booking availability/);
   assert.match(markup, /Conversion rate/);
+  assert.match(markup, /Web Call health/);
+  assert.match(markup, /Starts/);
+  assert.match(markup, />2</);
+  assert.match(markup, /Avg\. duration/);
+  assert.match(markup, /1m 02s/);
+  assert.match(markup, /Garbled transcript/);
   assert.doesNotMatch(markup, /Legacy\/unknown/);
   assert.doesNotMatch(markup, /display_mode/);
+  assert.doesNotMatch(markup, /I need a quote|Sure, I can help|lead@example\.com|token-123/i);
   assert.doesNotMatch(markup, /QR scans|QR code|QR scan analytics unavailable/i);
 });

@@ -259,3 +259,53 @@ test("owner analytics dashboard breaks assistant activity down by widget, page, 
   assert.equal(dashboard.assistantSource.totalConversations, 4);
   assert.equal(dashboard.assistantSource.totalMessages, 7);
 });
+
+test("owner analytics dashboard exposes only safe Web Call health aggregates", () => {
+  const dashboard = buildOwnerAnalyticsDashboard({
+    agent: {
+      id: "agent-1",
+      name: "Front Desk",
+    },
+    messages: [],
+    actionQueue: {
+      items: [],
+      summary: {},
+    },
+    webCallHealth: {
+      starts: 2,
+      endedCalls: 1,
+      averageDurationSeconds: 62,
+      averageTurns: 2,
+      contactFallbackSubmissions: 1,
+      failureCounts: {
+        garbled_transcript: 1,
+      },
+      failureCategories: [
+        {
+          category: "garbled_transcript",
+          label: "Garbled transcript",
+          count: 1,
+          rawProviderError: "provider error for lead@example.com",
+        },
+      ],
+      failureTotal: 1,
+      latestActivityAt: "2026-05-20T11:00:05.000Z",
+      transcriptText: "I need a quote",
+      assistantReplyText: "Sure, I can help.",
+      contactEmail: "lead@example.com",
+      speechToken: "token-123",
+    },
+  });
+
+  assert.equal(dashboard.webCallHealth.starts, 2);
+  assert.equal(dashboard.webCallHealth.endedCalls, 1);
+  assert.equal(dashboard.webCallHealth.averageDurationSeconds, 62);
+  assert.equal(dashboard.webCallHealth.averageTurns, 2);
+  assert.equal(dashboard.webCallHealth.contactFallbackSubmissions, 1);
+  assert.equal(dashboard.webCallHealth.failureCounts.garbled_transcript, 1);
+  assert.equal(dashboard.webCallHealth.failureCategories[0].label, "Garbled Transcript");
+  assert.equal(dashboard.webCallHealth.latestActivityAt, "2026-05-20T11:00:05.000Z");
+
+  const serialized = JSON.stringify(dashboard.webCallHealth);
+  assert.doesNotMatch(serialized, /I need a quote|Sure, I can help|lead@example\.com|token-123|provider error/i);
+});

@@ -64,6 +64,7 @@
     "analytics.waitingForTrafficCopy": "After customers use the hosted Front Desk page, QR/direct link, embed, or optional widget, performance signals will appear here.",
     "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
     "analytics.whatToWatch": "What to watch",
+    "analytics.webCallHealth": "Web Call health",
   });
 
   function trimText(value) {
@@ -150,6 +151,43 @@
     }
 
     return numeric.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function formatMetricDuration(seconds) {
+    const totalSeconds = Math.max(0, Math.round(Number(seconds || 0)));
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainder = totalSeconds % 60;
+
+    if (minutes <= 0) {
+      return `${remainder}s`;
+    }
+
+    return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+  }
+
+  function formatMetricDecimal(value) {
+    const numeric = Number(value || 0);
+
+    if (!Number.isFinite(numeric)) {
+      return "0";
+    }
+
+    return numeric.toFixed(1).replace(/\.0$/, "");
+  }
+
+  function formatActivityTime(value) {
+    const date = new Date(value || "");
+
+    if (Number.isNaN(date.getTime())) {
+      return "No activity yet";
+    }
+
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
   }
 
   function formatConversationCount(value) {
@@ -504,6 +542,58 @@
     return `<div class="placeholder-card analytics-empty-state">${escapeHtml(copy)}</div>`;
   }
 
+  function renderWebCallHealthCard(webCallHealth = {}, options = {}) {
+    const context = createRenderContext(options);
+    const health = webCallHealth && typeof webCallHealth === "object" ? webCallHealth : {};
+    const available = health.available !== false;
+    const failureCategories = Array.isArray(health.failureCategories) ? health.failureCategories : [];
+    const stats = [
+      { label: "Starts", value: formatMetricValue(health.starts || 0) },
+      { label: "Ended calls", value: formatMetricValue(health.endedCalls || 0) },
+      { label: "Avg. duration", value: formatMetricDuration(health.averageDurationSeconds || 0) },
+      { label: "Avg. turns", value: formatMetricDecimal(health.averageTurns || 0) },
+      { label: "Contact fallbacks", value: formatMetricValue(health.contactFallbackSubmissions || 0) },
+      { label: "Latest activity", value: formatActivityTime(health.latestActivityAt) },
+    ];
+
+    return `
+    <section class="v2-card v2-section v2-web-call-health-card">
+      <div class="v2-section-header">
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(context.t("analytics.webCallHealth"))}</h2>
+          <p class="v2-section-subtitle">Safe product telemetry for browser-based calls. No transcripts, replies, contact details, speech tokens, or provider errors are shown.</p>
+        </div>
+        ${context.renderIconBadge("phone", available ? "blue" : "gray")}
+      </div>
+      ${available ? `
+        <div class="analytics-report-contact-grid">
+          ${stats.map((item) => `
+            <div class="analytics-report-contact-card">
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${escapeHtml(item.value)}</strong>
+            </div>
+          `).join("")}
+        </div>
+        <div class="v2-web-call-failures">
+          <p class="v2-row-title">Failed speech, transcription, and playback</p>
+          ${failureCategories.length ? `
+            <div class="v2-donut-legend">
+              ${failureCategories.map((item) => `
+                <div class="v2-legend-row">
+                  <span class="v2-legend-color soft-blue"></span>
+                  <span>${escapeHtml(item.label || item.category || "Safe failure category")}</span>
+                  <strong></strong>
+                  <span>${escapeHtml(formatMetricValue(item.count || 0))}</span>
+                </div>
+              `).join("")}
+            </div>
+          ` : renderAnalyticsEmptyState("No failed speech, transcription, or playback events have been recorded.")}
+        </div>
+      ` : renderAnalyticsEmptyState("Web Call product telemetry is not available yet.")}
+    </section>
+  `;
+  }
+
   function renderHeatmap(userMessages = [], options = {}) {
     const context = createRenderContext(options);
     const times = [
@@ -717,6 +807,7 @@
       <section class="v2-grid v2-grid-6">
         ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
       </section>
+      ${renderWebCallHealthCard(ownerAnalyticsDashboard?.webCallHealth, context)}
       <section class="v2-analytics-columns v2-section">
         <div class="v2-analytics-column v2-analytics-column-main">
           <article class="v2-card v2-chart-card v2-analytics-chart-card">
@@ -763,6 +854,7 @@
     renderTopQuestionsList,
     renderRecentAnalyticsActivity,
     renderAnalyticsEmptyState,
+    renderWebCallHealthCard,
     renderAnalyticsPageFragment,
   });
 })(window);

@@ -35,7 +35,7 @@ import {
 } from "../services/chat/messageService.js";
 import { buildAnalyticsSummary } from "../services/analytics/analyticsSummaryService.js";
 import { buildOwnerAnalyticsDashboard } from "../services/analytics/ownerAnalyticsDashboardService.js";
-import { getProductFunnelSummary, trackProductEvent } from "../services/analytics/productEventService.js";
+import { getProductFunnelSummary, listWebCallHealthEvents, trackProductEvent } from "../services/analytics/productEventService.js";
 import {
   assertWidgetTelemetrySchemaReady,
   listWidgetRoutingEventsByAgentId,
@@ -248,6 +248,7 @@ export function createAgentRouter(deps = {}) {
   const updateVisitorReplyFeedbackStatusImpl =
     deps.updateVisitorReplyFeedbackStatus || updateVisitorReplyFeedbackStatus;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
+  const listWebCallHealthEventsImpl = deps.listWebCallHealthEvents || listWebCallHealthEvents;
   const requireAdminUserImpl = deps.requireAdminUser || requireAdminUser;
   const recordAdminAuditEventImpl = deps.recordAdminAuditEvent || recordAdminAuditEvent;
   const listAdminPhoneNumbersForAgentImpl =
@@ -1806,7 +1807,7 @@ export function createAgentRouter(deps = {}) {
       const agent = await getAgentWorkspaceSnapshotImpl(supabase, agentId);
       const ownerUserId = user.id;
 
-      const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses, feedback] = await Promise.all([
+      const [messages, leadCaptures, conversionOutcomes, billingSnapshot, statuses, feedback, webCallHealthResult] = await Promise.all([
         listAgentMessagesImpl(supabase, agentId),
         listLeadCapturesImpl(supabase, {
           agentId,
@@ -1839,6 +1840,15 @@ export function createAgentRouter(deps = {}) {
           },
           persistenceAvailable: false,
         })),
+        listWebCallHealthEventsImpl(supabase, {
+          agentId,
+          ownerUserId,
+        }).catch(() => ({
+          summary: {
+            available: false,
+          },
+          persistenceAvailable: false,
+        })),
       ]);
 
       const persistedRecords = Array.isArray(statuses) ? statuses : statuses?.records || [];
@@ -1860,6 +1870,7 @@ export function createAgentRouter(deps = {}) {
         billingSnapshot,
         actionQueue,
         feedback,
+        webCallHealth: webCallHealthResult?.summary,
       }));
     } catch (err) {
       sendRouteError(req, res, err, { route: "/dashboard/analytics" });

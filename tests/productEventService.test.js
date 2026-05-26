@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import {
   TRACKED_PRODUCT_EVENTS,
+  buildWebCallHealthSummary,
+  listWebCallHealthEvents,
   sanitizeProductEventMetadata,
   trackProductEvent,
 } from "../src/services/analytics/productEventService.js";
@@ -131,4 +133,144 @@ test("Web Call product metadata keeps safe fields and drops transcript reply and
       failure_category: "speech_failed",
     }
   );
+});
+
+test("Web Call health aggregation uses safe counts and does not leak metadata PII", () => {
+  const summary = buildWebCallHealthSummary([
+    {
+      id: "event-1",
+      event_name: "web_call_started",
+      created_at: "2026-05-20T10:00:00.000Z",
+      metadata: {
+        web_call_id: "call-1",
+        transcript_text: "I need a quote",
+        contact_email: "lead@example.com",
+      },
+    },
+    {
+      id: "event-2",
+      event_name: "web_call_transcript_rejected",
+      created_at: "2026-05-20T10:00:10.000Z",
+      metadata: {
+        web_call_id: "call-1",
+        failure_category: "garbled_transcript",
+        raw_provider_error: "provider timeout for lead@example.com",
+      },
+    },
+    {
+      id: "event-3",
+      event_name: "web_call_speech_failed",
+      created_at: "2026-05-20T10:00:20.000Z",
+      metadata: {
+        web_call_id: "call-1",
+        failure_category: "provider said visitor@example.com failed",
+      },
+    },
+    {
+      id: "event-4",
+      event_name: "web_call_contact_submitted",
+      created_at: "2026-05-20T10:00:30.000Z",
+      metadata: {
+        web_call_id: "call-1",
+        contact_name: "Visitor Name",
+        contact_phone: "+15555555555",
+      },
+    },
+    {
+      id: "event-5",
+      event_name: "web_call_ended",
+      created_at: "2026-05-20T10:01:02.000Z",
+      metadata: {
+        web_call_id: "call-1",
+        duration_seconds: 62,
+        turn_count: 2,
+        assistant_reply_text: "Sure, I can help.",
+      },
+    },
+    {
+      id: "event-6",
+      event_name: "web_call_started",
+      created_at: "2026-05-20T11:00:00.000Z",
+      metadata: {
+        web_call_id: "call-2",
+      },
+    },
+    {
+      id: "event-7",
+      event_name: "web_call_mic_denied",
+      created_at: "2026-05-20T11:00:05.000Z",
+      metadata: {
+        web_call_id: "call-2",
+      },
+    },
+  ]);
+
+  assert.equal(summary.starts, 2);
+  assert.equal(summary.endedCalls, 1);
+  assert.equal(summary.averageDurationSeconds, 62);
+  assert.equal(summary.averageTurns, 2);
+  assert.equal(summary.contactFallbackSubmissions, 1);
+  assert.equal(summary.failureCounts.garbled_transcript, 1);
+  assert.equal(summary.failureCounts.speech_failed, 1);
+  assert.equal(summary.failureCounts.mic_denied, 1);
+  assert.equal(summary.failureTotal, 3);
+  assert.equal(summary.latestActivityAt, "2026-05-20T11:00:05.000Z");
+
+  const serialized = JSON.stringify(summary);
+  assert.doesNotMatch(serialized, /quote|lead@example\.com|visitor@example\.com|Visitor Name|\+15555555555|provider timeout|Sure, I can help/i);
+});
+
+test("Web Call health product event query is scoped to owner and agent", async () => {
+  const calls = [];
+  const supabase = {
+    from(tableName) {
+      calls.push(["from", tableName]);
+      const builder = {
+        select(columns) {
+          calls.push(["select", columns]);
+          return builder;
+        },
+        eq(field, value) {
+          calls.push(["eq", field, value]);
+          return builder;
+        },
+        in(field, values) {
+          calls.push(["in", field, values]);
+          return builder;
+        },
+        order(field, options) {
+          calls.push(["order", field, options]);
+          return builder;
+        },
+        async limit(value) {
+          calls.push(["limit", value]);
+          return {
+            data: [
+              {
+                id: "event-1",
+                event_name: "web_call_started",
+                created_at: "2026-05-20T10:00:00.000Z",
+                metadata: { web_call_id: "call-1" },
+              },
+            ],
+            error: null,
+          };
+        },
+      };
+      return builder;
+    },
+  };
+
+  const result = await listWebCallHealthEvents(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+  });
+
+  assert.equal(result.persistenceAvailable, true);
+  assert.equal(result.summary.starts, 1);
+  assert.deepEqual(calls.filter((call) => call[0] === "eq"), [
+    ["eq", "agent_id", "agent-1"],
+    ["eq", "owner_user_id", "owner-1"],
+  ]);
+  assert.equal(calls.some((call) => call[0] === "in" && call[1] === "event_name" && call[2].includes("web_call_started")), true);
 });

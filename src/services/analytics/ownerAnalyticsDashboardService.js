@@ -1,5 +1,6 @@
 import { buildActionQueue } from "./actionQueueService.js";
 import { buildCustomerQuestionSummaries } from "./analyticsSummaryService.js";
+import { createEmptyWebCallHealthSummary } from "./productEventService.js";
 import { cleanText } from "../../utils/text.js";
 
 const UNKNOWN_REPLY_PATTERNS = [
@@ -468,6 +469,51 @@ function buildAiUsageSnapshot(billingSnapshot = null) {
   };
 }
 
+function isSafeWebCallCategory(value = "") {
+  const normalized = cleanText(value).toLowerCase();
+  return Boolean(normalized) && normalized.length <= 64 && /^[a-z0-9_]+$/.test(normalized);
+}
+
+function formatWebCallCategoryLabel(category = "") {
+  return cleanText(category)
+    .split("_")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function normalizeWebCallHealthSummary(webCallHealth = null) {
+  const source = webCallHealth && typeof webCallHealth === "object" ? webCallHealth : {};
+  const empty = createEmptyWebCallHealthSummary();
+  const failureCounts = source.failureCounts && typeof source.failureCounts === "object" && !Array.isArray(source.failureCounts)
+    ? Object.fromEntries(
+        Object.entries(source.failureCounts)
+          .map(([category, count]) => [cleanText(category).toLowerCase(), Math.max(0, Number(count || 0))])
+          .filter(([category, count]) => isSafeWebCallCategory(category) && count > 0)
+      )
+    : {};
+
+  return {
+    ...empty,
+    available: source.available !== false,
+    starts: Math.max(0, Number(source.starts || 0)),
+    endedCalls: Math.max(0, Number(source.endedCalls || 0)),
+    averageDurationSeconds: Math.max(0, Number(source.averageDurationSeconds || 0)),
+    averageTurns: Math.max(0, Number(source.averageTurns || 0)),
+    contactFallbackSubmissions: Math.max(0, Number(source.contactFallbackSubmissions || 0)),
+    failureCounts,
+    failureCategories: Array.isArray(source.failureCategories)
+      ? source.failureCategories.map((item) => ({
+          category: cleanText(item.category).toLowerCase(),
+          label: formatWebCallCategoryLabel(item.category),
+          count: Math.max(0, Number(item.count || 0)),
+        })).filter((item) => isSafeWebCallCategory(item.category) && item.count > 0)
+      : [],
+    failureTotal: Math.max(0, Number(source.failureTotal || Object.values(failureCounts).reduce((sum, count) => sum + Number(count || 0), 0))),
+    latestActivityAt: source.latestActivityAt || null,
+  };
+}
+
 export function buildOwnerAnalyticsDashboard({
   agent = {},
   messages = [],
@@ -477,6 +523,7 @@ export function buildOwnerAnalyticsDashboard({
   billingSnapshot = null,
   actionQueue = null,
   feedback = null,
+  webCallHealth = null,
 } = {}) {
   const normalizedMessages = messages.map((message) => normalizeMessage(message));
   const userMessages = normalizedMessages.filter((message) => message.role === "user");
@@ -553,5 +600,6 @@ export function buildOwnerAnalyticsDashboard({
       persistenceAvailable: conversionOutcomes.persistenceAvailable !== false,
     },
     aiUsage: buildAiUsageSnapshot(billingSnapshot),
+    webCallHealth: normalizeWebCallHealthSummary(webCallHealth),
   };
 }
