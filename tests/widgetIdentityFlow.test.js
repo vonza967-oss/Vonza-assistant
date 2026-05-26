@@ -977,6 +977,7 @@ test("call Front Desk CTA is page-only and requires voice input, spoken replies,
 test("call Front Desk turn transcribes, sends chat, and speaks with returned token", async () => {
   const calls = [];
   const capturePayloads = [];
+  const productEventPayloads = [];
   TestMediaRecorder.instances = [];
   const harness = createWidgetHarness({
     location: {
@@ -1067,6 +1068,17 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
         };
       }
 
+      if (url === "/product-events") {
+        const payload = JSON.parse(options.body);
+        productEventPayloads.push(payload);
+        return {
+          ok: true,
+          async json() {
+            return { ok: true };
+          },
+        };
+      }
+
       if (url === "/chat/capture") {
         const payload = JSON.parse(options.body);
         capturePayloads.push(payload);
@@ -1150,12 +1162,40 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.equal(capturePayloads.length, 1);
   assert.equal(capturePayloads[0].display_mode, "page");
   assert.equal(capturePayloads[0].conversation_source, "web_call");
+  assert.equal(capturePayloads[0].web_call_id, productEventPayloads[0].metadata.web_call_id);
   assert.equal(capturePayloads[0].visitor_session_key, "uuid-1");
   assert.equal(capturePayloads[0].email, "caller@example.com");
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const productEventNames = productEventPayloads.map((payload) => payload.event_name);
+  assert.deepEqual(
+    [
+      "web_call_started",
+      "web_call_transcript_ready",
+      "web_call_turn_sent",
+      "web_call_reply_ready",
+      "web_call_speech_played",
+      "web_call_ended",
+      "web_call_contact_submitted",
+    ].every((eventName) => productEventNames.includes(eventName)),
+    true
+  );
+  assert.equal(productEventPayloads.every((payload) => payload.source === "public_web_call"), true);
+  assert.equal(productEventPayloads.every((payload) => payload.metadata.display_mode === "page"), true);
+  assert.equal(productEventPayloads.every((payload) => payload.metadata.conversation_source === "web_call"), true);
+  assert.equal(productEventPayloads.every((payload) => payload.metadata.web_call_enabled === true), true);
+  assert.equal(productEventPayloads.some((payload) => payload.metadata.turn_count === 1), true);
+
+  const serializedProductEvents = JSON.stringify(productEventPayloads);
+  assert.doesNotMatch(serializedProductEvents, /Can you help with quotes\?/);
+  assert.doesNotMatch(serializedProductEvents, /Yes, I can help collect quote details\./);
+  assert.doesNotMatch(serializedProductEvents, /CALLER|caller@example\.com|Caller Example/i);
+  assert.doesNotMatch(serializedProductEvents, /call-speech-token/);
 });
 
 test("call Front Desk empty transcript asks to repeat without sending chat", async () => {
   const calls = [];
+  const productEventPayloads = [];
   TestMediaRecorder.instances = [];
   const harness = createWidgetHarness({
     location: {
@@ -1169,7 +1209,7 @@ test("call Front Desk empty transcript asks to repeat without sending chat", asy
       },
     },
     MediaRecorder: TestMediaRecorder,
-    customFetch: async (input) => {
+    customFetch: async (input, options = {}) => {
       const url = String(input);
       calls.push(url);
 
@@ -1184,6 +1224,16 @@ test("call Front Desk empty transcript asks to repeat without sending chat", asy
 
       if (url === "/chat") {
         throw new Error("empty web call transcript should not call /chat");
+      }
+
+      if (url === "/product-events") {
+        productEventPayloads.push(JSON.parse(options.body));
+        return {
+          ok: true,
+          async json() {
+            return { ok: true };
+          },
+        };
       }
 
       return {
@@ -1216,6 +1266,11 @@ test("call Front Desk empty transcript asks to repeat without sending chat", asy
     harness.elements.get("call-front-desk-status").textContent,
     "I didn’t catch that. Please try again with one short question."
   );
+  assert.ok(productEventPayloads.some((payload) =>
+    payload.event_name === "web_call_transcript_rejected"
+    && payload.metadata.failure_category === "empty_transcript"
+  ));
+  assert.doesNotMatch(JSON.stringify(productEventPayloads), /Can you help|quote|caller@example/i);
 });
 
 test("call Front Desk garbled transcript asks to repeat without sending chat", async () => {
@@ -1348,6 +1403,7 @@ test("call Front Desk end-call phrase ends gracefully without sending chat", asy
 test("call Front Desk failure states use safe localized messages", async () => {
   const deniedError = new Error("Permission denied by test");
   deniedError.name = "NotAllowedError";
+  const productEventPayloads = [];
   const harness = createWidgetHarness({
     location: {
       search: "?agent_id=agent-1&mode=page&lang=hu",
@@ -1360,6 +1416,18 @@ test("call Front Desk failure states use safe localized messages", async () => {
       },
     },
     MediaRecorder: TestMediaRecorder,
+    customFetch: async (input, options = {}) => {
+      if (String(input) === "/product-events") {
+        productEventPayloads.push(JSON.parse(options.body));
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
   });
 
   harness.hooks.applyWidgetConfig({
@@ -1394,10 +1462,16 @@ test("call Front Desk failure states use safe localized messages", async () => {
     harness.elements.get("call-front-desk-summary").textContent,
     "Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet."
   );
+  assert.ok(productEventPayloads.some((payload) =>
+    payload.event_name === "web_call_mic_denied"
+    && payload.metadata.failure_category === "mic_denied"
+  ));
+  assert.doesNotMatch(JSON.stringify(productEventPayloads), /Permission denied by test/);
 });
 
 test("call Front Desk transcription failure offers contact fallback without provider details", async () => {
   TestMediaRecorder.instances = [];
+  const productEventPayloads = [];
   const harness = createWidgetHarness({
     location: {
       search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
@@ -1410,7 +1484,7 @@ test("call Front Desk transcription failure offers contact fallback without prov
       },
     },
     MediaRecorder: TestMediaRecorder,
-    customFetch: async (input) => {
+    customFetch: async (input, options = {}) => {
       const url = String(input);
 
       if (url.includes("/api/voice/transcribe")) {
@@ -1419,6 +1493,16 @@ test("call Front Desk transcription failure offers contact fallback without prov
           status: 429,
           async json() {
             return { error: "provider quota stack detail" };
+          },
+        };
+      }
+
+      if (url === "/product-events") {
+        productEventPayloads.push(JSON.parse(options.body));
+        return {
+          ok: true,
+          async json() {
+            return { ok: true };
           },
         };
       }
@@ -1452,6 +1536,12 @@ test("call Front Desk transcription failure offers contact fallback without prov
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
   assert.equal(harness.elements.get("call-front-desk-summary").textContent, "You can type your message below or leave contact details.");
   assert.doesNotMatch(harness.elements.get("call-front-desk-status").textContent, /provider|quota|stack/i);
+  assert.ok(productEventPayloads.some((payload) => payload.event_name === "web_call_started"));
+  assert.ok(productEventPayloads.some((payload) =>
+    payload.event_name === "web_call_failed_recovery_shown"
+    && payload.metadata.failure_category === "rate_limited"
+  ));
+  assert.doesNotMatch(JSON.stringify(productEventPayloads), /provider|quota|stack/i);
 });
 
 test("call Front Desk repeated failures suggest typing or contact fallback", async () => {

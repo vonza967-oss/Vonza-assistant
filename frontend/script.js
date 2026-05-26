@@ -647,6 +647,8 @@ let callModeTurnCount = 0;
 let webCallConsecutiveFailures = 0;
 let callModeSoftHint = "";
 let webCallSessionTouched = false;
+let webCallTelemetryId = "";
+let webCallTelemetrySequence = 0;
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -2757,6 +2759,11 @@ async function persistVisitorIdentityChoice(identity = visitorIdentity) {
       visitorIdentity = normalizeVisitorIdentityState(data.visitorIdentity);
       syncWidgetPhaseWithIdentity(visitorIdentity);
     }
+    if (isPageMode() && webCallSessionTouched && normalized.mode === "identified") {
+      void trackWebCallProductEvent("web_call_contact_submitted", {
+        identity_mode: normalized.mode,
+      });
+    }
 
     return liveLeadCapture;
   } catch (error) {
@@ -3129,6 +3136,155 @@ async function trackWidgetEvent(eventName, metadata = {}, options = {}) {
   }
 }
 
+function getWebCallTelemetryId() {
+  if (!webCallTelemetryId) {
+    webCallTelemetryId = window.crypto?.randomUUID?.() || `web_call_${Date.now()}`;
+    webCallTelemetrySequence = 0;
+  }
+
+  return webCallTelemetryId;
+}
+
+function buildWebCallProductMetadata(metadata = {}) {
+  const config = getVoiceConfig();
+  const baseMetadata = {
+    display_mode: DISPLAY_MODE,
+    conversation_source: "web_call",
+    web_call_id: getWebCallTelemetryId(),
+    turn_count: callModeTurnCount,
+    duration_seconds: Math.max(0, Math.round(getCallModeElapsedMs() / 1000)),
+    voice_input_enabled: config.voiceInputEnabled === true,
+    spoken_replies_enabled: config.spokenRepliesEnabled === true,
+    web_call_enabled: config.webCallEnabled === true,
+    auto_play_spoken_replies: config.autoPlaySpokenReplies === true,
+    auto_send_transcript: config.autoSendTranscript === true,
+    ...metadata,
+  };
+  const allowedKeys = new Set([
+    "display_mode",
+    "conversation_source",
+    "web_call_id",
+    "turn_count",
+    "duration_seconds",
+    "failure_category",
+    "voice_input_enabled",
+    "spoken_replies_enabled",
+    "web_call_enabled",
+    "auto_play_spoken_replies",
+    "auto_send_transcript",
+    "identity_mode",
+  ]);
+  const entries = Object.entries(baseMetadata)
+    .filter(([key]) => allowedKeys.has(key))
+    .map(([key, value]) => {
+      if (typeof value === "boolean") {
+        return [key, value];
+      }
+
+      if (typeof value === "number") {
+        return [key, Number.isFinite(value) ? value : 0];
+      }
+
+      return [key, trimText(value).slice(0, 120)];
+    })
+    .filter(([, value]) => value !== "");
+
+  return Object.fromEntries(entries);
+}
+
+function getWebCallFailureCategory(errorOrCategory) {
+  const status = Number(errorOrCategory?.statusCode || errorOrCategory?.status || 0);
+  const raw = typeof errorOrCategory === "string"
+    ? errorOrCategory
+    : `${errorOrCategory?.code || ""} ${errorOrCategory?.name || ""} ${errorOrCategory?.message || ""}`;
+  const normalized = trimText(raw).toLowerCase();
+
+  if ([
+    "empty_transcript",
+    "garbled_transcript",
+    "repeat_requested",
+    "no_audio",
+    "request_failed",
+    "speech_not_attempted",
+  ].includes(normalized)) {
+    return normalized;
+  }
+
+  if (status === 429 || normalized.includes("rate")) {
+    return "rate_limited";
+  }
+
+  if (status === 413 || normalized.includes("too large")) {
+    return "audio_too_large";
+  }
+
+  if (status === 401 || status === 403) {
+    return "voice_unavailable";
+  }
+
+  if (
+    normalized.includes("notallowed")
+    || normalized.includes("permission")
+    || normalized.includes("denied")
+  ) {
+    return "mic_denied";
+  }
+
+  if (normalized.includes("speech_authorization")) {
+    return "speech_authorization_missing";
+  }
+
+  if (normalized.includes("speech") || normalized.includes("audio")) {
+    return "speech_failed";
+  }
+
+  if (normalized.includes("transcrib")) {
+    return "transcription_failed";
+  }
+
+  return "unknown";
+}
+
+async function trackWebCallProductEvent(eventName, metadata = {}, options = {}) {
+  if (!isPageMode() || !trimText(eventName)) {
+    return;
+  }
+
+  const dedupeKey = trimText(options.dedupeKey)
+    || `${getWebCallTelemetryId()}::${eventName}::${webCallTelemetrySequence += 1}`;
+
+  if (sentTelemetryKeys.has(dedupeKey)) {
+    return;
+  }
+
+  sentTelemetryKeys.add(dedupeKey);
+
+  try {
+    await fetch("/product-events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        event_name: eventName,
+        source: "public_web_call",
+        agent_id: resolvedAgentId,
+        agent_key: resolvedAgentKey,
+        business_id: resolvedBusinessId,
+        install_id: INSTALL_ID,
+        website_url: WEBSITE_URL,
+        origin: getPageOrigin(),
+        page_url: getPageUrl(),
+        public_page_key: PUBLIC_PAGE_KEY,
+        display_mode: DISPLAY_MODE,
+        dedupe_key: dedupeKey,
+        metadata: buildWebCallProductMetadata(metadata),
+      }),
+    });
+  } catch (error) {
+    console.warn("Vonza Web Call telemetry failed:", error);
+  }
+}
+
 function getOutcomeDetectionStorageKey() {
   const pageUrl = getPageUrl();
 
@@ -3442,11 +3598,16 @@ function startCallModeSession() {
   }
 
   webCallSessionTouched = true;
+  webCallTelemetryId = window.crypto?.randomUUID?.() || `web_call_${Date.now()}`;
+  webCallTelemetrySequence = 0;
   callModeStartedAt = Date.now();
   callModeEndedDurationMs = 0;
   callModeTurnCount = 0;
   resetCallModeSummary();
   startCallModeTimer();
+  void trackWebCallProductEvent("web_call_started", {}, {
+    dedupeKey: `${getWebCallTelemetryId()}::web_call_started`,
+  });
 }
 
 function cleanupCallModeMedia(options = {}) {
@@ -3478,6 +3639,9 @@ function endCallModeFromVoiceCommand() {
   cleanupCallModeMedia();
   setCallModeState(CALL_MODE_STATES.STOPPED, assistantT("assistant.callEndedByVoice"));
   showCallModeSummary();
+  void trackWebCallProductEvent("web_call_ended", {}, {
+    dedupeKey: `${getWebCallTelemetryId()}::web_call_ended`,
+  });
 }
 
 function endCallModeAfterTurnLimit() {
@@ -3486,6 +3650,12 @@ function endCallModeAfterTurnLimit() {
   resetWebCallFailureCount();
   cleanupCallModeMedia({ turnLimitSummary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED, assistantT("assistant.callTurnLimitEnded"));
+  void trackWebCallProductEvent("web_call_max_turns_reached", {}, {
+    dedupeKey: `${getWebCallTelemetryId()}::web_call_max_turns_reached`,
+  });
+  void trackWebCallProductEvent("web_call_ended", {}, {
+    dedupeKey: `${getWebCallTelemetryId()}::web_call_ended`,
+  });
 }
 
 function getCallModeStateMessage(state = callModeState) {
@@ -3804,6 +3974,9 @@ function handleRecoverableWebCallTranscript(message) {
     cleanupCallModeMedia();
     setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
     showCallModeFallbackSummary();
+    void trackWebCallProductEvent("web_call_failed_recovery_shown", {
+      failure_category: "transcript_rejected",
+    });
     return;
   }
 
@@ -3816,11 +3989,14 @@ function endCallMode() {
   resetWebCallFailureCount();
   cleanupCallModeMedia({ summary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED);
+  void trackWebCallProductEvent("web_call_ended", {}, {
+    dedupeKey: `${getWebCallTelemetryId()}::web_call_ended`,
+  });
 }
 
 function buildWebCallCaptureContextPayload() {
   return isPageMode() && webCallSessionTouched
-    ? { conversation_source: "web_call" }
+    ? { conversation_source: "web_call", web_call_id: getWebCallTelemetryId() }
     : {};
 }
 
@@ -4131,7 +4307,9 @@ async function transcribeVoiceBlob(blob, durationMs) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(getVoiceApiFailureMessage(response.status));
+    const error = new Error(getVoiceApiFailureMessage(response.status));
+    error.statusCode = response.status;
+    throw error;
   }
 
   return data;
@@ -4230,9 +4408,19 @@ async function startVoiceRecording(options = {}) {
     voiceRecordingSource = "";
     voiceRecordingCancelRequested = false;
     clearVoiceRecordingTimer();
+    const failureCategory = getWebCallFailureCategory(error);
     setVoiceInputState("error", getMicrophoneStartErrorMessage(error));
     if (options.source === "call") {
       setCallModeState(CALL_MODE_STATES.UNAVAILABLE, getMicrophoneStartErrorMessage(error));
+      if (failureCategory === "mic_denied") {
+        void trackWebCallProductEvent("web_call_mic_denied", {
+          failure_category: failureCategory,
+        });
+      } else {
+        void trackWebCallProductEvent("web_call_failed_recovery_shown", {
+          failure_category: failureCategory,
+        });
+      }
     }
     syncVoiceControls();
     return false;
@@ -4258,6 +4446,12 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
     if (recordingSource === "call") {
       callModeActive = false;
       setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.voiceNoSpeechRecorded"));
+      void trackWebCallProductEvent("web_call_transcript_rejected", {
+        failure_category: "no_audio",
+      });
+      void trackWebCallProductEvent("web_call_failed_recovery_shown", {
+        failure_category: "no_audio",
+      });
     }
     syncVoiceControls();
     return;
@@ -4283,6 +4477,9 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       const transcriptDecision = classifyWebCallTranscript(transcript);
 
       if (transcriptDecision.action === "empty" || transcriptDecision.action === "garbled") {
+        void trackWebCallProductEvent("web_call_transcript_rejected", {
+          failure_category: transcriptDecision.action === "empty" ? "empty_transcript" : "garbled_transcript",
+        });
         handleRecoverableWebCallTranscript(transcriptDecision.message);
         return;
       }
@@ -4294,23 +4491,34 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       }
 
       if (transcriptDecision.action === "repeat") {
+        void trackWebCallProductEvent("web_call_transcript_rejected", {
+          failure_category: "repeat_requested",
+        });
         handleRecoverableWebCallTranscript(assistantT("assistant.callRepeatEmpty"));
         return;
       }
 
       const cleanTranscript = transcriptDecision.transcript;
+      void trackWebCallProductEvent("web_call_transcript_ready");
       callModeTurnCount += 1;
       updateCallModeStats();
+      void trackWebCallProductEvent("web_call_turn_sent");
       setCallModeState(CALL_MODE_STATES.THINKING);
       const result = await sendMessage(cleanTranscript, {
         conversationSource: "web_call",
         playSpokenReply: true,
         onSpokenReplyStart: () => {
+          void trackWebCallProductEvent("web_call_speech_played");
           if (callModeActive) {
             setCallModeState(CALL_MODE_STATES.SPEAKING);
           }
         },
         onSpokenReplyEnd: (played) => {
+          if (!played) {
+            void trackWebCallProductEvent("web_call_speech_failed", {
+              failure_category: "speech_failed",
+            });
+          }
           if (callModeActive) {
             if (played && callModeTurnCount >= WEB_CALL_MAX_TURNS) {
               endCallModeAfterTurnLimit();
@@ -4338,17 +4546,26 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       });
 
       if (!result?.ok) {
+        void trackWebCallProductEvent("web_call_failed_recovery_shown", {
+          failure_category: getWebCallFailureCategory(result?.reason || "request_failed"),
+        });
         const recoveryMessage = recordWebCallFailure(assistantT("assistant.requestFailedStatus"));
         callModeActive = false;
         cleanupCallModeMedia();
         setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
         showCallModeFallbackSummary();
       } else if (!result.spokenReplyAttempted) {
+        void trackWebCallProductEvent("web_call_reply_ready");
+        void trackWebCallProductEvent("web_call_speech_failed", {
+          failure_category: "speech_not_attempted",
+        });
         const recoveryMessage = recordWebCallFailure(assistantT("assistant.voiceSpokenCouldNotPlay"));
         callModeActive = false;
         cleanupCallModeMedia();
         setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
         showCallModeFallbackSummary();
+      } else {
+        void trackWebCallProductEvent("web_call_reply_ready");
       }
       return;
     }
@@ -4373,6 +4590,9 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       : errorMessage;
     setVoiceInputState("error", voiceMessage);
     if (recordingSource === "call") {
+      void trackWebCallProductEvent("web_call_failed_recovery_shown", {
+        failure_category: getWebCallFailureCategory(error),
+      });
       callModeActive = false;
       cleanupCallModeMedia();
       setCallModeState(CALL_MODE_STATES.UNAVAILABLE, voiceMessage);
@@ -5145,6 +5365,9 @@ function openPageIdentityContactForm() {
   form.hidden = false;
   document.getElementById("page-identity-name")?.focus();
   setComposerStatus(assistantT("assistant.pageIdentityNote"));
+  if (isPageMode() && webCallSessionTouched) {
+    void trackWebCallProductEvent("web_call_contact_opened");
+  }
 }
 
 document.getElementById("page-identity-email-cancel")?.addEventListener("click", () => {

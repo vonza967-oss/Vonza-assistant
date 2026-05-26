@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  TRACKED_PRODUCT_EVENTS,
   sanitizeProductEventMetadata,
   trackProductEvent,
 } from "../src/services/analytics/productEventService.js";
@@ -82,4 +83,52 @@ test("product events treat dedupe conflicts as successful duplicates", async () 
 
   assert.equal(result.ok, true);
   assert.equal(result.duplicate, true);
+});
+
+test("product event allowlist accepts Web Call telemetry names", async () => {
+  const webCallEvents = [
+    "web_call_started",
+    "web_call_mic_denied",
+    "web_call_transcript_ready",
+    "web_call_transcript_rejected",
+    "web_call_turn_sent",
+    "web_call_reply_ready",
+    "web_call_speech_played",
+    "web_call_speech_failed",
+    "web_call_contact_opened",
+    "web_call_contact_submitted",
+    "web_call_ended",
+    "web_call_max_turns_reached",
+    "web_call_failed_recovery_shown",
+  ];
+
+  for (const eventName of webCallEvents) {
+    assert.ok(TRACKED_PRODUCT_EVENTS.includes(eventName), `${eventName} should be supported`);
+  }
+});
+
+test("Web Call product metadata keeps safe fields and drops transcript reply and contact PII", () => {
+  assert.deepEqual(
+    sanitizeProductEventMetadata({
+      display_mode: "page",
+      conversation_source: "web_call",
+      web_call_id: "call-1",
+      turn_count: 2,
+      duration_seconds: 31,
+      failure_category: "speech_failed",
+      transcript_text: "I need a quote for my kitchen",
+      assistant_reply_text: "Sure, I can help.",
+      contact_name: "Visitor Name",
+      contact_email: "visitor@example.com",
+      phone: "+15555555555",
+    }),
+    {
+      display_mode: "page",
+      conversation_source: "web_call",
+      web_call_id: "call-1",
+      turn_count: 2,
+      duration_seconds: 31,
+      failure_category: "speech_failed",
+    }
+  );
 });

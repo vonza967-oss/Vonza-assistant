@@ -1125,6 +1125,7 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
   const voiceRequests = [];
   const speechRequests = [];
   const captureRequests = [];
+  const productEventRequests = [];
   const phoneOrTelephonyRequests = [];
 
   page.on("request", (request) => {
@@ -1173,6 +1174,22 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
       },
     });
     globalThis.MediaRecorder = TestMediaRecorder;
+    globalThis.Audio = class TestAudio {
+      constructor() {
+        this.listeners = new Map();
+        this.currentTime = 0;
+      }
+
+      addEventListener(type, listener) {
+        this.listeners.set(type, listener);
+      }
+
+      async play() {
+        return undefined;
+      }
+
+      pause() {}
+    };
   });
 
   await page.route("https://fonts.googleapis.com/**", async (route) => {
@@ -1283,6 +1300,14 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
       }),
     });
   });
+  await page.route(/\/product-events(?:[?#]|$)/, async (route) => {
+    productEventRequests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
 
   try {
     const hostedUrl = new URL(`${baseUrl}/assistant/page-key`);
@@ -1331,9 +1356,18 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
     assert.equal(captureRequests.length, 1);
     assert.equal(captureRequests[0].display_mode, "page");
     assert.equal(captureRequests[0].conversation_source, "web_call");
+    assert.equal(captureRequests[0].web_call_id, productEventRequests[0].metadata.web_call_id);
     assert.equal(captureRequests[0].public_page_key, "page-key");
     assert.equal(captureRequests[0].visitor_session_key, "session-page-web-call-turn");
     assert.equal(captureRequests[0].email, "web.caller@example.test");
+    const productEventNames = productEventRequests.map((body) => body.event_name);
+    assert.ok(productEventNames.includes("web_call_started"));
+    assert.ok(productEventNames.includes("web_call_ended"));
+    assert.ok(productEventNames.includes("web_call_contact_opened"));
+    assert.ok(productEventNames.includes("web_call_contact_submitted"));
+    assert.equal(productEventRequests.every((body) => body.source === "public_web_call"), true);
+    assert.equal(productEventRequests.every((body) => body.metadata.conversation_source === "web_call"), true);
+    assert.doesNotMatch(JSON.stringify(productEventRequests), /Can I request a quote by voice|Yes\. I can help|WEB\.CALLER|web\.caller@example\.test|browser-call-speech-token/i);
     assert.deepEqual(phoneOrTelephonyRequests, []);
   } finally {
     await page.close();

@@ -146,6 +146,9 @@ export function createChatRouter(deps = {}) {
           metadata: {
             display_mode: displayMode,
             ...(conversationSource ? { conversation_source: conversationSource } : {}),
+            ...(conversationSource === "web_call" && cleanText(req.body.web_call_id || req.body.webCallId)
+              ? { web_call_id: cleanText(req.body.web_call_id || req.body.webCallId) }
+              : {}),
             state: result.leadCapture.state,
             preferred_channel: result.leadCapture.preferredChannel || "",
           },
