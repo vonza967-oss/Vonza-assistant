@@ -1871,6 +1871,8 @@ export function createAgentRouter(deps = {}) {
         actionQueue,
         feedback,
         webCallHealth: webCallHealthResult?.summary,
+        webCallEvents: webCallHealthResult?.records || [],
+        ownerUserId,
       }));
     } catch (err) {
       sendRouteError(req, res, err, { route: "/dashboard/analytics" });

@@ -157,6 +157,31 @@ test("Analytics page fragment preserves real values without QR or raw display mo
         contactEmail: "lead@example.com",
         speechToken: "token-123",
       },
+      webCallRecentCalls: {
+        available: true,
+        total: 1,
+        calls: [
+          {
+            id: "call-1",
+            webCallId: "call-1",
+            latestActivityAt: "2026-05-20T11:00:05.000Z",
+            turnCount: 2,
+            durationSeconds: 62,
+            contactFallbackOpened: true,
+            contactFallbackSubmitted: true,
+            hadFailures: true,
+            failureCategories: ["garbled_transcript"],
+            conversationSource: "web_call",
+            action: {
+              type: "conversation",
+              label: "Open related conversation",
+              messageId: "message-1",
+            },
+            transcriptText: "I need a quote",
+            contactEmail: "lead@example.com",
+          },
+        ],
+      },
     },
     [{ label: "Booking availability", count: 2 }],
     [{ createdAt: "2026-05-22T10:00:00Z" }],
@@ -172,6 +197,10 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.match(markup, /Booking availability/);
   assert.match(markup, /Conversion rate/);
   assert.match(markup, /Web Call health/);
+  assert.match(markup, /Recent Web Calls/);
+  assert.match(markup, /Contact submitted/);
+  assert.match(markup, /Had failures/);
+  assert.match(markup, /data-open-conversation data-message-id="message-1"/);
   assert.match(markup, /Starts/);
   assert.match(markup, />2</);
   assert.match(markup, /Avg\. duration/);

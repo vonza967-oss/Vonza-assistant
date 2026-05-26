@@ -725,6 +725,57 @@
   color: #eef2ff;
   background: rgba(255, 255, 255, 0.03);
 }
+
+.v2-recent-web-call-list {
+  display: grid;
+  gap: 12px;
+}
+
+.v2-recent-web-call-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.v2-recent-web-call-main,
+.v2-recent-web-call-footer,
+.v2-recent-web-call-metrics,
+.v2-recent-web-call-outcomes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.v2-recent-web-call-main,
+.v2-recent-web-call-footer {
+  justify-content: space-between;
+}
+
+.v2-recent-web-call-metrics,
+.v2-recent-web-call-outcomes {
+  flex-wrap: wrap;
+}
+
+.v2-recent-web-call-metrics span {
+  min-width: 110px;
+  color: #475569;
+  font-size: 0.86rem;
+}
+
+.v2-recent-web-call-metrics strong {
+  display: block;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.v2-recent-web-call-outcomes .v2-status-pill {
+  display: inline-flex;
+  max-width: 100%;
+  white-space: normal;
+}
 .workspace-pages .analytics-item-title {
   color: var(--light-surface-title);
 }
@@ -759,6 +810,17 @@
       "quality"
       "kpis"
       "list";
+  }
+
+  .v2-recent-web-call-main,
+  .v2-recent-web-call-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .v2-recent-web-call-outcomes {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .analytics-launch-board-header,
@@ -2130,6 +2192,24 @@ html[data-dashboard-theme="dark"] .analytics-item {
   border-color: #dce5f0;
   background: #f8fafc;
   color: #40516c;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-calls-card {
+  border-color: #d9e2ec;
+  background: #ffffff;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-calls-card .v2-section-title {
+  color: #0f172a;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-calls-card .v2-section-subtitle {
+  color: #475569;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-call-row {
+  border-color: #dce5f0;
+  background: #f8fafc;
 }
 
 @media (max-width: 900px) {

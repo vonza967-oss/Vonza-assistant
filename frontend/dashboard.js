@@ -324,6 +324,7 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
   "analytics.whatToWatch": "What to watch",
   "analytics.webCallHealth": "Web Call health",
+  "analytics.recentWebCalls": "Recent Web Calls",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -8756,6 +8757,11 @@ function createEmptyOwnerAnalyticsDashboard() {
       failureTotal: 0,
       latestActivityAt: null,
     },
+    webCallRecentCalls: {
+      available: true,
+      total: 0,
+      calls: [],
+    },
   };
 }
 
@@ -8787,6 +8793,45 @@ function formatWebCallFailureCategoryLabel(category = "") {
     .join(" ");
 }
 
+function normalizeRecentWebCallRecord(call = {}) {
+  const source = call && typeof call === "object" ? call : {};
+  const action = source.action && typeof source.action === "object" ? source.action : null;
+
+  return {
+    id: trimText(source.id),
+    webCallId: trimText(source.webCallId || source.web_call_id),
+    sessionKey: trimText(source.sessionKey || source.session_key),
+    latestMessageId: trimText(source.latestMessageId || source.latest_message_id),
+    contactId: trimText(source.contactId || source.contact_id),
+    startedAt: source.startedAt || source.started_at || null,
+    latestActivityAt: source.latestActivityAt || source.latest_activity_at || null,
+    durationSeconds: source.durationSeconds === null || source.durationSeconds === undefined
+      ? null
+      : Math.max(0, Number(source.durationSeconds || source.duration_seconds || 0)),
+    turnCount: source.turnCount === null || source.turnCount === undefined
+      ? null
+      : Math.max(0, Number(source.turnCount || source.turn_count || 0)),
+    contactFallbackOpened: source.contactFallbackOpened === true || source.contact_fallback_opened === true,
+    contactFallbackSubmitted: source.contactFallbackSubmitted === true || source.contact_fallback_submitted === true,
+    hadFailures: source.hadFailures === true || source.had_failures === true,
+    failureCategories: Array.isArray(source.failureCategories || source.failure_categories)
+      ? (source.failureCategories || source.failure_categories)
+          .map((category) => trimText(category).toLowerCase())
+          .filter((category) => isSafeWebCallFailureCategory(category))
+      : [],
+    conversationSource: "web_call",
+    action: action
+      ? {
+          type: trimText(action.type),
+          label: trimText(action.label),
+          targetSection: trimText(action.targetSection || action.target_section),
+          contactId: trimText(action.contactId || action.contact_id),
+          messageId: trimText(action.messageId || action.message_id),
+        }
+      : null,
+  };
+}
+
 function normalizeOwnerAnalyticsDashboard(data = null) {
   if (!data || typeof data !== "object") {
     return null;
@@ -8806,6 +8851,9 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
     : {};
   const webCallHealth = data.webCallHealth && typeof data.webCallHealth === "object"
     ? data.webCallHealth
+    : {};
+  const webCallRecentCalls = data.webCallRecentCalls && typeof data.webCallRecentCalls === "object"
+    ? data.webCallRecentCalls
     : {};
 
   return {
@@ -8914,6 +8962,14 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
           })).filter((item) => isSafeWebCallFailureCategory(item.category) && item.count > 0)
         : [],
       latestActivityAt: webCallHealth.latestActivityAt || null,
+    },
+    webCallRecentCalls: {
+      ...emptyDashboard.webCallRecentCalls,
+      available: webCallRecentCalls.available !== false,
+      total: Number(webCallRecentCalls.total || 0),
+      calls: Array.isArray(webCallRecentCalls.calls)
+        ? webCallRecentCalls.calls.map((call) => normalizeRecentWebCallRecord(call)).filter((call) => trimText(call.id) && trimText(call.latestActivityAt || call.startedAt))
+        : [],
     },
   };
 }

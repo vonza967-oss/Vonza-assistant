@@ -514,6 +514,365 @@ function normalizeWebCallHealthSummary(webCallHealth = null) {
   };
 }
 
+function getLeadMetadata(lead = {}) {
+  return lead.captureMetadata && typeof lead.captureMetadata === "object" && !Array.isArray(lead.captureMetadata)
+    ? lead.captureMetadata
+    : lead.capture_metadata && typeof lead.capture_metadata === "object" && !Array.isArray(lead.capture_metadata)
+      ? lead.capture_metadata
+      : {};
+}
+
+function leadBelongsToOwner(lead = {}, ownerUserId = "") {
+  const leadOwnerUserId = cleanText(lead.ownerUserId || lead.owner_user_id);
+  return !ownerUserId || !leadOwnerUserId || leadOwnerUserId === ownerUserId;
+}
+
+function rowBelongsToOwner(row = {}, ownerUserId = "") {
+  const rowOwnerUserId = cleanText(row.ownerUserId || row.owner_user_id);
+  return !ownerUserId || !rowOwnerUserId || rowOwnerUserId === ownerUserId;
+}
+
+function isWebCallLeadCapture(lead = {}) {
+  const metadata = getLeadMetadata(lead);
+  const captureSource = cleanText(lead.captureSource || lead.capture_source).toLowerCase();
+  const conversationSource = cleanText(metadata.conversationSource || metadata.conversation_source).toLowerCase();
+  return captureSource === "web_call" || conversationSource === "web_call";
+}
+
+function isCapturedLead(lead = {}) {
+  const state = cleanText(lead.captureState || lead.capture_state).toLowerCase();
+  const email = cleanText(lead.contactEmail || lead.contact_email);
+  const phone = cleanText(lead.contactPhone || lead.contact_phone);
+  return state === "captured" || Boolean(email || phone);
+}
+
+function readSafeTelemetryNumber(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+}
+
+function getWebCallEventId(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata
+    : {};
+  return cleanText(metadata.web_call_id || metadata.webCallId) || cleanText(row.id);
+}
+
+function isRecentWebCallFailureEvent(eventName = "") {
+  return [
+    "web_call_mic_denied",
+    "web_call_transcript_rejected",
+    "web_call_speech_failed",
+    "web_call_failed_recovery_shown",
+  ].includes(cleanText(eventName));
+}
+
+function getRecentWebCallFailureCategory(row = {}) {
+  const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+    ? row.metadata
+    : {};
+  const eventName = cleanText(row.event_name || row.eventName);
+  const category = cleanText(metadata.failure_category).toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (isSafeWebCallCategory(category)) {
+    return category;
+  }
+
+  if (eventName === "web_call_mic_denied") {
+    return "mic_denied";
+  }
+
+  if (eventName === "web_call_transcript_rejected") {
+    return "transcript_rejected";
+  }
+
+  if (eventName === "web_call_speech_failed") {
+    return "speech_failed";
+  }
+
+  return "unknown";
+}
+
+function createRecentWebCallFromSession(sessionKey = "") {
+  return {
+    id: sessionKey ? `session:${sessionKey}` : "",
+    webCallId: "",
+    sessionKey,
+    latestMessageId: "",
+    contactId: "",
+    startedAt: null,
+    latestActivityAt: null,
+    durationSeconds: null,
+    turnCount: null,
+    contactFallbackOpened: false,
+    contactFallbackSubmitted: false,
+    hadFailures: false,
+    failureCategories: [],
+    conversationSource: "web_call",
+  };
+}
+
+function buildWebCallMessageSessions(messages = []) {
+  const sessions = new Map();
+
+  messages
+    .filter((message) => message.displayMode === "web_call")
+    .forEach((message) => {
+      const sessionKey = message.sessionKey || (message.id ? `message:${message.id}` : "");
+
+      if (!sessionKey) {
+        return;
+      }
+
+      if (!sessions.has(sessionKey)) {
+        sessions.set(sessionKey, createRecentWebCallFromSession(sessionKey));
+      }
+
+      const session = sessions.get(sessionKey);
+      const timestamp = getTimestamp(message.createdAt);
+
+      if (!session.startedAt || timestamp < getTimestamp(session.startedAt)) {
+        session.startedAt = message.createdAt || null;
+      }
+
+      if (!session.latestActivityAt || timestamp >= getTimestamp(session.latestActivityAt)) {
+        session.latestActivityAt = message.createdAt || null;
+        session.latestMessageId = message.id || session.latestMessageId;
+      }
+
+      if (message.role === "user") {
+        session.turnCount = Number(session.turnCount || 0) + 1;
+      }
+    });
+
+  return sessions;
+}
+
+function findMatchingWebCallSession(call = {}, sessions = new Map(), usedSessions = new Set()) {
+  const startedAt = getTimestamp(call.startedAt || call.latestActivityAt);
+  const latestAt = getTimestamp(call.latestActivityAt || call.startedAt);
+  let best = null;
+
+  sessions.forEach((session, key) => {
+    if (usedSessions.has(key)) {
+      return;
+    }
+
+    const sessionStartedAt = getTimestamp(session.startedAt);
+    const sessionLatestAt = getTimestamp(session.latestActivityAt);
+
+    if (!sessionStartedAt && !sessionLatestAt) {
+      return;
+    }
+
+    const overlaps = (
+      startedAt &&
+      sessionLatestAt >= startedAt - 2 * 60 * 1000 &&
+      sessionStartedAt <= Math.max(latestAt, startedAt) + 10 * 60 * 1000
+    );
+    const distance = Math.min(
+      Math.abs((sessionStartedAt || sessionLatestAt) - (startedAt || latestAt)),
+      Math.abs((sessionLatestAt || sessionStartedAt) - (latestAt || startedAt))
+    );
+
+    if (!overlaps && distance > 10 * 60 * 1000) {
+      return;
+    }
+
+    if (!best || distance < best.distance) {
+      best = { key, session, distance };
+    }
+  });
+
+  return best;
+}
+
+function normalizeRecentWebCall(call = {}) {
+  const failureCategories = Array.isArray(call.failureCategories)
+    ? call.failureCategories
+        .map((category) => cleanText(category).toLowerCase())
+        .filter((category) => isSafeWebCallCategory(category))
+    : [];
+  const durationSeconds = call.durationSeconds === null || call.durationSeconds === undefined
+    ? null
+    : readSafeTelemetryNumber(call.durationSeconds);
+  const turnCount = call.turnCount === null || call.turnCount === undefined
+    ? null
+    : readSafeTelemetryNumber(call.turnCount);
+
+  return {
+    id: cleanText(call.id || call.webCallId || call.sessionKey),
+    webCallId: cleanText(call.webCallId),
+    sessionKey: cleanText(call.sessionKey),
+    latestMessageId: cleanText(call.latestMessageId),
+    contactId: cleanText(call.contactId),
+    startedAt: call.startedAt || null,
+    latestActivityAt: call.latestActivityAt || call.startedAt || null,
+    durationSeconds,
+    turnCount,
+    contactFallbackOpened: call.contactFallbackOpened === true,
+    contactFallbackSubmitted: call.contactFallbackSubmitted === true,
+    hadFailures: call.hadFailures === true || failureCategories.length > 0,
+    failureCategories,
+    conversationSource: "web_call",
+    action: cleanText(call.contactId)
+      ? {
+          type: "customer",
+          label: "Open customer",
+          targetSection: "contacts",
+          contactId: cleanText(call.contactId),
+        }
+      : cleanText(call.latestMessageId)
+        ? {
+            type: "conversation",
+            label: "Open related conversation",
+            messageId: cleanText(call.latestMessageId),
+          }
+        : null,
+  };
+}
+
+function buildRecentWebCalls({
+  messages = [],
+  leadCaptures = {},
+  webCallEvents = [],
+  ownerUserId = "",
+  limit = 8,
+} = {}) {
+  const ownerScopedEvents = (Array.isArray(webCallEvents) ? webCallEvents : [])
+    .filter((row) => rowBelongsToOwner(row, ownerUserId));
+  const ownerScopedLeads = (Array.isArray(leadCaptures.records) ? leadCaptures.records : [])
+    .filter((lead) => leadBelongsToOwner(lead, ownerUserId) && isWebCallLeadCapture(lead));
+  const messageSessions = buildWebCallMessageSessions(messages);
+  const usedSessions = new Set();
+  const callsById = new Map();
+
+  ownerScopedEvents.forEach((row) => {
+    const eventName = cleanText(row.event_name || row.eventName);
+    const metadata = row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+      ? row.metadata
+      : {};
+    const webCallId = getWebCallEventId(row);
+
+    if (!webCallId || !eventName.startsWith("web_call_")) {
+      return;
+    }
+
+    if (!callsById.has(webCallId)) {
+      callsById.set(webCallId, {
+        ...createRecentWebCallFromSession(""),
+        id: webCallId,
+        webCallId,
+      });
+    }
+
+    const call = callsById.get(webCallId);
+    const createdAt = row.created_at || row.createdAt || null;
+
+    if (eventName === "web_call_started" && (!call.startedAt || getTimestamp(createdAt) < getTimestamp(call.startedAt))) {
+      call.startedAt = createdAt;
+    }
+
+    if (!call.latestActivityAt || getTimestamp(createdAt) > getTimestamp(call.latestActivityAt)) {
+      call.latestActivityAt = createdAt;
+    }
+
+    if (eventName === "web_call_ended" && metadata.duration_seconds !== undefined) {
+      call.durationSeconds = readSafeTelemetryNumber(metadata.duration_seconds);
+    }
+
+    if (eventName === "web_call_ended" && metadata.turn_count !== undefined) {
+      call.turnCount = readSafeTelemetryNumber(metadata.turn_count);
+    } else if (metadata.turn_count !== undefined) {
+      call.turnCount = Math.max(readSafeTelemetryNumber(metadata.turn_count), readSafeTelemetryNumber(call.turnCount));
+    }
+
+    if (metadata.duration_seconds !== undefined) {
+      call.durationSeconds = Math.max(readSafeTelemetryNumber(metadata.duration_seconds), readSafeTelemetryNumber(call.durationSeconds));
+    }
+
+    if (eventName === "web_call_contact_opened") {
+      call.contactFallbackOpened = true;
+    }
+
+    if (eventName === "web_call_contact_submitted") {
+      call.contactFallbackOpened = true;
+      call.contactFallbackSubmitted = true;
+    }
+
+    if (isRecentWebCallFailureEvent(eventName)) {
+      call.hadFailures = true;
+      call.failureCategories = Array.from(new Set([
+        ...(call.failureCategories || []),
+        getRecentWebCallFailureCategory(row),
+      ]));
+    }
+  });
+
+  callsById.forEach((call) => {
+    const match = findMatchingWebCallSession(call, messageSessions, usedSessions);
+
+    if (!match) {
+      return;
+    }
+
+    usedSessions.add(match.key);
+    call.sessionKey = match.session.sessionKey;
+    call.latestMessageId = match.session.latestMessageId;
+    call.startedAt = call.startedAt || match.session.startedAt;
+    call.latestActivityAt = getTimestamp(match.session.latestActivityAt) > getTimestamp(call.latestActivityAt)
+      ? match.session.latestActivityAt
+      : call.latestActivityAt;
+    call.turnCount = call.turnCount === null || call.turnCount === undefined || Number(call.turnCount) === 0
+      ? match.session.turnCount
+      : call.turnCount;
+  });
+
+  messageSessions.forEach((session, key) => {
+    if (!usedSessions.has(key)) {
+      callsById.set(session.id || key, session);
+    }
+  });
+
+  ownerScopedLeads.forEach((lead) => {
+    const sessionKey = cleanText(lead.visitorSessionKey || lead.visitor_session_key);
+    const contactId = cleanText(lead.contactId || lead.contact_id);
+    const matchingCall = [...callsById.values()].find((call) => sessionKey && call.sessionKey === sessionKey);
+
+    if (matchingCall) {
+      matchingCall.contactFallbackOpened = true;
+      matchingCall.contactFallbackSubmitted = matchingCall.contactFallbackSubmitted || isCapturedLead(lead);
+      matchingCall.contactId = matchingCall.contactId || contactId;
+      return;
+    }
+
+    if (!sessionKey) {
+      return;
+    }
+
+    callsById.set(`lead:${sessionKey}`, {
+      ...createRecentWebCallFromSession(sessionKey),
+      id: `lead:${sessionKey}`,
+      contactId,
+      latestActivityAt: lead.lastSeenAt || lead.last_seen_at || lead.capturedAt || lead.captured_at || lead.createdAt || lead.created_at || null,
+      contactFallbackOpened: true,
+      contactFallbackSubmitted: isCapturedLead(lead),
+    });
+  });
+
+  const calls = [...callsById.values()]
+    .map((call) => normalizeRecentWebCall(call))
+    .filter((call) => call.latestActivityAt || call.startedAt)
+    .sort((left, right) => getTimestamp(right.latestActivityAt || right.startedAt) - getTimestamp(left.latestActivityAt || left.startedAt))
+    .slice(0, Math.min(Math.max(Number(limit || 8), 1), 20));
+
+  return {
+    available: true,
+    total: calls.length,
+    calls,
+  };
+}
+
 export function buildOwnerAnalyticsDashboard({
   agent = {},
   messages = [],
@@ -524,8 +883,11 @@ export function buildOwnerAnalyticsDashboard({
   actionQueue = null,
   feedback = null,
   webCallHealth = null,
+  webCallEvents = [],
+  ownerUserId: explicitOwnerUserId = "",
 } = {}) {
   const normalizedMessages = messages.map((message) => normalizeMessage(message));
+  const ownerUserId = cleanText(explicitOwnerUserId || agent.ownerUserId || agent.owner_user_id);
   const userMessages = normalizedMessages.filter((message) => message.role === "user");
   const sessions = listSessions(normalizedMessages);
   const fallbackActionQueue = actionQueue || buildActionQueue(normalizedMessages, []);
@@ -601,5 +963,11 @@ export function buildOwnerAnalyticsDashboard({
     },
     aiUsage: buildAiUsageSnapshot(billingSnapshot),
     webCallHealth: normalizeWebCallHealthSummary(webCallHealth),
+    webCallRecentCalls: buildRecentWebCalls({
+      messages: normalizedMessages,
+      leadCaptures,
+      webCallEvents,
+      ownerUserId,
+    }),
   };
 }

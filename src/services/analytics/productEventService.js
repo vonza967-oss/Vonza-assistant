@@ -513,7 +513,7 @@ export async function listWebCallHealthEvents(supabase, options = {}) {
 
   const { data, error } = await supabase
     .from(PRODUCT_EVENTS_TABLE)
-    .select("id, event_name, metadata, created_at")
+    .select("id, agent_id, owner_user_id, event_name, metadata, created_at")
     .eq("agent_id", agentId)
     .eq("owner_user_id", ownerUserId)
     .in("event_name", WEB_CALL_PRODUCT_EVENTS)

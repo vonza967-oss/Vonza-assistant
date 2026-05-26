@@ -65,6 +65,7 @@
     "analytics.operatorBriefCopy": "Customer-service performance from Front Desk conversations, owner follow-ups, leads, answer quality, and improvement signals.",
     "analytics.whatToWatch": "What to watch",
     "analytics.webCallHealth": "Web Call health",
+    "analytics.recentWebCalls": "Recent Web Calls",
   });
 
   function trimText(value) {
@@ -594,6 +595,63 @@
   `;
   }
 
+  function renderRecentWebCallsCard(webCallRecentCalls = {}, options = {}) {
+    const context = createRenderContext(options);
+    const source = webCallRecentCalls && typeof webCallRecentCalls === "object" ? webCallRecentCalls : {};
+    const available = source.available !== false;
+    const calls = Array.isArray(source.calls) ? source.calls : [];
+
+    return `
+    <section class="v2-card v2-section v2-recent-web-calls-card">
+      <div class="v2-section-header">
+        <div>
+          <h2 class="v2-section-title">${escapeHtml(context.t("analytics.recentWebCalls"))}</h2>
+          <p class="v2-section-subtitle">Latest owner-scoped browser calls with safe outcomes only.</p>
+        </div>
+        ${context.renderIconBadge("phone", available && calls.length ? "blue" : "gray")}
+      </div>
+      ${available && calls.length ? `
+        <div class="v2-recent-web-call-list">
+          ${calls.map((call) => {
+            const action = call.action && typeof call.action === "object" ? call.action : null;
+            const failureCount = Array.isArray(call.failureCategories) ? call.failureCategories.length : 0;
+            const outcomeChips = [
+              call.contactFallbackSubmitted ? "Contact submitted" : call.contactFallbackOpened ? "Contact opened" : "No contact fallback",
+              call.hadFailures ? "Had failures" : "No failures",
+            ];
+
+            return `
+              <article class="v2-recent-web-call-row" data-web-call-recent-row data-conversation-source="web_call">
+                <div class="v2-recent-web-call-main">
+                  <div>
+                    <p class="v2-row-title">Web Call conversation</p>
+                    <p class="analytics-subtle">${escapeHtml(formatActivityTime(call.latestActivityAt || call.startedAt))}</p>
+                  </div>
+                  <div class="v2-recent-web-call-metrics">
+                    <span><strong>${escapeHtml(call.turnCount === null || call.turnCount === undefined ? "n/a" : formatMetricDecimal(call.turnCount))}</strong> turns</span>
+                    <span><strong>${escapeHtml(call.durationSeconds === null || call.durationSeconds === undefined ? "n/a" : formatMetricDuration(call.durationSeconds))}</strong> duration</span>
+                  </div>
+                </div>
+                <div class="v2-recent-web-call-footer">
+                  <div class="v2-recent-web-call-outcomes">
+                    ${outcomeChips.map((label) => `<span class="v2-status-pill">${escapeHtml(label)}</span>`).join("")}
+                    ${failureCount ? `<span class="v2-status-pill">${escapeHtml(`${failureCount} safe failure ${failureCount === 1 ? "type" : "types"}`)}</span>` : ""}
+                  </div>
+                  ${action?.contactId ? `
+                    <button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(action.contactId)}">${escapeHtml(action.label || "Open customer")}</button>
+                  ` : action?.messageId ? `
+                    <button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(action.messageId)}">${escapeHtml(action.label || "Open related conversation")}</button>
+                  ` : ""}
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </div>
+      ` : renderAnalyticsEmptyState(available ? "No Web Call conversations have been recorded yet." : "Recent Web Call conversations are not available yet.")}
+    </section>
+  `;
+  }
+
   function renderHeatmap(userMessages = [], options = {}) {
     const context = createRenderContext(options);
     const times = [
@@ -808,6 +866,7 @@
         ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
       </section>
       ${renderWebCallHealthCard(ownerAnalyticsDashboard?.webCallHealth, context)}
+      ${renderRecentWebCallsCard(ownerAnalyticsDashboard?.webCallRecentCalls, context)}
       <section class="v2-analytics-columns v2-section">
         <div class="v2-analytics-column v2-analytics-column-main">
           <article class="v2-card v2-chart-card v2-analytics-chart-card">

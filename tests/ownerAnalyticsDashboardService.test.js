@@ -309,3 +309,141 @@ test("owner analytics dashboard exposes only safe Web Call health aggregates", (
   const serialized = JSON.stringify(dashboard.webCallHealth);
   assert.doesNotMatch(serialized, /I need a quote|Sure, I can help|lead@example\.com|token-123|provider error/i);
 });
+
+test("owner analytics dashboard aggregates recent Web Calls without cross-owner leakage", () => {
+  const dashboard = buildOwnerAnalyticsDashboard({
+    ownerUserId: "owner-1",
+    agent: {
+      id: "agent-1",
+      name: "Front Desk",
+    },
+    messages: [
+      {
+        id: "message-1",
+        role: "user",
+        content: "Can you help with a quote?",
+        sessionKey: "session-call-1",
+        displayMode: "web_call",
+        createdAt: "2026-05-20T10:00:12.000Z",
+      },
+      {
+        id: "message-2",
+        role: "assistant",
+        content: "I can help collect details.",
+        sessionKey: "session-call-1",
+        displayMode: "web_call",
+        createdAt: "2026-05-20T10:00:14.000Z",
+      },
+      {
+        id: "message-3",
+        role: "user",
+        content: "Other source",
+        sessionKey: "session-widget",
+        displayMode: "widget",
+        createdAt: "2026-05-20T11:00:00.000Z",
+      },
+    ],
+    leadCaptures: {
+      records: [
+        {
+          id: "lead-1",
+          ownerUserId: "owner-1",
+          contactId: "contact-1",
+          captureState: "captured",
+          contactEmail: "caller@example.com",
+          visitorSessionKey: "session-call-1",
+          captureSource: "web_call",
+          captureMetadata: {
+            conversationSource: "web_call",
+          },
+        },
+        {
+          id: "lead-2",
+          ownerUserId: "owner-2",
+          contactId: "contact-2",
+          captureState: "captured",
+          contactEmail: "other-owner@example.com",
+          visitorSessionKey: "session-call-2",
+          captureSource: "web_call",
+          captureMetadata: {
+            conversationSource: "web_call",
+          },
+        },
+      ],
+    },
+    webCallEvents: [
+      {
+        id: "event-1",
+        owner_user_id: "owner-1",
+        event_name: "web_call_started",
+        created_at: "2026-05-20T10:00:00.000Z",
+        metadata: {
+          web_call_id: "call-1",
+          transcript_text: "Can you help with a quote?",
+        },
+      },
+      {
+        id: "event-2",
+        owner_user_id: "owner-1",
+        event_name: "web_call_contact_opened",
+        created_at: "2026-05-20T10:00:20.000Z",
+        metadata: {
+          web_call_id: "call-1",
+        },
+      },
+      {
+        id: "event-3",
+        owner_user_id: "owner-1",
+        event_name: "web_call_speech_failed",
+        created_at: "2026-05-20T10:00:30.000Z",
+        metadata: {
+          web_call_id: "call-1",
+          failure_category: "speech_failed",
+          provider_error: "caller@example.com failed",
+        },
+      },
+      {
+        id: "event-4",
+        owner_user_id: "owner-1",
+        event_name: "web_call_ended",
+        created_at: "2026-05-20T10:01:02.000Z",
+        metadata: {
+          web_call_id: "call-1",
+          duration_seconds: 62,
+          turn_count: 1,
+          assistant_reply_text: "I can help collect details.",
+        },
+      },
+      {
+        id: "event-5",
+        owner_user_id: "owner-2",
+        event_name: "web_call_ended",
+        created_at: "2026-05-20T12:01:02.000Z",
+        metadata: {
+          web_call_id: "call-other-owner",
+          duration_seconds: 300,
+          turn_count: 9,
+        },
+      },
+    ],
+    actionQueue: {
+      items: [],
+      summary: {},
+    },
+  });
+
+  assert.equal(dashboard.webCallRecentCalls.available, true);
+  assert.equal(dashboard.webCallRecentCalls.calls.length, 1);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].webCallId, "call-1");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].conversationSource, "web_call");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].turnCount, 1);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].durationSeconds, 62);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].contactFallbackOpened, true);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].contactFallbackSubmitted, true);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].hadFailures, true);
+  assert.deepEqual(dashboard.webCallRecentCalls.calls[0].failureCategories, ["speech_failed"]);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].action.contactId, "contact-1");
+
+  const serialized = JSON.stringify(dashboard.webCallRecentCalls);
+  assert.doesNotMatch(serialized, /Can you help with a quote|I can help collect details|caller@example\.com|other-owner|call-other-owner|300|9/i);
+});
