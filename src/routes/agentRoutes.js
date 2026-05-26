@@ -1869,6 +1869,7 @@ export function createAgentRouter(deps = {}) {
         widgetMetrics: agent.widgetMetrics || {},
         billingSnapshot,
         actionQueue,
+        actionStatuses: persistedRecords,
         feedback,
         webCallHealth: webCallHealthResult?.summary,
         webCallEvents: webCallHealthResult?.records || [],

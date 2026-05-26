@@ -8796,12 +8796,17 @@ function formatWebCallFailureCategoryLabel(category = "") {
 function normalizeRecentWebCallRecord(call = {}) {
   const source = call && typeof call === "object" ? call : {};
   const action = source.action && typeof source.action === "object" ? source.action : null;
+  const review = source.review && typeof source.review === "object" ? source.review : {};
 
   return {
     id: trimText(source.id),
+    actionKey: trimText(source.actionKey || source.action_key),
     webCallId: trimText(source.webCallId || source.web_call_id),
     sessionKey: trimText(source.sessionKey || source.session_key),
     latestMessageId: trimText(source.latestMessageId || source.latest_message_id),
+    latestAssistantMessageId: trimText(source.latestAssistantMessageId || source.latest_assistant_message_id),
+    latestQuestion: trimText(source.latestQuestion || source.latest_question),
+    latestAnswer: trimText(source.latestAnswer || source.latest_answer),
     contactId: trimText(source.contactId || source.contact_id),
     startedAt: source.startedAt || source.started_at || null,
     latestActivityAt: source.latestActivityAt || source.latest_activity_at || null,
@@ -8819,6 +8824,25 @@ function normalizeRecentWebCallRecord(call = {}) {
           .map((category) => trimText(category).toLowerCase())
           .filter((category) => isSafeWebCallFailureCategory(category))
       : [],
+    failureCategoryLabels: Array.isArray(source.failureCategoryLabels || source.failure_category_labels)
+      ? (source.failureCategoryLabels || source.failure_category_labels).map((label) => trimText(label)).filter(Boolean).slice(0, 8)
+      : [],
+    messages: Array.isArray(source.messages)
+      ? source.messages.map((message) => ({
+          id: trimText(message.id),
+          role: trimText(message.role).toLowerCase() === "assistant" ? "assistant" : "user",
+          content: trimText(message.content),
+          createdAt: message.createdAt || message.created_at || null,
+        })).filter((message) => message.content).slice(-16)
+      : [],
+    review: {
+      status: trimText(review.status || "new") || "new",
+      followUpNeeded: review.followUpNeeded === true || review.follow_up_needed === true,
+      followUpCompleted: review.followUpCompleted === true || review.follow_up_completed === true,
+      note: trimText(review.note),
+      nextStep: trimText(review.nextStep || review.next_step),
+      updatedAt: review.updatedAt || review.updated_at || null,
+    },
     conversationSource: "web_call",
     action: action
       ? {
@@ -14188,6 +14212,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const knowledgeFixStatusButtons = document.querySelectorAll("[data-knowledge-fix-status-action]");
   const manualOutcomeForms = document.querySelectorAll("[data-manual-outcome-form]");
   const openConversationButtons = document.querySelectorAll("[data-open-conversation]");
+  const webCallReviewActionButtons = document.querySelectorAll("[data-web-call-review-action]");
+  const webCallPracticeQuestionButtons = document.querySelectorAll("[data-web-call-practice-question]");
+  const webCallImproveAnswerButtons = document.querySelectorAll("[data-web-call-improve-answer]");
   const openInboxThreadButtons = document.querySelectorAll("[data-open-inbox-thread]");
   const openFollowUpButtons = document.querySelectorAll("[data-open-follow-up]");
   const openCalendarEventButtons = document.querySelectorAll("[data-open-calendar-event]");
@@ -15315,6 +15342,98 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
+  const updateWebCallReviewAction = async (button) => {
+    const actionKey = trimText(button.dataset.actionKey);
+    const action = trimText(button.dataset.webCallReviewAction);
+
+    if (!actionKey || !action) {
+      return;
+    }
+
+    button.disabled = true;
+    setStatus(action === "follow_up" ? "Marking Web Call for follow-up..." : "Marking Web Call reviewed...");
+
+    try {
+      await fetchJson("/agents/action-queue/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          action_key: actionKey,
+          status: "reviewed",
+          note: action === "follow_up"
+            ? "Owner marked this Web Call as needing follow-up from Recent Web Calls."
+            : "Owner reviewed this Web Call from Recent Web Calls.",
+          next_step: action === "follow_up" ? "Follow up with this caller if contact details are available." : "",
+          follow_up_needed: action === "follow_up",
+          follow_up_completed: false,
+        }),
+      });
+
+      setDashboardFocus("analytics");
+      setStatus(action === "follow_up" ? "Web Call marked as needing follow-up." : "Web Call marked reviewed.");
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "web-call-review" });
+    } catch (error) {
+      button.disabled = false;
+      setStatus(error.message || "We couldn't update that Web Call review.");
+    }
+  };
+
+  const practiceWebCallQuestion = async (button) => {
+    const question = trimText(button.dataset.question);
+
+    if (!question) {
+      setStatus("This Web Call does not have a practice question yet.");
+      return;
+    }
+
+    if (!frontDeskController?.showSection || !frontDeskController?.sendPracticeMessage) {
+      setStatus("Practice is not available right now.");
+      return;
+    }
+
+    button.disabled = true;
+    setActiveShellSection("customize", operatorWorkspace);
+    showShellSection("customize");
+    frontDeskController.showSection("practice", { syncHash: true });
+
+    try {
+      await frontDeskController.sendPracticeMessage(question);
+      setStatus("Web Call question opened in Practice.");
+    } catch (error) {
+      setStatus(error.message || "We couldn't practice that Web Call question.");
+      button.disabled = false;
+    }
+  };
+
+  const improveWebCallAnswer = async (button) => {
+    const question = trimText(button.dataset.question);
+
+    if (!question) {
+      setStatus("This Web Call needs a caller question before it can be improved.");
+      return;
+    }
+
+    if (!frontDeskController?.openPracticeTeachingForm) {
+      await practiceWebCallQuestion(button);
+      return;
+    }
+
+    setActiveShellSection("customize", operatorWorkspace);
+    showShellSection("customize");
+    frontDeskController.showSection?.("practice", { syncHash: true });
+    frontDeskController.openPracticeTeachingForm({
+      question,
+      currentAnswer: trimText(button.dataset.answer),
+      answer: "",
+      sourceType: "conversation",
+    });
+    setStatus("Web Call answer opened in Practice improvements.");
+  };
+
   const connectGoogleWorkspace = async (event) => {
     const button = event?.currentTarget || event?.target || null;
     const connectMode = trimText(button?.dataset.googleConnectMode);
@@ -15913,6 +16032,24 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       await saveManualOutcome(form);
+    });
+  });
+
+  webCallReviewActionButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await updateWebCallReviewAction(button);
+    });
+  });
+
+  webCallPracticeQuestionButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await practiceWebCallQuestion(button);
+    });
+  });
+
+  webCallImproveAnswerButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      await improveWebCallAnswer(button);
     });
   });
 
@@ -17027,6 +17164,14 @@ function renderLocalDashboardV2Fixture() {
           visitorQuestionCount: 1,
           leadsCaptured: 0,
         },
+        web_call: {
+          key: "web_call",
+          label: "Web Call",
+          conversationCount: 1,
+          messageCount: 2,
+          visitorQuestionCount: 1,
+          leadsCaptured: 0,
+        },
         unknown: {
           key: "unknown",
           label: "Legacy/unknown",
@@ -17074,6 +17219,58 @@ function renderLocalDashboardV2Fixture() {
       },
       notifications: [],
       aiUsage: null,
+      webCallHealth: {
+        available: true,
+        starts: 1,
+        endedCalls: 1,
+        averageDurationSeconds: 74,
+        averageTurns: 2,
+        contactFallbackSubmissions: 0,
+        failureCategories: [
+          { category: "speech_failed", label: "Speech failed", count: 1 },
+        ],
+        latestActivityAt: now,
+      },
+      webCallRecentCalls: {
+        available: true,
+        total: 1,
+        calls: [
+          {
+            id: "fixture-web-call-1",
+            actionKey: "web_call_review:fixture-web-call-1",
+            webCallId: "fixture-web-call-1",
+            sessionKey: "fixture-web-call-session",
+            latestMessageId: "fixture-web-call-message-2",
+            latestAssistantMessageId: "fixture-web-call-message-2",
+            startedAt: now,
+            latestActivityAt: now,
+            durationSeconds: 74,
+            turnCount: 2,
+            contactFallbackOpened: true,
+            contactFallbackSubmitted: false,
+            hadFailures: true,
+            failureCategories: ["speech_failed"],
+            failureCategoryLabels: ["Speech failed"],
+            messages: [
+              { id: "fixture-web-call-message-1", role: "user", content: "Can you walk me through quote timing?", createdAt: now },
+              { id: "fixture-web-call-message-2", role: "assistant", content: "I can explain the usual inputs and collect details for the team.", createdAt: now },
+            ],
+            latestQuestion: "Can you walk me through quote timing?",
+            latestAnswer: "I can explain the usual inputs and collect details for the team.",
+            review: {
+              status: "new",
+              followUpNeeded: false,
+              followUpCompleted: false,
+            },
+            conversationSource: "web_call",
+            action: {
+              type: "conversation",
+              label: "Open related conversation",
+              messageId: "fixture-web-call-message-2",
+            },
+          },
+        ],
+      },
     },
   };
   const operatorWorkspace = {

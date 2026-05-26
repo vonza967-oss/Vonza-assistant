@@ -775,6 +775,60 @@
   display: inline-flex;
   max-width: 100%;
   white-space: normal;
+  border-color: #cbd7e8;
+  background: #ffffff;
+  color: #1f2a44;
+}
+
+.v2-web-call-transcript {
+  display: grid;
+  gap: 8px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.v2-web-call-message {
+  display: grid;
+  gap: 4px;
+  max-width: 82%;
+  padding: 9px 10px;
+  border: 1px solid #d8e3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.v2-web-call-message.assistant {
+  justify-self: end;
+  border-color: #cfe0ff;
+  background: #eff6ff;
+}
+
+.v2-web-call-message-meta,
+.v2-recent-web-call-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.v2-web-call-message-meta {
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+.v2-web-call-message p {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.v2-recent-web-call-actions {
+  justify-content: flex-end;
 }
 .workspace-pages .analytics-item-title {
   color: var(--light-surface-title);
@@ -821,6 +875,14 @@
   .v2-recent-web-call-outcomes {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .v2-web-call-message {
+    max-width: 100%;
+  }
+
+  .v2-recent-web-call-actions {
+    justify-content: flex-start;
   }
 
   .analytics-launch-board-header,
@@ -2210,6 +2272,10 @@ html[data-dashboard-theme="dark"] .analytics-item {
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-call-row {
   border-color: #dce5f0;
   background: #f8fafc;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-recent-web-call-row .analytics-subtle {
+  color: #52647c;
 }
 
 @media (max-width: 900px) {

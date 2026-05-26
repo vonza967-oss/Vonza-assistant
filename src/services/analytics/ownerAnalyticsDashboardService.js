@@ -21,6 +21,7 @@ function getTimestamp(value) {
 function normalizeMessage(message = {}) {
   return {
     id: cleanText(message.id),
+    ownerUserId: cleanText(message.ownerUserId || message.owner_user_id),
     role: cleanText(message.role).toLowerCase(),
     content: cleanText(message.content),
     sessionKey: cleanText(message.sessionKey || message.session_key),
@@ -608,15 +609,16 @@ function createRecentWebCallFromSession(sessionKey = "") {
     contactFallbackSubmitted: false,
     hadFailures: false,
     failureCategories: [],
+    messages: [],
     conversationSource: "web_call",
   };
 }
 
-function buildWebCallMessageSessions(messages = []) {
+function buildWebCallMessageSessions(messages = [], ownerUserId = "") {
   const sessions = new Map();
 
   messages
-    .filter((message) => message.displayMode === "web_call")
+    .filter((message) => message.displayMode === "web_call" && rowBelongsToOwner(message, ownerUserId))
     .forEach((message) => {
       const sessionKey = message.sessionKey || (message.id ? `message:${message.id}` : "");
 
@@ -643,7 +645,21 @@ function buildWebCallMessageSessions(messages = []) {
       if (message.role === "user") {
         session.turnCount = Number(session.turnCount || 0) + 1;
       }
+
+      session.messages.push({
+        id: message.id,
+        role: message.role === "assistant" ? "assistant" : "user",
+        content: message.content,
+        createdAt: message.createdAt || null,
+      });
     });
+
+  sessions.forEach((session) => {
+    session.messages = session.messages
+      .filter((message) => message.content)
+      .sort((left, right) => getTimestamp(left.createdAt) - getTimestamp(right.createdAt))
+      .slice(-16);
+  });
 
   return sessions;
 }
@@ -687,7 +703,45 @@ function findMatchingWebCallSession(call = {}, sessions = new Map(), usedSession
   return best;
 }
 
-function normalizeRecentWebCall(call = {}) {
+function buildWebCallReviewActionKey(call = {}) {
+  const keySource = cleanText(call.webCallId || call.sessionKey || call.latestMessageId || call.contactId || call.id);
+  return keySource ? `web_call_review:${keySource}` : "";
+}
+
+function findLatestWebCallPracticePair(messages = []) {
+  const ordered = (Array.isArray(messages) ? messages : [])
+    .filter((message) => message.content)
+    .sort((left, right) => getTimestamp(left.createdAt) - getTimestamp(right.createdAt));
+  const latestAssistantIndex = [...ordered].reverse().findIndex((message) => message.role === "assistant");
+
+  if (latestAssistantIndex >= 0) {
+    const assistantIndex = ordered.length - 1 - latestAssistantIndex;
+    const answer = ordered[assistantIndex];
+    const question = [...ordered.slice(0, assistantIndex)]
+      .reverse()
+      .find((message) => message.role === "user");
+    return {
+      question: question?.content || "",
+      answer: answer.content || "",
+      messageId: answer.id || "",
+      sessionKey: cleanText(callSessionKeyFromMessages(ordered)),
+    };
+  }
+
+  const question = [...ordered].reverse().find((message) => message.role === "user");
+  return {
+    question: question?.content || "",
+    answer: "",
+    messageId: "",
+    sessionKey: cleanText(callSessionKeyFromMessages(ordered)),
+  };
+}
+
+function callSessionKeyFromMessages(messages = []) {
+  return messages.find((message) => cleanText(message.sessionKey))?.sessionKey || "";
+}
+
+function normalizeRecentWebCall(call = {}, reviewStatusByActionKey = new Map()) {
   const failureCategories = Array.isArray(call.failureCategories)
     ? call.failureCategories
         .map((category) => cleanText(category).toLowerCase())
@@ -699,9 +753,25 @@ function normalizeRecentWebCall(call = {}) {
   const turnCount = call.turnCount === null || call.turnCount === undefined
     ? null
     : readSafeTelemetryNumber(call.turnCount);
+  const messages = Array.isArray(call.messages)
+    ? call.messages
+        .map((message) => ({
+          id: cleanText(message.id),
+          role: cleanText(message.role).toLowerCase() === "assistant" ? "assistant" : "user",
+          content: cleanText(message.content),
+          createdAt: message.createdAt || null,
+        }))
+        .filter((message) => message.content)
+        .sort((left, right) => getTimestamp(left.createdAt) - getTimestamp(right.createdAt))
+        .slice(-16)
+    : [];
+  const practicePair = findLatestWebCallPracticePair(messages);
+  const actionKey = buildWebCallReviewActionKey(call);
+  const reviewState = reviewStatusByActionKey.get(actionKey) || {};
 
   return {
     id: cleanText(call.id || call.webCallId || call.sessionKey),
+    actionKey,
     webCallId: cleanText(call.webCallId),
     sessionKey: cleanText(call.sessionKey),
     latestMessageId: cleanText(call.latestMessageId),
@@ -714,6 +784,19 @@ function normalizeRecentWebCall(call = {}) {
     contactFallbackSubmitted: call.contactFallbackSubmitted === true,
     hadFailures: call.hadFailures === true || failureCategories.length > 0,
     failureCategories,
+    failureCategoryLabels: failureCategories.map((category) => formatWebCallCategoryLabel(category)),
+    messages,
+    latestQuestion: cleanText(practicePair.question),
+    latestAnswer: cleanText(practicePair.answer),
+    latestAssistantMessageId: cleanText(practicePair.messageId),
+    review: {
+      status: cleanText(reviewState.status || "new") || "new",
+      followUpNeeded: reviewState.followUpNeeded === true,
+      followUpCompleted: reviewState.followUpCompleted === true,
+      note: cleanText(reviewState.note),
+      nextStep: cleanText(reviewState.nextStep || reviewState.next_step),
+      updatedAt: reviewState.updatedAt || reviewState.updated_at || null,
+    },
     conversationSource: "web_call",
     action: cleanText(call.contactId)
       ? {
@@ -736,6 +819,7 @@ function buildRecentWebCalls({
   messages = [],
   leadCaptures = {},
   webCallEvents = [],
+  actionStatuses = [],
   ownerUserId = "",
   limit = 8,
 } = {}) {
@@ -743,7 +827,19 @@ function buildRecentWebCalls({
     .filter((row) => rowBelongsToOwner(row, ownerUserId));
   const ownerScopedLeads = (Array.isArray(leadCaptures.records) ? leadCaptures.records : [])
     .filter((lead) => leadBelongsToOwner(lead, ownerUserId) && isWebCallLeadCapture(lead));
-  const messageSessions = buildWebCallMessageSessions(messages);
+  const reviewStatusByActionKey = new Map();
+  const statusRecords = Array.isArray(actionStatuses)
+    ? actionStatuses
+    : Array.isArray(actionStatuses?.records)
+      ? actionStatuses.records
+      : [];
+  statusRecords.forEach((status) => {
+    const actionKey = cleanText(status.actionKey || status.action_key);
+    if (actionKey.startsWith("web_call_review:") && rowBelongsToOwner(status, ownerUserId)) {
+      reviewStatusByActionKey.set(actionKey, status);
+    }
+  });
+  const messageSessions = buildWebCallMessageSessions(messages, ownerUserId);
   const usedSessions = new Set();
   const callsById = new Map();
 
@@ -819,6 +915,7 @@ function buildRecentWebCalls({
     usedSessions.add(match.key);
     call.sessionKey = match.session.sessionKey;
     call.latestMessageId = match.session.latestMessageId;
+    call.messages = match.session.messages;
     call.startedAt = call.startedAt || match.session.startedAt;
     call.latestActivityAt = getTimestamp(match.session.latestActivityAt) > getTimestamp(call.latestActivityAt)
       ? match.session.latestActivityAt
@@ -861,7 +958,7 @@ function buildRecentWebCalls({
   });
 
   const calls = [...callsById.values()]
-    .map((call) => normalizeRecentWebCall(call))
+    .map((call) => normalizeRecentWebCall(call, reviewStatusByActionKey))
     .filter((call) => call.latestActivityAt || call.startedAt)
     .sort((left, right) => getTimestamp(right.latestActivityAt || right.startedAt) - getTimestamp(left.latestActivityAt || left.startedAt))
     .slice(0, Math.min(Math.max(Number(limit || 8), 1), 20));
@@ -881,6 +978,7 @@ export function buildOwnerAnalyticsDashboard({
   widgetMetrics = {},
   billingSnapshot = null,
   actionQueue = null,
+  actionStatuses = [],
   feedback = null,
   webCallHealth = null,
   webCallEvents = [],
@@ -967,6 +1065,7 @@ export function buildOwnerAnalyticsDashboard({
       messages: normalizedMessages,
       leadCaptures,
       webCallEvents,
+      actionStatuses,
       ownerUserId,
     }),
   };

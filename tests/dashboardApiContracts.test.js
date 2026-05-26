@@ -295,6 +295,46 @@ test("owner-scoped dashboard APIs deny access before returning workspace data", 
   }
 });
 
+test("Web Call review actions use authenticated owner scope", async () => {
+  let updatePayload = null;
+  const server = await startServer(createApp(createRouteDeps({
+    updateActionQueueStatus: async (_supabase, payload) => {
+      updatePayload = payload;
+      return {
+        item: {
+          agentId: payload.agentId,
+          ownerUserId: payload.ownerUserId,
+          actionKey: payload.actionKey,
+          status: payload.status,
+          followUpNeeded: payload.followUpNeeded,
+        },
+        persistenceAvailable: true,
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/action-queue/status", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: "client-1",
+        agent_id: "agent-1",
+        action_key: "web_call_review:call-1",
+        status: "reviewed",
+        follow_up_needed: true,
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(updatePayload.agentId, "agent-1");
+    assert.equal(updatePayload.ownerUserId, "owner-1");
+    assert.equal(updatePayload.actionKey, "web_call_review:call-1");
+    assert.equal(updatePayload.followUpNeeded, true);
+  } finally {
+    await server.close();
+  }
+});
+
 test("billing sync transitions only the paid owner's workspace access_status", async () => {
   const supabase = createBillingTransitionSupabase();
 

@@ -543,6 +543,56 @@
     return `<div class="placeholder-card analytics-empty-state">${escapeHtml(copy)}</div>`;
   }
 
+  function getWebCallReviewLabel(review = {}) {
+    const status = trimText(review.status).toLowerCase();
+
+    if (review.followUpCompleted === true) {
+      return "Follow-up complete";
+    }
+
+    if (review.followUpNeeded === true) {
+      return "Needs follow-up";
+    }
+
+    if (status === "reviewed") {
+      return "Reviewed";
+    }
+
+    if (status === "done") {
+      return "Done";
+    }
+
+    if (status === "dismissed") {
+      return "Dismissed";
+    }
+
+    return "Needs review";
+  }
+
+  function renderWebCallTranscript(messages = []) {
+    const safeMessages = (Array.isArray(messages) ? messages : [])
+      .filter((message) => trimText(message.content))
+      .slice(-8);
+
+    if (!safeMessages.length) {
+      return renderAnalyticsEmptyState("No related conversation transcript is available for this Web Call yet.");
+    }
+
+    return `
+      <div class="v2-web-call-transcript" aria-label="Related Web Call conversation">
+        ${safeMessages.map((message) => `
+          <article class="v2-web-call-message ${message.role === "assistant" ? "assistant" : "user"}" data-conversation-message="${escapeHtml(message.id || "")}">
+            <div class="v2-web-call-message-meta">
+              <strong>${escapeHtml(message.role === "assistant" ? "Front Desk" : "Caller")}</strong>
+              <span>${escapeHtml(formatActivityTime(message.createdAt))}</span>
+            </div>
+            <p>${escapeHtml(message.content)}</p>
+          </article>
+        `).join("")}
+      </div>
+    `;
+  }
+
   function renderWebCallHealthCard(webCallHealth = {}, options = {}) {
     const context = createRenderContext(options);
     const health = webCallHealth && typeof webCallHealth === "object" ? webCallHealth : {};
@@ -615,13 +665,19 @@
           ${calls.map((call) => {
             const action = call.action && typeof call.action === "object" ? call.action : null;
             const failureCount = Array.isArray(call.failureCategories) ? call.failureCategories.length : 0;
+            const failureLabels = Array.isArray(call.failureCategoryLabels) ? call.failureCategoryLabels : [];
+            const review = call.review && typeof call.review === "object" ? call.review : {};
+            const actionKey = trimText(call.actionKey);
+            const latestQuestion = trimText(call.latestQuestion);
+            const latestAnswer = trimText(call.latestAnswer);
             const outcomeChips = [
               call.contactFallbackSubmitted ? "Contact submitted" : call.contactFallbackOpened ? "Contact opened" : "No contact fallback",
               call.hadFailures ? "Had failures" : "No failures",
+              getWebCallReviewLabel(review),
             ];
 
             return `
-              <article class="v2-recent-web-call-row" data-web-call-recent-row data-conversation-source="web_call">
+              <article class="v2-recent-web-call-row" data-web-call-recent-row data-web-call-action-key="${escapeHtml(actionKey)}" data-conversation-source="web_call">
                 <div class="v2-recent-web-call-main">
                   <div>
                     <p class="v2-row-title">Web Call conversation</p>
@@ -637,11 +693,19 @@
                     ${outcomeChips.map((label) => `<span class="v2-status-pill">${escapeHtml(label)}</span>`).join("")}
                     ${failureCount ? `<span class="v2-status-pill">${escapeHtml(`${failureCount} safe failure ${failureCount === 1 ? "type" : "types"}`)}</span>` : ""}
                   </div>
+                  ${failureLabels.length ? `<p class="analytics-subtle">${escapeHtml(`Failure categories: ${failureLabels.join(", ")}`)}</p>` : ""}
                   ${action?.contactId ? `
                     <button class="ghost-button" type="button" data-shell-target="contacts" data-target-id="${escapeHtml(action.contactId)}">${escapeHtml(action.label || "Open customer")}</button>
                   ` : action?.messageId ? `
                     <button class="ghost-button" type="button" data-open-conversation data-message-id="${escapeHtml(action.messageId)}">${escapeHtml(action.label || "Open related conversation")}</button>
                   ` : ""}
+                </div>
+                ${renderWebCallTranscript(call.messages)}
+                <div class="v2-recent-web-call-actions">
+                  <button class="ghost-button" type="button" data-web-call-review-action="reviewed" data-action-key="${escapeHtml(actionKey)}" ${actionKey ? "" : "disabled"}>Mark reviewed</button>
+                  <button class="ghost-button" type="button" data-web-call-review-action="follow_up" data-action-key="${escapeHtml(actionKey)}" ${actionKey ? "" : "disabled"}>Needs follow-up</button>
+                  <button class="ghost-button" type="button" data-web-call-improve-answer data-question="${escapeHtml(latestQuestion)}" data-answer="${escapeHtml(latestAnswer)}" data-message-id="${escapeHtml(call.latestAssistantMessageId || call.latestMessageId || "")}" data-session-key="${escapeHtml(call.sessionKey || "")}" ${latestQuestion ? "" : "disabled"}>Improve answer</button>
+                  <button class="ghost-button" type="button" data-web-call-practice-question data-question="${escapeHtml(latestQuestion)}" ${latestQuestion ? "" : "disabled"}>Practice this question</button>
                 </div>
               </article>
             `;
@@ -914,6 +978,7 @@
     renderRecentAnalyticsActivity,
     renderAnalyticsEmptyState,
     renderWebCallHealthCard,
+    renderRecentWebCallsCard,
     renderAnalyticsPageFragment,
   });
 })(window);

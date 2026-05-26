@@ -430,6 +430,22 @@ test("owner analytics dashboard aggregates recent Web Calls without cross-owner 
       items: [],
       summary: {},
     },
+    actionStatuses: [
+      {
+        ownerUserId: "owner-1",
+        actionKey: "web_call_review:call-1",
+        status: "reviewed",
+        followUpNeeded: true,
+        note: "Owner marked this Web Call as needing follow-up.",
+      },
+      {
+        ownerUserId: "owner-2",
+        actionKey: "web_call_review:call-other-owner",
+        status: "reviewed",
+        followUpNeeded: true,
+        note: "Cross-owner status should not appear.",
+      },
+    ],
   });
 
   assert.equal(dashboard.webCallRecentCalls.available, true);
@@ -442,8 +458,14 @@ test("owner analytics dashboard aggregates recent Web Calls without cross-owner 
   assert.equal(dashboard.webCallRecentCalls.calls[0].contactFallbackSubmitted, true);
   assert.equal(dashboard.webCallRecentCalls.calls[0].hadFailures, true);
   assert.deepEqual(dashboard.webCallRecentCalls.calls[0].failureCategories, ["speech_failed"]);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].actionKey, "web_call_review:call-1");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].review.status, "reviewed");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].review.followUpNeeded, true);
+  assert.equal(dashboard.webCallRecentCalls.calls[0].latestQuestion, "Can you help with a quote?");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].latestAnswer, "I can help collect details.");
+  assert.equal(dashboard.webCallRecentCalls.calls[0].messages.length, 2);
   assert.equal(dashboard.webCallRecentCalls.calls[0].action.contactId, "contact-1");
 
   const serialized = JSON.stringify(dashboard.webCallRecentCalls);
-  assert.doesNotMatch(serialized, /Can you help with a quote|I can help collect details|caller@example\.com|other-owner|call-other-owner|300|9/i);
+  assert.doesNotMatch(serialized, /caller@example\.com|provider_error|other-owner|call-other-owner|300|9|Cross-owner status/i);
 });

@@ -168,6 +168,41 @@ test("action queue rejects conflicting follow-up flags", async () => {
   );
 });
 
+test("action queue persists Web Call review follow-up state with owner scope", async () => {
+  let capturedPayload = null;
+  const supabase = createStatusSupabase();
+  const originalFrom = supabase.from;
+  supabase.from = (...args) => {
+    const builder = originalFrom.apply(supabase, args);
+    const originalUpsert = builder.upsert;
+    builder.upsert = (payload, options) => {
+      capturedPayload = { payload, options };
+      return originalUpsert.call(builder, payload, options);
+    };
+    return builder;
+  };
+
+  const result = await updateActionQueueStatus(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    actionKey: "web_call_review:call-1",
+    status: "reviewed",
+    note: "Owner marked this Web Call as needing follow-up from Recent Web Calls.",
+    nextStep: "Follow up with this caller if contact details are available.",
+    followUpNeeded: true,
+    followUpCompleted: false,
+  });
+
+  assert.equal(capturedPayload.payload.agent_id, "agent-1");
+  assert.equal(capturedPayload.payload.owner_user_id, "owner-1");
+  assert.equal(capturedPayload.payload.action_key, "web_call_review:call-1");
+  assert.equal(capturedPayload.payload.status, "reviewed");
+  assert.equal(capturedPayload.payload.follow_up_needed, true);
+  assert.equal(capturedPayload.payload.follow_up_completed, false);
+  assert.equal(result.item.actionKey, "web_call_review:call-1");
+  assert.equal(result.item.followUpNeeded, true);
+});
+
 test("action queue rejects invalid direct transitions from dismissed to done", async () => {
   await assert.rejects(
     () => updateActionQueueStatus(createStatusSupabase({

@@ -171,7 +171,30 @@ test("Analytics page fragment preserves real values without QR or raw display mo
             contactFallbackSubmitted: true,
             hadFailures: true,
             failureCategories: ["garbled_transcript"],
+            failureCategoryLabels: ["Garbled transcript"],
             conversationSource: "web_call",
+            actionKey: "web_call_review:call-1",
+            review: {
+              status: "reviewed",
+              followUpNeeded: true,
+            },
+            messages: [
+              {
+                id: "message-question",
+                role: "user",
+                content: "I need a quote",
+                createdAt: "2026-05-20T11:00:01.000Z",
+              },
+              {
+                id: "message-1",
+                role: "assistant",
+                content: "Sure, I can help.",
+                createdAt: "2026-05-20T11:00:03.000Z",
+              },
+            ],
+            latestQuestion: "I need a quote",
+            latestAnswer: "Sure, I can help.",
+            latestAssistantMessageId: "message-1",
             action: {
               type: "conversation",
               label: "Open related conversation",
@@ -200,6 +223,14 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.match(markup, /Recent Web Calls/);
   assert.match(markup, /Contact submitted/);
   assert.match(markup, /Had failures/);
+  assert.match(markup, /Needs follow-up/);
+  assert.match(markup, /Caller/);
+  assert.match(markup, /Front Desk/);
+  assert.match(markup, /I need a quote/);
+  assert.match(markup, /Sure, I can help\./);
+  assert.match(markup, /data-web-call-review-action="reviewed" data-action-key="web_call_review:call-1"/);
+  assert.match(markup, /data-web-call-improve-answer/);
+  assert.match(markup, /Practice this question/);
   assert.match(markup, /data-open-conversation data-message-id="message-1"/);
   assert.match(markup, /Starts/);
   assert.match(markup, />2</);
@@ -208,6 +239,6 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.match(markup, /Garbled transcript/);
   assert.doesNotMatch(markup, /Legacy\/unknown/);
   assert.doesNotMatch(markup, /display_mode/);
-  assert.doesNotMatch(markup, /I need a quote|Sure, I can help|lead@example\.com|token-123/i);
+  assert.doesNotMatch(markup, /lead@example\.com|token-123/i);
   assert.doesNotMatch(markup, /QR scans|QR code|QR scan analytics unavailable/i);
 });
