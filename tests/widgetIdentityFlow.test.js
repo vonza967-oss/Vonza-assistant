@@ -1263,6 +1263,104 @@ test("call Front Desk transcription failure offers contact fallback without prov
   assert.doesNotMatch(harness.elements.get("call-front-desk-status").textContent, /provider|quota|stack/i);
 });
 
+test("call Front Desk ends with a clear turn-limit message", async () => {
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "Can you help with quotes?" };
+          },
+        };
+      }
+
+      if (url.includes("/api/voice/speech")) {
+        return {
+          ok: true,
+          async blob() {
+            return new Blob(["mp3"], { type: "audio/mpeg" });
+          },
+        };
+      }
+
+      if (url.includes("/chat")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              reply: "Yes, I can help collect quote details.",
+              speech: {
+                token: "speech-token",
+                expiresAt: "2026-05-25T12:05:00.000Z",
+              },
+            };
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  for (let index = 0; index < 8; index += 1) {
+    assert.equal(await harness.hooks.startCallModeTurn(), true);
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+    harness.elements.get("call-front-desk-stop").dispatch("click");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const audio = harness.audioInstances[harness.audioInstances.length - 1];
+    assert.ok(audio);
+    if (index < 7) {
+      audio.listeners.get("ended")?.();
+    }
+  }
+
+  harness.audioInstances[harness.audioInstances.length - 1].listeners.get("ended")?.();
+
+  assert.equal(harness.hooks.getCallModeState(), "stopped");
+  assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 8");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "Call ended after reaching the turn limit. Transcript remains in chat."
+  );
+  assert.equal(
+    harness.elements.get("call-front-desk-summary").textContent,
+    "Call ended after reaching the turn limit. Transcript remains in chat."
+  );
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+});
+
 test("voice transcription fills the composer without auto-sending by default", async () => {
   const harness = createWidgetHarness({
     location: {

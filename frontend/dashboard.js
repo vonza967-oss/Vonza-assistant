@@ -2432,7 +2432,7 @@ const DASHBOARD_HU_PHRASES = Object.freeze({
   "Show the hosted full-page Call Front Desk panel when voice input and spoken replies are also enabled.": "Mutasd a hosztolt teljes oldalas Front Desk híváspanelt, ha a hangbevitel és a felolvasott válaszok is engedélyezve vannak.",
   "Web Call readiness checklist": "Webes hívás készenléti ellenőrzőlista",
   "Web Call setup": "Webes hívás beállítása",
-  "Internet calling over the visitor's browser, not a phone number. It uses AI capacity and rate limits.": "Internetes hívás a látogató böngészőjén keresztül, nem telefonszám. AI-kapacitást és sebességkorlátokat használ.",
+  "Internet calling over the visitor's browser, not a phone number. It requires voice input, spoken replies, and Web Call Front Desk. It uses AI capacity and rate limits.": "Internetes hívás a látogató böngészőjén keresztül, nem telefonszám. Hangbevitel, felolvasott válaszok és Webes Front Desk hívás szükséges hozzá. AI-kapacitást és sebességkorlátokat használ.",
   "Incomplete": "Hiányos",
   "Voice input": "Hangbevitel",
   "Ready for microphone recording.": "Mikrofonos rögzítésre kész.",
@@ -8691,6 +8691,14 @@ function createEmptyOwnerAnalyticsDashboard() {
       visitorQuestionCount: 0,
       leadsCaptured: 0,
     },
+    web_call: {
+      key: "web_call",
+      label: "Web Call",
+      conversationCount: 0,
+      messageCount: 0,
+      visitorQuestionCount: 0,
+      leadsCaptured: 0,
+    },
     unknown: {
       key: "unknown",
       label: "Legacy/unknown",
@@ -8788,16 +8796,19 @@ function normalizeOwnerAnalyticsDashboard(data = null) {
       widget: normalizeAssistantSourceBucket(assistantSource.widget, emptyDashboard.assistantSource.widget),
       page: normalizeAssistantSourceBucket(assistantSource.page, emptyDashboard.assistantSource.page),
       embedded: normalizeAssistantSourceBucket(assistantSource.embedded, emptyDashboard.assistantSource.embedded),
+      web_call: normalizeAssistantSourceBucket(assistantSource.web_call || assistantSource.webCall, emptyDashboard.assistantSource.web_call),
       unknown: normalizeAssistantSourceBucket(assistantSource.unknown, emptyDashboard.assistantSource.unknown),
       totalConversations: Number(assistantSource.totalConversations || 0)
         || Number(assistantSource.widget?.conversationCount || 0)
         + Number(assistantSource.page?.conversationCount || 0)
         + Number(assistantSource.embedded?.conversationCount || 0)
+        + Number((assistantSource.web_call || assistantSource.webCall)?.conversationCount || 0)
         + Number(assistantSource.unknown?.conversationCount || 0),
       totalMessages: Number(assistantSource.totalMessages || 0)
         || Number(assistantSource.widget?.messageCount || 0)
         + Number(assistantSource.page?.messageCount || 0)
         + Number(assistantSource.embedded?.messageCount || 0)
+        + Number((assistantSource.web_call || assistantSource.webCall)?.messageCount || 0)
         + Number(assistantSource.unknown?.messageCount || 0),
     },
     topVisitorQuestions: Array.isArray(data.topVisitorQuestions)
@@ -8868,7 +8879,9 @@ function getOwnerAnalyticsDashboard(actionQueue = createEmptyActionQueue()) {
   const hasAssistantSourceData = Number(dashboard.assistantSource?.totalMessages || 0) > 0
     || Number(dashboard.assistantSource?.totalConversations || 0) > 0
     || Number(dashboard.assistantSource?.embedded?.messageCount || 0) > 0
-    || Number(dashboard.assistantSource?.embedded?.conversationCount || 0) > 0;
+    || Number(dashboard.assistantSource?.embedded?.conversationCount || 0) > 0
+    || Number(dashboard.assistantSource?.web_call?.messageCount || 0) > 0
+    || Number(dashboard.assistantSource?.web_call?.conversationCount || 0) > 0;
 
   return dashboard.ok || hasMetricData || hasQuestionData || hasSatisfactionData || hasKnowledgeImprovementData || hasAiUsage || hasAssistantSourceData ? dashboard : null;
 }
@@ -9446,7 +9459,18 @@ function getAnalyticsSourceRows(sourceBreakdown = {}) {
       visits: "",
     },
   ];
+  const webCall = normalizeAssistantSourceBucket(source.web_call || source.webCall, emptySource.web_call);
   const unknown = normalizeAssistantSourceBucket(source.unknown, emptySource.unknown);
+
+  if (webCall.conversationCount > 0 || webCall.messageCount > 0 || webCall.leadsCaptured > 0) {
+    rows.push({
+      ...webCall,
+      icon: "phone",
+      tone: "blue",
+      color: "soft-blue",
+      visits: "",
+    });
+  }
 
   if (unknown.conversationCount > 0 || unknown.messageCount > 0 || unknown.leadsCaptured > 0) {
     rows.push({

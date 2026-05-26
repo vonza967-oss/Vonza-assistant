@@ -1627,7 +1627,7 @@
                 <div class="settings-web-call-readiness-header">
                   <div>
                     <h4 class="settings-web-call-readiness-title">Web Call setup</h4>
-                    <p class="settings-web-call-readiness-copy">Internet calling over the visitor's browser, not a phone number. It uses AI capacity and rate limits.</p>
+                    <p class="settings-web-call-readiness-copy">Internet calling over the visitor's browser, not a phone number. It requires voice input, spoken replies, and Web Call Front Desk. It uses AI capacity and rate limits.</p>
                   </div>
                   <span class="${helpers.getBadgeClass(webCallReady ? "Ready" : "Pending")}" data-web-call-readiness-badge>${webCallReady ? "Ready" : "Incomplete"}</span>
                 </div>

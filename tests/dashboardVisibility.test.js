@@ -547,6 +547,12 @@ test("dashboard helper bundle parses and exposes low-risk utility helpers", () =
   assert.equal(typeof context.window.VonzaDashboardInstall.createInstallHelpers, "function");
   assert.equal(typeof context.window.VonzaDashboardFrontDesk.createFrontDeskHelpers, "function");
   assert.equal(context.window.VonzaDashboardAnalytics.getAnalyticsSourceLabel("page"), "Front Desk page");
+  assert.equal(context.window.VonzaDashboardAnalytics.getAnalyticsSourceLabel("web_call"), "Web Call");
+  const analyticsSourceRows = context.window.VonzaDashboardAnalytics.buildAssistantSourceRows({
+    page: { key: "page", conversationCount: 2, messageCount: 4, leadsCaptured: 1 },
+    web_call: { key: "web_call", conversationCount: 1, messageCount: 2, leadsCaptured: 1 },
+  });
+  assert.ok(analyticsSourceRows.some((row) => row.key === "web_call" && row.label === "Web Call" && row.leadsCaptured === 1));
   assert.equal(typeof context.window.VonzaDashboardCustomers.createCustomerHelpers, "function");
   assert.equal(context.window.VonzaDashboardCustomers.getCustomerSourceLabel("embedded_assistant"), "Embedded assistant");
   const customerHelpers = context.window.VonzaDashboardCustomers.createCustomerHelpers({
@@ -991,6 +997,8 @@ test("legacy Settings Front Desk hash redirects to Front Desk customization cont
   assert.match(harness.getRootHtml(), /Language behavior/);
   assert.match(harness.getRootHtml(), /Visitors can speak their question/);
   assert.match(harness.getRootHtml(), /Spoken replies are AI-generated on demand/);
+  assert.match(harness.getRootHtml(), /not a phone number/);
+  assert.match(harness.getRootHtml(), /requires voice input, spoken replies, and Web Call Front Desk/);
   assert.match(harness.getRootHtml(), /Owner voice QA simulator/);
   assert.match(harness.getRootHtml(), /Record sample/);
   assert.match(harness.getRootHtml(), /Transcript preview/);

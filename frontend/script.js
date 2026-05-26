@@ -89,6 +89,7 @@ const DEFAULT_VOICE_CONFIG = Object.freeze({
 });
 const VOICE_TTS_VOICES = Object.freeze(["alloy", "ash", "coral", "nova", "sage", "shimmer"]);
 const VOICE_RECORDING_MAX_MS = 30000;
+const WEB_CALL_MAX_TURNS = 8;
 const VOICE_RECORDING_MIME_TYPES = Object.freeze([
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -366,6 +367,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callTurns": "Turns {turns}",
     "assistant.callSessionDetails": "Call session details",
     "assistant.callSummary": "Call ended: {duration}, {turns}. Transcript remains in chat.",
+    "assistant.callTurnLimitEnded": "Call ended after reaching the turn limit. Transcript remains in chat.",
     "assistant.callFallback": "You can type your message below or leave contact details.",
     "assistant.callOneTurn": "1 turn",
     "assistant.callTurnCount": "{count} turns",
@@ -533,6 +535,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callTurns": "Fordulók {turns}",
     "assistant.callSessionDetails": "Hívás részletei",
     "assistant.callSummary": "A hívás véget ért: {duration}, {turns}. A leirat a chatben marad.",
+    "assistant.callTurnLimitEnded": "A hívás a fordulókorlát elérése után véget ért. A leirat a chatben marad.",
     "assistant.callFallback": "Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
@@ -3400,6 +3403,14 @@ function showCallModeSummary() {
   }
 }
 
+function showCallModeTurnLimitSummary() {
+  const summary = getCallModeSummary();
+  if (summary) {
+    summary.hidden = false;
+    summary.textContent = assistantT("assistant.callTurnLimitEnded");
+  }
+}
+
 function startCallModeSession() {
   if (callModeStartedAt) {
     return;
@@ -3428,9 +3439,18 @@ function cleanupCallModeMedia(options = {}) {
   stopCallModeTimer();
   updateCallModeStats();
 
-  if (options.summary === true) {
+  if (options.turnLimitSummary === true) {
+    showCallModeTurnLimitSummary();
+  } else if (options.summary === true) {
     showCallModeSummary();
   }
+}
+
+function endCallModeAfterTurnLimit() {
+  webCallSessionTouched = true;
+  callModeActive = false;
+  cleanupCallModeMedia({ turnLimitSummary: true });
+  setCallModeState(CALL_MODE_STATES.STOPPED, assistantT("assistant.callTurnLimitEnded"));
 }
 
 function getCallModeStateMessage(state = callModeState) {
@@ -4134,6 +4154,10 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
         },
         onSpokenReplyEnd: (played) => {
           if (callModeActive) {
+            if (played && callModeTurnCount >= WEB_CALL_MAX_TURNS) {
+              endCallModeAfterTurnLimit();
+              return;
+            }
             setCallModeState(
               played ? CALL_MODE_STATES.READY : CALL_MODE_STATES.UNAVAILABLE,
               played ? "" : assistantT("assistant.voiceSpokenCouldNotPlay")

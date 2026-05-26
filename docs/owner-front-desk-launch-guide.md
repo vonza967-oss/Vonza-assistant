@@ -30,14 +30,18 @@ Use WordPress / dedicated page when the Front Desk should be the main content of
 
 Add the website widget bubble only when you also want a compact launcher on normal website pages. Keep the full-page Front Desk as the primary customer path.
 
-## 8. Review Customers And Follow-Ups
+## 8. Optional Web Call
+
+Web Call is internet calling in the visitor's browser, not a phone number. It requires Voice input, Spoken replies, and Web Call Front Desk to all be enabled. It uses the same AI capacity and rate limits as other voice features, so test it first with the owner voice QA simulator. Contacts and follow-ups captured from Web Call appear in Customers and Analytics.
+
+## 9. Review Customers And Follow-Ups
 
 Use Customers to review captured leads, guest visitors, unhappy conversations, missing contact details, and follow-up opportunities. Reply or mark outcomes from the owner workflow when a human decision is needed.
 
-## 9. Understand Analytics
+## 10. Understand Analytics
 
 Use Analytics to watch Front Desk conversations, leads, source activity, top questions, weak answers, QR/direct link activity where available, and owner attention items.
 
-## 10. Billing And Access Basics
+## 11. Billing And Access Basics
 
 Settings → Account & Billing shows owner access, plan status, subscription state, and monthly AI capacity. If access or capacity is limited, fix billing or plan status before relying on live customer traffic.
