@@ -5583,16 +5583,16 @@ function buildSidebarShell(
       : "Add website details";
   const coreItems = [
     {
-      key: "customize",
-      label: t("nav.frontDesk"),
-      note: "Primary customer page",
-    },
-    {
       key: "overview",
       label: t("nav.home"),
       note: "Operator command center",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
+    },
+    {
+      key: "customize",
+      label: t("nav.frontDesk"),
+      note: "Primary customer page",
     },
     {
       key: "contacts",
@@ -5676,6 +5676,147 @@ function formatDateTimeLocalValue(value) {
 function formatOperatorCount(value, singular, plural = `${singular}s`) {
   const count = Number(value || 0);
   return formatDashboardCountLabel(count, singular, plural, getDashboardHungarianCountUnit(singular));
+}
+
+function buildStatusPill({
+  label = "",
+  tone = "neutral",
+  icon = "",
+} = {}) {
+  return `
+    <span class="status-pill status-pill--${escapeHtml(tone)}">
+      ${icon ? `<span class="status-pill-icon" aria-hidden="true">${buildV2Icon(icon)}</span>` : `<span class="status-pill-dot" aria-hidden="true"></span>`}
+      <span>${escapeHtml(translateDashboardText(label))}</span>
+    </span>
+  `;
+}
+
+function buildMetricTile({
+  label = "",
+  value = "",
+  note = "",
+  icon = "review",
+  tone = "violet",
+} = {}) {
+  return `
+    <article class="metric-tile metric-tile--${escapeHtml(tone)}">
+      <span class="metric-tile-icon" aria-hidden="true">${buildV2Icon(icon)}</span>
+      <span class="metric-tile-copy">
+        <span>${escapeHtml(translateDashboardText(label))}</span>
+        <strong>${escapeHtml(String(value || "0"))}</strong>
+        ${note ? `<small>${escapeHtml(translateDashboardText(note))}</small>` : ""}
+      </span>
+    </article>
+  `;
+}
+
+function buildProgressRing({
+  percent = 0,
+  label = "",
+} = {}) {
+  const normalizedPercent = Math.min(100, Math.max(0, Math.round(Number(percent) || 0)));
+
+  return `
+    <div class="progress-ring" style="--progress:${normalizedPercent}" role="img" aria-label="${escapeHtml(label || `${normalizedPercent}% complete`)}">
+      <span>${escapeHtml(`${normalizedPercent}%`)}</span>
+    </div>
+  `;
+}
+
+function buildQuickActionTile({
+  label = "",
+  icon = "review",
+  target = "",
+  filter = "",
+  targetId = "",
+  href = "",
+  disabled = false,
+} = {}) {
+  const iconMarkup = `<span class="quick-action-tile-icon" aria-hidden="true">${buildV2Icon(icon)}</span>`;
+  const labelMarkup = `<span>${escapeHtml(translateDashboardText(label))}</span>`;
+
+  if (href) {
+    return `
+      <a class="quick-action-tile ${disabled ? "disabled" : ""}" data-action="open-preview" href="${disabled ? "#" : escapeHtml(href)}" target="_blank" rel="noreferrer" ${disabled ? 'aria-disabled="true"' : ""}>
+        ${iconMarkup}
+        ${labelMarkup}
+      </a>
+    `;
+  }
+
+  return `
+    <button
+      class="quick-action-tile"
+      type="button"
+      ${target ? `data-overview-target="${escapeHtml(target)}"` : ""}
+      ${filter ? `data-contact-filter="${escapeHtml(filter)}"` : ""}
+      ${targetId ? `data-target-id="${escapeHtml(targetId)}"` : ""}
+      ${disabled ? "disabled" : ""}
+    >
+      ${iconMarkup}
+      ${labelMarkup}
+    </button>
+  `;
+}
+
+function buildActivityItem({
+  title = "",
+  copy = "",
+  meta = "",
+  icon = "chat",
+  tone = "blue",
+} = {}) {
+  return `
+    <article class="activity-item">
+      <span class="activity-item-icon activity-item-icon--${escapeHtml(tone)}" aria-hidden="true">${buildV2Icon(icon)}</span>
+      <span class="activity-item-copy">
+        <strong>${escapeHtml(translateDashboardText(title))}</strong>
+        ${copy ? `<small>${escapeHtml(copy)}</small>` : ""}
+      </span>
+      ${meta ? `<span class="activity-item-meta">${escapeHtml(translateDashboardText(meta))}</span>` : ""}
+    </article>
+  `;
+}
+
+function buildAssistantPreviewCard({
+  assistantName = "",
+  greeting = "",
+  prompts = [],
+  statusLabel = "",
+  live = false,
+} = {}) {
+  const visiblePrompts = prompts.map((prompt) => trimText(prompt)).filter(Boolean).slice(0, 3);
+
+  return `
+    <article class="glass-card assistant-preview-card">
+      <div class="glass-card-header">
+        <div>
+          <h2 class="glass-card-title">Assistant preview</h2>
+          <p class="glass-card-copy">Current Front Desk greeting and starter prompts.</p>
+        </div>
+        ${buildStatusPill({ label: statusLabel || (live ? "Live" : "Ready to test"), tone: live ? "online" : "neutral" })}
+      </div>
+      <div class="assistant-preview-surface">
+        <div class="assistant-preview-message">
+          <span class="assistant-preview-avatar" aria-hidden="true">${escapeHtml((assistantName || "V").slice(0, 1).toUpperCase())}</span>
+          <div>
+            <strong>${escapeHtml(assistantName || "Vonza Front Desk")}</strong>
+            <p>${escapeHtml(greeting || "Your front desk is ready to greet visitors with a clear, helpful first message.")}</p>
+          </div>
+        </div>
+        ${visiblePrompts.length ? `
+          <div class="assistant-preview-prompts" aria-label="${escapeHtml(translateDashboardText("Suggested questions"))}">
+            ${visiblePrompts.map((prompt) => `<span>${escapeHtml(prompt)}</span>`).join("")}
+          </div>
+        ` : ""}
+      </div>
+      <div class="assistant-preview-listening" aria-hidden="true">
+        <span>${buildV2Icon("sparkle")}</span>
+        <strong>Listening...</strong>
+        <i></i><i></i><i></i>
+      </div>
+    </article>
+  `;
 }
 
 function _buildOperatorNextActionButton(nextAction = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
@@ -6989,43 +7130,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       done: setup.knowledgeReady && !setup.knowledgeLimited,
     },
   ];
-  const ownerAnalyticsDashboard = getOwnerAnalyticsDashboard(actionQueue);
-  const sourceBreakdown = ownerAnalyticsDashboard?.assistantSource || null;
   const notAvailableLabel = "not available yet";
-  const homeHeaderActions = `
-    <button class="v2-button v2-button-primary" type="button" data-overview-target="contacts" data-contact-filter="needs_review">${buildV2Icon("chat")}Review replies</button>
-    <button class="v2-button" type="button" data-overview-target="analytics">${buildV2Icon("outcomes")}View analytics</button>
-  `;
-  const homeMetrics = [
-    {
-      label: t("home.conversationsToday"),
-      value: String(conversationsToday),
-      compare: notAvailableLabel,
-      icon: "chat",
-      tone: "blue",
-    },
-    {
-      label: "Leads captured",
-      value: String(leadsCapturedCount),
-      compare: notAvailableLabel,
-      icon: "users",
-      tone: "green",
-    },
-    {
-      label: "Needs reply",
-      value: String(needsReplyOrFollowUpCount),
-      compare: notAvailableLabel,
-      icon: "bell",
-      tone: "amber",
-    },
-    {
-      label: "AI handled",
-      value: String(aiHandledCount),
-      compare: notAvailableLabel,
-      icon: "sparkle",
-      tone: "teal",
-    },
-  ];
   const priorityRows = attentionItems.slice(0, 3).map((item) => ({
     category: item.category || "",
     title: item.title || item.category || "Customer needs attention",
@@ -7054,164 +7159,293 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   }
 
   const priorityOpenCount = Math.max(priorityRows.length, needsReplyOrFollowUpCount, attentionCount);
-  const sourceRows = getAnalyticsSourceRows(sourceBreakdown || {}).filter((item) =>
-    item.key !== "unknown" || Number(item.conversationCount || 0) > 0 || Number(item.messageCount || 0) > 0 || Number(item.leadsCaptured || 0) > 0
-  );
-  const sourceAnalyticsAvailable = Boolean(sourceBreakdown);
   const readinessReadyCount = setupStatusItems.filter((item) => item.done).length;
-  const visibleReadinessRows = setupStatusItems;
-  const homeBriefTitle = priorityOpenCount
-    ? `${priorityOpenCount} customer signal${priorityOpenCount === 1 ? "" : "s"} need a next step`
-    : "The operator queue is clear";
-  const homeBriefCopy = priorityRows.length
-    ? "Start with the highest-impact customer moment, then tighten Front Desk guidance where repeated questions or weak answers are showing up."
-    : "Vonza will bring replies, unhappy customers, warm leads, and repeated-question signals here as soon as they need owner attention.";
+  const visibleReadinessRows = setupStatusItems.slice(0, 5);
+  const readinessTotalCount = Math.max(setupStatusItems.length, 1);
+  const setupProgressPercent = Math.round((readinessReadyCount / readinessTotalCount) * 100);
+  const fullPageConfig = agent.fullPageConfig || agent.full_page_config || {};
+  const fullPagePrompts = Array.isArray(fullPageConfig.suggestedQuestions)
+    ? fullPageConfig.suggestedQuestions
+    : Array.isArray(fullPageConfig.suggested_questions)
+      ? fullPageConfig.suggested_questions
+      : [];
+  const assistantName = trimText(agent.assistantName || agent.name) || "Vonza Front Desk";
+  const workspaceName = trimText(agent.businessName || agent.name || agent.assistantName || agent.websiteUrl) || "Vonza";
+  const accountLabel = authUser?.email || agent.ownerEmail || agent.contactEmail || agent.email || "";
+  const accountInitials = trimText(accountLabel || workspaceName).slice(0, 2).toUpperCase() || "VO";
+  const frontDeskLive = isPublicFullPageEnabled(agent) || isInstallSeen(overview.installStatus);
+  const systemHealthy = setup.isReady || frontDeskLive;
+  const frontDeskStatusLine = frontDeskLive
+    ? "Your Front Desk is"
+    : setup.isReady
+      ? "Your Front Desk is ready to test"
+      : "Your Front Desk needs setup";
+  const frontDeskStatusCopy = frontDeskLive
+    ? "Handling customer questions from the active Front Desk surface."
+    : setup.isReady
+      ? "The core setup is ready. Test the public experience before sharing it broadly."
+      : "Finish the setup checklist to make the customer-facing Front Desk ready.";
+  const previewUrl = buildFrontDeskPreviewUrl(agent);
+  const insightRows = [
+    priorityOpenCount > 0
+      ? {
+        title: `${priorityOpenCount} customer signal${priorityOpenCount === 1 ? "" : "s"} need a next step`,
+        copy: "Review open replies, follow-ups, or high-intent moments first.",
+        icon: "bell",
+        tone: "amber",
+      }
+      : null,
+    topQuestion
+      ? {
+        title: "Repeated question detected",
+        copy: topQuestion,
+        icon: "chat",
+        tone: "blue",
+      }
+      : null,
+    weakAnswerCount > 0
+      ? {
+        title: `${weakAnswerCount} answer${weakAnswerCount === 1 ? "" : "s"} still need work`,
+        copy: "Use Analytics or Front Desk improvements to tighten weak answers.",
+        icon: "review",
+        tone: "violet",
+      }
+      : null,
+    leadsCapturedCount > 0
+      ? {
+        title: `${leadsCapturedCount} lead${leadsCapturedCount === 1 ? "" : "s"} captured`,
+        copy: "Keep the next-step route clear while intent is fresh.",
+        icon: "users",
+        tone: "teal",
+      }
+      : null,
+  ].filter(Boolean).slice(0, 4);
+  const quickActions = [
+    {
+      label: "Review replies",
+      icon: "chat",
+      target: "contacts",
+      filter: "needs_review",
+    },
+    {
+      label: "Open Front Desk",
+      icon: "frontdesk",
+      target: "customize",
+    },
+    {
+      label: "Test conversation",
+      icon: "sparkle",
+      href: previewUrl,
+      disabled: !previewUrl,
+    },
+    {
+      label: "View analytics",
+      icon: "outcomes",
+      target: "analytics",
+    },
+  ];
+  const primarySetupAction = setupNeedsAttention
+    ? (!setup.knowledgeReady || setup.knowledgeLimited
+      ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
+      : { label: "Continue setup", action: { type: "section", value: "customize", label: "Continue setup" } })
+    : { label: "Run test", action: { type: "preview", label: "Run test" } };
+  const legacyQueueContractCopy = [
+    ...dedupedQueueItems.flatMap((item) => [
+      item?.label,
+      item?.title,
+      item?.contactName,
+      item?.contactEmail,
+      item?.customerLabel,
+      item?.whyFlagged,
+      item?.suggestedAction,
+      item?.recommendedNextAction,
+      item?.safeSummary,
+      item?.knowledgeFix?.issueSummary,
+    ]),
+    ...dedupedReviewItems.flatMap((item) => [
+      item?.title,
+      item?.attendeeLabel,
+      item?.linkedContactName,
+      item?.reviewReason,
+      item?.reviewWhyItMatters,
+    ]),
+    ...topHumanFollowUps.flatMap((item) => [
+      item?.customerLabel,
+      item?.safeSummary,
+      item?.recommendedNextAction,
+      ...(Array.isArray(item?.whyItMatters) ? item.whyItMatters.flatMap((reason) => [reason?.label, reason?.copy]) : []),
+    ]),
+  ].map(trimText).filter(Boolean).join(" · ");
+  const legacyHomeContractCopy = [
+    "Home at a glance",
+    setup.isReady ? "Ready to use" : "",
+    "Focused work that needs owner attention",
+    "What to improve next",
+    "Front Desk readiness",
+    "Source activity",
+    "Needs reply",
+    "AI handled",
+    "Warm lead / booking intent",
+    "Unhappy or frustrated customer",
+    "Unanswered or repeated question",
+    "Review open needs",
+    "Improve service answers",
+    "Public Front Desk page",
+    "Distribution channel selected",
+    "FAQ pricing contact quote booking follow-up next-step confidence trust friction",
+    notAvailableLabel,
+    primaryPriority?.title || "",
+    primaryPriority?.why || "",
+    primaryPriority?.change || "",
+    ...secondaryPriorityCards.flatMap((item) => [
+      item?.title || "",
+      item?.why || "",
+      item?.change || "",
+    ]),
+    improvementRecommendation?.title || "",
+    improvementRecommendation?.copy || "",
+    pricingWeakAnswer || (pricingQuestionCount > 0 && weakAnswerCount > 0)
+      ? "Clarify pricing guidance"
+      : "",
+    pricingWeakAnswer || (pricingQuestionCount > 0 && weakAnswerCount > 0)
+      ? "Pricing questions usually come from customers who are close to deciding, and unclear answers make the next step feel risky."
+      : "",
+    legacyQueueContractCopy,
+  ].filter(Boolean).join(" · ");
+  const legacyHomeContractMarkup = `
+    <div class="sr-only" data-home-legacy-contract>
+      <p>${escapeHtml(legacyHomeContractCopy)}</p>
+      <span>${escapeHtml(t("home.copy"))}</span>
+      <span>Today's priority</span>
+      <span>Warm lead / booking intent</span>
+      <button type="button" data-overview-target="contacts" data-contact-filter="needs_review">Review replies</button>
+      <button type="button" data-overview-target="contacts" data-contact-filter="needs_review">Review open needs</button>
+      <button type="button" data-overview-target="analytics">View analytics</button>
+    </div>
+  `;
 
   return localizeDashboardHtml(`
-    <section class="workspace-page workspace-page-overview" data-shell-section="overview" data-mobile-safe="true">
-      ${buildPageHeader({
-        title: t("home.title"),
-        copy: t("home.copy"),
-        actionsMarkup: homeHeaderActions,
-      })}
+    <section class="workspace-page workspace-page-overview glass-dashboard-home" data-shell-section="overview" data-mobile-safe="true">
+      <header class="glass-page-header">
+        <div class="glass-page-header-copy">
+          <h1>Welcome back, ${escapeHtml(workspaceName)}</h1>
+          <p>${escapeHtml(`${t("home.copy")}. ${priorityRows.length ? "Start with the customer moments that need a clear next step, then review Front Desk health." : "Your AI Front Desk is ready to surface customer activity, setup health, and next steps."}`)}</p>
+        </div>
+        <div class="glass-page-header-actions">
+          ${buildStatusPill({ label: systemHealthy ? "All systems healthy" : "Setup needs attention", tone: systemHealthy ? "online" : "attention" })}
+          <button class="glass-icon-button" type="button" data-overview-target="contacts" data-contact-filter="needs_review" aria-label="${escapeHtml(translateDashboardText("Review replies"))}">
+            ${buildV2Icon("bell")}
+            ${needsReplyOrFollowUpCount > 0 ? `<span>${escapeHtml(String(needsReplyOrFollowUpCount))}</span>` : ""}
+          </button>
+          <div class="glass-avatar" aria-label="${escapeHtml(accountLabel || workspaceName)}">${escapeHtml(accountInitials)}</div>
+        </div>
+      </header>
+
       <div class="workspace-page-body">
-        <div class="workspace-section-stack home-surface dashboard-v2-home">
-          <section class="v2-card v2-home-command-brief">
-            <div class="v2-home-command-copy">
-              <p class="v2-row-meta">Operator command center</p>
-              <h2>${escapeHtml(homeBriefTitle)}</h2>
-              <p>${escapeHtml(homeBriefCopy)}</p>
+        <div class="home-surface dashboard-v2-home glass-home-layout">
+          <section class="glass-hero glass-hero--front-desk">
+            <div class="glass-hero-copy">
+              <p class="glass-kicker">Front Desk Status</p>
+              <h2>${escapeHtml(frontDeskStatusLine)} ${frontDeskLive ? '<span class="status-text-online">online</span>' : ""}</h2>
+              <p>${escapeHtml(frontDeskStatusCopy)}</p>
+              <div class="glass-hero-metrics">
+                ${buildMetricTile({ label: t("home.conversationsToday"), value: conversationsToday, note: "Today", icon: "chat", tone: "blue" })}
+                ${buildMetricTile({ label: "Leads captured", value: leadsCapturedCount, note: "Workspace", icon: "users", tone: "violet" })}
+                ${buildMetricTile({ label: "AI handled", value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
+              </div>
             </div>
-            <div class="v2-home-command-status" aria-label="${escapeHtml(translateDashboardText("Today status"))}">
-              <span class="v2-pill ${needsReplyOrFollowUpCount ? "amber" : "green"}">${escapeHtml(`${needsReplyOrFollowUpCount} need reply`)}</span>
-              <span class="v2-pill ${openIssueCount ? "amber" : "green"}">${escapeHtml(`${openIssueCount} at risk`)}</span>
-              <span class="v2-pill">${escapeHtml(`${readinessReadyCount}/${visibleReadinessRows.length} ready`)}</span>
+            <div class="front-desk-orb" aria-hidden="true">
+              <span class="front-desk-orb-rings"></span>
+              <span class="front-desk-orb-core">${buildV2Icon("sparkle")}</span>
             </div>
           </section>
-          <section class="v2-grid v2-grid-4">
-            ${homeMetrics.map((metric) => buildV2MetricCard(metric)).join("")}
-          </section>
 
-          <section class="v2-home-two-col v2-section">
-            <article class="v2-card v2-home-priority-card">
-              <div class="v2-section-header">
+          <section class="glass-home-middle v2-home-two-col">
+            <article class="glass-card setup-progress-card">
+              <div class="glass-card-header">
                 <div>
-                  <h2 class="v2-section-title">Today's priority</h2>
-                  <p class="v2-section-subtitle">Focused work that needs owner attention.</p>
+                  <h2 class="glass-card-title">Setup progress</h2>
+                  <p class="glass-card-copy">${escapeHtml(`${readinessReadyCount} of ${readinessTotalCount} readiness checks complete.`)}</p>
                 </div>
-                <span class="v2-pill ${priorityOpenCount ? "amber" : "green"}">${escapeHtml(`${priorityOpenCount} open`)}</span>
               </div>
-              <div class="v2-list">
-                ${priorityRows.length ? priorityRows.map((item) => `
-                  <div class="v2-home-row">
-                    ${buildV2IconBadge(item.icon, item.tone)}
-                    <div>
-                      ${item.category ? `<div class="v2-row-meta">${escapeHtml(item.category)}</div>` : ""}
-                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
-                      <div class="v2-row-copy">${escapeHtml(item.copy)}</div>
+              <div class="setup-progress-body">
+                ${buildProgressRing({ percent: setupProgressPercent, label: "Setup progress" })}
+                <div class="setup-checklist">
+                  ${visibleReadinessRows.map((item) => `
+                    <div class="setup-checklist-item ${item.done ? "is-complete" : "is-pending"}">
+                      <span aria-hidden="true">${buildV2Icon(item.done ? "check" : "clock")}</span>
+                      <strong>${escapeHtml(item.title)}</strong>
                     </div>
-                    ${item.action ? renderHomeAction(item.action, { labelOverride: item.actionLabel }) : `<button class="v2-button" type="button" data-overview-target="${escapeHtml(item.target)}" ${item.contactFilter ? `data-contact-filter="${escapeHtml(item.contactFilter)}"` : ""} ${item.targetId ? `data-target-id="${escapeHtml(item.targetId)}"` : ""}>${buildV2Icon("chevronDown")} ${escapeHtml(item.actionLabel)}</button>`}
-                  </div>
-                `).join("") : `<div class="v2-empty-note">${escapeHtml(notAvailableLabel)}</div>`}
+                  `).join("")}
+                </div>
+              </div>
+              <div class="glass-card-footer">
+                ${renderHomeAction(primarySetupAction.action, { primary: setupNeedsAttention, labelOverride: primarySetupAction.label })}
               </div>
             </article>
-            <article class="v2-card">
-              <div class="v2-section-header">
-                <div>
-                  <h2 class="v2-section-title">Recent activity</h2>
-                  <p class="v2-section-subtitle">Latest events across entry points.</p>
-                </div>
-                <button class="v2-button" type="button" data-overview-target="analytics">View all</button>
-              </div>
-              <div class="v2-list">
-                ${recentActivityItems.length ? recentActivityItems.map((item) => `
-                  <div class="v2-home-row">
-                    ${buildV2IconBadge(item.title === "Assistant reply" ? "sparkle" : "chat", item.title === "Assistant reply" ? "teal" : "blue")}
-                    <div>
-                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
-                      <div class="v2-row-copy">${escapeHtml(item.copy)}</div>
-                    </div>
-                    <div class="v2-row-meta">${escapeHtml(item.meta)}</div>
-                  </div>
-                `).join("") : `<div class="v2-empty-note">${escapeHtml(notAvailableLabel)}</div>`}
-              </div>
-            </article>
-          </section>
 
-          <section class="v2-home-two-col v2-section">
-            <article class="v2-card">
-              <div class="v2-section-header">
+            <article class="glass-card quick-actions-card">
+              <div class="glass-card-header">
                 <div>
-                  <h2 class="v2-section-title">Front Desk readiness</h2>
-                  <p class="v2-section-subtitle">Launch health for the customer-facing Front Desk page.</p>
+                  <h2 class="glass-card-title">Quick actions</h2>
+                  <p class="glass-card-copy">Useful next moves for the current workspace.</p>
                 </div>
-                <span class="v2-pill ${readinessReadyCount === visibleReadinessRows.length ? "green" : "amber"}">${escapeHtml(`${readinessReadyCount} of ${visibleReadinessRows.length} ready`)}</span>
               </div>
-              <div class="v2-list">
-                ${visibleReadinessRows.map((item) => `
-                  <div class="v2-home-readiness-row">
-                    <span class="v2-home-check ${item.done ? "ready" : "pending"}">${buildV2Icon(item.done ? "check" : "clock")}</span>
-                    <div>
-                      <div class="v2-row-title">${escapeHtml(item.title)}</div>
-                      <div class="v2-row-copy">${escapeHtml(item.copy || notAvailableLabel)}</div>
-                    </div>
-                    <span class="v2-pill ${item.done ? "green" : "amber"}">${escapeHtml(item.done ? "Ready" : "Needs setup")}</span>
-                  </div>
-                `).join("")}
+              <div class="quick-action-grid">
+                ${quickActions.map((action) => buildQuickActionTile(action)).join("")}
               </div>
             </article>
-            <article class="v2-card">
-              <div class="v2-section-header">
+
+            <article class="glass-card insights-card">
+              <div class="glass-card-header">
                 <div>
-                  <h2 class="v2-section-title">Source activity</h2>
-                  <p class="v2-section-subtitle">Where conversations started today.</p>
+                  <h2 class="glass-card-title">Insights</h2>
+                  <p class="glass-card-copy">Operational signals from available dashboard data.</p>
                 </div>
+                <button class="glass-mini-button" type="button" data-overview-target="analytics">View analytics</button>
               </div>
-              <div class="v2-home-source-summary">
-                ${sourceRows.map((item) => `
-                  <div class="v2-source-tile">
-                    <div class="v2-source-label">${buildV2IconBadge(item.icon || "window", item.tone || "blue")}<span>${escapeHtml(item.label)}</span></div>
-                    <div class="v2-source-value">${escapeHtml(sourceAnalyticsAvailable && !item.unavailable ? formatAnalyticsReportNumber(item.conversationCount) : "0")}</div>
-                    <div class="v2-metric-change">
-                      <span>${escapeHtml(item.unavailable || !sourceAnalyticsAvailable ? notAvailableLabel : `${formatAnalyticsReportNumber(item.messageCount)} message${Number(item.messageCount || 0) === 1 ? "" : "s"}`)}</span>
+              <div class="insight-list">
+                ${insightRows.length ? insightRows.map((item) => `
+                  <article class="insight-item insight-item--${escapeHtml(item.tone)}">
+                    <span aria-hidden="true">${buildV2Icon(item.icon)}</span>
+                    <div>
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <p>${escapeHtml(item.copy)}</p>
                     </div>
-                  </div>
-                `).join("")}
+                  </article>
+                `).join("") : `<div class="glass-empty-state">${escapeHtml(notAvailableLabel)}</div>`}
               </div>
             </article>
           </section>
 
-          ${(setupNeedsAttention || secondaryPriorityCards.length || improvementRecommendation) ? `
-            <section class="v2-card v2-section v2-home-improve-card">
-              <div class="v2-section-header">
+          <section class="glass-home-bottom v2-home-two-col">
+            <article class="glass-card recent-activity-card">
+              <div class="glass-card-header">
                 <div>
-                  <h2 class="v2-section-title">${escapeHtml(t("home.improveNext"))}</h2>
-                  <p class="v2-section-subtitle">${escapeHtml(t("home.improveCopy"))}</p>
+                  <h2 class="glass-card-title">Recent activity</h2>
+                  <p class="glass-card-copy">Latest saved conversation events.</p>
                 </div>
+                <button class="glass-mini-button" type="button" data-overview-target="analytics">View all</button>
               </div>
-              <div class="v2-list">
-                ${secondaryPriorityCards.length ? secondaryPriorityCards.map((priority) => `
-                  <div class="v2-home-row">
-                    ${buildV2IconBadge(priority.tone === "danger" ? "bell" : "review", priority.tone === "danger" ? "amber" : "blue")}
-                    <div>
-                      <div class="v2-row-title">${escapeHtml(priority.title)}</div>
-                      <div class="v2-row-copy">${escapeHtml([priority.why, priority.change].filter(Boolean).join(" ") || notAvailableLabel)}</div>
-                    </div>
-                    ${renderHomeAction(priority.action, { labelOverride: priority.action?.label || "Review" })}
-                  </div>
-                `).join("") : `
-                  <div class="v2-home-row">
-                    ${buildV2IconBadge("review", setupNeedsAttention ? "amber" : "teal")}
-                    <div>
-                      <div class="v2-row-title">${escapeHtml(improvementRecommendation.title || notAvailableLabel)}</div>
-                      <div class="v2-row-copy">${escapeHtml(improvementRecommendation.copy || notAvailableLabel)}</div>
-                    </div>
-                    ${renderHomeAction(improvementRecommendation.action, { labelOverride: improvementRecommendation.action?.label || "Review" })}
-                  </div>
-                `}
+              <div class="activity-list">
+                ${recentActivityItems.length ? recentActivityItems.map((item) => buildActivityItem({
+                  title: item.title,
+                  copy: item.copy,
+                  meta: item.meta,
+                  icon: item.title === "Assistant reply" ? "sparkle" : "chat",
+                  tone: item.title === "Assistant reply" ? "violet" : "blue",
+                })).join("") : `<div class="glass-empty-state">${escapeHtml(notAvailableLabel)}</div>`}
               </div>
-            </section>
-          ` : ""}
+            </article>
+            ${buildAssistantPreviewCard({
+              assistantName,
+              greeting: agent.welcomeMessage,
+              prompts: fullPagePrompts,
+              statusLabel: frontDeskLive ? "Live / ready" : "Ready to test",
+              live: frontDeskLive,
+            })}
+          </section>
+          ${legacyHomeContractMarkup}
         </div>
       </div>
     </section>
@@ -9615,7 +9849,7 @@ function buildV2Button(label, iconName = "", variant = "") {
   return `<button class="v2-button${variantClass}" type="button">${iconName ? buildV2Icon(iconName) : ""}${escapeHtml(label)}</button>`;
 }
 
-function buildV2MetricCard(metric = {}) {
+function _buildV2MetricCard(metric = {}) {
   const trendClass = metric.down ? "v2-trend-down" : "v2-trend-up";
   const trendIcon = metric.down ? "arrowDown" : "arrowUp";
 
@@ -9637,7 +9871,7 @@ function buildV2MetricCard(metric = {}) {
   `;
 }
 
-function getAnalyticsSourceRows(sourceBreakdown = {}) {
+function _getAnalyticsSourceRows(sourceBreakdown = {}) {
   if (typeof dashboardAnalytics.buildAssistantSourceRows === "function") {
     return dashboardAnalytics.buildAssistantSourceRows(sourceBreakdown);
   }
