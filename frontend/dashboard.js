@@ -64,6 +64,7 @@ const trackedEventKeys = new Set();
 let activationWizardState = null;
 let knowledgeImportPollState = null;
 let knowledgeImportStartRequestId = 0;
+let dashboardSystemThemeListenerBound = false;
 const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
 const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch", "customization"];
@@ -336,9 +337,12 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "settings.title": "Settings",
   "settings.copy": "Control assistant branding, business context, billing, privacy, and workspace access.",
   "settings.theme": "Theme",
-  "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
-  "settings.light": "Light",
-  "settings.dark": "Dark",
+  "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
+  "settings.brightGlass": "Bright Glass",
+  "settings.darkGlass": "Dark Glass",
+  "settings.system": "System",
+  "settings.light": "Bright Glass",
+  "settings.dark": "Dark Glass",
 };
 const DEFAULT_LAUNCH_PROFILE = {
   mode: "public_cohort_v1",
@@ -1415,7 +1419,31 @@ function getClientId() {
 }
 
 function normalizeDashboardTheme(value = "") {
-  return trimText(value).toLowerCase() === "dark" ? "dark" : "light";
+  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+
+  if (normalized === "dark" || normalized === "dark-glass") {
+    return "dark";
+  }
+
+  if (normalized === "system" || normalized === "auto") {
+    return "system";
+  }
+
+  return "bright";
+}
+
+function resolveDashboardTheme(value = "") {
+  const normalizedTheme = normalizeDashboardTheme(value);
+
+  if (normalizedTheme !== "system") {
+    return normalizedTheme;
+  }
+
+  try {
+    return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "bright";
+  } catch {
+    return "bright";
+  }
 }
 
 function normalizeDashboardLanguage(value = "") {
@@ -2826,12 +2854,12 @@ function getDashboardTheme() {
   try {
     return normalizeDashboardTheme(window.localStorage.getItem(DASHBOARD_THEME_STORAGE_KEY));
   } catch {
-    return "light";
+    return "bright";
   }
 }
 
 function syncDashboardThemeControls(root = document) {
-  const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardTheme || getDashboardTheme());
+  const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance || getDashboardTheme());
   root.querySelectorAll?.("[data-dashboard-theme-choice]")?.forEach((input) => {
     const selected = normalizeDashboardTheme(input.value) === theme;
     input.checked = selected;
@@ -2839,18 +2867,52 @@ function syncDashboardThemeControls(root = document) {
   });
 }
 
+function bindDashboardSystemThemeListener() {
+  if (dashboardSystemThemeListenerBound) {
+    return;
+  }
+
+  try {
+    const mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+
+    if (!mediaQuery) {
+      return;
+    }
+
+    const handleSystemThemeChange = () => {
+      if (normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance) === "system") {
+        applyDashboardTheme("system");
+      }
+    };
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleSystemThemeChange);
+    } else if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(handleSystemThemeChange);
+    }
+
+    dashboardSystemThemeListenerBound = true;
+  } catch {
+    // System appearance is optional when matchMedia is unavailable.
+  }
+}
+
 function applyDashboardTheme(theme = getDashboardTheme()) {
   const normalizedTheme = normalizeDashboardTheme(theme);
+  const resolvedTheme = resolveDashboardTheme(normalizedTheme);
 
   if (document.documentElement?.dataset) {
-    document.documentElement.dataset.dashboardTheme = normalizedTheme;
+    document.documentElement.dataset.dashboardAppearance = normalizedTheme;
+    document.documentElement.dataset.dashboardTheme = resolvedTheme;
   }
 
   if (document.body?.dataset) {
-    document.body.dataset.dashboardTheme = normalizedTheme;
+    document.body.dataset.dashboardAppearance = normalizedTheme;
+    document.body.dataset.dashboardTheme = resolvedTheme;
   }
 
   syncDashboardThemeControls();
+  bindDashboardSystemThemeListener();
   return normalizedTheme;
 }
 
@@ -15566,7 +15628,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       }
 
       const savedTheme = saveDashboardTheme(input.value);
-      setStatus(savedTheme === "dark" ? "Dashboard theme set to dark." : "Dashboard theme set to light.");
+      const themeLabel = savedTheme === "system" ? "system" : savedTheme === "dark" ? "Dark Glass" : "Bright Glass";
+      setStatus(`Dashboard theme set to ${themeLabel}.`);
     });
   });
 

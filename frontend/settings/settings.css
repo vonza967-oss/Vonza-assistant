@@ -502,10 +502,12 @@
 .settings-shell-root .settings-shell-top-nav-group {
   display: block;
   padding: 6px;
-  border: 1px solid #d8e2ee;
+  border: 1px solid var(--border-soft, #d8e2ee);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.055);
+  background: var(--surface-card, #ffffff);
+  box-shadow: var(--shadow-soft, 0 12px 28px rgba(15, 23, 42, 0.055));
+  -webkit-backdrop-filter: blur(var(--blur-glass, 18px)) saturate(1.12);
+  backdrop-filter: blur(var(--blur-glass, 18px)) saturate(1.12);
 }
 
 .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav {
@@ -525,9 +527,9 @@
 }
 
 .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button.active {
-  border-color: rgba(15, 143, 127, 0.24);
-  background: #f7fafc;
-  box-shadow: inset 0 -2px 0 #0f8f7f;
+  border-color: var(--border-strong, rgba(15, 143, 127, 0.24));
+  background: var(--active-nav, #f7fafc);
+  box-shadow: inset 0 -2px 0 var(--accent-purple, #0f8f7f);
 }
 
 .settings-shell-root .settings-shell-mobile-bar {
@@ -553,10 +555,845 @@
   .settings-shell-root .settings-shell-mobile-bar {
     display: grid;
     padding: 14px;
-    border: 1px solid #dce4ef;
+    border: 1px solid var(--border-soft, #dce4ef);
     border-radius: 8px;
-    background: #ffffff;
+    background: var(--surface-card, #ffffff);
   }
+}
+
+/* Keep keyboard and programmatic focus visible after late page-specific overrides. */
+.dashboard-v2-production-shell button:focus,
+.dashboard-v2-production-shell a:focus,
+.dashboard-v2-production-shell input:focus,
+.dashboard-v2-production-shell textarea:focus,
+.dashboard-v2-production-shell select:focus,
+.dashboard-v2-production-shell [tabindex]:focus,
+.dashboard-v2-production-shell button:focus-visible,
+.dashboard-v2-production-shell a:focus-visible,
+.dashboard-v2-production-shell input:focus-visible,
+.dashboard-v2-production-shell textarea:focus-visible,
+.dashboard-v2-production-shell select:focus-visible,
+.dashboard-v2-production-shell [tabindex]:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring) !important;
+}
+
+/* Dashboard glass theme foundation. Loaded last so it can normalize older page-specific styles safely. */
+:root,
+html[data-dashboard-theme="bright"] {
+  color-scheme: light;
+  --bg-app: #edf4ff;
+  --bg-gradient:
+    radial-gradient(circle at 14% 0%, rgba(15, 143, 127, 0.15), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(47, 109, 246, 0.14), transparent 30%),
+    linear-gradient(135deg, #fbfdff 0%, #edf7ff 44%, #f7fbf7 100%);
+  --surface-glass: rgba(255, 255, 255, 0.6);
+  --surface-glass-strong: rgba(255, 255, 255, 0.78);
+  --surface-card: rgba(255, 255, 255, 0.64);
+  --surface-sidebar: rgba(248, 251, 255, 0.68);
+  --surface-topbar: rgba(255, 255, 255, 0.56);
+  --surface-input: rgba(255, 255, 255, 0.72);
+  --surface-hover: rgba(255, 255, 255, 0.84);
+  --border-soft: rgba(111, 139, 183, 0.2);
+  --border-strong: rgba(15, 143, 127, 0.34);
+  --shadow-soft: 0 14px 34px rgba(42, 72, 126, 0.1);
+  --shadow-card: 0 16px 40px rgba(42, 72, 126, 0.12);
+  --shadow-glow: 0 14px 32px rgba(15, 143, 127, 0.13);
+  --blur-glass: 22px;
+  --text-primary: #081225;
+  --text-secondary: #273858;
+  --text-muted: #5b6d8d;
+  --text-inverse: #ffffff;
+  --accent-purple: #0f8f7f;
+  --accent-blue: #2f6df6;
+  --accent-glow: rgba(15, 143, 127, 0.16);
+  --success: #16b66a;
+  --warning: #b87900;
+  --danger: #d64242;
+  --info: #2f6df6;
+  --focus-ring: 0 0 0 3px rgba(15, 143, 127, 0.24);
+  --active-nav: rgba(15, 143, 127, 0.13);
+  --button-primary: linear-gradient(135deg, #14a894 0%, #2f6df6 100%);
+  --button-secondary: rgba(255, 255, 255, 0.48);
+  --dashboard-page-bg: var(--bg-app);
+  --dashboard-panel-bg: var(--surface-card);
+  --dashboard-panel-soft: rgba(255, 255, 255, 0.42);
+  --dashboard-panel-muted: rgba(236, 243, 255, 0.64);
+  --dashboard-panel-line: var(--border-soft);
+  --dashboard-panel-line-strong: var(--border-strong);
+  --dashboard-ink: var(--text-primary);
+  --dashboard-ink-soft: var(--text-secondary);
+  --dashboard-muted: var(--text-muted);
+  --dashboard-accent: var(--accent-purple);
+  --dashboard-accent-hover: #0a746a;
+  --dashboard-accent-soft: rgba(124, 60, 255, 0.12);
+  --dashboard-blue: var(--accent-blue);
+  --dashboard-blue-soft: rgba(47, 109, 246, 0.12);
+  --dashboard-green: #087d48;
+  --dashboard-green-soft: rgba(22, 182, 106, 0.13);
+  --dashboard-amber: #8a5a00;
+  --dashboard-amber-soft: rgba(255, 188, 58, 0.17);
+  --dashboard-red: #b72f35;
+  --dashboard-red-soft: rgba(214, 66, 66, 0.12);
+  --dashboard-card-radius: 8px;
+  --dashboard-control-radius: 8px;
+  --dashboard-shadow-soft: var(--shadow-soft);
+  --dashboard-shadow-panel: var(--shadow-card);
+  --dashboard-focus-ring: var(--focus-ring);
+  --theme-bg: var(--bg-app);
+  --theme-shell: var(--surface-glass);
+  --theme-panel: var(--surface-card);
+  --theme-panel-soft: var(--dashboard-panel-soft);
+  --theme-border: var(--border-soft);
+  --theme-border-strong: var(--border-strong);
+  --theme-text: var(--text-primary);
+  --theme-copy: var(--text-secondary);
+  --theme-muted: var(--text-muted);
+  --theme-active-bg: var(--active-nav);
+  --theme-accent: var(--accent-purple);
+  --light-surface-title: var(--text-primary);
+  --light-surface-text: var(--text-secondary);
+  --light-surface-muted: var(--text-muted);
+  --light-surface-muted-strong: var(--text-muted);
+  --light-surface-border: var(--border-soft);
+  --light-surface-border-strong: var(--border-strong);
+  --light-surface-bg: var(--surface-card);
+  --light-surface-bg-soft: var(--dashboard-panel-soft);
+  --light-pill-text: var(--text-secondary);
+  --light-pill-bg: rgba(255, 255, 255, 0.52);
+  --light-pill-border: var(--border-soft);
+  --light-active-bg: var(--active-nav);
+  --light-active-border: var(--accent-purple);
+  --light-success-text: #087d48;
+  --light-success-bg: rgba(22, 182, 106, 0.13);
+  --light-success-border: rgba(22, 182, 106, 0.32);
+  --light-warning-text: #815300;
+  --light-warning-bg: rgba(255, 188, 58, 0.18);
+  --light-warning-border: rgba(184, 121, 0, 0.34);
+  --light-danger-text: #a42d33;
+  --light-danger-bg: rgba(214, 66, 66, 0.12);
+  --light-danger-border: rgba(214, 66, 66, 0.3);
+}
+
+html[data-dashboard-theme="dark"] {
+  color-scheme: dark;
+  --bg-app: #09111f;
+  --bg-gradient:
+    radial-gradient(circle at 18% 2%, rgba(20, 168, 148, 0.14), transparent 34%),
+    radial-gradient(circle at 88% 10%, rgba(76, 122, 217, 0.16), transparent 32%),
+    linear-gradient(135deg, #0a1220 0%, #101827 48%, #0c1220 100%);
+  --surface-glass: rgba(16, 24, 39, 0.6);
+  --surface-glass-strong: rgba(18, 27, 44, 0.78);
+  --surface-card: rgba(20, 30, 50, 0.62);
+  --surface-sidebar: rgba(12, 19, 33, 0.7);
+  --surface-topbar: rgba(12, 19, 33, 0.58);
+  --surface-input: rgba(13, 21, 36, 0.74);
+  --surface-hover: rgba(36, 48, 75, 0.76);
+  --border-soft: rgba(181, 199, 231, 0.14);
+  --border-strong: rgba(84, 208, 185, 0.34);
+  --shadow-soft: 0 18px 44px rgba(0, 0, 0, 0.24);
+  --shadow-card: 0 22px 58px rgba(0, 0, 0, 0.28);
+  --shadow-glow: 0 16px 42px rgba(20, 168, 148, 0.14);
+  --text-primary: #f8fbff;
+  --text-secondary: #d4def2;
+  --text-muted: #9dadc9;
+  --accent-purple: #54d0b9;
+  --accent-blue: #5a8cff;
+  --accent-glow: rgba(84, 208, 185, 0.16);
+  --success: #35d889;
+  --warning: #f5b942;
+  --danger: #ff6b72;
+  --info: #6da0ff;
+  --focus-ring: 0 0 0 3px rgba(84, 208, 185, 0.28);
+  --active-nav: rgba(84, 208, 185, 0.16);
+  --button-primary: linear-gradient(135deg, #35bfa7 0%, #3e73ff 100%);
+  --button-secondary: rgba(255, 255, 255, 0.07);
+  --dashboard-green: #35d889;
+  --dashboard-green-soft: rgba(53, 216, 137, 0.14);
+  --dashboard-amber: #f5b942;
+  --dashboard-amber-soft: rgba(245, 185, 66, 0.14);
+  --dashboard-red: #ff6b72;
+  --dashboard-red-soft: rgba(255, 107, 114, 0.14);
+  --light-success-text: #a8f1ce;
+  --light-success-bg: rgba(53, 216, 137, 0.14);
+  --light-success-border: rgba(53, 216, 137, 0.32);
+  --light-warning-text: #ffdf92;
+  --light-warning-bg: rgba(245, 185, 66, 0.14);
+  --light-warning-border: rgba(245, 185, 66, 0.34);
+  --light-danger-text: #ffb7bc;
+  --light-danger-bg: rgba(255, 107, 114, 0.14);
+  --light-danger-border: rgba(255, 107, 114, 0.32);
+}
+
+html[data-dashboard-theme="bright"] body,
+html[data-dashboard-theme="dark"] body {
+  min-height: 100%;
+  color: var(--text-primary);
+  background: var(--bg-gradient);
+}
+
+html[data-dashboard-theme="bright"] body::before,
+html[data-dashboard-theme="dark"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.54), transparent 36%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.09) 0 1px, transparent 1px 78px);
+  opacity: 0.55;
+}
+
+html[data-dashboard-theme="dark"] body::before {
+  background:
+    linear-gradient(115deg, rgba(20, 168, 148, 0.07), transparent 38%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 86px);
+  opacity: 0.7;
+}
+
+html[data-dashboard-theme="bright"] .app-shell,
+html[data-dashboard-theme="dark"] .app-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell,
+html[data-dashboard-theme="bright"] .workspace-shell,
+html[data-dashboard-theme="dark"] .workspace-shell,
+html[data-dashboard-theme="bright"] .workspace-pages,
+html[data-dashboard-theme="dark"] .workspace-pages,
+html[data-dashboard-theme="bright"] .workspace-page,
+html[data-dashboard-theme="dark"] .workspace-page,
+html[data-dashboard-theme="bright"] .workspace-page-overview,
+html[data-dashboard-theme="dark"] .workspace-page-overview {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+.dashboard-v2-production-shell {
+  isolation: isolate;
+}
+
+.dashboard-v2-production-shell .sidebar-shell {
+  border-right: 1px solid var(--border-soft);
+  background: var(--surface-sidebar);
+  box-shadow: 12px 0 34px rgba(42, 72, 126, 0.08);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.22);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.22);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .sidebar-shell {
+  box-shadow: 12px 0 42px rgba(0, 0, 0, 0.28);
+}
+
+.dashboard-v2-production-shell .sidebar-identity {
+  border-bottom-color: var(--border-soft);
+}
+
+.dashboard-v2-production-shell .sidebar-identity-mark,
+.brand-mark {
+  color: #ffffff;
+  background: var(--button-primary);
+  box-shadow: var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.dashboard-v2-production-shell .sidebar-title,
+.dashboard-v2-production-shell .sidebar-status-item strong,
+.dashboard-v2-production-shell .sidebar-user-card strong,
+.dashboard-v2-production-shell .shell-nav-label {
+  color: var(--text-primary);
+}
+
+.dashboard-v2-production-shell .sidebar-copy,
+.dashboard-v2-production-shell .shell-sidebar-label,
+.dashboard-v2-production-shell .shell-sidebar-note,
+.dashboard-v2-production-shell .shell-nav-note,
+.dashboard-v2-production-shell .sidebar-status-label,
+.dashboard-v2-production-shell .sidebar-user-card small {
+  color: var(--text-muted);
+}
+
+.dashboard-v2-production-shell .shell-nav-button {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+}
+
+.dashboard-v2-production-shell .shell-nav-button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-soft);
+  background: var(--surface-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+.dashboard-v2-production-shell .shell-nav-button.active {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background:
+    linear-gradient(135deg, var(--active-nav), rgba(47, 109, 246, 0.08)),
+    var(--surface-glass);
+  box-shadow: inset 3px 0 0 var(--accent-purple);
+}
+
+.dashboard-v2-production-shell .shell-nav-button.active::before {
+  background: linear-gradient(180deg, var(--accent-purple), var(--accent-blue));
+}
+
+.dashboard-v2-production-shell .sidebar-status-dock,
+.dashboard-v2-production-shell .sidebar-user-card,
+.dashboard-v2-production-shell .settings-shell-top-nav-group {
+  border: 1px solid var(--border-soft);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.14);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.14);
+}
+
+.dashboard-v2-production-shell .workspace-pages {
+  background: transparent;
+}
+
+.dashboard-v2-production-shell .page-header,
+.dashboard-v2-production-shell .page-toolbar,
+.dashboard-v2-production-shell .workspace-card-soft,
+.dashboard-v2-production-shell .flat-section,
+.dashboard-v2-production-shell .frontdesk-workspace-panel,
+.dashboard-v2-production-shell .frontdesk-polished-panel,
+.dashboard-v2-production-shell .install-page-main,
+.dashboard-v2-production-shell .install-option-card,
+.dashboard-v2-production-shell .install-status-card,
+.dashboard-v2-production-shell .install-method-card,
+.dashboard-v2-production-shell .install-launch-path-card,
+.dashboard-v2-production-shell .install-detail-card,
+.dashboard-v2-production-shell .install-side-card,
+.dashboard-v2-production-shell .install-progress-card,
+.dashboard-v2-production-shell .overview-card,
+.dashboard-v2-production-shell .metric-card,
+.dashboard-v2-production-shell .summary-strip-item,
+.dashboard-v2-production-shell .home-daily-card,
+.dashboard-v2-production-shell .home-daily-banner,
+.dashboard-v2-production-shell .home-mini-panel,
+.dashboard-v2-production-shell .home-priority-panel,
+.dashboard-v2-production-shell .home-improve-panel,
+.dashboard-v2-production-shell .customer-focus-banner,
+.dashboard-v2-production-shell .contacts-list-shell,
+.dashboard-v2-production-shell .customer-v2-metric-card,
+.dashboard-v2-production-shell .customer-detail-panel,
+.dashboard-v2-production-shell .customer-detail-card,
+.dashboard-v2-production-shell .customer-draft-card,
+.dashboard-v2-production-shell .customer-risk-note,
+.dashboard-v2-production-shell .analytics-report-overview,
+.dashboard-v2-production-shell .analytics-report-card,
+.dashboard-v2-production-shell .analytics-report-metric-card,
+.dashboard-v2-production-shell .analytics-report-recommendation,
+.dashboard-v2-production-shell .analytics-report-swot-item,
+.dashboard-v2-production-shell .analytics-report-insight,
+.dashboard-v2-production-shell .analytics-report-contact-card,
+.dashboard-v2-production-shell .analytics-report-chart,
+.dashboard-v2-production-shell .analytics-source-card,
+.dashboard-v2-production-shell .v2-card,
+.dashboard-v2-production-shell .v2-table-card,
+.dashboard-v2-production-shell .v2-metric-card,
+.dashboard-v2-production-shell .v2-chart-card,
+.dashboard-v2-production-shell .settings-shell-section,
+.dashboard-v2-production-shell .settings-overview-card,
+.dashboard-v2-production-shell .settings-operational-card,
+.dashboard-v2-production-shell .settings-shell-card,
+.dashboard-v2-production-shell .settings-status-row,
+.dashboard-v2-production-shell .settings-shell-status-row,
+.dashboard-v2-production-shell .settings-shell-theme-option,
+.dashboard-v2-production-shell .support-panel,
+.dashboard-v2-production-shell .placeholder-card,
+.dashboard-v2-production-shell .operator-empty-state,
+.dashboard-v2-production-shell .today-command-card,
+.dashboard-v2-production-shell .today-command-section,
+.dashboard-v2-production-shell .today-review-panel,
+.dashboard-help-drawer {
+  border: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.16);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.16);
+}
+
+.dashboard-v2-production-shell .workspace-card-soft:hover,
+.dashboard-v2-production-shell .v2-card:hover,
+.dashboard-v2-production-shell .install-option-card:hover,
+.dashboard-v2-production-shell .customer-row:hover,
+.dashboard-v2-production-shell .settings-shell-theme-option:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  box-shadow: var(--shadow-card);
+}
+
+.dashboard-v2-production-shell .home-daily-banner,
+.dashboard-v2-production-shell .customer-focus-banner,
+.dashboard-v2-production-shell .v2-home-command-brief,
+.dashboard-v2-production-shell .analytics-report-overview {
+  background:
+    linear-gradient(135deg, rgba(15, 143, 127, 0.12), rgba(47, 109, 246, 0.08)),
+    var(--surface-glass-strong);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .home-daily-banner,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-focus-banner,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-home-command-brief,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .analytics-report-overview {
+  background:
+    linear-gradient(135deg, rgba(84, 208, 185, 0.12), rgba(90, 140, 255, 0.08)),
+    var(--surface-glass-strong);
+}
+
+.dashboard-v2-production-shell .contacts-list-header,
+.dashboard-v2-production-shell .customer-row,
+.dashboard-v2-production-shell .v2-table-header,
+.dashboard-v2-production-shell .v2-data-table th,
+.dashboard-v2-production-shell .v2-data-table td,
+.dashboard-v2-production-shell .analytics-report-table th,
+.dashboard-v2-production-shell .analytics-report-table td,
+.dashboard-v2-production-shell .frontdesk-section-divider,
+.dashboard-v2-production-shell .settings-shell-page-header,
+.dashboard-v2-production-shell .settings-shell-section-header,
+.dashboard-v2-production-shell .settings-card-footer,
+.dashboard-v2-production-shell .install-detail-list li,
+.dashboard-v2-production-shell .install-stage-item {
+  border-color: var(--border-soft);
+}
+
+.dashboard-v2-production-shell .customer-row,
+.dashboard-v2-production-shell .v2-data-table tbody tr,
+.dashboard-v2-production-shell .analytics-report-table tbody tr {
+  background: transparent;
+}
+
+.dashboard-v2-production-shell .customer-row.active,
+.dashboard-v2-production-shell .workspace-record-row.active,
+.dashboard-v2-production-shell .contact-row.active,
+.dashboard-v2-production-shell .settings-shell-nav-button.active,
+.dashboard-v2-production-shell .settings-shell-theme-option.active,
+.dashboard-v2-production-shell .toolbar-chip.active,
+.dashboard-v2-production-shell .local-section-button.active,
+.dashboard-v2-production-shell .contact-filter-button.active,
+.dashboard-v2-production-shell .customer-filter-pill.active {
+  border-color: var(--border-strong);
+  background: var(--active-nav);
+  color: var(--text-primary);
+  box-shadow: inset 3px 0 0 var(--accent-purple);
+}
+
+.dashboard-v2-production-shell .page-title,
+.dashboard-v2-production-shell .workspace-panel-title,
+.dashboard-v2-production-shell .overview-card-title,
+.dashboard-v2-production-shell .flat-section-title,
+.dashboard-v2-production-shell .frontdesk-section-title,
+.dashboard-v2-production-shell .frontdesk-detail-title,
+.dashboard-v2-production-shell .frontdesk-step-title,
+.dashboard-v2-production-shell .settings-section-title,
+.dashboard-v2-production-shell .settings-shell-page-title,
+.dashboard-v2-production-shell .settings-shell-section-title,
+.dashboard-v2-production-shell .settings-card-title,
+.dashboard-v2-production-shell .settings-summary-title,
+.dashboard-v2-production-shell .install-option-title,
+.dashboard-v2-production-shell .install-status-title,
+.dashboard-v2-production-shell .studio-group-title,
+.dashboard-v2-production-shell .analytics-report-title,
+.dashboard-v2-production-shell .analytics-item-title,
+.dashboard-v2-production-shell .v2-section-title,
+.dashboard-v2-production-shell .v2-metric-value,
+.dashboard-v2-production-shell .home-daily-card-value,
+.dashboard-v2-production-shell .summary-strip-value,
+.dashboard-v2-production-shell .metric-value,
+.dashboard-v2-production-shell .overview-value,
+.dashboard-v2-production-shell .customer-v2-metric-card strong,
+.dashboard-v2-production-shell .contact-row-name,
+.dashboard-v2-production-shell .contact-detail-title,
+.dashboard-v2-production-shell .timeline-row strong,
+.dashboard-v2-production-shell .placeholder-card strong {
+  color: var(--text-primary);
+  letter-spacing: 0;
+}
+
+.dashboard-v2-production-shell .page-copy,
+.dashboard-v2-production-shell .workspace-panel-copy,
+.dashboard-v2-production-shell .overview-card-copy,
+.dashboard-v2-production-shell .flat-section-copy,
+.dashboard-v2-production-shell .frontdesk-section-copy,
+.dashboard-v2-production-shell .frontdesk-detail-copy,
+.dashboard-v2-production-shell .frontdesk-step-copy,
+.dashboard-v2-production-shell .settings-section-copy,
+.dashboard-v2-production-shell .settings-shell-page-copy,
+.dashboard-v2-production-shell .settings-shell-section-copy,
+.dashboard-v2-production-shell .settings-card-copy,
+.dashboard-v2-production-shell .settings-summary-copy,
+.dashboard-v2-production-shell .analytics-report-copy,
+.dashboard-v2-production-shell .analytics-report-section-copy,
+.dashboard-v2-production-shell .analytics-report-insight p,
+.dashboard-v2-production-shell .analytics-report-recommendation p,
+.dashboard-v2-production-shell .analytics-report-swot-item p,
+.dashboard-v2-production-shell .analytics-report-metric-note,
+.dashboard-v2-production-shell .analytics-subtle,
+.dashboard-v2-production-shell .install-option-copy,
+.dashboard-v2-production-shell .install-step-copy,
+.dashboard-v2-production-shell .install-help,
+.dashboard-v2-production-shell .studio-group-copy,
+.dashboard-v2-production-shell .field-help,
+.dashboard-v2-production-shell .timeline-row span,
+.dashboard-v2-production-shell .question-row,
+.dashboard-v2-production-shell .results-list-item p,
+.dashboard-v2-production-shell .v2-section-subtitle,
+.dashboard-v2-production-shell .v2-row-copy,
+.dashboard-v2-production-shell .placeholder-card,
+.dashboard-v2-production-shell .placeholder-card p {
+  color: var(--text-muted);
+}
+
+.dashboard-v2-production-shell .studio-kicker,
+.dashboard-v2-production-shell .overview-label,
+.dashboard-v2-production-shell .metric-label,
+.dashboard-v2-production-shell .summary-strip-label,
+.dashboard-v2-production-shell .analytics-report-kicker,
+.dashboard-v2-production-shell .analytics-report-metric-label,
+.dashboard-v2-production-shell .frontdesk-detail-kicker,
+.dashboard-v2-production-shell .frontdesk-step-label,
+.dashboard-v2-production-shell .settings-shell-status-label,
+.dashboard-v2-production-shell .settings-nav-heading,
+.dashboard-v2-production-shell .v2-data-table th {
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.dashboard-v2-production-shell .primary-button,
+.dashboard-v2-production-shell a.primary-button,
+.dashboard-v2-production-shell .v2-button-primary {
+  border-color: rgba(15, 143, 127, 0.28);
+  background: var(--button-primary);
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-glow);
+}
+
+.dashboard-v2-production-shell .primary-button:hover,
+.dashboard-v2-production-shell a.primary-button:hover {
+  border-color: rgba(47, 109, 246, 0.42);
+  filter: brightness(1.04);
+  box-shadow: 0 16px 38px var(--accent-glow);
+  transform: translateY(-1px);
+}
+
+.dashboard-v2-production-shell .ghost-button,
+.dashboard-v2-production-shell a.ghost-button,
+.dashboard-v2-production-shell .toolbar-chip,
+.dashboard-v2-production-shell .local-section-button,
+.dashboard-v2-production-shell .contact-filter-button,
+.dashboard-v2-production-shell .customer-filter-pill,
+.dashboard-v2-production-shell .prompt-chip,
+.dashboard-v2-production-shell .customer-banner-button,
+.dashboard-v2-production-shell .customer-utility-button,
+.dashboard-v2-production-shell .customer-secondary-button,
+.dashboard-v2-production-shell .test-link,
+.dashboard-v2-production-shell .v2-button,
+.dashboard-v2-production-shell .settings-link-button {
+  border-color: var(--border-soft);
+  background: var(--button-secondary);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.dashboard-v2-production-shell .ghost-button:hover,
+.dashboard-v2-production-shell a.ghost-button:hover,
+.dashboard-v2-production-shell .toolbar-chip:hover,
+.dashboard-v2-production-shell .local-section-button:hover,
+.dashboard-v2-production-shell .contact-filter-button:hover,
+.dashboard-v2-production-shell .customer-filter-pill:hover,
+.dashboard-v2-production-shell .prompt-chip:hover,
+.dashboard-v2-production-shell .customer-banner-button:hover,
+.dashboard-v2-production-shell .customer-utility-button:hover,
+.dashboard-v2-production-shell .customer-secondary-button:hover,
+.dashboard-v2-production-shell .test-link:hover,
+.dashboard-v2-production-shell .v2-button:hover,
+.dashboard-v2-production-shell .settings-link-button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.dashboard-v2-production-shell button:disabled,
+.dashboard-v2-production-shell .primary-button:disabled,
+.dashboard-v2-production-shell .ghost-button:disabled,
+.dashboard-v2-production-shell input:disabled,
+.dashboard-v2-production-shell textarea:disabled,
+.dashboard-v2-production-shell select:disabled {
+  border-color: rgba(116, 139, 181, 0.18);
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+  opacity: 1;
+  box-shadow: none;
+}
+
+.dashboard-v2-production-shell input,
+.dashboard-v2-production-shell textarea,
+.dashboard-v2-production-shell select,
+.dashboard-v2-production-shell .v2-select,
+.dashboard-v2-production-shell .settings-shell-mobile-select {
+  border-color: var(--border-soft);
+  background: var(--surface-input);
+  color: var(--text-primary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.dashboard-v2-production-shell input::placeholder,
+.dashboard-v2-production-shell textarea::placeholder {
+  color: color-mix(in srgb, var(--text-muted), transparent 18%);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+.dashboard-v2-production-shell button:focus,
+.dashboard-v2-production-shell a:focus,
+.dashboard-v2-production-shell input:focus,
+.dashboard-v2-production-shell textarea:focus,
+.dashboard-v2-production-shell select:focus,
+.dashboard-v2-production-shell [tabindex]:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.dashboard-v2-production-shell .badge,
+.dashboard-v2-production-shell .pill,
+.dashboard-v2-production-shell .preview-status-pill,
+.dashboard-v2-production-shell .v2-pill,
+.dashboard-v2-production-shell .customer-identity-chip,
+.dashboard-v2-production-shell .customer-source-chip,
+.dashboard-v2-production-shell .customer-status-chip,
+.dashboard-v2-production-shell .install-method-pill {
+  border-color: var(--border-soft);
+  background: rgba(255, 255, 255, 0.36);
+  color: var(--text-secondary);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .badge,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .pill,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .preview-status-pill,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-pill,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-identity-chip,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-source-chip,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-status-chip,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .install-method-pill {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-v2-production-shell .badge.success,
+.dashboard-v2-production-shell .customer-identity-chip--identified,
+.dashboard-v2-production-shell .customer-status-chip--resolved,
+.dashboard-v2-production-shell .install-method-pill.ready {
+  border-color: var(--light-success-border);
+  background: var(--light-success-bg);
+  color: var(--light-success-text);
+}
+
+.dashboard-v2-production-shell .badge.warning,
+.dashboard-v2-production-shell .customer-status-chip--needs_reply,
+.dashboard-v2-production-shell .install-method-pill.warning {
+  border-color: var(--light-warning-border);
+  background: var(--light-warning-bg);
+  color: var(--light-warning-text);
+}
+
+.dashboard-v2-production-shell .badge.danger,
+.dashboard-v2-production-shell .customer-status-chip--complaint {
+  border-color: var(--light-danger-border);
+  background: var(--light-danger-bg);
+  color: var(--light-danger-text);
+}
+
+.dashboard-v2-production-shell .customer-source-chip,
+.dashboard-v2-production-shell .customer-status-chip--lead,
+.dashboard-v2-production-shell .badge.info {
+  border-color: rgba(47, 109, 246, 0.32);
+  background: rgba(47, 109, 246, 0.13);
+  color: var(--accent-blue);
+}
+
+.dashboard-v2-production-shell .customer-avatar,
+.dashboard-v2-production-shell .sidebar-user-avatar,
+.dashboard-v2-production-shell .v2-icon-badge,
+.dashboard-v2-production-shell .customer-v2-metric-icon,
+.dashboard-v2-production-shell .install-step-number,
+.dashboard-v2-production-shell .install-method-icon,
+.dashboard-v2-production-shell .frontdesk-step-number {
+  background: linear-gradient(135deg, rgba(15, 143, 127, 0.16), rgba(47, 109, 246, 0.12));
+  color: var(--accent-purple);
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-avatar,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .sidebar-user-avatar,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-icon-badge,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .customer-v2-metric-icon,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .install-step-number,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .install-method-icon,
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .frontdesk-step-number {
+  color: #c7b8ff;
+}
+
+.dashboard-v2-production-shell .settings-shell-theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-v2-production-shell .settings-shell-theme-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  cursor: pointer;
+}
+
+.dashboard-v2-production-shell .settings-shell-theme-option input {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--accent-purple);
+}
+
+.dashboard-v2-production-shell .settings-shell-theme-option strong {
+  color: var(--text-primary);
+}
+
+.dashboard-v2-production-shell .settings-shell-theme-option small {
+  color: var(--text-muted);
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-top-nav-group {
+  border-color: var(--border-soft);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button:hover {
+  color: var(--text-primary);
+  border-color: var(--border-soft);
+  background: var(--surface-hover);
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button.active {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  background: var(--active-nav);
+  box-shadow: inset 0 -2px 0 var(--accent-purple);
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-nav-copy strong {
+  color: inherit;
+}
+
+.dashboard-v2-production-shell .settings-shell-root .settings-shell-nav-copy small {
+  color: var(--text-muted);
+}
+
+.dashboard-help-fab {
+  border-color: var(--border-soft);
+  background: var(--button-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow);
+}
+
+.dashboard-help-backdrop {
+  background: rgba(8, 18, 37, 0.28);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .dashboard-v2-production-shell .sidebar-shell,
+  .dashboard-v2-production-shell .workspace-card-soft,
+  .dashboard-v2-production-shell .flat-section,
+  .dashboard-v2-production-shell .frontdesk-workspace-panel,
+  .dashboard-v2-production-shell .frontdesk-polished-panel,
+  .dashboard-v2-production-shell .page-header,
+  .dashboard-v2-production-shell .page-toolbar,
+  .dashboard-v2-production-shell .install-page-main,
+  .dashboard-v2-production-shell .install-option-card,
+  .dashboard-v2-production-shell .install-status-card,
+  .dashboard-v2-production-shell .install-method-card,
+  .dashboard-v2-production-shell .install-launch-path-card,
+  .dashboard-v2-production-shell .install-detail-card,
+  .dashboard-v2-production-shell .install-side-card,
+  .dashboard-v2-production-shell .install-progress-card,
+  .dashboard-v2-production-shell .contacts-list-shell,
+  .dashboard-v2-production-shell .customer-focus-banner,
+  .dashboard-v2-production-shell .customer-v2-metric-card,
+  .dashboard-v2-production-shell .customer-detail-panel,
+  .dashboard-v2-production-shell .customer-detail-card,
+  .dashboard-v2-production-shell .settings-shell-section,
+  .dashboard-v2-production-shell .settings-overview-card,
+  .dashboard-v2-production-shell .settings-operational-card,
+  .dashboard-v2-production-shell .settings-shell-card,
+  .dashboard-v2-production-shell .analytics-report-overview,
+  .dashboard-v2-production-shell .analytics-report-card,
+  .dashboard-v2-production-shell .analytics-report-metric-card,
+  .dashboard-v2-production-shell .analytics-report-recommendation,
+  .dashboard-v2-production-shell .analytics-report-swot-item,
+  .dashboard-v2-production-shell .analytics-report-insight,
+  .dashboard-v2-production-shell .analytics-report-contact-card,
+  .dashboard-v2-production-shell .analytics-report-chart,
+  .dashboard-v2-production-shell .analytics-source-card,
+  .dashboard-v2-production-shell .v2-card,
+  .dashboard-v2-production-shell .v2-table-card,
+  .dashboard-v2-production-shell .v2-metric-card,
+  .dashboard-v2-production-shell .v2-chart-card,
+  .dashboard-help-drawer {
+    background: var(--surface-glass-strong);
+  }
+}
+
+@media (max-width: 959px) {
+  .dashboard-v2-production-shell .sidebar-shell {
+    box-shadow: 18px 0 52px rgba(42, 72, 126, 0.18);
+  }
+
+  .dashboard-v2-production-shell .settings-shell-theme-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-v2-production-shell .workspace-page input,
+.dashboard-v2-production-shell .workspace-page textarea,
+.dashboard-v2-production-shell .workspace-page select,
+.dashboard-v2-production-shell .settings-shell-root input,
+.dashboard-v2-production-shell .settings-shell-root textarea,
+.dashboard-v2-production-shell .settings-shell-root select,
+.dashboard-v2-production-shell .install-copy-field textarea,
+.dashboard-v2-production-shell .install-target-url,
+.dashboard-v2-production-shell .customer-toolbar-search input,
+.dashboard-v2-production-shell .today-toolbar-search input,
+.dashboard-v2-production-shell .dashboard-help-form textarea {
+  border-color: var(--border-soft) !important;
+  background: var(--surface-input) !important;
+  color: var(--text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
+}
+
+.dashboard-v2-production-shell .workspace-page input:focus,
+.dashboard-v2-production-shell .workspace-page textarea:focus,
+.dashboard-v2-production-shell .workspace-page select:focus,
+.dashboard-v2-production-shell .settings-shell-root input:focus,
+.dashboard-v2-production-shell .settings-shell-root textarea:focus,
+.dashboard-v2-production-shell .settings-shell-root select:focus {
+  border-color: var(--border-strong) !important;
 }
 
 /* Active-tab Settings IA */

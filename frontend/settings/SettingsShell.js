@@ -61,9 +61,12 @@
     "settings.title": "Settings",
     "settings.copy": "Manage workspace, business, account, and privacy settings.",
     "settings.theme": "Theme",
-    "settings.themeCopy": "Choose how the dashboard looks in this browser. Light is the default.",
-    "settings.light": "Light",
-    "settings.dark": "Dark",
+    "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
+    "settings.brightGlass": "Bright Glass",
+    "settings.darkGlass": "Dark Glass",
+    "settings.system": "System",
+    "settings.light": "Bright Glass",
+    "settings.dark": "Dark Glass",
   });
   const LEGAL_LINKS = Object.freeze([
     { href: "/aszf", label: "ÁSZF" },
@@ -1174,6 +1177,37 @@
     return normalizedTab;
   }
 
+  function getDashboardAppearanceChoice() {
+    const appearance = defaultTrimText(global.document?.documentElement?.dataset?.dashboardAppearance).toLowerCase();
+    const theme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase();
+
+    if (appearance === "system" || appearance === "dark" || appearance === "bright") {
+      return appearance;
+    }
+
+    return theme === "dark" ? "dark" : "bright";
+  }
+
+  function getDashboardThemeOptions(helpers) {
+    return [
+      {
+        value: "bright",
+        label: helpers.t("settings.brightGlass"),
+        copy: helpers.translateDashboardText("Default bright frosted glass dashboard theme."),
+      },
+      {
+        value: "dark",
+        label: helpers.t("settings.darkGlass"),
+        copy: helpers.translateDashboardText("Deep navy glass dashboard theme for lower-light work."),
+      },
+      {
+        value: "system",
+        label: helpers.t("settings.system"),
+        copy: helpers.translateDashboardText("Follow this device's light or dark appearance."),
+      },
+    ];
+  }
+
   function renderSettingsIcon(name) {
     const icons = {
       general: '<path d="M12 3v2.2M12 18.8V21M4.64 4.64l1.56 1.56M17.8 17.8l1.56 1.56M3 12h2.2M18.8 12H21M4.64 19.36l1.56-1.56M17.8 6.2l1.56-1.56"/><circle cx="12" cy="12" r="3.2"/>',
@@ -2252,9 +2286,7 @@
       : "Current monthly period begins after activation.";
     const billingNoticeTone = defaultTrimText(billingUsage.tone).toLowerCase() || "ok";
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
-    const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
-      ? "dark"
-      : "light";
+    const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
     const isHungarian = dashboardLanguage === "hu";
@@ -2409,10 +2441,7 @@
             </div>
           </div>
           <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
-            ${[
-              { value: "light", label: t("settings.light"), copy: helpers.translateDashboardText("Default dashboard theme.") },
-              { value: "dark", label: t("settings.dark"), copy: helpers.translateDashboardText("Lower-light dashboard theme for the app shell.") },
-            ].map((theme) => `
+            ${getDashboardThemeOptions(helpers).map((theme) => `
               <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
                 <input
                   type="radio"
@@ -2990,9 +3019,7 @@
       getSupportedDashboardLanguages,
       t,
     } = helpers;
-    const dashboardTheme = defaultTrimText(global.document?.documentElement?.dataset?.dashboardTheme).toLowerCase() === "dark"
-      ? "dark"
-      : "light";
+    const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
@@ -3020,10 +3047,7 @@
             </div>
           </form>
           <div class="settings-shell-theme-options" role="radiogroup" aria-label="Theme">
-            ${[
-              { value: "light", label: t("settings.light"), copy: helpers.translateDashboardText("Default dashboard theme.") },
-              { value: "dark", label: t("settings.dark"), copy: helpers.translateDashboardText("Lower-light dashboard theme for the app shell.") },
-            ].map((theme) => `
+            ${getDashboardThemeOptions(helpers).map((theme) => `
               <label class="settings-shell-theme-option ${dashboardTheme === theme.value ? "active" : ""}">
                 <input
                   type="radio"

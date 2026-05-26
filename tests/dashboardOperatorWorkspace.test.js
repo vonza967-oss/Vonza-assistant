@@ -703,20 +703,27 @@ test("settings saves only show success after backend confirmation", () => {
   assert.doesNotMatch(businessProfileParserSource, /approvedContactChannels|approvalPreferences|approved_contact|approval_/);
 });
 
-test("dashboard theme defaults to light, persists dark mode, and renders Settings controls", () => {
+test("dashboard theme defaults to bright glass, persists dark and system modes, and renders Settings controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
     },
   });
 
-  assert.equal(harness.getDashboardTheme(), "light");
-  assert.equal(harness.applyDashboardTheme(), "light");
-  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "light");
+  assert.equal(harness.getDashboardTheme(), "bright");
+  assert.equal(harness.applyDashboardTheme(), "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "bright");
+  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
   assert.equal(harness.saveDashboardTheme("dark"), "dark");
   assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "dark");
+  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "dark");
   assert.equal(harness.document.documentElement.dataset.dashboardTheme, "dark");
+
+  assert.equal(harness.saveDashboardTheme("system"), "system");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_theme"), "system");
+  assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "system");
+  assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
   const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
     agent: {},
@@ -725,7 +732,10 @@ test("dashboard theme defaults to light, persists dark mode, and renders Setting
 
   assert.match(settingsPanel, /Theme/);
   assert.match(settingsPanel, /data-dashboard-theme-choice/);
-  assert.match(settingsPanel, /value="dark"[\s\S]*checked/);
+  assert.match(settingsPanel, /Bright Glass/);
+  assert.match(settingsPanel, /Dark Glass/);
+  assert.match(settingsPanel, /System/);
+  assert.match(settingsPanel, /value="system"[\s\S]*checked/);
 });
 
 test("first-time dashboard language chooser renders and translation fallback is safe", () => {
