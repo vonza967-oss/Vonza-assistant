@@ -1154,6 +1154,197 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.equal(capturePayloads[0].email, "caller@example.com");
 });
 
+test("call Front Desk empty transcript asks to repeat without sending chat", async () => {
+  const calls = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+      calls.push(url);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        throw new Error("empty web call transcript should not call /chat");
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  await harness.hooks.startCallModeTurn();
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  harness.elements.get("call-front-desk-stop").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(calls.some((url) => url.includes("/api/voice/transcribe")));
+  assert.equal(calls.includes("/chat"), false);
+  assert.equal(harness.hooks.getCallModeState(), "ready");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "I didn’t catch that. Please try again with one short question."
+  );
+});
+
+test("call Front Desk garbled transcript asks to repeat without sending chat", async () => {
+  const calls = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+      calls.push(url);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "x" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        throw new Error("garbled web call transcript should not call /chat");
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  await harness.hooks.startCallModeTurn();
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  harness.elements.get("call-front-desk-stop").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(calls.includes("/chat"), false);
+  assert.equal(harness.hooks.getCallModeState(), "ready");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "That sounded unclear. Please repeat it in a short sentence."
+  );
+});
+
+test("call Front Desk end-call phrase ends gracefully without sending chat", async () => {
+  const calls = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+      calls.push(url);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "end call" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        throw new Error("end-call phrase should not call /chat");
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  await harness.hooks.startCallModeTurn();
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  harness.elements.get("call-front-desk-stop").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(calls.includes("/chat"), false);
+  assert.equal(harness.hooks.getCallModeState(), "stopped");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "Call ended. Transcript remains in chat."
+  );
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+});
+
 test("call Front Desk failure states use safe localized messages", async () => {
   const deniedError = new Error("Permission denied by test");
   deniedError.name = "NotAllowedError";
@@ -1261,6 +1452,135 @@ test("call Front Desk transcription failure offers contact fallback without prov
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
   assert.equal(harness.elements.get("call-front-desk-summary").textContent, "You can type your message below or leave contact details.");
   assert.doesNotMatch(harness.elements.get("call-front-desk-status").textContent, /provider|quota|stack/i);
+});
+
+test("call Front Desk repeated failures suggest typing or contact fallback", async () => {
+  const calls = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+      calls.push(url);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: false,
+          status: 500,
+          async json() {
+            return { error: "provider stack detail" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        throw new Error("failed web call transcription should not call /chat");
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    assert.equal(await harness.hooks.startCallModeTurn(), true);
+    harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+    harness.elements.get("call-front-desk-stop").dispatch("click");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  assert.equal(calls.includes("/chat"), false);
+  assert.equal(harness.hooks.getCallModeState(), "unavailable");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "Voice is having trouble. You can type your message below or leave contact details."
+  );
+  assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
+  assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
+});
+
+test("Hungarian call Front Desk recovery copy renders for empty transcripts", async () => {
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key&lang=hu",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key&lang=hu",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    customFetch: async (input) => {
+      const url = String(input);
+
+      if (url.includes("/api/voice/transcribe")) {
+        return {
+          ok: true,
+          async json() {
+            return { text: "" };
+          },
+        };
+      }
+
+      if (url === "/chat") {
+        throw new Error("empty Hungarian web call transcript should not call /chat");
+      }
+
+      return {
+        ok: true,
+        async json() {
+          return {};
+        },
+      };
+    },
+  });
+
+  harness.hooks.applyWidgetConfig({
+    language: "hu",
+    voice_config: {
+      voice_input_enabled: true,
+      spoken_replies_enabled: true,
+      web_call_enabled: true,
+    },
+  });
+
+  await harness.hooks.startCallModeTurn();
+  harness.hooks.setVoiceRecorderChunks([new Blob(["audio"], { type: "audio/webm" })]);
+  harness.elements.get("call-front-desk-stop").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(harness.hooks.getCallModeState(), "ready");
+  assert.equal(
+    harness.elements.get("call-front-desk-status").textContent,
+    "Nem hallottam jól. Kérlek, próbáld újra egy rövid kérdéssel."
+  );
 });
 
 test("call Front Desk ends with a clear turn-limit message", async () => {

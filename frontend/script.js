@@ -90,6 +90,9 @@ const DEFAULT_VOICE_CONFIG = Object.freeze({
 const VOICE_TTS_VOICES = Object.freeze(["alloy", "ash", "coral", "nova", "sage", "shimmer"]);
 const VOICE_RECORDING_MAX_MS = 30000;
 const WEB_CALL_MAX_TURNS = 8;
+const WEB_CALL_FAILURE_FALLBACK_THRESHOLD = 2;
+const WEB_CALL_LONG_REPLY_WORD_LIMIT = 90;
+const WEB_CALL_LONG_REPLY_CHAR_LIMIT = 700;
 const VOICE_RECORDING_MIME_TYPES = Object.freeze([
   "audio/webm;codecs=opus",
   "audio/webm",
@@ -369,6 +372,11 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callSummary": "Call ended: {duration}, {turns}. Transcript remains in chat.",
     "assistant.callTurnLimitEnded": "Call ended after reaching the turn limit. Transcript remains in chat.",
     "assistant.callFallback": "You can type your message below or leave contact details.",
+    "assistant.callRepeatEmpty": "I didn’t catch that. Please try again with one short question.",
+    "assistant.callRepeatUnclear": "That sounded unclear. Please repeat it in a short sentence.",
+    "assistant.callRepeatedFailure": "Voice is having trouble. You can type your message below or leave contact details.",
+    "assistant.callEndedByVoice": "Call ended. Transcript remains in chat.",
+    "assistant.callLongReplyHint": "This answer is a little long for speech, so you may want to read it on screen.",
     "assistant.callOneTurn": "1 turn",
     "assistant.callTurnCount": "{count} turns",
     "assistant.resetIdentity": "Reset visitor identity",
@@ -537,6 +545,11 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callSummary": "A hívás véget ért: {duration}, {turns}. A leirat a chatben marad.",
     "assistant.callTurnLimitEnded": "A hívás a fordulókorlát elérése után véget ért. A leirat a chatben marad.",
     "assistant.callFallback": "Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet.",
+    "assistant.callRepeatEmpty": "Nem hallottam jól. Kérlek, próbáld újra egy rövid kérdéssel.",
+    "assistant.callRepeatUnclear": "Ez nem volt elég érthető. Kérlek, ismételd meg egy rövid mondatban.",
+    "assistant.callRepeatedFailure": "A hang most nehezen működik. Beírhatod az üzenetedet lent, vagy megadhatod az elérhetőségedet.",
+    "assistant.callEndedByVoice": "A hívás véget ért. A leirat a chatben marad.",
+    "assistant.callLongReplyHint": "Ez a válasz kicsit hosszú felolvasáshoz, ezért érdemes a képernyőn is elolvasni.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
     "assistant.resetIdentity": "Látogatói azonosítás törlése",
@@ -631,6 +644,8 @@ let callModeStartedAt = 0;
 let callModeEndedDurationMs = 0;
 let callModeTimer = 0;
 let callModeTurnCount = 0;
+let webCallConsecutiveFailures = 0;
+let callModeSoftHint = "";
 let webCallSessionTouched = false;
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
@@ -3376,6 +3391,7 @@ function startCallModeTimer() {
 }
 
 function resetCallModeSummary() {
+  callModeSoftHint = "";
   const summary = getCallModeSummary();
   if (summary) {
     summary.hidden = true;
@@ -3388,6 +3404,15 @@ function showCallModeFallbackSummary() {
   if (summary) {
     summary.hidden = false;
     summary.textContent = assistantT("assistant.callFallback");
+  }
+}
+
+function showCallModeSoftHint(message) {
+  callModeSoftHint = trimText(message);
+  const summary = getCallModeSummary();
+  if (summary && callModeSoftHint) {
+    summary.hidden = false;
+    summary.textContent = callModeSoftHint;
   }
 }
 
@@ -3446,9 +3471,19 @@ function cleanupCallModeMedia(options = {}) {
   }
 }
 
+function endCallModeFromVoiceCommand() {
+  webCallSessionTouched = true;
+  callModeActive = false;
+  resetWebCallFailureCount();
+  cleanupCallModeMedia();
+  setCallModeState(CALL_MODE_STATES.STOPPED, assistantT("assistant.callEndedByVoice"));
+  showCallModeSummary();
+}
+
 function endCallModeAfterTurnLimit() {
   webCallSessionTouched = true;
   callModeActive = false;
+  resetWebCallFailureCount();
   cleanupCallModeMedia({ turnLimitSummary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED, assistantT("assistant.callTurnLimitEnded"));
 }
@@ -3630,7 +3665,12 @@ function syncCallModeControls() {
     && ![CALL_MODE_STATES.STOPPED, CALL_MODE_STATES.UNAVAILABLE].includes(callModeState)
     && callModeActive
   ) {
-    resetCallModeSummary();
+    if (callModeSoftHint) {
+      summary.hidden = false;
+      summary.textContent = callModeSoftHint;
+    } else {
+      resetCallModeSummary();
+    }
   }
 }
 
@@ -3669,9 +3709,111 @@ async function startCallModeTurn() {
   return started;
 }
 
+function normalizeWebCallCommandText(value = "") {
+  return trimText(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}\s']/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isWebCallEndPhrase(transcript = "") {
+  const normalized = normalizeWebCallCommandText(transcript);
+  return /^(end|stop|finish|hang up|bye|goodbye|that is all|that's all|end call|stop call|finish call|hang up now)$/i.test(normalized)
+    || /\b(end|stop|finish) (the )?call\b/i.test(normalized)
+    || /\bhang up\b/i.test(normalized)
+    || /^(hivas vege|vege a hivasnak|befejezem|befejezes|viszlat|koszonom ennyi)$/i.test(normalized)
+    || /\b(fejezd be|allitsd le|hivas befejezese)\b/i.test(normalized);
+}
+
+function isWebCallRepeatPhrase(transcript = "") {
+  const normalized = normalizeWebCallCommandText(transcript);
+  return /^(repeat|repeat that|say that again|try again|can you repeat|please repeat)$/i.test(normalized)
+    || /^(ismeteld|ismeteljed|mondd ujra|mondd el ujra|probald ujra|kerlek ismeteld)$/i.test(normalized);
+}
+
+function isGarbledWebCallTranscript(transcript = "") {
+  const normalized = normalizeWebCallCommandText(transcript);
+  const compact = normalized.replace(/\s+/g, "");
+
+  if (!compact) {
+    return false;
+  }
+
+  if (/^(um|uh|er|erm|hmm|mm|ah|aaa|oo|ooo|ize)$/i.test(normalized)) {
+    return true;
+  }
+
+  if (compact.length <= 2 && !/^(ok|hi|no)$/i.test(compact)) {
+    return true;
+  }
+
+  return compact.length <= 5 && !/[aeiouyáéíóöőúüű]/i.test(normalized);
+}
+
+function classifyWebCallTranscript(transcript = "") {
+  const cleaned = trimText(transcript);
+
+  if (!cleaned) {
+    return { action: "empty", message: assistantT("assistant.callRepeatEmpty") };
+  }
+
+  if (isWebCallEndPhrase(cleaned)) {
+    return { action: "end_call" };
+  }
+
+  if (isWebCallRepeatPhrase(cleaned)) {
+    return { action: "repeat" };
+  }
+
+  if (isGarbledWebCallTranscript(cleaned)) {
+    return { action: "garbled", message: assistantT("assistant.callRepeatUnclear") };
+  }
+
+  return { action: "chat", transcript: cleaned };
+}
+
+function isWebCallReplyLongForSpeech(reply = "") {
+  const text = trimText(reply);
+  if (!text) {
+    return false;
+  }
+
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  return wordCount > WEB_CALL_LONG_REPLY_WORD_LIMIT || text.length > WEB_CALL_LONG_REPLY_CHAR_LIMIT;
+}
+
+function recordWebCallFailure(message = "") {
+  webCallConsecutiveFailures += 1;
+  return webCallConsecutiveFailures >= WEB_CALL_FAILURE_FALLBACK_THRESHOLD
+    ? assistantT("assistant.callRepeatedFailure")
+    : trimText(message) || assistantT("assistant.voiceFailed");
+}
+
+function resetWebCallFailureCount() {
+  webCallConsecutiveFailures = 0;
+}
+
+function handleRecoverableWebCallTranscript(message) {
+  const recoveryMessage = recordWebCallFailure(message);
+  setVoiceInputState("error", recoveryMessage);
+  if (webCallConsecutiveFailures >= WEB_CALL_FAILURE_FALLBACK_THRESHOLD) {
+    callModeActive = false;
+    cleanupCallModeMedia();
+    setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
+    showCallModeFallbackSummary();
+    return;
+  }
+
+  setCallModeState(CALL_MODE_STATES.READY, recoveryMessage);
+}
+
 function endCallMode() {
   webCallSessionTouched = true;
   callModeActive = false;
+  resetWebCallFailureCount();
   cleanupCallModeMedia({ summary: true });
   setCallModeState(CALL_MODE_STATES.STOPPED);
 }
@@ -4043,6 +4185,7 @@ async function startVoiceRecording(options = {}) {
     voiceRecordingSource = options.source === "call" ? "call" : "";
     voiceRecordingCancelRequested = false;
     if (voiceRecordingSource === "call") {
+      callModeSoftHint = "";
       setCallModeState(CALL_MODE_STATES.REQUESTING);
     }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -4136,15 +4279,30 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
     const result = await transcribeVoiceBlob(blob, durationMs);
     const transcript = trimText(result.text);
 
-    if (!transcript) {
-      throw new Error(assistantT("assistant.voiceNoSpeechDetected"));
-    }
-
     if (recordingSource === "call") {
+      const transcriptDecision = classifyWebCallTranscript(transcript);
+
+      if (transcriptDecision.action === "empty" || transcriptDecision.action === "garbled") {
+        handleRecoverableWebCallTranscript(transcriptDecision.message);
+        return;
+      }
+
+      if (transcriptDecision.action === "end_call") {
+        resetWebCallFailureCount();
+        endCallModeFromVoiceCommand();
+        return;
+      }
+
+      if (transcriptDecision.action === "repeat") {
+        handleRecoverableWebCallTranscript(assistantT("assistant.callRepeatEmpty"));
+        return;
+      }
+
+      const cleanTranscript = transcriptDecision.transcript;
       callModeTurnCount += 1;
       updateCallModeStats();
       setCallModeState(CALL_MODE_STATES.THINKING);
-      const result = await sendMessage(transcript, {
+      const result = await sendMessage(cleanTranscript, {
         conversationSource: "web_call",
         playSpokenReply: true,
         onSpokenReplyStart: () => {
@@ -4158,21 +4316,45 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
               endCallModeAfterTurnLimit();
               return;
             }
+            if (played) {
+              resetWebCallFailureCount();
+            } else {
+              const recoveryMessage = recordWebCallFailure(assistantT("assistant.voiceSpokenCouldNotPlay"));
+              if (!callModeActive) {
+                return;
+              }
+              callModeActive = false;
+              cleanupCallModeMedia();
+              setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
+              showCallModeFallbackSummary();
+              return;
+            }
             setCallModeState(
-              played ? CALL_MODE_STATES.READY : CALL_MODE_STATES.UNAVAILABLE,
-              played ? "" : assistantT("assistant.voiceSpokenCouldNotPlay")
+              CALL_MODE_STATES.READY,
+              ""
             );
           }
         },
       });
 
       if (!result?.ok) {
+        const recoveryMessage = recordWebCallFailure(assistantT("assistant.requestFailedStatus"));
         callModeActive = false;
-        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.requestFailedStatus"));
+        cleanupCallModeMedia();
+        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
+        showCallModeFallbackSummary();
       } else if (!result.spokenReplyAttempted) {
-        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, assistantT("assistant.voiceSpokenCouldNotPlay"));
+        const recoveryMessage = recordWebCallFailure(assistantT("assistant.voiceSpokenCouldNotPlay"));
+        callModeActive = false;
+        cleanupCallModeMedia();
+        setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
+        showCallModeFallbackSummary();
       }
       return;
+    }
+
+    if (!transcript) {
+      throw new Error(assistantT("assistant.voiceNoSpeechDetected"));
     }
 
     if (input) {
@@ -4185,10 +4367,16 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
     }
   } catch (error) {
     console.warn("Vonza voice transcription failed:", error);
-    setVoiceInputState("error", error.message || assistantT("assistant.voiceFailed"));
+    const errorMessage = error.message || assistantT("assistant.voiceFailed");
+    const voiceMessage = recordingSource === "call"
+      ? recordWebCallFailure(errorMessage)
+      : errorMessage;
+    setVoiceInputState("error", voiceMessage);
     if (recordingSource === "call") {
       callModeActive = false;
-      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, error.message || assistantT("assistant.voiceFailed"));
+      cleanupCallModeMedia();
+      setCallModeState(CALL_MODE_STATES.UNAVAILABLE, voiceMessage);
+      showCallModeFallbackSummary();
     }
   } finally {
     voiceTranscriptRequestActive = false;
@@ -4859,6 +5047,11 @@ async function sendMessage(messageOverride = "", options = {}) {
         ? assistantT("assistant.optionReady")
         : assistantT("assistant.askAnythingElse")
     );
+    if (trimText(options.conversationSource) === "web_call" && isWebCallReplyLongForSpeech(data.reply)) {
+      const longReplyHint = assistantT("assistant.callLongReplyHint");
+      setComposerStatus(longReplyHint);
+      showCallModeSoftHint(longReplyHint);
+    }
     let spokenReplyAttempted = false;
     let spokenReplyPlayed = false;
     if (getVoiceConfig().spokenRepliesEnabled && (speakRepliesActive || options.playSpokenReply === true)) {

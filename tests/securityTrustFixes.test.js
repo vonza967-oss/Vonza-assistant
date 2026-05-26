@@ -1451,6 +1451,100 @@ test("chat response language follows customer messages instead of website contex
   assert.match(calls[0].messages[0].content, /Reply in Hungarian/);
 });
 
+test("web call chat requests add spoken-friendly prompt guidance without weakening guardrails", async () => {
+  const chatState = buildChatState();
+  chatState.widget_configs[0].full_page_config = {
+    public_page_enabled: true,
+    public_page_key: "page-key",
+  };
+  const supabase = createFakeSupabase(chatState);
+  const calls = [];
+
+  await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: "Pricing starts at $100. Would you like to leave contact details for a quote?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/front-desk",
+      display_mode: "page",
+      conversation_source: "web_call",
+      public_page_key: "page-key",
+      visitor_session_key: "session-web-call-prompt",
+      message: "Can I get pricing?",
+    },
+  });
+
+  const systemPrompt = calls[0].messages.find((message) => message.role === "system")?.content || "";
+  assert.match(systemPrompt, /Web Call spoken response style/i);
+  assert.match(systemPrompt, /one or two short paragraphs maximum/i);
+  assert.match(systemPrompt, /Ask only one follow-up question at a time/i);
+  assert.match(systemPrompt, /Preserve all factual guardrails/i);
+  assert.match(systemPrompt, /Do not invent facts, services, prices, or guarantees/i);
+});
+
+test("normal hosted page chat does not add web call spoken prompt guidance", async () => {
+  const chatState = buildChatState();
+  chatState.widget_configs[0].full_page_config = {
+    public_page_enabled: true,
+    public_page_key: "page-key",
+  };
+  const supabase = createFakeSupabase(chatState);
+  const calls = [];
+
+  await handleChatRequest({
+    supabase,
+    openai: {
+      chat: {
+        completions: {
+          create: async (payload) => {
+            calls.push(payload);
+            return {
+              choices: [
+                {
+                  message: {
+                    content: "Pricing starts at $100. Would you like the booking link?",
+                  },
+                },
+              ],
+            };
+          },
+        },
+      },
+    },
+    body: {
+      install_id: "install-1",
+      origin: "https://allowed.example",
+      page_url: "https://allowed.example/front-desk",
+      display_mode: "page",
+      public_page_key: "page-key",
+      visitor_session_key: "session-page-prompt",
+      message: "Can I get pricing?",
+    },
+  });
+
+  const systemPrompt = calls[0].messages.find((message) => message.role === "system")?.content || "";
+  assert.doesNotMatch(systemPrompt, /Web Call spoken response style/i);
+  assert.match(systemPrompt, /Use short, readable answers with 1-2 sentence paragraphs/i);
+});
+
 test("front-desk answers use low temperature and repair invented pricing when pricing data is missing", async () => {
   const supabase = createFakeSupabase({
     ...buildChatState(),

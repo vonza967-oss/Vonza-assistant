@@ -222,7 +222,22 @@ export function buildRetrievedBusinessContextForChat({
   ].filter((line) => line !== "").join("\n");
 }
 
-export function buildChatSystemPrompt(language, agent = {}) {
+function normalizeConversationSource(value = "") {
+  return cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function buildWebCallResponseStyleBlock() {
+  return `Web Call spoken response style:
+- This conversation is a turn-based browser voice call, so write for speech.
+- Keep the reply concise: one or two short paragraphs maximum.
+- Ask only one follow-up question at a time.
+- Avoid long lists, tables, dense formatting, or multi-step menus.
+- If callback, booking, quote, contact, or project details are present, confirm them clearly and briefly.
+- If you are uncertain or the business context is missing a needed fact, ask for one clarifying detail or suggest that the caller leave contact details.
+- Preserve all factual guardrails below; do not guess just to keep the call moving.`;
+}
+
+export function buildChatSystemPrompt(language, agent = {}, options = {}) {
   const customPrompt = cleanText(agent.systemPrompt || "");
   const purpose = normalizeWidgetPurpose(agent.purpose || "");
   const purposeLabel = getWidgetPurposeLabel(purpose);
@@ -230,6 +245,9 @@ export function buildChatSystemPrompt(language, agent = {}) {
   const tone = cleanText(agent.tone || "");
   const agentName = cleanText(agent.name || "the assistant");
   const verticalPromptBlock = formatBusinessVerticalPromptBlock(agent.vertical);
+  const webCallStyleBlock = normalizeConversationSource(options.conversationSource || options.conversation_source) === "web_call"
+    ? buildWebCallResponseStyleBlock()
+    : "";
 
   return `You are a business assistant helping a real customer get a clear, useful answer about this business.
 
@@ -315,6 +333,7 @@ Tone-aware next-step style:
 - sales: slightly more proactive, but still calm and not pushy
 - support: reassuring and practical guidance
 
+${webCallStyleBlock ? `${webCallStyleBlock}\n\n` : ""}
 Hard rules:
 - Do not invent facts, services, prices, or guarantees
 - Do not invent policies, availability, legal claims, discounts, warranties, insurance/license status, timelines, booking times, or opening hours

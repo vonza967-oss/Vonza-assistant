@@ -592,7 +592,9 @@ export async function handleChatRequest({
     : null;
   const businessProfileFacts = buildBusinessProfileKnowledgeText(businessProfile || {});
   const systemPrompt = [
-    buildChatSystemPromptImpl(language, agentWithBusinessContext),
+    buildChatSystemPromptImpl(language, agentWithBusinessContext, {
+      conversationSource,
+    }),
     approvedAnswersPrompt,
   ].filter(Boolean).join("\n\n");
   const openaiClient = typeof openai === "function" ? openai() : openai;
