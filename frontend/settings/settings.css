@@ -4001,3 +4001,632 @@ html[data-dashboard-theme="dark"] .settings-shell-key-value-copy {
     background: #ffffff;
   }
 }
+
+/* Bright Glass stabilization: this file loads last, so keep the real app shell bright across every route. */
+html[data-dashboard-theme="bright"],
+html[data-dashboard-theme="light"] {
+  color-scheme: light;
+  --bg-app: #edf4ff;
+  --bg-gradient:
+    radial-gradient(circle at 12% 8%, rgba(124, 163, 255, 0.42), transparent 34%),
+    radial-gradient(circle at 84% 10%, rgba(197, 174, 255, 0.5), transparent 32%),
+    radial-gradient(circle at 72% 82%, rgba(144, 215, 255, 0.38), transparent 36%),
+    linear-gradient(135deg, #fbfdff 0%, #eef5ff 44%, #f8fbff 100%);
+  --surface-glass: rgba(255, 255, 255, 0.48);
+  --surface-glass-strong: rgba(255, 255, 255, 0.68);
+  --surface-card: rgba(255, 255, 255, 0.54);
+  --surface-sidebar: rgba(250, 252, 255, 0.54);
+  --surface-topbar: rgba(255, 255, 255, 0.48);
+  --surface-input: rgba(255, 255, 255, 0.62);
+  --surface-hover: rgba(255, 255, 255, 0.74);
+  --border-soft: rgba(137, 151, 205, 0.24);
+  --border-strong: rgba(126, 93, 246, 0.36);
+  --shadow-soft: 0 18px 46px rgba(82, 102, 158, 0.14);
+  --shadow-card: 0 24px 62px rgba(82, 102, 158, 0.18);
+  --shadow-glow: 0 18px 40px rgba(103, 94, 230, 0.18);
+  --blur-glass: 28px;
+  --text-primary: #0d1528;
+  --text-secondary: #34435f;
+  --text-muted: #66758e;
+  --accent-purple: #7c3cff;
+  --accent-blue: #4f7cff;
+  --accent-glow: rgba(111, 96, 230, 0.18);
+  --focus-ring: 0 0 0 3px rgba(124, 60, 255, 0.24);
+  --active-nav: rgba(124, 60, 255, 0.12);
+  --button-primary: linear-gradient(135deg, #7c3cff 0%, #4f7cff 100%);
+  --button-secondary: rgba(255, 255, 255, 0.42);
+  --dashboard-page-bg: var(--bg-app);
+  --dashboard-panel-bg: var(--surface-card);
+  --dashboard-panel-soft: rgba(255, 255, 255, 0.34);
+  --dashboard-panel-muted: rgba(238, 244, 255, 0.56);
+  --dashboard-panel-line: var(--border-soft);
+  --dashboard-panel-line-strong: var(--border-strong);
+  --dashboard-ink: var(--text-primary);
+  --dashboard-ink-soft: var(--text-secondary);
+  --dashboard-muted: var(--text-muted);
+  --dashboard-accent: var(--accent-purple);
+  --dashboard-accent-hover: #5f35d8;
+  --dashboard-accent-soft: rgba(124, 60, 255, 0.12);
+  --theme-bg: var(--bg-app);
+  --theme-shell: var(--surface-glass);
+  --theme-panel: var(--surface-card);
+  --theme-panel-soft: var(--dashboard-panel-soft);
+  --theme-border: var(--border-soft);
+  --theme-border-strong: var(--border-strong);
+  --theme-text: var(--text-primary);
+  --theme-copy: var(--text-secondary);
+  --theme-muted: var(--text-muted);
+  --theme-active-bg: var(--active-nav);
+  --theme-accent: var(--accent-purple);
+}
+
+html[data-dashboard-theme="bright"],
+html[data-dashboard-theme="light"],
+html[data-dashboard-theme="bright"] body,
+html[data-dashboard-theme="light"] body {
+  min-height: 100%;
+  color: var(--text-primary);
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+html[data-dashboard-theme="bright"] body,
+html[data-dashboard-theme="light"] body {
+  min-height: 100vh;
+}
+
+html[data-dashboard-theme="bright"] body::before,
+html[data-dashboard-theme="light"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.52), transparent 38%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 88px);
+  opacity: 0.54;
+}
+
+html[data-dashboard-theme="bright"] body::after,
+html[data-dashboard-theme="light"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(20px) saturate(1.16);
+  backdrop-filter: blur(20px) saturate(1.16);
+}
+
+html[data-dashboard-theme="bright"] .shell,
+html[data-dashboard-theme="light"] .shell,
+html[data-dashboard-theme="bright"] .app-shell,
+html[data-dashboard-theme="light"] .app-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell,
+html[data-dashboard-theme="bright"] .workspace-shell,
+html[data-dashboard-theme="light"] .workspace-shell,
+html[data-dashboard-theme="bright"] .workspace-pages,
+html[data-dashboard-theme="light"] .workspace-pages,
+html[data-dashboard-theme="bright"] .workspace-page,
+html[data-dashboard-theme="light"] .workspace-page,
+html[data-dashboard-theme="bright"] .workspace-page-overview,
+html[data-dashboard-theme="light"] .workspace-page-overview,
+html[data-dashboard-theme="bright"] .workspace-page-body,
+html[data-dashboard-theme="light"] .workspace-page-body,
+html[data-dashboard-theme="bright"] .home-surface,
+html[data-dashboard-theme="light"] .home-surface,
+html[data-dashboard-theme="bright"] .dashboard-v2-analytics,
+html[data-dashboard-theme="light"] .dashboard-v2-analytics,
+html[data-dashboard-theme="bright"] .analytics-stack,
+html[data-dashboard-theme="light"] .analytics-stack,
+html[data-dashboard-theme="bright"] .contacts-workspace,
+html[data-dashboard-theme="light"] .contacts-workspace,
+html[data-dashboard-theme="bright"] .settings-shell-root,
+html[data-dashboard-theme="light"] .settings-shell-root,
+html[data-dashboard-theme="bright"] .settings-active-content,
+html[data-dashboard-theme="light"] .settings-active-content,
+html[data-dashboard-theme="bright"] .frontdesk-page-layout,
+html[data-dashboard-theme="light"] .frontdesk-page-layout,
+html[data-dashboard-theme="bright"] .install-page-layout,
+html[data-dashboard-theme="light"] .install-page-layout {
+  color: var(--text-primary);
+  background: transparent !important;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell {
+  min-height: 100vh;
+  gap: 30px;
+  padding: 24px;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell::before,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell::before {
+  border-color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 28px 90px rgba(76, 94, 134, 0.16);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-pages,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-pages {
+  min-height: calc(100vh - 48px);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-pages,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-pages {
+  padding: 32px 38px 44px 8px;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-page,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-page {
+  width: min(100%, 1260px);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-shell {
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.22)),
+    var(--surface-sidebar);
+  box-shadow: 0 24px 70px rgba(78, 96, 146, 0.18);
+  -webkit-backdrop-filter: blur(32px) saturate(1.28);
+  backdrop-filter: blur(32px) saturate(1.28);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-identity-mark,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-identity-mark {
+  background: linear-gradient(145deg, #7a36ff 0%, #5786ff 58%, #b693ff 100%);
+  box-shadow: 0 16px 34px rgba(111, 83, 230, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-button {
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: 14px;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-button:hover,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-button:hover {
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.44);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-button.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-button.active {
+  color: var(--text-primary);
+  border-color: rgba(126, 93, 246, 0.32);
+  background:
+    linear-gradient(135deg, rgba(141, 96, 255, 0.16), rgba(79, 124, 255, 0.11)),
+    rgba(255, 255, 255, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 14px 28px rgba(104, 94, 190, 0.12);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-button.active::before,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-button.active::before {
+  inset: auto 8px 9px auto;
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue));
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-label-row .badge,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-label-row .badge,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .shell-nav-tag,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .shell-nav-tag {
+  border-color: rgba(126, 93, 246, 0.18);
+  background: rgba(255, 255, 255, 0.46);
+  color: #6b4edb;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-status-dock,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-status-dock,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-user-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-user-card {
+  border-color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58), 0 12px 28px rgba(84, 104, 154, 0.1);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .page-header,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .page-header,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .page-toolbar,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .page-toolbar,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .glass-hero,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .glass-hero,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-card-soft,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-card-soft,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .flat-section,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .flat-section,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-workspace-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-workspace-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-polished-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-polished-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-step,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-step,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-readiness-item,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-readiness-item,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-detail-block,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-detail-block,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-preview-guide,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-preview-guide,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-preview-frame-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-command-center,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-command-center,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-command-tile,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-command-tile,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-practice-canvas,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-practice-canvas,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-practice-side-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-practice-side-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-compact-section,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-compact-section,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-improvement-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-improvement-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .frontdesk-library-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .frontdesk-library-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-page-main,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-page-main,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-option-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-option-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-status-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-status-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-method-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-method-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-launch-paths,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-launch-paths,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-launch-path-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-launch-path-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-detail-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-detail-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-side-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-side-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-progress-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-progress-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-stage-item,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-stage-item,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-qr-section,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-qr-section,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-code-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-code-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .overview-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .overview-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .metric-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .metric-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .summary-strip-item,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .summary-strip-item,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contacts-list-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contacts-list-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contacts-detail-shell,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contacts-detail-shell,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-row,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contact-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contact-row,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-v2-metric-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-v2-metric-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-detail-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-detail-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-detail-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-detail-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-draft-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-draft-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-risk-note,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-risk-note,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-item,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-item,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-overview,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-overview,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-metric-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-metric-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-recommendation,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-recommendation,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-swot-item,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-swot-item,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-insight,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-insight,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-contact-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-contact-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-report-chart,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-report-chart,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .analytics-source-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .analytics-source-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-table-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-table-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-metric-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-metric-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-chart-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-chart-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-top-nav-group,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-top-nav-group,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-frontdesk-subnav,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-frontdesk-subnav,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-mobile-bar,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-mobile-bar,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-page-header,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-page-header,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-section,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-section,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-overview-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-overview-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-operational-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-operational-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-card,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-status-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-status-row,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-status-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-status-row,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-theme-option,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-theme-option,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-sticky-save,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-sticky-save,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .support-panel,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .support-panel,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .placeholder-card,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .placeholder-card {
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.24)),
+    var(--surface-card) !important;
+  box-shadow: var(--shadow-soft);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.18);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.18);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-row,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contact-row,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contact-row {
+  box-shadow: inset 0 -1px 0 rgba(137, 151, 205, 0.16);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-row.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-row.active,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .contact-row.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .contact-row.active,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-record-row.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-record-row.active {
+  border-color: rgba(126, 93, 246, 0.34);
+  background:
+    linear-gradient(135deg, rgba(124, 60, 255, 0.12), rgba(79, 124, 255, 0.08)),
+    rgba(255, 255, 255, 0.5) !important;
+  box-shadow: inset 3px 0 0 var(--accent-purple), 0 12px 28px rgba(104, 94, 190, 0.1);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .page-header,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .page-header,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .page-toolbar,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .page-toolbar {
+  background: transparent !important;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-dashboard-theme="bright"] .glass-page-header h1,
+html[data-dashboard-theme="light"] .glass-page-header h1,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-page .page-title,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-page .page-title {
+  font-size: clamp(28px, 2.55vw, 38px);
+  line-height: 1.06;
+}
+
+html[data-dashboard-theme="bright"] .glass-page-header p,
+html[data-dashboard-theme="light"] .glass-page-header p,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-page .page-copy,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-page .page-copy {
+  max-width: 680px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+html[data-dashboard-theme="bright"] .glass-dashboard-home,
+html[data-dashboard-theme="light"] .glass-dashboard-home {
+  gap: 24px;
+}
+
+html[data-dashboard-theme="bright"] .glass-home-layout,
+html[data-dashboard-theme="light"] .glass-home-layout {
+  gap: 22px;
+}
+
+html[data-dashboard-theme="bright"] .glass-hero,
+html[data-dashboard-theme="light"] .glass-hero {
+  min-height: 210px;
+  padding: clamp(22px, 2.6vw, 32px);
+}
+
+html[data-dashboard-theme="bright"] .glass-hero h2,
+html[data-dashboard-theme="light"] .glass-hero h2 {
+  font-size: clamp(28px, 2.8vw, 40px);
+}
+
+html[data-dashboard-theme="bright"] .glass-hero p:not(.glass-kicker),
+html[data-dashboard-theme="light"] .glass-hero p:not(.glass-kicker) {
+  font-size: 16px;
+}
+
+html[data-dashboard-theme="bright"] .front-desk-orb-rings,
+html[data-dashboard-theme="light"] .front-desk-orb-rings {
+  background:
+    repeating-radial-gradient(ellipse at center, rgba(124, 60, 255, 0.12) 0 1px, transparent 1px 30px),
+    radial-gradient(ellipse at center, rgba(124, 60, 255, 0.08), transparent 64%);
+  filter: blur(0.3px);
+}
+
+html[data-dashboard-theme="bright"] .front-desk-orb-core,
+html[data-dashboard-theme="light"] .front-desk-orb-core {
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.26) 44%, rgba(132, 98, 255, 0.18)),
+    rgba(255, 255, 255, 0.26);
+  box-shadow: inset 0 0 34px rgba(255, 255, 255, 0.76), 0 24px 48px rgba(109, 78, 255, 0.24);
+}
+
+html[data-dashboard-theme="bright"] .quick-action-tile,
+html[data-dashboard-theme="light"] .quick-action-tile,
+html[data-dashboard-theme="bright"] .glass-mini-button,
+html[data-dashboard-theme="light"] .glass-mini-button,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .ghost-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .ghost-button,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .test-link,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .test-link,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-button,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-link-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-link-button {
+  border-color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+html[data-dashboard-theme="bright"] .quick-action-tile,
+html[data-dashboard-theme="light"] .quick-action-tile {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.56), rgba(238, 244, 255, 0.32)),
+    rgba(255, 255, 255, 0.36);
+}
+
+html[data-dashboard-theme="bright"] .quick-action-tile:hover,
+html[data-dashboard-theme="light"] .quick-action-tile:hover,
+html[data-dashboard-theme="bright"] .glass-mini-button:hover,
+html[data-dashboard-theme="light"] .glass-mini-button:hover,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .ghost-button:hover,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .ghost-button:hover,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .test-link:hover,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .test-link:hover,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-button:hover,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-button:hover,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-link-button:hover,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-link-button:hover {
+  border-color: rgba(126, 93, 246, 0.32);
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--text-primary);
+  box-shadow: 0 14px 30px rgba(104, 94, 190, 0.13);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .primary-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .primary-button,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell a.primary-button,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell a.primary-button,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-button-primary,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-button-primary {
+  border-color: rgba(124, 60, 255, 0.34);
+  background: var(--button-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-glow);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .badge,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .badge,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .pill,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .pill,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .preview-status-pill,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .preview-status-pill,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-pill,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-pill,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-identity-chip,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-identity-chip,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-source-chip,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-source-chip,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .customer-status-chip,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .customer-status-chip,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .install-method-pill,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .install-method-pill {
+  border-color: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--text-secondary);
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell input,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell input,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell textarea,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell textarea,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell select,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell select,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .v2-select,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .v2-select,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-mobile-select,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-mobile-select {
+  border-color: rgba(255, 255, 255, 0.62) !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-shell-top-nav-group .settings-shell-nav-button.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-shell-top-nav-group .settings-shell-nav-button.active,
+html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .settings-frontdesk-subnav-button.active,
+html[data-dashboard-theme="light"] .dashboard-v2-production-shell .settings-frontdesk-subnav-button.active {
+  border-color: rgba(126, 93, 246, 0.32);
+  background:
+    linear-gradient(135deg, rgba(124, 60, 255, 0.12), rgba(79, 124, 255, 0.08)),
+    rgba(255, 255, 255, 0.46);
+  box-shadow: inset 0 -2px 0 var(--accent-purple);
+}
+
+@media (max-width: 900px) {
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell {
+    padding: 14px;
+  }
+
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .sidebar-shell,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell .sidebar-shell {
+    position: static;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+  }
+
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-shell,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-shell {
+    width: 100%;
+    min-height: 0;
+    margin-left: 0;
+  }
+
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-pages,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-pages {
+    min-height: 0;
+    padding: 8px 0 28px;
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-dashboard-theme="bright"] .glass-page-header h1,
+  html[data-dashboard-theme="light"] .glass-page-header h1,
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-page .page-title,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-page .page-title {
+    font-size: 25px;
+  }
+
+  html[data-dashboard-theme="bright"] .glass-page-header p,
+  html[data-dashboard-theme="light"] .glass-page-header p,
+  html[data-dashboard-theme="bright"] .dashboard-v2-production-shell .workspace-page .page-copy,
+  html[data-dashboard-theme="light"] .dashboard-v2-production-shell .workspace-page .page-copy {
+    font-size: 13px;
+  }
+
+  html[data-dashboard-theme="bright"] .glass-hero h2,
+  html[data-dashboard-theme="light"] .glass-hero h2 {
+    font-size: 27px;
+  }
+}
