@@ -7,6 +7,7 @@ import pg from "pg";
 
 import { validateStartupSchemaReady } from "../src/services/schema/startupSchemaService.js";
 import { SUPABASE_MIGRATIONS_DIR } from "../src/services/schema/supabaseMigrationCatalog.js";
+import { bootstrapCleanDatabaseSupabaseCompat } from "./lib/cleanDatabaseSupabaseBootstrap.js";
 import { createPgSupabaseCompat } from "./lib/createPgSupabaseCompat.js";
 
 dotenv.config();
@@ -45,6 +46,7 @@ async function main() {
   try {
     await client.query("drop schema if exists public cascade");
     await client.query("create schema public");
+    await bootstrapCleanDatabaseSupabaseCompat(client);
 
     const migrationFiles = readdirSync(migrationsDir)
       .filter((fileName) => fileName.endsWith(".sql"))
