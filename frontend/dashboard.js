@@ -26,6 +26,10 @@ const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selecti
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_BACKGROUND_STORAGE_KEY = "vonza_dashboard_background";
 const DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY = "vonza_dashboard_background_blur";
+const DASHBOARD_GLASS_INTENSITY_STORAGE_KEY = "vonza_dashboard_glass_intensity";
+const DASHBOARD_BACKGROUND_DIM_STORAGE_KEY = "vonza_dashboard_background_dim";
+const DASHBOARD_ACCENT_GLOW_STORAGE_KEY = "vonza_dashboard_accent_glow";
+const DASHBOARD_DENSITY_STORAGE_KEY = "vonza_dashboard_density";
 const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LEGAL_DOC_PATHS = Object.freeze({
@@ -75,6 +79,26 @@ const DEFAULT_DASHBOARD_BACKGROUND = DASHBOARD_BACKGROUND_OPTIONS[0]?.value || "
 const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
 const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
 const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
+const DASHBOARD_GLASS_INTENSITY_OPTIONS = Object.freeze(["subtle", "balanced", "clear"]);
+const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
+const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
+const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
+const DEFAULT_DASHBOARD_GLASS_INTENSITY = "balanced";
+const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
+const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
+const DEFAULT_DASHBOARD_DENSITY = "comfortable";
+const DASHBOARD_APPEARANCE_CHOICE_LABELS = Object.freeze({
+  subtle: "Subtle",
+  balanced: "Balanced",
+  clear: "Clear",
+  bright: "Bright",
+  dim: "Dim",
+  off: "Off",
+  soft: "Soft",
+  vivid: "Vivid",
+  comfortable: "Comfortable",
+  compact: "Compact",
+});
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -1501,6 +1525,47 @@ function normalizeDashboardBackgroundBlur(value = DEFAULT_DASHBOARD_BACKGROUND_B
     DASHBOARD_BACKGROUND_BLUR_MAX,
     Math.max(DASHBOARD_BACKGROUND_BLUR_MIN, Math.round(parsedValue))
   );
+}
+
+function normalizeDashboardAppearanceChoice(value, allowedValues, defaultValue) {
+  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+  return allowedValues.includes(normalized) ? normalized : defaultValue;
+}
+
+function normalizeDashboardGlassIntensity(value = DEFAULT_DASHBOARD_GLASS_INTENSITY) {
+  return normalizeDashboardAppearanceChoice(
+    value,
+    DASHBOARD_GLASS_INTENSITY_OPTIONS,
+    DEFAULT_DASHBOARD_GLASS_INTENSITY
+  );
+}
+
+function normalizeDashboardBackgroundDim(value = DEFAULT_DASHBOARD_BACKGROUND_DIM) {
+  return normalizeDashboardAppearanceChoice(
+    value,
+    DASHBOARD_BACKGROUND_DIM_OPTIONS,
+    DEFAULT_DASHBOARD_BACKGROUND_DIM
+  );
+}
+
+function normalizeDashboardAccentGlow(value = DEFAULT_DASHBOARD_ACCENT_GLOW) {
+  return normalizeDashboardAppearanceChoice(
+    value,
+    DASHBOARD_ACCENT_GLOW_OPTIONS,
+    DEFAULT_DASHBOARD_ACCENT_GLOW
+  );
+}
+
+function normalizeDashboardDensity(value = DEFAULT_DASHBOARD_DENSITY) {
+  return normalizeDashboardAppearanceChoice(
+    value,
+    DASHBOARD_DENSITY_OPTIONS,
+    DEFAULT_DASHBOARD_DENSITY
+  );
+}
+
+function getDashboardAppearanceChoiceLabel(value = "") {
+  return DASHBOARD_APPEARANCE_CHOICE_LABELS[trimText(value).toLowerCase()] || "Balanced";
 }
 
 function getDashboardBackgroundOption(value = "") {
@@ -2937,6 +3002,38 @@ function getDashboardBackgroundBlur() {
   }
 }
 
+function getDashboardGlassIntensity() {
+  try {
+    return normalizeDashboardGlassIntensity(window.localStorage.getItem(DASHBOARD_GLASS_INTENSITY_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_GLASS_INTENSITY;
+  }
+}
+
+function getDashboardBackgroundDim() {
+  try {
+    return normalizeDashboardBackgroundDim(window.localStorage.getItem(DASHBOARD_BACKGROUND_DIM_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_BACKGROUND_DIM;
+  }
+}
+
+function getDashboardAccentGlow() {
+  try {
+    return normalizeDashboardAccentGlow(window.localStorage.getItem(DASHBOARD_ACCENT_GLOW_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_ACCENT_GLOW;
+  }
+}
+
+function getDashboardDensity() {
+  try {
+    return normalizeDashboardDensity(window.localStorage.getItem(DASHBOARD_DENSITY_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_DENSITY;
+  }
+}
+
 function syncDashboardThemeControls(root = document) {
   const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance || getDashboardTheme());
   root.querySelectorAll?.("[data-dashboard-theme-choice]")?.forEach((input) => {
@@ -2966,6 +3063,62 @@ function syncDashboardBackgroundBlurControls(root = document) {
       output.textContent = `${blur}px`;
     }
   });
+}
+
+function syncDashboardAppearanceSegmentedControls(root, selector, normalizer, currentValue) {
+  root.querySelectorAll?.(selector)?.forEach((input) => {
+    const selected = normalizer(input.value) === currentValue;
+    input.checked = selected;
+    input.closest?.(".settings-dashboard-appearance-option")?.classList.toggle("active", selected);
+  });
+}
+
+function syncDashboardGlassIntensityControls(root = document) {
+  const intensity = normalizeDashboardGlassIntensity(
+    document.documentElement?.dataset.dashboardGlassIntensity || getDashboardGlassIntensity()
+  );
+  syncDashboardAppearanceSegmentedControls(
+    root,
+    "[data-dashboard-glass-intensity-choice]",
+    normalizeDashboardGlassIntensity,
+    intensity
+  );
+}
+
+function syncDashboardBackgroundDimControls(root = document) {
+  const dim = normalizeDashboardBackgroundDim(
+    document.documentElement?.dataset.dashboardBackgroundDim || getDashboardBackgroundDim()
+  );
+  syncDashboardAppearanceSegmentedControls(
+    root,
+    "[data-dashboard-background-dim-choice]",
+    normalizeDashboardBackgroundDim,
+    dim
+  );
+}
+
+function syncDashboardAccentGlowControls(root = document) {
+  const glow = normalizeDashboardAccentGlow(
+    document.documentElement?.dataset.dashboardAccentGlow || getDashboardAccentGlow()
+  );
+  syncDashboardAppearanceSegmentedControls(
+    root,
+    "[data-dashboard-accent-glow-choice]",
+    normalizeDashboardAccentGlow,
+    glow
+  );
+}
+
+function syncDashboardDensityControls(root = document) {
+  const density = normalizeDashboardDensity(
+    document.documentElement?.dataset.dashboardDensity || getDashboardDensity()
+  );
+  syncDashboardAppearanceSegmentedControls(
+    root,
+    "[data-dashboard-density-choice]",
+    normalizeDashboardDensity,
+    density
+  );
 }
 
 function bindDashboardSystemThemeListener() {
@@ -3057,6 +3210,78 @@ function applyDashboardBackgroundBlur(blur = getDashboardBackgroundBlur()) {
   return normalizedBlur;
 }
 
+function applyDashboardGlassIntensity(intensity = getDashboardGlassIntensity()) {
+  const normalizedIntensity = normalizeDashboardGlassIntensity(intensity);
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardGlassIntensity = normalizedIntensity;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardGlassIntensity = normalizedIntensity;
+  }
+
+  document.documentElement?.style?.setProperty?.("--dashboard-glass-intensity", normalizedIntensity);
+  document.body?.style?.setProperty?.("--dashboard-glass-intensity", normalizedIntensity);
+
+  syncDashboardGlassIntensityControls();
+  return normalizedIntensity;
+}
+
+function applyDashboardBackgroundDim(dim = getDashboardBackgroundDim()) {
+  const normalizedDim = normalizeDashboardBackgroundDim(dim);
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardBackgroundDim = normalizedDim;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardBackgroundDim = normalizedDim;
+  }
+
+  document.documentElement?.style?.setProperty?.("--dashboard-background-dim", normalizedDim);
+  document.body?.style?.setProperty?.("--dashboard-background-dim", normalizedDim);
+
+  syncDashboardBackgroundDimControls();
+  return normalizedDim;
+}
+
+function applyDashboardAccentGlow(glow = getDashboardAccentGlow()) {
+  const normalizedGlow = normalizeDashboardAccentGlow(glow);
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardAccentGlow = normalizedGlow;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardAccentGlow = normalizedGlow;
+  }
+
+  document.documentElement?.style?.setProperty?.("--dashboard-accent-glow-setting", normalizedGlow);
+  document.body?.style?.setProperty?.("--dashboard-accent-glow-setting", normalizedGlow);
+
+  syncDashboardAccentGlowControls();
+  return normalizedGlow;
+}
+
+function applyDashboardDensity(density = getDashboardDensity()) {
+  const normalizedDensity = normalizeDashboardDensity(density);
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardDensity = normalizedDensity;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardDensity = normalizedDensity;
+  }
+
+  document.documentElement?.style?.setProperty?.("--dashboard-density", normalizedDensity);
+  document.body?.style?.setProperty?.("--dashboard-density", normalizedDensity);
+
+  syncDashboardDensityControls();
+  return normalizedDensity;
+}
+
 function saveDashboardTheme(theme) {
   const normalizedTheme = normalizeDashboardTheme(theme);
 
@@ -3094,6 +3319,58 @@ function saveDashboardBackgroundBlur(blur) {
 
   applyDashboardBackgroundBlur(normalizedBlur);
   return normalizedBlur;
+}
+
+function saveDashboardGlassIntensity(intensity) {
+  const normalizedIntensity = normalizeDashboardGlassIntensity(intensity);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_GLASS_INTENSITY_STORAGE_KEY, normalizedIntensity);
+  } catch {
+    // Glass intensity persistence is optional when storage is blocked.
+  }
+
+  applyDashboardGlassIntensity(normalizedIntensity);
+  return normalizedIntensity;
+}
+
+function saveDashboardBackgroundDim(dim) {
+  const normalizedDim = normalizeDashboardBackgroundDim(dim);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_BACKGROUND_DIM_STORAGE_KEY, normalizedDim);
+  } catch {
+    // Background dim persistence is optional when storage is blocked.
+  }
+
+  applyDashboardBackgroundDim(normalizedDim);
+  return normalizedDim;
+}
+
+function saveDashboardAccentGlow(glow) {
+  const normalizedGlow = normalizeDashboardAccentGlow(glow);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_ACCENT_GLOW_STORAGE_KEY, normalizedGlow);
+  } catch {
+    // Accent glow persistence is optional when storage is blocked.
+  }
+
+  applyDashboardAccentGlow(normalizedGlow);
+  return normalizedGlow;
+}
+
+function saveDashboardDensity(density) {
+  const normalizedDensity = normalizeDashboardDensity(density);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_DENSITY_STORAGE_KEY, normalizedDensity);
+  } catch {
+    // Density persistence is optional when storage is blocked.
+  }
+
+  applyDashboardDensity(normalizedDensity);
+  return normalizedDensity;
 }
 
 function getInstallStorageKey(agentId) {
@@ -14715,6 +14992,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const backgroundChoiceInputs = document.querySelectorAll("[data-dashboard-background-choice]");
   const backgroundBlurInputs = document.querySelectorAll("[data-dashboard-background-blur-control]");
+  const glassIntensityInputs = document.querySelectorAll("[data-dashboard-glass-intensity-choice]");
+  const backgroundDimInputs = document.querySelectorAll("[data-dashboard-background-dim-choice]");
+  const accentGlowInputs = document.querySelectorAll("[data-dashboard-accent-glow-choice]");
+  const dashboardDensityInputs = document.querySelectorAll("[data-dashboard-density-choice]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
@@ -16025,6 +16306,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   applyDashboardTheme(getDashboardTheme());
   applyDashboardBackground(getDashboardBackground());
   applyDashboardBackgroundBlur(getDashboardBackgroundBlur());
+  applyDashboardGlassIntensity(getDashboardGlassIntensity());
+  applyDashboardBackgroundDim(getDashboardBackgroundDim());
+  applyDashboardAccentGlow(getDashboardAccentGlow());
+  applyDashboardDensity(getDashboardDensity());
 
   themeChoiceInputs.forEach((input) => {
     input.addEventListener("change", () => {
@@ -16060,6 +16345,50 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       applyDashboardBackgroundBlur(input.value);
     });
     input.addEventListener("change", persistBlur);
+  });
+
+  glassIntensityInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedIntensity = saveDashboardGlassIntensity(input.value);
+      setStatus(`Dashboard glass intensity set to ${getDashboardAppearanceChoiceLabel(savedIntensity)}.`);
+    });
+  });
+
+  backgroundDimInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedDim = saveDashboardBackgroundDim(input.value);
+      setStatus(`Dashboard background dim set to ${getDashboardAppearanceChoiceLabel(savedDim)}.`);
+    });
+  });
+
+  accentGlowInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedGlow = saveDashboardAccentGlow(input.value);
+      setStatus(`Dashboard accent glow set to ${getDashboardAppearanceChoiceLabel(savedGlow)}.`);
+    });
+  });
+
+  dashboardDensityInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedDensity = saveDashboardDensity(input.value);
+      setStatus(`Dashboard density set to ${getDashboardAppearanceChoiceLabel(savedDensity)}.`);
+    });
   });
 
   dashboardLanguageForms.forEach((form) => {

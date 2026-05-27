@@ -53,6 +53,41 @@
         document.documentElement.style.setProperty("--dashboard-background-blur", "10px");
       }
       try {
+        const normalizeChoice = (value, allowed, fallback) => {
+          const normalized = String(value || "").trim().toLowerCase().replace(/[_\s]+/g, "-");
+          return allowed.includes(normalized) ? normalized : fallback;
+        };
+        const glassIntensity = normalizeChoice(
+          window.localStorage?.getItem("vonza_dashboard_glass_intensity"),
+          ["subtle", "balanced", "clear"],
+          "balanced"
+        );
+        const backgroundDim = normalizeChoice(
+          window.localStorage?.getItem("vonza_dashboard_background_dim"),
+          ["bright", "balanced", "dim"],
+          "balanced"
+        );
+        const accentGlow = normalizeChoice(
+          window.localStorage?.getItem("vonza_dashboard_accent_glow"),
+          ["off", "soft", "vivid"],
+          "soft"
+        );
+        const density = normalizeChoice(
+          window.localStorage?.getItem("vonza_dashboard_density"),
+          ["comfortable", "compact"],
+          "comfortable"
+        );
+        document.documentElement.dataset.dashboardGlassIntensity = glassIntensity;
+        document.documentElement.dataset.dashboardBackgroundDim = backgroundDim;
+        document.documentElement.dataset.dashboardAccentGlow = accentGlow;
+        document.documentElement.dataset.dashboardDensity = density;
+      } catch {
+        document.documentElement.dataset.dashboardGlassIntensity = "balanced";
+        document.documentElement.dataset.dashboardBackgroundDim = "balanced";
+        document.documentElement.dataset.dashboardAccentGlow = "soft";
+        document.documentElement.dataset.dashboardDensity = "comfortable";
+      }
+      try {
         const language = window.localStorage?.getItem("vonza_dashboard_language") === "hu" ? "hu" : "en";
         document.documentElement.dataset.dashboardLanguage = language;
         document.documentElement.lang = language;

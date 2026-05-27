@@ -36,6 +36,14 @@
   const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
   const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
   const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
+  const DASHBOARD_GLASS_INTENSITY_OPTIONS = Object.freeze(["subtle", "balanced", "clear"]);
+  const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
+  const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
+  const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
+  const DEFAULT_DASHBOARD_GLASS_INTENSITY = "balanced";
+  const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
+  const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
+  const DEFAULT_DASHBOARD_DENSITY = "comfortable";
   const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
     Object.freeze({
       value: "skyline-atrium",
@@ -101,6 +109,25 @@
     "settings.backgroundCopy": "Choose the environment image visible through the dashboard glass.",
     "settings.backgroundBlur": "Background blur",
     "settings.backgroundBlurCopy": "Soften the image behind dashboard glass without blurring cards or text.",
+    "settings.glassIntensity": "Glass intensity",
+    "settings.glassIntensityCopy": "Tune card translucency, border light, and glass blur together.",
+    "settings.glassIntensitySubtle": "Subtle",
+    "settings.glassIntensityBalanced": "Balanced",
+    "settings.glassIntensityClear": "Clear",
+    "settings.backgroundDim": "Background dim",
+    "settings.backgroundDimCopy": "Adjust only the overlay over the selected background image.",
+    "settings.backgroundDimBright": "Bright",
+    "settings.backgroundDimBalanced": "Balanced",
+    "settings.backgroundDimDim": "Dim",
+    "settings.accentGlow": "Accent glow",
+    "settings.accentGlowCopy": "Control the purple highlight intensity across active dashboard states.",
+    "settings.accentGlowOff": "Off",
+    "settings.accentGlowSoft": "Soft",
+    "settings.accentGlowVivid": "Vivid",
+    "settings.dashboardDensity": "Dashboard density",
+    "settings.dashboardDensityCopy": "Compact reduces card padding and gaps while preserving readable text.",
+    "settings.dashboardDensityComfortable": "Comfortable",
+    "settings.dashboardDensityCompact": "Compact",
     "settings.brightGlass": "Bright Glass",
     "settings.darkGlass": "Dark Glass",
     "settings.system": "System",
@@ -1252,8 +1279,61 @@
     );
   }
 
+  function normalizeDashboardAppearanceChoice(value, allowedValues, defaultValue) {
+    const normalized = defaultTrimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+    return allowedValues.includes(normalized) ? normalized : defaultValue;
+  }
+
+  function normalizeDashboardGlassIntensityChoice(value = DEFAULT_DASHBOARD_GLASS_INTENSITY) {
+    return normalizeDashboardAppearanceChoice(
+      value,
+      DASHBOARD_GLASS_INTENSITY_OPTIONS,
+      DEFAULT_DASHBOARD_GLASS_INTENSITY
+    );
+  }
+
+  function normalizeDashboardBackgroundDimChoice(value = DEFAULT_DASHBOARD_BACKGROUND_DIM) {
+    return normalizeDashboardAppearanceChoice(
+      value,
+      DASHBOARD_BACKGROUND_DIM_OPTIONS,
+      DEFAULT_DASHBOARD_BACKGROUND_DIM
+    );
+  }
+
+  function normalizeDashboardAccentGlowChoice(value = DEFAULT_DASHBOARD_ACCENT_GLOW) {
+    return normalizeDashboardAppearanceChoice(
+      value,
+      DASHBOARD_ACCENT_GLOW_OPTIONS,
+      DEFAULT_DASHBOARD_ACCENT_GLOW
+    );
+  }
+
+  function normalizeDashboardDensityChoice(value = DEFAULT_DASHBOARD_DENSITY) {
+    return normalizeDashboardAppearanceChoice(
+      value,
+      DASHBOARD_DENSITY_OPTIONS,
+      DEFAULT_DASHBOARD_DENSITY
+    );
+  }
+
   function getDashboardBackgroundBlurChoice() {
     return normalizeDashboardBackgroundBlurChoice(global.document?.documentElement?.dataset?.dashboardBackgroundBlur);
+  }
+
+  function getDashboardGlassIntensityChoice() {
+    return normalizeDashboardGlassIntensityChoice(global.document?.documentElement?.dataset?.dashboardGlassIntensity);
+  }
+
+  function getDashboardBackgroundDimChoice() {
+    return normalizeDashboardBackgroundDimChoice(global.document?.documentElement?.dataset?.dashboardBackgroundDim);
+  }
+
+  function getDashboardAccentGlowChoice() {
+    return normalizeDashboardAccentGlowChoice(global.document?.documentElement?.dataset?.dashboardAccentGlow);
+  }
+
+  function getDashboardDensityChoice() {
+    return normalizeDashboardDensityChoice(global.document?.documentElement?.dataset?.dashboardDensity);
   }
 
   function getDashboardThemeOptions(helpers) {
@@ -1326,6 +1406,91 @@
           <output id="dashboard-background-blur-value" for="dashboard-background-blur" data-dashboard-background-blur-value>${helpers.escapeHtml(String(blur))}px</output>
         </div>
         <p class="settings-shell-section-copy">${helpers.escapeHtml(helpers.t("settings.backgroundBlurCopy"))}</p>
+      </div>
+    `;
+  }
+
+  function buildDashboardAppearanceSegmentedControl(helpers, options = {}) {
+    const selected = options.normalize(options.selected);
+
+    return `
+      <div class="settings-dashboard-appearance-control">
+        <div class="settings-dashboard-appearance-head">
+          <h4>${helpers.escapeHtml(options.title)}</h4>
+          <p>${helpers.escapeHtml(options.copy)}</p>
+        </div>
+        <div class="settings-dashboard-appearance-options" role="radiogroup" aria-label="${helpers.escapeHtml(options.title)}">
+          ${options.choices.map((choice) => `
+            <label class="settings-dashboard-appearance-option ${selected === choice.value ? "active" : ""}">
+              <input
+                type="radio"
+                name="${helpers.escapeHtml(options.name)}"
+                value="${helpers.escapeHtml(choice.value)}"
+                ${options.dataAttribute}
+                ${selected === choice.value ? "checked" : ""}
+              >
+              <span>${helpers.escapeHtml(choice.label)}</span>
+            </label>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function buildDashboardAppearanceControlsMarkup(helpers, appearance = {}) {
+    return `
+      <div class="settings-dashboard-appearance-grid">
+        ${buildDashboardAppearanceSegmentedControl(helpers, {
+          title: helpers.t("settings.glassIntensity"),
+          copy: helpers.t("settings.glassIntensityCopy"),
+          name: "dashboard_glass_intensity",
+          dataAttribute: "data-dashboard-glass-intensity-choice",
+          selected: appearance.glassIntensity,
+          normalize: normalizeDashboardGlassIntensityChoice,
+          choices: [
+            { value: "subtle", label: helpers.t("settings.glassIntensitySubtle") },
+            { value: "balanced", label: helpers.t("settings.glassIntensityBalanced") },
+            { value: "clear", label: helpers.t("settings.glassIntensityClear") },
+          ],
+        })}
+        ${buildDashboardAppearanceSegmentedControl(helpers, {
+          title: helpers.t("settings.backgroundDim"),
+          copy: helpers.t("settings.backgroundDimCopy"),
+          name: "dashboard_background_dim",
+          dataAttribute: "data-dashboard-background-dim-choice",
+          selected: appearance.backgroundDim,
+          normalize: normalizeDashboardBackgroundDimChoice,
+          choices: [
+            { value: "bright", label: helpers.t("settings.backgroundDimBright") },
+            { value: "balanced", label: helpers.t("settings.backgroundDimBalanced") },
+            { value: "dim", label: helpers.t("settings.backgroundDimDim") },
+          ],
+        })}
+        ${buildDashboardAppearanceSegmentedControl(helpers, {
+          title: helpers.t("settings.accentGlow"),
+          copy: helpers.t("settings.accentGlowCopy"),
+          name: "dashboard_accent_glow",
+          dataAttribute: "data-dashboard-accent-glow-choice",
+          selected: appearance.accentGlow,
+          normalize: normalizeDashboardAccentGlowChoice,
+          choices: [
+            { value: "off", label: helpers.t("settings.accentGlowOff") },
+            { value: "soft", label: helpers.t("settings.accentGlowSoft") },
+            { value: "vivid", label: helpers.t("settings.accentGlowVivid") },
+          ],
+        })}
+        ${buildDashboardAppearanceSegmentedControl(helpers, {
+          title: helpers.t("settings.dashboardDensity"),
+          copy: helpers.t("settings.dashboardDensityCopy"),
+          name: "dashboard_density",
+          dataAttribute: "data-dashboard-density-choice",
+          selected: appearance.density,
+          normalize: normalizeDashboardDensityChoice,
+          choices: [
+            { value: "comfortable", label: helpers.t("settings.dashboardDensityComfortable") },
+            { value: "compact", label: helpers.t("settings.dashboardDensityCompact") },
+          ],
+        })}
       </div>
     `;
   }
@@ -2411,6 +2576,12 @@
     const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
+    const dashboardAppearance = {
+      glassIntensity: getDashboardGlassIntensityChoice(),
+      backgroundDim: getDashboardBackgroundDimChoice(),
+      accentGlow: getDashboardAccentGlowChoice(),
+      density: getDashboardDensityChoice(),
+    };
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
     const isHungarian = dashboardLanguage === "hu";
@@ -2593,6 +2764,7 @@
           </div>
           ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
           ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
+          ${buildDashboardAppearanceControlsMarkup(helpers, dashboardAppearance)}
         </section>
 
         <section class="settings-shell-section">
@@ -3157,6 +3329,12 @@
     const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
+    const dashboardAppearance = {
+      glassIntensity: getDashboardGlassIntensityChoice(),
+      backgroundDim: getDashboardBackgroundDimChoice(),
+      accentGlow: getDashboardAccentGlowChoice(),
+      density: getDashboardDensityChoice(),
+    };
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
@@ -3208,6 +3386,7 @@
           </div>
           ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
           ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
+          ${buildDashboardAppearanceControlsMarkup(helpers, dashboardAppearance)}
         </div>
       </article>
     `;

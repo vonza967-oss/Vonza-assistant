@@ -764,6 +764,43 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "24");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "24px");
 
+  assert.equal(harness.getDashboardGlassIntensity(), "balanced");
+  assert.equal(harness.applyDashboardGlassIntensity(), "balanced");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "balanced");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-glass-intensity"), "balanced");
+
+  assert.equal(harness.saveDashboardGlassIntensity("clear"), "clear");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_glass_intensity"), "clear");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "clear");
+  assert.equal(harness.document.body.dataset.dashboardGlassIntensity, "clear");
+
+  assert.equal(harness.getDashboardBackgroundDim(), "balanced");
+  assert.equal(harness.applyDashboardBackgroundDim(), "balanced");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
+
+  assert.equal(harness.saveDashboardBackgroundDim("dim"), "dim");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_dim"), "dim");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "dim");
+  assert.equal(harness.document.body.dataset.dashboardBackgroundDim, "dim");
+
+  assert.equal(harness.getDashboardAccentGlow(), "soft");
+  assert.equal(harness.applyDashboardAccentGlow(), "soft");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
+
+  assert.equal(harness.saveDashboardAccentGlow("vivid"), "vivid");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_accent_glow"), "vivid");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "vivid");
+  assert.equal(harness.document.body.dataset.dashboardAccentGlow, "vivid");
+
+  assert.equal(harness.getDashboardDensity(), "comfortable");
+  assert.equal(harness.applyDashboardDensity(), "comfortable");
+  assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
+
+  assert.equal(harness.saveDashboardDensity("compact"), "compact");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_density"), "compact");
+  assert.equal(harness.document.documentElement.dataset.dashboardDensity, "compact");
+  assert.equal(harness.document.body.dataset.dashboardDensity, "compact");
+
   const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
     agent: {},
     setup: {},
@@ -787,6 +824,61 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.match(settingsPanel, /max="24"/);
   assert.match(settingsPanel, /value="24"/);
   assert.match(settingsPanel, /24px/);
+  assert.match(settingsPanel, /Glass intensity/);
+  assert.match(settingsPanel, /data-dashboard-glass-intensity-choice/);
+  assert.match(settingsPanel, /name="dashboard_glass_intensity"/);
+  assert.match(settingsPanel, /value="clear"[\s\S]*checked/);
+  assert.match(settingsPanel, /Background dim/);
+  assert.match(settingsPanel, /data-dashboard-background-dim-choice/);
+  assert.match(settingsPanel, /name="dashboard_background_dim"/);
+  assert.match(settingsPanel, /value="dim"[\s\S]*checked/);
+  assert.match(settingsPanel, /Accent glow/);
+  assert.match(settingsPanel, /data-dashboard-accent-glow-choice/);
+  assert.match(settingsPanel, /name="dashboard_accent_glow"/);
+  assert.match(settingsPanel, /value="vivid"[\s\S]*checked/);
+  assert.match(settingsPanel, /Dashboard density/);
+  assert.match(settingsPanel, /data-dashboard-density-choice/);
+  assert.match(settingsPanel, /name="dashboard_density"/);
+  assert.match(settingsPanel, /value="compact"[\s\S]*checked/);
+  assert.match(settingsPanel, /Comfortable/);
+
+  const dashboardHtml = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
+  assert.match(dashboardHtml, /vonza_dashboard_glass_intensity/);
+  assert.match(dashboardHtml, /dataset\.dashboardGlassIntensity/);
+  assert.match(dashboardHtml, /vonza_dashboard_background_dim/);
+  assert.match(dashboardHtml, /dataset\.dashboardBackgroundDim/);
+  assert.match(dashboardHtml, /vonza_dashboard_accent_glow/);
+  assert.match(dashboardHtml, /dataset\.dashboardAccentGlow/);
+  assert.match(dashboardHtml, /vonza_dashboard_density/);
+  assert.match(dashboardHtml, /dataset\.dashboardDensity/);
+});
+
+test("dashboard appearance preferences reject invalid stored values safely", () => {
+  const harness = createDashboardHarness({
+    windowFlags: {
+      VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
+    },
+  });
+
+  harness.window.localStorage.setItem("vonza_dashboard_glass_intensity", "transparent");
+  harness.window.localStorage.setItem("vonza_dashboard_background_dim", "blackout");
+  harness.window.localStorage.setItem("vonza_dashboard_accent_glow", "neon");
+  harness.window.localStorage.setItem("vonza_dashboard_density", "tiny");
+
+  assert.equal(harness.getDashboardGlassIntensity(), "balanced");
+  assert.equal(harness.getDashboardBackgroundDim(), "balanced");
+  assert.equal(harness.getDashboardAccentGlow(), "soft");
+  assert.equal(harness.getDashboardDensity(), "comfortable");
+
+  assert.equal(harness.applyDashboardGlassIntensity(harness.getDashboardGlassIntensity()), "balanced");
+  assert.equal(harness.applyDashboardBackgroundDim(harness.getDashboardBackgroundDim()), "balanced");
+  assert.equal(harness.applyDashboardAccentGlow(harness.getDashboardAccentGlow()), "soft");
+  assert.equal(harness.applyDashboardDensity(harness.getDashboardDensity()), "comfortable");
+
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "balanced");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
+  assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
+  assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
 });
 
 test("first-time dashboard language chooser renders and translation fallback is safe", () => {

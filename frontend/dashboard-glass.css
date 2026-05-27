@@ -41,6 +41,7 @@ html[data-dashboard-theme] {
   --dashboard-background-image: url("/assets/dashboard/backgrounds/skyline-atrium.png");
   --dashboard-background-blur: 10px;
   --dashboard-background-bleed: max(28px, calc(var(--dashboard-background-blur) * 2));
+  --dashboard-background-dim-layer: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
   --dashboard-background-overlay:
     linear-gradient(120deg, rgba(248, 251, 255, 0.72), rgba(238, 244, 255, 0.18) 38%, rgba(222, 231, 255, 0.34) 100%);
   --dashboard-background-sheen:
@@ -113,6 +114,7 @@ html[data-dashboard-theme] body::after {
   z-index: -1 !important;
   pointer-events: none;
   background:
+    var(--dashboard-background-dim-layer),
     var(--dashboard-background-overlay),
     var(--dashboard-background-sheen) !important;
   -webkit-backdrop-filter: none !important;
@@ -2799,9 +2801,9 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .workspace-page
 }
 
 .dashboard-v2-production-shell .settings-shell-top-nav-group .settings-shell-nav-button.active {
-  border-color: rgba(104, 76, 244, 0.36);
+  border-color: var(--dashboard-purple-border, rgba(104, 76, 244, 0.36));
   background:
-    linear-gradient(135deg, rgba(104, 76, 244, 0.14), rgba(47, 125, 246, 0.09)),
+    var(--dashboard-purple-surface, linear-gradient(135deg, rgba(104, 76, 244, 0.14), rgba(47, 125, 246, 0.09))),
     rgba(255, 255, 255, 0.32) !important;
   color: var(--theme-text);
   box-shadow: inset 3px 0 0 var(--theme-accent), var(--glass-operating-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.58));
@@ -3051,9 +3053,9 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .workspace-page
 .dashboard-v2-production-shell .settings-shell-theme-option.active,
 .dashboard-v2-production-shell .settings-shell-billing-plan-card:hover,
 .dashboard-v2-production-shell .settings-link-button:hover {
-  border-color: rgba(104, 76, 244, 0.34);
+  border-color: var(--dashboard-purple-border, rgba(104, 76, 244, 0.34));
   background:
-    linear-gradient(135deg, rgba(104, 76, 244, 0.12), rgba(47, 125, 246, 0.08)),
+    var(--dashboard-purple-surface-soft, linear-gradient(135deg, rgba(104, 76, 244, 0.12), rgba(47, 125, 246, 0.08))),
     rgba(255, 255, 255, 0.3) !important;
 }
 
@@ -3557,6 +3559,108 @@ html[data-dashboard-theme="dark"] {
   --glass-bg-soft: rgba(255, 255, 255, 0.08);
 }
 
+html[data-dashboard-theme] {
+  --dashboard-purple-border: rgba(104, 76, 244, 0.36);
+  --dashboard-purple-border-strong: rgba(104, 76, 244, 0.42);
+  --dashboard-purple-surface: linear-gradient(135deg, rgba(104, 76, 244, 0.14), rgba(47, 125, 246, 0.09));
+  --dashboard-purple-surface-soft: linear-gradient(135deg, rgba(104, 76, 244, 0.12), rgba(47, 125, 246, 0.08));
+  --dashboard-purple-shadow: 0 12px 28px rgba(87, 84, 170, 0.14);
+  --dashboard-density-card-padding: 16px;
+  --dashboard-density-card-gap: 13px;
+  --dashboard-density-shell-gap: 24px;
+}
+
+html[data-dashboard-theme="bright"][data-dashboard-glass-intensity="subtle"],
+html[data-dashboard-theme="light"][data-dashboard-glass-intensity="subtle"] {
+  --glass-operating-bg: rgba(255, 255, 255, 0.26);
+  --glass-operating-bg-strong: rgba(255, 255, 255, 0.42);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.16);
+  --glass-operating-border: rgba(255, 255, 255, 0.82);
+  --glass-operating-border-soft: rgba(255, 255, 255, 0.56);
+  --glass-operating-blur: blur(24px) saturate(1.28);
+}
+
+html[data-dashboard-theme="bright"][data-dashboard-glass-intensity="clear"],
+html[data-dashboard-theme="light"][data-dashboard-glass-intensity="clear"] {
+  --glass-operating-bg: rgba(255, 255, 255, 0.12);
+  --glass-operating-bg-strong: rgba(255, 255, 255, 0.24);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.08);
+  --glass-operating-border: rgba(255, 255, 255, 0.64);
+  --glass-operating-border-soft: rgba(255, 255, 255, 0.42);
+  --glass-operating-blur: blur(34px) saturate(1.48);
+}
+
+html[data-dashboard-theme="dark"][data-dashboard-glass-intensity="subtle"] {
+  --glass-operating-bg: rgba(13, 18, 36, 0.32);
+  --glass-operating-bg-strong: rgba(19, 25, 48, 0.46);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.1);
+  --glass-operating-border: rgba(255, 255, 255, 0.22);
+  --glass-operating-border-soft: rgba(255, 255, 255, 0.15);
+  --glass-operating-blur: blur(24px) saturate(1.16);
+}
+
+html[data-dashboard-theme="dark"][data-dashboard-glass-intensity="clear"] {
+  --glass-operating-bg: rgba(13, 18, 36, 0.18);
+  --glass-operating-bg-strong: rgba(19, 25, 48, 0.31);
+  --glass-operating-bg-soft: rgba(255, 255, 255, 0.07);
+  --glass-operating-border: rgba(255, 255, 255, 0.16);
+  --glass-operating-border-soft: rgba(255, 255, 255, 0.1);
+  --glass-operating-blur: blur(34px) saturate(1.28);
+}
+
+html[data-dashboard-theme="bright"][data-dashboard-background-dim="bright"],
+html[data-dashboard-theme="light"][data-dashboard-background-dim="bright"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
+}
+
+html[data-dashboard-theme="bright"][data-dashboard-background-dim="balanced"],
+html[data-dashboard-theme="light"][data-dashboard-background-dim="balanced"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(248, 251, 255, 0.06), rgba(238, 244, 255, 0.04));
+}
+
+html[data-dashboard-theme="bright"][data-dashboard-background-dim="dim"],
+html[data-dashboard-theme="light"][data-dashboard-background-dim="dim"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(248, 251, 255, 0.2), rgba(228, 235, 255, 0.16));
+}
+
+html[data-dashboard-theme="dark"][data-dashboard-background-dim="bright"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(3, 6, 18, 0), rgba(3, 6, 18, 0));
+}
+
+html[data-dashboard-theme="dark"][data-dashboard-background-dim="balanced"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(3, 6, 18, 0.12), rgba(9, 12, 28, 0.1));
+}
+
+html[data-dashboard-theme="dark"][data-dashboard-background-dim="dim"] {
+  --dashboard-background-dim-layer: linear-gradient(rgba(3, 6, 18, 0.32), rgba(9, 12, 28, 0.28));
+}
+
+html[data-dashboard-accent-glow="off"] {
+  --accent-glow: rgba(80, 110, 224, 0);
+  --dashboard-accent-soft: rgba(75, 126, 246, 0.04);
+  --dashboard-purple-border: rgba(104, 76, 244, 0.22);
+  --dashboard-purple-border-strong: rgba(104, 76, 244, 0.28);
+  --dashboard-purple-surface: linear-gradient(135deg, rgba(104, 76, 244, 0.07), rgba(47, 125, 246, 0.05));
+  --dashboard-purple-surface-soft: linear-gradient(135deg, rgba(104, 76, 244, 0.06), rgba(47, 125, 246, 0.04));
+  --dashboard-purple-shadow: none;
+}
+
+html[data-dashboard-accent-glow="vivid"] {
+  --accent-glow: rgba(104, 76, 244, 0.24);
+  --dashboard-accent-soft: rgba(104, 76, 244, 0.16);
+  --dashboard-purple-border: rgba(104, 76, 244, 0.5);
+  --dashboard-purple-border-strong: rgba(104, 76, 244, 0.6);
+  --dashboard-purple-surface: linear-gradient(135deg, rgba(104, 76, 244, 0.2), rgba(47, 125, 246, 0.14));
+  --dashboard-purple-surface-soft: linear-gradient(135deg, rgba(104, 76, 244, 0.17), rgba(47, 125, 246, 0.12));
+  --dashboard-purple-shadow: 0 16px 34px rgba(104, 76, 244, 0.2);
+}
+
+html[data-dashboard-density="compact"] {
+  --dashboard-density-card-padding: 12px;
+  --dashboard-density-card-gap: 10px;
+  --dashboard-density-shell-gap: 16px;
+}
+
 html[data-dashboard-theme] .shell,
 html[data-dashboard-theme] .app-shell,
 html[data-dashboard-theme] .dashboard-v2-production-shell,
@@ -3805,6 +3909,105 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell :is(
   text-align: right;
 }
 
+.dashboard-v2-production-shell .settings-dashboard-appearance-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-control {
+  min-width: 0;
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--glass-operating-border-soft, rgba(122, 137, 190, 0.2));
+  border-radius: 14px;
+  background: var(--glass-operating-bg-soft, rgba(255, 255, 255, 0.1));
+  box-shadow: var(--glass-operating-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.58));
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-head {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-head h4,
+.dashboard-v2-production-shell .settings-dashboard-appearance-head p {
+  margin: 0;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-head h4 {
+  color: var(--theme-text);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-head p {
+  color: var(--theme-copy);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-options {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--glass-operating-border-soft, rgba(122, 137, 190, 0.2));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-option {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--theme-copy);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-option input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-option span {
+  min-width: 0;
+  color: inherit;
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-v2-production-shell .settings-dashboard-appearance-option:hover,
+.dashboard-v2-production-shell .settings-dashboard-appearance-option.active {
+  border-color: var(--dashboard-purple-border, rgba(104, 76, 244, 0.34));
+  background:
+    var(--dashboard-purple-surface-soft, linear-gradient(135deg, rgba(104, 76, 244, 0.12), rgba(47, 125, 246, 0.08))),
+    rgba(255, 255, 255, 0.28);
+  color: var(--theme-text);
+}
+
 .dashboard-v2-production-shell .settings-shell-background-option {
   position: relative;
   min-width: 0;
@@ -3823,10 +4026,10 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell :is(
 
 .dashboard-v2-production-shell .settings-shell-background-option:hover,
 .dashboard-v2-production-shell .settings-shell-background-option.active {
-  border-color: rgba(104, 76, 244, 0.42);
+  border-color: var(--dashboard-purple-border-strong, rgba(104, 76, 244, 0.42));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 12px 28px rgba(87, 84, 170, 0.14);
+    var(--dashboard-purple-shadow, 0 12px 28px rgba(87, 84, 170, 0.14));
 }
 
 .dashboard-v2-production-shell .settings-shell-background-option.active {
@@ -3889,13 +4092,59 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell :is(
 }
 
 @media (max-width: 700px) {
-  .dashboard-v2-production-shell .settings-shell-background-options {
+  .dashboard-v2-production-shell .settings-shell-background-options,
+  .dashboard-v2-production-shell .settings-dashboard-appearance-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 520px) {
-  .dashboard-v2-production-shell .settings-shell-background-options {
+  .dashboard-v2-production-shell .settings-shell-background-options,
+  .dashboard-v2-production-shell .settings-dashboard-appearance-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+html[data-dashboard-density="compact"] .dashboard-v2-production-shell {
+  gap: var(--dashboard-density-shell-gap, 16px);
+}
+
+html[data-dashboard-density="compact"] .dashboard-v2-production-shell .workspace-pages {
+  padding-top: 18px;
+}
+
+html[data-dashboard-density="compact"] .dashboard-v2-production-shell :is(
+  .settings-overview-card,
+  .settings-shell-section,
+  .settings-shell-page-header,
+  .settings-operational-card,
+  .glass-card,
+  .workspace-card-soft,
+  .v2-card,
+  .v2-metric-card,
+  .v2-table-card,
+  .frontdesk-workspace-panel,
+  .frontdesk-polished-panel,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .install-side-card,
+  .install-method-card
+) {
+  padding: var(--dashboard-density-card-padding, 12px) !important;
+}
+
+html[data-dashboard-density="compact"] .dashboard-v2-production-shell :is(
+  .settings-shell-form,
+  .settings-background-preference,
+  .settings-dashboard-appearance-grid,
+  .glass-home-layout,
+  .glass-home-middle,
+  .glass-home-bottom,
+  .workspace-page-body,
+  .analytics-route-stack,
+  .frontdesk-page-layout,
+  .contacts-workspace,
+  .install-page-layout
+) {
+  gap: var(--dashboard-density-card-gap, 10px) !important;
 }
