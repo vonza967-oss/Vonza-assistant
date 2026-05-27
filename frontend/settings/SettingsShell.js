@@ -33,6 +33,38 @@
     appearance: "optional-widget",
   });
   const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
+  const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
+    Object.freeze({
+      value: "skyline-atrium",
+      label: "Skyline Atrium",
+      copy: "Bright city glass with a soft skyline view.",
+      url: "/assets/dashboard/backgrounds/skyline-atrium.png",
+    }),
+    Object.freeze({
+      value: "harbor-lounge",
+      label: "Harbor Lounge",
+      copy: "Open lounge, water view, and bright marble floor.",
+      url: "/assets/dashboard/backgrounds/harbor-lounge.png",
+    }),
+    Object.freeze({
+      value: "coastal-gallery",
+      label: "Coastal Gallery",
+      copy: "Minimal coastal hall with clean daylight.",
+      url: "/assets/dashboard/backgrounds/coastal-gallery.png",
+    }),
+    Object.freeze({
+      value: "midnight-lobby",
+      label: "Midnight Lobby",
+      copy: "Dark executive lobby with purple light.",
+      url: "/assets/dashboard/backgrounds/midnight-lobby.png",
+    }),
+    Object.freeze({
+      value: "midnight-suite",
+      label: "Midnight Suite",
+      copy: "Low-light lounge with deep glass contrast.",
+      url: "/assets/dashboard/backgrounds/midnight-suite.png",
+    }),
+  ]);
   const SETTINGS_SECTION_ALIASES = Object.freeze({
     assistant: "general",
     branding: "general",
@@ -62,12 +94,15 @@
     "settings.copy": "Manage workspace, business, account, and privacy settings.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
+    "settings.background": "Dashboard background",
+    "settings.backgroundCopy": "Choose the environment image visible through the dashboard glass.",
     "settings.brightGlass": "Bright Glass",
     "settings.darkGlass": "Dark Glass",
     "settings.system": "System",
     "settings.light": "Bright Glass",
     "settings.dark": "Dark Glass",
   });
+  global.VONZA_DASHBOARD_BACKGROUND_OPTIONS = DASHBOARD_BACKGROUND_OPTIONS;
   const LEGAL_LINKS = Object.freeze([
     { href: "/aszf", label: "ÁSZF" },
     { href: "/impresszum", label: "Impresszum" },
@@ -1188,6 +1223,17 @@
     return theme === "dark" ? "dark" : "bright";
   }
 
+  function normalizeDashboardBackgroundChoice(value = "") {
+    const normalized = defaultTrimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+    return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
+      ? normalized
+      : DASHBOARD_BACKGROUND_OPTIONS[0].value;
+  }
+
+  function getDashboardBackgroundChoice() {
+    return normalizeDashboardBackgroundChoice(global.document?.documentElement?.dataset?.dashboardBackground);
+  }
+
   function getDashboardThemeOptions(helpers) {
     return [
       {
@@ -1206,6 +1252,35 @@
         copy: helpers.translateDashboardText("Follow this device's light or dark appearance."),
       },
     ];
+  }
+
+  function getDashboardBackgroundOptions() {
+    return DASHBOARD_BACKGROUND_OPTIONS;
+  }
+
+  function buildDashboardBackgroundOptionsMarkup(helpers, selectedBackground) {
+    const selected = normalizeDashboardBackgroundChoice(selectedBackground);
+
+    return `
+      <div class="settings-shell-background-options" role="radiogroup" aria-label="${helpers.escapeHtml(helpers.t("settings.background"))}">
+        ${getDashboardBackgroundOptions().map((background) => `
+          <label class="settings-shell-background-option ${selected === background.value ? "active" : ""}">
+            <input
+              type="radio"
+              name="dashboard_background"
+              value="${helpers.escapeHtml(background.value)}"
+              data-dashboard-background-choice
+              ${selected === background.value ? "checked" : ""}
+            >
+            <img src="${helpers.escapeHtml(background.url)}" alt="" loading="lazy" aria-hidden="true">
+            <span>
+              <strong>${helpers.escapeHtml(background.label)}</strong>
+              <small>${helpers.escapeHtml(helpers.translateDashboardText(background.copy))}</small>
+            </span>
+          </label>
+        `).join("")}
+      </div>
+    `;
   }
 
   function renderSettingsIcon(name) {
@@ -2287,6 +2362,7 @@
     const billingNoticeTone = defaultTrimText(billingUsage.tone).toLowerCase() || "ok";
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
     const dashboardTheme = getDashboardAppearanceChoice();
+    const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
     const isHungarian = dashboardLanguage === "hu";
@@ -2458,6 +2534,16 @@
             `).join("")}
           </div>
           <p class="settings-shell-section-copy">${escapeHtml(helpers.translateDashboardText("Saved as a dashboard preference on this device."))}</p>
+        </section>
+
+        <section class="settings-shell-section settings-shell-section--background">
+          <div class="settings-shell-section-header">
+            <div>
+              <h3 class="settings-shell-section-title">${escapeHtml(t("settings.background"))}</h3>
+              <p class="settings-shell-section-copy">${escapeHtml(t("settings.backgroundCopy"))}</p>
+            </div>
+          </div>
+          ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
         </section>
 
         <section class="settings-shell-section">
@@ -3020,6 +3106,7 @@
       t,
     } = helpers;
     const dashboardTheme = getDashboardAppearanceChoice();
+    const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
@@ -3028,7 +3115,7 @@
         <div class="settings-card-heading">
           <div>
             <h2 class="settings-card-title">Workspace preferences</h2>
-            <p class="settings-card-copy">Dashboard language and theme are real workspace preferences for this browser/session.</p>
+            <p class="settings-card-copy">Dashboard language, theme, and glass background are real workspace preferences for this browser/session.</p>
           </div>
         </div>
         <div class="settings-preferences-grid">
@@ -3063,6 +3150,13 @@
               </label>
             `).join("")}
           </div>
+        </div>
+        <div class="settings-background-preference">
+          <div>
+            <h3 class="settings-card-title">${escapeHtml(t("settings.background"))}</h3>
+            <p class="settings-card-copy">${escapeHtml(t("settings.backgroundCopy"))}</p>
+          </div>
+          ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
         </div>
       </article>
     `;

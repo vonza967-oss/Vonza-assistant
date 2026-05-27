@@ -703,7 +703,7 @@ test("settings saves only show success after backend confirmation", () => {
   assert.doesNotMatch(businessProfileParserSource, /approvedContactChannels|approvalPreferences|approved_contact|approval_/);
 });
 
-test("dashboard theme defaults to bright glass, persists dark and system modes, and renders Settings controls", () => {
+test("dashboard theme and background preferences persist and render Settings controls", () => {
   const harness = createDashboardHarness({
     windowFlags: {
       VONZA_OPERATOR_WORKSPACE_V1_ENABLED: true,
@@ -725,6 +725,15 @@ test("dashboard theme defaults to bright glass, persists dark and system modes, 
   assert.equal(harness.document.documentElement.dataset.dashboardAppearance, "system");
   assert.equal(harness.document.documentElement.dataset.dashboardTheme, "bright");
 
+  assert.equal(harness.getDashboardBackground(), "skyline-atrium");
+  assert.equal(harness.applyDashboardBackground(), "skyline-atrium");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "skyline-atrium");
+
+  assert.equal(harness.saveDashboardBackground("midnight-suite"), "midnight-suite");
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background"), "midnight-suite");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackground, "midnight-suite");
+  assert.equal(harness.document.body.dataset.dashboardBackground, "midnight-suite");
+
   const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
     agent: {},
     setup: {},
@@ -736,6 +745,11 @@ test("dashboard theme defaults to bright glass, persists dark and system modes, 
   assert.match(settingsPanel, /Dark Glass/);
   assert.match(settingsPanel, /System/);
   assert.match(settingsPanel, /value="system"[\s\S]*checked/);
+  assert.match(settingsPanel, /Dashboard background/);
+  assert.match(settingsPanel, /data-dashboard-background-choice/);
+  assert.match(settingsPanel, /Skyline Atrium/);
+  assert.match(settingsPanel, /Midnight Suite/);
+  assert.match(settingsPanel, /value="midnight-suite"[\s\S]*checked/);
 });
 
 test("first-time dashboard language chooser renders and translation fallback is safe", () => {
@@ -1841,6 +1855,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(general, /Workspace preferences/);
   assert.match(general, /data-dashboard-language-form/);
   assert.match(general, /data-dashboard-theme-choice/);
+  assert.match(general, /data-dashboard-background-choice/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);

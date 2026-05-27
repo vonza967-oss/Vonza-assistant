@@ -24,6 +24,7 @@ const DASHBOARD_FRONTDESK_SECTION_KEY = "vonza_dashboard_frontdesk_section";
 const DASHBOARD_UI_STATE_STORAGE_KEY = "vonza_dashboard_ui_state";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
+const DASHBOARD_BACKGROUND_STORAGE_KEY = "vonza_dashboard_background";
 const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LEGAL_DOC_PATHS = Object.freeze({
@@ -38,6 +39,38 @@ const CONNECTED_TOOLS_SELF_SERVE_ENABLED = false;
 const KNOWLEDGE_IMPORT_TERMINAL_STATES = new Set(["success", "limited", "failed", "stalled"]);
 const KNOWLEDGE_IMPORT_ACTIVE_STATES = new Set(["queued", "running", "crawling", "indexing"]);
 const KNOWLEDGE_IMPORT_MAX_POLLS = 60;
+const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze(
+  Array.isArray(window.VONZA_DASHBOARD_BACKGROUND_OPTIONS) && window.VONZA_DASHBOARD_BACKGROUND_OPTIONS.length
+    ? window.VONZA_DASHBOARD_BACKGROUND_OPTIONS
+    : [
+      {
+        value: "skyline-atrium",
+        label: "Skyline Atrium",
+        url: "/assets/dashboard/backgrounds/skyline-atrium.png",
+      },
+      {
+        value: "harbor-lounge",
+        label: "Harbor Lounge",
+        url: "/assets/dashboard/backgrounds/harbor-lounge.png",
+      },
+      {
+        value: "coastal-gallery",
+        label: "Coastal Gallery",
+        url: "/assets/dashboard/backgrounds/coastal-gallery.png",
+      },
+      {
+        value: "midnight-lobby",
+        label: "Midnight Lobby",
+        url: "/assets/dashboard/backgrounds/midnight-lobby.png",
+      },
+      {
+        value: "midnight-suite",
+        label: "Midnight Suite",
+        url: "/assets/dashboard/backgrounds/midnight-suite.png",
+      },
+    ]
+);
+const DEFAULT_DASHBOARD_BACKGROUND = DASHBOARD_BACKGROUND_OPTIONS[0]?.value || "skyline-atrium";
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -1444,6 +1477,19 @@ function resolveDashboardTheme(value = "") {
   } catch {
     return "bright";
   }
+}
+
+function normalizeDashboardBackground(value = "") {
+  const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+  return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
+    ? normalized
+    : DEFAULT_DASHBOARD_BACKGROUND;
+}
+
+function getDashboardBackgroundOption(value = "") {
+  const normalizedBackground = normalizeDashboardBackground(value);
+  return DASHBOARD_BACKGROUND_OPTIONS.find((option) => option.value === normalizedBackground)
+    || DASHBOARD_BACKGROUND_OPTIONS[0];
 }
 
 function normalizeDashboardLanguage(value = "") {
@@ -2858,12 +2904,29 @@ function getDashboardTheme() {
   }
 }
 
+function getDashboardBackground() {
+  try {
+    return normalizeDashboardBackground(window.localStorage.getItem(DASHBOARD_BACKGROUND_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_BACKGROUND;
+  }
+}
+
 function syncDashboardThemeControls(root = document) {
   const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance || getDashboardTheme());
   root.querySelectorAll?.("[data-dashboard-theme-choice]")?.forEach((input) => {
     const selected = normalizeDashboardTheme(input.value) === theme;
     input.checked = selected;
     input.closest?.(".settings-shell-theme-option")?.classList.toggle("active", selected);
+  });
+}
+
+function syncDashboardBackgroundControls(root = document) {
+  const background = normalizeDashboardBackground(document.documentElement?.dataset.dashboardBackground || getDashboardBackground());
+  root.querySelectorAll?.("[data-dashboard-background-choice]")?.forEach((input) => {
+    const selected = normalizeDashboardBackground(input.value) === background;
+    input.checked = selected;
+    input.closest?.(".settings-shell-background-option")?.classList.toggle("active", selected);
   });
 }
 
@@ -2916,6 +2979,27 @@ function applyDashboardTheme(theme = getDashboardTheme()) {
   return normalizedTheme;
 }
 
+function applyDashboardBackground(background = getDashboardBackground()) {
+  const normalizedBackground = normalizeDashboardBackground(background);
+  const option = getDashboardBackgroundOption(normalizedBackground);
+  const cssImageValue = option?.url ? `url("${String(option.url).replace(/"/g, "%22")}")` : "";
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardBackground = normalizedBackground;
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardBackground = normalizedBackground;
+  }
+
+  if (cssImageValue) {
+    document.documentElement?.style?.setProperty?.("--dashboard-background-image", cssImageValue);
+  }
+
+  syncDashboardBackgroundControls();
+  return normalizedBackground;
+}
+
 function saveDashboardTheme(theme) {
   const normalizedTheme = normalizeDashboardTheme(theme);
 
@@ -2927,6 +3011,19 @@ function saveDashboardTheme(theme) {
 
   applyDashboardTheme(normalizedTheme);
   return normalizedTheme;
+}
+
+function saveDashboardBackground(background) {
+  const normalizedBackground = normalizeDashboardBackground(background);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_BACKGROUND_STORAGE_KEY, normalizedBackground);
+  } catch {
+    // Background persistence is optional when storage is blocked.
+  }
+
+  applyDashboardBackground(normalizedBackground);
+  return normalizedBackground;
 }
 
 function getInstallStorageKey(agentId) {
@@ -14546,6 +14643,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const shellBackdrop = document.querySelector("[data-shell-backdrop]");
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
+  const backgroundChoiceInputs = document.querySelectorAll("[data-dashboard-background-choice]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
@@ -15854,6 +15952,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     })
     : null;
   applyDashboardTheme(getDashboardTheme());
+  applyDashboardBackground(getDashboardBackground());
 
   themeChoiceInputs.forEach((input) => {
     input.addEventListener("change", () => {
@@ -15864,6 +15963,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const savedTheme = saveDashboardTheme(input.value);
       const themeLabel = savedTheme === "system" ? "system" : savedTheme === "dark" ? "Dark Glass" : "Bright Glass";
       setStatus(`Dashboard theme set to ${themeLabel}.`);
+    });
+  });
+
+  backgroundChoiceInputs.forEach((input) => {
+    input.addEventListener("change", () => {
+      if (!input.checked) {
+        return;
+      }
+
+      const savedBackground = saveDashboardBackground(input.value);
+      const backgroundLabel = getDashboardBackgroundOption(savedBackground)?.label || "dashboard background";
+      setStatus(`Dashboard background set to ${backgroundLabel}.`);
     });
   });
 

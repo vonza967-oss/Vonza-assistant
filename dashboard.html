@@ -24,6 +24,24 @@
       document.documentElement.dataset.dashboardAppearance = appearance;
       document.documentElement.dataset.dashboardTheme = resolvedTheme;
       try {
+        const allowedBackgrounds = new Set([
+          "skyline-atrium",
+          "harbor-lounge",
+          "coastal-gallery",
+          "midnight-lobby",
+          "midnight-suite",
+        ]);
+        const storedBackground = String(window.localStorage?.getItem("vonza_dashboard_background") || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[_\s]+/g, "-");
+        document.documentElement.dataset.dashboardBackground = allowedBackgrounds.has(storedBackground)
+          ? storedBackground
+          : "skyline-atrium";
+      } catch {
+        document.documentElement.dataset.dashboardBackground = "skyline-atrium";
+      }
+      try {
         const language = window.localStorage?.getItem("vonza_dashboard_language") === "hu" ? "hu" : "en";
         document.documentElement.dataset.dashboardLanguage = language;
         document.documentElement.lang = language;
