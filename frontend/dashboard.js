@@ -25,6 +25,7 @@ const DASHBOARD_UI_STATE_STORAGE_KEY = "vonza_dashboard_ui_state";
 const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selection";
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_BACKGROUND_STORAGE_KEY = "vonza_dashboard_background";
+const DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY = "vonza_dashboard_background_blur";
 const DASHBOARD_LANGUAGE_STORAGE_KEY = "vonza_dashboard_language";
 const CLAIM_DISMISS_PREFIX = "vonza_claim_dismissed_";
 const LEGAL_DOC_PATHS = Object.freeze({
@@ -71,6 +72,9 @@ const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze(
     ]
 );
 const DEFAULT_DASHBOARD_BACKGROUND = DASHBOARD_BACKGROUND_OPTIONS[0]?.value || "skyline-atrium";
+const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
+const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
+const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
 const LAUNCH_STEPS = [
   {
     title: "Creating your front desk",
@@ -1484,6 +1488,19 @@ function normalizeDashboardBackground(value = "") {
   return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
     ? normalized
     : DEFAULT_DASHBOARD_BACKGROUND;
+}
+
+function normalizeDashboardBackgroundBlur(value = DEFAULT_DASHBOARD_BACKGROUND_BLUR) {
+  const parsedValue = Number.parseFloat(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
+  }
+
+  return Math.min(
+    DASHBOARD_BACKGROUND_BLUR_MAX,
+    Math.max(DASHBOARD_BACKGROUND_BLUR_MIN, Math.round(parsedValue))
+  );
 }
 
 function getDashboardBackgroundOption(value = "") {
@@ -2912,6 +2929,14 @@ function getDashboardBackground() {
   }
 }
 
+function getDashboardBackgroundBlur() {
+  try {
+    return normalizeDashboardBackgroundBlur(window.localStorage.getItem(DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY));
+  } catch {
+    return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
+  }
+}
+
 function syncDashboardThemeControls(root = document) {
   const theme = normalizeDashboardTheme(document.documentElement?.dataset.dashboardAppearance || getDashboardTheme());
   root.querySelectorAll?.("[data-dashboard-theme-choice]")?.forEach((input) => {
@@ -2927,6 +2952,19 @@ function syncDashboardBackgroundControls(root = document) {
     const selected = normalizeDashboardBackground(input.value) === background;
     input.checked = selected;
     input.closest?.(".settings-shell-background-option")?.classList.toggle("active", selected);
+  });
+}
+
+function syncDashboardBackgroundBlurControls(root = document) {
+  const blur = normalizeDashboardBackgroundBlur(document.documentElement?.dataset.dashboardBackgroundBlur || getDashboardBackgroundBlur());
+  root.querySelectorAll?.("[data-dashboard-background-blur-control]")?.forEach((input) => {
+    input.value = String(blur);
+    const output = input.closest?.(".settings-background-blur-control")?.querySelector?.("[data-dashboard-background-blur-value]")
+      || root.getElementById?.(input.getAttribute?.("aria-describedby") || "");
+
+    if (output) {
+      output.textContent = `${blur}px`;
+    }
   });
 }
 
@@ -3000,6 +3038,25 @@ function applyDashboardBackground(background = getDashboardBackground()) {
   return normalizedBackground;
 }
 
+function applyDashboardBackgroundBlur(blur = getDashboardBackgroundBlur()) {
+  const normalizedBlur = normalizeDashboardBackgroundBlur(blur);
+  const cssBlurValue = `${normalizedBlur}px`;
+
+  if (document.documentElement?.dataset) {
+    document.documentElement.dataset.dashboardBackgroundBlur = String(normalizedBlur);
+  }
+
+  if (document.body?.dataset) {
+    document.body.dataset.dashboardBackgroundBlur = String(normalizedBlur);
+  }
+
+  document.documentElement?.style?.setProperty?.("--dashboard-background-blur", cssBlurValue);
+  document.body?.style?.setProperty?.("--dashboard-background-blur", cssBlurValue);
+
+  syncDashboardBackgroundBlurControls();
+  return normalizedBlur;
+}
+
 function saveDashboardTheme(theme) {
   const normalizedTheme = normalizeDashboardTheme(theme);
 
@@ -3024,6 +3081,19 @@ function saveDashboardBackground(background) {
 
   applyDashboardBackground(normalizedBackground);
   return normalizedBackground;
+}
+
+function saveDashboardBackgroundBlur(blur) {
+  const normalizedBlur = normalizeDashboardBackgroundBlur(blur);
+
+  try {
+    window.localStorage.setItem(DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY, String(normalizedBlur));
+  } catch {
+    // Background blur persistence is optional when storage is blocked.
+  }
+
+  applyDashboardBackgroundBlur(normalizedBlur);
+  return normalizedBlur;
 }
 
 function getInstallStorageKey(agentId) {
@@ -14644,6 +14714,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const backgroundChoiceInputs = document.querySelectorAll("[data-dashboard-background-choice]");
+  const backgroundBlurInputs = document.querySelectorAll("[data-dashboard-background-blur-control]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
@@ -15953,6 +16024,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     : null;
   applyDashboardTheme(getDashboardTheme());
   applyDashboardBackground(getDashboardBackground());
+  applyDashboardBackgroundBlur(getDashboardBackgroundBlur());
 
   themeChoiceInputs.forEach((input) => {
     input.addEventListener("change", () => {
@@ -15976,6 +16048,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const backgroundLabel = getDashboardBackgroundOption(savedBackground)?.label || "dashboard background";
       setStatus(`Dashboard background set to ${backgroundLabel}.`);
     });
+  });
+
+  backgroundBlurInputs.forEach((input) => {
+    const persistBlur = () => {
+      const savedBlur = saveDashboardBackgroundBlur(input.value);
+      setStatus(`Dashboard background blur set to ${savedBlur}px.`);
+    };
+
+    input.addEventListener("input", () => {
+      applyDashboardBackgroundBlur(input.value);
+    });
+    input.addEventListener("change", persistBlur);
   });
 
   dashboardLanguageForms.forEach((form) => {

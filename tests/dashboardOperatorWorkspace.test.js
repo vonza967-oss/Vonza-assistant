@@ -10,6 +10,20 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 
 function createFakeElement(id) {
+  const style = {
+    setProperty(name, value) {
+      this[name] = String(value);
+    },
+    getPropertyValue(name) {
+      return this[name] || "";
+    },
+    removeProperty(name) {
+      const previousValue = this[name] || "";
+      delete this[name];
+      return previousValue;
+    },
+  };
+
   return {
     id,
     hidden: false,
@@ -17,7 +31,7 @@ function createFakeElement(id) {
     innerHTML: "",
     value: "",
     dataset: {},
-    style: {},
+    style,
     className: "",
     classList: {
       add() {},
@@ -734,6 +748,22 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardBackground, "midnight-suite");
   assert.equal(harness.document.body.dataset.dashboardBackground, "midnight-suite");
 
+  assert.equal(harness.getDashboardBackgroundBlur(), 10);
+  assert.equal(harness.applyDashboardBackgroundBlur(), 10);
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "10");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "10px");
+
+  assert.equal(harness.saveDashboardBackgroundBlur("18.4"), 18);
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_blur"), "18");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "18");
+  assert.equal(harness.document.body.dataset.dashboardBackgroundBlur, "18");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "18px");
+
+  assert.equal(harness.saveDashboardBackgroundBlur("99"), 24);
+  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_background_blur"), "24");
+  assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "24");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "24px");
+
   const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
     agent: {},
     setup: {},
@@ -750,6 +780,13 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.match(settingsPanel, /Skyline Atrium/);
   assert.match(settingsPanel, /Midnight Suite/);
   assert.match(settingsPanel, /value="midnight-suite"[\s\S]*checked/);
+  assert.match(settingsPanel, /Background blur/);
+  assert.match(settingsPanel, /data-dashboard-background-blur-control/);
+  assert.match(settingsPanel, /name="dashboard_background_blur"/);
+  assert.match(settingsPanel, /min="0"/);
+  assert.match(settingsPanel, /max="24"/);
+  assert.match(settingsPanel, /value="24"/);
+  assert.match(settingsPanel, /24px/);
 });
 
 test("first-time dashboard language chooser renders and translation fallback is safe", () => {
@@ -1856,6 +1893,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(general, /data-dashboard-language-form/);
   assert.match(general, /data-dashboard-theme-choice/);
   assert.match(general, /data-dashboard-background-choice/);
+  assert.match(general, /data-dashboard-background-blur-control/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);

@@ -39,6 +39,8 @@ html[data-dashboard-theme="light"] {
 
 html[data-dashboard-theme] {
   --dashboard-background-image: url("/assets/dashboard/backgrounds/skyline-atrium.png");
+  --dashboard-background-blur: 10px;
+  --dashboard-background-bleed: max(28px, calc(var(--dashboard-background-blur) * 2));
   --dashboard-background-overlay:
     linear-gradient(120deg, rgba(248, 251, 255, 0.72), rgba(238, 244, 255, 0.18) 38%, rgba(222, 231, 255, 0.34) 100%);
   --dashboard-background-sheen:
@@ -89,24 +91,33 @@ html[data-dashboard-background="midnight-suite"] {
 }
 
 html[data-dashboard-theme] body {
-  background-image:
-    var(--dashboard-background-overlay),
-    var(--dashboard-background-image) !important;
-  background-position: center, center !important;
-  background-repeat: no-repeat, no-repeat !important;
-  background-size: cover, cover !important;
-  background-attachment: fixed, fixed !important;
+  background: transparent !important;
+  overflow-x: hidden;
 }
 
 html[data-dashboard-theme] body::before {
-  background: var(--dashboard-background-sheen) !important;
+  inset: calc(var(--dashboard-background-bleed) * -1) !important;
+  z-index: -2 !important;
+  pointer-events: none;
+  background-image: var(--dashboard-background-image) !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  filter: blur(var(--dashboard-background-blur));
   opacity: 1 !important;
+  transform: translateZ(0);
+  will-change: filter;
 }
 
 html[data-dashboard-theme] body::after {
-  background: rgba(255, 255, 255, 0.04) !important;
+  z-index: -1 !important;
+  pointer-events: none;
+  background:
+    var(--dashboard-background-overlay),
+    var(--dashboard-background-sheen) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+  opacity: 1 !important;
 }
 
 .dashboard-v2-production-shell {
@@ -3753,6 +3764,45 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell :is(
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(142px, 100%), 1fr));
   gap: 10px;
+}
+
+.dashboard-v2-production-shell .settings-background-blur-control {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--glass-operating-border-soft, rgba(122, 137, 190, 0.2));
+  border-radius: 14px;
+  background: var(--glass-operating-bg-soft, rgba(255, 255, 255, 0.1));
+  box-shadow: var(--glass-operating-highlight, inset 0 1px 0 rgba(255, 255, 255, 0.58));
+}
+
+.dashboard-v2-production-shell .settings-background-blur-control label {
+  color: var(--theme-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dashboard-v2-production-shell .settings-background-blur-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-v2-production-shell .settings-background-blur-row input[type="range"] {
+  width: 100%;
+  min-width: 0;
+  accent-color: var(--dashboard-accent, #684cf4);
+}
+
+.dashboard-v2-production-shell .settings-background-blur-row output {
+  min-width: 44px;
+  color: var(--theme-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
 }
 
 .dashboard-v2-production-shell .settings-shell-background-option {

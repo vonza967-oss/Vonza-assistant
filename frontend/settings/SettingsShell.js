@@ -33,6 +33,9 @@
     appearance: "optional-widget",
   });
   const FULL_PAGE_SETTINGS_TABS = Object.freeze(["content", "design", "layout"]);
+  const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
+  const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
+  const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
   const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
     Object.freeze({
       value: "skyline-atrium",
@@ -96,6 +99,8 @@
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
     "settings.background": "Dashboard background",
     "settings.backgroundCopy": "Choose the environment image visible through the dashboard glass.",
+    "settings.backgroundBlur": "Background blur",
+    "settings.backgroundBlurCopy": "Soften the image behind dashboard glass without blurring cards or text.",
     "settings.brightGlass": "Bright Glass",
     "settings.darkGlass": "Dark Glass",
     "settings.system": "System",
@@ -1234,6 +1239,23 @@
     return normalizeDashboardBackgroundChoice(global.document?.documentElement?.dataset?.dashboardBackground);
   }
 
+  function normalizeDashboardBackgroundBlurChoice(value = DEFAULT_DASHBOARD_BACKGROUND_BLUR) {
+    const parsedValue = Number.parseFloat(value);
+
+    if (!Number.isFinite(parsedValue)) {
+      return DEFAULT_DASHBOARD_BACKGROUND_BLUR;
+    }
+
+    return Math.min(
+      DASHBOARD_BACKGROUND_BLUR_MAX,
+      Math.max(DASHBOARD_BACKGROUND_BLUR_MIN, Math.round(parsedValue))
+    );
+  }
+
+  function getDashboardBackgroundBlurChoice() {
+    return normalizeDashboardBackgroundBlurChoice(global.document?.documentElement?.dataset?.dashboardBackgroundBlur);
+  }
+
   function getDashboardThemeOptions(helpers) {
     return [
       {
@@ -1279,6 +1301,31 @@
             </span>
           </label>
         `).join("")}
+      </div>
+    `;
+  }
+
+  function buildDashboardBackgroundBlurMarkup(helpers, blurValue) {
+    const blur = normalizeDashboardBackgroundBlurChoice(blurValue);
+
+    return `
+      <div class="settings-background-blur-control">
+        <label for="dashboard-background-blur">${helpers.escapeHtml(helpers.t("settings.backgroundBlur"))}</label>
+        <div class="settings-background-blur-row">
+          <input
+            id="dashboard-background-blur"
+            type="range"
+            name="dashboard_background_blur"
+            min="${DASHBOARD_BACKGROUND_BLUR_MIN}"
+            max="${DASHBOARD_BACKGROUND_BLUR_MAX}"
+            step="1"
+            value="${helpers.escapeHtml(String(blur))}"
+            aria-describedby="dashboard-background-blur-value"
+            data-dashboard-background-blur-control
+          >
+          <output id="dashboard-background-blur-value" for="dashboard-background-blur" data-dashboard-background-blur-value>${helpers.escapeHtml(String(blur))}px</output>
+        </div>
+        <p class="settings-shell-section-copy">${helpers.escapeHtml(helpers.t("settings.backgroundBlurCopy"))}</p>
       </div>
     `;
   }
@@ -2363,6 +2410,7 @@
     const upgradeOptions = Array.isArray(billing.upgradeOptions) ? billing.upgradeOptions : [];
     const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardBackground = getDashboardBackgroundChoice();
+    const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
     const isHungarian = dashboardLanguage === "hu";
@@ -2544,6 +2592,7 @@
             </div>
           </div>
           ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
+          ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
         </section>
 
         <section class="settings-shell-section">
@@ -3107,6 +3156,7 @@
     } = helpers;
     const dashboardTheme = getDashboardAppearanceChoice();
     const dashboardBackground = getDashboardBackgroundChoice();
+    const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
     const dashboardLanguage = getDashboardLanguage();
     const supportedDashboardLanguages = getSupportedDashboardLanguages();
 
@@ -3157,6 +3207,7 @@
             <p class="settings-card-copy">${escapeHtml(t("settings.backgroundCopy"))}</p>
           </div>
           ${buildDashboardBackgroundOptionsMarkup(helpers, dashboardBackground)}
+          ${buildDashboardBackgroundBlurMarkup(helpers, dashboardBackgroundBlur)}
         </div>
       </article>
     `;

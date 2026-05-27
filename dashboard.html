@@ -42,6 +42,17 @@
         document.documentElement.dataset.dashboardBackground = "skyline-atrium";
       }
       try {
+        const storedBlur = Number.parseFloat(window.localStorage?.getItem("vonza_dashboard_background_blur"));
+        const backgroundBlur = Number.isFinite(storedBlur)
+          ? Math.min(24, Math.max(0, Math.round(storedBlur)))
+          : 10;
+        document.documentElement.dataset.dashboardBackgroundBlur = String(backgroundBlur);
+        document.documentElement.style.setProperty("--dashboard-background-blur", `${backgroundBlur}px`);
+      } catch {
+        document.documentElement.dataset.dashboardBackgroundBlur = "10";
+        document.documentElement.style.setProperty("--dashboard-background-blur", "10px");
+      }
+      try {
         const language = window.localStorage?.getItem("vonza_dashboard_language") === "hu" ? "hu" : "en";
         document.documentElement.dataset.dashboardLanguage = language;
         document.documentElement.lang = language;
