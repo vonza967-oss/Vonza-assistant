@@ -474,6 +474,7 @@
         : `data-shell-target="${sanitizeHtml(nextAction.shellTarget || "settings")}"${nextAction.settingsTarget ? ` data-settings-target="${sanitizeHtml(nextAction.settingsTarget)}"` : ""}`;
       const tiles = [
         {
+          key: "active-section",
           label: "Active section",
           value: getFrontDeskTabLabel(activeFrontDeskSection),
           copy: "Focused operator view",
@@ -508,9 +509,9 @@
           </div>
           <div class="frontdesk-command-grid">
             ${tiles.map((tile) => `
-              <article class="frontdesk-command-tile">
+              <article class="frontdesk-command-tile"${tile.key ? ` data-frontdesk-command-tile="${sanitizeHtml(tile.key)}"` : ""}>
                 <span>${sanitizeHtml(tile.label)}</span>
-                <strong>${sanitizeHtml(tile.value)}</strong>
+                <strong${tile.key === "active-section" ? " data-frontdesk-active-section-value" : ""}>${sanitizeHtml(tile.value)}</strong>
                 <p>${sanitizeHtml(tile.copy)}</p>
               </article>
             `).join("")}
@@ -1284,6 +1285,11 @@
         frontDeskSections.forEach((section) => {
           section.hidden = section.dataset.frontdeskSection !== normalizedTarget;
         });
+
+        const activeSectionValue = document.querySelector("[data-frontdesk-active-section-value]");
+        if (activeSectionValue) {
+          activeSectionValue.textContent = getFrontDeskTabLabel(normalizedTarget);
+        }
 
         syncDashboardHelpUi();
         return normalizedTarget;

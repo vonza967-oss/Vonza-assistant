@@ -1309,7 +1309,7 @@
           </article>
         </section>
 
-        <section class="settings-shell-section">
+        <section class="settings-shell-section settings-business-readiness-section">
           <div class="settings-shell-section-header">
             <div>
               <h3 class="settings-shell-section-title">Business Profile readiness</h3>
@@ -2843,7 +2843,7 @@
             </article>
           </section>
 
-          <section class="settings-shell-section">
+          <section class="settings-shell-section settings-account-status-section">
             <div class="settings-shell-section-header">
               <div>
                 <h3 class="settings-shell-section-title">Account</h3>
@@ -2868,7 +2868,7 @@
             </div>
           </section>
 
-          <section class="settings-shell-section">
+          <section class="settings-shell-section settings-billing-usage-section">
             <div class="settings-shell-section-header">
               <div>
                 <h3 class="settings-shell-section-title">Billing and usage</h3>

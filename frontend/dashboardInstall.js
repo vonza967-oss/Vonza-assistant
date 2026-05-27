@@ -517,6 +517,7 @@
     function buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus) {
       const paths = [
         {
+          key: "hosted",
           title: "Hosted Front Desk page",
           label: "Primary",
           copy: "Fastest launch path. Share the protected hosted page from buttons, menus, emails, and owner follow-ups.",
@@ -525,6 +526,7 @@
           action: "page",
         },
         {
+          key: "qr",
           title: "QR / direct link",
           label: "Primary",
           copy: "Same hosted page, packaged for print, reception desks, invoices, menus, and offline traffic.",
@@ -533,6 +535,7 @@
           action: "qr",
         },
         {
+          key: "embed",
           title: "WordPress / smart embed",
           label: "Primary",
           copy: "Use the plugin, dedicated page embed, or smart snippet when Front Desk belongs inside the website.",
@@ -541,6 +544,7 @@
           action: "page",
         },
         {
+          key: "widget",
           title: "Website widget bubble",
           label: "Secondary",
           copy: "Optional compact launcher for normal website pages after the full-page launch path is prepared.",
@@ -561,7 +565,7 @@
           </div>
           <div class="install-launch-path-grid">
             ${paths.map((path) => `
-              <article class="install-launch-path-card">
+              <article class="install-launch-path-card" data-launch-path="${escapeHtml(path.key)}">
                 <div class="install-launch-path-card-head">
                   <span>${escapeHtml(path.label)}</span>
                   <span class="${getBadgeClass(path.tone)}">${escapeHtml(path.state)}</span>
@@ -827,7 +831,6 @@
       return `
         ${upcoming ? `<p class="install-upcoming">This becomes the final step once your front desk feels ready to go live.</p>` : ""}
         ${buildInstallStageProgress(installStatus, hasInstall, publicFullPageUrl, qrEndpoint)}
-        ${buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus)}
         <div class="install-method-grid" role="tablist" aria-label="Installation methods">
           ${methodCards.map((item) => {
             const isActive = activeInstallMethod === item.key;
@@ -1047,6 +1050,7 @@
             </div>
           </section>
         </div>
+        ${buildLaunchPathComparison(fullPageEnabled, qrEndpoint, hasInstall, installStatus)}
       `;
     }
 

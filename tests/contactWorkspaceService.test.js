@@ -48,6 +48,199 @@ function createContactProbeSupabase() {
   };
 }
 
+function createPersistingContactSupabase(initialState = {}) {
+  const state = {
+    operator_contacts: [],
+    operator_contact_identities: [],
+    agent_contact_leads: [],
+    agent_follow_up_workflows: [],
+    operator_inbox_threads: [],
+    operator_calendar_events: [],
+    operator_campaign_recipients: [],
+    operator_tasks: [],
+    agent_conversion_outcomes: [],
+    ...initialState,
+  };
+  const counters = new Map();
+
+  const nextId = (tableName) => {
+    const next = (counters.get(tableName) || state[tableName].length) + 1;
+    counters.set(tableName, next);
+    return `${tableName}-${next}`;
+  };
+
+  class QueryBuilder {
+    constructor(tableName) {
+      this.tableName = tableName;
+      this.operation = "select";
+      this.filters = [];
+      this.values = null;
+      this.orderBy = null;
+      this.limitValue = null;
+      this.selectUsed = false;
+      this.conflictColumns = [];
+    }
+
+    select() {
+      this.selectUsed = true;
+      return this;
+    }
+
+    limit(value) {
+      this.limitValue = value;
+      return this;
+    }
+
+    eq(column, value) {
+      this.filters.push([column, value]);
+      return this;
+    }
+
+    order(column, options = {}) {
+      this.orderBy = {
+        column,
+        ascending: options.ascending !== false,
+      };
+      return this;
+    }
+
+    insert(values) {
+      this.operation = "insert";
+      this.values = Array.isArray(values) ? values : [values];
+      return this;
+    }
+
+    update(values) {
+      this.operation = "update";
+      this.values = values;
+      return this;
+    }
+
+    upsert(values, options = {}) {
+      this.operation = "upsert";
+      this.values = Array.isArray(values) ? values : [values];
+      this.conflictColumns = String(options.onConflict || "id").split(",").map((value) => value.trim()).filter(Boolean);
+      return this;
+    }
+
+    single() {
+      const result = this.#execute();
+      return Promise.resolve({
+        data: Array.isArray(result.data) ? result.data[0] || null : result.data,
+        error: result.error,
+      });
+    }
+
+    then(resolve, reject) {
+      return Promise.resolve(this.#execute()).then(resolve, reject);
+    }
+
+    #rows() {
+      if (!state[this.tableName]) {
+        state[this.tableName] = [];
+      }
+
+      return state[this.tableName];
+    }
+
+    #matches(row) {
+      return this.filters.every(([column, value]) => String(row[column] ?? "") === String(value ?? ""));
+    }
+
+    #sorted(rows) {
+      if (!this.orderBy) {
+        return rows;
+      }
+
+      const direction = this.orderBy.ascending ? 1 : -1;
+      return [...rows].sort((left, right) => String(left[this.orderBy.column] || "").localeCompare(String(right[this.orderBy.column] || "")) * direction);
+    }
+
+    #assertNoDuplicateUpsertKeys(payloads) {
+      const seen = new Set();
+
+      for (const payload of payloads) {
+        const key = this.conflictColumns.map((column) => String(payload[column] ?? "")).join("\u0000");
+        if (seen.has(key)) {
+          return {
+            code: "21000",
+            message: "ON CONFLICT DO UPDATE command cannot affect row a second time",
+          };
+        }
+        seen.add(key);
+      }
+
+      return null;
+    }
+
+    #execute() {
+      const rows = this.#rows();
+
+      if (this.operation === "select") {
+        const selected = this.#sorted(rows.filter((row) => this.#matches(row)));
+        const limited = typeof this.limitValue === "number" ? selected.slice(0, this.limitValue) : selected;
+        return {
+          data: limited.map((row) => ({ ...row })),
+          error: null,
+        };
+      }
+
+      if (this.operation === "insert") {
+        const inserted = this.values.map((value) => {
+          const row = { id: value.id || nextId(this.tableName), ...value };
+          rows.push(row);
+          return { ...row };
+        });
+        return { data: this.selectUsed ? inserted : null, error: null };
+      }
+
+      if (this.operation === "update") {
+        const updated = rows.filter((row) => this.#matches(row)).map((row) => {
+          Object.assign(row, this.values);
+          return { ...row };
+        });
+        return { data: this.selectUsed ? updated : null, error: null };
+      }
+
+      if (this.operation === "upsert") {
+        const duplicateError = this.#assertNoDuplicateUpsertKeys(this.values);
+
+        if (duplicateError) {
+          return { data: null, error: duplicateError };
+        }
+
+        const persisted = this.values.map((value) => {
+          const match = rows.find((row) =>
+            this.conflictColumns.length
+              ? this.conflictColumns.every((column) => String(row[column] ?? "") === String(value[column] ?? ""))
+              : String(row.id || "") === String(value.id || "")
+          );
+
+          if (match) {
+            Object.assign(match, value, { id: match.id });
+            return { ...match };
+          }
+
+          const row = { id: value.id || nextId(this.tableName), ...value };
+          rows.push(row);
+          return { ...row };
+        });
+
+        return { data: this.selectUsed ? persisted : null, error: null };
+      }
+
+      throw new Error(`Unsupported operation ${this.operation}`);
+    }
+  }
+
+  return {
+    from(tableName) {
+      return new QueryBuilder(tableName);
+    },
+    state,
+  };
+}
+
 test("repeated lead captures dedupe into a single contact", () => {
   const result = buildContactWorkspaceFromRecords({
     leads: [
@@ -1178,4 +1371,61 @@ test("contacts workspace still renders useful partial records when persistence i
   assert.equal(result.list.length, 1);
   assert.equal(result.health.migrationRequired, true);
   assert.equal(result.health.persistenceAvailable, false);
+});
+
+test("contact identity persistence dedupes a duplicate upsert payload by owner-scoped identity key", async () => {
+  const supabase = createPersistingContactSupabase({
+    operator_contacts: [
+      {
+        id: "contact-old",
+        agent_id: "agent-1",
+        business_id: "business-1",
+        owner_user_id: "owner-1",
+        display_name: "Older Casey",
+        primary_email: "casey@example.com",
+        activity_sources: ["chat"],
+        high_priority_flags: [],
+        last_activity_at: "2026-04-03T09:00:00.000Z",
+        lifecycle_state: "new",
+        lifecycle_state_source: "system",
+        suggested_lifecycle_state: "new",
+        next_action_type: "no_action_needed",
+        metadata: {},
+      },
+      {
+        id: "contact-new",
+        agent_id: "agent-1",
+        business_id: "business-1",
+        owner_user_id: "owner-1",
+        display_name: "Newer Casey",
+        primary_email: "casey@example.com",
+        activity_sources: ["chat"],
+        high_priority_flags: [],
+        last_activity_at: "2026-04-04T09:00:00.000Z",
+        lifecycle_state: "new",
+        lifecycle_state_source: "system",
+        suggested_lifecycle_state: "new",
+        next_action_type: "no_action_needed",
+        metadata: {},
+      },
+    ],
+  });
+
+  const result = await getOperatorContactsWorkspace(supabase, {
+    agent: {
+      id: "agent-1",
+      businessId: "business-1",
+    },
+    ownerUserId: "owner-1",
+  });
+  const emailIdentities = supabase.state.operator_contact_identities.filter((row) =>
+    row.agent_id === "agent-1"
+    && row.owner_user_id === "owner-1"
+    && row.identity_type === "email"
+    && row.identity_value === "casey@example.com"
+  );
+
+  assert.equal(result.health.loadError, "");
+  assert.equal(emailIdentities.length, 1);
+  assert.equal(emailIdentities[0].contact_id, "contact-new");
 });

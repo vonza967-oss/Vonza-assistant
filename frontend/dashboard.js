@@ -11596,7 +11596,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     || trimText(aiUsage.statusLabel || aiUsage.planName || aiUsage.planKey)
   );
   const aiUsageMarkup = hasAiUsage
-    ? `<section class="workspace-card-soft">
+    ? `<section class="workspace-card-soft analytics-usage-card">
         <div class="flat-section-header">
           <div>
             <p class="overview-label">${escapeHtml(t("analytics.aiUsage"))}</p>
@@ -11616,7 +11616,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
     ? `<div class="placeholder-card">Live activity was just detected, and Vonza is refreshing the conversation summary now.</div>`
     : "";
   const customerSatisfactionMarkup = `
-    <section class="workspace-card-soft analytics-report-section">
+    <section class="workspace-card-soft analytics-report-section analytics-satisfaction-card">
       <div class="flat-section-header">
         <div>
           <p class="overview-label">Customer satisfaction</p>
@@ -11673,12 +11673,12 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
 	          ${buildV2Button(t("analytics.export"), "download")}
 	        `,
 	      })}
-	      <div class="workspace-page-body">
-	        <div class="workspace-section-stack">
+      <div class="workspace-page-body">
+	        <div class="workspace-section-stack analytics-route-stack">
 	          ${syncPendingMarkup}
 	          ${buildDashboardV2AnalyticsMarkup(report, ownerAnalyticsDashboard, topQuestionItems, signals.userMessages || [])}
 	          ${aiUsageMarkup}
-	          <section class="workspace-card-soft">
+	          <section class="workspace-card-soft analytics-improvement-card">
             <div class="flat-section-header">
               <div>
                 <p class="overview-label">${escapeHtml(t("home.improveNext"))}</p>
@@ -11698,7 +11698,7 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
               `).join("") : `<div class="placeholder-card">No urgent improvements right now. Keep watching new questions and update weak answers as they appear.</div>`}
             </div>
           </section>
-          <section class="workspace-card-soft">
+          <section class="workspace-card-soft analytics-questions-card">
             <div class="flat-section-header">
               <div>
                 <p class="overview-label">${escapeHtml(t("analytics.customerQuestions"))}</p>
@@ -11728,10 +11728,6 @@ function buildAnalyticsPanel(agent, messages, setup, actionQueue = createEmptyAc
             </div>
           </section>
           ${customerSatisfactionMarkup}
-          <section class="settings-page" data-analytics-section="overview"></section>
-          <section class="settings-page" data-analytics-section="questions" hidden></section>
-          <section class="settings-page" data-analytics-section="outcomes" hidden></section>
-          <section class="settings-page" data-analytics-section="improvements" hidden></section>
         </div>
       </div>
     </section>
@@ -14776,6 +14772,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
     closeShellNavigation();
     syncDashboardHelpUi();
+
+    if (options.preserveScroll !== true && typeof window.scrollTo === "function") {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
+    }
   };
 
   const resolveShellTarget = (targetSection, targetId = "") => {
@@ -14822,8 +14824,6 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   const showSectionAndHighlight = (targetSection, selector, options = {}) => {
     showShellSection(targetSection, options);
-    const sectionEl = document.querySelector(`[data-shell-section="${targetSection}"]`);
-    sectionEl?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     if (targetSection === "contacts" && trimText(options.targetId)) {
       selectContact(options.targetId);

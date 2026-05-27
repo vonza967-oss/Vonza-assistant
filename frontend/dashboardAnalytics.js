@@ -543,6 +543,31 @@
     return `<div class="placeholder-card analytics-empty-state">${escapeHtml(copy)}</div>`;
   }
 
+  function hasValidActivityTime(value) {
+    const date = new Date(value || "");
+    return !Number.isNaN(date.getTime());
+  }
+
+  function hasWebCallHealthActivity(webCallHealth = {}) {
+    const health = webCallHealth && typeof webCallHealth === "object" ? webCallHealth : {};
+    const failureCategories = Array.isArray(health.failureCategories) ? health.failureCategories : [];
+
+    return Boolean(
+      Number(health.starts || 0) > 0
+      || Number(health.endedCalls || 0) > 0
+      || Number(health.averageDurationSeconds || 0) > 0
+      || Number(health.averageTurns || 0) > 0
+      || Number(health.contactFallbackSubmissions || 0) > 0
+      || failureCategories.length
+      || hasValidActivityTime(health.latestActivityAt)
+    );
+  }
+
+  function hasRecentWebCallActivity(webCallRecentCalls = {}) {
+    const source = webCallRecentCalls && typeof webCallRecentCalls === "object" ? webCallRecentCalls : {};
+    return source.available !== false && Array.isArray(source.calls) && source.calls.length > 0;
+  }
+
   function getWebCallReviewLabel(review = {}) {
     const status = trimText(review.status).toLowerCase();
 
@@ -598,6 +623,7 @@
     const health = webCallHealth && typeof webCallHealth === "object" ? webCallHealth : {};
     const available = health.available !== false;
     const failureCategories = Array.isArray(health.failureCategories) ? health.failureCategories : [];
+    const hasActivity = available && hasWebCallHealthActivity(health);
     const stats = [
       { label: "Starts", value: formatMetricValue(health.starts || 0) },
       { label: "Ended calls", value: formatMetricValue(health.endedCalls || 0) },
@@ -608,7 +634,7 @@
     ];
 
     return `
-    <section class="v2-card v2-section v2-web-call-health-card">
+    <section class="v2-card v2-section v2-web-call-health-card ${hasActivity ? "" : "v2-web-call-card-compact"}">
       <div class="v2-section-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.webCallHealth"))}</h2>
@@ -616,7 +642,7 @@
         </div>
         ${context.renderIconBadge("phone", available ? "blue" : "gray")}
       </div>
-      ${available ? `
+      ${available && hasActivity ? `
         <div class="analytics-report-contact-grid">
           ${stats.map((item) => `
             <div class="analytics-report-contact-card">
@@ -640,7 +666,7 @@
             </div>
           ` : renderAnalyticsEmptyState("No failed speech, transcription, or playback events have been recorded.")}
         </div>
-      ` : renderAnalyticsEmptyState("Web Call product telemetry is not available yet.")}
+      ` : renderAnalyticsEmptyState(available ? "No Web Call activity has been recorded yet." : "Web Call product telemetry is not available yet.")}
     </section>
   `;
   }
@@ -650,17 +676,18 @@
     const source = webCallRecentCalls && typeof webCallRecentCalls === "object" ? webCallRecentCalls : {};
     const available = source.available !== false;
     const calls = Array.isArray(source.calls) ? source.calls : [];
+    const hasCalls = available && calls.length > 0;
 
     return `
-    <section class="v2-card v2-section v2-recent-web-calls-card">
+    <section class="v2-card v2-section v2-recent-web-calls-card ${hasCalls ? "" : "v2-web-call-card-compact"}">
       <div class="v2-section-header">
         <div>
           <h2 class="v2-section-title">${escapeHtml(context.t("analytics.recentWebCalls"))}</h2>
           <p class="v2-section-subtitle">Latest owner-scoped browser calls with safe outcomes only.</p>
         </div>
-        ${context.renderIconBadge("phone", available && calls.length ? "blue" : "gray")}
+        ${context.renderIconBadge("phone", hasCalls ? "blue" : "gray")}
       </div>
-      ${available && calls.length ? `
+      ${hasCalls ? `
         <div class="v2-recent-web-call-list">
           ${calls.map((call) => {
             const action = call.action && typeof call.action === "object" ? call.action : null;
@@ -922,6 +949,9 @@
       Number(report.conversationCount || 0)
     );
     const metrics = buildMetricCards(report, sourceRows, context);
+    const webCallHealth = ownerAnalyticsDashboard?.webCallHealth;
+    const webCallRecentCalls = ownerAnalyticsDashboard?.webCallRecentCalls;
+    const hasWebCallActivity = hasWebCallHealthActivity(webCallHealth) || hasRecentWebCallActivity(webCallRecentCalls);
 
     return `
     <div class="dashboard-v2-analytics">
@@ -929,8 +959,6 @@
       <section class="v2-grid v2-grid-6">
         ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
       </section>
-      ${renderWebCallHealthCard(ownerAnalyticsDashboard?.webCallHealth, context)}
-      ${renderRecentWebCallsCard(ownerAnalyticsDashboard?.webCallRecentCalls, context)}
       <section class="v2-analytics-columns v2-section">
         <div class="v2-analytics-column v2-analytics-column-main">
           <article class="v2-card v2-chart-card v2-analytics-chart-card">
@@ -957,6 +985,10 @@
       </section>
       ${renderPerformanceBySource(sourceRows, report, context)}
       ${renderContactMixCard(report, context)}
+      <section class="v2-web-call-grid ${hasWebCallActivity ? "has-web-call-activity" : "is-web-call-empty"}" aria-label="Web Call analytics">
+        ${renderWebCallHealthCard(webCallHealth, context)}
+        ${renderRecentWebCallsCard(webCallRecentCalls, context)}
+      </section>
     </div>
   `;
   }

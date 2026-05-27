@@ -63,6 +63,7 @@ function renderDashboardDocument(rootDir, { localFixture = false } = {}) {
     "/dashboard-analytics.css",
     "/dashboard-front-desk.css",
     "/settings/settings.css",
+    "/dashboard-glass.css",
     "/public-config.js",
     "/i18n/dashboardI18n.js",
     "/settings/SettingsShell.js",

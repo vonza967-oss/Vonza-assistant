@@ -2264,6 +2264,57 @@ function buildIdentityRows(contact = {}, group = {}, options = {}) {
   return rows;
 }
 
+function getIdentityRowConflictKey(row = {}) {
+  const keyParts = [
+    cleanText(row.agent_id),
+    cleanText(row.owner_user_id),
+    cleanText(row.identity_type),
+    cleanText(row.identity_value),
+  ];
+
+  return keyParts.every(Boolean) ? JSON.stringify(keyParts) : "";
+}
+
+function pickPreferredIdentityRow(left = {}, right = {}) {
+  const leftSeenAt = parseTimestamp(left.last_seen_at);
+  const rightSeenAt = parseTimestamp(right.last_seen_at);
+
+  if (rightSeenAt > leftSeenAt) {
+    return right;
+  }
+
+  if (leftSeenAt > rightSeenAt) {
+    return left;
+  }
+
+  if (right.is_primary === true && left.is_primary !== true) {
+    return right;
+  }
+
+  return left;
+}
+
+function dedupeIdentityRowsForUpsert(rows = []) {
+  const byConflictKey = new Map();
+
+  rows.forEach((row) => {
+    const conflictKey = getIdentityRowConflictKey(row);
+
+    if (!conflictKey) {
+      return;
+    }
+
+    byConflictKey.set(
+      conflictKey,
+      byConflictKey.has(conflictKey)
+        ? pickPreferredIdentityRow(byConflictKey.get(conflictKey), row)
+        : row
+    );
+  });
+
+  return [...byConflictKey.values()];
+}
+
 async function persistContacts(supabase, built, options = {}) {
   const persistedContacts = [];
 
@@ -2294,11 +2345,13 @@ async function persistContacts(supabase, built, options = {}) {
     persistedContacts.push(storedContact);
   }
 
-  const identityRows = persistedContacts.flatMap((contact, index) =>
-    buildIdentityRows(
-      { ...built.contacts[index], id: contact.id },
-      built.groups[index],
-      options
+  const identityRows = dedupeIdentityRowsForUpsert(
+    persistedContacts.flatMap((contact, index) =>
+      buildIdentityRows(
+        { ...built.contacts[index], id: contact.id },
+        built.groups[index],
+        options
+      )
     )
   );
 

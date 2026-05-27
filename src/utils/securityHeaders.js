@@ -30,6 +30,7 @@ function isDashboardPrivateAssetPath(pathname) {
     "/dashboard-install.css",
     "/dashboard-analytics.css",
     "/dashboard-front-desk.css",
+    "/dashboard-glass.css",
     "/dashboardHelpers.js",
     "/dashboardState.js",
     "/dashboardLabels.js",
