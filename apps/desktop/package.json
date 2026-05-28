@@ -1,0 +1,19 @@
+{
+  "name": "@vonza/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vonza macOS desktop wrapper for the hosted AI Front Desk dashboard.",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build --bundles app,dmg",
+    "build:app": "tauri build --bundles app",
+    "build:dmg": "tauri build --bundles dmg",
+    "build:mac:universal": "tauri build --target universal-apple-darwin --bundles app,dmg",
+    "check": "cargo check --manifest-path src-tauri/Cargo.toml"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.2"
+  }
+}

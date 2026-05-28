@@ -1,0 +1,21 @@
+[package]
+name = "vonza-desktop"
+version = "1.0.0"
+description = "Vonza macOS desktop wrapper for the hosted dashboard"
+authors = ["Vonza"]
+edition = "2021"
+license = "UNLICENSED"
+repository = "https://github.com/vonza/vonza"
+build = "build.rs"
+
+[lib]
+name = "vonza_desktop"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+url = "2"

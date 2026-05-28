@@ -1,0 +1,111 @@
+name: Desktop macOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dashboard_url:
+        description: "Dashboard URL to load in the desktop app"
+        required: false
+        default: "https://vonza-assistant.onrender.com/dashboard"
+  push:
+    tags:
+      - "desktop-v*"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      VONZA_DESKTOP_DASHBOARD_URL: ${{ github.event.inputs.dashboard_url || 'https://vonza-assistant.onrender.com/dashboard' }}
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD || secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_PROVIDER_SHORT_NAME: ${{ secrets.APPLE_PROVIDER_SHORT_NAME }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install desktop dependencies
+        run: npm ci --prefix apps/desktop
+
+      - name: Run web checks
+        run: |
+          node --check frontend/dashboard.js
+          node --check frontend/script.js
+          node --check frontend/settings/SettingsShell.js
+          node --check assistant-embed.js
+          npm run test:smoke
+          npm run check:schema-sync
+          npm run lint
+
+      - name: Require signing credentials for tag releases
+        if: ${{ startsWith(github.ref, 'refs/tags/desktop-v') && (env.APPLE_CERTIFICATE == '' || env.APPLE_CERTIFICATE_PASSWORD == '' || env.KEYCHAIN_PASSWORD == '' || env.APPLE_ID == '' || env.APPLE_PASSWORD == '' || env.APPLE_TEAM_ID == '') }}
+        run: |
+          echo "desktop-v* tag releases must be signed and notarized. Configure the Apple signing/notarization secrets before tagging."
+          exit 1
+
+      - name: Import Developer ID certificate
+        if: ${{ env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.KEYCHAIN_PASSWORD != '' }}
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/vonza-developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/vonza-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+
+          if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            CERT_INFO="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep "Developer ID Application" | head -n 1 || true)"
+            if [ -z "$CERT_INFO" ]; then
+              echo "No Developer ID Application identity found in imported certificate."
+              exit 1
+            fi
+            CERT_ID="$(echo "$CERT_INFO" | sed -E 's/.*"(.+)".*/\1/')"
+            echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build signed and notarized universal DMG
+        if: ${{ env.APPLE_CERTIFICATE != '' && env.APPLE_CERTIFICATE_PASSWORD != '' && env.KEYCHAIN_PASSWORD != '' && env.APPLE_ID != '' && env.APPLE_PASSWORD != '' && env.APPLE_TEAM_ID != '' }}
+        run: npm run desktop:build:universal
+
+      - name: Build unsigned development DMG
+        if: ${{ !startsWith(github.ref, 'refs/tags/desktop-v') && (env.APPLE_CERTIFICATE == '' || env.APPLE_CERTIFICATE_PASSWORD == '' || env.KEYCHAIN_PASSWORD == '' || env.APPLE_ID == '' || env.APPLE_PASSWORD == '' || env.APPLE_TEAM_ID == '') }}
+        run: npm run desktop:build
+
+      - name: Generate checksums
+        run: |
+          find apps/desktop/src-tauri/target -path "*/bundle/*/*.dmg" -print0 | xargs -0 shasum -a 256 | tee desktop-macos-checksums.txt
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vonza-macos-artifacts
+          path: |
+            apps/desktop/src-tauri/target/**/bundle/**/*.app
+            apps/desktop/src-tauri/target/**/bundle/**/*.dmg
+            desktop-macos-checksums.txt
+          if-no-files-found: error

@@ -724,6 +724,102 @@ function renderAboutPage() {
   `;
 }
 
+function normalizeMacDmgUrl(value) {
+  const rawUrl = String(value || "").trim();
+  if (!rawUrl) {
+    return "";
+  }
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    return parsedUrl.protocol === "https:" ? parsedUrl.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeMacDmgChecksum(value) {
+  const checksum = String(value || "").trim().replace(/\s+/g, "").toLowerCase();
+  return /^[a-f0-9]{64}$/.test(checksum) ? checksum : "";
+}
+
+function isMacDmgMarkedSignedAndNotarized(value) {
+  return ["1", "true", "yes"].includes(String(value || "").trim().toLowerCase());
+}
+
+function renderMacDownloadPage() {
+  const downloadUrl = normalizeMacDmgUrl(process.env.VONZA_MAC_DMG_URL);
+  const checksum = normalizeMacDmgChecksum(process.env.VONZA_MAC_DMG_SHA256);
+  const releaseDate = String(process.env.VONZA_MAC_RELEASE_DATE || "").trim();
+  const version = String(process.env.VONZA_MAC_VERSION || getAppVersion() || "1.0.0").trim();
+  const isSignedAndNotarized = isMacDmgMarkedSignedAndNotarized(process.env.VONZA_MAC_DMG_SIGNED_NOTARIZED);
+  const isReleaseReady = Boolean(downloadUrl && isSignedAndNotarized);
+
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Vonza for Mac</h1>
+        <p>Open the Vonza AI Front Desk dashboard from a native macOS app window. The desktop app uses the same hosted dashboard, auth, customers, analytics, settings, Front Desk, and install flows as the browser version.</p>
+        <div class="hero-actions">
+          ${isReleaseReady
+            ? `<a class="button button-primary" href="${escapeHtml(downloadUrl)}">Download for Mac</a>`
+            : `<span class="button button-secondary" aria-disabled="true">Mac app coming soon</span>`}
+          <a class="button button-secondary" href="/dashboard?from=site" data-app-link>Open dashboard</a>
+        </div>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.dashboardHome,
+        alt: "Vonza dashboard opened for owner workspace management",
+        className: "page-hero-frame",
+        loading: "eager",
+      })}
+    </section>
+
+    <section class="section trust-section">
+      <div class="section-intro" data-reveal>
+        <h2>Mac download details</h2>
+        <p>${escapeHtml(isReleaseReady
+          ? "This macOS download is signed and notarized for direct installation outside the Mac App Store."
+          : "Private test build only. The public DMG is not shown as production-ready until a signed and notarized release URL is configured.")}</p>
+      </div>
+      <div class="trust-grid">
+        ${[
+          ["File type", ".dmg"],
+          ["Supported systems", "macOS on Apple Silicon and Intel Macs, subject to release build availability."],
+          ["Version", version],
+          ["Release date", releaseDate || "Pending signed release"],
+          ["SHA-256 checksum", checksum || "Pending signed release"],
+          ["Install", "Open the DMG, then drag Vonza to Applications."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section faq-section">
+      <div class="section-intro" data-reveal>
+        <h2>Before public release</h2>
+      </div>
+      <div class="faq-grid">
+        ${[
+          ["Signing", "A public Mac download requires an Apple Developer ID Application certificate."],
+          ["Notarization", "The DMG must be notarized with Apple and stapled where applicable."],
+          ["Dashboard behavior", "The desktop app loads the hosted dashboard and does not replace the browser app."],
+          ["Google connection", "Google OAuth is opened in the system browser when needed because embedded WebViews may be blocked."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 const MARKETING_PAGES = {
   home: {
     title: "Vonza | AI Front Desk page for small businesses",
@@ -749,6 +845,11 @@ const MARKETING_PAGES = {
     title: "About Vonza | AI Front Desk for small businesses",
     description: "Learn about Vonza, the AI Front Desk built for small businesses that need clearer customer answers and follow-up.",
     body: renderAboutPage,
+  },
+  mac: {
+    title: "Vonza for Mac | Desktop AI Front Desk dashboard",
+    description: "Download Vonza for Mac, a native macOS desktop wrapper for the hosted Vonza AI Front Desk dashboard.",
+    body: renderMacDownloadPage,
   },
 };
 
@@ -1127,6 +1228,14 @@ export function createPublicRouter({ rootDir }) {
 
   router.get("/contact", (_req, res) => {
     res.redirect(302, "/about");
+  });
+
+  router.get("/desktop", (_req, res) => {
+    res.redirect(302, "/download/mac");
+  });
+
+  router.get("/download/mac", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "mac"));
   });
 
   router.get("/widget", (_req, res) => {

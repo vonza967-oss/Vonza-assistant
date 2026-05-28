@@ -78,6 +78,8 @@ function isBaselineMarketingOrLegalPath(pathname) {
     "/pricing",
     "/about",
     "/contact",
+    "/desktop",
+    "/download/mac",
     "/aszf",
     "/impresszum",
     "/adatkezelesi-tajekoztato",

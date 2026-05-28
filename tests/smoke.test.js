@@ -1294,6 +1294,11 @@ test("marketing homepage and app routes load without broken handoff paths", { co
       ADMIN_TOKEN: "admin-1234",
       DEV_FAKE_BILLING: "false",
       NODE_ENV: "development",
+      VONZA_MAC_DMG_URL: undefined,
+      VONZA_MAC_DMG_SHA256: undefined,
+      VONZA_MAC_DMG_SIGNED_NOTARIZED: undefined,
+      VONZA_MAC_VERSION: undefined,
+      VONZA_MAC_RELEASE_DATE: undefined,
     },
     async () => {
       const server = await startServer(createTestApp());
@@ -1362,6 +1367,28 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(productPage.text, /Training and feedback loop/i);
         assert.match(productPage.text, /Customers and conversations/i);
         assert.match(productPage.text, /Settings and customization/i);
+
+        const macPendingPage = await getText(server.baseUrl, "/download/mac");
+        assert.equal(macPendingPage.status, 200);
+        assert.match(macPendingPage.text, /Vonza for Mac/i);
+        assert.match(macPendingPage.text, /Mac app coming soon/i);
+        assert.match(macPendingPage.text, /Private test build only/i);
+        assert.doesNotMatch(macPendingPage.text, /href="https:\/\/downloads\.example\.com\/Vonza_1\.0\.0_universal\.dmg"/);
+
+        await withEnv({
+          VONZA_MAC_DMG_URL: "https://downloads.example.com/Vonza_1.0.0_universal.dmg",
+          VONZA_MAC_DMG_SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          VONZA_MAC_DMG_SIGNED_NOTARIZED: "true",
+          VONZA_MAC_VERSION: "1.0.0",
+          VONZA_MAC_RELEASE_DATE: "2026-05-28",
+        }, async () => {
+          const macReleasePage = await getText(server.baseUrl, "/download/mac");
+          assert.equal(macReleasePage.status, 200);
+          assert.match(macReleasePage.text, /href="https:\/\/downloads\.example\.com\/Vonza_1\.0\.0_universal\.dmg"/);
+          assert.match(macReleasePage.text, /Download for Mac/i);
+          assert.match(macReleasePage.text, /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+          assert.match(macReleasePage.text, /signed and notarized/i);
+        });
 
         const hungarianHome = await getText(server.baseUrl, "/hu");
         assert.equal(hungarianHome.status, 200);

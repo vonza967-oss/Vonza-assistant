@@ -273,6 +273,7 @@ test("route frame policies are explicit for dashboard, embeds, Front Desk pages,
         "/product",
         "/pricing",
         "/about",
+        "/download/mac",
         "/aszf",
         "/impresszum",
         "/adatkezelesi-tajekoztato",
@@ -285,7 +286,7 @@ test("route frame policies are explicit for dashboard, embeds, Front Desk pages,
         assertMicrophonePolicy(response, "");
       }
 
-      for (const publicRedirectPath of ["/how-it-works", "/contact", "/terms", "/privacy", "/cookies", "/imprint"]) {
+      for (const publicRedirectPath of ["/desktop", "/how-it-works", "/contact", "/terms", "/privacy", "/cookies", "/imprint"]) {
         const response = await fetch(`${baseUrl}${publicRedirectPath}`, { redirect: "manual" });
         assert.equal(response.status, 302, publicRedirectPath);
         assertFramePolicy(response, { frameAncestors: "'self'", xFrameOptions: "SAMEORIGIN" });
