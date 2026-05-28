@@ -3225,13 +3225,13 @@ function getGlassVars(transparency) {
   const t = normalizeDashboardGlassTransparency(transparency) / 100;
 
   return {
-    topAlpha: 0.58 - t * 0.42,
-    bottomAlpha: 0.42 - t * 0.34,
-    blur: 22 + t * 12,
-    borderAlpha: 0.44 + t * 0.18,
-    highlightAlpha: 0.7 + t * 0.18,
-    innerShadowAlpha: 0.1 + (1 - t) * 0.1,
-    sheenAlpha: 0.22 - t * 0.12,
+    topAlpha: 0.54 - t * 0.46,
+    bottomAlpha: 0.38 - t * 0.35,
+    blur: 22 + t * 4,
+    borderAlpha: 0.46 + t * 0.24,
+    highlightAlpha: 0.72 + t * 0.2,
+    innerShadowAlpha: 0.14 - t * 0.08,
+    sheenAlpha: 0.22 - t * 0.14,
   };
 }
 
