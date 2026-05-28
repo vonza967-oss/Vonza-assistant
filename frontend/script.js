@@ -101,11 +101,13 @@ const VOICE_RECORDING_MIME_TYPES = Object.freeze([
 ]);
 const CALL_MODE_STATES = Object.freeze({
   READY: "ready",
+  CONNECTING: "connecting",
   REQUESTING: "requesting",
   LISTENING: "listening",
   TRANSCRIBING: "transcribing",
   THINKING: "thinking",
   SPEAKING: "speaking",
+  RECONNECTING: "reconnecting",
   WAITING: "waiting",
   MUTED_STOPPED: "muted-stopped",
   STOPPED: "stopped",
@@ -334,7 +336,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceHttps": "Voice input requires HTTPS. Open this Front Desk over a secure link or type your message.",
     "assistant.voicePermission": "Microphone access is blocked. Allow microphone access in your browser settings or type your message.",
     "assistant.voiceDevice": "No microphone was found. Connect a microphone or type your message.",
-    "assistant.voiceBusy": "The voice line is busy. Retry in a moment or type your message.",
+    "assistant.voiceBusy": "Browser voice is busy. Retry in a moment or type your message.",
     "assistant.voiceTranscribeFailed": "Could not transcribe that recording. Please try again.",
     "assistant.voiceChooseIdentity": "Choose guest or email before using voice input.",
     "assistant.voiceListening": "Listening...",
@@ -345,7 +347,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceFailed": "Voice input failed.",
     "assistant.voiceRecordingTooLarge": "That recording was too large. Try a shorter message.",
     "assistant.voiceUnavailableType": "Voice is temporarily unavailable. You can still type your message.",
-    "assistant.voiceBusyTryAgain": "The voice line is busy. Retry in a moment or type your message.",
+    "assistant.voiceBusyTryAgain": "Browser voice is busy. Retry in a moment or type your message.",
     "assistant.voiceAiCapacityReached": "This assistant has reached monthly AI capacity. You can still type your message.",
     "assistant.voiceAccessInactive": "This Front Desk is not active for calls right now. You can still type your message.",
     "assistant.voiceCallDisabled": "Web Call is not enabled for this Front Desk. You can still type your message.",
@@ -357,18 +359,25 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceAudioUnsupported": "Audio playback is not supported in this browser.",
     "assistant.voicePressPlay": "Press Play to hear the spoken reply.",
     "assistant.callKicker": "Browser voice",
-    "assistant.callTitle": "Talk to Front Desk",
-    "assistant.callReady": "Ready for a voice turn",
+    "assistant.callKickerRealtime": "Browser voice",
+    "assistant.callKickerFallback": "Turn-based browser voice",
+    "assistant.callTitle": "Talk to the Front Desk",
+    "assistant.callReady": "Ready for one voice turn",
+    "assistant.callRealtimeReady": "Ready for browser voice",
+    "assistant.callConnecting": "Connecting browser voice",
     "assistant.callRequesting": "Preparing microphone",
-    "assistant.callListening": "Listening to this turn",
-    "assistant.callTranscribing": "Thinking",
-    "assistant.callThinking": "Thinking",
-    "assistant.callSpeaking": "Speaking",
-    "assistant.callWaiting": "Waiting for you",
+    "assistant.callListening": "Listening to one turn",
+    "assistant.callRealtimeListening": "Listening now",
+    "assistant.callTranscribing": "Catching that",
+    "assistant.callThinking": "Preparing a short reply",
+    "assistant.callSpeaking": "Speaking in your browser",
+    "assistant.callReconnecting": "Reconnecting browser voice",
+    "assistant.callWaiting": "Ready when you are",
     "assistant.callMutedStopped": "Muted",
-    "assistant.callStopped": "Voice session ended",
+    "assistant.callStopped": "Browser voice ended",
     "assistant.callUnavailable": "Browser voice is unavailable right now. You can still type your message.",
     "assistant.callStart": "Start voice turn",
+    "assistant.callStartRealtime": "Talk to the Front Desk",
     "assistant.callRetry": "Retry voice turn",
     "assistant.callTalk": "Talk now",
     "assistant.callEnd": "End voice session",
@@ -379,13 +388,14 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callDuration": "Duration {duration}",
     "assistant.callTurns": "Turns {turns}",
     "assistant.callSessionDetails": "Voice session details",
-    "assistant.callSummary": "Voice session ended: {duration}, {turns}. Transcript remains here.",
-    "assistant.callTurnLimitEnded": "Voice session ended after reaching the turn limit. Transcript remains here.",
-    "assistant.callFallback": "You can type below, retry the call, or leave contact details.",
+    "assistant.callSummary": "Browser voice ended: {duration}, {turns}. Transcript remains here.",
+    "assistant.callTurnLimitEnded": "Browser voice ended after reaching the turn limit. Transcript remains here.",
+    "assistant.callFallback": "You can type below, retry browser voice, or leave contact details.",
+    "assistant.callRealtimeFallback": "Switching to one-turn browser voice.",
     "assistant.callRepeatEmpty": "I didn’t catch that. Please try again with one short question.",
     "assistant.callRepeatUnclear": "That sounded unclear. Please repeat it in a short sentence.",
-    "assistant.callRepeatedFailure": "Voice is having trouble. Type below, retry the call, or leave contact details.",
-    "assistant.callEndedByVoice": "Voice session ended. Transcript remains here.",
+    "assistant.callRepeatedFailure": "Browser voice is having trouble. Type below, retry, or leave contact details.",
+    "assistant.callEndedByVoice": "Browser voice ended. Transcript remains here.",
     "assistant.callLongReplyHint": "This answer is a little long for speech, so you may want to read it on screen.",
     "assistant.callOneTurn": "1 turn",
     "assistant.callTurnCount": "{count} turns",
@@ -516,7 +526,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceHttps": "A hangbevitelhez HTTPS szükséges. Nyisd meg biztonságos linken, vagy írd be az üzenetedet.",
     "assistant.voicePermission": "A mikrofonhozzáférés tiltva van. Engedélyezd a böngészőben, vagy írd be az üzenetedet.",
     "assistant.voiceDevice": "Nem található mikrofon. Csatlakoztass mikrofont, vagy írd be az üzenetedet.",
-    "assistant.voiceBusy": "A hangvonal most foglalt. Próbáld újra egy pillanat múlva, vagy írd be az üzenetedet.",
+    "assistant.voiceBusy": "A böngészős hang most foglalt. Próbáld újra egy pillanat múlva, vagy írd be az üzenetedet.",
     "assistant.voiceTranscribeFailed": "Nem sikerült leírni a felvételt. Próbáld újra.",
     "assistant.voiceChooseIdentity": "Hangbevitel előtt válassz vendég módot vagy emailes folytatást.",
     "assistant.voiceListening": "Figyelek...",
@@ -527,7 +537,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceFailed": "A hangbevitel nem sikerült.",
     "assistant.voiceRecordingTooLarge": "Ez a felvétel túl nagy volt. Próbálj rövidebb üzenetet.",
     "assistant.voiceUnavailableType": "A hang átmenetileg nem elérhető. Továbbra is beírhatod az üzenetedet.",
-    "assistant.voiceBusyTryAgain": "A hangvonal most foglalt. Próbáld újra egy pillanat múlva, vagy írd be az üzenetedet.",
+    "assistant.voiceBusyTryAgain": "A böngészős hang most foglalt. Próbáld újra egy pillanat múlva, vagy írd be az üzenetedet.",
     "assistant.voiceAiCapacityReached": "Ez az asszisztens elérte a havi AI-kapacitást. Továbbra is beírhatod az üzenetedet.",
     "assistant.voiceAccessInactive": "Ez a Front Desk most nem aktív hívásokhoz. Továbbra is beírhatod az üzenetedet.",
     "assistant.voiceCallDisabled": "A Web Call nincs engedélyezve ehhez a Front Deskhez. Továbbra is beírhatod az üzenetedet.",
@@ -539,16 +549,22 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceAudioUnsupported": "A hanglejátszás ebben a böngészőben nem támogatott.",
     "assistant.voicePressPlay": "Nyomd meg a Lejátszás gombot a felolvasáshoz.",
     "assistant.callKicker": "Böngészős hang",
+    "assistant.callKickerRealtime": "Böngészős hang",
+    "assistant.callKickerFallback": "Fordulóalapú böngészős hang",
     "assistant.callTitle": "Beszéd a Front Deskkel",
     "assistant.callReady": "Kész egy hangos fordulóra",
+    "assistant.callRealtimeReady": "Kész a böngészős hangra",
+    "assistant.callConnecting": "Böngészős hang kapcsolása",
     "assistant.callRequesting": "Mikrofon előkészítése",
-    "assistant.callListening": "Ezt a fordulót figyelem",
-    "assistant.callTranscribing": "Gondolkodom",
-    "assistant.callThinking": "Gondolkodom",
-    "assistant.callSpeaking": "Beszélek",
-    "assistant.callWaiting": "Rád vár",
+    "assistant.callListening": "Egy fordulót figyelek",
+    "assistant.callRealtimeListening": "Figyelek",
+    "assistant.callTranscribing": "Rögzítem",
+    "assistant.callThinking": "Rövid választ készítek",
+    "assistant.callSpeaking": "Beszélek a böngészőben",
+    "assistant.callReconnecting": "Böngészős hang újrakapcsolása",
+    "assistant.callWaiting": "Kész, amikor te is",
     "assistant.callMutedStopped": "Némítva",
-    "assistant.callStopped": "A hangos munkamenet véget ért",
+    "assistant.callStopped": "A böngészős hang véget ért",
     "assistant.callUnavailable": "A böngészős hang most nem elérhető. Továbbra is beírhatod az üzenetedet.",
     "assistant.callStart": "Hangos forduló indítása",
     "assistant.callRetry": "Hangos forduló újrapróbálása",
@@ -561,13 +577,14 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.callDuration": "Időtartam {duration}",
     "assistant.callTurns": "Fordulók {turns}",
     "assistant.callSessionDetails": "Hangos munkamenet részletei",
-    "assistant.callSummary": "A hangos munkamenet véget ért: {duration}, {turns}. A leirat itt marad.",
-    "assistant.callTurnLimitEnded": "A hangos munkamenet a fordulókorlát elérése után véget ért. A leirat itt marad.",
-    "assistant.callFallback": "Írhatsz lent, újrapróbálhatod a hívást, vagy megadhatod az elérhetőségedet.",
+    "assistant.callSummary": "A böngészős hang véget ért: {duration}, {turns}. A leirat itt marad.",
+    "assistant.callTurnLimitEnded": "A böngészős hang a fordulókorlát elérése után véget ért. A leirat itt marad.",
+    "assistant.callFallback": "Írhatsz lent, újrapróbálhatod a böngészős hangot, vagy megadhatod az elérhetőségedet.",
+    "assistant.callRealtimeFallback": "Átváltunk egyfordulós böngészős hangra.",
     "assistant.callRepeatEmpty": "Nem hallottam jól. Kérlek, próbáld újra egy rövid kérdéssel.",
     "assistant.callRepeatUnclear": "Ez nem volt elég érthető. Kérlek, ismételd meg egy rövid mondatban.",
-    "assistant.callRepeatedFailure": "A hang most nehezen működik. Írj lent, próbáld újra a hívást, vagy add meg az elérhetőségedet.",
-    "assistant.callEndedByVoice": "A hangos munkamenet véget ért. A leirat itt marad.",
+    "assistant.callRepeatedFailure": "A böngészős hang most nehezen működik. Írj lent, próbáld újra, vagy add meg az elérhetőségedet.",
+    "assistant.callEndedByVoice": "A böngészős hang véget ért. A leirat itt marad.",
     "assistant.callLongReplyHint": "Ez a válasz kicsit hosszú felolvasáshoz, ezért érdemes a képernyőn is elolvasni.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
@@ -668,6 +685,17 @@ let callModeSoftHint = "";
 let webCallSessionTouched = false;
 let webCallTelemetryId = "";
 let webCallTelemetrySequence = 0;
+let webCallRealtimeActive = false;
+let webCallRealtimePeer = null;
+let webCallRealtimeDataChannel = null;
+let webCallRealtimeStream = null;
+let webCallRealtimeAudio = null;
+let webCallRealtimeStartedAt = 0;
+let webCallRealtimeConnectedAt = 0;
+let webCallRealtimeFirstAudioAt = 0;
+let webCallRealtimeInterruptions = 0;
+let webCallRealtimeReconnects = 0;
+let webCallRealtimeFallbackReason = "";
 let speakRepliesActive = false;
 let speakRepliesUserChanged = false;
 let currentVoiceAudio = null;
@@ -3205,6 +3233,12 @@ function buildWebCallProductMetadata(metadata = {}) {
     "audio_duration_seconds",
     "audio_bytes",
     "web_call_session_id",
+    "realtime_mode",
+    "connection_latency_ms",
+    "first_audio_latency_ms",
+    "interruption_count",
+    "reconnect_count",
+    "fallback_reason",
   ]);
   const entries = Object.entries(baseMetadata)
     .filter(([key]) => allowedKeys.has(key))
@@ -3244,6 +3278,12 @@ function getWebCallFailureCategory(errorOrCategory) {
     "browser_unsupported",
     "recording_failed",
     "speech_not_attempted",
+    "autoplay_blocked",
+    "network_failed",
+    "openai_realtime_unavailable",
+    "realtime_connect_failed",
+    "realtime_token_failed",
+    "webrtc_unsupported",
   ].includes(normalized)) {
     return normalized;
   }
@@ -3272,6 +3312,10 @@ function getWebCallFailureCategory(errorOrCategory) {
     return "browser_unsupported";
   }
 
+  if (normalized.includes("webrtc") || normalized.includes("rtcpeerconnection")) {
+    return "webrtc_unsupported";
+  }
+
   if (normalized.includes("notreadable") || normalized.includes("trackstart") || normalized.includes("record")) {
     return "recording_failed";
   }
@@ -3294,6 +3338,26 @@ function getWebCallFailureCategory(errorOrCategory) {
 
   if (normalized.includes("speech_authorization")) {
     return "speech_authorization_missing";
+  }
+
+  if (normalized.includes("realtime_token") || normalized.includes("client_secret")) {
+    return "realtime_token_failed";
+  }
+
+  if (normalized.includes("openai_realtime_unavailable")) {
+    return "openai_realtime_unavailable";
+  }
+
+  if (normalized.includes("realtime") || normalized.includes("peerconnection") || normalized.includes("sdp")) {
+    return "realtime_connect_failed";
+  }
+
+  if (normalized.includes("network") || normalized.includes("fetch")) {
+    return "network_failed";
+  }
+
+  if (normalized.includes("autoplay")) {
+    return "autoplay_blocked";
   }
 
   if (normalized.includes("speech") || normalized.includes("audio")) {
@@ -3419,6 +3483,13 @@ function browserSupportsVoiceInput() {
   );
 }
 
+function browserSupportsRealtimeWebCall() {
+  return Boolean(
+    navigator?.mediaDevices?.getUserMedia
+    && typeof window.RTCPeerConnection === "function"
+  );
+}
+
 function isLocalSecureHost() {
   const hostname = trimText(window.location?.hostname).toLowerCase();
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
@@ -3435,6 +3506,22 @@ function getVoiceUnavailableMessage() {
   }
 
   if (!navigator?.mediaDevices?.getUserMedia || typeof window.MediaRecorder !== "function") {
+    return assistantT("assistant.voiceUnavailable");
+  }
+
+  return "";
+}
+
+function getCallModeUnavailableMessage() {
+  if (voiceRequiresHttps()) {
+    return assistantT("assistant.voiceHttps");
+  }
+
+  if (!navigator?.mediaDevices?.getUserMedia) {
+    return assistantT("assistant.voiceUnavailable");
+  }
+
+  if (!browserSupportsRealtimeWebCall() && typeof window.MediaRecorder !== "function") {
     return assistantT("assistant.voiceUnavailable");
   }
 
@@ -3695,6 +3782,7 @@ function startCallModeSession() {
 
 function cleanupCallModeMedia(options = {}) {
   stopCurrentVoiceAudio();
+  stopRealtimeWebCall();
 
   if (voiceRecorder) {
     stopVoiceRecording({ cancel: true });
@@ -3743,16 +3831,20 @@ function endCallModeAfterTurnLimit() {
 
 function getCallModeStateMessage(state = callModeState) {
   switch (state) {
+    case CALL_MODE_STATES.CONNECTING:
+      return assistantT("assistant.callConnecting");
     case CALL_MODE_STATES.REQUESTING:
       return assistantT("assistant.callRequesting");
     case CALL_MODE_STATES.LISTENING:
-      return assistantT("assistant.callListening");
+      return webCallRealtimeActive ? assistantT("assistant.callRealtimeListening") : assistantT("assistant.callListening");
     case CALL_MODE_STATES.TRANSCRIBING:
       return assistantT("assistant.callTranscribing");
     case CALL_MODE_STATES.THINKING:
       return assistantT("assistant.callThinking");
     case CALL_MODE_STATES.SPEAKING:
       return assistantT("assistant.callSpeaking");
+    case CALL_MODE_STATES.RECONNECTING:
+      return assistantT("assistant.callReconnecting");
     case CALL_MODE_STATES.WAITING:
       return assistantT("assistant.callWaiting");
     case CALL_MODE_STATES.MUTED_STOPPED:
@@ -3763,7 +3855,9 @@ function getCallModeStateMessage(state = callModeState) {
       return assistantT("assistant.callUnavailable");
     case CALL_MODE_STATES.READY:
     default:
-      return assistantT("assistant.callReady");
+      return browserSupportsRealtimeWebCall()
+        ? assistantT("assistant.callRealtimeReady")
+        : assistantT("assistant.callReady");
   }
 }
 
@@ -3795,6 +3889,10 @@ function setCallModeState(state, message = "", options = {}) {
 }
 
 function getCallModeStartLabel(effectiveState = callModeState) {
+  if (!callModeActive && browserSupportsRealtimeWebCall()) {
+    return assistantT("assistant.callStartRealtime");
+  }
+
   if (callModeActive && [
     CALL_MODE_STATES.READY,
     CALL_MODE_STATES.WAITING,
@@ -3816,6 +3914,19 @@ function getCallModeStartLabel(effectiveState = callModeState) {
 function toggleCallModeMute() {
   if (!callModeActive) {
     void startCallModeTurn();
+    return;
+  }
+
+  if (webCallRealtimeActive && webCallRealtimeStream) {
+    const audioTracks = webCallRealtimeStream.getAudioTracks?.() || webCallRealtimeStream.getTracks?.() || [];
+    const shouldEnable = audioTracks.some((track) => track.enabled === false);
+    audioTracks.forEach((track) => {
+      track.enabled = shouldEnable;
+    });
+    setCallModeState(
+      shouldEnable ? CALL_MODE_STATES.LISTENING : CALL_MODE_STATES.MUTED_STOPPED,
+      shouldEnable ? assistantT("assistant.callRealtimeListening") : assistantT("assistant.callMutedStopped")
+    );
     return;
   }
 
@@ -3899,6 +4010,7 @@ function bindCallModeControls() {
 
 function syncCallModeControls() {
   const panel = getCallModePanel();
+  const kicker = document.getElementById("call-front-desk-kicker");
   const startButton = getCallModeStartButton();
   const stopButton = getCallModeStopButton();
   const muteButton = getCallModeMuteButton();
@@ -3911,17 +4023,19 @@ function syncCallModeControls() {
   const spokenRepliesEnabled = config.spokenRepliesEnabled === true;
   const webCallEnabled = config.webCallEnabled === true;
   const shouldShow = isPageMode() && voiceInputEnabled && spokenRepliesEnabled && webCallEnabled;
-  const unavailableMessage = shouldShow ? getVoiceUnavailableMessage() : "";
+  const unavailableMessage = shouldShow ? getCallModeUnavailableMessage() : "";
   const effectiveState = unavailableMessage && !callModeActive
     ? CALL_MODE_STATES.UNAVAILABLE
     : callModeState;
   const busy = voiceTranscriptRequestActive
     || [
       CALL_MODE_STATES.REQUESTING,
+      CALL_MODE_STATES.CONNECTING,
       CALL_MODE_STATES.LISTENING,
       CALL_MODE_STATES.TRANSCRIBING,
       CALL_MODE_STATES.THINKING,
       CALL_MODE_STATES.SPEAKING,
+      CALL_MODE_STATES.RECONNECTING,
     ].includes(callModeState);
 
   bindCallModeControls();
@@ -3929,6 +4043,12 @@ function syncCallModeControls() {
   if (panel) {
     panel.hidden = !shouldShow;
     panel.setAttribute("aria-label", assistantT("assistant.callTitle"));
+  }
+
+  if (kicker) {
+    kicker.textContent = browserSupportsRealtimeWebCall() && !webCallRealtimeFallbackReason
+      ? assistantT("assistant.callKickerRealtime")
+      : assistantT("assistant.callKickerFallback");
   }
 
   if (!shouldShow) {
@@ -3968,7 +4088,11 @@ function syncCallModeControls() {
   }
 
   if (muteButton) {
-    const canMute = callModeActive && callModeState === CALL_MODE_STATES.LISTENING && voiceRecorder;
+    const realtimeTracks = webCallRealtimeStream?.getAudioTracks?.() || webCallRealtimeStream?.getTracks?.() || [];
+    const canMute = callModeActive && (
+      (callModeState === CALL_MODE_STATES.LISTENING && voiceRecorder)
+      || (webCallRealtimeActive && realtimeTracks.some((track) => track.enabled !== false))
+    );
     const canUnmute = callModeActive && [
       CALL_MODE_STATES.READY,
       CALL_MODE_STATES.WAITING,
@@ -4023,18 +4147,286 @@ function syncCallModeControls() {
   }
 }
 
-async function startCallModeTurn() {
-  const config = getVoiceConfig();
+function stopRealtimeWebCall() {
+  if (webCallRealtimeDataChannel) {
+    try {
+      webCallRealtimeDataChannel.close?.();
+    } catch {
+      // Ignore close failures during teardown.
+    }
+  }
 
+  if (webCallRealtimePeer) {
+    try {
+      webCallRealtimePeer.close?.();
+    } catch {
+      // Ignore close failures during teardown.
+    }
+  }
+
+  const tracks = webCallRealtimeStream?.getTracks?.() || [];
+  tracks.forEach((track) => track.stop?.());
+
+  if (webCallRealtimeAudio) {
+    webCallRealtimeAudio.pause?.();
+    webCallRealtimeAudio.srcObject = null;
+    webCallRealtimeAudio.remove?.();
+  }
+
+  webCallRealtimeActive = false;
+  webCallRealtimePeer = null;
+  webCallRealtimeDataChannel = null;
+  webCallRealtimeStream = null;
+  webCallRealtimeAudio = null;
+  webCallRealtimeStartedAt = 0;
+  webCallRealtimeConnectedAt = 0;
+  webCallRealtimeFirstAudioAt = 0;
+}
+
+function getRealtimeTelemetryBase(extra = {}) {
+  return {
+    realtime_mode: "realtime",
+    connection_latency_ms: webCallRealtimeConnectedAt && webCallRealtimeStartedAt
+      ? Math.max(0, webCallRealtimeConnectedAt - webCallRealtimeStartedAt)
+      : 0,
+    first_audio_latency_ms: webCallRealtimeFirstAudioAt && webCallRealtimeStartedAt
+      ? Math.max(0, webCallRealtimeFirstAudioAt - webCallRealtimeStartedAt)
+      : 0,
+    interruption_count: webCallRealtimeInterruptions,
+    reconnect_count: webCallRealtimeReconnects,
+    ...extra,
+  };
+}
+
+function sendRealtimeClientEvent(event) {
   if (
-    !isPageMode()
-    || config.voiceInputEnabled !== true
-    || config.spokenRepliesEnabled !== true
-    || config.webCallEnabled !== true
+    webCallRealtimeDataChannel
+    && webCallRealtimeDataChannel.readyState === "open"
+    && event
+    && typeof event === "object"
   ) {
+    webCallRealtimeDataChannel.send(JSON.stringify(event));
+    return true;
+  }
+
+  return false;
+}
+
+function handleRealtimeServerEvent(event = {}) {
+  const type = trimText(event.type);
+
+  if (type === "input_audio_buffer.speech_started") {
+    callModeTurnCount += 1;
+    updateCallModeStats();
+    if (callModeState === CALL_MODE_STATES.SPEAKING) {
+      webCallRealtimeInterruptions += 1;
+      sendRealtimeClientEvent({ type: "response.cancel" });
+      sendRealtimeClientEvent({ type: "output_audio_buffer.clear" });
+      void trackWebCallProductEvent("web_call_realtime_interrupted", getRealtimeTelemetryBase({
+        turn_index: callModeTurnCount,
+      }));
+    }
+    setCallModeState(CALL_MODE_STATES.LISTENING);
+    return;
+  }
+
+  if (type === "input_audio_buffer.speech_stopped") {
+    setCallModeState(CALL_MODE_STATES.THINKING);
+    return;
+  }
+
+  if (type === "response.created" || type === "response.output_item.added") {
+    setCallModeState(CALL_MODE_STATES.THINKING);
+    return;
+  }
+
+  if (type === "response.audio.delta" || type === "output_audio_buffer.started") {
+    if (!webCallRealtimeFirstAudioAt) {
+      webCallRealtimeFirstAudioAt = Date.now();
+      void trackWebCallProductEvent("web_call_realtime_first_audio", getRealtimeTelemetryBase({
+        turn_index: Math.max(1, callModeTurnCount),
+      }));
+    }
+    setCallModeState(CALL_MODE_STATES.SPEAKING);
+    return;
+  }
+
+  if (type === "response.done" || type === "output_audio_buffer.stopped") {
+    if (callModeActive && webCallRealtimeActive) {
+      setCallModeState(CALL_MODE_STATES.LISTENING);
+    }
+  }
+}
+
+async function fetchRealtimeClientSecret() {
+  const response = await fetch("/api/voice/realtime/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...buildVoiceJsonContext(),
+      web_call_id: getWebCallTelemetryId(),
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const error = new Error(getVoiceApiFailureMessage(response.status, "assistant.voiceUnavailableType", data.code));
+    error.statusCode = response.status;
+    error.code = trimText(data.code) || "realtime_token_failed";
+    throw error;
+  }
+
+  const clientSecret = trimText(data.client_secret || data.clientSecret || data.value);
+  if (!clientSecret) {
+    const error = new Error("realtime client_secret missing");
+    error.code = "realtime_token_failed";
+    throw error;
+  }
+
+  return { clientSecret, tokenLatencyMs: Number(data.token_latency_ms || 0) || 0 };
+}
+
+async function connectRealtimeWebCall() {
+  if (!browserSupportsRealtimeWebCall()) {
+    const error = new Error("WebRTC unsupported");
+    error.code = "webrtc_unsupported";
+    throw error;
+  }
+
+  webCallRealtimeStartedAt = Date.now();
+  webCallRealtimeFirstAudioAt = 0;
+  webCallRealtimeConnectedAt = 0;
+  webCallRealtimeFallbackReason = "";
+
+  const token = await fetchRealtimeClientSecret();
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const RTCPeerConnectionCtor = window.RTCPeerConnection;
+  const pc = new RTCPeerConnectionCtor();
+  const dc = pc.createDataChannel("oai-events");
+  const audioElement = document.createElement("audio");
+  audioElement.autoplay = true;
+  audioElement.playsInline = true;
+
+  webCallRealtimePeer = pc;
+  webCallRealtimeDataChannel = dc;
+  webCallRealtimeStream = stream;
+  webCallRealtimeAudio = audioElement;
+
+  pc.ontrack = (event) => {
+    audioElement.srcObject = event.streams?.[0] || null;
+    const playPromise = audioElement.play?.();
+    if (playPromise && typeof playPromise.catch === "function") {
+      playPromise.catch((error) => {
+        if (callModeActive) {
+          void fallbackToTurnBasedWebCall(error, { fromRealtime: true });
+        }
+      });
+    }
+  };
+
+  dc.addEventListener?.("message", (event) => {
+    try {
+      handleRealtimeServerEvent(JSON.parse(event.data));
+    } catch {
+      // Realtime event parsing failures are not surfaced to visitors.
+    }
+  });
+
+  dc.addEventListener?.("open", () => {
+    webCallRealtimeConnectedAt = webCallRealtimeConnectedAt || Date.now();
+    void trackWebCallProductEvent("web_call_realtime_connected", getRealtimeTelemetryBase({
+      connection_latency_ms: Math.max(0, webCallRealtimeConnectedAt - webCallRealtimeStartedAt),
+      token_latency_ms: Math.max(0, Math.round(token.tokenLatencyMs)),
+    }));
+  });
+
+  pc.onconnectionstatechange = () => {
+    if (!callModeActive) {
+      return;
+    }
+
+    const state = trimText(pc.connectionState).toLowerCase();
+    if (state === "connected") {
+      webCallRealtimeConnectedAt = webCallRealtimeConnectedAt || Date.now();
+      setCallModeState(CALL_MODE_STATES.LISTENING);
+      return;
+    }
+
+    if (state === "disconnected" || state === "connecting") {
+      if (webCallRealtimeConnectedAt) {
+        webCallRealtimeReconnects += 1;
+        setCallModeState(CALL_MODE_STATES.RECONNECTING);
+        void trackWebCallProductEvent("web_call_realtime_reconnecting", getRealtimeTelemetryBase());
+      }
+      return;
+    }
+
+    if (state === "failed" || state === "closed") {
+      void fallbackToTurnBasedWebCall("realtime_connect_failed", { fromRealtime: true });
+    }
+  };
+
+  const tracks = stream.getTracks?.() || [];
+  tracks.forEach((track) => pc.addTrack(track, stream));
+
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    body: offer.sdp,
+    headers: {
+      Authorization: `Bearer ${token.clientSecret}`,
+      "Content-Type": "application/sdp",
+    },
+  });
+
+  if (!sdpResponse.ok) {
+    const error = new Error("Realtime SDP exchange failed");
+    error.statusCode = sdpResponse.status;
+    error.code = "realtime_connect_failed";
+    throw error;
+  }
+
+  const answer = {
+    type: "answer",
+    sdp: await sdpResponse.text(),
+  };
+  await pc.setRemoteDescription(answer);
+  webCallRealtimeActive = true;
+  return true;
+}
+
+async function fallbackToTurnBasedWebCall(errorOrReason, options = {}) {
+  const failureCategory = getWebCallFailureCategory(errorOrReason);
+  webCallRealtimeFallbackReason = failureCategory;
+  void trackWebCallProductEvent("web_call_realtime_fallback", getRealtimeTelemetryBase({
+    fallback_reason: failureCategory,
+    failure_category: failureCategory,
+  }));
+  stopRealtimeWebCall();
+  webCallRealtimeActive = false;
+
+  if (!browserSupportsVoiceInput()) {
+    callModeActive = false;
+    cleanupCallModeMedia();
+    setCallModeState(CALL_MODE_STATES.UNAVAILABLE, getVoiceUnavailableMessage() || assistantT("assistant.callUnavailable"));
+    showCallModeFallbackSummary();
+    void trackWebCallProductEvent("web_call_realtime_failed", {
+      fallback_reason: failureCategory,
+      failure_category: failureCategory,
+    });
     return false;
   }
 
+  if (options.fromRealtime === true) {
+    setCallModeState(CALL_MODE_STATES.REQUESTING, assistantT("assistant.callRealtimeFallback"));
+  }
+
+  return startTurnBasedCallModeTurn();
+}
+
+async function startTurnBasedCallModeTurn() {
   const unavailableMessage = getVoiceUnavailableMessage();
   if (unavailableMessage) {
     callModeActive = false;
@@ -4043,7 +4435,6 @@ async function startCallModeTurn() {
   }
 
   callModeActive = true;
-  startCallModeSession();
   setCallModeState(CALL_MODE_STATES.REQUESTING);
   const started = await startVoiceRecording({ source: "call" });
 
@@ -4056,6 +4447,44 @@ async function startCallModeTurn() {
   }
 
   return started;
+}
+
+async function startCallModeTurn() {
+  const config = getVoiceConfig();
+
+  if (
+    !isPageMode()
+    || config.voiceInputEnabled !== true
+    || config.spokenRepliesEnabled !== true
+    || config.webCallEnabled !== true
+  ) {
+    return false;
+  }
+
+  const unavailableMessage = getCallModeUnavailableMessage();
+  if (unavailableMessage) {
+    callModeActive = false;
+    setCallModeState(CALL_MODE_STATES.UNAVAILABLE, unavailableMessage);
+    return false;
+  }
+
+  callModeActive = true;
+  startCallModeSession();
+
+  if (browserSupportsRealtimeWebCall()) {
+    setCallModeState(CALL_MODE_STATES.CONNECTING);
+    try {
+      return await connectRealtimeWebCall();
+    } catch (error) {
+      console.warn("Vonza realtime Web Call failed; falling back to turn-based voice.", {
+        code: trimText(error?.code),
+        statusCode: Number(error?.statusCode || error?.status || 0) || null,
+      });
+      return fallbackToTurnBasedWebCall(error, { fromRealtime: true });
+    }
+  }
+
+  return startTurnBasedCallModeTurn();
 }
 
 function normalizeWebCallCommandText(value = "") {

@@ -8,6 +8,7 @@ import {
   getOwnerBillingSnapshot,
   recordEstimatedUsage,
 } from "../billing/billingUsageService.js";
+import { ensureWebCallSession } from "./webCallSessionService.js";
 import { verifySpeechAuthorization } from "./voiceSpeechTokenService.js";
 import { cleanText } from "../../utils/text.js";
 
@@ -27,6 +28,20 @@ export const VOICE_AUDIO_MIME_TYPES = Object.freeze({
 
 const DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe";
 const DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
+const DEFAULT_REALTIME_MODEL = "gpt-realtime";
+const DEFAULT_REALTIME_VOICE = "marin";
+const REALTIME_VOICES = Object.freeze([
+  "alloy",
+  "ash",
+  "ballad",
+  "cedar",
+  "coral",
+  "echo",
+  "marin",
+  "sage",
+  "shimmer",
+  "verse",
+]);
 const DEFAULT_MAX_AUDIO_BYTES = 8 * 1024 * 1024;
 const DEFAULT_MAX_AUDIO_DURATION_SECONDS = 30;
 const DEFAULT_MAX_TTS_CHARS = 1200;
@@ -78,6 +93,10 @@ export function getVoiceTtsModel() {
   return safeText(process.env.VOICE_TTS_MODEL) || DEFAULT_TTS_MODEL;
 }
 
+export function getVoiceRealtimeModel() {
+  return safeText(process.env.VOICE_REALTIME_MODEL) || DEFAULT_REALTIME_MODEL;
+}
+
 export function getVoiceMaxAudioBytes() {
   return getPositiveIntegerEnv("VOICE_MAX_AUDIO_BYTES", DEFAULT_MAX_AUDIO_BYTES);
 }
@@ -106,6 +125,10 @@ export function getVoiceFileExtension(contentType = "") {
 
 export function isAllowedVoice(value = "") {
   return VOICE_TTS_VOICES.includes(safeText(value).toLowerCase());
+}
+
+function isAllowedRealtimeVoice(value = "") {
+  return REALTIME_VOICES.includes(safeText(value).toLowerCase());
 }
 
 export function getVoiceRequestContext(req, body = {}) {
@@ -248,6 +271,195 @@ function assertSpokenRepliesEnabled(widgetConfig = {}) {
   }
 
   return config;
+}
+
+function assertWebCallEnabled(widgetConfig = {}) {
+  const config = assertSpokenRepliesEnabled(widgetConfig);
+  if (config.voiceInputEnabled === false) {
+    throw buildVoiceError("Voice input is not enabled for this assistant.", 403, "voice_input_disabled");
+  }
+
+  if (config.webCallEnabled !== true) {
+    throw buildVoiceError("Web Call is not enabled for this assistant.", 403, "web_call_disabled");
+  }
+
+  return config;
+}
+
+function getOpenAIApiKey() {
+  const apiKey = safeText(process.env.OPENAI_API_KEY);
+  if (!apiKey) {
+    throw buildSafeVoiceProviderError("openai_realtime_unavailable");
+  }
+
+  return apiKey;
+}
+
+function extractRealtimeClientSecret(data = {}) {
+  return safeText(
+    data.value
+    || data.client_secret?.value
+    || data.clientSecret?.value
+    || data.secret?.value
+  );
+}
+
+function extractRealtimeExpiresAt(data = {}) {
+  return data.expires_at
+    || data.expiresAt
+    || data.client_secret?.expires_at
+    || data.clientSecret?.expiresAt
+    || null;
+}
+
+function buildRealtimeInstructions(resolvedContext = {}) {
+  const businessName = safeText(
+    resolvedContext.business?.name
+    || resolvedContext.business?.business_name
+    || resolvedContext.widgetConfig?.assistantName
+    || resolvedContext.widgetConfig?.assistant_name
+    || "this business"
+  );
+  const assistantName = safeText(
+    resolvedContext.widgetConfig?.assistantName
+    || resolvedContext.widgetConfig?.assistant_name
+    || resolvedContext.agent?.name
+  );
+  const tone = safeText(resolvedContext.agent?.tone);
+  const businessNotes = safeText(resolvedContext.agent?.systemPrompt || resolvedContext.agent?.system_prompt).slice(0, 1200);
+
+  const instructions = [
+    `You are the browser voice Front Desk for ${businessName}.`,
+    assistantName ? `Your display name is ${assistantName}.` : "",
+    tone ? `Use this brand tone: ${tone}.` : "",
+    businessNotes ? `Front Desk behavior notes: ${businessNotes}` : "",
+    "Default to one or two short spoken sentences. Give longer detail only when the visitor asks for it.",
+    "Sound conversational and front-desk appropriate: warm, direct, and useful.",
+    "Ask at most one focused follow-up question when needed.",
+    "Do not claim this is a phone line, SMS call, or Twilio call. This is browser voice on the Front Desk page.",
+    "Do not collect sensitive personal data. If follow-up is needed, ask the visitor to use the on-page contact form.",
+    "Only answer business-specific questions when the answer is supported by the Front Desk context. If you are not certain, say so briefly and suggest typing the question or leaving contact details for follow-up.",
+  ].filter(Boolean);
+
+  return instructions.join(" ");
+}
+
+function buildRealtimeSessionConfig({ resolvedContext, voiceConfig }) {
+  const requestedVoice = safeText(voiceConfig.voice).toLowerCase();
+  const voice = isAllowedRealtimeVoice(requestedVoice) ? requestedVoice : DEFAULT_REALTIME_VOICE;
+
+  return {
+    session: {
+      type: "realtime",
+      model: getVoiceRealtimeModel(),
+      instructions: buildRealtimeInstructions(resolvedContext),
+      max_output_tokens: 180,
+      audio: {
+        input: {
+          noise_reduction: {
+            type: "near_field",
+          },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.45,
+            prefix_padding_ms: 300,
+            silence_duration_ms: 450,
+            create_response: true,
+            interrupt_response: true,
+          },
+        },
+        output: {
+          voice,
+          speed: 1.03,
+        },
+      },
+    },
+  };
+}
+
+export async function createRealtimeWebCallClientSecret({
+  supabase,
+  body,
+  deps = {},
+}) {
+  const context = getVoiceRequestContext({ query: {}, headers: {} }, body);
+  const resolvedContext = await resolveVoiceContext(supabase, context, deps);
+  const voiceConfig = assertWebCallEnabled(resolvedContext.widgetConfig);
+  const voiceBilling = await getAllowedVoiceBillingSnapshot(supabase, resolvedContext, deps);
+  const clientSessionKey = safeText(context.webCallId);
+
+  if (!clientSessionKey) {
+    throw buildVoiceError("web_call_id is required.", 400, "web_call_id_required");
+  }
+
+  const ensureWebCallSessionImpl = deps.ensureWebCallSession || ensureWebCallSession;
+  let webCallSession = null;
+
+  try {
+    webCallSession = await ensureWebCallSessionImpl(supabase, {
+      agent: resolvedContext.agent,
+      business: resolvedContext.business,
+      ownerUserId: voiceBilling.ownerUserId,
+      clientSessionKey,
+      visitorSessionKey: context.sessionKey,
+      eventName: "web_call_started",
+      metadata: {
+        conversation_source: "web_call",
+        web_call_id: clientSessionKey,
+        realtime_mode: "realtime",
+      },
+    });
+  } catch (error) {
+    console.warn("[voice] realtime session persistence skipped", {
+      agentId: safeText(resolvedContext.agent?.id),
+      message: error?.message || "Unknown Web Call session error",
+    });
+  }
+
+  const fetchImpl = deps.fetch || globalThis.fetch;
+  if (typeof fetchImpl !== "function") {
+    throw buildSafeVoiceProviderError("openai_realtime_unavailable");
+  }
+
+  const startedAt = Date.now();
+  let response;
+  let data;
+
+  try {
+    response = await fetchImpl("https://api.openai.com/v1/realtime/client_secrets", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${getOpenAIApiKey()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildRealtimeSessionConfig({ resolvedContext, voiceConfig })),
+    });
+    data = await response.json().catch(() => ({}));
+  } catch (error) {
+    const safeError = buildSafeVoiceProviderError("openai_realtime_unavailable");
+    safeError.cause = error;
+    throw safeError;
+  }
+
+  if (!response?.ok) {
+    throw buildSafeVoiceProviderError("openai_realtime_unavailable");
+  }
+
+  const clientSecret = extractRealtimeClientSecret(data);
+  if (!clientSecret) {
+    throw buildSafeVoiceProviderError("openai_realtime_unavailable");
+  }
+
+  return {
+    clientSecret,
+    expiresAt: extractRealtimeExpiresAt(data),
+    model: getVoiceRealtimeModel(),
+    webCallSessionId: safeText(webCallSession?.id),
+    agentId: resolvedContext.agent?.id || "",
+    businessId: resolvedContext.business?.id || "",
+    installId: resolvedContext.widgetConfig?.installId || safeText(context.installId),
+    connectionTokenLatencyMs: Math.max(0, Date.now() - startedAt),
+  };
 }
 
 export function validateAudioUpload({ audioBuffer, contentType, durationMs }) {

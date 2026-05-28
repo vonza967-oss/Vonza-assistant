@@ -845,8 +845,8 @@ test("hosted full-page Front Desk sends customer question and captures contact d
     await assertVisibleText(page, "Example Services");
     await assertVisibleText(page, "Example Services Front Desk");
     await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
-    await assertVisibleText(page, "Talk to Front Desk");
-    await assertVisibleText(page, "Start voice turn");
+    await assertVisibleText(page, "Talk to the Front Desk");
+    await assertVisibleText(page, "Ready for browser voice");
     await assertVisibleText(page, "Duration 00:00");
     await assertVisibleText(page, "Turns 0");
     await page.locator("#input").waitFor({ state: "visible" });
@@ -1112,7 +1112,7 @@ test("hosted full-page Front Desk shows call CTA on mobile when web call is enab
     await page.goto(hostedUrl.toString(), { waitUntil: "domcontentloaded" });
     await page.locator("#page-assistant-hero").waitFor({ state: "visible" });
     await page.locator("#call-front-desk-panel").waitFor({ state: "visible" });
-    await assertVisibleText(page, "Talk to Front Desk");
+    await assertVisibleText(page, "Talk to the Front Desk");
     await assertNoHorizontalOverflow(page);
   } finally {
     await page.close();
@@ -1340,7 +1340,7 @@ test("hosted full-page Web Call turn sends source marker without phone traffic",
     assert.equal(speechRequests[0].speech_token, "browser-call-speech-token");
 
     await page.locator("#call-front-desk-end").click();
-    await assertVisibleText(page, "Voice session ended");
+    await assertVisibleText(page, "Browser voice ended");
     await assertVisibleText(page, "Leave contact details");
     await page.locator("#call-front-desk-contact").click();
     await page.locator("#page-identity-email-form").waitFor({ state: "visible" });

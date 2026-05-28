@@ -20,6 +20,12 @@ export const WEB_CALL_PRODUCT_EVENTS = [
   "web_call_ended",
   "web_call_max_turns_reached",
   "web_call_failed_recovery_shown",
+  "web_call_realtime_connected",
+  "web_call_realtime_first_audio",
+  "web_call_realtime_interrupted",
+  "web_call_realtime_reconnecting",
+  "web_call_realtime_fallback",
+  "web_call_realtime_failed",
 ];
 
 const SAFE_WEB_CALL_FAILURE_CATEGORIES = new Set([
@@ -44,6 +50,12 @@ const SAFE_WEB_CALL_FAILURE_CATEGORIES = new Set([
   "transcription_failed",
   "unknown",
   "voice_unavailable",
+  "autoplay_blocked",
+  "network_failed",
+  "openai_realtime_unavailable",
+  "realtime_connect_failed",
+  "realtime_token_failed",
+  "webrtc_unsupported",
 ]);
 
 const WEB_CALL_FAILURE_LABELS = Object.freeze({
@@ -68,6 +80,12 @@ const WEB_CALL_FAILURE_LABELS = Object.freeze({
   transcription_failed: "Transcription failed",
   unknown: "Unknown safe category",
   voice_unavailable: "Voice unavailable",
+  autoplay_blocked: "Autoplay blocked",
+  network_failed: "Network failed",
+  openai_realtime_unavailable: "Realtime unavailable",
+  realtime_connect_failed: "Realtime connection failed",
+  realtime_token_failed: "Realtime token failed",
+  webrtc_unsupported: "WebRTC unsupported",
 });
 
 export const TRACKED_PRODUCT_EVENTS = [
@@ -218,6 +236,8 @@ function isWebCallFailureEvent(eventName = "") {
     "web_call_transcript_rejected",
     "web_call_speech_failed",
     "web_call_failed_recovery_shown",
+    "web_call_realtime_fallback",
+    "web_call_realtime_failed",
   ].includes(cleanText(eventName));
 }
 
@@ -329,6 +349,7 @@ function shouldDropMetadataKey(key = "") {
     "content",
     "secret",
     "token",
+    "api_key",
     "password",
     "authorization",
     "cookie",
@@ -378,7 +399,7 @@ export function sanitizeProductEventMetadata(metadata) {
 
   const entries = Object.entries(metadata)
     .filter(([key]) => isSafeMetadataKey(key))
-    .slice(0, 20)
+    .slice(0, 30)
     .map(([key, value]) => [key, normalizeMetadataValue(value)])
     .filter(([, value]) => value !== null);
 

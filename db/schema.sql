@@ -120,6 +120,12 @@ create table if not exists public.web_call_sessions (
   turn_count integer not null default 0,
   duration_seconds integer,
   failure_category text,
+  realtime_mode text,
+  realtime_connection_latency_ms integer,
+  realtime_first_audio_latency_ms integer,
+  realtime_interruption_count integer not null default 0,
+  realtime_reconnect_count integer not null default 0,
+  realtime_fallback_reason text,
   started_at timestamp with time zone default now(),
   ended_at timestamp with time zone,
   last_event_at timestamp with time zone,
@@ -128,7 +134,9 @@ create table if not exists public.web_call_sessions (
   constraint web_call_sessions_display_mode_check
     check (display_mode in ('page')),
   constraint web_call_sessions_status_check
-    check (status in ('started', 'active', 'completed', 'failed'))
+    check (status in ('started', 'active', 'completed', 'failed')),
+  constraint web_call_sessions_realtime_mode_check
+    check (realtime_mode is null or realtime_mode in ('realtime', 'turn_based', 'fallback'))
 );
 
 create unique index if not exists web_call_sessions_agent_client_key_idx

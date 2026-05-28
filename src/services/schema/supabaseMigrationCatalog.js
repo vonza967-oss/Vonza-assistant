@@ -316,6 +316,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds server-authoritative browser Web Call sessions and safe per-turn latency telemetry for full-page Front Desk voice turns.",
   }),
+  Object.freeze({
+    id: "realtime_web_call",
+    version: "20260528001000",
+    name: "realtime_web_call",
+    file: "supabase/migrations/20260528001000_realtime_web_call.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds safe session-level telemetry columns for optional Realtime WebRTC Web Call connections and fallback reasons.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

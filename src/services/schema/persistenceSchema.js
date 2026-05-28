@@ -652,6 +652,12 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "turn_count",
       "duration_seconds",
       "failure_category",
+      "realtime_mode",
+      "realtime_connection_latency_ms",
+      "realtime_first_audio_latency_ms",
+      "realtime_interruption_count",
+      "realtime_reconnect_count",
+      "realtime_fallback_reason",
       "started_at",
       "ended_at",
       "last_event_at",
@@ -660,6 +666,7 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
     ],
     migrationFiles: [
       SUPABASE_MIGRATION_FILE_BY_ID.web_call_sessions,
+      SUPABASE_MIGRATION_FILE_BY_ID.realtime_web_call,
     ],
   },
   web_call_turn_telemetry: {

@@ -48,6 +48,7 @@ function buildResolvedContext(overrides = {}) {
       voiceConfig: {
         voiceInputEnabled: true,
         spokenRepliesEnabled: true,
+        webCallEnabled: true,
         autoSendTranscript: false,
         autoPlaySpokenReplies: false,
         voice: "alloy",
@@ -431,6 +432,174 @@ test("billing schema failure returns safe voice transcription error before OpenA
   } finally {
     await server.close();
   }
+});
+
+test("realtime Web Call endpoint mints an ephemeral client secret without leaking server keys", async () => {
+  await withEnv({ OPENAI_API_KEY: "sk-server-secret", VOICE_REALTIME_MODEL: "gpt-realtime" }, async () => {
+    let capturedRequest = null;
+    let capturedSession = null;
+    const server = await startServer(createApp({
+      routerDeps: {
+        fetch: async (url, options = {}) => {
+          capturedRequest = {
+            url,
+            headers: options.headers,
+            body: JSON.parse(options.body),
+          };
+          return {
+            ok: true,
+            async json() {
+              return {
+                value: "eph-client-secret",
+                expires_at: 1770000000,
+              };
+            },
+          };
+        },
+        ensureWebCallSession: async (_supabase, payload) => {
+          capturedSession = payload;
+          return {
+            id: "web-call-session-1",
+            agent_id: "agent-1",
+            business_id: "business-1",
+            owner_user_id: "owner-1",
+          };
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/realtime/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          visitor_session_key: "visitor-session",
+          web_call_id: "web-call-client-1",
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 200);
+      assert.equal(json.client_secret, "eph-client-secret");
+      assert.equal(json.model, "gpt-realtime");
+      assert.equal(json.web_call_session_id, "web-call-session-1");
+      assert.doesNotMatch(JSON.stringify(json), /sk-server-secret/);
+      assert.equal(capturedRequest.url, "https://api.openai.com/v1/realtime/client_secrets");
+      assert.equal(capturedRequest.headers.Authorization, "Bearer sk-server-secret");
+      assert.equal(capturedRequest.body.session.model, "gpt-realtime");
+      assert.equal(capturedRequest.body.session.type, "realtime");
+      assert.equal(capturedRequest.body.session.max_output_tokens, 180);
+      assert.equal(capturedRequest.body.session.audio.output.voice, "alloy");
+      assert.equal(capturedRequest.body.session.audio.output.speed, 1.03);
+      assert.equal(capturedRequest.body.session.audio.input.noise_reduction.type, "near_field");
+      assert.equal(capturedRequest.body.session.audio.input.turn_detection.type, "server_vad");
+      assert.equal(capturedRequest.body.session.audio.input.turn_detection.silence_duration_ms, 450);
+      assert.equal(capturedRequest.body.session.audio.input.turn_detection.interrupt_response, true);
+      assert.equal(capturedSession.clientSessionKey, "web-call-client-1");
+      assert.equal(capturedSession.visitorSessionKey, "visitor-session");
+      assert.equal(capturedSession.eventName, "web_call_started");
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("realtime Web Call endpoint enforces access and billing before OpenAI", async () => {
+  await withEnv({ OPENAI_API_KEY: "sk-server-secret" }, async () => {
+    for (const scenario of [
+      {
+        name: "inactive",
+        contextOverrides: { agent: { accessStatus: "suspended" } },
+        billing: async () => ({ usage: { isCapped: false } }),
+        expectedStatus: 403,
+      },
+      {
+        name: "capped",
+        contextOverrides: {},
+        billing: async () => ({ usage: { isCapped: true } }),
+        expectedStatus: 402,
+      },
+    ]) {
+      let providerCalled = false;
+      const server = await startServer(createApp({
+        contextOverrides: scenario.contextOverrides,
+        routerDeps: {
+          fetch: async () => {
+            providerCalled = true;
+            return { ok: true, async json() { return { value: "not reached" }; } };
+          },
+          getOwnerBillingSnapshot: scenario.billing,
+          ensureWebCallSession: async () => {
+            throw new Error("session should not be created when access or billing blocks");
+          },
+        },
+      }));
+
+      try {
+        const response = await fetch(`${server.baseUrl}/api/voice/realtime/session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            install_id: "install-1",
+            origin: "https://allowed.example",
+            page_url: "https://allowed.example/help",
+            display_mode: "page",
+            web_call_id: `web-call-${scenario.name}`,
+          }),
+        });
+        const json = await readJson(response);
+
+        assert.equal(response.status, scenario.expectedStatus);
+        assert.equal(providerCalled, false);
+        assert.doesNotMatch(JSON.stringify(json), /sk-server-secret|not reached/);
+      } finally {
+        await server.close();
+      }
+    }
+  });
+});
+
+test("realtime Web Call endpoint returns safe errors when OpenAI Realtime is unavailable", async () => {
+  await withEnv({ OPENAI_API_KEY: "sk-server-secret" }, async () => {
+    const server = await startServer(createApp({
+      routerDeps: {
+        fetch: async () => ({
+          ok: false,
+          status: 500,
+          async json() {
+            return { error: { message: "raw OpenAI sk-provider-secret stack trace" } };
+          },
+        }),
+        ensureWebCallSession: async () => ({ id: "web-call-session-1" }),
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/realtime/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          web_call_id: "web-call-client-1",
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 503);
+      assert.equal(json.code, "openai_realtime_unavailable");
+      assert.match(json.error, /voice is temporarily unavailable/i);
+      assert.doesNotMatch(JSON.stringify(json), /sk-server-secret|sk-provider-secret|stack trace/i);
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 test("transcription rate limit runs before voice service logic", async () => {

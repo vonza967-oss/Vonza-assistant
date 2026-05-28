@@ -81,7 +81,8 @@ function normalizeStatusForEvent(eventName = "", metadata = {}) {
   if (
     eventName === "web_call_failed_recovery_shown" ||
     eventName === "web_call_mic_denied" ||
-    eventName === "web_call_speech_failed"
+    eventName === "web_call_speech_failed" ||
+    eventName === "web_call_realtime_failed"
   ) {
     return "failed";
   }
@@ -98,6 +99,12 @@ function buildSessionUpdate({ eventName, metadata = {}, now }) {
   const failureCategory = safeFailureCategory(metadata.failure_category || metadata.failureCategory);
   const turnCount = safeInteger(metadata.turn_count || metadata.turnCount, 200);
   const durationSeconds = safeInteger(metadata.duration_seconds || metadata.durationSeconds, 24 * 60 * 60);
+  const connectionLatencyMs = safeInteger(metadata.connection_latency_ms || metadata.connectionLatencyMs);
+  const firstAudioLatencyMs = safeInteger(metadata.first_audio_latency_ms || metadata.firstAudioLatencyMs);
+  const interruptionCount = safeInteger(metadata.interruption_count || metadata.interruptionCount, 200);
+  const reconnectCount = safeInteger(metadata.reconnect_count || metadata.reconnectCount, 200);
+  const fallbackReason = safeFailureCategory(metadata.fallback_reason || metadata.fallbackReason);
+  const realtimeMode = safeText(metadata.realtime_mode || metadata.realtimeMode, 32).toLowerCase();
   const payload = {
     status,
     last_event_at: now,
@@ -122,6 +129,30 @@ function buildSessionUpdate({ eventName, metadata = {}, now }) {
 
   if (failureCategory) {
     payload.failure_category = failureCategory;
+  }
+
+  if (["realtime", "turn_based", "fallback"].includes(realtimeMode)) {
+    payload.realtime_mode = realtimeMode;
+  }
+
+  if (connectionLatencyMs !== null) {
+    payload.realtime_connection_latency_ms = connectionLatencyMs;
+  }
+
+  if (firstAudioLatencyMs !== null) {
+    payload.realtime_first_audio_latency_ms = firstAudioLatencyMs;
+  }
+
+  if (interruptionCount !== null) {
+    payload.realtime_interruption_count = interruptionCount;
+  }
+
+  if (reconnectCount !== null) {
+    payload.realtime_reconnect_count = reconnectCount;
+  }
+
+  if (fallbackReason) {
+    payload.realtime_fallback_reason = fallbackReason;
   }
 
   return payload;
@@ -239,6 +270,12 @@ export async function ensureWebCallSession(supabase, input = {}) {
         turn_count: updatePayload.turn_count || 0,
         duration_seconds: updatePayload.duration_seconds || null,
         failure_category: updatePayload.failure_category || null,
+        realtime_mode: updatePayload.realtime_mode || null,
+        realtime_connection_latency_ms: updatePayload.realtime_connection_latency_ms || null,
+        realtime_first_audio_latency_ms: updatePayload.realtime_first_audio_latency_ms || null,
+        realtime_interruption_count: updatePayload.realtime_interruption_count || 0,
+        realtime_reconnect_count: updatePayload.realtime_reconnect_count || 0,
+        realtime_fallback_reason: updatePayload.realtime_fallback_reason || null,
         started_at: updatePayload.started_at || now,
         ended_at: updatePayload.ended_at || null,
         last_event_at: now,

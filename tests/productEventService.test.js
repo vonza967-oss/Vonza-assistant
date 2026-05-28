@@ -102,6 +102,12 @@ test("product event allowlist accepts Web Call telemetry names", async () => {
     "web_call_ended",
     "web_call_max_turns_reached",
     "web_call_failed_recovery_shown",
+    "web_call_realtime_connected",
+    "web_call_realtime_first_audio",
+    "web_call_realtime_interrupted",
+    "web_call_realtime_reconnecting",
+    "web_call_realtime_fallback",
+    "web_call_realtime_failed",
   ];
 
   for (const eventName of webCallEvents) {
@@ -128,7 +134,16 @@ test("Web Call product metadata keeps safe fields and drops transcript reply and
       total_turn_latency_ms: 7250,
       audio_duration_seconds: 4.2,
       audio_bytes: 1024,
+      realtime_mode: "realtime",
+      connection_latency_ms: 320,
+      first_audio_latency_ms: 900,
+      interruption_count: 1,
+      reconnect_count: 2,
+      fallback_reason: "openai_realtime_unavailable",
       failure_category: "speech_failed",
+      client_secret: "eph-secret",
+      openai_api_key: "sk-secret",
+      speech_token: "speech-token",
       transcript_text: "I need a quote for my kitchen",
       assistant_reply_text: "Sure, I can help.",
       contact_name: "Visitor Name",
@@ -152,6 +167,12 @@ test("Web Call product metadata keeps safe fields and drops transcript reply and
       total_turn_latency_ms: 7250,
       audio_duration_seconds: 4.2,
       audio_bytes: 1024,
+      realtime_mode: "realtime",
+      connection_latency_ms: 320,
+      first_audio_latency_ms: 900,
+      interruption_count: 1,
+      reconnect_count: 2,
+      fallback_reason: "openai_realtime_unavailable",
       failure_category: "speech_failed",
     }
   );

@@ -129,6 +129,7 @@ function createWidgetHarness({
   location = {},
   mediaDevices = null,
   MediaRecorder = null,
+  RTCPeerConnection = null,
   isSecureContext = true,
   mobileViewport = false,
   innerWidth = 1024,
@@ -415,6 +416,7 @@ function createWidgetHarness({
       Audio: TestAudio,
       Blob,
       MediaRecorder,
+      RTCPeerConnection,
       isSecureContext,
       addEventListener() {},
       innerWidth,
@@ -798,7 +800,7 @@ test("voice transcription API failures use safe localized status messages", asyn
   for (const [status, expected] of [
     [402, "This assistant has reached monthly AI capacity. You can still type your message."],
     [403, "Voice is temporarily unavailable. You can still type your message."],
-    [429, "The voice line is busy. Retry in a moment or type your message."],
+    [429, "Browser voice is busy. Retry in a moment or type your message."],
     [413, "That recording was too large. Try a shorter message."],
   ]) {
     const harness = createWidgetHarness({
@@ -968,8 +970,8 @@ test("call Front Desk CTA is page-only and requires voice input, spoken replies,
   });
 
   assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, false);
-  assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Talk to Front Desk");
-  assert.equal(pageHarness.elements.get("call-front-desk-status").textContent, "Ready for a voice turn");
+  assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Talk to the Front Desk");
+  assert.equal(pageHarness.elements.get("call-front-desk-status").textContent, "Ready for one voice turn");
   assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start voice turn");
   assert.equal(pageHarness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
   assert.equal(pageHarness.elements.get("call-front-desk-turns").textContent, "Turns 0");
@@ -1123,7 +1125,7 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
 
   assert.equal(TestMediaRecorder.instances.length, 1);
   assert.equal(harness.hooks.getCallModeState(), "listening");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening to this turn");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening to one turn");
   assert.equal(harness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 0");
   assert.equal(stopButton.textContent, "Done speaking");
@@ -1150,9 +1152,9 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
 
   harness.elements.get("call-front-desk-end").dispatch("click");
   assert.equal(harness.hooks.getCallModeState(), "stopped");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Voice session ended");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Browser voice ended");
   assert.equal(harness.elements.get("call-front-desk-summary").hidden, false);
-  assert.match(harness.elements.get("call-front-desk-summary").textContent, /Voice session ended: 00:00, 1 turn\. Transcript remains here\./);
+  assert.match(harness.elements.get("call-front-desk-summary").textContent, /Browser voice ended: 00:00, 1 turn\. Transcript remains here\./);
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
   assert.equal(harness.elements.get("call-front-desk-type").hidden, false);
@@ -1199,6 +1201,86 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
   assert.doesNotMatch(serializedProductEvents, /Yes, I can help collect quote details\./);
   assert.doesNotMatch(serializedProductEvents, /CALLER|caller@example\.com|Caller Example/i);
   assert.doesNotMatch(serializedProductEvents, /call-speech-token/);
+});
+
+test("call Front Desk falls back to turn-based browser voice when realtime token setup fails", async () => {
+  const calls = [];
+  const productEventPayloads = [];
+  TestMediaRecorder.instances = [];
+  const harness = createWidgetHarness({
+    location: {
+      search: "?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+      pathname: "/widget",
+      href: "https://example.com/widget?agent_id=agent-1&install_id=install-1&mode=page&k=page-key",
+    },
+    mediaDevices: {
+      async getUserMedia() {
+        return { getTracks: () => [{ stop() {} }] };
+      },
+    },
+    MediaRecorder: TestMediaRecorder,
+    RTCPeerConnection: function TestRTCPeerConnection() {},
+    customFetch: async (input, options = {}) => {
+      const url = String(input);
+      calls.push(url);
+
+      if (url.includes("/widget/bootstrap")) {
+        return {
+          ok: true,
+          async json() {
+            return {
+              agent: { id: "agent-1", publicAgentKey: "page-key" },
+              business: { id: "business-1", name: "Acme Co" },
+              widgetConfig: {
+                voice_config: {
+                  voice_input_enabled: true,
+                  spoken_replies_enabled: true,
+                  web_call_enabled: true,
+                },
+              },
+            };
+          },
+        };
+      }
+
+      if (url === "/api/voice/realtime/session") {
+        return {
+          ok: false,
+          status: 503,
+          async json() {
+            return { code: "openai_realtime_unavailable", error: "Voice is temporarily unavailable." };
+          },
+        };
+      }
+
+      if (url === "/product-events") {
+        productEventPayloads.push(JSON.parse(options.body || "{}"));
+        return { ok: true, async json() { return { ok: true }; } };
+      }
+
+      return { ok: true, async json() { return {}; } };
+    },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  harness.elements.get("call-front-desk-start").dispatch("click");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.ok(calls.includes("/api/voice/realtime/session"));
+  assert.equal(TestMediaRecorder.instances.length, 1);
+  assert.equal(TestMediaRecorder.instances[0].started, true);
+  assert.equal(harness.hooks.getCallModeState(), "listening");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening to one turn");
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const fallbackEvent = productEventPayloads.find((payload) => payload.event_name === "web_call_realtime_fallback");
+  assert.equal(fallbackEvent?.metadata?.fallback_reason, "openai_realtime_unavailable");
+  assert.doesNotMatch(JSON.stringify(productEventPayloads), /client_secret|sk-|token/i);
+  harness.hooks.endCallMode();
 });
 
 test("call Front Desk mute and unmute control recording without sending a turn", async () => {
@@ -1464,7 +1546,7 @@ test("call Front Desk end-call phrase ends gracefully without sending chat", asy
   assert.equal(harness.hooks.getCallModeState(), "stopped");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Voice session ended. Transcript remains here."
+    "Browser voice ended. Transcript remains here."
   );
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
 });
@@ -1529,7 +1611,7 @@ test("call Front Desk failure states use safe localized messages", async () => {
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Elérhetőség megadása");
   assert.equal(
     harness.elements.get("call-front-desk-summary").textContent,
-    "Írhatsz lent, újrapróbálhatod a hívást, vagy megadhatod az elérhetőségedet."
+    "Írhatsz lent, újrapróbálhatod a böngészős hangot, vagy megadhatod az elérhetőségedet."
   );
   assert.ok(productEventPayloads.some((payload) =>
     payload.event_name === "web_call_mic_denied"
@@ -1600,10 +1682,10 @@ test("call Front Desk transcription failure offers contact fallback without prov
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(harness.hooks.getCallModeState(), "unavailable");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "The voice line is busy. Retry in a moment or type your message.");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Browser voice is busy. Retry in a moment or type your message.");
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
-  assert.equal(harness.elements.get("call-front-desk-summary").textContent, "You can type below, retry the call, or leave contact details.");
+  assert.equal(harness.elements.get("call-front-desk-summary").textContent, "You can type below, retry browser voice, or leave contact details.");
   assert.doesNotMatch(harness.elements.get("call-front-desk-status").textContent, /provider|quota|stack/i);
   assert.ok(productEventPayloads.some((payload) => payload.event_name === "web_call_started"));
   assert.ok(productEventPayloads.some((payload) =>
@@ -1675,7 +1757,7 @@ test("call Front Desk repeated failures suggest typing or contact fallback", asy
   assert.equal(harness.hooks.getCallModeState(), "unavailable");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Voice is having trouble. Type below, retry the call, or leave contact details."
+    "Browser voice is having trouble. Type below, retry, or leave contact details."
   );
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
@@ -1831,11 +1913,11 @@ test("call Front Desk ends with a clear turn-limit message", async () => {
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 8");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Voice session ended after reaching the turn limit. Transcript remains here."
+    "Browser voice ended after reaching the turn limit. Transcript remains here."
   );
   assert.equal(
     harness.elements.get("call-front-desk-summary").textContent,
-    "Voice session ended after reaching the turn limit. Transcript remains here."
+    "Browser voice ended after reaching the turn limit. Transcript remains here."
   );
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
 });

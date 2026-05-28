@@ -6,6 +6,7 @@ import { resolveAllowedPublicWidgetContext } from "../services/agents/agentServi
 import { trackProductEvent } from "../services/analytics/productEventService.js";
 import {
   createAssistantSpeech,
+  createRealtimeWebCallClientSecret,
   getVoiceMaxAudioBytes,
   getVoiceRequestContext,
   transcribeAssistantAudio,
@@ -65,11 +66,15 @@ export function createVoiceRouter(deps = {}) {
     deps.resolveAllowedPublicWidgetContext || resolveAllowedPublicWidgetContext;
   const transcribeAssistantAudioImpl = deps.transcribeAssistantAudio || transcribeAssistantAudio;
   const createAssistantSpeechImpl = deps.createAssistantSpeech || createAssistantSpeech;
+  const createRealtimeWebCallClientSecretImpl =
+    deps.createRealtimeWebCallClientSecret || createRealtimeWebCallClientSecret;
   const trackProductEventImpl = deps.trackProductEvent || trackProductEvent;
   const enforceTranscribeRateLimit =
     deps.enforceTranscribeRateLimit || createRateLimitMiddleware("public_voice_transcribe");
   const enforceSpeechRateLimit =
     deps.enforceSpeechRateLimit || createRateLimitMiddleware("public_voice_speech");
+  const enforceRealtimeRateLimit =
+    deps.enforceRealtimeRateLimit || createRateLimitMiddleware("public_voice_realtime");
 
   async function trackVoiceEvent({
     eventName,
@@ -190,6 +195,38 @@ export function createVoiceRouter(deps = {}) {
       res.send(result.audioBuffer);
     } catch (err) {
       console.warn("[voice] speech failed", {
+        statusCode: err?.statusCode || 500,
+        code: err?.code || null,
+        message: err?.message || "Something went wrong",
+      });
+      sendRouteError(res, err);
+    }
+  });
+
+  router.post("/api/voice/realtime/session", enforceRealtimeRateLimit, async (req, res) => {
+    try {
+      const result = await createRealtimeWebCallClientSecretImpl({
+        supabase: getSupabase(),
+        body: req.body,
+        deps: {
+          resolveAllowedPublicWidgetContext: resolveAllowedPublicWidgetContextImpl,
+          getOwnerBillingSnapshot: deps.getOwnerBillingSnapshot,
+          recordEstimatedUsage: deps.recordEstimatedUsage,
+          ensureWebCallSession: deps.ensureWebCallSession,
+          fetch: deps.fetch,
+        },
+      });
+
+      res.setHeader("Cache-Control", "private, no-store, max-age=0, must-revalidate");
+      res.json({
+        client_secret: result.clientSecret,
+        expires_at: result.expiresAt || undefined,
+        model: result.model,
+        web_call_session_id: result.webCallSessionId || undefined,
+        token_latency_ms: result.connectionTokenLatencyMs,
+      });
+    } catch (err) {
+      console.warn("[voice] realtime session failed", {
         statusCode: err?.statusCode || 500,
         code: err?.code || null,
         message: err?.message || "Something went wrong",
