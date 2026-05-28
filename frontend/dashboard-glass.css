@@ -4148,3 +4148,286 @@ html[data-dashboard-density="compact"] .dashboard-v2-production-shell :is(
 ) {
   gap: var(--dashboard-density-card-gap, 10px) !important;
 }
+
+/* Dashboard-wide glass coverage: catches nested cards/rows that older route CSS left opaque. */
+html[data-dashboard-theme="bright"],
+html[data-dashboard-theme="light"] {
+  --dashboard-glass-panel-surface:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.075)),
+    rgba(255, 255, 255, 0.09);
+  --dashboard-glass-panel-surface-strong:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.36), rgba(255, 255, 255, 0.12)),
+    rgba(255, 255, 255, 0.12);
+  --dashboard-glass-nested-surface: rgba(255, 255, 255, 0.105);
+  --dashboard-glass-row-surface: rgba(255, 255, 255, 0.07);
+  --dashboard-glass-row-surface-hover: rgba(255, 255, 255, 0.17);
+  --dashboard-glass-row-surface-active:
+    linear-gradient(135deg, rgba(104, 76, 244, 0.11), rgba(47, 125, 246, 0.075)),
+    rgba(255, 255, 255, 0.14);
+}
+
+html[data-dashboard-theme="dark"] {
+  --dashboard-glass-panel-surface:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(12, 17, 34, 0.2);
+  --dashboard-glass-panel-surface-strong:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
+    rgba(12, 17, 34, 0.28);
+  --dashboard-glass-nested-surface: rgba(255, 255, 255, 0.075);
+  --dashboard-glass-row-surface: rgba(255, 255, 255, 0.055);
+  --dashboard-glass-row-surface-hover: rgba(255, 255, 255, 0.11);
+  --dashboard-glass-row-surface-active:
+    linear-gradient(135deg, rgba(124, 92, 255, 0.16), rgba(59, 130, 246, 0.09)),
+    rgba(255, 255, 255, 0.095);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .page-header,
+  .page-toolbar,
+  .page-toolbar-primary,
+  .glass-hero,
+  .glass-card,
+  .workspace-card-soft,
+  .flat-section,
+  .v2-card,
+  .v2-metric-card,
+  .v2-metric-card-priority,
+  .v2-table-card,
+  .v2-chart-card,
+  .v2-section,
+  .analytics-report-card,
+  .analytics-report-contact-card,
+  .analytics-report-recommendation,
+  .analytics-report-swot-item,
+  .analytics-report-capacity,
+  .analytics-empty-state,
+  .placeholder-card,
+  .frontdesk-command-center,
+  .frontdesk-workspace-panel,
+  .frontdesk-polished-panel,
+  .frontdesk-step,
+  .frontdesk-detail-block,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .customer-operator-brief,
+  .customer-v2-metric-card,
+  .customer-detail-panel,
+  .customer-detail-card,
+  .customer-chat-panel,
+  .customer-draft-card,
+  .install-page-main,
+  .install-side-card,
+  .install-progress-card,
+  .install-option-card,
+  .install-status-card,
+  .install-method-card,
+  .install-launch-paths,
+  .install-launch-path-card,
+  .install-detail-card,
+  .install-qr-section,
+  .install-code-card,
+  .settings-shell-top-nav-group,
+  .settings-shell-mobile-bar,
+  .settings-overview-card,
+  .settings-shell-page-header,
+  .settings-shell-section,
+  .settings-shell-card,
+  .settings-operational-card,
+  .settings-billing-panel,
+  .settings-link-button
+) {
+  border-color: var(--glass-operating-border) !important;
+  background: var(--dashboard-glass-panel-surface) !important;
+  box-shadow: var(--glass-operating-shadow-soft), var(--glass-operating-highlight);
+  -webkit-backdrop-filter: var(--glass-operating-blur);
+  backdrop-filter: var(--glass-operating-blur);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .glass-hero,
+  .customer-operator-brief,
+  .v2-analytics-brief,
+  .settings-shell-top-nav-group,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .install-page-main
+) {
+  background: var(--dashboard-glass-panel-surface-strong) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .page-header-copy,
+  .page-title,
+  .page-copy,
+  .workspace-page-body,
+  .analytics-route-stack,
+  .settings-shell-form,
+  .settings-active-content,
+  .settings-general-section,
+  .settings-business-profile-panel,
+  .settings-account-billing-section,
+  .settings-privacy-legal-section,
+  .contacts-workspace,
+  .contacts-list,
+  .v2-recent-web-call-list,
+  .frontdesk-page-layout,
+  .install-page-layout
+) {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .customer-toolbar-search,
+  .customer-filter-strip,
+  .contacts-list-header,
+  .customer-table-head,
+  .contact-row-main,
+  .customer-row-top,
+  .customer-detail-summary-card,
+  .customer-why-card,
+  .customer-suggested-action-card,
+  .customer-timeline-card,
+  .customer-detail-meta-list,
+  .customer-primary-actions,
+  .customer-operator-brief-metrics span,
+  .analytics-report-contact-grid > *,
+  .analytics-report-chart,
+  .v2-analytics-brief-status span,
+  .v2-data-table-wrap,
+  .v2-data-table,
+  .v2-legend-row,
+  .v2-question-row,
+  .v2-recent-web-call-row,
+  .v2-recent-web-call-main,
+  .v2-recent-web-call-footer,
+  .v2-recent-web-call-outcomes,
+  .v2-recent-web-call-actions,
+  .v2-web-call-transcript,
+  .v2-web-call-message,
+  .v2-web-call-failures,
+  .v2-split-stat,
+  .v2-source-list,
+  .v2-source-list li,
+  .v2-question-list,
+  .v2-question-list li,
+  .v2-list li,
+  .settings-shell-theme-option,
+  .settings-shell-background-option,
+  .settings-background-blur-control,
+  .settings-dashboard-appearance-control,
+  .settings-dashboard-appearance-options,
+  .settings-shell-status-row,
+  .settings-status-row,
+  .settings-shell-key-value-row,
+  .settings-shell-choice-row,
+  .settings-shell-billing-plan-card,
+  .settings-shell-billing-notice,
+  .settings-shell-sticky-save,
+  .settings-background-preset-card,
+  .settings-full-page-action-card,
+  .settings-full-page-preview-card,
+  .settings-web-call-readiness,
+  .settings-voice-qa-simulator,
+  .quick-action-tile,
+  .metric-tile,
+  .activity-item,
+  .insight-item,
+  .customer-filter-pill,
+  .customer-source-chip,
+  .customer-status-chip,
+  .customer-identity-chip,
+  .customer-intent-chip,
+  .customer-avatar,
+  .install-stage-item,
+  .install-platform-card,
+  .install-copy-field,
+  .frontdesk-tab-button,
+  .frontdesk-command-tile,
+  .frontdesk-readiness-item,
+  .frontdesk-preview-guide,
+  .frontdesk-library-card,
+  .frontdesk-improvement-card,
+  .glass-inspector-stat,
+  .glass-inspector-section
+) {
+  border-color: var(--glass-operating-border-soft) !important;
+  background: var(--dashboard-glass-nested-surface) !important;
+  box-shadow: var(--glass-operating-highlight);
+  -webkit-backdrop-filter: blur(22px) saturate(1.18);
+  backdrop-filter: blur(22px) saturate(1.18);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .v2-data-table th,
+  .v2-data-table td,
+  .v2-data-table tbody tr,
+  .customer-row,
+  .timeline-row,
+  .settings-shell-nav-button,
+  .settings-dashboard-appearance-option
+) {
+  background: var(--dashboard-glass-row-surface) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .customer-row:hover,
+  .v2-data-table tbody tr:hover,
+  .settings-shell-nav-button:hover,
+  .settings-dashboard-appearance-option:hover
+) {
+  background: var(--dashboard-glass-row-surface-hover) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .customer-row.active,
+  .settings-shell-nav-button.active,
+  .customer-filter-pill.active,
+  .settings-dashboard-appearance-option.active,
+  .settings-shell-theme-option.active,
+  .settings-shell-background-option.active
+) {
+  background: var(--dashboard-glass-row-surface-active) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  input:not([type="range"]),
+  select,
+  textarea,
+  .customer-toolbar-search input,
+  .install-copy-field textarea,
+  .settings-shell-choice-row select
+) {
+  border-color: var(--glass-operating-border-soft) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: var(--glass-operating-highlight);
+  -webkit-backdrop-filter: blur(18px) saturate(1.14);
+  backdrop-filter: blur(18px) saturate(1.14);
+}
+
+html[data-dashboard-theme="dark"] .dashboard-v2-production-shell :is(
+  input:not([type="range"]),
+  select,
+  textarea,
+  .customer-toolbar-search input,
+  .install-copy-field textarea,
+  .settings-shell-choice-row select
+) {
+  background: rgba(10, 15, 30, 0.22) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .primary-button,
+  .ghost-button,
+  .customer-chat-toggle,
+  .customer-secondary-button,
+  .glass-mini-button,
+  .glass-icon-button,
+  .status-pill,
+  .badge,
+  [class*="chip"],
+  [class*="pill"]
+) {
+  -webkit-backdrop-filter: blur(18px) saturate(1.16);
+  backdrop-filter: blur(18px) saturate(1.16);
+}
