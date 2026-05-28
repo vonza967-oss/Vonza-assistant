@@ -72,8 +72,8 @@ export function normalizePublicConversationSource(value, options = {}) {
   const normalized = cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
   const displayMode = normalizePublicDisplayMode(options.displayMode || options.display_mode);
 
-  if (normalized === "web_call" && displayMode === "page") {
-    return "web_call";
+  if ((normalized === "web_call" || normalized === "web_call_eval") && displayMode === "page") {
+    return normalized;
   }
 
   return "";

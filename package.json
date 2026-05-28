@@ -21,7 +21,8 @@
     "check:schema-sync": "node scripts/check-schema-sync.js",
     "validate:clean-db": "node scripts/validate-clean-database.js",
     "verify:prod-schema": "node scripts/verify-prod-schema.js",
-    "verify:deploy-readiness": "node scripts/verify-deploy-readiness.js"
+    "verify:deploy-readiness": "node scripts/verify-deploy-readiness.js",
+    "eval:web-call": "node scripts/run-web-call-evals.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",

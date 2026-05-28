@@ -226,6 +226,11 @@ function normalizeConversationSource(value = "") {
   return cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
 }
 
+function isWebCallLikeConversationSource(value = "") {
+  const normalized = normalizeConversationSource(value);
+  return normalized === "web_call" || normalized === "web_call_eval";
+}
+
 function buildWebCallResponseStyleBlock() {
   return `Web Call spoken response style:
 - This conversation is a turn-based browser voice call, so write for speech.
@@ -245,7 +250,7 @@ export function buildChatSystemPrompt(language, agent = {}, options = {}) {
   const tone = cleanText(agent.tone || "");
   const agentName = cleanText(agent.name || "the assistant");
   const verticalPromptBlock = formatBusinessVerticalPromptBlock(agent.vertical);
-  const webCallStyleBlock = normalizeConversationSource(options.conversationSource || options.conversation_source) === "web_call"
+  const webCallStyleBlock = isWebCallLikeConversationSource(options.conversationSource || options.conversation_source)
     ? buildWebCallResponseStyleBlock()
     : "";
 
