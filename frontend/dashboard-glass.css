@@ -92,8 +92,16 @@ html[data-dashboard-background="midnight-suite"] {
 }
 
 html[data-dashboard-theme] body {
+  font-family: var(--vz-font-sans);
+  font-size: var(--vz-text-base);
+  font-weight: var(--vz-weight-medium);
+  line-height: var(--vz-leading-normal);
+  letter-spacing: -0.01em;
   background: transparent !important;
   overflow-x: hidden;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 html[data-dashboard-theme] body::before {
@@ -252,17 +260,20 @@ html[data-dashboard-theme] body::after {
 
 .glass-page-header h1,
 .dashboard-v2-production-shell .workspace-page .page-title {
-  font-size: 34px;
+  font-size: var(--vz-text-page);
   line-height: 1.08;
-  letter-spacing: 0;
+  font-weight: var(--vz-weight-bold);
+  letter-spacing: -0.045em;
 }
 
 .glass-page-header p,
 .dashboard-v2-production-shell .workspace-page .page-copy {
   max-width: 700px;
   margin-top: 6px;
-  font-size: 14px;
+  font-size: var(--vz-text-md);
   line-height: 1.48;
+  font-weight: var(--vz-weight-medium);
+  letter-spacing: -0.015em;
 }
 
 .glass-page-header-actions {
@@ -300,21 +311,23 @@ html[data-dashboard-theme] body::after {
 
 .glass-hero h2 {
   max-width: 640px;
-  font-size: 36px;
+  font-size: 32px;
   line-height: 1.08;
-  letter-spacing: 0;
+  font-weight: var(--vz-weight-bold);
+  letter-spacing: -0.045em;
 }
 
 .glass-hero p:not(.glass-kicker) {
   margin-top: 10px;
-  font-size: 15px;
+  font-size: var(--vz-text-md);
   line-height: 1.45;
+  font-weight: var(--vz-weight-medium);
 }
 
 .glass-kicker {
   margin-bottom: 10px;
   color: #5f50df;
-  font-size: 11px;
+  font-size: var(--vz-text-xs);
 }
 
 .glass-hero-metrics {
@@ -368,11 +381,11 @@ html[data-dashboard-theme] body::after {
 
 .metric-tile-copy span,
 .metric-tile-copy small {
-  font-size: 11px;
+  font-size: var(--vz-text-xs);
 }
 
 .metric-tile-copy strong {
-  font-size: 17px;
+  font-size: var(--vz-text-lg);
 }
 
 .front-desk-orb {
@@ -413,12 +426,17 @@ html[data-dashboard-theme] body::after {
 }
 
 .glass-card-title {
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 680;
+  letter-spacing: -0.025em;
 }
 
 .glass-card-copy {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--vz-text-sm);
+  line-height: 1.42;
+  font-weight: var(--vz-weight-medium);
 }
 
 .setup-progress-body {
@@ -561,7 +579,8 @@ html[data-dashboard-theme] body::after {
   color: var(--theme-text);
   font-size: 15px;
   line-height: 1.25;
-  letter-spacing: 0;
+  font-weight: 680;
+  letter-spacing: -0.025em;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-section-subtitle,
@@ -570,8 +589,9 @@ html[data-dashboard-theme] body::after {
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .analytics-report-metric-note,
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .analytics-subtle {
   color: var(--theme-copy);
-  font-size: 12px;
+  font-size: var(--vz-text-sm);
   line-height: 1.42;
+  font-weight: var(--vz-weight-medium);
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-analytics-brief {
@@ -586,17 +606,19 @@ html[data-dashboard-theme] body::after {
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-analytics-brief-copy h2 {
   margin: 4px 0 0;
   color: var(--theme-text);
-  font-size: 20px;
+  font-size: var(--vz-text-xl);
   line-height: 1.18;
-  letter-spacing: 0;
+  font-weight: var(--vz-weight-bold);
+  letter-spacing: -0.035em;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-analytics-brief-copy p:last-child {
   max-width: 760px;
   margin-top: 7px;
   color: var(--theme-copy);
-  font-size: 13px;
+  font-size: var(--vz-text-base);
   line-height: 1.42;
+  font-weight: var(--vz-weight-medium);
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-analytics-brief-status {
@@ -643,15 +665,16 @@ html[data-dashboard-theme] body::after {
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-metric-value {
   color: var(--theme-text);
-  font-size: 28px;
+  font-size: 26px;
   line-height: 1;
-  letter-spacing: 0;
+  font-weight: 730;
+  letter-spacing: -0.045em;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-metric-change {
   margin-top: auto;
   color: var(--theme-muted);
-  font-size: 11px;
+  font-size: var(--vz-text-xs);
   line-height: 1.3;
 }
 
@@ -703,7 +726,8 @@ html[data-dashboard-theme] body::after {
   margin: 10px 0 4px;
   color: var(--theme-text);
   font-size: 24px;
-  letter-spacing: 0;
+  font-weight: 730;
+  letter-spacing: -0.04em;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-line-chart {
@@ -774,7 +798,8 @@ html[data-dashboard-theme] body::after {
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-split-stat-value {
   color: var(--theme-text);
   font-size: 25px;
-  letter-spacing: 0;
+  font-weight: 730;
+  letter-spacing: -0.04em;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-table-card {
@@ -789,7 +814,16 @@ html[data-dashboard-theme] body::after {
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-data-table {
   min-width: 760px;
-  font-size: 12px;
+  font-size: 12.5px;
+  font-weight: var(--vz-weight-medium);
+  line-height: 1.35;
+}
+
+.dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-data-table th {
+  font-size: var(--vz-text-xs);
+  font-weight: var(--vz-weight-semibold);
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
 }
 
 .dashboard-v2-production-shell .workspace-page[data-shell-section="analytics"] .v2-data-table th,
@@ -5292,6 +5326,206 @@ html[data-dashboard-theme] .dashboard-v2-production-shell :is(
 
 html[data-dashboard-theme] .dashboard-v2-production-shell .customer-row {
   border-bottom: 1px solid rgb(255 255 255 / 0.20) !important;
+}
+
+/* Final dashboard typography cascade. Keep after glass density rules so the type scale stays consistent. */
+html[data-dashboard-theme] body,
+html[data-dashboard-theme] .dashboard-v2-production-shell {
+  font-family: var(--vz-font-sans) !important;
+  font-size: var(--vz-text-base) !important;
+  font-weight: var(--vz-weight-medium);
+  line-height: var(--vz-leading-normal);
+  letter-spacing: -0.01em;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .page-title,
+  .dashboard-page-title,
+  .glass-page-header h1
+) {
+  color: var(--vz-ink, var(--theme-text)) !important;
+  font-size: var(--vz-text-page) !important;
+  font-weight: var(--vz-weight-bold) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.045em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .page-copy,
+  .page-subtitle,
+  .dashboard-page-subtitle,
+  .glass-page-header p
+) {
+  color: var(--vz-muted, var(--theme-copy)) !important;
+  font-size: var(--vz-text-md) !important;
+  font-weight: var(--vz-weight-medium) !important;
+  line-height: 1.45 !important;
+  letter-spacing: -0.015em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .customer-operator-brief h2,
+  .v2-analytics-brief-copy h2,
+  .frontdesk-command-copy h2
+) {
+  color: var(--vz-ink, var(--theme-text)) !important;
+  font-size: var(--vz-text-xl) !important;
+  font-weight: var(--vz-weight-bold) !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.04em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero h2 {
+  color: var(--vz-ink, var(--theme-text)) !important;
+  font-size: var(--vz-text-page) !important;
+  font-weight: var(--vz-weight-bold) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.045em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .glass-card-title,
+  .card-title,
+  .panel-title,
+  .section-title,
+  .workspace-panel-title,
+  .v2-section-title,
+  .flat-section-title,
+  .frontdesk-section-title,
+  .settings-shell-section-title,
+  .settings-card-title
+) {
+  color: var(--vz-ink, var(--theme-text)) !important;
+  font-size: 15px !important;
+  font-weight: 680 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.025em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .glass-card-copy,
+  .card-body,
+  .panel-body,
+  .dashboard-copy,
+  .workspace-panel-copy,
+  .v2-section-subtitle,
+  .frontdesk-section-copy,
+  .frontdesk-detail-copy,
+  .frontdesk-step-copy,
+  .settings-card-copy,
+  .settings-shell-section-copy,
+  .analytics-report-copy,
+  .analytics-report-section-copy
+) {
+  color: var(--vz-text, var(--theme-copy)) !important;
+  font-size: var(--vz-text-base) !important;
+  font-weight: var(--vz-weight-medium) !important;
+  line-height: 1.42 !important;
+  letter-spacing: -0.01em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .small-label,
+  .kicker,
+  .glass-kicker,
+  .metric-label,
+  .studio-kicker,
+  .v2-metric-label,
+  .analytics-report-kicker,
+  .analytics-report-metric-label,
+  .customer-table-head,
+  .sidebar-eyebrow,
+  .sidebar-status-label
+) {
+  color: var(--vz-muted, var(--theme-muted)) !important;
+  font-size: var(--vz-text-xs) !important;
+  font-weight: var(--vz-weight-semibold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.025em !important;
+  text-transform: uppercase;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .metric-value,
+  .v2-metric-value,
+  .analytics-report-metric-value,
+  .analytics-report-contact-card strong,
+  .customer-v2-metric-card strong,
+  .customer-operator-brief-metrics strong
+) {
+  color: var(--vz-ink, var(--theme-text)) !important;
+  font-size: 26px !important;
+  font-weight: 730 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.045em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(.shell-nav-label, .shell-nav-button) {
+  font-size: 13px !important;
+  font-weight: var(--vz-weight-semibold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  button,
+  .v2-button,
+  .ghost-button,
+  .primary-button,
+  .test-link,
+  a.ghost-button,
+  a.primary-button,
+  .glass-mini-button
+) {
+  font-size: 13px !important;
+  font-weight: var(--vz-weight-semibold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .status-pill,
+  .customer-filter-pill,
+  .customer-source-chip,
+  .customer-intent-chip,
+  .customer-identity-chip,
+  .customer-status-chip,
+  .v2-status-pill,
+  .shell-nav-tag,
+  .badge
+) {
+  font-size: 12px !important;
+  font-weight: var(--vz-weight-semibold) !important;
+  line-height: 1.18 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea,
+  .v2-select
+) {
+  font-size: 13px !important;
+  font-weight: var(--vz-weight-medium) !important;
+  line-height: var(--vz-leading-normal) !important;
+  letter-spacing: -0.01em !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(.v2-data-table, table) {
+  font-size: 12.5px !important;
+  font-weight: var(--vz-weight-medium) !important;
+  line-height: var(--vz-leading-normal) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(.v2-data-table th, table th) {
+  font-size: var(--vz-text-xs) !important;
+  font-weight: var(--vz-weight-semibold) !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0.025em !important;
+  text-transform: uppercase;
 }
 
 @media (max-width: 900px) {
