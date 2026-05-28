@@ -5573,3 +5573,201 @@ html[data-dashboard-theme] .dashboard-v2-production-shell :is(.v2-data-table th,
     padding: 18px !important;
   }
 }
+
+/* Internal row cleanup: main glass surfaces stay glassy; display rows sit on
+   the card surface instead of creating repeated pale rectangles. */
+html[data-dashboard-theme] {
+  --vz-inline-row-divider: rgb(255 255 255 / 0.22);
+  --vz-inline-row-hover: rgb(255 255 255 / 0.08);
+}
+
+html[data-dashboard-theme="dark"] {
+  --vz-inline-row-divider: rgb(255 255 255 / 0.12);
+  --vz-inline-row-hover: rgb(255 255 255 / 0.07);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .vz-inline-row,
+  .vz-card-row,
+  .vz-check-row,
+  .vz-list-row,
+  .metric-tile,
+  .overview-metric,
+  .overview-list-item,
+  .progress-card,
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .analytics-report-insight,
+  .v2-question-row,
+  .v2-legend-row,
+  .v2-analytics-brief-status span,
+  .frontdesk-command-tile,
+  .frontdesk-readiness-item,
+  .frontdesk-detail-block,
+  .frontdesk-detail-row,
+  .frontdesk-step,
+  .frontdesk-compact-row,
+  .customer-operator-brief-metrics span,
+  .customer-row,
+  .timeline-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-stage-item,
+  .install-status-row,
+  .install-detail-card,
+  .install-target-url,
+  .action-queue-detail,
+  .action-queue-handoff-item
+) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .v2-question-row,
+  .v2-legend-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-status-row,
+  .timeline-row
+) {
+  border-radius: 0 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .v2-question-row,
+  .v2-legend-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-status-row,
+  .timeline-row
+) + :is(
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .v2-question-row,
+  .v2-legend-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-status-row,
+  .timeline-row
+) {
+  border-top: 1px solid var(--vz-inline-row-divider) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .v2-question-row,
+  .v2-legend-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-status-row,
+  .timeline-row
+) {
+  padding-top: 10px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .analytics-item,
+  .v2-question-row,
+  .v2-legend-row,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .install-status-row,
+  .timeline-row
+):first-child {
+  padding-top: 0 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .customer-row,
+  .today-queue-row,
+  .v2-data-table tbody tr
+):hover {
+  background: var(--vz-inline-row-hover) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .customer-row.active {
+  border-color: rgb(124 60 255 / 0.28) !important;
+  background: linear-gradient(90deg, rgb(124 60 255 / 0.10), transparent) !important;
+  box-shadow: inset 3px 0 0 var(--vz-accent) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .customer-row {
+  border-bottom: 1px solid var(--vz-inline-row-divider) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .customer-row:last-child {
+  border-bottom: 0 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .frontdesk-command-tile,
+  .frontdesk-readiness-item,
+  .frontdesk-detail-block,
+  .frontdesk-step,
+  .install-stage-item,
+  .install-detail-card,
+  .install-target-url,
+  .action-queue-detail,
+  .action-queue-handoff-item,
+  .customer-operator-brief-metrics span,
+  .v2-analytics-brief-status span
+) {
+  border-radius: 0 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .metric-tile-icon,
+  .setup-checklist-item span,
+  .insight-item > span,
+  .activity-item-icon,
+  .install-stage-number
+) {
+  flex: 0 0 auto;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .frontdesk-compact-row,
+  .vz-inline-row:is(button, a),
+  .vz-card-row[data-clickable="true"]
+):hover {
+  background: var(--vz-inline-row-hover) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-page[data-shell-section="install"] :is(
+  .install-detail-card,
+  .install-target-url
+) {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
