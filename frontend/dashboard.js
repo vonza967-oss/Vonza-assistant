@@ -26,6 +26,7 @@ const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selecti
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_BACKGROUND_STORAGE_KEY = "vonza_dashboard_background";
 const DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY = "vonza_dashboard_background_blur";
+const DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY = "vonza:custom-dashboard-background";
 const DASHBOARD_GLASS_TRANSPARENCY_STORAGE_KEY = "vonza:glass-transparency";
 const DASHBOARD_BACKGROUND_DIM_STORAGE_KEY = "vonza_dashboard_background_dim";
 const DASHBOARD_ACCENT_GLOW_STORAGE_KEY = "vonza_dashboard_accent_glow";
@@ -44,6 +45,11 @@ const CONNECTED_TOOLS_SELF_SERVE_ENABLED = false;
 const KNOWLEDGE_IMPORT_TERMINAL_STATES = new Set(["success", "limited", "failed", "stalled"]);
 const KNOWLEDGE_IMPORT_ACTIVE_STATES = new Set(["queued", "running", "crawling", "indexing"]);
 const KNOWLEDGE_IMPORT_MAX_POLLS = 60;
+const DASHBOARD_CUSTOM_BACKGROUND_ID = "custom-upload";
+const DASHBOARD_CUSTOM_BACKGROUND_ALLOWED_TYPES = Object.freeze(["image/png", "image/jpeg", "image/webp"]);
+const DASHBOARD_CUSTOM_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
+const DASHBOARD_CUSTOM_BACKGROUND_MAX_WIDTH = 2400;
+const DASHBOARD_CUSTOM_BACKGROUND_QUALITY = 0.85;
 const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze(
   Array.isArray(window.VONZA_DASHBOARD_BACKGROUND_OPTIONS) && window.VONZA_DASHBOARD_BACKGROUND_OPTIONS.length
     ? window.VONZA_DASHBOARD_BACKGROUND_OPTIONS
@@ -51,27 +57,71 @@ const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze(
       {
         value: "skyline-atrium",
         label: "Skyline Atrium",
+        type: "image",
+        theme: "bright",
         url: "/assets/dashboard/backgrounds/skyline-atrium.png",
       },
       {
         value: "harbor-lounge",
         label: "Harbor Lounge",
+        type: "image",
+        theme: "bright",
         url: "/assets/dashboard/backgrounds/harbor-lounge.png",
       },
       {
         value: "coastal-gallery",
         label: "Coastal Gallery",
+        type: "image",
+        theme: "bright",
         url: "/assets/dashboard/backgrounds/coastal-gallery.png",
       },
       {
         value: "midnight-lobby",
         label: "Midnight Lobby",
+        type: "image",
+        theme: "dark",
         url: "/assets/dashboard/backgrounds/midnight-lobby.png",
       },
       {
         value: "midnight-suite",
         label: "Midnight Suite",
+        type: "image",
+        theme: "dark",
         url: "/assets/dashboard/backgrounds/midnight-suite.png",
+      },
+      {
+        value: "white-marble",
+        label: "White Marble",
+        type: "image",
+        theme: "bright",
+        url: "/assets/dashboard/backgrounds/white-marble.png",
+      },
+      {
+        value: "black-marble",
+        label: "Black Marble",
+        type: "image",
+        theme: "dark",
+        url: "/assets/dashboard/backgrounds/black-marble.png",
+      },
+      {
+        value: "simple-white",
+        label: "Simple White",
+        type: "css",
+        theme: "bright",
+        cssBackground: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ffffff 100%)",
+      },
+      {
+        value: "simple-dark",
+        label: "Simple Dark",
+        type: "css",
+        theme: "dark",
+        cssBackground: "radial-gradient(circle at 20% 10%, rgba(124, 60, 255, 0.16), transparent 34%), linear-gradient(135deg, #090b12 0%, #111827 52%, #020617 100%)",
+      },
+      {
+        value: DASHBOARD_CUSTOM_BACKGROUND_ID,
+        label: "Custom image",
+        type: "custom",
+        theme: "custom",
       },
     ]
 );
@@ -1508,8 +1558,30 @@ function resolveDashboardTheme(value = "") {
   }
 }
 
+function isSafeDashboardCustomBackgroundDataUrl(value = "") {
+  const dataUrl = trimText(value);
+  return /^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl);
+}
+
+function getSavedDashboardCustomBackground() {
+  try {
+    const savedDataUrl = window.localStorage.getItem(DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY) || "";
+    return isSafeDashboardCustomBackgroundDataUrl(savedDataUrl) ? savedDataUrl : "";
+  } catch {
+    return "";
+  }
+}
+
+function hasDashboardCustomBackground() {
+  return Boolean(getSavedDashboardCustomBackground());
+}
+
 function normalizeDashboardBackground(value = "") {
   const normalized = trimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+  if (normalized === DASHBOARD_CUSTOM_BACKGROUND_ID && !hasDashboardCustomBackground()) {
+    return DEFAULT_DASHBOARD_BACKGROUND;
+  }
+
   return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
     ? normalized
     : DEFAULT_DASHBOARD_BACKGROUND;
@@ -1576,8 +1648,17 @@ function getDashboardAppearanceChoiceLabel(value = "") {
 
 function getDashboardBackgroundOption(value = "") {
   const normalizedBackground = normalizeDashboardBackground(value);
-  return DASHBOARD_BACKGROUND_OPTIONS.find((option) => option.value === normalizedBackground)
+  const option = DASHBOARD_BACKGROUND_OPTIONS.find((item) => item.value === normalizedBackground)
     || DASHBOARD_BACKGROUND_OPTIONS[0];
+
+  if (option?.type === "custom") {
+    return {
+      ...option,
+      imageUrl: getSavedDashboardCustomBackground(),
+    };
+  }
+
+  return option;
 }
 
 function normalizeDashboardLanguage(value = "") {
@@ -3051,10 +3132,37 @@ function syncDashboardThemeControls(root = document) {
 
 function syncDashboardBackgroundControls(root = document) {
   const background = normalizeDashboardBackground(document.documentElement?.dataset.dashboardBackground || getDashboardBackground());
+  const customDataUrl = getSavedDashboardCustomBackground();
+
   root.querySelectorAll?.("[data-dashboard-background-choice]")?.forEach((input) => {
-    const selected = normalizeDashboardBackground(input.value) === background;
+    const inputBackground = input.value === DASHBOARD_CUSTOM_BACKGROUND_ID && !customDataUrl
+      ? ""
+      : normalizeDashboardBackground(input.value);
+    const selected = inputBackground === background;
+    if (input.value === DASHBOARD_CUSTOM_BACKGROUND_ID) {
+      input.disabled = !customDataUrl;
+    }
     input.checked = selected;
     input.closest?.(".settings-shell-background-option")?.classList.toggle("active", selected);
+  });
+
+  root.querySelectorAll?.(".settings-shell-background-thumb--custom")?.forEach((thumb) => {
+    if (customDataUrl) {
+      thumb.style.backgroundImage = `url("${customDataUrl.replace(/"/g, "%22")}")`;
+      thumb.textContent = "";
+      return;
+    }
+
+    thumb.style.backgroundImage = "";
+    thumb.textContent = "Upload";
+  });
+
+  root.querySelectorAll?.("[data-dashboard-custom-background-upload-trigger]")?.forEach((trigger) => {
+    trigger.textContent = customDataUrl ? "Replace" : "Upload background";
+  });
+
+  root.querySelectorAll?.("[data-dashboard-custom-background-remove]")?.forEach((button) => {
+    button.hidden = !customDataUrl;
   });
 }
 
@@ -3181,10 +3289,26 @@ function applyDashboardTheme(theme = getDashboardTheme()) {
   return normalizedTheme;
 }
 
+function getDashboardBackgroundCssValue(option = {}) {
+  if (option.type === "css") {
+    return trimText(option.cssBackground);
+  }
+
+  if (option.type === "custom") {
+    const customImageUrl = trimText(option.imageUrl);
+    return isSafeDashboardCustomBackgroundDataUrl(customImageUrl)
+      ? `url("${customImageUrl.replace(/"/g, "%22")}")`
+      : "";
+  }
+
+  const imageUrl = trimText(option.url);
+  return imageUrl ? `url("${imageUrl.replace(/"/g, "%22")}")` : "";
+}
+
 function applyDashboardBackground(background = getDashboardBackground()) {
   const normalizedBackground = normalizeDashboardBackground(background);
   const option = getDashboardBackgroundOption(normalizedBackground);
-  const cssImageValue = option?.url ? `url("${String(option.url).replace(/"/g, "%22")}")` : "";
+  const cssImageValue = getDashboardBackgroundCssValue(option);
 
   if (document.documentElement?.dataset) {
     document.documentElement.dataset.dashboardBackground = normalizedBackground;
@@ -3346,6 +3470,98 @@ function saveDashboardBackground(background) {
 
   applyDashboardBackground(normalizedBackground);
   return normalizedBackground;
+}
+
+function validateDashboardCustomBackgroundFile(file) {
+  if (!file) {
+    throw new Error("Choose a background image first.");
+  }
+
+  if (!DASHBOARD_CUSTOM_BACKGROUND_ALLOWED_TYPES.includes(file.type)) {
+    throw new Error("Upload a PNG, JPG, JPEG, or WebP background image. SVG and other file types are not supported.");
+  }
+
+  if (file.size > DASHBOARD_CUSTOM_BACKGROUND_MAX_BYTES) {
+    throw new Error("Use a dashboard background image under 5 MB.");
+  }
+}
+
+function readDashboardCustomBackgroundFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      const dataUrl = trimText(reader.result || "");
+      if (!isSafeDashboardCustomBackgroundDataUrl(dataUrl)) {
+        reject(new Error("Upload a PNG, JPG, JPEG, or WebP background image."));
+        return;
+      }
+      resolve(dataUrl);
+    });
+    reader.addEventListener("error", () => reject(new Error("We couldn't read that background image.")));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadDashboardCustomBackgroundImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image));
+    image.addEventListener("error", () => reject(new Error("We couldn't preview that background image.")));
+    image.src = dataUrl;
+  });
+}
+
+async function prepareDashboardCustomBackgroundDataUrl(file) {
+  validateDashboardCustomBackgroundFile(file);
+
+  const originalDataUrl = await readDashboardCustomBackgroundFile(file);
+
+  try {
+    const image = await loadDashboardCustomBackgroundImage(originalDataUrl);
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+
+    if (!sourceWidth || !sourceHeight || !document.createElement) {
+      return originalDataUrl;
+    }
+
+    const scale = Math.min(1, DASHBOARD_CUSTOM_BACKGROUND_MAX_WIDTH / sourceWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return originalDataUrl;
+    }
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", DASHBOARD_CUSTOM_BACKGROUND_QUALITY);
+  } catch {
+    return originalDataUrl;
+  }
+}
+
+function saveDashboardCustomBackgroundDataUrl(dataUrl) {
+  if (!isSafeDashboardCustomBackgroundDataUrl(dataUrl)) {
+    throw new Error("Upload a PNG, JPG, JPEG, or WebP background image.");
+  }
+
+  try {
+    window.localStorage.setItem(DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY, dataUrl);
+  } catch {
+    throw new Error("We couldn't save that image in this browser. Try a smaller background image.");
+  }
+}
+
+function removeDashboardCustomBackgroundDataUrl() {
+  try {
+    window.localStorage.removeItem(DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY);
+  } catch {
+    // Custom background persistence is optional when storage is blocked.
+  }
 }
 
 function saveDashboardBackgroundBlur(blur) {
@@ -15031,6 +15247,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const automationFocusButtons = document.querySelectorAll("[data-automation-focus]");
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const backgroundChoiceInputs = document.querySelectorAll("[data-dashboard-background-choice]");
+  const customBackgroundUploads = document.querySelectorAll("[data-dashboard-custom-background-upload]");
+  const customBackgroundRemoveButtons = document.querySelectorAll("[data-dashboard-custom-background-remove]");
   const backgroundBlurInputs = document.querySelectorAll("[data-dashboard-background-blur-control]");
   const glassTransparencyInputs = document.querySelectorAll("[data-dashboard-glass-transparency-control]");
   const backgroundDimInputs = document.querySelectorAll("[data-dashboard-background-dim-choice]");
@@ -16372,6 +16590,69 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       const savedBackground = saveDashboardBackground(input.value);
       const backgroundLabel = getDashboardBackgroundOption(savedBackground)?.label || "dashboard background";
       setStatus(`Dashboard background set to ${backgroundLabel}.`);
+    });
+  });
+
+  customBackgroundUploads.forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0] || null;
+      const message = input
+        .closest?.("[data-dashboard-custom-background-control]")
+        ?.querySelector?.("[data-dashboard-custom-background-message]");
+
+      if (!file) {
+        return;
+      }
+
+      input.disabled = true;
+      if (message) {
+        message.textContent = "Preparing custom dashboard background...";
+      }
+      setStatus("Preparing custom dashboard background...");
+
+      try {
+        const dataUrl = await prepareDashboardCustomBackgroundDataUrl(file);
+        saveDashboardCustomBackgroundDataUrl(dataUrl);
+        const savedBackground = saveDashboardBackground(DASHBOARD_CUSTOM_BACKGROUND_ID);
+        syncDashboardBackgroundControls();
+        const backgroundLabel = getDashboardBackgroundOption(savedBackground)?.label || "Custom image";
+        if (message) {
+          message.textContent = "Custom background saved in this browser.";
+        }
+        setStatus(`Dashboard background set to ${backgroundLabel}.`);
+      } catch (error) {
+        const errorMessage = error.message || "We couldn't use that background image.";
+        if (message) {
+          message.textContent = errorMessage;
+        }
+        setStatus(errorMessage);
+      } finally {
+        input.value = "";
+        input.disabled = false;
+      }
+    });
+  });
+
+  customBackgroundRemoveButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedBackground = normalizeDashboardBackground(
+        document.documentElement?.dataset.dashboardBackground || getDashboardBackground()
+      );
+      const message = button
+        .closest?.("[data-dashboard-custom-background-control]")
+        ?.querySelector?.("[data-dashboard-custom-background-message]");
+
+      removeDashboardCustomBackgroundDataUrl();
+      if (selectedBackground === DASHBOARD_CUSTOM_BACKGROUND_ID) {
+        saveDashboardBackground(DEFAULT_DASHBOARD_BACKGROUND);
+      } else {
+        syncDashboardBackgroundControls();
+      }
+
+      if (message) {
+        message.textContent = "Custom background removed from this browser.";
+      }
+      setStatus("Custom dashboard background removed.");
     });
   });
 

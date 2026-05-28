@@ -62,7 +62,11 @@ html[data-dashboard-theme="dark"] {
 html[data-dashboard-theme="bright"][data-dashboard-background="midnight-lobby"],
 html[data-dashboard-theme="light"][data-dashboard-background="midnight-lobby"],
 html[data-dashboard-theme="bright"][data-dashboard-background="midnight-suite"],
-html[data-dashboard-theme="light"][data-dashboard-background="midnight-suite"] {
+html[data-dashboard-theme="light"][data-dashboard-background="midnight-suite"],
+html[data-dashboard-theme="bright"][data-dashboard-background="black-marble"],
+html[data-dashboard-theme="light"][data-dashboard-background="black-marble"],
+html[data-dashboard-theme="bright"][data-dashboard-background="simple-dark"],
+html[data-dashboard-theme="light"][data-dashboard-background="simple-dark"] {
   --dashboard-background-overlay:
     linear-gradient(120deg, rgba(248, 251, 255, 0.84), rgba(238, 244, 255, 0.54) 42%, rgba(228, 235, 255, 0.6) 100%);
   --dashboard-background-sheen:
@@ -89,6 +93,24 @@ html[data-dashboard-background="midnight-lobby"] {
 
 html[data-dashboard-background="midnight-suite"] {
   --dashboard-background-image: url("/assets/dashboard/backgrounds/midnight-suite.png");
+}
+
+html[data-dashboard-background="white-marble"] {
+  --dashboard-background-image: url("/assets/dashboard/backgrounds/white-marble.png");
+}
+
+html[data-dashboard-background="black-marble"] {
+  --dashboard-background-image: url("/assets/dashboard/backgrounds/black-marble.png");
+}
+
+html[data-dashboard-background="simple-white"] {
+  --dashboard-background-image: linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ffffff 100%);
+}
+
+html[data-dashboard-background="simple-dark"] {
+  --dashboard-background-image:
+    radial-gradient(circle at 20% 10%, rgba(124, 60, 255, 0.16), transparent 34%),
+    linear-gradient(135deg, #090b12 0%, #111827 52%, #020617 100%);
 }
 
 html[data-dashboard-theme] body {
@@ -4318,28 +4340,50 @@ html[data-dashboard-theme] .dashboard-v2-production-shell .settings-dashboard-ap
   pointer-events: none;
 }
 
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option img {
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-thumb {
   width: 100%;
   min-width: 0;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
   border-radius: 10px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.42);
 }
 
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option span {
+html[data-dashboard-theme] .dashboard-v2-production-shell img.settings-shell-background-thumb {
+  object-fit: cover;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-thumb--custom {
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(96, 116, 153, 0.3);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.1)),
+    rgba(255, 255, 255, 0.08);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-upload-label {
+  color: var(--vz-muted);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-copy {
   min-width: 0;
   display: grid;
   gap: 3px;
 }
 
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option strong,
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option small {
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-copy strong,
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-copy small {
   min-width: 0;
   overflow: hidden;
 }
 
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option strong {
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-copy strong {
   display: -webkit-box;
   color: var(--vz-ink);
   font-size: 12px;
@@ -4348,13 +4392,35 @@ html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-backgr
   -webkit-line-clamp: 2;
 }
 
-html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-option small {
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-shell-background-copy small {
   display: -webkit-box;
   color: var(--vz-muted);
   font-size: 11px;
   line-height: 1.3;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-custom-background-control {
+  display: grid;
+  gap: 8px;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-custom-background-input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .settings-custom-background-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 html[data-dashboard-theme] .dashboard-v2-production-shell .settings-background-blur-control,

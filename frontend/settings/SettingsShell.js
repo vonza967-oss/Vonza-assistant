@@ -45,36 +45,87 @@
   const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
   const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
   const DEFAULT_DASHBOARD_DENSITY = "comfortable";
+  const DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY = "vonza:custom-dashboard-background";
+  const DASHBOARD_CUSTOM_BACKGROUND_ID = "custom-upload";
   const DASHBOARD_BACKGROUND_OPTIONS = Object.freeze([
     Object.freeze({
       value: "skyline-atrium",
       label: "Skyline Atrium",
       copy: "Bright city glass with a soft skyline view.",
+      type: "image",
+      theme: "bright",
       url: "/assets/dashboard/backgrounds/skyline-atrium.png",
     }),
     Object.freeze({
       value: "harbor-lounge",
       label: "Harbor Lounge",
       copy: "Open lounge, water view, and bright marble floor.",
+      type: "image",
+      theme: "bright",
       url: "/assets/dashboard/backgrounds/harbor-lounge.png",
     }),
     Object.freeze({
       value: "coastal-gallery",
       label: "Coastal Gallery",
       copy: "Minimal coastal hall with clean daylight.",
+      type: "image",
+      theme: "bright",
       url: "/assets/dashboard/backgrounds/coastal-gallery.png",
     }),
     Object.freeze({
       value: "midnight-lobby",
       label: "Midnight Lobby",
       copy: "Dark executive lobby with purple light.",
+      type: "image",
+      theme: "dark",
       url: "/assets/dashboard/backgrounds/midnight-lobby.png",
     }),
     Object.freeze({
       value: "midnight-suite",
       label: "Midnight Suite",
       copy: "Low-light lounge with deep glass contrast.",
+      type: "image",
+      theme: "dark",
       url: "/assets/dashboard/backgrounds/midnight-suite.png",
+    }),
+    Object.freeze({
+      value: "white-marble",
+      label: "White Marble",
+      copy: "Minimal white marble surface with soft premium texture.",
+      type: "image",
+      theme: "bright",
+      url: "/assets/dashboard/backgrounds/white-marble.png",
+    }),
+    Object.freeze({
+      value: "black-marble",
+      label: "Black Marble",
+      copy: "Minimal black marble surface with dark premium texture.",
+      type: "image",
+      theme: "dark",
+      url: "/assets/dashboard/backgrounds/black-marble.png",
+    }),
+    Object.freeze({
+      value: "simple-white",
+      label: "Simple White",
+      copy: "Clean white background for maximum clarity.",
+      type: "css",
+      theme: "bright",
+      cssBackground: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 52%, #ffffff 100%)",
+    }),
+    Object.freeze({
+      value: "simple-dark",
+      label: "Simple Dark",
+      copy: "Clean dark background for low-light work.",
+      type: "css",
+      theme: "dark",
+      cssBackground: "radial-gradient(circle at 20% 10%, rgba(124, 60, 255, 0.16), transparent 34%), linear-gradient(135deg, #090b12 0%, #111827 52%, #020617 100%)",
+    }),
+    Object.freeze({
+      value: DASHBOARD_CUSTOM_BACKGROUND_ID,
+      label: "Custom image",
+      copy: "Use your own photo or background.",
+      type: "custom",
+      theme: "custom",
     }),
   ]);
   const SETTINGS_SECTION_ALIASES = Object.freeze({
@@ -1257,6 +1308,10 @@
 
   function normalizeDashboardBackgroundChoice(value = "") {
     const normalized = defaultTrimText(value).toLowerCase().replace(/[_\s]+/g, "-");
+    if (normalized === DASHBOARD_CUSTOM_BACKGROUND_ID && !getSavedDashboardCustomBackground()) {
+      return DASHBOARD_BACKGROUND_OPTIONS[0].value;
+    }
+
     return DASHBOARD_BACKGROUND_OPTIONS.some((option) => option.value === normalized)
       ? normalized
       : DASHBOARD_BACKGROUND_OPTIONS[0].value;
@@ -1365,27 +1420,79 @@
     return DASHBOARD_BACKGROUND_OPTIONS;
   }
 
+  function isSafeDashboardCustomBackgroundDataUrl(value = "") {
+    const dataUrl = defaultTrimText(value);
+    return /^data:image\/(?:png|jpe?g|webp);base64,[a-z0-9+/=]+$/i.test(dataUrl);
+  }
+
+  function getSavedDashboardCustomBackground() {
+    try {
+      const savedDataUrl = global.localStorage?.getItem(DASHBOARD_CUSTOM_BACKGROUND_STORAGE_KEY) || "";
+      return isSafeDashboardCustomBackgroundDataUrl(savedDataUrl) ? savedDataUrl : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function buildDashboardBackgroundThumbMarkup(helpers, background, customDataUrl) {
+    if (background.type === "css") {
+      return `<span class="settings-shell-background-thumb" style="background:${helpers.escapeHtml(background.cssBackground || "")}" aria-hidden="true"></span>`;
+    }
+
+    if (background.type === "custom") {
+      const customStyle = customDataUrl
+        ? ` style="background-image:url('${helpers.escapeHtml(customDataUrl)}')"`
+        : "";
+      const emptyState = customDataUrl ? "" : `<span class="settings-shell-background-upload-label">${helpers.escapeHtml(helpers.translateDashboardText("Upload"))}</span>`;
+      return `<span class="settings-shell-background-thumb settings-shell-background-thumb--custom"${customStyle} aria-hidden="true">${emptyState}</span>`;
+    }
+
+    return `<img class="settings-shell-background-thumb" src="${helpers.escapeHtml(background.url)}" alt="" loading="lazy" aria-hidden="true">`;
+  }
+
   function buildDashboardBackgroundOptionsMarkup(helpers, selectedBackground) {
+    const customDataUrl = getSavedDashboardCustomBackground();
     const selected = normalizeDashboardBackgroundChoice(selectedBackground);
 
     return `
       <div class="settings-shell-background-options" role="radiogroup" aria-label="${helpers.escapeHtml(helpers.t("settings.background"))}">
         ${getDashboardBackgroundOptions().map((background) => `
-          <label class="settings-shell-background-option ${selected === background.value ? "active" : ""}">
+          <label class="settings-shell-background-option ${selected === background.value ? "active" : ""} ${background.type === "custom" ? "settings-shell-background-option--custom" : ""}">
             <input
               type="radio"
               name="dashboard_background"
               value="${helpers.escapeHtml(background.value)}"
               data-dashboard-background-choice
+              ${background.type === "custom" && !customDataUrl ? "disabled" : ""}
               ${selected === background.value ? "checked" : ""}
             >
-            <img src="${helpers.escapeHtml(background.url)}" alt="" loading="lazy" aria-hidden="true">
-            <span>
+            ${buildDashboardBackgroundThumbMarkup(helpers, background, customDataUrl)}
+            <span class="settings-shell-background-copy">
               <strong>${helpers.escapeHtml(background.label)}</strong>
               <small>${helpers.escapeHtml(helpers.translateDashboardText(background.copy))}</small>
             </span>
           </label>
         `).join("")}
+      </div>
+      <div class="settings-custom-background-control" data-dashboard-custom-background-control>
+        <input
+          id="dashboard-custom-background-upload"
+          class="settings-custom-background-input"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          data-dashboard-custom-background-upload
+        >
+        <div class="settings-custom-background-actions">
+          <label class="ghost-button" for="dashboard-custom-background-upload" data-dashboard-custom-background-upload-trigger>
+            ${helpers.escapeHtml(customDataUrl ? helpers.translateDashboardText("Replace") : helpers.translateDashboardText("Upload background"))}
+          </label>
+          <button class="ghost-button" type="button" data-dashboard-custom-background-remove ${customDataUrl ? "" : "hidden"}>
+            ${helpers.escapeHtml(helpers.translateDashboardText("Remove"))}
+          </button>
+        </div>
+        <p class="settings-shell-section-copy" data-dashboard-custom-background-message>
+          ${helpers.escapeHtml(helpers.translateDashboardText("PNG, JPG, JPEG, or WebP. Max 5 MB. SVG and remote URLs are not allowed."))}
+        </p>
       </div>
     `;
   }
