@@ -769,7 +769,7 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "70");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.20");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.13");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "46px");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "19px");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-inner-shadow"), "0.07");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-radial-alpha"), "0.07");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-sheen-alpha"), "0.08");
@@ -777,7 +777,7 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.20");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.13");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-radial-alpha"), "0.07");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "46px");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "19px");
 
   assert.equal(harness.saveDashboardGlassTransparency("100"), 100);
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.06");
@@ -785,7 +785,12 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-radial-alpha"), "0.03");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-sheen-alpha"), "0.04");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-reflection-opacity"), "0.08");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "54px");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "12px");
+
+  assert.equal(harness.saveDashboardGlassTransparency("0"), 0);
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.52");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.36");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "36px");
 
   assert.equal(harness.saveDashboardGlassTransparency("82.2"), 82);
   assert.equal(harness.window.localStorage.getItem("vonza:glass-transparency"), "82");
@@ -864,6 +869,8 @@ test("dashboard theme and background preferences persist and render Settings con
   const dashboardHtml = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
   assert.match(dashboardHtml, /vonza:glass-transparency/);
   assert.match(dashboardHtml, /dataset\.dashboardGlassTransparency/);
+  assert.match(dashboardHtml, /: 70;/);
+  assert.match(dashboardHtml, /blur: 36 - t \* 24/);
   assert.match(dashboardHtml, /vonza_dashboard_background_dim/);
   assert.match(dashboardHtml, /dataset\.dashboardBackgroundDim/);
   assert.match(dashboardHtml, /vonza_dashboard_accent_glow/);

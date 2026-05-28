@@ -3354,7 +3354,7 @@ function getGlassVars(transparency) {
     radialAlpha: 0.18 - t * 0.15,
     sheenAlpha: 0.16 - t * 0.12,
     reflectionOpacity: 0.42 - t * 0.34,
-    blur: 26 + t * 28,
+    blur: 36 - t * 24,
     borderAlpha: 0.48 + t * 0.24,
     highlightAlpha: 0.72 + t * 0.2,
     innerShadowAlpha: 0.12 - t * 0.07,

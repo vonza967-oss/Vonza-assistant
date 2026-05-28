@@ -4757,7 +4757,7 @@ html[data-dashboard-theme] {
   --vz-liquid-highlight-alpha: 0.86;
   --vz-liquid-border-alpha: 0.65;
   --vz-liquid-inner-shadow: 0.07;
-  --vz-liquid-blur: 46px;
+  --vz-liquid-blur: 19px;
   --vz-liquid-saturation: 170%;
   --vz-liquid-contrast: 1.08;
   --vz-liquid-row-alpha: calc(var(--vz-liquid-bottom-alpha) + 0.04);

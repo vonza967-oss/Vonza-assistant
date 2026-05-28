@@ -81,27 +81,51 @@
         const storedTransparency = Number.parseFloat(window.localStorage?.getItem("vonza:glass-transparency"));
         const transparency = Number.isFinite(storedTransparency)
           ? Math.min(100, Math.max(0, Math.round(storedTransparency)))
-          : 60;
+          : 70;
         const t = transparency / 100;
         const glassVars = {
-          topAlpha: Math.max(0.38, 0.72 - t * 0.4),
-          bottomAlpha: Math.max(0.26, 0.58 - t * 0.4),
-          blur: 24 + t * 12,
-          borderAlpha: 0.58 + t * 0.16,
-          highlightAlpha: 0.78 + t * 0.14,
+          topAlpha: 0.52 - t * 0.46,
+          bottomAlpha: 0.36 - t * 0.33,
+          radialAlpha: 0.18 - t * 0.15,
+          sheenAlpha: 0.16 - t * 0.12,
+          reflectionOpacity: 0.42 - t * 0.34,
+          blur: 36 - t * 24,
+          borderAlpha: 0.48 + t * 0.24,
+          highlightAlpha: 0.72 + t * 0.2,
+          innerShadowAlpha: 0.12 - t * 0.07,
         };
         document.documentElement.dataset.dashboardGlassTransparency = String(transparency);
+        document.documentElement.style.setProperty("--vz-liquid-top-alpha", glassVars.topAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-radial-alpha", glassVars.radialAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-sheen-alpha", glassVars.sheenAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-reflection-opacity", glassVars.reflectionOpacity.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-blur", `${Math.round(glassVars.blur)}px`);
+        document.documentElement.style.setProperty("--vz-liquid-border-alpha", glassVars.borderAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-liquid-inner-shadow", glassVars.innerShadowAlpha.toFixed(2));
         document.documentElement.style.setProperty("--vz-glass-top-alpha", glassVars.topAlpha.toFixed(2));
         document.documentElement.style.setProperty("--vz-glass-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
+        document.documentElement.style.setProperty("--vz-glass-radial-alpha", glassVars.radialAlpha.toFixed(2));
         document.documentElement.style.setProperty("--vz-glass-blur", `${Math.round(glassVars.blur)}px`);
         document.documentElement.style.setProperty("--vz-glass-border-alpha", glassVars.borderAlpha.toFixed(2));
         document.documentElement.style.setProperty("--vz-glass-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
       } catch {
-        document.documentElement.dataset.dashboardGlassTransparency = "60";
-        document.documentElement.style.setProperty("--vz-glass-top-alpha", "0.48");
-        document.documentElement.style.setProperty("--vz-glass-bottom-alpha", "0.34");
-        document.documentElement.style.setProperty("--vz-glass-blur", "31px");
-        document.documentElement.style.setProperty("--vz-glass-border-alpha", "0.68");
+        document.documentElement.dataset.dashboardGlassTransparency = "70";
+        document.documentElement.style.setProperty("--vz-liquid-top-alpha", "0.20");
+        document.documentElement.style.setProperty("--vz-liquid-bottom-alpha", "0.13");
+        document.documentElement.style.setProperty("--vz-liquid-radial-alpha", "0.07");
+        document.documentElement.style.setProperty("--vz-liquid-sheen-alpha", "0.08");
+        document.documentElement.style.setProperty("--vz-liquid-reflection-opacity", "0.18");
+        document.documentElement.style.setProperty("--vz-liquid-blur", "19px");
+        document.documentElement.style.setProperty("--vz-liquid-border-alpha", "0.65");
+        document.documentElement.style.setProperty("--vz-liquid-highlight-alpha", "0.86");
+        document.documentElement.style.setProperty("--vz-liquid-inner-shadow", "0.07");
+        document.documentElement.style.setProperty("--vz-glass-top-alpha", "0.20");
+        document.documentElement.style.setProperty("--vz-glass-bottom-alpha", "0.13");
+        document.documentElement.style.setProperty("--vz-glass-radial-alpha", "0.07");
+        document.documentElement.style.setProperty("--vz-glass-blur", "19px");
+        document.documentElement.style.setProperty("--vz-glass-border-alpha", "0.65");
         document.documentElement.style.setProperty("--vz-glass-highlight-alpha", "0.86");
       }
       try {
