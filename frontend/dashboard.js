@@ -26,7 +26,7 @@ const DASHBOARD_TODAY_QUEUE_SELECTION_KEY = "vonza_dashboard_today_queue_selecti
 const DASHBOARD_THEME_STORAGE_KEY = "vonza_dashboard_theme";
 const DASHBOARD_BACKGROUND_STORAGE_KEY = "vonza_dashboard_background";
 const DASHBOARD_BACKGROUND_BLUR_STORAGE_KEY = "vonza_dashboard_background_blur";
-const DASHBOARD_GLASS_INTENSITY_STORAGE_KEY = "vonza_dashboard_glass_intensity";
+const DASHBOARD_GLASS_TRANSPARENCY_STORAGE_KEY = "vonza:glass-transparency";
 const DASHBOARD_BACKGROUND_DIM_STORAGE_KEY = "vonza_dashboard_background_dim";
 const DASHBOARD_ACCENT_GLOW_STORAGE_KEY = "vonza_dashboard_accent_glow";
 const DASHBOARD_DENSITY_STORAGE_KEY = "vonza_dashboard_density";
@@ -79,11 +79,12 @@ const DEFAULT_DASHBOARD_BACKGROUND = DASHBOARD_BACKGROUND_OPTIONS[0]?.value || "
 const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
 const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
 const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
-const DASHBOARD_GLASS_INTENSITY_OPTIONS = Object.freeze(["subtle", "balanced", "clear"]);
+const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
+const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
+const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 60;
 const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
 const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
 const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
-const DEFAULT_DASHBOARD_GLASS_INTENSITY = "balanced";
 const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
 const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
 const DEFAULT_DASHBOARD_DENSITY = "comfortable";
@@ -1532,11 +1533,16 @@ function normalizeDashboardAppearanceChoice(value, allowedValues, defaultValue) 
   return allowedValues.includes(normalized) ? normalized : defaultValue;
 }
 
-function normalizeDashboardGlassIntensity(value = DEFAULT_DASHBOARD_GLASS_INTENSITY) {
-  return normalizeDashboardAppearanceChoice(
-    value,
-    DASHBOARD_GLASS_INTENSITY_OPTIONS,
-    DEFAULT_DASHBOARD_GLASS_INTENSITY
+function normalizeDashboardGlassTransparency(value = DEFAULT_DASHBOARD_GLASS_TRANSPARENCY) {
+  const parsedValue = Number.parseFloat(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
+  }
+
+  return Math.min(
+    DASHBOARD_GLASS_TRANSPARENCY_MAX,
+    Math.max(DASHBOARD_GLASS_TRANSPARENCY_MIN, Math.round(parsedValue))
   );
 }
 
@@ -3002,11 +3008,11 @@ function getDashboardBackgroundBlur() {
   }
 }
 
-function getDashboardGlassIntensity() {
+function getDashboardGlassTransparency() {
   try {
-    return normalizeDashboardGlassIntensity(window.localStorage.getItem(DASHBOARD_GLASS_INTENSITY_STORAGE_KEY));
+    return normalizeDashboardGlassTransparency(window.localStorage.getItem(DASHBOARD_GLASS_TRANSPARENCY_STORAGE_KEY));
   } catch {
-    return DEFAULT_DASHBOARD_GLASS_INTENSITY;
+    return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
   }
 }
 
@@ -3073,16 +3079,21 @@ function syncDashboardAppearanceSegmentedControls(root, selector, normalizer, cu
   });
 }
 
-function syncDashboardGlassIntensityControls(root = document) {
-  const intensity = normalizeDashboardGlassIntensity(
-    document.documentElement?.dataset.dashboardGlassIntensity || getDashboardGlassIntensity()
+function syncDashboardGlassTransparencyControls(root = document) {
+  const transparency = normalizeDashboardGlassTransparency(
+    document.documentElement?.dataset.dashboardGlassTransparency || getDashboardGlassTransparency()
   );
-  syncDashboardAppearanceSegmentedControls(
-    root,
-    "[data-dashboard-glass-intensity-choice]",
-    normalizeDashboardGlassIntensity,
-    intensity
-  );
+
+  root.querySelectorAll?.("[data-dashboard-glass-transparency-control]")?.forEach((input) => {
+    input.value = String(transparency);
+    const output = input
+      .closest?.(".settings-glass-transparency-control")
+      ?.querySelector?.("[data-dashboard-glass-transparency-value]");
+
+    if (output) {
+      output.textContent = `${transparency}%`;
+    }
+  });
 }
 
 function syncDashboardBackgroundDimControls(root = document) {
@@ -3210,22 +3221,42 @@ function applyDashboardBackgroundBlur(blur = getDashboardBackgroundBlur()) {
   return normalizedBlur;
 }
 
-function applyDashboardGlassIntensity(intensity = getDashboardGlassIntensity()) {
-  const normalizedIntensity = normalizeDashboardGlassIntensity(intensity);
+function getGlassVars(transparency) {
+  const t = normalizeDashboardGlassTransparency(transparency) / 100;
+
+  return {
+    topAlpha: Math.max(0.38, 0.72 - t * 0.4),
+    bottomAlpha: Math.max(0.26, 0.58 - t * 0.4),
+    blur: 24 + t * 12,
+    borderAlpha: 0.58 + t * 0.16,
+    highlightAlpha: 0.78 + t * 0.14,
+  };
+}
+
+function applyDashboardGlassTransparency(transparency = getDashboardGlassTransparency()) {
+  const normalizedTransparency = normalizeDashboardGlassTransparency(transparency);
+  const glassVars = getGlassVars(normalizedTransparency);
 
   if (document.documentElement?.dataset) {
-    document.documentElement.dataset.dashboardGlassIntensity = normalizedIntensity;
+    document.documentElement.dataset.dashboardGlassTransparency = String(normalizedTransparency);
   }
 
   if (document.body?.dataset) {
-    document.body.dataset.dashboardGlassIntensity = normalizedIntensity;
+    document.body.dataset.dashboardGlassTransparency = String(normalizedTransparency);
   }
 
-  document.documentElement?.style?.setProperty?.("--dashboard-glass-intensity", normalizedIntensity);
-  document.body?.style?.setProperty?.("--dashboard-glass-intensity", normalizedIntensity);
+  const applyGlassVars = (target) => {
+    target?.style?.setProperty?.("--vz-glass-top-alpha", glassVars.topAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-glass-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-glass-blur", `${Math.round(glassVars.blur)}px`);
+    target?.style?.setProperty?.("--vz-glass-border-alpha", glassVars.borderAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-glass-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
+  };
 
-  syncDashboardGlassIntensityControls();
-  return normalizedIntensity;
+  applyGlassVars(document.documentElement);
+  applyGlassVars(document.body);
+  syncDashboardGlassTransparencyControls();
+  return normalizedTransparency;
 }
 
 function applyDashboardBackgroundDim(dim = getDashboardBackgroundDim()) {
@@ -3321,17 +3352,17 @@ function saveDashboardBackgroundBlur(blur) {
   return normalizedBlur;
 }
 
-function saveDashboardGlassIntensity(intensity) {
-  const normalizedIntensity = normalizeDashboardGlassIntensity(intensity);
+function saveDashboardGlassTransparency(transparency) {
+  const normalizedTransparency = normalizeDashboardGlassTransparency(transparency);
 
   try {
-    window.localStorage.setItem(DASHBOARD_GLASS_INTENSITY_STORAGE_KEY, normalizedIntensity);
+    window.localStorage.setItem(DASHBOARD_GLASS_TRANSPARENCY_STORAGE_KEY, String(normalizedTransparency));
   } catch {
-    // Glass intensity persistence is optional when storage is blocked.
+    // Glass transparency persistence is optional when storage is blocked.
   }
 
-  applyDashboardGlassIntensity(normalizedIntensity);
-  return normalizedIntensity;
+  applyDashboardGlassTransparency(normalizedTransparency);
+  return normalizedTransparency;
 }
 
 function saveDashboardBackgroundDim(dim) {
@@ -14992,7 +15023,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const themeChoiceInputs = document.querySelectorAll("[data-dashboard-theme-choice]");
   const backgroundChoiceInputs = document.querySelectorAll("[data-dashboard-background-choice]");
   const backgroundBlurInputs = document.querySelectorAll("[data-dashboard-background-blur-control]");
-  const glassIntensityInputs = document.querySelectorAll("[data-dashboard-glass-intensity-choice]");
+  const glassTransparencyInputs = document.querySelectorAll("[data-dashboard-glass-transparency-control]");
   const backgroundDimInputs = document.querySelectorAll("[data-dashboard-background-dim-choice]");
   const accentGlowInputs = document.querySelectorAll("[data-dashboard-accent-glow-choice]");
   const dashboardDensityInputs = document.querySelectorAll("[data-dashboard-density-choice]");
@@ -16306,7 +16337,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   applyDashboardTheme(getDashboardTheme());
   applyDashboardBackground(getDashboardBackground());
   applyDashboardBackgroundBlur(getDashboardBackgroundBlur());
-  applyDashboardGlassIntensity(getDashboardGlassIntensity());
+  applyDashboardGlassTransparency(getDashboardGlassTransparency());
   applyDashboardBackgroundDim(getDashboardBackgroundDim());
   applyDashboardAccentGlow(getDashboardAccentGlow());
   applyDashboardDensity(getDashboardDensity());
@@ -16347,14 +16378,13 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     input.addEventListener("change", persistBlur);
   });
 
-  glassIntensityInputs.forEach((input) => {
+  glassTransparencyInputs.forEach((input) => {
+    input.addEventListener("input", () => {
+      saveDashboardGlassTransparency(input.value);
+    });
     input.addEventListener("change", () => {
-      if (!input.checked) {
-        return;
-      }
-
-      const savedIntensity = saveDashboardGlassIntensity(input.value);
-      setStatus(`Dashboard glass intensity set to ${getDashboardAppearanceChoiceLabel(savedIntensity)}.`);
+      const savedTransparency = saveDashboardGlassTransparency(input.value);
+      setStatus(`Dashboard glass transparency set to ${savedTransparency}%.`);
     });
   });
 

@@ -764,15 +764,17 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "24");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "24px");
 
-  assert.equal(harness.getDashboardGlassIntensity(), "balanced");
-  assert.equal(harness.applyDashboardGlassIntensity(), "balanced");
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "balanced");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-glass-intensity"), "balanced");
+  assert.equal(harness.getDashboardGlassTransparency(), 60);
+  assert.equal(harness.applyDashboardGlassTransparency(), 60);
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "60");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.48");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.34");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "31px");
 
-  assert.equal(harness.saveDashboardGlassIntensity("clear"), "clear");
-  assert.equal(harness.window.localStorage.getItem("vonza_dashboard_glass_intensity"), "clear");
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "clear");
-  assert.equal(harness.document.body.dataset.dashboardGlassIntensity, "clear");
+  assert.equal(harness.saveDashboardGlassTransparency("82.2"), 82);
+  assert.equal(harness.window.localStorage.getItem("vonza:glass-transparency"), "82");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "82");
+  assert.equal(harness.document.body.dataset.dashboardGlassTransparency, "82");
 
   assert.equal(harness.getDashboardBackgroundDim(), "balanced");
   assert.equal(harness.applyDashboardBackgroundDim(), "balanced");
@@ -824,10 +826,11 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.match(settingsPanel, /max="24"/);
   assert.match(settingsPanel, /value="24"/);
   assert.match(settingsPanel, /24px/);
-  assert.match(settingsPanel, /Glass intensity/);
-  assert.match(settingsPanel, /data-dashboard-glass-intensity-choice/);
-  assert.match(settingsPanel, /name="dashboard_glass_intensity"/);
-  assert.match(settingsPanel, /value="clear"[\s\S]*checked/);
+  assert.match(settingsPanel, /Glass transparency/);
+  assert.match(settingsPanel, /data-dashboard-glass-transparency-control/);
+  assert.match(settingsPanel, /name="dashboard_glass_transparency"/);
+  assert.match(settingsPanel, /value="82"/);
+  assert.match(settingsPanel, /82%/);
   assert.match(settingsPanel, /Background dim/);
   assert.match(settingsPanel, /data-dashboard-background-dim-choice/);
   assert.match(settingsPanel, /name="dashboard_background_dim"/);
@@ -843,8 +846,8 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.match(settingsPanel, /Comfortable/);
 
   const dashboardHtml = readFileSync(path.join(repoRoot, "dashboard.html"), "utf8");
-  assert.match(dashboardHtml, /vonza_dashboard_glass_intensity/);
-  assert.match(dashboardHtml, /dataset\.dashboardGlassIntensity/);
+  assert.match(dashboardHtml, /vonza:glass-transparency/);
+  assert.match(dashboardHtml, /dataset\.dashboardGlassTransparency/);
   assert.match(dashboardHtml, /vonza_dashboard_background_dim/);
   assert.match(dashboardHtml, /dataset\.dashboardBackgroundDim/);
   assert.match(dashboardHtml, /vonza_dashboard_accent_glow/);
@@ -860,22 +863,22 @@ test("dashboard appearance preferences reject invalid stored values safely", () 
     },
   });
 
-  harness.window.localStorage.setItem("vonza_dashboard_glass_intensity", "transparent");
+  harness.window.localStorage.setItem("vonza:glass-transparency", "transparent");
   harness.window.localStorage.setItem("vonza_dashboard_background_dim", "blackout");
   harness.window.localStorage.setItem("vonza_dashboard_accent_glow", "neon");
   harness.window.localStorage.setItem("vonza_dashboard_density", "tiny");
 
-  assert.equal(harness.getDashboardGlassIntensity(), "balanced");
+  assert.equal(harness.getDashboardGlassTransparency(), 60);
   assert.equal(harness.getDashboardBackgroundDim(), "balanced");
   assert.equal(harness.getDashboardAccentGlow(), "soft");
   assert.equal(harness.getDashboardDensity(), "comfortable");
 
-  assert.equal(harness.applyDashboardGlassIntensity(harness.getDashboardGlassIntensity()), "balanced");
+  assert.equal(harness.applyDashboardGlassTransparency(harness.getDashboardGlassTransparency()), 60);
   assert.equal(harness.applyDashboardBackgroundDim(harness.getDashboardBackgroundDim()), "balanced");
   assert.equal(harness.applyDashboardAccentGlow(harness.getDashboardAccentGlow()), "soft");
   assert.equal(harness.applyDashboardDensity(harness.getDashboardDensity()), "comfortable");
 
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassIntensity, "balanced");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "60");
   assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
   assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
   assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");

@@ -36,11 +36,12 @@
   const DASHBOARD_BACKGROUND_BLUR_MIN = 0;
   const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
   const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
-  const DASHBOARD_GLASS_INTENSITY_OPTIONS = Object.freeze(["subtle", "balanced", "clear"]);
+  const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
+  const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
+  const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 60;
   const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
   const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
   const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
-  const DEFAULT_DASHBOARD_GLASS_INTENSITY = "balanced";
   const DEFAULT_DASHBOARD_BACKGROUND_DIM = "balanced";
   const DEFAULT_DASHBOARD_ACCENT_GLOW = "soft";
   const DEFAULT_DASHBOARD_DENSITY = "comfortable";
@@ -109,11 +110,10 @@
     "settings.backgroundCopy": "Choose the environment image visible through the dashboard glass.",
     "settings.backgroundBlur": "Background blur",
     "settings.backgroundBlurCopy": "Soften the image behind dashboard glass without blurring cards or text.",
-    "settings.glassIntensity": "Glass intensity",
-    "settings.glassIntensityCopy": "Tune card translucency, border light, and glass blur together.",
-    "settings.glassIntensitySubtle": "Subtle",
-    "settings.glassIntensityBalanced": "Balanced",
-    "settings.glassIntensityClear": "Clear",
+    "settings.glassTransparency": "Glass transparency",
+    "settings.glassTransparencyCopy": "Adjust how see-through dashboard surfaces appear.",
+    "settings.glassTransparencyLessSolid": "Less solid",
+    "settings.glassTransparencyMoreTransparent": "More transparent",
     "settings.backgroundDim": "Background dim",
     "settings.backgroundDimCopy": "Adjust only the overlay over the selected background image.",
     "settings.backgroundDimBright": "Bright",
@@ -1284,11 +1284,16 @@
     return allowedValues.includes(normalized) ? normalized : defaultValue;
   }
 
-  function normalizeDashboardGlassIntensityChoice(value = DEFAULT_DASHBOARD_GLASS_INTENSITY) {
-    return normalizeDashboardAppearanceChoice(
-      value,
-      DASHBOARD_GLASS_INTENSITY_OPTIONS,
-      DEFAULT_DASHBOARD_GLASS_INTENSITY
+  function normalizeDashboardGlassTransparencyChoice(value = DEFAULT_DASHBOARD_GLASS_TRANSPARENCY) {
+    const parsedValue = Number.parseFloat(value);
+
+    if (!Number.isFinite(parsedValue)) {
+      return DEFAULT_DASHBOARD_GLASS_TRANSPARENCY;
+    }
+
+    return Math.min(
+      DASHBOARD_GLASS_TRANSPARENCY_MAX,
+      Math.max(DASHBOARD_GLASS_TRANSPARENCY_MIN, Math.round(parsedValue))
     );
   }
 
@@ -1320,8 +1325,8 @@
     return normalizeDashboardBackgroundBlurChoice(global.document?.documentElement?.dataset?.dashboardBackgroundBlur);
   }
 
-  function getDashboardGlassIntensityChoice() {
-    return normalizeDashboardGlassIntensityChoice(global.document?.documentElement?.dataset?.dashboardGlassIntensity);
+  function getDashboardGlassTransparencyChoice() {
+    return normalizeDashboardGlassTransparencyChoice(global.document?.documentElement?.dataset?.dashboardGlassTransparency);
   }
 
   function getDashboardBackgroundDimChoice() {
@@ -1410,6 +1415,34 @@
     `;
   }
 
+  function buildDashboardGlassTransparencyMarkup(helpers, transparencyValue) {
+    const transparency = normalizeDashboardGlassTransparencyChoice(transparencyValue);
+
+    return `
+      <div class="settings-glass-transparency-control">
+        <div class="settings-glass-transparency-head">
+          <h4>${helpers.escapeHtml(helpers.t("settings.glassTransparency"))}</h4>
+          <output class="settings-glass-transparency-value" data-dashboard-glass-transparency-value>${helpers.escapeHtml(String(transparency))}%</output>
+        </div>
+        <p>${helpers.escapeHtml(helpers.t("settings.glassTransparencyCopy"))}</p>
+        <div class="settings-glass-transparency-row">
+          <span>${helpers.escapeHtml(helpers.t("settings.glassTransparencyLessSolid"))}</span>
+          <input
+            type="range"
+            name="dashboard_glass_transparency"
+            min="${DASHBOARD_GLASS_TRANSPARENCY_MIN}"
+            max="${DASHBOARD_GLASS_TRANSPARENCY_MAX}"
+            step="1"
+            value="${helpers.escapeHtml(String(transparency))}"
+            aria-label="${helpers.escapeHtml(helpers.t("settings.glassTransparency"))}"
+            data-dashboard-glass-transparency-control
+          >
+          <span>${helpers.escapeHtml(helpers.t("settings.glassTransparencyMoreTransparent"))}</span>
+        </div>
+      </div>
+    `;
+  }
+
   function buildDashboardAppearanceSegmentedControl(helpers, options = {}) {
     const selected = options.normalize(options.selected);
 
@@ -1440,19 +1473,7 @@
   function buildDashboardAppearanceControlsMarkup(helpers, appearance = {}) {
     return `
       <div class="settings-dashboard-appearance-grid">
-        ${buildDashboardAppearanceSegmentedControl(helpers, {
-          title: helpers.t("settings.glassIntensity"),
-          copy: helpers.t("settings.glassIntensityCopy"),
-          name: "dashboard_glass_intensity",
-          dataAttribute: "data-dashboard-glass-intensity-choice",
-          selected: appearance.glassIntensity,
-          normalize: normalizeDashboardGlassIntensityChoice,
-          choices: [
-            { value: "subtle", label: helpers.t("settings.glassIntensitySubtle") },
-            { value: "balanced", label: helpers.t("settings.glassIntensityBalanced") },
-            { value: "clear", label: helpers.t("settings.glassIntensityClear") },
-          ],
-        })}
+        ${buildDashboardGlassTransparencyMarkup(helpers, appearance.glassTransparency)}
         ${buildDashboardAppearanceSegmentedControl(helpers, {
           title: helpers.t("settings.backgroundDim"),
           copy: helpers.t("settings.backgroundDimCopy"),
@@ -2577,7 +2598,7 @@
     const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
     const dashboardAppearance = {
-      glassIntensity: getDashboardGlassIntensityChoice(),
+      glassTransparency: getDashboardGlassTransparencyChoice(),
       backgroundDim: getDashboardBackgroundDimChoice(),
       accentGlow: getDashboardAccentGlowChoice(),
       density: getDashboardDensityChoice(),
@@ -3330,7 +3351,7 @@
     const dashboardBackground = getDashboardBackgroundChoice();
     const dashboardBackgroundBlur = getDashboardBackgroundBlurChoice();
     const dashboardAppearance = {
-      glassIntensity: getDashboardGlassIntensityChoice(),
+      glassTransparency: getDashboardGlassTransparencyChoice(),
       backgroundDim: getDashboardBackgroundDimChoice(),
       accentGlow: getDashboardAccentGlowChoice(),
       density: getDashboardDensityChoice(),
