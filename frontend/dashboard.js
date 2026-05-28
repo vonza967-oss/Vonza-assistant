@@ -3225,11 +3225,13 @@ function getGlassVars(transparency) {
   const t = normalizeDashboardGlassTransparency(transparency) / 100;
 
   return {
-    topAlpha: 0.5 - t * 0.26,
-    bottomAlpha: 0.36 - t * 0.2,
-    blur: 24 + t * 12,
-    borderAlpha: 0.48 + t * 0.22,
-    highlightAlpha: 0.76 + t * 0.16,
+    topAlpha: 0.58 - t * 0.42,
+    bottomAlpha: 0.42 - t * 0.34,
+    blur: 22 + t * 12,
+    borderAlpha: 0.44 + t * 0.18,
+    highlightAlpha: 0.7 + t * 0.18,
+    innerShadowAlpha: 0.1 + (1 - t) * 0.1,
+    sheenAlpha: 0.22 - t * 0.12,
   };
 }
 
@@ -3251,6 +3253,8 @@ function applyDashboardGlassTransparency(transparency = getDashboardGlassTranspa
     target?.style?.setProperty?.("--vz-liquid-blur", `${Math.round(glassVars.blur)}px`);
     target?.style?.setProperty?.("--vz-liquid-border-alpha", glassVars.borderAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-liquid-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-liquid-inner-shadow", glassVars.innerShadowAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-liquid-sheen-alpha", glassVars.sheenAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-top-alpha", glassVars.topAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-blur", `${Math.round(glassVars.blur)}px`);

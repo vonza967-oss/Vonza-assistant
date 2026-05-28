@@ -4648,12 +4648,13 @@ html[data-dashboard-theme] {
   --vz-bg-contrast: 1.08;
   --vz-bg-dim: 0.3;
   --vz-bg-veil: 0.2;
-  --vz-liquid-top-alpha: 0.32;
-  --vz-liquid-bottom-alpha: 0.22;
-  --vz-liquid-highlight-alpha: 0.87;
-  --vz-liquid-border-alpha: 0.63;
-  --vz-liquid-inner-shadow: 0.18;
-  --vz-liquid-blur: 32px;
+  --vz-liquid-top-alpha: 0.29;
+  --vz-liquid-bottom-alpha: 0.18;
+  --vz-liquid-highlight-alpha: 0.83;
+  --vz-liquid-border-alpha: 0.57;
+  --vz-liquid-inner-shadow: 0.13;
+  --vz-liquid-sheen-alpha: 0.14;
+  --vz-liquid-blur: 30px;
   --vz-liquid-saturation: 170%;
   --vz-liquid-contrast: 1.08;
   --vz-shadow-liquid:
@@ -4678,7 +4679,7 @@ html[data-dashboard-theme] {
   --vz-gap-lg: 18px;
   --vz-nav-height: 42px;
   --vz-liquid-bg:
-    radial-gradient(circle at 18% 0%, rgb(255 255 255 / 0.34), transparent 34%),
+    radial-gradient(circle at 18% 0%, rgb(255 255 255 / var(--vz-liquid-sheen-alpha)), transparent 34%),
     linear-gradient(
       135deg,
       rgb(255 255 255 / var(--vz-liquid-top-alpha)),
@@ -4723,11 +4724,11 @@ html[data-dashboard-theme="dark"] {
   --vz-muted: #cbd5e1;
   --vz-soft: #94a3b8;
   --vz-liquid-bg:
-    radial-gradient(circle at 18% 0%, rgb(255 255 255 / 0.12), transparent 34%),
+    radial-gradient(circle at 18% 0%, rgb(255 255 255 / var(--vz-liquid-sheen-alpha)), transparent 34%),
     linear-gradient(
       135deg,
-      rgb(15 23 42 / calc(var(--vz-liquid-top-alpha) + 0.24)),
-      rgb(15 23 42 / calc(var(--vz-liquid-bottom-alpha) + 0.18))
+      rgb(15 23 42 / calc(var(--vz-liquid-top-alpha) + 0.12)),
+      rgb(15 23 42 / calc(var(--vz-liquid-bottom-alpha) + 0.10))
     );
   --vz-glass-border: rgb(255 255 255 / 0.18);
   --vz-glass-border-strong: rgb(255 255 255 / 0.28);
