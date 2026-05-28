@@ -330,7 +330,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceDisclosure": "Voice is processed to transcribe your question.",
     "assistant.voicePrivacy": "Privacy",
     "assistant.voiceAi": "AI-generated voice.",
-    "assistant.voiceUnavailable": "This browser does not support voice calls. You can still type your message.",
+    "assistant.voiceUnavailable": "This browser does not support browser voice. You can still type your message.",
     "assistant.voiceHttps": "Voice input requires HTTPS. Open this Front Desk over a secure link or type your message.",
     "assistant.voicePermission": "Microphone access is blocked. Allow microphone access in your browser settings or type your message.",
     "assistant.voiceDevice": "No microphone was found. Connect a microphone or type your message.",
@@ -356,36 +356,36 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceSpokenCouldNotPlay": "Spoken reply could not play. You can still read the answer.",
     "assistant.voiceAudioUnsupported": "Audio playback is not supported in this browser.",
     "assistant.voicePressPlay": "Press Play to hear the spoken reply.",
-    "assistant.callKicker": "Web call",
-    "assistant.callTitle": "Call Front Desk",
-    "assistant.callReady": "Ready to call",
-    "assistant.callRequesting": "Connecting",
-    "assistant.callListening": "Listening",
+    "assistant.callKicker": "Browser voice",
+    "assistant.callTitle": "Talk to Front Desk",
+    "assistant.callReady": "Ready for a voice turn",
+    "assistant.callRequesting": "Preparing microphone",
+    "assistant.callListening": "Listening to this turn",
     "assistant.callTranscribing": "Thinking",
     "assistant.callThinking": "Thinking",
     "assistant.callSpeaking": "Speaking",
     "assistant.callWaiting": "Waiting for you",
     "assistant.callMutedStopped": "Muted",
-    "assistant.callStopped": "Call ended",
-    "assistant.callUnavailable": "Call mode is unavailable right now. You can still type your message.",
-    "assistant.callStart": "Start call",
-    "assistant.callRetry": "Retry call",
+    "assistant.callStopped": "Voice session ended",
+    "assistant.callUnavailable": "Browser voice is unavailable right now. You can still type your message.",
+    "assistant.callStart": "Start voice turn",
+    "assistant.callRetry": "Retry voice turn",
     "assistant.callTalk": "Talk now",
-    "assistant.callEnd": "End call",
+    "assistant.callEnd": "End voice session",
     "assistant.callStopListening": "Done speaking",
     "assistant.callMute": "Mute",
     "assistant.callUnmute": "Unmute",
     "assistant.callTypeFallback": "Type instead",
     "assistant.callDuration": "Duration {duration}",
     "assistant.callTurns": "Turns {turns}",
-    "assistant.callSessionDetails": "Call session details",
-    "assistant.callSummary": "Call ended: {duration}, {turns}. Transcript remains here.",
-    "assistant.callTurnLimitEnded": "Call ended after reaching the turn limit. Transcript remains here.",
+    "assistant.callSessionDetails": "Voice session details",
+    "assistant.callSummary": "Voice session ended: {duration}, {turns}. Transcript remains here.",
+    "assistant.callTurnLimitEnded": "Voice session ended after reaching the turn limit. Transcript remains here.",
     "assistant.callFallback": "You can type below, retry the call, or leave contact details.",
     "assistant.callRepeatEmpty": "I didn’t catch that. Please try again with one short question.",
     "assistant.callRepeatUnclear": "That sounded unclear. Please repeat it in a short sentence.",
     "assistant.callRepeatedFailure": "Voice is having trouble. Type below, retry the call, or leave contact details.",
-    "assistant.callEndedByVoice": "Call ended. Transcript remains here.",
+    "assistant.callEndedByVoice": "Voice session ended. Transcript remains here.",
     "assistant.callLongReplyHint": "This answer is a little long for speech, so you may want to read it on screen.",
     "assistant.callOneTurn": "1 turn",
     "assistant.callTurnCount": "{count} turns",
@@ -512,7 +512,7 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceDisclosure": "A hangot a kérdésed leírásához dolgozzuk fel.",
     "assistant.voicePrivacy": "Adatvédelem",
     "assistant.voiceAi": "AI által generált hang.",
-    "assistant.voiceUnavailable": "Ez a böngésző nem támogatja a hanghívást. Továbbra is beírhatod az üzenetedet.",
+    "assistant.voiceUnavailable": "Ez a böngésző nem támogatja a böngészős hangot. Továbbra is beírhatod az üzenetedet.",
     "assistant.voiceHttps": "A hangbevitelhez HTTPS szükséges. Nyisd meg biztonságos linken, vagy írd be az üzenetedet.",
     "assistant.voicePermission": "A mikrofonhozzáférés tiltva van. Engedélyezd a böngészőben, vagy írd be az üzenetedet.",
     "assistant.voiceDevice": "Nem található mikrofon. Csatlakoztass mikrofont, vagy írd be az üzenetedet.",
@@ -538,36 +538,36 @@ const ASSISTANT_I18N = Object.freeze({
     "assistant.voiceSpokenCouldNotPlay": "A felolvasás nem indult el. A választ továbbra is elolvashatod.",
     "assistant.voiceAudioUnsupported": "A hanglejátszás ebben a böngészőben nem támogatott.",
     "assistant.voicePressPlay": "Nyomd meg a Lejátszás gombot a felolvasáshoz.",
-    "assistant.callKicker": "Webes hívás",
-    "assistant.callTitle": "Front Desk hívása",
-    "assistant.callReady": "Hívásra kész",
-    "assistant.callRequesting": "Kapcsolódás",
-    "assistant.callListening": "Figyelek",
+    "assistant.callKicker": "Böngészős hang",
+    "assistant.callTitle": "Beszéd a Front Deskkel",
+    "assistant.callReady": "Kész egy hangos fordulóra",
+    "assistant.callRequesting": "Mikrofon előkészítése",
+    "assistant.callListening": "Ezt a fordulót figyelem",
     "assistant.callTranscribing": "Gondolkodom",
     "assistant.callThinking": "Gondolkodom",
     "assistant.callSpeaking": "Beszélek",
     "assistant.callWaiting": "Rád vár",
     "assistant.callMutedStopped": "Némítva",
-    "assistant.callStopped": "A hívás véget ért",
-    "assistant.callUnavailable": "A hívás mód most nem elérhető. Továbbra is beírhatod az üzenetedet.",
-    "assistant.callStart": "Hívás indítása",
-    "assistant.callRetry": "Hívás újrapróbálása",
+    "assistant.callStopped": "A hangos munkamenet véget ért",
+    "assistant.callUnavailable": "A böngészős hang most nem elérhető. Továbbra is beírhatod az üzenetedet.",
+    "assistant.callStart": "Hangos forduló indítása",
+    "assistant.callRetry": "Hangos forduló újrapróbálása",
     "assistant.callTalk": "Beszélek",
-    "assistant.callEnd": "Hívás befejezése",
+    "assistant.callEnd": "Hangos munkamenet befejezése",
     "assistant.callStopListening": "Elmondtam",
     "assistant.callMute": "Némítás",
     "assistant.callUnmute": "Némítás feloldása",
     "assistant.callTypeFallback": "Inkább írok",
     "assistant.callDuration": "Időtartam {duration}",
     "assistant.callTurns": "Fordulók {turns}",
-    "assistant.callSessionDetails": "Hívás részletei",
-    "assistant.callSummary": "A hívás véget ért: {duration}, {turns}. A leirat itt marad.",
-    "assistant.callTurnLimitEnded": "A hívás a fordulókorlát elérése után véget ért. A leirat itt marad.",
+    "assistant.callSessionDetails": "Hangos munkamenet részletei",
+    "assistant.callSummary": "A hangos munkamenet véget ért: {duration}, {turns}. A leirat itt marad.",
+    "assistant.callTurnLimitEnded": "A hangos munkamenet a fordulókorlát elérése után véget ért. A leirat itt marad.",
     "assistant.callFallback": "Írhatsz lent, újrapróbálhatod a hívást, vagy megadhatod az elérhetőségedet.",
     "assistant.callRepeatEmpty": "Nem hallottam jól. Kérlek, próbáld újra egy rövid kérdéssel.",
     "assistant.callRepeatUnclear": "Ez nem volt elég érthető. Kérlek, ismételd meg egy rövid mondatban.",
     "assistant.callRepeatedFailure": "A hang most nehezen működik. Írj lent, próbáld újra a hívást, vagy add meg az elérhetőségedet.",
-    "assistant.callEndedByVoice": "A hívás véget ért. A leirat itt marad.",
+    "assistant.callEndedByVoice": "A hangos munkamenet véget ért. A leirat itt marad.",
     "assistant.callLongReplyHint": "Ez a válasz kicsit hosszú felolvasáshoz, ezért érdemes a képernyőn is elolvasni.",
     "assistant.callOneTurn": "1 forduló",
     "assistant.callTurnCount": "{count} forduló",
@@ -3194,6 +3194,17 @@ function buildWebCallProductMetadata(metadata = {}) {
     "auto_play_spoken_replies",
     "auto_send_transcript",
     "identity_mode",
+    "turn_index",
+    "recording_duration_ms",
+    "upload_latency_ms",
+    "transcription_latency_ms",
+    "ai_response_latency_ms",
+    "tts_generation_ms",
+    "playback_start_ms",
+    "total_turn_latency_ms",
+    "audio_duration_seconds",
+    "audio_bytes",
+    "web_call_session_id",
   ]);
   const entries = Object.entries(baseMetadata)
     .filter(([key]) => allowedKeys.has(key))
@@ -4207,7 +4218,7 @@ function buildVoiceContextParams() {
 }
 
 function buildVoiceJsonContext() {
-  return {
+  const context = {
     agent_id: resolvedAgentId,
     agent_key: resolvedAgentKey,
     business_id: resolvedBusinessId,
@@ -4219,6 +4230,12 @@ function buildVoiceJsonContext() {
     display_mode: DISPLAY_MODE,
     visitor_session_key: getVisitorSessionKey(),
   };
+
+  if (isPageMode() && webCallSessionTouched) {
+    context.web_call_id = getWebCallTelemetryId();
+  }
+
+  return context;
 }
 
 function setVoiceInputState(state, message = "") {
@@ -4403,6 +4420,11 @@ async function playSpokenReply(text, button, options = {}) {
 
   stopCurrentVoiceAudio();
   const message = button?.closest?.(".message") || null;
+  const speechStartedAt = Date.now();
+  const playbackMetrics = {
+    ttsGenerationMs: 0,
+    playbackStartMs: 0,
+  };
 
   try {
     if (button) {
@@ -4410,6 +4432,7 @@ async function playSpokenReply(text, button, options = {}) {
       button.textContent = assistantT("assistant.voiceSpeaking");
     }
     const url = await getSpeechAudioUrl(replyText, options.key);
+    playbackMetrics.ttsGenerationMs = Math.max(0, Date.now() - speechStartedAt);
     const AudioCtor = window.Audio || globalThis.Audio;
     if (typeof AudioCtor !== "function") {
       const error = new Error(assistantT("assistant.voiceAudioUnsupported"));
@@ -4431,18 +4454,20 @@ async function playSpokenReply(text, button, options = {}) {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
         setComposerStatus(assistantT("assistant.askAnythingElse"));
-        options.onPlaybackEnd?.(true);
+        options.onPlaybackEnd?.(true, playbackMetrics);
       }
     });
     audio.addEventListener("error", () => {
       if (currentVoiceAudio === audio) {
         stopCurrentVoiceAudio();
         setComposerStatus(assistantT("assistant.voiceSpokenCouldNotPlay"));
-        options.onPlaybackEnd?.(false);
+        options.onPlaybackEnd?.(false, playbackMetrics);
       }
     });
+    const playbackStartedAt = Date.now();
     await audio.play();
-    options.onPlaybackStart?.();
+    playbackMetrics.playbackStartMs = Math.max(0, Date.now() - playbackStartedAt);
+    options.onPlaybackStart?.(playbackMetrics);
     return true;
   } catch (error) {
     console.warn("Vonza speech playback failed:", error);
@@ -4453,7 +4478,7 @@ async function playSpokenReply(text, button, options = {}) {
     }
     message?.classList.remove("is-speaking");
     setComposerStatus(getSpeechPlaybackFailureMessage(error, options));
-    options.onPlaybackEnd?.(false);
+    options.onPlaybackEnd?.(false, playbackMetrics);
     return false;
   }
 }
@@ -4468,10 +4493,14 @@ function getVoiceReplyButtonMarkup(messageKey) {
   `;
 }
 
-async function transcribeVoiceBlob(blob, durationMs) {
+async function transcribeVoiceBlob(blob, durationMs, options = {}) {
   const params = buildVoiceContextParams();
   params.set("duration_ms", String(Math.max(1, Math.round(durationMs))));
+  if (options.source === "call") {
+    params.set("web_call_id", getWebCallTelemetryId());
+  }
 
+  const uploadStartedAt = Date.now();
   const response = await fetch(`/api/voice/transcribe?${params.toString()}`, {
     method: "POST",
     headers: {
@@ -4480,6 +4509,7 @@ async function transcribeVoiceBlob(blob, durationMs) {
     },
     body: blob,
   });
+  const uploadLatencyMs = Math.max(0, Date.now() - uploadStartedAt);
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -4489,7 +4519,11 @@ async function transcribeVoiceBlob(blob, durationMs) {
     throw error;
   }
 
-  return data;
+  return {
+    ...data,
+    uploadLatencyMs,
+    transcriptionLatencyMs: Number(data.transcriptionLatencyMs || data.transcription_latency_ms || 0) || 0,
+  };
 }
 
 function clearVoiceRecordingTimer() {
@@ -4609,6 +4643,7 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
   const chunks = voiceRecorderChunks.slice();
   const recordingSource = voiceRecordingSource;
   const recordingCancelled = voiceRecordingCancelRequested;
+  const recordingStartedAt = voiceRecordingStartedAt || Math.max(0, Date.now() - durationMs);
   voiceRecorderChunks = [];
   voiceRecordingSource = "";
   voiceRecordingCancelRequested = false;
@@ -4648,14 +4683,24 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
     if (!blob.size) {
       throw new Error(assistantT("assistant.voiceNoSpeechRecorded"));
     }
-    const result = await transcribeVoiceBlob(blob, durationMs);
+    const result = await transcribeVoiceBlob(blob, durationMs, { source: recordingSource });
     const transcript = trimText(result.text);
 
     if (recordingSource === "call") {
       const transcriptDecision = classifyWebCallTranscript(transcript);
+      const turnIndex = callModeTurnCount + 1;
+      const turnTiming = {
+        turn_index: turnIndex,
+        recording_duration_ms: Math.max(1, Math.round(durationMs)),
+        upload_latency_ms: Math.max(0, Math.round(Number(result.uploadLatencyMs) || 0)),
+        transcription_latency_ms: Math.max(0, Math.round(Number(result.transcriptionLatencyMs) || 0)),
+        audio_duration_seconds: Number(result.duration || 0) || Math.round(durationMs / 100) / 10,
+        audio_bytes: blob.size || 0,
+      };
 
       if (transcriptDecision.action === "empty" || transcriptDecision.action === "garbled") {
         void trackWebCallProductEvent("web_call_transcript_rejected", {
+          ...turnTiming,
           failure_category: transcriptDecision.action === "empty" ? "empty_transcript" : "garbled_transcript",
         });
         handleRecoverableWebCallTranscript(transcriptDecision.message);
@@ -4670,6 +4715,7 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
 
       if (transcriptDecision.action === "repeat") {
         void trackWebCallProductEvent("web_call_transcript_rejected", {
+          ...turnTiming,
           failure_category: "repeat_requested",
         });
         handleRecoverableWebCallTranscript(assistantT("assistant.callRepeatEmpty"));
@@ -4677,23 +4723,37 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
       }
 
       const cleanTranscript = transcriptDecision.transcript;
-      void trackWebCallProductEvent("web_call_transcript_ready");
+      void trackWebCallProductEvent("web_call_transcript_ready", turnTiming);
       callModeTurnCount += 1;
       updateCallModeStats();
-      void trackWebCallProductEvent("web_call_turn_sent");
+      void trackWebCallProductEvent("web_call_turn_sent", turnTiming);
       setCallModeState(CALL_MODE_STATES.THINKING);
-      const result = await sendMessage(cleanTranscript, {
+      let replyTiming = {
+        ...turnTiming,
+        total_turn_latency_ms: Math.max(0, Date.now() - recordingStartedAt),
+      };
+      const chatResult = await sendMessage(cleanTranscript, {
         conversationSource: "web_call",
         playSpokenReply: true,
-        onSpokenReplyStart: () => {
-          void trackWebCallProductEvent("web_call_speech_played");
+        onSpokenReplyStart: (playbackMetrics = {}) => {
+          const speechTiming = {
+            ...replyTiming,
+            tts_generation_ms: Math.max(0, Math.round(Number(playbackMetrics.ttsGenerationMs) || 0)),
+            playback_start_ms: Math.max(0, Math.round(Number(playbackMetrics.playbackStartMs) || 0)),
+            total_turn_latency_ms: Math.max(0, Date.now() - recordingStartedAt),
+          };
+          void trackWebCallProductEvent("web_call_speech_played", speechTiming);
           if (callModeActive) {
             setCallModeState(CALL_MODE_STATES.SPEAKING);
           }
         },
-        onSpokenReplyEnd: (played) => {
+        onSpokenReplyEnd: (played, playbackMetrics = {}) => {
           if (!played) {
             void trackWebCallProductEvent("web_call_speech_failed", {
+              ...replyTiming,
+              tts_generation_ms: Math.max(0, Math.round(Number(playbackMetrics.ttsGenerationMs) || 0)),
+              playback_start_ms: Math.max(0, Math.round(Number(playbackMetrics.playbackStartMs) || 0)),
+              total_turn_latency_ms: Math.max(0, Date.now() - recordingStartedAt),
               failure_category: "speech_failed",
             });
           }
@@ -4719,19 +4779,26 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
           }
         },
       });
+      replyTiming = {
+        ...replyTiming,
+        ai_response_latency_ms: Math.max(0, Math.round(Number(chatResult?.frontDeskResponseMs) || 0)),
+        total_turn_latency_ms: Math.max(0, Date.now() - recordingStartedAt),
+      };
 
-      if (!result?.ok) {
+      if (!chatResult?.ok) {
         void trackWebCallProductEvent("web_call_failed_recovery_shown", {
-          failure_category: getWebCallFailureCategory(result?.reason || "request_failed"),
+          ...replyTiming,
+          failure_category: getWebCallFailureCategory(chatResult?.reason || "request_failed"),
         });
         const recoveryMessage = recordWebCallFailure(assistantT("assistant.requestFailedStatus"));
         callModeActive = false;
         cleanupCallModeMedia();
         setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
         showCallModeFallbackSummary();
-      } else if (!result.spokenReplyAttempted) {
-        void trackWebCallProductEvent("web_call_reply_ready");
+      } else if (!chatResult.spokenReplyAttempted) {
+        void trackWebCallProductEvent("web_call_reply_ready", replyTiming);
         void trackWebCallProductEvent("web_call_speech_failed", {
+          ...replyTiming,
           failure_category: "speech_not_attempted",
         });
         const recoveryMessage = recordWebCallFailure(assistantT("assistant.voiceSpokenCouldNotPlay"));
@@ -4740,7 +4807,7 @@ async function handleVoiceRecordingComplete(durationMs, fallbackMimeType) {
         setCallModeState(CALL_MODE_STATES.UNAVAILABLE, recoveryMessage);
         showCallModeFallbackSummary();
       } else {
-        void trackWebCallProductEvent("web_call_reply_ready");
+        void trackWebCallProductEvent("web_call_reply_ready", replyTiming);
       }
       return;
     }
@@ -5352,6 +5419,7 @@ async function sendMessage(messageOverride = "", options = {}) {
       dedupeKey: `${INSTALL_ID}::conversation_started::${sessionKey}`,
     });
 
+    const chatRequestStartedAt = Date.now();
     const res = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -5366,7 +5434,9 @@ async function sendMessage(messageOverride = "", options = {}) {
         origin: getPageOrigin(),
         public_page_key: PUBLIC_PAGE_KEY,
         display_mode: DISPLAY_MODE,
-        ...(trimText(options.conversationSource) === "web_call" ? { conversation_source: "web_call" } : {}),
+        ...(trimText(options.conversationSource) === "web_call"
+          ? { conversation_source: "web_call", web_call_id: getWebCallTelemetryId() }
+          : {}),
         visitor_session_key: sessionKey,
         history: historySnapshot,
         ...buildVisitorIdentityPayload(),
@@ -5374,6 +5444,7 @@ async function sendMessage(messageOverride = "", options = {}) {
     });
 
     const data = await res.json();
+    const frontDeskResponseMs = Math.max(0, Date.now() - chatRequestStartedAt);
 
     loading.remove();
     setCanvasAnsweringState(false);
@@ -5387,7 +5458,7 @@ async function sendMessage(messageOverride = "", options = {}) {
         { error: true }
       );
       setComposerStatus(assistantT("assistant.requestFailedStatus"));
-      return { ok: false, reason: "request_failed", status: res.status, data };
+      return { ok: false, reason: "request_failed", status: res.status, data, frontDeskResponseMs };
     }
 
     if (data.widgetConfig) {
@@ -5473,6 +5544,7 @@ async function sendMessage(messageOverride = "", options = {}) {
       speechAuthorization,
       spokenReplyAttempted,
       spokenReplyPlayed,
+      frontDeskResponseMs,
     };
   } catch (err) {
     console.error("Vonza assistant request failed:", err);

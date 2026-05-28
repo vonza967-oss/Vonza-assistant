@@ -862,8 +862,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#front-desk/customization/voice",
       marker: 'data-frontdesk-section="customization"',
-      expected: [/Webes hívás beállítása/, /Internetes hívás a látogató böngészőjén keresztül/, /Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
-      englishLeak: /Web Call setup|Internet calling over the visitor's browser|Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
+      expected: [/Böngészős hang beállítása/, /Fordulóalapú hang a látogató böngészőjében/, /Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
+      englishLeak: /Browser voice setup|Turn-based voice in the visitor's browser|Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
     },
     {
       hash: "#settings/business-profile",
@@ -998,7 +998,7 @@ test("legacy Settings Front Desk hash redirects to Front Desk customization cont
   assert.match(harness.getRootHtml(), /Visitors can speak their question/);
   assert.match(harness.getRootHtml(), /Spoken replies are AI-generated on demand/);
   assert.match(harness.getRootHtml(), /not a phone number/);
-  assert.match(harness.getRootHtml(), /requires voice input, spoken replies, and Web Call Front Desk/);
+  assert.match(harness.getRootHtml(), /requires voice input and spoken replies/);
   assert.match(harness.getRootHtml(), /Owner voice QA simulator/);
   assert.match(harness.getRootHtml(), /Record sample/);
   assert.match(harness.getRootHtml(), /Transcript preview/);

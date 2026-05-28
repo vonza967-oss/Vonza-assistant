@@ -24,6 +24,15 @@ function isMissingDisplayModeColumnError(error) {
   );
 }
 
+function isMissingWebCallSessionColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    message.includes("web_call_session_id")
+  );
+}
+
 function normalizeDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
 }
@@ -75,6 +84,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   const conversationSource = normalizeConversationSource(
     options.conversationSource || options.conversation_source
   );
+  const webCallSessionId = cleanText(options.webCallSessionId || options.web_call_session_id);
   const seenEntries = new Set();
   const payload = entries
     .map((entry) => ({
@@ -89,6 +99,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
         normalizeConversationSource(entry.conversationSource || entry.conversation_source) ||
         conversationSource ||
         normalizeDisplayMode(entry.displayMode || entry.display_mode || displayMode),
+      web_call_session_id: cleanText(entry.webCallSessionId || entry.web_call_session_id || webCallSessionId) || null,
       created_at: entry.createdAt || entry.created_at || new Date().toISOString(),
     }))
     .filter((entry) => {
@@ -113,12 +124,19 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
   let { data, error } = await supabase
     .from(MESSAGES_TABLE)
     .insert(payload)
-    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at");
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, web_call_session_id, created_at");
+
+  if (error && isMissingWebCallSessionColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(MESSAGES_TABLE)
+      .insert(payload.map(({ web_call_session_id: _webCallSessionId, ...entry }) => entry))
+      .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at"));
+  }
 
   if (error && isMissingDisplayModeColumnError(error)) {
     ({ data, error } = await supabase
       .from(MESSAGES_TABLE)
-      .insert(payload.map(({ display_mode: _displayMode, ...entry }) => entry))
+      .insert(payload.map(({ display_mode: _displayMode, web_call_session_id: _webCallSessionId, ...entry }) => entry))
       .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, created_at"));
   }
 
@@ -141,6 +159,7 @@ export async function storeAgentMessages(supabase, agentId, entries = [], option
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
     displayMode: normalizeStoredDisplayMode(row.display_mode),
+    webCallSessionId: row.web_call_session_id || null,
     createdAt: row.created_at,
   }));
 }
@@ -156,10 +175,19 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
 
   let { data, error } = await supabase
     .from(MESSAGES_TABLE)
-    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at")
+    .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, web_call_session_id, created_at")
     .eq("agent_id", normalizedAgentId)
     .order("created_at", { ascending: false })
     .limit(50);
+
+  if (error && isMissingWebCallSessionColumnError(error)) {
+    ({ data, error } = await supabase
+      .from(MESSAGES_TABLE)
+      .select("id, agent_id, role, content, session_key, visitor_identity_mode, visitor_email, visitor_name, display_mode, created_at")
+      .eq("agent_id", normalizedAgentId)
+      .order("created_at", { ascending: false })
+      .limit(50));
+  }
 
   if (error && isMissingDisplayModeColumnError(error)) {
     ({ data, error } = await supabase
@@ -189,6 +217,7 @@ export async function listAgentMessages(supabase, agentId, options = {}) {
     visitorEmail: row.visitor_email || null,
     visitorName: row.visitor_name || null,
     displayMode: normalizeStoredDisplayMode(row.display_mode),
+    webCallSessionId: row.web_call_session_id || null,
     createdAt: row.created_at,
   }));
 }

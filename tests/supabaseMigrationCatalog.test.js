@@ -104,3 +104,21 @@ test("Phone Front Desk schema is present in canonical schema and migration", () 
     assert.match(sql, /Owners can manage phone call sessions/i);
   });
 });
+
+test("Web Call session schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260528000000_web_call_sessions.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.web_call_sessions/i);
+    assert.match(sql, /client_session_key text not null/i);
+    assert.match(sql, /create table if not exists public\.web_call_turn_telemetry/i);
+    assert.match(sql, /assistant_response_latency_ms integer/i);
+    assert.match(sql, /web_call_session_id uuid references public\.web_call_sessions/i);
+    assert.match(sql, /Owners can manage Web Call sessions/i);
+    assert.match(sql, /Owners can manage Web Call turn telemetry/i);
+  });
+});

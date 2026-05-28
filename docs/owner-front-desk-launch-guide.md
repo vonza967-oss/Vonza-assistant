@@ -32,7 +32,7 @@ Add the website widget bubble only when you also want a compact launcher on norm
 
 ## 8. Optional Web Call
 
-Web Call is internet calling in the visitor's browser, not a phone number. It requires Voice input, Spoken replies, and Web Call Front Desk to all be enabled. It uses the same AI capacity and rate limits as other voice features, so test it first with the owner voice QA simulator. Contacts and follow-ups captured from Web Call appear in Customers and Analytics.
+Web Call is turn-based browser voice on the hosted Front Desk page, not a phone number or live full-duplex call. It requires voice input, spoken replies, and browser voice to be enabled. It uses the same AI capacity and rate limits as other voice features, so test it first with the owner voice QA simulator. Contacts and follow-ups captured from Web Call appear in Customers and Analytics.
 
 ## 9. Review Customers And Follow-Ups
 

@@ -2,6 +2,10 @@ import { cleanText } from "../../utils/text.js";
 
 const PRODUCT_EVENTS_TABLE = "product_events";
 
+const SAFE_METADATA_KEY_ALLOWLIST = new Set([
+  "transcription_latency_ms",
+]);
+
 export const WEB_CALL_PRODUCT_EVENTS = [
   "web_call_started",
   "web_call_mic_denied",
@@ -139,6 +143,15 @@ function isMissingRelationError(error, relationName) {
     error?.code === "42703" ||
     message.includes(`'public.${relationName}'`) ||
     message.includes(`${relationName} was not found`)
+  );
+}
+
+function isMissingWebCallSessionColumnError(error) {
+  const message = cleanText(error?.message || "").toLowerCase();
+  return (
+    error?.code === "PGRST204" ||
+    error?.code === "42703" ||
+    message.includes("web_call_session_id")
   );
 }
 
@@ -299,6 +312,10 @@ export function buildWebCallHealthSummary(rows = []) {
 
 function shouldDropMetadataKey(key = "") {
   const normalized = cleanText(key).toLowerCase();
+  if (SAFE_METADATA_KEY_ALLOWLIST.has(normalized)) {
+    return false;
+  }
+
   return [
     "email",
     "phone",
@@ -374,6 +391,7 @@ export async function trackProductEvent(supabase, input = {}) {
   const agentId = cleanText(input.agentId);
   const ownerUserId = cleanText(input.ownerUserId);
   const source = normalizeEventSource(input.source);
+  const webCallSessionId = cleanText(input.webCallSessionId || input.web_call_session_id);
 
   if (!clientId) {
     const error = new Error("client_id is required");
@@ -399,6 +417,7 @@ export async function trackProductEvent(supabase, input = {}) {
     client_id: clientId,
     agent_id: agentId || null,
     owner_user_id: ownerUserId || null,
+    web_call_session_id: webCallSessionId || null,
     event_name: eventName,
     source: source || null,
     metadata: sanitizeProductEventMetadata(input.metadata),
@@ -406,7 +425,12 @@ export async function trackProductEvent(supabase, input = {}) {
     created_at: new Date().toISOString(),
   };
 
-  const { error } = await supabase.from(PRODUCT_EVENTS_TABLE).insert(payload);
+  let { error } = await supabase.from(PRODUCT_EVENTS_TABLE).insert(payload);
+
+  if (error && isMissingWebCallSessionColumnError(error)) {
+    const { web_call_session_id: _webCallSessionId, ...fallbackPayload } = payload;
+    ({ error } = await supabase.from(PRODUCT_EVENTS_TABLE).insert(fallbackPayload));
+  }
 
   if (error) {
     if (isMissingRelationError(error, PRODUCT_EVENTS_TABLE)) {

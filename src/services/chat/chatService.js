@@ -24,6 +24,7 @@ import {
   normalizeVisitorIdentity,
 } from "./visitorIdentityService.js";
 import { createSpeechAuthorization } from "../voice/voiceSpeechTokenService.js";
+import { ensureWebCallSession } from "../voice/webCallSessionService.js";
 import {
   applyLeadCaptureAction,
   processLiveChatLeadCapture,
@@ -337,6 +338,7 @@ async function buildChatResponse({
   storeUserMessage = true,
   userMessageCreatedAt = null,
   storeMessages = storeAgentMessages,
+  webCallSessionId = "",
 }) {
   const entries = [
     storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
@@ -348,6 +350,7 @@ async function buildChatResponse({
     visitorIdentity,
     displayMode,
     conversationSource,
+    webCallSessionId,
   });
 
   const speech = createSpeechAuthorization({
@@ -397,6 +400,7 @@ export async function handleChatRequest({
     deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
   const recordEstimatedUsageImpl = deps.recordEstimatedUsage || recordEstimatedUsage;
   const storeMessagesImpl = deps.storeAgentMessages || storeAgentMessages;
+  const ensureWebCallSessionImpl = deps.ensureWebCallSession || ensureWebCallSession;
   const selectRelevantApprovedAnswersImpl =
     deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers;
   const retrieveSemanticKnowledgeImpl =
@@ -455,6 +459,24 @@ export async function handleChatRequest({
     businessName: body.name,
     displayMode,
   });
+  const webCallSession = conversationSource === "web_call"
+    ? await ensureWebCallSessionImpl(supabase, {
+      agent,
+      business,
+      clientSessionKey: body.web_call_id || body.webCallId,
+      visitorSessionKey: sessionKey,
+      eventName: "web_call_turn_sent",
+      metadata: {
+        web_call_id: body.web_call_id || body.webCallId,
+      },
+    }).catch((error) => {
+      console.warn("[web-call] chat session persistence skipped", {
+        agentId: agent.id,
+        message: error?.message || "Unknown Web Call session error",
+      });
+      return null;
+    })
+    : null;
   const agentWithBusinessContext = {
     ...agent,
     vertical: cleanText(business.vertical || agent.vertical),
@@ -504,6 +526,7 @@ export async function handleChatRequest({
       storeMessages: storeMessagesImpl,
       displayMode,
       conversationSource,
+      webCallSessionId: webCallSession?.id || "",
     });
   }
 
@@ -522,6 +545,7 @@ export async function handleChatRequest({
       storeMessages: storeMessagesImpl,
       displayMode,
       conversationSource,
+      webCallSessionId: webCallSession?.id || "",
     });
   }
 
@@ -546,6 +570,7 @@ export async function handleChatRequest({
       storeMessages: storeMessagesImpl,
       displayMode,
       conversationSource,
+      webCallSessionId: webCallSession?.id || "",
     });
   }
 
@@ -800,6 +825,7 @@ export async function handleChatRequest({
     storeMessages: storeMessagesImpl,
     displayMode,
     conversationSource,
+    webCallSessionId: webCallSession?.id || "",
   });
 }
 

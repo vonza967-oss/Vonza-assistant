@@ -644,7 +644,7 @@ test("voice input controls default off and render safely when enabled", () => {
 
   assert.equal(micButton.hidden, false);
   assert.equal(micButton.disabled, true);
-  assert.equal(micButton.title, "This browser does not support voice calls. You can still type your message.");
+  assert.equal(micButton.title, "This browser does not support browser voice. You can still type your message.");
   assert.equal(voiceControls.hidden, false);
   assert.equal(disclosure.hidden, false);
 });
@@ -968,9 +968,9 @@ test("call Front Desk CTA is page-only and requires voice input, spoken replies,
   });
 
   assert.equal(pageHarness.elements.get("call-front-desk-panel").hidden, false);
-  assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Call Front Desk");
-  assert.equal(pageHarness.elements.get("call-front-desk-status").textContent, "Ready to call");
-  assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start call");
+  assert.equal(pageHarness.elements.get("call-front-desk-title").textContent, "Talk to Front Desk");
+  assert.equal(pageHarness.elements.get("call-front-desk-status").textContent, "Ready for a voice turn");
+  assert.equal(pageHarness.elements.get("call-front-desk-start").textContent, "Start voice turn");
   assert.equal(pageHarness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
   assert.equal(pageHarness.elements.get("call-front-desk-turns").textContent, "Turns 0");
   assert.equal(pageHarness.fetchCalls.some((call) => /\/api\/voice\//.test(call.input)), false);
@@ -1123,7 +1123,7 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
 
   assert.equal(TestMediaRecorder.instances.length, 1);
   assert.equal(harness.hooks.getCallModeState(), "listening");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Listening to this turn");
   assert.equal(harness.elements.get("call-front-desk-duration").textContent, "Duration 00:00");
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 0");
   assert.equal(stopButton.textContent, "Done speaking");
@@ -1150,9 +1150,9 @@ test("call Front Desk turn transcribes, sends chat, and speaks with returned tok
 
   harness.elements.get("call-front-desk-end").dispatch("click");
   assert.equal(harness.hooks.getCallModeState(), "stopped");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Call ended");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Voice session ended");
   assert.equal(harness.elements.get("call-front-desk-summary").hidden, false);
-  assert.match(harness.elements.get("call-front-desk-summary").textContent, /Call ended: 00:00, 1 turn\. Transcript remains here\./);
+  assert.match(harness.elements.get("call-front-desk-summary").textContent, /Voice session ended: 00:00, 1 turn\. Transcript remains here\./);
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
   assert.equal(harness.elements.get("call-front-desk-contact").textContent, "Leave contact details");
   assert.equal(harness.elements.get("call-front-desk-type").hidden, false);
@@ -1464,7 +1464,7 @@ test("call Front Desk end-call phrase ends gracefully without sending chat", asy
   assert.equal(harness.hooks.getCallModeState(), "stopped");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Call ended. Transcript remains here."
+    "Voice session ended. Transcript remains here."
   );
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
 });
@@ -1508,9 +1508,9 @@ test("call Front Desk failure states use safe localized messages", async () => {
     },
   });
 
-  assert.equal(harness.elements.get("call-front-desk-title").textContent, "Front Desk hívása");
-  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Hívásra kész");
-  assert.equal(harness.elements.get("call-front-desk-start").textContent, "Hívás indítása");
+  assert.equal(harness.elements.get("call-front-desk-title").textContent, "Beszéd a Front Deskkel");
+  assert.equal(harness.elements.get("call-front-desk-status").textContent, "Kész egy hangos fordulóra");
+  assert.equal(harness.elements.get("call-front-desk-start").textContent, "Hangos forduló indítása");
   assert.equal(harness.elements.get("call-front-desk-duration").textContent, "Időtartam 00:00");
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Fordulók 0");
 
@@ -1831,11 +1831,11 @@ test("call Front Desk ends with a clear turn-limit message", async () => {
   assert.equal(harness.elements.get("call-front-desk-turns").textContent, "Turns 8");
   assert.equal(
     harness.elements.get("call-front-desk-status").textContent,
-    "Call ended after reaching the turn limit. Transcript remains here."
+    "Voice session ended after reaching the turn limit. Transcript remains here."
   );
   assert.equal(
     harness.elements.get("call-front-desk-summary").textContent,
-    "Call ended after reaching the turn limit. Transcript remains here."
+    "Voice session ended after reaching the turn limit. Transcript remains here."
   );
   assert.equal(harness.elements.get("call-front-desk-contact").hidden, false);
 });

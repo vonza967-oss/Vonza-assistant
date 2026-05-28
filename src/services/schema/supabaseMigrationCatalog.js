@@ -307,6 +307,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped phone number and Twilio call session storage for static Phone Front Desk webhook wiring.",
   }),
+  Object.freeze({
+    id: "web_call_sessions",
+    version: "20260528000000",
+    name: "web_call_sessions",
+    file: "supabase/migrations/20260528000000_web_call_sessions.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds server-authoritative browser Web Call sessions and safe per-turn latency telemetry for full-page Front Desk voice turns.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

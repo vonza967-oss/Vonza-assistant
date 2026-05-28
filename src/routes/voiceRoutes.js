@@ -144,6 +144,7 @@ export function createVoiceRouter(deps = {}) {
           text: result.text,
           language: result.language || undefined,
           duration: result.duration || undefined,
+          transcriptionLatencyMs: result.transcriptionLatencyMs || undefined,
         });
       } catch (err) {
         console.warn("[voice] transcription failed", {

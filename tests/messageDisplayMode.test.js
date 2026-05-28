@@ -84,13 +84,16 @@ test("message persistence records sanitized Web Call source without changing req
       sessionKey: "session-web-call",
       displayMode: "page",
       conversationSource: "web_call",
+      webCallSessionId: "web-call-session-1",
     }
   );
 
   assert.equal(supabase.state.messages.length, 2);
   assert.equal(supabase.state.messages[0].display_mode, "web_call");
   assert.equal(supabase.state.messages[1].display_mode, "web_call");
+  assert.equal(supabase.state.messages[0].web_call_session_id, "web-call-session-1");
   assert.equal(rows[0].displayMode, "web_call");
+  assert.equal(rows[0].webCallSessionId, "web-call-session-1");
 });
 
 test("message persistence ignores unsupported public source values", async () => {
@@ -130,8 +133,11 @@ test("message persistence falls back safely before display mode migration is app
     }
   );
 
-  assert.equal(supabase.state.insertAttempts.length, 2);
+  assert.equal(supabase.state.insertAttempts.length, 3);
   assert.equal(supabase.state.insertAttempts[0][0].display_mode, "page");
-  assert.equal(Object.hasOwn(supabase.state.insertAttempts[1][0], "display_mode"), false);
+  assert.equal(Object.hasOwn(supabase.state.insertAttempts[1][0], "web_call_session_id"), false);
+  assert.equal(supabase.state.insertAttempts[1][0].display_mode, "page");
+  assert.equal(Object.hasOwn(supabase.state.insertAttempts[2][0], "display_mode"), false);
+  assert.equal(Object.hasOwn(supabase.state.insertAttempts[2][0], "web_call_session_id"), false);
   assert.equal(supabase.state.messages.length, 1);
 });

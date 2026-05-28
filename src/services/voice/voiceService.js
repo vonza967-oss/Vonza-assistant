@@ -137,6 +137,11 @@ export function getVoiceRequestContext(req, body = {}) {
       || query.visitorSessionKey
       || query.session_key
       || query.sessionKey,
+    webCallId:
+      source.web_call_id
+      || source.webCallId
+      || query.web_call_id
+      || query.webCallId,
   };
 }
 
@@ -306,6 +311,7 @@ export async function transcribeAssistantAudio({
   }
 
   let transcription;
+  const transcriptionStartedAt = Date.now();
 
   try {
     transcription = await openaiClient.audio.transcriptions.create({
@@ -317,6 +323,7 @@ export async function transcribeAssistantAudio({
     safeError.cause = error;
     throw safeError;
   }
+  const transcriptionLatencyMs = Math.max(0, Date.now() - transcriptionStartedAt);
   const text = safeText(transcription?.text || "");
   const resolvedDurationSeconds =
     Number(transcription?.duration || transcription?.usage?.seconds || durationSeconds)
@@ -349,6 +356,7 @@ export async function transcribeAssistantAudio({
     businessId: resolvedContext.business?.id || "",
     installId: resolvedContext.widgetConfig?.installId || safeText(context.installId),
     voiceConfig,
+    transcriptionLatencyMs,
   };
 }
 

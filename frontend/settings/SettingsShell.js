@@ -1904,8 +1904,8 @@
         ready: voiceConfig.spokenRepliesEnabled === true,
       },
       {
-        label: "Web Call Front Desk",
-        copy: voiceConfig.webCallEnabled ? "Ready on the hosted Front Desk page." : "Enable Web Call Front Desk last.",
+        label: "Front Desk browser voice",
+        copy: voiceConfig.webCallEnabled ? "Ready on the hosted Front Desk page." : "Enable browser voice last.",
         ready: voiceConfig.webCallEnabled === true,
       },
     ];
@@ -2052,8 +2052,8 @@
                 </label>
                 <label class="settings-shell-choice-row" for="web-call-enabled">
                   <div class="settings-shell-choice-main">
-                    <p class="settings-shell-choice-title">Enable Web Call Front Desk</p>
-                    <p class="settings-shell-key-value-copy">Show the hosted full-page Call Front Desk panel when voice input and spoken replies are also enabled.</p>
+                    <p class="settings-shell-choice-title">Enable browser voice for Front Desk</p>
+                    <p class="settings-shell-key-value-copy">Show the hosted full-page browser voice panel when voice input and spoken replies are also enabled.</p>
                   </div>
                   <input id="web-call-enabled" name="web_call_enabled" type="checkbox" ${voiceConfig.webCallEnabled ? "checked" : ""}>
                 </label>
@@ -2072,11 +2072,11 @@
                   <input id="auto-play-spoken-replies" name="auto_play_spoken_replies" type="checkbox" ${voiceConfig.autoPlaySpokenReplies ? "checked" : ""}>
                 </label>
               </div>
-              <div class="settings-web-call-readiness" aria-label="${escapeHtml(helpers.translateDashboardText("Web Call readiness checklist"))}">
+              <div class="settings-web-call-readiness" aria-label="${escapeHtml(helpers.translateDashboardText("Browser voice readiness checklist"))}">
                 <div class="settings-web-call-readiness-header">
                   <div>
-                    <h4 class="settings-web-call-readiness-title">Web Call setup</h4>
-                    <p class="settings-web-call-readiness-copy">Internet calling over the visitor's browser, not a phone number. It requires voice input, spoken replies, and Web Call Front Desk. It uses AI capacity and rate limits.</p>
+                    <h4 class="settings-web-call-readiness-title">Browser voice setup</h4>
+                    <p class="settings-web-call-readiness-copy">Turn-based voice in the visitor's browser for the hosted Front Desk page. It is not a phone number or live full-duplex call. It requires voice input and spoken replies, and uses AI capacity and rate limits.</p>
                   </div>
                   <span class="${helpers.getBadgeClass(webCallReady ? "Ready" : "Pending")}" data-web-call-readiness-badge>${webCallReady ? "Ready" : "Incomplete"}</span>
                 </div>
@@ -2092,7 +2092,7 @@
                   `).join("")}
                 </ul>
                 <div class="settings-web-call-readiness-footer">
-                  <p>Test the browser voice path before sharing Web Call publicly.</p>
+                  <p>Test the browser voice path before sharing it publicly.</p>
                   <button class="ghost-button" type="button" data-voice-qa-jump>Open owner voice QA simulator</button>
                 </div>
               </div>

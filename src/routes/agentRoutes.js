@@ -37,6 +37,10 @@ import { buildAnalyticsSummary } from "../services/analytics/analyticsSummarySer
 import { buildOwnerAnalyticsDashboard } from "../services/analytics/ownerAnalyticsDashboardService.js";
 import { getProductFunnelSummary, listWebCallHealthEvents, trackProductEvent } from "../services/analytics/productEventService.js";
 import {
+  ensureWebCallSession,
+  recordWebCallTurnTelemetry,
+} from "../services/voice/webCallSessionService.js";
+import {
   assertWidgetTelemetrySchemaReady,
   listWidgetRoutingEventsByAgentId,
   trackWidgetEvent,
@@ -3276,6 +3280,9 @@ export function createAgentRouter(deps = {}) {
       let agentId = cleanText(req.body.agent_id || req.body.agentId);
       let clientId = cleanText(req.body.client_id || req.body.clientId);
       let source = cleanText(req.body.source);
+      let webCallSessionId = "";
+      let webCallSession = null;
+      let publicContext = null;
 
       if (user) {
         if (agentId) {
@@ -3287,7 +3294,7 @@ export function createAgentRouter(deps = {}) {
         }
         clientId = clientId || `owner:${ownerUserId}`;
       } else {
-        const publicContext = await resolveAllowedPublicWidgetContextImpl(supabase, {
+        publicContext = await resolveAllowedPublicWidgetContextImpl(supabase, {
           installId: req.body.install_id || req.body.installId,
           agentId,
           agentKey: req.body.agent_key || req.body.agentKey,
@@ -3305,13 +3312,55 @@ export function createAgentRouter(deps = {}) {
         source = source || "public_install";
       }
 
+      const eventName = req.body.event_name || req.body.eventName;
+      const metadata = req.body.metadata && typeof req.body.metadata === "object"
+        ? req.body.metadata
+        : {};
+
+      if (cleanText(eventName).startsWith("web_call_")) {
+        webCallSession = await ensureWebCallSession(supabase, {
+          agent: publicContext?.agent || { id: agentId, owner_user_id: ownerUserId },
+          business: publicContext?.business || { id: req.body.business_id || req.body.businessId },
+          ownerUserId,
+          clientSessionKey: metadata.web_call_id || metadata.webCallId || req.body.web_call_id || req.body.webCallId,
+          visitorSessionKey: req.body.visitor_session_key || req.body.visitorSessionKey,
+          eventName,
+          metadata,
+        }).catch((error) => {
+          console.warn("[web-call] session event persistence skipped", {
+            eventName: cleanText(eventName),
+            agentId,
+            message: error?.message || "Unknown Web Call session error",
+          });
+          return null;
+        });
+        webCallSessionId = cleanText(webCallSession?.id);
+
+        if (webCallSession) {
+          await recordWebCallTurnTelemetry(supabase, webCallSession, {
+            eventName,
+            metadata,
+          }).catch((error) => {
+            console.warn("[web-call] turn telemetry skipped", {
+              eventName: cleanText(eventName),
+              agentId,
+              message: error?.message || "Unknown Web Call telemetry error",
+            });
+          });
+        }
+      }
+
       const result = await trackProductEventImpl(supabase, {
         clientId,
         agentId,
         ownerUserId,
-        eventName: req.body.event_name || req.body.eventName,
+        eventName,
         source,
-        metadata: req.body.metadata,
+        metadata: {
+          ...metadata,
+          ...(webCallSessionId ? { web_call_session_id: webCallSessionId } : {}),
+        },
+        webCallSessionId,
         dedupeKey: req.body.dedupe_key || req.body.dedupeKey,
       });
 
