@@ -38,7 +38,7 @@
   const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
   const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
   const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
-  const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 60;
+  const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 70;
   const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
   const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
   const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);

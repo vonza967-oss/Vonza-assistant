@@ -81,7 +81,7 @@ const DASHBOARD_BACKGROUND_BLUR_MAX = 24;
 const DEFAULT_DASHBOARD_BACKGROUND_BLUR = 10;
 const DASHBOARD_GLASS_TRANSPARENCY_MIN = 0;
 const DASHBOARD_GLASS_TRANSPARENCY_MAX = 100;
-const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 60;
+const DEFAULT_DASHBOARD_GLASS_TRANSPARENCY = 70;
 const DASHBOARD_BACKGROUND_DIM_OPTIONS = Object.freeze(["bright", "balanced", "dim"]);
 const DASHBOARD_ACCENT_GLOW_OPTIONS = Object.freeze(["off", "soft", "vivid"]);
 const DASHBOARD_DENSITY_OPTIONS = Object.freeze(["comfortable", "compact"]);
@@ -3225,11 +3225,11 @@ function getGlassVars(transparency) {
   const t = normalizeDashboardGlassTransparency(transparency) / 100;
 
   return {
-    topAlpha: Math.max(0.38, 0.72 - t * 0.4),
-    bottomAlpha: Math.max(0.26, 0.58 - t * 0.4),
+    topAlpha: 0.5 - t * 0.26,
+    bottomAlpha: 0.36 - t * 0.2,
     blur: 24 + t * 12,
-    borderAlpha: 0.58 + t * 0.16,
-    highlightAlpha: 0.78 + t * 0.14,
+    borderAlpha: 0.48 + t * 0.22,
+    highlightAlpha: 0.76 + t * 0.16,
   };
 }
 
@@ -3246,6 +3246,11 @@ function applyDashboardGlassTransparency(transparency = getDashboardGlassTranspa
   }
 
   const applyGlassVars = (target) => {
+    target?.style?.setProperty?.("--vz-liquid-top-alpha", glassVars.topAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-liquid-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-liquid-blur", `${Math.round(glassVars.blur)}px`);
+    target?.style?.setProperty?.("--vz-liquid-border-alpha", glassVars.borderAlpha.toFixed(2));
+    target?.style?.setProperty?.("--vz-liquid-highlight-alpha", glassVars.highlightAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-top-alpha", glassVars.topAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-bottom-alpha", glassVars.bottomAlpha.toFixed(2));
     target?.style?.setProperty?.("--vz-glass-blur", `${Math.round(glassVars.blur)}px`);

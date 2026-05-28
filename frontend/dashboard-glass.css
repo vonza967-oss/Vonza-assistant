@@ -4639,3 +4639,702 @@ html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-eyebrow {
     transform: none !important;
   }
 }
+
+/* Liquid glass system refresh. This layer keeps the dashboard on one primary
+   material and fixes background exposure before individual surfaces render. */
+html[data-dashboard-theme] {
+  --vz-bg-brightness: 0.6;
+  --vz-bg-saturation: 0.88;
+  --vz-bg-contrast: 1.08;
+  --vz-bg-dim: 0.3;
+  --vz-bg-veil: 0.2;
+  --vz-liquid-top-alpha: 0.32;
+  --vz-liquid-bottom-alpha: 0.22;
+  --vz-liquid-highlight-alpha: 0.87;
+  --vz-liquid-border-alpha: 0.63;
+  --vz-liquid-inner-shadow: 0.18;
+  --vz-liquid-blur: 32px;
+  --vz-liquid-saturation: 170%;
+  --vz-liquid-contrast: 1.08;
+  --vz-shadow-liquid:
+    0 18px 45px rgb(15 23 42 / 0.13),
+    0 4px 14px rgb(15 23 42 / 0.07);
+  --vz-shadow-liquid-strong:
+    0 26px 70px rgb(15 23 42 / 0.16),
+    0 8px 24px rgb(15 23 42 / 0.08);
+  --vz-radius-shell: 28px;
+  --vz-radius-card: 20px;
+  --vz-radius-control: 13px;
+  --vz-accent: #7c3cff;
+  --vz-accent-soft: rgb(124 60 255 / 0.16);
+  --vz-ink: #0f172a;
+  --vz-muted: #475569;
+  --vz-soft: #64748b;
+  --vz-page-x: 24px;
+  --vz-page-y: 26px;
+  --vz-card-pad: 16px;
+  --vz-card-pad-lg: 20px;
+  --vz-gap: 14px;
+  --vz-gap-lg: 18px;
+  --vz-nav-height: 42px;
+  --vz-liquid-bg:
+    radial-gradient(circle at 18% 0%, rgb(255 255 255 / 0.34), transparent 34%),
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / var(--vz-liquid-top-alpha)),
+      rgb(255 255 255 / var(--vz-liquid-bottom-alpha))
+    );
+  --vz-liquid-filter:
+    blur(var(--vz-liquid-blur))
+    saturate(var(--vz-liquid-saturation))
+    contrast(var(--vz-liquid-contrast));
+  --vz-glass-top-alpha: var(--vz-liquid-top-alpha);
+  --vz-glass-bottom-alpha: var(--vz-liquid-bottom-alpha);
+  --vz-glass-blur: var(--vz-liquid-blur);
+  --vz-glass-saturation: var(--vz-liquid-saturation);
+  --vz-glass-border-alpha: var(--vz-liquid-border-alpha);
+  --vz-glass-highlight-alpha: var(--vz-liquid-highlight-alpha);
+  --vz-glass-bg: var(--vz-liquid-bg);
+  --vz-glass-border: rgb(255 255 255 / var(--vz-liquid-border-alpha));
+  --vz-glass-border-strong: rgb(255 255 255 / calc(var(--vz-liquid-border-alpha) + 0.16));
+  --vz-glass-highlight: rgb(255 255 255 / var(--vz-liquid-highlight-alpha));
+  --vz-glass-filter: var(--vz-liquid-filter);
+  --glass-bg: var(--vz-liquid-bg) !important;
+  --glass-bg-strong: var(--vz-liquid-bg) !important;
+  --glass-bg-soft: rgb(255 255 255 / 0.1) !important;
+  --glass-border: rgb(255 255 255 / var(--vz-liquid-border-alpha)) !important;
+  --glass-border-strong: rgb(255 255 255 / calc(var(--vz-liquid-border-alpha) + 0.14)) !important;
+  --glass-shadow: var(--vz-shadow-liquid-strong) !important;
+  --glass-shadow-soft: var(--vz-shadow-liquid) !important;
+  --theme-text: var(--vz-ink) !important;
+  --theme-copy: var(--vz-muted) !important;
+  --theme-muted: var(--vz-soft) !important;
+  --theme-accent: var(--vz-accent) !important;
+  --dashboard-accent: var(--vz-accent) !important;
+}
+
+html[data-dashboard-theme="dark"] {
+  --vz-bg-brightness: 0.64;
+  --vz-bg-saturation: 0.9;
+  --vz-bg-contrast: 1.08;
+  --vz-bg-dim: 0.42;
+  --vz-bg-veil: 0.08;
+  --vz-ink: #f8fafc;
+  --vz-muted: #cbd5e1;
+  --vz-soft: #94a3b8;
+  --vz-liquid-bg:
+    radial-gradient(circle at 18% 0%, rgb(255 255 255 / 0.12), transparent 34%),
+    linear-gradient(
+      135deg,
+      rgb(15 23 42 / calc(var(--vz-liquid-top-alpha) + 0.24)),
+      rgb(15 23 42 / calc(var(--vz-liquid-bottom-alpha) + 0.18))
+    );
+  --vz-glass-border: rgb(255 255 255 / 0.18);
+  --vz-glass-border-strong: rgb(255 255 255 / 0.28);
+  --vz-glass-highlight: rgb(255 255 255 / 0.22);
+  --glass-border: rgb(255 255 255 / 0.18) !important;
+  --glass-border-strong: rgb(255 255 255 / 0.28) !important;
+}
+
+html[data-dashboard-theme] body::before {
+  filter:
+    blur(var(--dashboard-background-blur))
+    brightness(var(--vz-bg-brightness))
+    saturate(var(--vz-bg-saturation))
+    contrast(var(--vz-bg-contrast)) !important;
+}
+
+html[data-dashboard-theme] body::after {
+  background:
+    linear-gradient(
+      135deg,
+      rgb(248 250 252 / var(--vz-bg-veil)) 0%,
+      rgb(148 163 184 / 0.22) 42%,
+      rgb(15 23 42 / var(--vz-bg-dim)) 100%
+    ),
+    var(--dashboard-background-dim-layer) !important;
+}
+
+.vz-liquid,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .sidebar-shell,
+  .glass-hero,
+  .glass-card,
+  .workspace-card-soft,
+  .flat-section,
+  .v2-card,
+  .v2-metric-card,
+  .v2-metric-card-priority,
+  .v2-table-card,
+  .v2-chart-card,
+  .analytics-report-card,
+  .analytics-report-capacity,
+  .analytics-empty-state,
+  .placeholder-card,
+  .frontdesk-command-center,
+  .frontdesk-workspace-panel,
+  .frontdesk-polished-panel,
+  .frontdesk-inspector-panel,
+  .frontdesk-practice-canvas,
+  .frontdesk-teaching-shell,
+  .frontdesk-improvement-lane,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .customer-operator-brief,
+  .customer-v2-metric-card,
+  .customer-detail-card,
+  .customer-draft-card,
+  .install-page-main,
+  .install-side-card,
+  .install-progress-card,
+  .install-option-card,
+  .install-status-card,
+  .install-launch-paths,
+  .install-platform-guides,
+  .install-method-grid,
+  .install-detail-card,
+  .install-qr-section,
+  .install-code-card,
+  .settings-shell-top-nav-group,
+  .settings-shell-mobile-bar,
+  .settings-overview-card,
+  .settings-shell-section,
+  .settings-shell-card,
+  .settings-operational-card,
+  .settings-billing-panel
+) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / var(--vz-liquid-border-alpha)) !important;
+  background: var(--vz-liquid-bg) !important;
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / var(--vz-liquid-highlight-alpha)),
+    inset 0 -1px 1px rgb(15 23 42 / var(--vz-liquid-inner-shadow)),
+    var(--vz-shadow-liquid) !important;
+  -webkit-backdrop-filter: var(--vz-liquid-filter) !important;
+  backdrop-filter: var(--vz-liquid-filter) !important;
+}
+
+.vz-liquid::before,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .sidebar-shell,
+  .glass-hero,
+  .glass-card,
+  .workspace-card-soft,
+  .v2-card,
+  .v2-metric-card,
+  .v2-table-card,
+  .analytics-report-card,
+  .frontdesk-command-center,
+  .frontdesk-polished-panel,
+  .frontdesk-inspector-panel,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .customer-operator-brief,
+  .customer-v2-metric-card,
+  .install-page-main,
+  .install-side-card,
+  .install-progress-card,
+  .install-option-card,
+  .settings-overview-card,
+  .settings-shell-section,
+  .settings-operational-card,
+  .settings-billing-panel
+)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.95) 0%,
+      rgb(255 255 255 / 0.38) 28%,
+      rgb(124 60 255 / 0.14) 52%,
+      rgb(255 255 255 / 0.28) 72%,
+      rgb(255 255 255 / 0.70) 100%
+    );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.vz-liquid::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      145deg,
+      rgb(255 255 255 / 0.22) 0%,
+      transparent 34%,
+      rgb(255 255 255 / 0.06) 68%,
+      transparent 100%
+    );
+  opacity: 0.65;
+}
+
+.vz-liquid > *,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .sidebar-shell,
+  .glass-hero,
+  .glass-card,
+  .workspace-card-soft,
+  .v2-card,
+  .v2-metric-card,
+  .v2-table-card,
+  .analytics-report-card,
+  .frontdesk-command-center,
+  .frontdesk-polished-panel,
+  .frontdesk-inspector-panel,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .customer-operator-brief,
+  .customer-v2-metric-card,
+  .install-page-main,
+  .install-side-card,
+  .install-progress-card,
+  .install-option-card,
+  .settings-overview-card,
+  .settings-shell-section,
+  .settings-operational-card,
+  .settings-billing-panel
+) > * {
+  position: relative;
+  z-index: 2;
+}
+
+.vz-liquid-control,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .ghost-button,
+  .glass-mini-button,
+  .glass-icon-button,
+  .status-pill,
+  .v2-button,
+  .v2-select,
+  .test-link,
+  .toolbar-chip,
+  .local-section-button,
+  .quick-action-tile,
+  .customer-chat-toggle,
+  .customer-secondary-button,
+  .customer-filter-pill,
+  .frontdesk-tab-button,
+  .settings-frontdesk-subnav-button,
+  .settings-full-page-subnav-button,
+  .settings-shell-nav-button,
+  .settings-dashboard-appearance-option,
+  .install-method-card,
+  .full-page-install-choice,
+  .settings-link-button
+) {
+  position: relative;
+  border: 1px solid rgb(255 255 255 / 0.58) !important;
+  border-radius: var(--vz-radius-control) !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / calc(var(--vz-liquid-top-alpha) + 0.08)),
+      rgb(255 255 255 / calc(var(--vz-liquid-bottom-alpha) + 0.06))
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.82),
+    inset 0 -1px 0 rgb(15 23 42 / 0.08),
+    0 8px 22px rgb(15 23 42 / 0.08) !important;
+  -webkit-backdrop-filter:
+    blur(var(--vz-liquid-blur))
+    saturate(var(--vz-liquid-saturation)) !important;
+  backdrop-filter:
+    blur(var(--vz-liquid-blur))
+    saturate(var(--vz-liquid-saturation)) !important;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.vz-liquid-control:hover,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .ghost-button,
+  .glass-mini-button,
+  .glass-icon-button,
+  .v2-button,
+  .v2-select,
+  .test-link,
+  .toolbar-chip,
+  .local-section-button,
+  .quick-action-tile,
+  .customer-chat-toggle,
+  .customer-secondary-button,
+  .customer-filter-pill,
+  .frontdesk-tab-button,
+  .settings-frontdesk-subnav-button,
+  .settings-full-page-subnav-button,
+  .settings-shell-nav-button,
+  .settings-dashboard-appearance-option,
+  .install-method-card,
+  .full-page-install-choice,
+  .settings-link-button
+):hover {
+  border-color: rgb(255 255 255 / 0.78) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.90),
+    inset 0 -1px 0 rgb(15 23 42 / 0.10),
+    0 12px 28px rgb(15 23 42 / 0.11) !important;
+  transform: translateY(-1px);
+}
+
+.vz-active,
+.vz-selected,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .shell-nav-button.active,
+  .local-section-button.active,
+  .toolbar-chip.active,
+  .frontdesk-tab-button.active,
+  .settings-shell-nav-button.active,
+  .settings-dashboard-appearance-option.active,
+  .settings-shell-theme-option.active,
+  .settings-shell-background-option.active,
+  .customer-filter-pill.active,
+  .install-method-card.active,
+  .full-page-install-choice.active
+) {
+  color: var(--vz-accent) !important;
+  border-color: rgb(124 60 255 / 0.42) !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgb(255 255 255 / calc(var(--vz-liquid-top-alpha) + 0.06)),
+      rgb(255 255 255 / calc(var(--vz-liquid-bottom-alpha) + 0.04))
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.90),
+    0 0 0 1px rgb(124 60 255 / 0.12),
+    0 12px 30px rgb(124 60 255 / 0.16) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell {
+  width: 100%;
+  min-height: 100svh;
+  height: 100svh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  gap: 0 !important;
+  overflow: hidden;
+  padding: 0 !important;
+  border-radius: var(--vz-radius-shell);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell::before {
+  content: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-shell {
+  position: relative !important;
+  top: auto !important;
+  width: 248px;
+  height: 100%;
+  min-height: 100svh;
+  margin: 0 !important;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 18px;
+  padding: 20px 16px 16px !important;
+  border-width: 0 1px 0 0 !important;
+  border-radius: var(--vz-radius-shell) 0 0 var(--vz-radius-shell) !important;
+  border-right-color: rgb(255 255 255 / 0.46) !important;
+  box-shadow:
+    inset 1px 0 1px rgb(255 255 255 / 0.64),
+    inset -1px 0 1px rgb(15 23 42 / 0.12),
+    var(--vz-shadow-liquid-strong) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-shell::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  width: 1px;
+  border-radius: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.48),
+      rgb(124 60 255 / 0.18) 46%,
+      rgb(255 255 255 / 0.32)
+    );
+  pointer-events: none;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-identity {
+  padding: 0 6px 12px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-identity-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-title {
+  font-size: 18px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-copy {
+  font-size: 11.5px;
+  line-height: 1.32;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .shell-sidebar-group,
+html[data-dashboard-theme] .dashboard-v2-production-shell .shell-sidebar-list {
+  gap: 7px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .shell-nav-button {
+  min-height: var(--vz-nav-height) !important;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 10px !important;
+  border-radius: 12px !important;
+  color: var(--vz-muted) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .shell-nav-icon {
+  width: 20px;
+  height: 20px;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .shell-nav-label {
+  font-size: 13px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-status-dock,
+html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-user-card {
+  padding: 12px !important;
+  border-radius: 14px !important;
+  background: rgb(255 255 255 / 0.10) !important;
+  border-color: rgb(255 255 255 / 0.20) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-shell {
+  min-width: 0;
+  min-height: 100svh;
+  height: 100svh;
+  overflow: hidden;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-pages {
+  height: 100svh;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--vz-page-y) var(--vz-page-x) calc(var(--vz-page-y) + 8px) !important;
+  scroll-padding-block: var(--vz-page-y);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-page,
+html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-page-overview {
+  width: min(100%, 1240px);
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(.workspace-page, .glass-dashboard-home) {
+  gap: var(--vz-gap-lg) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .workspace-page-body,
+  .glass-home-layout,
+  .glass-home-middle,
+  .glass-home-bottom,
+  .analytics-route-stack,
+  .dashboard-v2-analytics,
+  .frontdesk-page-layout,
+  .contacts-workspace,
+  .install-page-layout,
+  .settings-shell-overview,
+  .settings-active-content
+) {
+  gap: var(--vz-gap) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(.page-header, .glass-page-header, .settings-shell-page-header),
+html[data-dashboard-theme] .dashboard-v2-production-shell .frontdesk-settings-panel .settings-shell-page-header {
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .page-title,
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-page-header h1 {
+  font-size: clamp(32px, 2.4vw, 36px) !important;
+  line-height: 1.06 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .page-copy,
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-page-header p {
+  margin-top: 5px !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero {
+  min-height: 190px !important;
+  gap: var(--vz-gap-lg);
+  padding: 24px 26px !important;
+  border-radius: var(--vz-radius-card) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero h2 {
+  font-size: clamp(30px, 2.6vw, 36px) !important;
+  line-height: 1.08 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero p:not(.glass-kicker) {
+  margin-top: 9px !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero-metrics {
+  gap: 12px !important;
+  margin-top: 18px !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .glass-card,
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .workspace-card-soft,
+  .flat-section,
+  .v2-card,
+  .v2-metric-card,
+  .v2-table-card,
+  .frontdesk-workspace-panel,
+  .frontdesk-polished-panel,
+  .contacts-list-shell,
+  .contacts-detail-shell,
+  .install-side-card,
+  .install-progress-card,
+  .install-option-card,
+  .settings-overview-card,
+  .settings-shell-section,
+  .settings-operational-card
+) {
+  padding: var(--vz-card-pad) !important;
+  border-radius: var(--vz-radius-card) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .install-page-main,
+  .frontdesk-command-center,
+  .customer-operator-brief,
+  .v2-analytics-brief
+) {
+  padding: var(--vz-card-pad-lg) !important;
+  border-radius: var(--vz-radius-card) !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .glass-card-title,
+  .v2-section-title,
+  .flat-section-title,
+  .frontdesk-section-title,
+  .settings-card-title
+) {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .glass-card-copy,
+  .v2-section-subtitle,
+  .frontdesk-section-copy,
+  .settings-card-copy
+) {
+  font-size: 12.5px !important;
+  line-height: 1.4 !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell :is(
+  .metric-tile,
+  .setup-checklist-item,
+  .insight-item,
+  .activity-item,
+  .customer-row,
+  .v2-list li,
+  .v2-source-list li,
+  .v2-question-list li,
+  .install-stage-item,
+  .settings-status-row,
+  .settings-shell-status-row,
+  .settings-shell-key-value-row,
+  .settings-shell-choice-row
+) {
+  background: rgb(255 255 255 / 0.10) !important;
+  border-color: rgb(255 255 255 / 0.20) !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-dashboard-theme] .dashboard-v2-production-shell .customer-row {
+  border-bottom: 1px solid rgb(255 255 255 / 0.20) !important;
+}
+
+@media (max-width: 900px) {
+  html[data-dashboard-theme] .dashboard-v2-production-shell {
+    height: auto;
+    min-height: 100svh;
+    grid-template-columns: 1fr;
+    overflow: visible;
+    border-radius: 0;
+  }
+
+  html[data-dashboard-theme] .dashboard-v2-production-shell .sidebar-shell {
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    border-width: 0 0 1px !important;
+    border-radius: 0 0 22px 22px !important;
+  }
+
+  html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-shell,
+  html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-pages {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  html[data-dashboard-theme] .dashboard-v2-production-shell .workspace-pages {
+    padding: 14px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  html[data-dashboard-theme] {
+    --vz-page-x: 14px;
+    --vz-page-y: 14px;
+    --vz-card-pad: 14px;
+  }
+
+  html[data-dashboard-theme] .dashboard-v2-production-shell .page-title,
+  html[data-dashboard-theme] .dashboard-v2-production-shell .glass-page-header h1 {
+    font-size: 28px !important;
+  }
+
+  html[data-dashboard-theme] .dashboard-v2-production-shell .glass-hero {
+    padding: 18px !important;
+  }
+}

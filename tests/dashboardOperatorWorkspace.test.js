@@ -764,12 +764,15 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.equal(harness.document.documentElement.dataset.dashboardBackgroundBlur, "24");
   assert.equal(harness.document.documentElement.style.getPropertyValue("--dashboard-background-blur"), "24px");
 
-  assert.equal(harness.getDashboardGlassTransparency(), 60);
-  assert.equal(harness.applyDashboardGlassTransparency(), 60);
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "60");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.48");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.34");
-  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "31px");
+  assert.equal(harness.getDashboardGlassTransparency(), 70);
+  assert.equal(harness.applyDashboardGlassTransparency(), 70);
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "70");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-top-alpha"), "0.32");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-bottom-alpha"), "0.22");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-liquid-blur"), "32px");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-top-alpha"), "0.32");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-bottom-alpha"), "0.22");
+  assert.equal(harness.document.documentElement.style.getPropertyValue("--vz-glass-blur"), "32px");
 
   assert.equal(harness.saveDashboardGlassTransparency("82.2"), 82);
   assert.equal(harness.window.localStorage.getItem("vonza:glass-transparency"), "82");
@@ -868,17 +871,17 @@ test("dashboard appearance preferences reject invalid stored values safely", () 
   harness.window.localStorage.setItem("vonza_dashboard_accent_glow", "neon");
   harness.window.localStorage.setItem("vonza_dashboard_density", "tiny");
 
-  assert.equal(harness.getDashboardGlassTransparency(), 60);
+  assert.equal(harness.getDashboardGlassTransparency(), 70);
   assert.equal(harness.getDashboardBackgroundDim(), "balanced");
   assert.equal(harness.getDashboardAccentGlow(), "soft");
   assert.equal(harness.getDashboardDensity(), "comfortable");
 
-  assert.equal(harness.applyDashboardGlassTransparency(harness.getDashboardGlassTransparency()), 60);
+  assert.equal(harness.applyDashboardGlassTransparency(harness.getDashboardGlassTransparency()), 70);
   assert.equal(harness.applyDashboardBackgroundDim(harness.getDashboardBackgroundDim()), "balanced");
   assert.equal(harness.applyDashboardAccentGlow(harness.getDashboardAccentGlow()), "soft");
   assert.equal(harness.applyDashboardDensity(harness.getDashboardDensity()), "comfortable");
 
-  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "60");
+  assert.equal(harness.document.documentElement.dataset.dashboardGlassTransparency, "70");
   assert.equal(harness.document.documentElement.dataset.dashboardBackgroundDim, "balanced");
   assert.equal(harness.document.documentElement.dataset.dashboardAccentGlow, "soft");
   assert.equal(harness.document.documentElement.dataset.dashboardDensity, "comfortable");
