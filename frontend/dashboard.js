@@ -7770,12 +7770,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
 
   return localizeDashboardHtml(`
     <section class="workspace-page workspace-page-overview glass-dashboard-home" data-shell-section="overview" data-mobile-safe="true">
-      <header class="glass-page-header">
-        <div class="glass-page-header-copy">
+      <header class="page-header">
+        <div class="page-header-copy">
           <h1>Welcome back, ${escapeHtml(workspaceName)}</h1>
           <p>${escapeHtml(`${t("home.copy")}. ${priorityRows.length ? "Start with the customer moments that need a clear next step, then review Front Desk health." : "Your AI Front Desk is ready to surface customer activity, setup health, and next steps."}`)}</p>
         </div>
-        <div class="glass-page-header-actions">
+        <div class="page-header-actions">
           ${buildStatusPill({ label: systemHealthy ? "All systems healthy" : "Setup needs attention", tone: systemHealthy ? "online" : "attention" })}
           <button class="glass-icon-button" type="button" data-overview-target="contacts" data-contact-filter="needs_review" aria-label="${escapeHtml(translateDashboardText("Review replies"))}">
             ${buildV2Icon("bell")}
