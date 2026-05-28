@@ -46,9 +46,15 @@ function createRawAudioParser() {
 }
 
 function sendRouteError(res, err) {
-  res.status(err.statusCode || 500).json({
+  const body = {
     error: err.message || "Something went wrong",
-  });
+  };
+
+  if (cleanText(err.code)) {
+    body.code = cleanText(err.code);
+  }
+
+  res.status(err.statusCode || 500).json(body);
 }
 
 export function createVoiceRouter(deps = {}) {

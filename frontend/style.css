@@ -1348,14 +1348,16 @@ button:hover {
 }
 
 .call-front-desk-panel {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid rgba(15, 31, 29, 0.08);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(15, 31, 29, 0.1);
   border-radius: 8px;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 
 .call-front-desk-panel[hidden] {
@@ -1365,7 +1367,8 @@ button:hover {
 .call-front-desk-copy {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  align-content: center;
+  gap: 5px;
 }
 
 .call-front-desk-kicker,
@@ -1378,18 +1381,43 @@ button:hover {
   line-height: 1.35;
 }
 
+.call-front-desk-status-line {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.call-front-desk-status-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #667085;
+  box-shadow: 0 0 0 4px rgba(102, 112, 133, 0.12);
+}
+
+.call-front-desk-status {
+  color: #344054;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .call-front-desk-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
 }
 
 .call-front-desk-stats span {
   display: inline-flex;
+  align-items: center;
+  min-height: 26px;
   min-width: 0;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border: 1px solid rgba(15, 31, 29, 0.08);
-  border-radius: 999px;
+  border-radius: 8px;
   background: #ffffff;
   color: #344054;
   font-weight: 800;
@@ -1412,14 +1440,16 @@ button:hover {
 .call-front-desk-copy h2 {
   margin: 0;
   color: #101828;
-  font-size: 0.98rem;
+  font-size: 1.02rem;
   line-height: 1.2;
   letter-spacing: 0;
 }
 
 .call-front-desk-actions {
   flex: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
@@ -1432,6 +1462,7 @@ button:hover {
   box-shadow: none;
   font-size: 0.82rem;
   line-height: 1.1;
+  white-space: nowrap;
 }
 
 .call-front-desk-button-secondary {
@@ -1444,9 +1475,34 @@ button:hover {
   background: #fff7f6;
 }
 
+.call-front-desk-panel[data-state="listening"] .call-front-desk-status-dot {
+  background: #b42318;
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.14);
+}
+
 .call-front-desk-panel[data-state="speaking"] {
   border-color: color-mix(in srgb, var(--brand-primary) 24%, rgba(94, 110, 152, 0.14) 76%);
   background: color-mix(in srgb, var(--brand-primary) 7%, #ffffff 93%);
+}
+
+.call-front-desk-panel[data-state="speaking"] .call-front-desk-status-dot,
+.call-front-desk-panel[data-state="thinking"] .call-front-desk-status-dot,
+.call-front-desk-panel[data-state="transcribing"] .call-front-desk-status-dot,
+.call-front-desk-panel[data-state="requesting"] .call-front-desk-status-dot {
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-primary) 14%, transparent 86%);
+}
+
+.call-front-desk-panel[data-state="waiting"] .call-front-desk-status-dot,
+.call-front-desk-panel[data-state="muted-stopped"] .call-front-desk-status-dot {
+  background: #12b76a;
+  box-shadow: 0 0 0 4px rgba(18, 183, 106, 0.14);
+}
+
+.call-front-desk-panel[data-state="stopped"] .call-front-desk-status-dot,
+.call-front-desk-panel[data-state="unavailable"] .call-front-desk-status-dot {
+  background: #667085;
+  box-shadow: 0 0 0 4px rgba(102, 112, 133, 0.12);
 }
 
 .voice-controls {
@@ -1772,10 +1828,15 @@ input:focus-visible {
     width: 100%;
   }
 
-  .call-front-desk-panel,
+  .call-front-desk-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .call-front-desk-actions {
+    grid-auto-flow: row;
+    grid-auto-columns: initial;
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    flex-direction: column;
   }
 
   .call-front-desk-stats {

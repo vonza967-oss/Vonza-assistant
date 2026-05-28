@@ -57,6 +57,14 @@ function buildSafeVoiceBillingError(statusCode = 503, code = "voice_billing_unav
   );
 }
 
+function buildSafeVoiceProviderError(code = "voice_provider_unavailable") {
+  return buildVoiceError(
+    "Voice is temporarily unavailable. Please send your message in the chat instead.",
+    503,
+    code
+  );
+}
+
 function getPositiveIntegerEnv(key, fallbackValue) {
   const value = Number(process.env[key]);
   return Number.isFinite(value) && value > 0 ? Math.round(value) : fallbackValue;
@@ -297,10 +305,18 @@ export async function transcribeAssistantAudio({
     throw buildVoiceError("OpenAI transcription is unavailable.", 503, "openai_transcription_unavailable");
   }
 
-  const transcription = await openaiClient.audio.transcriptions.create({
-    file: await toFile(audio, `voice-input.${extension}`, { type: normalizedContentType }),
-    model,
-  });
+  let transcription;
+
+  try {
+    transcription = await openaiClient.audio.transcriptions.create({
+      file: await toFile(audio, `voice-input.${extension}`, { type: normalizedContentType }),
+      model,
+    });
+  } catch (error) {
+    const safeError = buildSafeVoiceProviderError("voice_transcription_unavailable");
+    safeError.cause = error;
+    throw safeError;
+  }
   const text = safeText(transcription?.text || "");
   const resolvedDurationSeconds =
     Number(transcription?.duration || transcription?.usage?.seconds || durationSeconds)
@@ -388,13 +404,22 @@ export async function createAssistantSpeech({
     throw buildVoiceError("OpenAI text-to-speech is unavailable.", 503, "openai_tts_unavailable");
   }
 
-  const speech = await openaiClient.audio.speech.create({
-    model,
-    voice,
-    input: text,
-    response_format: "mp3",
-  });
-  const audioBuffer = Buffer.from(await speech.arrayBuffer());
+  let speech;
+  let audioBuffer;
+
+  try {
+    speech = await openaiClient.audio.speech.create({
+      model,
+      voice,
+      input: text,
+      response_format: "mp3",
+    });
+    audioBuffer = Buffer.from(await speech.arrayBuffer());
+  } catch (error) {
+    const safeError = buildSafeVoiceProviderError("voice_speech_unavailable");
+    safeError.cause = error;
+    throw safeError;
+  }
 
   if (!audioBuffer.length) {
     throw buildVoiceError("Speech audio could not be generated.", 502, "tts_empty_audio");

@@ -203,6 +203,15 @@ test("Web Call health aggregation uses safe counts and does not leak metadata PI
         web_call_id: "call-2",
       },
     },
+    {
+      id: "event-8",
+      event_name: "web_call_failed_recovery_shown",
+      created_at: "2026-05-20T11:00:10.000Z",
+      metadata: {
+        web_call_id: "call-2",
+        failure_category: "ai_capacity_reached",
+      },
+    },
   ]);
 
   assert.equal(summary.starts, 2);
@@ -213,8 +222,9 @@ test("Web Call health aggregation uses safe counts and does not leak metadata PI
   assert.equal(summary.failureCounts.garbled_transcript, 1);
   assert.equal(summary.failureCounts.speech_failed, 1);
   assert.equal(summary.failureCounts.mic_denied, 1);
-  assert.equal(summary.failureTotal, 3);
-  assert.equal(summary.latestActivityAt, "2026-05-20T11:00:05.000Z");
+  assert.equal(summary.failureCounts.ai_capacity_reached, 1);
+  assert.equal(summary.failureTotal, 4);
+  assert.equal(summary.latestActivityAt, "2026-05-20T11:00:10.000Z");
 
   const serialized = JSON.stringify(summary);
   assert.doesNotMatch(serialized, /quote|lead@example\.com|visitor@example\.com|Visitor Name|\+15555555555|provider timeout|Sure, I can help/i);

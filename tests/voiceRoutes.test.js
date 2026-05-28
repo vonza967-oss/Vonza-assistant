@@ -281,6 +281,36 @@ test("voice transcription returns transcript when OpenAI succeeds", async () => 
   }
 });
 
+test("voice transcription provider failures return safe public errors", async () => {
+  const server = await startServer(createApp({
+    openai: {
+      audio: {
+        transcriptions: {
+          create: async () => {
+            throw new Error("OpenAI provider quota stack sk-test-secret");
+          },
+        },
+      },
+    },
+  }));
+
+  try {
+    const response = await fetch(`${server.baseUrl}/api/voice/transcribe?${voiceQuery()}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/webm" },
+      body: Buffer.from("audio"),
+    });
+    const json = await readJson(response);
+
+    assert.equal(response.status, 503);
+    assert.equal(json.code, "voice_transcription_unavailable");
+    assert.match(json.error, /voice is temporarily unavailable/i);
+    assert.doesNotMatch(json.error, /openai|provider|quota|stack|sk-test/i);
+  } finally {
+    await server.close();
+  }
+});
+
 test("capped owner blocks voice transcription before OpenAI", async () => {
   let openaiCalled = false;
   const server = await startServer(createApp({
@@ -796,6 +826,47 @@ test("speech endpoint returns mp3 audio when OpenAI succeeds", async () => {
       assert.equal(recordedUsage.entries[0].usageSource, "voice_speech");
       assert.equal(recordedUsage.entries[0].metadata.textLength, text.length);
       assert.equal(recordedUsage.entries[0].metadata.voice, "sage");
+    } finally {
+      await server.close();
+    }
+  });
+});
+
+test("speech provider failures return safe public errors", async () => {
+  await withEnv({ VOICE_SPEECH_TOKEN_SECRET: "voice-test-secret" }, async () => {
+    const text = "Here is the answer.";
+    const server = await startServer(createApp({
+      openai: {
+        audio: {
+          speech: {
+            create: async () => {
+              throw new Error("OpenAI provider audio stack sk-test-secret");
+            },
+          },
+        },
+      },
+    }));
+
+    try {
+      const response = await fetch(`${server.baseUrl}/api/voice/speech`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          install_id: "install-1",
+          origin: "https://allowed.example",
+          page_url: "https://allowed.example/help",
+          display_mode: "page",
+          session_key: "voice-session",
+          text,
+          speech_token: buildSpeechToken({ text }),
+        }),
+      });
+      const json = await readJson(response);
+
+      assert.equal(response.status, 503);
+      assert.equal(json.code, "voice_speech_unavailable");
+      assert.match(json.error, /voice is temporarily unavailable/i);
+      assert.doesNotMatch(json.error, /openai|provider|audio stack|sk-test/i);
     } finally {
       await server.close();
     }

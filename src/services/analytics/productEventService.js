@@ -19,12 +19,18 @@ export const WEB_CALL_PRODUCT_EVENTS = [
 ];
 
 const SAFE_WEB_CALL_FAILURE_CATEGORIES = new Set([
+  "ai_capacity_reached",
   "audio_too_large",
+  "browser_unsupported",
   "empty_transcript",
   "garbled_transcript",
+  "https_required",
+  "inactive_access",
+  "microphone_unavailable",
   "mic_denied",
   "no_audio",
   "rate_limited",
+  "recording_failed",
   "repeat_requested",
   "request_failed",
   "speech_authorization_missing",
@@ -37,12 +43,18 @@ const SAFE_WEB_CALL_FAILURE_CATEGORIES = new Set([
 ]);
 
 const WEB_CALL_FAILURE_LABELS = Object.freeze({
+  ai_capacity_reached: "AI capacity reached",
   audio_too_large: "Audio too large",
+  browser_unsupported: "Browser unsupported",
   empty_transcript: "Empty transcript",
   garbled_transcript: "Garbled transcript",
+  https_required: "HTTPS required",
+  inactive_access: "Inactive access",
+  microphone_unavailable: "Microphone unavailable",
   mic_denied: "Microphone denied",
   no_audio: "No audio",
   rate_limited: "Rate limited",
+  recording_failed: "Recording failed",
   repeat_requested: "Repeat requested",
   request_failed: "Request failed",
   speech_authorization_missing: "Speech authorization missing",
