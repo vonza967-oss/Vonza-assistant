@@ -38,6 +38,7 @@ import {
 import { listWidgetRoutingEventsByAgentId } from "../analytics/widgetTelemetryService.js";
 import { getOwnerBillingSnapshot } from "../billing/billingUsageService.js";
 import { listAgentMessages } from "../chat/messageService.js";
+import { listProductAvailability } from "../entitlements/productAvailabilityService.js";
 import { listFollowUpWorkflows } from "../followup/followUpService.js";
 import { listKnowledgeFixWorkflows } from "../knowledge/knowledgeFixService.js";
 import {
@@ -537,6 +538,15 @@ export function createEmptyOperatorWorkspaceSnapshot(overrides = {}) {
 
 function uniqueAlerts(values = []) {
   return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
+}
+
+function buildWorkspaceProductAvailability(agent = {}, billingSnapshot = null) {
+  return listProductAvailability({
+    agent,
+    accessStatus: agent.accessStatus,
+    billingSnapshot,
+    billing: billingSnapshot,
+  });
 }
 
 function normalizeArray(value) {
@@ -4087,6 +4097,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     const leadCaptureResult = getSettledValue(leadCapturesResult, { records: [], persistenceAvailable: true });
     const followUpResult = getSettledValue(followUpsResult, { records: [], persistenceAvailable: true });
     const conversionOutcomeResult = getSettledValue(outcomesResult, { records: [], persistenceAvailable: true });
+    const billing = getSettledValue(billingResult, emptySnapshot.billing);
     const contactsWorkspace = await getOperatorContactsWorkspace(supabase, {
       agent,
       ownerUserId,
@@ -4140,7 +4151,8 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
           loadError: cleanText(contactsWorkspace.health?.loadError || partialLoadErrors[0]),
         },
       },
-      billing: getSettledValue(billingResult, emptySnapshot.billing),
+      billing,
+      product_availability: buildWorkspaceProductAvailability(agent, billing),
       businessProfile: getSettledValue(
         businessProfileResult,
         createDefaultOperatorBusinessProfile({
@@ -4190,6 +4202,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
         disabled: true,
       },
       health: syncErrors,
+      product_availability: buildWorkspaceProductAvailability(agent, emptySnapshot.billing),
     });
   }
 
@@ -4704,6 +4717,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       followUps: followUpResult.records || [],
     },
     billing,
+    product_availability: buildWorkspaceProductAvailability(agent, billing),
     businessProfile,
     outcomes: {
       summary: conversionOutcomeResult.summary || null,

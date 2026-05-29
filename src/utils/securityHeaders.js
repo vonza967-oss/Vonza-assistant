@@ -14,6 +14,9 @@ function getRequestUrl(req) {
 
 function isDashboardTopLevelPath(pathname) {
   return pathname === "/dashboard"
+    || pathname === "/dashboard/front-desk"
+    || pathname === "/dashboard/widget"
+    || pathname === "/dashboard/voice"
     || pathname === "/dashboard-v2-fixture"
     || pathname === "/dashboard-v2-preview"
     || pathname === "/full-page-assistant-v2-preview"

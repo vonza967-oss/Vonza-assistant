@@ -1473,6 +1473,14 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
 
+        for (const productDashboardPath of ["/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"]) {
+          const productDashboard = await getText(server.baseUrl, productDashboardPath);
+          assert.equal(productDashboard.status, 200);
+          assert.match(productDashboard.headers.get("cache-control") || "", /no-store/);
+          assert.match(productDashboard.text, /dashboard-root/);
+          assert.match(productDashboard.text, /\/dashboard\.js/);
+        }
+
         const dashboardV2Preview = await getText(server.baseUrl, "/dashboard-v2-preview");
         assert.equal(dashboardV2Preview.status, 200);
         assert.match(dashboardV2Preview.text, /v2-preview-root/);
@@ -1607,6 +1615,61 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         const adminPage = await getText(server.baseUrl, "/admin");
         assert.equal(adminPage.status, 404);
         assert.doesNotMatch(adminPage.text, /x-admin-token/);
+      } finally {
+        await server.close();
+      }
+    }
+  );
+});
+
+test("dashboard analytics API is not captured by public dashboard document aliases", { concurrency: false }, async () => {
+  const deps = {
+    ...createAgentTestDeps({
+      accessStatus: "active",
+      messages: [],
+    }),
+    getAgentWorkspaceSnapshot: async (_supabase, agentId) => ({
+      id: agentId || "agent-1",
+      businessId: "business-1",
+      ownerUserId: "owner-1",
+      accessStatus: "active",
+      widgetMetrics: {},
+      installStatus: {},
+    }),
+    getOwnerBillingSnapshot: async () => null,
+    listVisitorReplyFeedbackForOwner: async () => ({
+      records: [],
+      summary: {
+        total: 0,
+        helpful: 0,
+        notHelpful: 0,
+        needsReview: 0,
+      },
+      persistenceAvailable: true,
+    }),
+    listWebCallHealthEvents: async () => ({
+      records: [],
+      summary: {
+        available: true,
+      },
+      persistenceAvailable: true,
+    }),
+  };
+
+  await withEnv(
+    {
+      PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_FAKE_BILLING: "false",
+      NODE_ENV: "development",
+    },
+    async () => {
+      const server = await startServer(createTestApp(deps));
+
+      try {
+        const response = await getJson(server.baseUrl, "/dashboard/analytics?agent_id=agent-1");
+        assert.equal(response.status, 200);
+        assert.equal(response.json.ok, true);
+        assert.equal(response.json.agent.id, "agent-1");
       } finally {
         await server.close();
       }

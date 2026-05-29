@@ -8,6 +8,21 @@
       note: "Workspace status, dashboard language, and launch posture.",
     },
     {
+      key: "front_desk",
+      label: "Front Desk",
+      note: "Full-page Front Desk identity, page setup, and routing.",
+    },
+    {
+      key: "website_widget",
+      label: "Website Widget",
+      note: "Optional widget launcher, appearance, install, and domains.",
+    },
+    {
+      key: "voice_agent",
+      label: "Voice Agent",
+      note: "Browser voice, spoken replies, and web-call readiness.",
+    },
+    {
       key: "business_profile",
       label: "Business Profile",
       note: "Grounding facts and readiness for customer answers.",
@@ -133,7 +148,15 @@
     branding: "general",
     workspace_preferences: "general",
     customize: "front_desk",
-    widget: "front_desk",
+    "front-desk": "front_desk",
+    frontdesk: "front_desk",
+    widget: "website_widget",
+    website: "website_widget",
+    website_widget: "website_widget",
+    "website-widget": "website_widget",
+    voice: "voice_agent",
+    voice_agent: "voice_agent",
+    "voice-agent": "voice_agent",
     business: "business_profile",
     business_context: "business_profile",
     profile: "business_profile",
@@ -154,7 +177,7 @@
     "language.save": "Save language",
     "nav.utilities": "Utilities",
     "settings.title": "Settings",
-    "settings.copy": "Manage workspace, business, account, and privacy settings.",
+    "settings.copy": "Manage product settings plus shared business, account, and privacy settings.",
     "settings.theme": "Theme",
     "settings.themeCopy": "Choose how the dashboard looks in this browser. Bright Glass is the default.",
     "settings.background": "Dashboard background",
@@ -949,6 +972,126 @@
     });
   }
 
+  function getDashboardProductPackagingItems() {
+    if (typeof global.VonzaDashboardState?.listDashboardProductPackaging === "function") {
+      return global.VonzaDashboardState.listDashboardProductPackaging();
+    }
+
+    return [
+      {
+        key: "front_desk",
+        name: "Front Desk",
+        targetUseCase: "Hosted AI front desk page for customers who need answers, routing, and follow-up capture.",
+        setupLabel: "Configure Front Desk",
+        setupHref: "/dashboard/front-desk",
+        pricingLabel: "Product pricing coming soon",
+      },
+      {
+        key: "website_widget",
+        name: "Website Widget",
+        targetUseCase: "Optional embedded website launcher for visitors who need quick answers without leaving a page.",
+        setupLabel: "View widget setup",
+        setupHref: "/dashboard/widget",
+        pricingLabel: "Product pricing coming soon",
+      },
+      {
+        key: "voice_agent",
+        name: "Voice Agent",
+        targetUseCase: "Browser voice and spoken replies for hands-free customer conversations where configured.",
+        setupLabel: "View voice setup",
+        setupHref: "/dashboard/voice",
+        pricingLabel: "Product pricing coming soon",
+      },
+    ];
+  }
+
+  function formatProductAvailabilityStatus(value = "") {
+    return defaultTrimText(value)
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function getProductAvailabilityByKey(operatorWorkspace = {}) {
+    const availabilityItems = Array.isArray(operatorWorkspace.product_availability)
+      ? operatorWorkspace.product_availability
+      : Array.isArray(operatorWorkspace.productAvailability)
+        ? operatorWorkspace.productAvailability
+        : [];
+
+    return new Map(availabilityItems
+      .filter((item) => defaultTrimText(item?.product_key || item?.productKey))
+      .map((item) => [defaultTrimText(item.product_key || item.productKey), item]));
+  }
+
+  function getProductAvailabilityTone(availability, hasWorkspaceAccess) {
+    if (!availability) {
+      return hasWorkspaceAccess ? "success" : "pending";
+    }
+
+    return defaultTrimText(availability.status).toLowerCase() === "available" ? "success" : "pending";
+  }
+
+  function buildProductPackagingCards(agent, helpers, operatorWorkspace = {}) {
+    const { escapeHtml, normalizeAccessStatus } = helpers;
+    const productItems = getDashboardProductPackagingItems();
+    const availabilityByKey = getProductAvailabilityByKey(operatorWorkspace);
+    const accessStatus = typeof normalizeAccessStatus === "function"
+      ? normalizeAccessStatus(agent?.accessStatus)
+      : defaultTrimText(agent?.accessStatus || "pending");
+    const hasWorkspaceAccess = accessStatus === "active";
+    const fallbackAvailabilityLabel = hasWorkspaceAccess
+      ? "Included in current workspace"
+      : "Available when workspace access is active";
+
+    return `
+      <section class="settings-shell-section settings-product-packaging-section" data-product-packaging-section>
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Products</h3>
+            <p class="settings-shell-section-copy">Product pricing is being separated. Current billing remains account-level plan capacity.</p>
+          </div>
+        </div>
+        <div class="settings-product-packaging-grid">
+          ${productItems.map((product) => {
+            const availability = availabilityByKey.get(product.key);
+            const availabilityLabel = availability
+              ? formatProductAvailabilityStatus(availability.status || availability.reason_code || availability.reasonCode)
+              : fallbackAvailabilityLabel;
+            const availabilitySource = availability
+              ? `Product availability: ${formatProductAvailabilityStatus(availability.reason_code || availability.reasonCode || availability.status)}`
+              : `Account access: ${accessStatus || "pending"}`;
+
+            return `
+            <article
+              class="settings-product-packaging-card"
+              data-product-packaging-card="${escapeHtml(product.key)}"
+              data-product-availability-status="${escapeHtml(availability?.status || "")}"
+              data-product-availability-enforced="${availability?.is_enforced === true ? "true" : "false"}"
+            >
+              <div class="settings-product-packaging-head">
+                <div>
+                  <p class="settings-shell-status-label">Product</p>
+                  <h4 class="settings-product-packaging-title">${escapeHtml(product.name || product.label || "Vonza product")}</h4>
+                </div>
+                <span class="badge ${getProductAvailabilityTone(availability, hasWorkspaceAccess)}" data-product-packaging-status="${escapeHtml(product.key)}">${escapeHtml(availabilityLabel)}</span>
+              </div>
+              <p class="settings-product-packaging-copy">${escapeHtml(product.targetUseCase || "")}</p>
+              <div class="settings-product-packaging-meta">
+                <span>Status source</span>
+                <strong>${escapeHtml(availabilitySource)}</strong>
+              </div>
+              <div class="settings-product-packaging-actions">
+                <a class="settings-product-packaging-link" href="${escapeHtml(product.setupHref || product.routePath || "/dashboard")}" data-product-packaging-link="${escapeHtml(product.key)}">${escapeHtml(product.setupLabel || "View setup")}</a>
+                <span>${escapeHtml(product.pricingLabel || "Product pricing coming soon")}</span>
+              </div>
+            </article>
+          `;
+          }).join("")}
+        </div>
+      </section>
+    `;
+  }
+
   function normalizeWidgetPurpose(value) {
     const normalized = defaultTrimText(value)
       .toLowerCase()
@@ -1164,6 +1307,145 @@
     return pathParts[1] ? normalizeSettingsSection(pathParts[1]) : "";
   }
 
+  function isProductSettingsSection(sectionKey) {
+    return ["front_desk", "website_widget", "voice_agent"].includes(normalizeSettingsSection(sectionKey));
+  }
+
+  function getDefaultProductSettingsTab(sectionKey) {
+    const normalizedSection = normalizeSettingsSection(sectionKey);
+    if (normalizedSection === "website_widget") {
+      return "appearance";
+    }
+    if (normalizedSection === "voice_agent") {
+      return "voice";
+    }
+    return "identity";
+  }
+
+  function getProductSettingsTabs(sectionKey, activeTab = "") {
+    const normalizedSection = normalizeSettingsSection(sectionKey);
+    const normalizedActiveTab = normalizeFrontDeskSettingsTab(activeTab);
+    const tabMap = {
+      front_desk: ["identity", "full_page", "routing"],
+      website_widget: ["appearance", "routing", "identity"],
+      voice_agent: ["voice"],
+    };
+    const tabs = (tabMap[normalizedSection] || tabMap.front_desk).slice();
+
+    if (normalizedSection === "front_desk" && activeTab && !tabs.includes(normalizedActiveTab)) {
+      tabs.push(normalizedActiveTab);
+    }
+
+    return tabs;
+  }
+
+  function getProductSettingsCopy(sectionKey, details = {}) {
+    const normalizedSection = normalizeSettingsSection(sectionKey);
+    const installStatus = details.installStatus || {};
+    const fullPageConfig = details.fullPageConfig || {};
+    const selectedPurposeOption = details.selectedPurposeOption || {};
+    const routingDestinationCount = Number(details.routingDestinationCount || 0);
+    const voiceConfig = details.voiceConfig || {};
+    const webCallReady = details.webCallReady === true;
+    const allowedDomainCount = Array.isArray(details.allowedDomains) ? details.allowedDomains.length : 0;
+    const primaryColor = details.primaryColor || "#14b8a6";
+
+    if (normalizedSection === "website_widget") {
+      return {
+        kicker: "Website Widget",
+        title: "Website Widget",
+        copy: "Tune the optional embedded widget using the existing appearance, launcher, install, and allowed-domain settings.",
+        ariaLabel: "Website Widget settings summary",
+        saveLabel: "Save Website Widget",
+        tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
+        rows: [
+          {
+            label: "Widget install",
+            value: installStatus.label || "Not installed yet",
+            tone: installStatus.state === "seen_recently" ? "Ready" : installStatus.state === "installed_unseen" ? "Limited" : "Pending",
+            copy: "Uses the existing website install verification and embed flow.",
+          },
+          {
+            label: "Allowed domains",
+            value: allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited",
+            tone: allowedDomainCount ? "Ready" : "Limited",
+            copy: "The current allowed-domains field controls where the widget should run.",
+          },
+          {
+            label: "Launcher style",
+            value: selectedPurposeOption.label || "Guidance",
+            tone: "Ready",
+            copy: `Uses the current assistant identity, button text, logo, and accent color ${primaryColor}.`,
+          },
+        ],
+      };
+    }
+
+    if (normalizedSection === "voice_agent") {
+      return {
+        kicker: "Voice Agent",
+        title: "Voice Agent",
+        copy: "Configure browser voice, spoken replies, and web-call readiness from the existing Front Desk voice settings.",
+        ariaLabel: "Voice Agent settings summary",
+        saveLabel: "Save Voice Agent",
+        tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
+        rows: [
+          {
+            label: "Browser voice",
+            value: webCallReady ? "Ready" : "Incomplete",
+            tone: webCallReady ? "Ready" : "Pending",
+            copy: "Web Call readiness still follows the existing access, AI capacity, and rate-limit checks.",
+          },
+          {
+            label: "Voice input",
+            value: voiceConfig.voiceInputEnabled ? "Enabled" : "Off",
+            tone: voiceConfig.voiceInputEnabled ? "Ready" : "Pending",
+            copy: "Controls whether visitors can record a spoken question for transcription.",
+          },
+          {
+            label: "Spoken replies",
+            value: voiceConfig.spokenRepliesEnabled ? "Enabled" : "Off",
+            tone: voiceConfig.spokenRepliesEnabled ? "Ready" : "Pending",
+            copy: "Controls whether visitors can generate and play spoken audio replies.",
+          },
+        ],
+      };
+    }
+
+    return {
+      kicker: "Front Desk",
+      title: "Front Desk",
+      copy: "Configure the primary full-page Front Desk experience, then set customer routing for live handoffs.",
+      ariaLabel: "Front Desk launch settings summary",
+      saveLabel: "Save Front Desk",
+      tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
+      rows: [
+        {
+          label: "Hosted full-page assistant",
+          value: fullPageConfig.publicPageEnabled ? "Live" : "Disabled",
+          tone: fullPageConfig.publicPageEnabled ? "Ready" : "Pending",
+          copy: fullPageConfig.publicPageEnabled
+            ? "Ready for direct links, QR codes, WordPress pages, and smart embeds."
+            : "Enable public access before sharing links, QR codes, or page embeds.",
+        },
+        {
+          label: "Launch routing",
+          value: routingDestinationCount ? `${routingDestinationCount} destination${routingDestinationCount === 1 ? "" : "s"}` : "Needs routes",
+          tone: routingDestinationCount ? "Ready" : "Limited",
+          copy: routingDestinationCount
+            ? "Contact, booking, quote, or checkout destinations are available for customer next steps."
+            : "Add contact, booking, quote, or checkout destinations before relying on handoffs.",
+        },
+        {
+          label: "Front Desk purpose",
+          value: selectedPurposeOption.label || "Guidance",
+          tone: "Ready",
+          copy: selectedPurposeOption.description || "Defines how the primary customer-facing assistant frames its help.",
+        },
+      ],
+    };
+  }
+
   function getFrontDeskSettingsTabFromHash() {
     const pathParts = getHashPathParts();
 
@@ -1175,7 +1457,7 @@
       return normalizeFrontDeskSettingsTab(pathParts[2]);
     }
 
-    if (pathParts[0] !== "settings" || pathParts[1] !== "front-desk" || !pathParts[2]) {
+    if (pathParts[0] !== "settings" || !isProductSettingsSection(pathParts[1]) || !pathParts[2]) {
       return "";
     }
 
@@ -1197,8 +1479,8 @@
     }
 
     const normalizedSection = normalizeSettingsSection(sectionKey);
-    const frontDeskTab = normalizedSection === "front_desk"
-      ? normalizeFrontDeskSettingsTab(options.frontDeskTab || getActiveFrontDeskSettingsTab(options.helpers))
+    const frontDeskTab = isProductSettingsSection(normalizedSection)
+      ? normalizeFrontDeskSettingsTab(options.frontDeskTab || getActiveFrontDeskSettingsTab(options.helpers, normalizedSection))
       : "";
     const pathParts = getHashPathParts();
     const useFrontDeskRoute = frontDeskTab && (
@@ -1274,9 +1556,14 @@
     global.localStorage?.setItem(SETTINGS_STORAGE_KEY, normalizeSettingsSection(section));
   }
 
-  function getActiveFrontDeskSettingsTab(helpers = getHelpers()) {
-    return getFrontDeskSettingsTabFromHash()
-      || normalizeFrontDeskSettingsTab(helpers.getDashboardUiStateValue("settingsFrontDeskTab"));
+  function getActiveFrontDeskSettingsTab(helpers = getHelpers(), sectionKey = getActiveSettingsSection()) {
+    const hashTab = getFrontDeskSettingsTabFromHash();
+    const storedTab = normalizeFrontDeskSettingsTab(helpers.getDashboardUiStateValue("settingsFrontDeskTab"));
+    const defaultTab = getDefaultProductSettingsTab(sectionKey);
+    const candidate = hashTab || storedTab || defaultTab;
+    const visibleTabs = getProductSettingsTabs(sectionKey, hashTab);
+
+    return visibleTabs.includes(candidate) ? candidate : defaultTab;
   }
 
   function setActiveFrontDeskSettingsTab(tabKey, helpers = getHelpers()) {
@@ -1634,6 +1921,8 @@
       privacy_legal: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
       integrations: '<path d="M12 2v5M12 17v5M4.93 4.93l3.54 3.54M15.54 15.54l3.53 3.53M2 12h5M17 12h5M4.93 19.07l3.54-3.53M15.54 8.46l3.53-3.53"/>',
       front_desk: '<path d="M4 6h16v10H7l-3 3V6Z"/><path d="M8 10h8M8 13h5"/>',
+      website_widget: '<rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M15 10h1.5a1.5 1.5 0 0 1 0 3H15z"/>',
+      voice_agent: '<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/><path d="M8 22h8"/>',
       business_profile: '<path d="M4 21V5a2 2 0 0 1 2-2h9l5 5v13"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h8"/>',
       external: '<path d="M14 3h7v7"/><path d="m10 14 11-11"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
       chevron: '<path d="m9 18 6-6-6-6"/>',
@@ -1835,7 +2124,7 @@
     `;
   }
 
-  function buildFrontDeskSettingsForm(agent, _setup, helpers) {
+  function buildFrontDeskSettingsForm(agent, _setup, helpers, productSettings = {}) {
     const {
       escapeHtml,
       trimText,
@@ -1862,10 +2151,40 @@
     const bookingProvider = getBookingProvider(agent);
     const bookingProviderStatus = getBookingProviderStatus(agent);
     const calendlyWebhookStatus = getCalendlyWebhookStatus(agent);
-    const activeFrontDeskTab = getActiveFrontDeskSettingsTab(helpers);
+    const productSettingsSection = isProductSettingsSection(productSettings.sectionKey)
+      ? normalizeSettingsSection(productSettings.sectionKey)
+      : "front_desk";
+    const useLegacyFrontDeskTabs = !productSettings.sectionKey && !productSettings.settingsSection;
+    const hashFrontDeskTab = getFrontDeskSettingsTabFromHash();
+    const activeFrontDeskTab = getActiveFrontDeskSettingsTab(helpers, productSettingsSection);
     const activeFullPageTab = getActiveFullPageSettingsTab(helpers);
+    const productSettingsCopy = getProductSettingsCopy(productSettingsSection, {
+      activeTab: hashFrontDeskTab || activeFrontDeskTab,
+      allowedDomains: agent.allowedDomains || [],
+      fullPageConfig,
+      installStatus,
+      primaryColor,
+      routingDestinationCount: [
+        agent.contactEmail,
+        agent.contactPhone,
+        agent.bookingUrl,
+        agent.quoteUrl,
+        agent.checkoutUrl,
+      ].filter((value) => trimText(value)).length,
+      selectedPurposeOption,
+      voiceConfig,
+      webCallReady: [
+        voiceConfig.voiceInputEnabled === true,
+        voiceConfig.spokenRepliesEnabled === true,
+        voiceConfig.webCallEnabled === true,
+      ].every(Boolean),
+    });
+    const visibleFrontDeskTabs = useLegacyFrontDeskTabs ? FRONT_DESK_SETTINGS_TABS.slice() : productSettingsCopy.tabs;
     const frontDeskTabClass = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "active" : "";
     const frontDeskTabSelected = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "true" : "false";
+    const frontDeskTabButton = (tab, label) => visibleFrontDeskTabs.includes(normalizeFrontDeskSettingsTab(tab))
+      ? `<button class="settings-frontdesk-subnav-button ${frontDeskTabClass(tab)}" type="button" data-frontdesk-settings-tab="${escapeHtml(normalizeFrontDeskSettingsTab(tab))}" aria-selected="${frontDeskTabSelected(tab)}">${escapeHtml(label)}</button>`
+      : "";
     const frontDeskPanelAttrs = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "" : "hidden";
     const fullPageTabClass = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "active" : "";
     const fullPageTabSelected = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "true" : "false";
@@ -1878,13 +2197,6 @@
         return card.enabled !== false;
       })
       .slice(0, 4);
-    const routingDestinationCount = [
-      agent.contactEmail,
-      agent.contactPhone,
-      agent.bookingUrl,
-      agent.quoteUrl,
-      agent.checkoutUrl,
-    ].filter((value) => trimText(value)).length;
     const voiceQaDisabled = voiceConfig.voiceInputEnabled !== true;
     const voiceQaInitialStatus = voiceQaDisabled
       ? "Voice input is off. Enable and save voice input before recording."
@@ -1910,38 +2222,14 @@
       },
     ];
     const webCallReady = webCallReadinessItems.every((item) => item.ready);
-    const frontDeskOperationalRows = [
-      {
-        label: "Hosted full-page assistant",
-        value: fullPageConfig.publicPageEnabled ? "Live" : "Disabled",
-        tone: fullPageConfig.publicPageEnabled ? "Ready" : "Pending",
-        copy: fullPageConfig.publicPageEnabled
-          ? "Ready for direct links, QR codes, WordPress pages, and smart embeds."
-          : "Enable public access before sharing links, QR codes, or page embeds.",
-      },
-      {
-        label: "Launch routing",
-        value: routingDestinationCount ? `${routingDestinationCount} destination${routingDestinationCount === 1 ? "" : "s"}` : "Needs routes",
-        tone: routingDestinationCount ? "Ready" : "Limited",
-        copy: routingDestinationCount
-          ? "Contact, booking, quote, or checkout destinations are available for customer next steps."
-          : "Add contact, booking, quote, or checkout destinations before relying on handoffs.",
-      },
-      {
-        label: "Optional website bubble",
-        value: installStatus.label || "Not installed yet",
-        tone: installStatus.state === "seen_recently" ? "Ready" : installStatus.state === "installed_unseen" ? "Limited" : "Pending",
-        copy: "Secondary launcher. The hosted Front Desk page remains the primary customer-facing surface.",
-      },
-    ];
 
     return `
-      <form data-settings-form data-form-kind="customize" data-settings-section="front_desk" class="settings-shell-form settings-shell-form--system settings-frontdesk-form" id="settings-section-front_desk">
+      <form data-settings-form data-form-kind="customize" data-settings-section="${escapeHtml(productSettingsSection)}" class="settings-shell-form settings-shell-form--system settings-frontdesk-form settings-frontdesk-form--${escapeHtml(productSettingsSection)}" id="settings-section-${escapeHtml(productSettingsSection)}">
         <header class="settings-shell-page-header">
           <div class="settings-shell-page-title-group">
-            <p class="studio-kicker">Front Desk</p>
-            <h2 class="settings-shell-page-title">Front Desk</h2>
-            <p class="settings-shell-page-copy">Configure the customer-facing Front Desk page first, then routing, appearance, and the optional website widget.</p>
+            <p class="studio-kicker">${escapeHtml(productSettingsCopy.kicker)}</p>
+            <h2 class="settings-shell-page-title">${escapeHtml(productSettingsCopy.title)}</h2>
+            <p class="settings-shell-page-copy">${escapeHtml(productSettingsCopy.copy)}</p>
           </div>
           <div class="settings-shell-page-meta">
             <span class="badge success">${escapeHtml(selectedPurposeOption.label)}</span>
@@ -1950,8 +2238,8 @@
           </div>
         </header>
 
-        <section class="settings-operational-summary" aria-label="Front Desk launch settings summary">
-          ${frontDeskOperationalRows.map((row) => `
+        <section class="settings-operational-summary" aria-label="${escapeHtml(productSettingsCopy.ariaLabel)}">
+          ${productSettingsCopy.rows.map((row) => `
             <article class="settings-operational-card">
               <div class="settings-operational-card-head">
                 <span>${escapeHtml(row.label)}</span>
@@ -1963,11 +2251,11 @@
         </section>
 
         <div class="settings-frontdesk-subnav" role="tablist" aria-label="Front Desk configuration sections">
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("identity")}" type="button" data-frontdesk-settings-tab="identity" aria-selected="${frontDeskTabSelected("identity")}">Identity & welcome</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("voice")}" type="button" data-frontdesk-settings-tab="voice" aria-selected="${frontDeskTabSelected("voice")}">Voice</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("full_page")}" type="button" data-frontdesk-settings-tab="full_page" aria-selected="${frontDeskTabSelected("full_page")}">Full-page assistant</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("routing")}" type="button" data-frontdesk-settings-tab="routing" aria-selected="${frontDeskTabSelected("routing")}">Routing</button>
-          <button class="settings-frontdesk-subnav-button ${frontDeskTabClass("appearance")}" type="button" data-frontdesk-settings-tab="appearance" aria-selected="${frontDeskTabSelected("appearance")}">Optional widget</button>
+          ${frontDeskTabButton("identity", "Identity & welcome")}
+          ${frontDeskTabButton("full_page", "Full-page assistant")}
+          ${frontDeskTabButton("routing", "Routing")}
+          ${frontDeskTabButton("appearance", "Optional widget")}
+          ${frontDeskTabButton("voice", "Voice")}
         </div>
 
         <div class="settings-frontdesk-layout">
@@ -2669,7 +2957,7 @@
 
         <div class="settings-shell-sticky-save">
           <span data-save-state class="save-state">No changes yet.</span>
-          <button class="primary-button" type="submit">Save Front Desk</button>
+          <button class="primary-button" type="submit">${escapeHtml(productSettingsCopy.saveLabel)}</button>
         </div>
       </form>
     `;
@@ -2757,6 +3045,8 @@
             </div>
           </div>
         </section>
+
+        ${buildProductPackagingCards(agent, helpers, operatorWorkspace)}
 
         <section class="settings-shell-section">
           <div class="settings-shell-section-header">
@@ -3278,6 +3568,8 @@
             </article>
           </section>
 
+          ${buildProductPackagingCards(agent, helpers, operatorWorkspace)}
+
           <section class="settings-shell-section settings-account-status-section">
             <div class="settings-shell-section-header">
               <div>
@@ -3529,7 +3821,9 @@
 
     switch (activeSettingsSection) {
       case "front_desk":
-        return buildFrontDeskSettingsForm(agent, setup, helpers);
+      case "website_widget":
+      case "voice_agent":
+        return buildFrontDeskSettingsForm(agent, setup, helpers, { sectionKey: activeSettingsSection });
       case "business_profile":
         return buildBusinessContextSetupPanel(agent, setup, operatorWorkspace, helpers);
       case "account_billing":
@@ -3623,8 +3917,11 @@
       if (showOptions.syncHash !== false) {
         syncSettingsSectionHash(normalizedSection, {
           helpers,
-          frontDeskTab: getActiveFrontDeskSettingsTab(helpers),
+          frontDeskTab: getActiveFrontDeskSettingsTab(helpers, normalizedSection),
         });
+      }
+      if (settingsOverview?.dataset) {
+        settingsOverview.dataset.activeSettingsSection = normalizedSection;
       }
 
       settingsTargets.forEach((target) => {
@@ -3650,8 +3947,8 @@
         mobileNote.textContent = helpers.translateDashboardText(getSectionByKey(normalizedSection).note);
       }
 
-      if (normalizedSection === "front_desk" && typeof showFrontDeskSettingsPanel === "function") {
-        showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(helpers), { syncHash: false });
+      if (isProductSettingsSection(normalizedSection) && typeof showFrontDeskSettingsPanel === "function") {
+        showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(helpers, normalizedSection), { syncHash: false });
       }
 
       return normalizedSection;
@@ -3689,10 +3986,11 @@
 
     const showFrontDeskSettingsPanel = (targetPanel = getActiveFrontDeskSettingsTab(getHelpers(options)), panelOptions = {}) => {
       const helpers = getHelpers(options);
+      const activeSettingsSection = getActiveSettingsSection();
       const normalizedPanel = setActiveFrontDeskSettingsTab(targetPanel, helpers);
 
       if (panelOptions.syncHash !== false) {
-        syncSettingsSectionHash("front_desk", {
+        syncSettingsSectionHash(activeSettingsSection, {
           helpers,
           frontDeskTab: normalizedPanel,
         });
@@ -4320,7 +4618,7 @@
     });
 
     showSettingsSection(getActiveSettingsSection(), { rerender: false, syncHash: false });
-    showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(getHelpers(options)), { syncHash: false });
+    showFrontDeskSettingsPanel(getActiveFrontDeskSettingsTab(getHelpers(options), getActiveSettingsSection()), { syncHash: false });
     showFullPageSettingsPanel(getActiveFullPageSettingsTab(getHelpers(options)));
     syncFullPageBackgroundControls();
     syncFullPagePreview();
@@ -4336,7 +4634,10 @@
     buildSettingsPanel,
     buildFrontDeskSettingsForm: function buildFrontDeskSettingsFormForDashboard(options = {}) {
       const helpers = getHelpers(options);
-      return buildFrontDeskSettingsForm(options.agent || {}, options.setup || {}, helpers);
+      const productSettings = options.sectionKey || options.settingsSection
+        ? { sectionKey: options.sectionKey || options.settingsSection }
+        : {};
+      return buildFrontDeskSettingsForm(options.agent || {}, options.setup || {}, helpers, productSettings);
     },
     bindSettingsShellEvents,
     SETTINGS_SECTIONS: SETTINGS_SECTIONS.slice(),

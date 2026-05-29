@@ -242,3 +242,101 @@ test("Analytics page fragment preserves real values without QR or raw display mo
   assert.doesNotMatch(markup, /lead@example\.com|token-123/i);
   assert.doesNotMatch(markup, /QR scans|QR code|QR scan analytics unavailable/i);
 });
+
+test("Product analytics view selection marks the active product tab", () => {
+  const analytics = loadAnalyticsModule();
+  const markup = analytics.renderAnalyticsPageFragment(
+    {},
+    {
+      assistantSource: {
+        widget: { key: "widget", conversationCount: 2, messageCount: 4, leadsCaptured: 1 },
+        page: { key: "page", conversationCount: 3, messageCount: 6, leadsCaptured: 2 },
+        web_call: { key: "web_call", conversationCount: 1, messageCount: 2 },
+        totalConversations: 6,
+      },
+    },
+    [],
+    [],
+    {
+      ...createRenderOptions(),
+      activeProduct: { key: "website_widget" },
+    }
+  );
+
+  assert.match(markup, /data-product-analytics-view="website_widget"/);
+  assert.match(markup, /data-product-analytics-tab="website_widget"[\s\S]{0,80}aria-current="page"/);
+  assert.match(markup, /href="\/dashboard\/widget#analytics"/);
+  assert.match(markup, /Widget conversations/);
+  assert.match(markup, /2 conversations/);
+  assert.match(markup, /Widget leads/);
+  assert.match(markup, /1 lead/);
+});
+
+test("Product analytics cards render Front Desk, Widget, and Voice contexts from existing data", () => {
+  const analytics = loadAnalyticsModule();
+  const sourceRows = analytics.buildAssistantSourceRows({
+    widget: { key: "widget", conversationCount: 2, messageCount: 4, leadsCaptured: 1 },
+    page: { key: "page", conversationCount: 3, messageCount: 6, leadsCaptured: 2 },
+    web_call: { key: "web_call", conversationCount: 4, messageCount: 8, leadsCaptured: 1 },
+  });
+  const ownerAnalyticsDashboard = {
+    assistantSource: {
+      widget: { key: "widget" },
+      page: { key: "page" },
+      web_call: { key: "web_call" },
+    },
+    webCallHealth: {
+      available: true,
+      starts: 5,
+      averageDurationSeconds: 62,
+    },
+  };
+
+  const frontDesk = analytics.renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, {
+    ...createRenderOptions(),
+    activeProduct: "front_desk",
+  });
+  const widget = analytics.renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, {
+    ...createRenderOptions(),
+    activeProduct: "website_widget",
+  });
+  const voice = analytics.renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, {
+    ...createRenderOptions(),
+    activeProduct: "voice_agent",
+  });
+
+  assert.match(frontDesk, /Front Desk conversations/);
+  assert.match(frontDesk, /3 conversations/);
+  assert.match(frontDesk, /Front Desk leads/);
+  assert.match(frontDesk, /2 leads/);
+  assert.match(frontDesk, /Front Desk visit analytics are not available/);
+  assert.match(frontDesk, /#settings\/front-desk\/full-page-assistant/);
+
+  assert.match(widget, /Widget conversations/);
+  assert.match(widget, /2 conversations/);
+  assert.match(widget, /Widget open and install-event analytics are not available/);
+  assert.match(widget, /#install\/embed/);
+
+  assert.match(voice, /Web Call sessions/);
+  assert.match(voice, /4 conversations/);
+  assert.match(voice, /Web Call starts/);
+  assert.match(voice, />5</);
+  assert.match(voice, /Average call duration/);
+  assert.match(voice, /1m 02s/);
+  assert.match(voice, /Phone call session analytics are not available/);
+  assert.match(voice, /#settings\/voice\/voice/);
+});
+
+test("Product analytics unavailable metrics do not render undefined values as numbers", () => {
+  const analytics = loadAnalyticsModule();
+  const markup = analytics.renderProductAnalyticsSection([], null, {
+    ...createRenderOptions(),
+    activeProduct: "voice",
+  });
+
+  assert.match(markup, /data-product-analytics-view="voice_agent"/);
+  assert.match(markup, /Not available yet/);
+  assert.match(markup, /data-product-analytics-state="unavailable"/);
+  assert.doesNotMatch(markup, /undefined|NaN/);
+  assert.doesNotMatch(markup, /product-analytics-card-value">0</);
+});

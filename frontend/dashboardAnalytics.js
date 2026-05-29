@@ -66,6 +66,67 @@
     "analytics.whatToWatch": "What to watch",
     "analytics.webCallHealth": "Web Call health",
     "analytics.recentWebCalls": "Recent Web Calls",
+    "analytics.productScope": "Product analytics",
+    "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
+    "analytics.frontDeskAnalytics": "Front Desk analytics",
+    "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
+    "analytics.widgetAnalytics": "Website Widget analytics",
+    "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
+    "analytics.voiceAnalytics": "Voice Agent analytics",
+    "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
+    "analytics.frontDeskConversations": "Front Desk conversations",
+    "analytics.frontDeskLeads": "Front Desk leads",
+    "analytics.frontDeskVisitsUnavailable": "Front Desk visit analytics are not available in the current dashboard analytics response.",
+    "analytics.widgetConversations": "Widget conversations",
+    "analytics.widgetLeads": "Widget leads",
+    "analytics.widgetOpensUnavailable": "Widget open and install-event analytics are not available in the current dashboard analytics response.",
+    "analytics.webCallSessions": "Web Call sessions",
+    "analytics.webCallStarts": "Web Call starts",
+    "analytics.averageCallDuration": "Average call duration",
+    "analytics.phoneCallSessions": "Phone call sessions",
+    "analytics.phoneCallsUnavailable": "Phone call session analytics are not available in the current dashboard analytics response.",
+    "analytics.notAvailableYet": "Not available yet",
+    "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
+    "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
+    "analytics.setupFrontDesk": "Open Front Desk setup",
+    "analytics.setupWidget": "Open widget setup",
+    "analytics.setupVoice": "Open voice setup",
+  });
+
+  const PRODUCT_ANALYTICS_CONFIG = Object.freeze({
+    front_desk: Object.freeze({
+      key: "front_desk",
+      label: "Front Desk",
+      routePath: "/dashboard/front-desk",
+      titleKey: "analytics.frontDeskAnalytics",
+      copyKey: "analytics.frontDeskAnalyticsCopy",
+      setupLabelKey: "analytics.setupFrontDesk",
+      setupHref: "#settings/front-desk/full-page-assistant",
+      shellTarget: "settings",
+      settingsTarget: "front_desk",
+    }),
+    website_widget: Object.freeze({
+      key: "website_widget",
+      label: "Website Widget",
+      routePath: "/dashboard/widget",
+      titleKey: "analytics.widgetAnalytics",
+      copyKey: "analytics.widgetAnalyticsCopy",
+      setupLabelKey: "analytics.setupWidget",
+      setupHref: "#install/embed",
+      shellTarget: "install",
+      installMethod: "widget",
+    }),
+    voice_agent: Object.freeze({
+      key: "voice_agent",
+      label: "Voice Agent",
+      routePath: "/dashboard/voice",
+      titleKey: "analytics.voiceAnalytics",
+      copyKey: "analytics.voiceAnalyticsCopy",
+      setupLabelKey: "analytics.setupVoice",
+      setupHref: "#settings/voice/voice",
+      shellTarget: "settings",
+      settingsTarget: "voice_agent",
+    }),
   });
 
   function trimText(value) {
@@ -101,6 +162,22 @@
     }
 
     return "unknown";
+  }
+
+  function normalizeProductAnalyticsKey(value = "") {
+    const normalized = trimText(value).toLowerCase().replace(/-/g, "_");
+    const aliases = {
+      frontdesk: "front_desk",
+      front_desk: "front_desk",
+      widget: "website_widget",
+      website: "website_widget",
+      website_widget: "website_widget",
+      voice: "voice_agent",
+      voice_agent: "voice_agent",
+    };
+    const candidate = aliases[normalized] || normalized;
+
+    return PRODUCT_ANALYTICS_CONFIG[candidate] ? candidate : "front_desk";
   }
 
   function getAnalyticsSourceLabel(value) {
@@ -275,6 +352,184 @@
     }
 
     return baseRows;
+  }
+
+  function findSourceRow(sourceRows = [], key = "") {
+    const normalized = normalizeAnalyticsSource(key);
+    return (Array.isArray(sourceRows) ? sourceRows : []).find((row) => row.key === normalized) || {};
+  }
+
+  function hasAssistantSourceBreakdown(ownerAnalyticsDashboard = null) {
+    const source = ownerAnalyticsDashboard?.assistantSource;
+    return Boolean(source && typeof source === "object");
+  }
+
+  function hasSafeWebCallTelemetry(ownerAnalyticsDashboard = null) {
+    const health = ownerAnalyticsDashboard?.webCallHealth;
+    return Boolean(health && typeof health === "object" && health.available !== false);
+  }
+
+  function buildAvailableProductMetric({ key, label, value, note, icon = "review", tone = "blue" } = {}) {
+    return {
+      key,
+      label,
+      value,
+      note,
+      icon,
+      tone,
+      state: "available",
+    };
+  }
+
+  function buildUnavailableProductMetric({ key, label, note, icon = "review" } = {}) {
+    return {
+      key,
+      label,
+      value: "",
+      note,
+      icon,
+      tone: "gray",
+      state: "unavailable",
+    };
+  }
+
+  function buildProductSetupAction(config = {}, context = createRenderContext()) {
+    return {
+      key: `${config.key || "product"}_setup`,
+      label: context.t(config.setupLabelKey || "analytics.productScope"),
+      value: "",
+      note: config.copyKey ? context.t(config.copyKey) : context.t("analytics.productScopeCopy"),
+      icon: "settings",
+      tone: "teal",
+      state: "action",
+      href: config.setupHref,
+      shellTarget: config.shellTarget,
+      settingsTarget: config.settingsTarget,
+      installMethod: config.installMethod,
+    };
+  }
+
+  function buildProductAnalyticsCards(productKey = "front_desk", sourceRows = [], ownerAnalyticsDashboard = null, options = {}) {
+    const context = createRenderContext(options);
+    const key = normalizeProductAnalyticsKey(productKey);
+    const config = PRODUCT_ANALYTICS_CONFIG[key];
+    const sourceAvailable = hasAssistantSourceBreakdown(ownerAnalyticsDashboard);
+    const webCallTelemetryAvailable = hasSafeWebCallTelemetry(ownerAnalyticsDashboard);
+    const pageRow = findSourceRow(sourceRows, "page");
+    const widgetRow = findSourceRow(sourceRows, "widget");
+    const webCallRow = findSourceRow(sourceRows, "web_call");
+    const webCallHealth = ownerAnalyticsDashboard?.webCallHealth || {};
+    const sourceNote = context.t("analytics.derivedFromConversationSource");
+    const cards = [];
+
+    if (key === "website_widget") {
+      cards.push(sourceAvailable
+        ? buildAvailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), value: formatConversationCount(widgetRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "teal" })
+        : buildUnavailableProductMetric({ key: "widget_conversations", label: context.t("analytics.widgetConversations"), note: context.t("analytics.notAvailableYet"), icon: "window" }));
+      cards.push(sourceAvailable
+        ? buildAvailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), value: formatLeadCount(widgetRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
+        : buildUnavailableProductMetric({ key: "widget_leads", label: context.t("analytics.widgetLeads"), note: context.t("analytics.notAvailableYet"), icon: "users" }));
+      cards.push(buildUnavailableProductMetric({ key: "widget_opens", label: context.t("analytics.visits"), note: context.t("analytics.widgetOpensUnavailable"), icon: "install" }));
+      cards.push(buildProductSetupAction(config, context));
+      return cards;
+    }
+
+    if (key === "voice_agent") {
+      cards.push(sourceAvailable
+        ? buildAvailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), value: formatConversationCount(webCallRow.conversationCount || 0), note: sourceNote, icon: "phone", tone: "blue" })
+        : buildUnavailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), note: context.t("analytics.notAvailableYet"), icon: "phone" }));
+      cards.push(webCallTelemetryAvailable
+        ? buildAvailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), value: formatMetricValue(webCallHealth.starts || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "phone", tone: "teal" })
+        : buildUnavailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), note: context.t("analytics.notAvailableYet"), icon: "phone" }));
+      cards.push(webCallTelemetryAvailable
+        ? buildAvailableProductMetric({ key: "web_call_average_duration", label: context.t("analytics.averageCallDuration"), value: formatMetricDuration(webCallHealth.averageDurationSeconds || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "clock", tone: "blue" })
+        : buildUnavailableProductMetric({ key: "web_call_average_duration", label: context.t("analytics.averageCallDuration"), note: context.t("analytics.notAvailableYet"), icon: "clock" }));
+      cards.push(buildUnavailableProductMetric({ key: "phone_call_sessions", label: context.t("analytics.phoneCallSessions"), note: context.t("analytics.phoneCallsUnavailable"), icon: "phone" }));
+      cards.push(buildProductSetupAction(config, context));
+      return cards;
+    }
+
+    cards.push(sourceAvailable
+      ? buildAvailableProductMetric({ key: "front_desk_conversations", label: context.t("analytics.frontDeskConversations"), value: formatConversationCount(pageRow.conversationCount || 0), note: sourceNote, icon: "window", tone: "blue" })
+      : buildUnavailableProductMetric({ key: "front_desk_conversations", label: context.t("analytics.frontDeskConversations"), note: context.t("analytics.notAvailableYet"), icon: "window" }));
+    cards.push(sourceAvailable
+      ? buildAvailableProductMetric({ key: "front_desk_leads", label: context.t("analytics.frontDeskLeads"), value: formatLeadCount(pageRow.leadsCaptured || 0), note: sourceNote, icon: "users", tone: "green" })
+      : buildUnavailableProductMetric({ key: "front_desk_leads", label: context.t("analytics.frontDeskLeads"), note: context.t("analytics.notAvailableYet"), icon: "users" }));
+    cards.push(buildUnavailableProductMetric({ key: "front_desk_visits", label: context.t("analytics.visits"), note: context.t("analytics.frontDeskVisitsUnavailable"), icon: "review" }));
+    cards.push(buildProductSetupAction(config, context));
+
+    return cards;
+  }
+
+  function renderProductAnalyticsTab(config = {}, activeKey = "front_desk") {
+    const isActive = config.key === activeKey;
+
+    return `
+      <a
+        class="product-analytics-tab ${isActive ? "active" : ""}"
+        href="${escapeHtml(config.routePath || "/dashboard/front-desk")}#analytics"
+        data-product-analytics-tab="${escapeHtml(config.key)}"
+        ${isActive ? 'aria-current="page"' : ""}
+      >${escapeHtml(config.label)}</a>
+    `;
+  }
+
+  function renderProductAnalyticsCard(card = {}, options = {}) {
+    const context = createRenderContext(options);
+    const attributes = [
+      `class="product-analytics-card ${card.state === "available" ? "has-metric" : card.state === "action" ? "is-action" : "is-unavailable"}"`,
+      `data-product-analytics-card="${escapeHtml(card.key || "")}"`,
+      `data-product-analytics-state="${escapeHtml(card.state || "unavailable")}"`,
+    ];
+    const actionAttributes = card.state === "action" && card.href
+      ? [
+        `class="product-analytics-action"`,
+        `href="${escapeHtml(card.href)}"`,
+        card.shellTarget ? `data-shell-target="${escapeHtml(card.shellTarget)}"` : "",
+        card.settingsTarget ? `data-settings-target="${escapeHtml(card.settingsTarget)}"` : "",
+        card.installMethod ? `data-install-method-jump="${escapeHtml(card.installMethod)}"` : "",
+      ].filter(Boolean)
+      : [];
+
+    return `
+      <article ${attributes.join(" ")}>
+        <div class="product-analytics-card-top">
+          ${context.renderIconBadge(card.icon || "review", card.tone || "blue")}
+          <span>${escapeHtml(card.label || "")}</span>
+        </div>
+        ${card.state === "available"
+          ? `<strong class="product-analytics-card-value">${escapeHtml(card.value)}</strong>`
+          : card.state === "action"
+            ? `<a ${actionAttributes.join(" ")}>${escapeHtml(card.label || context.t("analytics.productScope"))}</a>`
+            : `<strong class="product-analytics-card-status">${escapeHtml(context.t("analytics.notAvailableYet"))}</strong>`}
+        <p>${escapeHtml(card.note || "")}</p>
+      </article>
+    `;
+  }
+
+  function renderProductAnalyticsSection(sourceRows = [], ownerAnalyticsDashboard = null, options = {}) {
+    const context = createRenderContext(options);
+    const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
+    const config = PRODUCT_ANALYTICS_CONFIG[activeKey];
+    const cards = buildProductAnalyticsCards(activeKey, sourceRows, ownerAnalyticsDashboard, context);
+
+    return `
+      <section class="v2-card product-analytics-section" data-product-analytics-view="${escapeHtml(activeKey)}" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
+        <div class="product-analytics-header">
+          <div>
+            <p class="v2-row-meta">${escapeHtml(context.t("analytics.productScope"))}</p>
+            <h2 class="v2-section-title">${escapeHtml(context.t(config.titleKey))}</h2>
+            <p class="v2-section-subtitle">${escapeHtml(context.t(config.copyKey))}</p>
+          </div>
+          <nav class="product-analytics-tabs" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
+            ${Object.values(PRODUCT_ANALYTICS_CONFIG).map((item) => renderProductAnalyticsTab(item, activeKey)).join("")}
+          </nav>
+        </div>
+        <div class="product-analytics-grid">
+          ${cards.map((card) => renderProductAnalyticsCard(card, context)).join("")}
+        </div>
+      </section>
+    `;
   }
 
   function createRenderContext(options = {}) {
@@ -956,6 +1211,7 @@
     return `
     <div class="dashboard-v2-analytics">
       ${renderAnalyticsCommandBrief(report, sourceRows, topQuestionItems, context)}
+      ${renderProductAnalyticsSection(sourceRows, ownerAnalyticsDashboard, options)}
       <section class="v2-grid v2-grid-6">
         ${metrics.map((metric) => renderMetricCard(metric, context)).join("")}
       </section>
@@ -1011,6 +1267,9 @@
     renderAnalyticsEmptyState,
     renderWebCallHealthCard,
     renderRecentWebCallsCard,
+    normalizeProductAnalyticsKey,
+    buildProductAnalyticsCards,
+    renderProductAnalyticsSection,
     renderAnalyticsPageFragment,
   });
 })(window);

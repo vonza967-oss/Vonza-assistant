@@ -10,6 +10,17 @@ const dashboardFrontDesk = window.VonzaDashboardFrontDesk || {};
 const dashboardCustomers = window.VonzaDashboardCustomers || {};
 const dashboardAnalytics = window.VonzaDashboardAnalytics || {};
 const dashboardToday = window.VonzaDashboardToday || {};
+const activeDashboardProduct = dashboardState.ACTIVE_DASHBOARD_PRODUCT_CONTEXT || dashboardState.getDashboardProductContext?.(window.location.pathname) || {
+  key: "front_desk",
+  label: "Front Desk",
+};
+const dashboardProductNavItems = typeof dashboardState.getDashboardProductNavItems === "function"
+  ? dashboardState.getDashboardProductNavItems(activeDashboardProduct.key)
+  : [
+    { key: "front_desk", label: "Front Desk", dashboardLabel: "AI Front Desk workspace", routePath: "/dashboard/front-desk", active: activeDashboardProduct.key === "front_desk" },
+    { key: "website_widget", label: "Website Widget", dashboardLabel: "Website Widget workspace", routePath: "/dashboard/widget", active: activeDashboardProduct.key === "website_widget" },
+    { key: "voice_agent", label: "Voice Agent", dashboardLabel: "Voice Agent workspace", routePath: "/dashboard/voice", active: activeDashboardProduct.key === "voice_agent" },
+  ];
 const DASHBOARD_V2_ENABLED = window.VONZA_DASHBOARD_V2_ENABLED !== false;
 const DASHBOARD_LOCAL_FIXTURE_ENABLED = window.VONZA_LOCAL_DASHBOARD_FIXTURE === true;
 
@@ -438,6 +449,31 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.whatToWatch": "What to watch",
   "analytics.webCallHealth": "Web Call health",
   "analytics.recentWebCalls": "Recent Web Calls",
+  "analytics.productScope": "Product analytics",
+  "analytics.productScopeCopy": "Product-specific view using the existing shared analytics data.",
+  "analytics.frontDeskAnalytics": "Front Desk analytics",
+  "analytics.frontDeskAnalyticsCopy": "Full-page and hosted Front Desk outcomes from existing conversation source data.",
+  "analytics.widgetAnalytics": "Website Widget analytics",
+  "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
+  "analytics.voiceAnalytics": "Voice Agent analytics",
+  "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
+  "analytics.frontDeskConversations": "Front Desk conversations",
+  "analytics.frontDeskLeads": "Front Desk leads",
+  "analytics.frontDeskVisitsUnavailable": "Front Desk visit analytics are not available in the current dashboard analytics response.",
+  "analytics.widgetConversations": "Widget conversations",
+  "analytics.widgetLeads": "Widget leads",
+  "analytics.widgetOpensUnavailable": "Widget open and install-event analytics are not available in the current dashboard analytics response.",
+  "analytics.webCallSessions": "Web Call sessions",
+  "analytics.webCallStarts": "Web Call starts",
+  "analytics.averageCallDuration": "Average call duration",
+  "analytics.phoneCallSessions": "Phone call sessions",
+  "analytics.phoneCallsUnavailable": "Phone call session analytics are not available in the current dashboard analytics response.",
+  "analytics.notAvailableYet": "Not available yet",
+  "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
+  "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
+  "analytics.setupFrontDesk": "Open Front Desk setup",
+  "analytics.setupWidget": "Open widget setup",
+  "analytics.setupVoice": "Open voice setup",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -3932,6 +3968,11 @@ function getActiveShellSection(setup, operatorWorkspace = createEmptyOperatorWor
     return hashSection;
   }
 
+  if (activeDashboardProduct.currentPath && activeDashboardProduct.currentPath === activeDashboardProduct.canonicalPath) {
+    window.localStorage.setItem(DASHBOARD_SECTION_KEY, "overview");
+    return "overview";
+  }
+
   if (availableSections.includes(storedSection)) {
     return storedSection;
   }
@@ -6263,6 +6304,30 @@ function buildSidebarGroup(title, items, activeSection, options = {}) {
   `;
 }
 
+function buildDashboardProductSwitcher(activeProduct = activeDashboardProduct) {
+  const activeKey = activeProduct?.key || "front_desk";
+
+  return `
+    <nav class="dashboard-product-switcher" aria-label="Dashboard products" data-dashboard-product-nav>
+      ${dashboardProductNavItems.map((item) => {
+        const isActive = item.active || item.key === activeKey;
+        return `
+          <a
+            class="dashboard-product-link ${isActive ? "active" : ""}"
+            href="${escapeHtml(item.routePath)}"
+            data-dashboard-product-link
+            data-dashboard-product-key="${escapeHtml(item.key)}"
+            data-dashboard-product-active="${isActive ? "true" : "false"}"
+            aria-current="${isActive ? "page" : "false"}"
+          >
+            <span>${escapeHtml(translateDashboardText(item.label))}</span>
+          </a>
+        `;
+      }).join("")}
+    </nav>
+  `;
+}
+
 function buildSidebarShell(
   agent,
   setup,
@@ -6333,11 +6398,12 @@ function buildSidebarShell(
       <div class="sidebar-identity">
         <div class="sidebar-identity-mark">V</div>
         <div class="sidebar-identity-copy">
-          <p class="sidebar-eyebrow">${escapeHtml(translateDashboardText("AI Front Desk workspace"))}</p>
+          <p class="sidebar-eyebrow">${escapeHtml(translateDashboardText(activeDashboardProduct.dashboardLabel || "AI Front Desk workspace"))}</p>
           <h2 class="sidebar-title">Vonza</h2>
           <p class="sidebar-copy">${escapeHtml(agent.assistantName || agent.name || agent.websiteUrl || translateDashboardText("Add your website to personalize the Front Desk"))}</p>
         </div>
       </div>
+      ${buildDashboardProductSwitcher(activeDashboardProduct)}
       ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
         note: "Front Desk is the primary customer surface.",
       })}
@@ -7454,6 +7520,202 @@ function buildTodayQueueList(...args) {
   return callTodayHelper("buildTodayQueueList", args);
 }
 /* eslint-enable no-unused-vars */
+function buildProductLandingLink(link = {}) {
+  const attributes = [
+    `class="product-context-link ${link.primary ? "primary" : ""}"`,
+    `href="${escapeHtml(link.href || "#")}"`,
+  ];
+
+  if (link.shellTarget) {
+    attributes.push(`data-shell-target="${escapeHtml(link.shellTarget)}"`);
+  }
+  if (link.settingsTarget) {
+    attributes.push(`data-settings-target="${escapeHtml(link.settingsTarget)}"`);
+  }
+  if (link.installMethod) {
+    attributes.push(`data-install-method-jump="${escapeHtml(link.installMethod)}"`);
+  }
+  if (link.frontDeskOpen) {
+    attributes.push(`data-frontdesk-open="${escapeHtml(link.frontDeskOpen)}"`);
+  }
+
+  return `
+    <a ${attributes.join(" ")}>
+      <span class="product-context-link-icon" aria-hidden="true">${buildV2Icon(link.icon || "review")}</span>
+      <span>
+        <strong>${escapeHtml(link.label || "Open")}</strong>
+        ${link.note ? `<small>${escapeHtml(link.note)}</small>` : ""}
+      </span>
+    </a>
+  `;
+}
+
+function getProductReadinessStateLabel(item = {}) {
+  if (item.complete === true) {
+    return "Ready";
+  }
+  if (item.complete === false) {
+    return "Setup";
+  }
+  if (item.kind === "info") {
+    return "Info";
+  }
+  return "Action";
+}
+
+function buildProductReadinessAction(item = {}) {
+  if (!item.href || item.complete === true) {
+    return "";
+  }
+
+  const attributes = [
+    `class="product-readiness-action"`,
+    `href="${escapeHtml(item.href || "#")}"`,
+  ];
+
+  if (item.shellTarget) {
+    attributes.push(`data-shell-target="${escapeHtml(item.shellTarget)}"`);
+  }
+  if (item.settingsTarget) {
+    attributes.push(`data-settings-target="${escapeHtml(item.settingsTarget)}"`);
+  }
+  if (item.installMethod) {
+    attributes.push(`data-install-method-jump="${escapeHtml(item.installMethod)}"`);
+  }
+  if (item.frontDeskOpen) {
+    attributes.push(`data-frontdesk-open="${escapeHtml(item.frontDeskOpen)}"`);
+  }
+
+  return `<a ${attributes.join(" ")}>${escapeHtml(item.complete === false ? "Set up" : "Open")}</a>`;
+}
+
+function buildProductReadinessCard(product = activeDashboardProduct, snapshot = {}) {
+  const getChecklist = dashboardState.getProductReadinessChecklist;
+  const checklist = typeof getChecklist === "function"
+    ? getChecklist(product?.key || "front_desk", snapshot)
+    : [];
+
+  if (!checklist.length) {
+    return "";
+  }
+
+  const readyCount = checklist.filter((item) => item.complete === true).length;
+  const derivedCount = checklist.filter((item) => item.kind === "derived").length;
+  const productLabel = product?.label || "Front Desk";
+
+  return `
+    <section class="product-readiness-card" data-product-readiness-card="${escapeHtml(product?.key || "front_desk")}">
+      <div class="product-readiness-header">
+        <div>
+          <p class="product-context-eyebrow">${escapeHtml(productLabel)} readiness</p>
+          <h3>${escapeHtml(`${readyCount} of ${checklist.length} items ready`)}</h3>
+          <p>${escapeHtml(`${derivedCount} items use existing saved workspace state; action items are setup links only.`)}</p>
+        </div>
+      </div>
+      <div class="product-readiness-list">
+        ${checklist.map((item) => {
+          const stateLabel = getProductReadinessStateLabel(item);
+          const stateClass = item.complete === true
+            ? "is-ready"
+            : item.complete === false
+              ? "needs-setup"
+              : "is-action";
+
+          return `
+            <article
+              class="product-readiness-item ${stateClass}"
+              data-product-readiness-item
+              data-readiness-key="${escapeHtml(item.key)}"
+              data-readiness-kind="${escapeHtml(item.kind)}"
+              data-readiness-state="${escapeHtml(item.complete === true ? "ready" : item.complete === false ? "setup" : "action")}"
+            >
+              <span class="product-readiness-icon" aria-hidden="true">${buildV2Icon(item.complete === true ? "check" : item.icon || "review")}</span>
+              <span class="product-readiness-copy">
+                <strong>${escapeHtml(item.label)}</strong>
+                <small>${escapeHtml(item.copy)}</small>
+              </span>
+              <span class="product-readiness-meta">
+                <span class="${getBadgeClass(item.complete === true ? "Ready" : item.complete === false ? "Limited" : "Pending")}">${escapeHtml(stateLabel)}</span>
+                ${buildProductReadinessAction(item)}
+              </span>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function getProductLandingContext(product = activeDashboardProduct) {
+  switch (product?.key) {
+    case "website_widget":
+      return {
+        eyebrow: "Website Widget",
+        title: "Install and tune the optional site widget",
+        copy: "Use the existing install and Front Desk settings areas for the website widget. Contacts, conversations, analytics, and account settings stay shared.",
+        links: [
+          { label: "Embed setup", note: "Open the existing install embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true },
+          { label: "Widget settings", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" },
+          { label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
+        ],
+      };
+    case "voice_agent":
+      return {
+        eyebrow: "Voice Agent",
+        title: "Configure browser voice without a new backend split",
+        copy: "Voice currently lives inside the shared Front Desk workspace. Use the existing voice settings, practice tools, and analytics health signals.",
+        links: [
+          { label: "Voice settings", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "phone", primary: true },
+          { label: "Practice voice prompts", note: "Test from the current Front Desk practice area", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" },
+          { label: "Web Call health", note: "Review shared analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
+        ],
+      };
+    case "front_desk":
+    default:
+      return {
+        eyebrow: "Front Desk",
+        title: "Launch the full-page AI Front Desk",
+        copy: "Front Desk remains the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
+        links: [
+          { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
+          { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
+          { label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
+        ],
+      };
+  }
+}
+
+function buildProductLandingContext(product = activeDashboardProduct, snapshot = {}) {
+  const context = getProductLandingContext(product);
+  const sharedLinks = [
+    { label: "Contacts and leads", href: "#customers", shellTarget: "contacts", icon: "users" },
+    { label: "Analytics", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
+    { label: "Business profile", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "settings" },
+    { label: "Knowledge/training", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" },
+    { label: "Account/billing", href: "#settings/account-billing", shellTarget: "settings", settingsTarget: "account_billing", icon: "ticket" },
+  ];
+
+  return localizeDashboardHtml(`
+    <section class="product-context-panel" data-product-context-panel="${escapeHtml(product?.key || "front_desk")}">
+      <div class="product-context-copy">
+        <p class="product-context-eyebrow">${escapeHtml(context.eyebrow)}</p>
+        <h2>${escapeHtml(context.title)}</h2>
+        <p>${escapeHtml(context.copy)}</p>
+      </div>
+      <div class="product-context-link-grid">
+        ${context.links.map((link) => buildProductLandingLink(link)).join("")}
+      </div>
+      ${buildProductReadinessCard(product, snapshot)}
+      <div class="product-context-shared">
+        <span>Shared workspace</span>
+        <div>
+          ${sharedLinks.map((link) => buildProductLandingLink(link)).join("")}
+        </div>
+      </div>
+    </section>
+  `);
+}
+
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
@@ -8047,6 +8309,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       </header>
 
       <div class="workspace-page-body">
+        ${buildProductLandingContext(activeDashboardProduct, {
+          agent,
+          setup,
+          installStatus: overview.installStatus,
+          analyticsSummary: overview.analyticsSummary,
+        })}
         <div class="home-surface dashboard-v2-home glass-home-layout">
           <section class="glass-hero glass-hero--front-desk">
             <div class="glass-hero-copy">
@@ -10632,6 +10900,7 @@ function buildDashboardV2AnalyticsMarkup(report = {}, ownerAnalyticsDashboard = 
       renderIcon: buildV2Icon,
       renderIconBadge: buildV2IconBadge,
       renderButton: buildV2Button,
+      activeProduct: activeDashboardProduct,
     });
   }
 
@@ -12966,7 +13235,7 @@ function renderAssistantShell(
   const shellClassName = DASHBOARD_V2_ENABLED ? "app-shell dashboard-v2-shell" : "app-shell";
 
   rootEl.innerHTML = `
-    <div class="${shellClassName}" data-app-shell data-dashboard-v2="${DASHBOARD_V2_ENABLED ? "enabled" : "disabled"}">
+    <div class="${shellClassName}" data-app-shell data-dashboard-v2="${DASHBOARD_V2_ENABLED ? "enabled" : "disabled"}" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}">
       <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">
@@ -13009,7 +13278,7 @@ function renderDashboardV2Shell(
     : "";
 
   rootEl.innerHTML = `
-    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell" data-app-shell data-dashboard-v2="enabled">
+    <div class="app-shell dashboard-v2-shell dashboard-v2-production-shell" data-app-shell data-dashboard-v2="enabled" data-dashboard-product="${escapeHtml(activeDashboardProduct.key)}">
       <button class="shell-backdrop" type="button" data-shell-backdrop aria-label="Close navigation"></button>
       ${buildSidebarShell(agent, setup, actionQueue, operatorWorkspace, activeSection)}
       <div class="workspace-shell">

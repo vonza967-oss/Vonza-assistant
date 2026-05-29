@@ -1997,7 +1997,9 @@ test("today copilot renders inside Today when the flag is on", () => {
     knowledgeDescription: "Add a real website to import knowledge.",
   };
   const general = buildSettingsSection(harness, "general", agent, setup, workspace);
-  const frontDeskSettingsFallback = buildSettingsSection(harness, "front_desk", agent, setup, workspace);
+  const frontDeskSettings = buildSettingsSection(harness, "front_desk", agent, setup, workspace);
+  const websiteWidgetSettings = buildSettingsSection(harness, "website_widget", agent, setup, workspace);
+  const voiceAgentSettings = buildSettingsSection(harness, "voice_agent", agent, setup, workspace);
   const frontDeskCustomization = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
     agent,
     setup,
@@ -2016,8 +2018,22 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.doesNotMatch(general, /<h2 class="settings-shell-page-title">Business profile<\/h2>/);
   assert.doesNotMatch(general, /Front Desk purpose|business-summary|assistant-welcome|Website knowledge/);
 
-  assert.match(frontDeskSettingsFallback, /Workspace preferences/);
-  assert.doesNotMatch(frontDeskSettingsFallback, /<h2 class="settings-shell-page-title">Front Desk<\/h2>|Front Desk purpose/);
+  assert.match(frontDeskSettings, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
+  assert.match(frontDeskSettings, /data-settings-section="front_desk"/);
+  assert.match(frontDeskSettings, /data-frontdesk-settings-tab="full_page"/);
+  assert.doesNotMatch(frontDeskSettings, /data-frontdesk-settings-tab="appearance"[\s\S]*aria-selected="true"/);
+
+  assert.match(websiteWidgetSettings, /<h2 class="settings-shell-page-title">Website Widget<\/h2>/);
+  assert.match(websiteWidgetSettings, /data-settings-section="website_widget"/);
+  assert.match(websiteWidgetSettings, /data-frontdesk-settings-tab="appearance"[\s\S]*aria-selected="true"/);
+  assert.match(websiteWidgetSettings, /Allowed domains/);
+  assert.match(websiteWidgetSettings, /Save Website Widget/);
+
+  assert.match(voiceAgentSettings, /<h2 class="settings-shell-page-title">Voice Agent<\/h2>/);
+  assert.match(voiceAgentSettings, /data-settings-section="voice_agent"/);
+  assert.match(voiceAgentSettings, /data-frontdesk-settings-tab="voice"[\s\S]*aria-selected="true"/);
+  assert.match(voiceAgentSettings, /Browser voice setup/);
+  assert.match(voiceAgentSettings, /Save Voice Agent/);
 
   assert.match(frontDeskCustomization, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
   assert.match(frontDeskCustomization, /Front Desk purpose/);

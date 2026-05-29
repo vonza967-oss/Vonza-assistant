@@ -1274,7 +1274,7 @@ export function createPublicRouter({ rootDir }) {
     res.redirect("/dashboard");
   });
 
-  router.get("/dashboard", (_req, res) => {
+  router.get(["/dashboard", "/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderDashboardDocument(rootDir));
   });

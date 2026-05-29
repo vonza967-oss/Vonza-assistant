@@ -22,6 +22,104 @@
   gap: 14px;
 }
 
+.product-analytics-section {
+  display: grid;
+  gap: 16px;
+}
+
+.product-analytics-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.product-analytics-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.product-analytics-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.66);
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.product-analytics-tab.active {
+  border-color: rgba(37, 99, 235, 0.34);
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.product-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.product-analytics-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.product-analytics-card-top {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.product-analytics-card-value,
+.product-analytics-card-status,
+.product-analytics-action {
+  color: #0f172a;
+  font-size: 1.25rem;
+  line-height: 1.15;
+  text-decoration: none;
+}
+
+.product-analytics-card-status {
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.product-analytics-action {
+  color: #0f766e;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.product-analytics-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.product-analytics-card.is-unavailable {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.84);
+}
+
 .analytics-grid {
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
@@ -845,8 +943,17 @@
 .analytics-report-grid,
 .analytics-report-contact-grid,
 .analytics-report-swot-grid,
-.analytics-source-grid {
+.analytics-source-grid,
+.product-analytics-grid {
     grid-template-columns: 1fr;
+  }
+
+  .product-analytics-header {
+    grid-template-columns: 1fr;
+  }
+
+  .product-analytics-tabs {
+    justify-content: flex-start;
   }
 
   .analytics-launch-grid,

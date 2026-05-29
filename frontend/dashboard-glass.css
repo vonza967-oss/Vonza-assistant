@@ -4218,12 +4218,12 @@ html[data-dashboard-theme] .dashboard-v2-production-shell :is(
   .full-page-install-choice.active
 ) {
   color: var(--vz-accent) !important;
-  border-color: rgba(109, 76, 255, 0.38) !important;
+  border-color: rgba(15, 118, 110, 0.34) !important;
   background: var(--vz-glass-bg) !important;
   box-shadow:
     inset 0 1px 0 var(--vz-glass-highlight),
-    0 0 0 1px rgba(109, 76, 255, 0.1),
-    0 16px 36px rgba(109, 76, 255, 0.16) !important;
+    0 0 0 1px rgba(15, 118, 110, 0.08),
+    0 14px 30px rgba(15, 23, 42, 0.1) !important;
 }
 
 html[data-dashboard-theme] .dashboard-v2-production-shell .shell-nav-button.active {
@@ -4234,10 +4234,10 @@ html[data-dashboard-theme] .dashboard-v2-production-shell .shell-nav-button.acti
 
 html[data-dashboard-theme] .dashboard-v2-production-shell .primary-button,
 html[data-dashboard-theme] .dashboard-v2-production-shell a.primary-button {
-  border-color: rgba(109, 76, 255, 0.48) !important;
-  background: linear-gradient(135deg, var(--vz-accent), var(--vz-accent-2)) !important;
+  border-color: rgba(15, 118, 110, 0.42) !important;
+  background: var(--vz-accent) !important;
   color: #ffffff !important;
-  box-shadow: 0 16px 36px rgba(109, 76, 255, 0.22) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12) !important;
 }
 
 html[data-dashboard-theme] .dashboard-v2-production-shell :is(
@@ -4772,8 +4772,8 @@ html[data-dashboard-theme] {
   --vz-radius-shell: 28px;
   --vz-radius-card: 20px;
   --vz-radius-control: 13px;
-  --vz-accent: #7c3cff;
-  --vz-accent-soft: rgb(124 60 255 / 0.16);
+  --vz-accent: #0f766e;
+  --vz-accent-soft: rgb(15 118 110 / 0.14);
   --vz-ink: #0f172a;
   --vz-muted: #475569;
   --vz-soft: #64748b;
