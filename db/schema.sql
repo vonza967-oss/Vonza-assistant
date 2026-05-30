@@ -1479,6 +1479,57 @@ create unique index if not exists owner_billing_accounts_customer_id_idx
   on public.owner_billing_accounts (stripe_customer_id)
   where stripe_customer_id is not null;
 
+create table if not exists public.owner_product_entitlements (
+  id uuid primary key default gen_random_uuid(),
+  owner_user_id uuid not null,
+  product_key text not null,
+  entitlement_status text not null default 'inactive',
+  source text not null,
+  plan_key text,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_subscription_item_id text,
+  stripe_price_id text,
+  stripe_product_id text,
+  current_period_start timestamp with time zone,
+  current_period_end timestamp with time zone,
+  trial_start timestamp with time zone,
+  trial_end timestamp with time zone,
+  cancel_at timestamp with time zone,
+  canceled_at timestamp with time zone,
+  expires_at timestamp with time zone,
+  feature_caps jsonb not null default '{}'::jsonb,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now(),
+  constraint owner_product_entitlements_owner_product_key
+    unique (owner_user_id, product_key),
+  constraint owner_product_entitlements_product_key_check
+    check (product_key in ('front_desk', 'website_widget', 'voice_agent')),
+  constraint owner_product_entitlements_status_check
+    check (entitlement_status in ('active', 'trialing', 'past_due', 'canceled', 'inactive', 'grandfathered', 'beta', 'free')),
+  constraint owner_product_entitlements_source_check
+    check (source in ('stripe_subscription_item', 'legacy_workspace_plan', 'manual_beta', 'manual_free', 'internal_trial'))
+);
+
+create index if not exists owner_product_entitlements_owner_status_idx
+  on public.owner_product_entitlements (owner_user_id, entitlement_status);
+
+create index if not exists owner_product_entitlements_product_status_idx
+  on public.owner_product_entitlements (product_key, entitlement_status);
+
+create index if not exists owner_product_entitlements_owner_period_idx
+  on public.owner_product_entitlements (owner_user_id, current_period_end desc)
+  where current_period_end is not null;
+
+create unique index if not exists owner_product_entitlements_subscription_item_idx
+  on public.owner_product_entitlements (stripe_subscription_item_id)
+  where stripe_subscription_item_id is not null;
+
+create index if not exists owner_product_entitlements_subscription_idx
+  on public.owner_product_entitlements (stripe_subscription_id)
+  where stripe_subscription_id is not null;
+
 create table if not exists public.owner_ai_usage_ledger (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null,
@@ -1548,6 +1599,7 @@ alter table public.operator_business_profiles enable row level security;
 alter table public.agent_copilot_proposal_states enable row level security;
 alter table public.operator_audit_logs enable row level security;
 alter table public.owner_billing_accounts enable row level security;
+alter table public.owner_product_entitlements enable row level security;
 alter table public.owner_ai_usage_ledger enable row level security;
 
 drop policy if exists "Owners can read their dashboard preferences." on public.user_dashboard_preferences;
@@ -1901,6 +1953,13 @@ create policy "Owners can manage copilot proposal states."
 drop policy if exists "Owners can read their billing account." on public.owner_billing_accounts;
 create policy "Owners can read their billing account."
   on public.owner_billing_accounts
+  for select
+  to authenticated
+  using ((select auth.uid()) is not null and owner_user_id = (select auth.uid()));
+
+drop policy if exists "Owners can read product entitlements." on public.owner_product_entitlements;
+create policy "Owners can read product entitlements."
+  on public.owner_product_entitlements
   for select
   to authenticated
   using ((select auth.uid()) is not null and owner_user_id = (select auth.uid()));

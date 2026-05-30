@@ -1,3 +1,4 @@
+import { OWNER_PRODUCT_ENTITLEMENT_TABLE } from "../../config/constants.js";
 import { SUPABASE_MIGRATION_FILE_BY_ID } from "./supabaseMigrationCatalog.js";
 
 export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
@@ -204,6 +205,33 @@ export const PERSISTENCE_SCHEMA_HINTS = Object.freeze({
       "created_at",
     ],
     migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.billing_plans_ai_usage],
+  },
+  [OWNER_PRODUCT_ENTITLEMENT_TABLE]: {
+    requiredColumns: [
+      "id",
+      "owner_user_id",
+      "product_key",
+      "entitlement_status",
+      "source",
+      "plan_key",
+      "stripe_customer_id",
+      "stripe_subscription_id",
+      "stripe_subscription_item_id",
+      "stripe_price_id",
+      "stripe_product_id",
+      "current_period_start",
+      "current_period_end",
+      "trial_start",
+      "trial_end",
+      "cancel_at",
+      "canceled_at",
+      "expires_at",
+      "feature_caps",
+      "metadata",
+      "created_at",
+      "updated_at",
+    ],
+    migrationFiles: [SUPABASE_MIGRATION_FILE_BY_ID.owner_product_entitlements],
   },
   agent_action_queue_statuses: {
     requiredColumns: [

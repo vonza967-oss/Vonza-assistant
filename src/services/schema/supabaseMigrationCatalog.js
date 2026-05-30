@@ -325,6 +325,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds safe session-level telemetry columns for optional Realtime WebRTC Web Call connections and fallback reasons.",
   }),
+  Object.freeze({
+    id: "owner_product_entitlements",
+    version: "20260530000000",
+    name: "owner_product_entitlements",
+    file: "supabase/migrations/20260530000000_owner_product_entitlements.sql",
+    legacySources: Object.freeze(["db/owner_product_entitlements.sql"]),
+    tier: "feature-gated",
+    note: "Adds read-only owner product entitlement rows for future product packaging without changing checkout, webhooks, or access enforcement.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

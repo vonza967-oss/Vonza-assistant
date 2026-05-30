@@ -122,3 +122,33 @@ test("Web Call session schema is present in canonical schema and migration", () 
     assert.match(sql, /Owners can manage Web Call turn telemetry/i);
   });
 });
+
+test("Owner product entitlement schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260530000000_owner_product_entitlements.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.owner_product_entitlements/i);
+    assert.match(sql, /owner_user_id uuid not null/i);
+    assert.match(sql, /product_key text not null/i);
+    assert.match(sql, /entitlement_status text not null default 'inactive'/i);
+    assert.match(sql, /stripe_subscription_item_id text/i);
+    assert.match(sql, /feature_caps jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /unique \(owner_user_id, product_key\)/i);
+    assert.match(sql, /check \(product_key in \('front_desk', 'website_widget', 'voice_agent'\)\)/i);
+    assert.match(sql, /check \(entitlement_status in \('active', 'trialing', 'past_due', 'canceled', 'inactive', 'grandfathered', 'beta', 'free'\)\)/i);
+    assert.match(sql, /check \(source in \('stripe_subscription_item', 'legacy_workspace_plan', 'manual_beta', 'manual_free', 'internal_trial'\)\)/i);
+    assert.match(sql, /owner_product_entitlements_owner_status_idx/i);
+    assert.match(sql, /owner_product_entitlements_product_status_idx/i);
+    assert.match(sql, /Owners can read product entitlements/i);
+  });
+
+  assert.match(migrationSql, /subscription_status in \('active', 'trialing', 'legacy_active', 'legacy-active'\)/i);
+  assert.match(migrationSql, /agents\.access_status = 'active'/i);
+  assert.match(migrationSql, /'grandfathered'/i);
+  assert.match(migrationSql, /on conflict \(owner_user_id, product_key\) do nothing/i);
+  assert.doesNotMatch(migrationSql, /delete from public\.owner_product_entitlements|update public\.agents|update public\.owner_billing_accounts/i);
+});

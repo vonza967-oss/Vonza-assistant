@@ -1,10 +1,10 @@
-export const PRODUCT_KEYS = Object.freeze({
-  FRONT_DESK: "front_desk",
-  WEBSITE_WIDGET: "website_widget",
-  VOICE_AGENT: "voice_agent",
-});
+import {
+  PRODUCT_KEYS,
+  PRODUCT_KEY_VALUES,
+  getProductCatalogEntry,
+} from "../../config/productCatalog.js";
 
-export const PRODUCT_KEY_VALUES = Object.freeze(Object.values(PRODUCT_KEYS));
+export { PRODUCT_KEYS, PRODUCT_KEY_VALUES };
 
 export const AVAILABILITY_STATUSES = Object.freeze({
   AVAILABLE: "available",
@@ -52,39 +52,6 @@ const PRODUCT_ALIASES = Object.freeze({
   "voice-agent": PRODUCT_KEYS.VOICE_AGENT,
   "voice agent": PRODUCT_KEYS.VOICE_AGENT,
   [PRODUCT_KEYS.VOICE_AGENT]: PRODUCT_KEYS.VOICE_AGENT,
-});
-
-const PRODUCT_DEFINITIONS = Object.freeze({
-  [PRODUCT_KEYS.FRONT_DESK]: Object.freeze({
-    product_key: PRODUCT_KEYS.FRONT_DESK,
-    label: "Front Desk",
-    setup_url: "/dashboard/front-desk",
-    capabilities: Object.freeze([
-      "public_front_desk_page",
-      "visitor_conversation",
-      "knowledge_grounded_answers",
-    ]),
-  }),
-  [PRODUCT_KEYS.WEBSITE_WIDGET]: Object.freeze({
-    product_key: PRODUCT_KEYS.WEBSITE_WIDGET,
-    label: "Website Widget",
-    setup_url: "/dashboard/widget",
-    capabilities: Object.freeze([
-      "website_embed",
-      "visitor_conversation",
-      "install_detection",
-    ]),
-  }),
-  [PRODUCT_KEYS.VOICE_AGENT]: Object.freeze({
-    product_key: PRODUCT_KEYS.VOICE_AGENT,
-    label: "Voice Agent",
-    setup_url: "/dashboard/voice",
-    capabilities: Object.freeze([
-      "browser_voice_input",
-      "spoken_replies",
-      "web_call_setup",
-    ]),
-  }),
 });
 
 const ACCOUNT_BILLING_UPGRADE_URL = "/dashboard#settings/account-billing";
@@ -142,7 +109,7 @@ function resolveIsCapped(input = {}) {
 }
 
 function buildAvailabilityPayload(productKey, status, reasonCode, options = {}) {
-  const definition = PRODUCT_DEFINITIONS[productKey];
+  const definition = getProductCatalogEntry(productKey);
   const fallbackLabel = cleanValue(options.label) || "Unknown product";
 
   return {
@@ -151,9 +118,9 @@ function buildAvailabilityPayload(productKey, status, reasonCode, options = {}) 
     label: definition?.label || fallbackLabel,
     reason_code: reasonCode,
     is_enforced: false,
-    setup_url: definition?.setup_url || null,
+    setup_url: definition?.setupUrl || null,
     upgrade_url: options.upgradeUrl === undefined ? null : options.upgradeUrl,
-    capabilities: definition ? Array.from(definition.capabilities) : [],
+    capabilities: definition ? [...definition.capabilities] : [],
   };
 }
 

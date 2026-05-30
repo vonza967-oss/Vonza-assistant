@@ -12,6 +12,10 @@ import {
   listProductAvailability,
   normalizeProductKey,
 } from "../src/services/entitlements/productAvailabilityService.js";
+import {
+  getProductCatalogEntry,
+  listProductCatalog,
+} from "../src/config/productCatalog.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,6 +161,43 @@ test("listProductAvailability returns all three products", () => {
     assert.equal(product.status, AVAILABILITY_STATUSES.AVAILABLE);
     assert.equal(product.is_enforced, false);
   });
+});
+
+test("static product catalog exposes labels setup URLs and future price env names only", () => {
+  const catalog = listProductCatalog();
+
+  assert.deepEqual(
+    catalog.map((product) => product.key),
+    [PRODUCT_KEYS.FRONT_DESK, PRODUCT_KEYS.WEBSITE_WIDGET, PRODUCT_KEYS.VOICE_AGENT]
+  );
+  assert.deepEqual(
+    catalog.map((product) => product.label),
+    ["Front Desk", "Website Widget", "Voice Agent"]
+  );
+  assert.deepEqual(
+    catalog.map((product) => product.setupUrl),
+    ["/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"]
+  );
+  assert.deepEqual(
+    catalog.map((product) => product.futurePriceEnvVarNames.monthly),
+    [
+      "STRIPE_PRICE_ID_FRONT_DESK_MONTHLY",
+      "STRIPE_PRICE_ID_WEBSITE_WIDGET_MONTHLY",
+      "STRIPE_PRICE_ID_VOICE_AGENT_MONTHLY",
+    ]
+  );
+  assert.doesNotMatch(JSON.stringify(catalog), /checkoutUrl|checkout_url|hostedCheckout|buyUrl/i);
+});
+
+test("product catalog entries are defensive copies", () => {
+  const first = getProductCatalogEntry(PRODUCT_KEYS.FRONT_DESK);
+  first.capabilities.push("mutated");
+  first.futurePriceEnvVarNames.monthly = "mutated";
+
+  const second = getProductCatalogEntry(PRODUCT_KEYS.FRONT_DESK);
+
+  assert.equal(second.futurePriceEnvVarNames.monthly, "STRIPE_PRICE_ID_FRONT_DESK_MONTHLY");
+  assert.doesNotMatch(second.capabilities.join(","), /mutated/);
 });
 
 test("dashboard account availability contract uses existing access and billing snapshot inputs", () => {
