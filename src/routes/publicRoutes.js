@@ -201,6 +201,32 @@ function renderValueStrip() {
   `;
 }
 
+function renderProductRouteLinks() {
+  return `
+    <section class="section product-route-section" aria-label="Vonza products">
+      <div class="section-heading-row" data-reveal>
+        <div>
+          <h2>Three product surfaces, one Vonza workspace.</h2>
+          <p>Start with the recommended Front Desk, add the website widget where it fits, and use Voice Agent only for configured web voice experiences.</p>
+        </div>
+      </div>
+      <div class="product-route-grid">
+        ${[
+          ["/front-desk", "Front Desk", "Recommended", "A dedicated AI Front Desk page for customer questions, quote intent, bookings, and follow-up details."],
+          ["/website-widget", "Website Widget", "Embedded assistant", "A compact on-site assistant for existing websites that need a small launcher or embedded assistant surface."],
+          ["/voice-agent", "Voice Agent", "Configured web voice", "A web voice assistant for browser-based voice conversations where voice is enabled in the workspace."],
+        ].map(([href, title, label, copy]) => `
+          <a class="product-route-card" href="${escapeHtml(href)}" data-reveal>
+            <span>${escapeHtml(label)}</span>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </a>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderHungarianValueStrip() {
   return `
     <section class="value-strip" aria-label="Vonza érték">
@@ -267,6 +293,7 @@ function renderMarketingHomePage() {
     </section>
 
     ${renderValueStrip()}
+    ${renderProductRouteLinks()}
 
     <section class="section front-desk-first">
       <div class="section-heading-row" data-reveal>
@@ -649,7 +676,177 @@ function renderProductPage() {
       </div>
     </section>
 
+    ${renderProductRouteLinks()}
     ${renderFinalCta()}
+  `;
+}
+
+function renderFrontDeskPage() {
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Front Desk is the recommended Vonza product.</h1>
+        <p>Give customers a dedicated AI Front Desk page for questions, quote requests, booking intent, contact details, and grounded next steps.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/dashboard/front-desk?from=site">Create your Front Desk</a>
+          <a class="button button-secondary" href="/product">See the full product</a>
+        </div>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.frontDeskPage,
+        alt: "Vonza public Front Desk page for customer questions and next steps",
+        className: "page-hero-frame",
+        loading: "eager",
+      })}
+    </section>
+
+    <section class="section how-it-works">
+      <div class="section-intro" data-reveal>
+        <h2>A full customer-facing page, not just a launcher.</h2>
+        <p>Use the Front Desk when customers need a clear place to ask, share details, and continue without hunting through a website.</p>
+      </div>
+      <div class="step-grid">
+        ${[
+          ["Publish a focused page", "Share the hosted Front Desk by link, QR code, WordPress page, or smart embed."],
+          ["Answer from business context", "Ground replies in imported website content, business details, and approved answers."],
+          ["Capture useful details", "Collect contact and follow-up context when a customer needs a quote, booking, or human response."],
+          ["Improve from the dashboard", "Review conversations, practice questions, and approve better answers for future visitors."],
+        ].map(([title, copy], index) => `
+          <article data-reveal style="--reveal-delay:${index * 70}ms;">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section product-story">
+      <div class="story-copy" data-reveal>
+        <h2>Built for the primary customer path.</h2>
+        <p>The Front Desk is the product to lead with when a business wants one public assistant page for questions, quote intent, booking context, and follow-up.</p>
+        <a class="button button-primary" href="/dashboard/front-desk?from=site">Open Front Desk setup</a>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.dashboardFrontDesk,
+        alt: "Vonza Front Desk dashboard for practicing and improving answers",
+        className: "story-frame",
+      })}
+    </section>
+
+    ${renderProductRouteLinks()}
+  `;
+}
+
+function renderWebsiteWidgetPage() {
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Website Widget adds Vonza to an existing site.</h1>
+        <p>Use the on-site embedded assistant when a business wants a compact website launcher or embedded assistant surface alongside its existing pages.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/dashboard/widget?from=site">Set up Website Widget</a>
+          <a class="button button-secondary" href="/front-desk">Compare with Front Desk</a>
+        </div>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.wordpressPage,
+        alt: "Vonza assistant embedded into an existing website page",
+        className: "page-hero-frame",
+        loading: "eager",
+      })}
+    </section>
+
+    <section class="section how-it-works">
+      <div class="section-intro" data-reveal>
+        <h2>For websites that need an assistant in place.</h2>
+        <p>The widget is secondary to the Front Desk, but it remains useful when an existing website needs a small entry point for customer questions.</p>
+      </div>
+      <div class="channel-grid product-channel-grid">
+        ${[
+          ["Compact launcher", "Add a website bubble when visitors should stay on the current page."],
+          ["Page embed", "Place the assistant into a section of an existing website page."],
+          ["Same workspace", "Use the same Vonza dashboard for conversations, training, install guidance, and analytics."],
+          ["Grounded replies", "Keep answers tied to business context and approved owner corrections."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section product-story">
+      <div class="story-copy" data-reveal>
+        <h2>Best as a supporting website channel.</h2>
+        <p>Use Website Widget when an existing website already works and needs an assistant entry point. Use Front Desk when the assistant should be the main public destination.</p>
+        <a class="button button-primary" href="/dashboard/widget?from=site">Open Widget setup</a>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.dashboardInstall,
+        alt: "Vonza Install dashboard showing website widget and embed setup choices",
+        className: "story-frame",
+      })}
+    </section>
+
+    ${renderProductRouteLinks()}
+  `;
+}
+
+function renderVoiceAgentPage() {
+  return `
+    <section class="page-hero page-hero-split">
+      <div data-reveal>
+        <h1>Voice Agent supports configured web voice conversations.</h1>
+        <p>Use Voice Agent for browser-based voice input and spoken replies where voice is enabled. It is not positioned as a phone-line or telephony replacement.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="/dashboard/voice?from=site">Set up Voice Agent</a>
+          <a class="button button-secondary" href="/front-desk">Start with Front Desk</a>
+        </div>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.dashboardSettings,
+        alt: "Vonza dashboard settings for configuring Front Desk and voice options",
+        className: "page-hero-frame",
+        loading: "eager",
+      })}
+    </section>
+
+    <section class="section how-it-works">
+      <div class="section-intro" data-reveal>
+        <h2>Voice where the workspace is configured for it.</h2>
+        <p>Voice Agent gives customers a web voice path when enabled, while the same Vonza workspace keeps conversations and improvements connected.</p>
+      </div>
+      <div class="channel-grid product-channel-grid">
+        ${[
+          ["Web voice path", "Support browser-based voice conversations where voice features are configured."],
+          ["Spoken replies", "Use voice input and spoken assistant responses when the current workspace supports them."],
+          ["Front Desk connection", "Keep the customer-facing Front Desk as the primary public surface."],
+          ["Clear limits", "Avoid claims about phone numbers, call routing, or telephony unless those are separately configured."],
+        ].map(([title, copy]) => `
+          <article data-reveal>
+            <h3>${escapeHtml(title)}</h3>
+            <p>${escapeHtml(copy)}</p>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+
+    <section class="section product-story">
+      <div class="story-copy" data-reveal>
+        <h2>Use voice as an enabled assistant mode.</h2>
+        <p>Voice Agent should be sold as a configured web voice assistant under Vonza, not as unsupported phone infrastructure.</p>
+        <a class="button button-primary" href="/dashboard/voice?from=site">Open Voice setup</a>
+      </div>
+      ${renderAppImage({
+        src: PRODUCT_IMAGES.dashboardAnalytics,
+        alt: "Vonza Analytics dashboard showing customer activity and source breakdown",
+        className: "story-frame",
+      })}
+    </section>
+
+    ${renderProductRouteLinks()}
   `;
 }
 
@@ -835,6 +1032,21 @@ const MARKETING_PAGES = {
     title: "Vonza Product | How the AI Front Desk works",
     description: "See how Vonza connects the public Front Desk page, dashboard, conversations, training, install options, analytics, and customization.",
     body: renderProductPage,
+  },
+  frontDesk: {
+    title: "Vonza Front Desk | Dedicated AI Front Desk page",
+    description: "Launch Vonza Front Desk, the recommended dedicated AI front desk page for customer questions, quote requests, booking intent, and follow-up.",
+    body: renderFrontDeskPage,
+  },
+  websiteWidget: {
+    title: "Vonza Website Widget | Embedded assistant for existing websites",
+    description: "Add Vonza Website Widget to an existing website as a compact embedded assistant for customer questions.",
+    body: renderWebsiteWidgetPage,
+  },
+  voiceAgent: {
+    title: "Vonza Voice Agent | Configured web voice assistant",
+    description: "Use Vonza Voice Agent for configured web voice conversations, browser voice input, and spoken replies where enabled.",
+    body: renderVoiceAgentPage,
   },
   pricing: {
     title: "Vonza Pricing | Plans for an AI Front Desk",
@@ -1212,6 +1424,18 @@ export function createPublicRouter({ rootDir }) {
 
   router.get("/product", (_req, res) => {
     res.type("html").send(renderMarketingPage(rootDir, "product"));
+  });
+
+  router.get("/front-desk", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "frontDesk"));
+  });
+
+  router.get("/website-widget", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "websiteWidget"));
+  });
+
+  router.get("/voice-agent", (_req, res) => {
+    res.type("html").send(renderMarketingPage(rootDir, "voiceAgent"));
   });
 
   router.get("/how-it-works", (_req, res) => {

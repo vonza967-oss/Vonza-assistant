@@ -421,13 +421,18 @@ button:hover {
 
 .channel-grid,
 .step-grid,
-.trust-grid {
+.trust-grid,
+.product-route-grid {
   display: grid;
   gap: 14px;
 }
 
 .channel-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.product-channel-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .step-grid {
@@ -438,6 +443,10 @@ button:hover {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.product-route-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .feature-preview-card,
 .use-case-grid article,
 .faq-grid article,
@@ -445,7 +454,8 @@ button:hover {
 .channel-grid article,
 .step-grid article,
 .trust-grid article,
-.install-option-list article {
+.install-option-list article,
+.product-route-card {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.78);
@@ -502,6 +512,41 @@ button:hover {
   display: grid;
   gap: 8px;
   padding: 18px;
+}
+
+.product-route-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.product-route-card:hover {
+  border-color: rgba(21, 94, 239, 0.28);
+  background: #ffffff;
+}
+
+.product-route-card span {
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.product-route-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.product-route-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.52;
 }
 
 .channel-grid article:first-child,
@@ -904,6 +949,7 @@ button:hover {
   .channel-grid,
   .step-grid,
   .trust-grid,
+  .product-route-grid,
   .install-option-layout {
     grid-template-columns: 1fr;
   }
@@ -1042,7 +1088,8 @@ button:hover {
   .about-grid,
   .channel-grid,
   .step-grid,
-  .trust-grid {
+  .trust-grid,
+  .product-route-grid {
     grid-template-columns: 1fr;
   }
 
