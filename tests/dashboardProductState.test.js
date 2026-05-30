@@ -138,6 +138,7 @@ test("existing billing plan keys remain account capacity plans", () => {
 
   assert.deepEqual(plans.map((plan) => plan.key), ["starter", "growth", "pro"]);
   assert.deepEqual(plans.map((plan) => plan.checkoutLabel), ["Start with Starter", "Start with Growth", "Start with Pro"]);
+  assert.deepEqual(plans.map((plan) => plan.displayName), ["Starter", "Growth", "Pro"]);
   plans.forEach((plan) => {
     assert.match(plan.marketing.capacityLabel, /monthly AI capacity/i);
     assert.ok(plan.sharedFeatures.includes("Monthly AI usage included"));
@@ -217,10 +218,98 @@ test("frontend product cards read canonical product availability when present", 
   assert.match(html, /data-product-availability-status="available"/);
   assert.match(html, /data-product-availability-status="pending_account_access"/);
   assert.match(html, /data-product-availability-status="unavailable"/);
+  assert.match(html, /Included in current workspace/);
+  assert.match(html, /Account access pending/);
   assert.match(html, /Product availability: Account Access Active/);
   assert.match(html, /Product availability: Account Capacity Capped/);
   assert.match(html, /data-product-availability-enforced="false"/);
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+});
+
+test("frontend product cards prefer product entitlement labels when present", () => {
+  const html = renderAccountBillingSettings({
+    agent: {
+      accessStatus: "active",
+    },
+    operatorWorkspace: {
+      product_availability: [
+        {
+          product_key: "front_desk",
+          status: "unavailable",
+          reason_code: "account_capacity_capped",
+          is_enforced: false,
+        },
+      ],
+      product_entitlements: [
+        {
+          product_key: "front_desk",
+          status: "available",
+          entitlement_status: "active",
+          entitlement_source: "workspace_plan",
+          entitlement_row_exists: true,
+          is_enforced: false,
+        },
+        {
+          product_key: "website_widget",
+          status: "available",
+          entitlement_status: "grandfathered",
+          entitlement_source: "legacy_workspace_plan",
+          entitlement_row_exists: true,
+          is_enforced: false,
+        },
+        {
+          product_key: "voice_agent",
+          status: "available",
+          entitlement_status: "beta",
+          entitlement_source: "manual_beta",
+          entitlement_row_exists: true,
+          is_enforced: false,
+        },
+      ],
+    },
+  });
+
+  assert.match(html, /Included with current workspace/);
+  assert.match(html, /Grandfathered/);
+  assert.match(html, /Beta/);
+  assert.match(html, /Product entitlement: Workspace Plan/);
+  assert.match(html, /data-product-entitlement-status="active"/);
+  assert.match(html, /data-product-entitlement-status="grandfathered"/);
+  assert.match(html, /data-product-entitlement-status="beta"/);
+  assert.match(html, /data-product-entitlement-row-exists="true"/);
+  assert.match(html, /data-product-availability-enforced="false"/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+});
+
+test("missing entitlement rows stay read-only and do not block product setup links", () => {
+  const html = renderAccountBillingSettings({
+    agent: {
+      accessStatus: "active",
+    },
+    operatorWorkspace: {
+      product_entitlements: [
+        {
+          product_key: "front_desk",
+          status: "available",
+          entitlement_status: "free",
+          entitlement_source: "manual_free",
+          entitlement_row_exists: true,
+          is_enforced: false,
+        },
+      ],
+    },
+  });
+
+  assert.match(html, /Free/);
+  assert.match(html, /Missing entitlement record/);
+  assert.match(html, /data-product-entitlement-status="free"/);
+  assert.match(html, /data-product-entitlement-status="missing"/);
+  assert.match(html, /data-product-entitlement-row-exists="false"/);
+  assert.match(html, /href="\/dashboard\/front-desk" data-product-packaging-link="front_desk"/);
+  assert.match(html, /href="\/dashboard\/widget" data-product-packaging-link="website_widget"/);
+  assert.match(html, /href="\/dashboard\/voice" data-product-packaging-link="voice_agent"/);
+  assert.match(html, /Product pricing coming soon/);
+  assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk|checkout_url/);
 });
 
 test("operator workspace account response exposes additive product availability and entitlements", () => {

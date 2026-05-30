@@ -1023,6 +1023,146 @@
       .map((item) => [defaultTrimText(item.product_key || item.productKey), item]));
   }
 
+  function getProductEntitlementItems(operatorWorkspace = {}) {
+    if (Array.isArray(operatorWorkspace.product_entitlements)) {
+      return operatorWorkspace.product_entitlements;
+    }
+
+    if (Array.isArray(operatorWorkspace.productEntitlements)) {
+      return operatorWorkspace.productEntitlements;
+    }
+
+    return null;
+  }
+
+  function getProductEntitlementsByKey(operatorWorkspace = {}) {
+    const entitlementItems = getProductEntitlementItems(operatorWorkspace) || [];
+
+    return new Map(entitlementItems
+      .filter((item) => defaultTrimText(item?.product_key || item?.productKey))
+      .map((item) => [defaultTrimText(item.product_key || item.productKey), item]));
+  }
+
+  function formatProductAccessFallbackLabel(accessStatus) {
+    if (accessStatus === "active") {
+      return "Included in current workspace";
+    }
+
+    if (accessStatus === "suspended") {
+      return "Suspended";
+    }
+
+    return "Account access pending";
+  }
+
+  function formatProductAvailabilityLabel(availability, accessStatus) {
+    if (!availability) {
+      return formatProductAccessFallbackLabel(accessStatus);
+    }
+
+    const status = defaultTrimText(availability.status).toLowerCase();
+    const reasonCode = defaultTrimText(availability.reason_code || availability.reasonCode).toLowerCase();
+
+    if (reasonCode === "account_access_active" || status === "available") {
+      return "Included in current workspace";
+    }
+
+    if (reasonCode === "account_access_suspended" || accessStatus === "suspended") {
+      return "Suspended";
+    }
+
+    if (reasonCode === "account_access_pending" || status === "pending_account_access") {
+      return "Account access pending";
+    }
+
+    return formatProductAvailabilityStatus(availability.status || availability.reason_code || availability.reasonCode);
+  }
+
+  const PRODUCT_ENTITLEMENT_LABELS = Object.freeze({
+    active: "Included with current workspace",
+    trialing: "Included with current workspace",
+    grandfathered: "Grandfathered",
+    beta: "Beta",
+    free: "Free",
+  });
+
+  function getProductEntitlementDisplayState(entitlement, productKey, accessStatus) {
+    const buildState = ({
+      label,
+      tone = "pending",
+      status = "",
+      sourceKey = "missing",
+      rowExists = false,
+    }) => ({
+      label,
+      source: rowExists
+        ? `Product entitlement: ${formatProductAvailabilityStatus(sourceKey)}`
+        : "Product entitlement: Missing entitlement record",
+      tone,
+      status,
+      sourceKey,
+      rowExists,
+    });
+
+    if (!entitlement) {
+      return buildState({
+        label: "Missing entitlement record",
+        status: "missing",
+      });
+    }
+
+    const entitlementStatus = defaultTrimText(
+      entitlement.entitlement_status || entitlement.entitlementStatus || entitlement.status
+    ).toLowerCase();
+    const status = defaultTrimText(entitlement.status).toLowerCase();
+    const reasonCode = defaultTrimText(entitlement.reason_code || entitlement.reasonCode).toLowerCase();
+    const sourceKey = defaultTrimText(
+      entitlement.entitlement_source || entitlement.entitlementSource || entitlement.status_source || entitlement.statusSource || "product_entitlements"
+    );
+    const rowExists = entitlement.entitlement_row_exists !== false && entitlementStatus !== "missing";
+
+    if (!rowExists) {
+      return buildState({
+        label: "Missing entitlement record",
+        tone: "pending",
+        status: entitlementStatus || "missing",
+        sourceKey,
+        rowExists: false,
+      });
+    }
+
+    if (reasonCode === "account_access_suspended" || accessStatus === "suspended") {
+      return buildState({
+        label: "Suspended",
+        status: entitlementStatus || status || "suspended",
+        sourceKey,
+        rowExists: true,
+      });
+    }
+
+    if (reasonCode === "account_access_pending" || status === "pending_account_access") {
+      return buildState({
+        label: "Account access pending",
+        status: entitlementStatus || status || "pending",
+        sourceKey,
+        rowExists: true,
+      });
+    }
+
+    const knownLabel = PRODUCT_ENTITLEMENT_LABELS[entitlementStatus];
+    const label = knownLabel
+      || (status === "available" ? PRODUCT_ENTITLEMENT_LABELS.active : formatProductAvailabilityStatus(entitlementStatus || status || productKey));
+    const tone = (knownLabel || status === "available") ? "success" : "pending";
+
+    return buildState({
+      label,
+      tone,
+      status: entitlementStatus || status || "",
+      sourceKey,
+      rowExists: true,
+    });
+  }
+
   function getProductAvailabilityTone(availability, hasWorkspaceAccess) {
     if (!availability) {
       return hasWorkspaceAccess ? "success" : "pending";
@@ -1034,14 +1174,14 @@
   function buildProductPackagingCards(agent, helpers, operatorWorkspace = {}) {
     const { escapeHtml, normalizeAccessStatus } = helpers;
     const productItems = getDashboardProductPackagingItems();
+    const entitlementItems = getProductEntitlementItems(operatorWorkspace);
+    const hasEntitlementState = Array.isArray(entitlementItems);
+    const entitlementByKey = getProductEntitlementsByKey(operatorWorkspace);
     const availabilityByKey = getProductAvailabilityByKey(operatorWorkspace);
     const accessStatus = typeof normalizeAccessStatus === "function"
       ? normalizeAccessStatus(agent?.accessStatus)
       : defaultTrimText(agent?.accessStatus || "pending");
     const hasWorkspaceAccess = accessStatus === "active";
-    const fallbackAvailabilityLabel = hasWorkspaceAccess
-      ? "Included in current workspace"
-      : "Available when workspace access is active";
 
     return `
       <section class="settings-shell-section settings-product-packaging-section" data-product-packaging-section>
@@ -1054,26 +1194,38 @@
         <div class="settings-product-packaging-grid">
           ${productItems.map((product) => {
             const availability = availabilityByKey.get(product.key);
-            const availabilityLabel = availability
-              ? formatProductAvailabilityStatus(availability.status || availability.reason_code || availability.reasonCode)
-              : fallbackAvailabilityLabel;
-            const availabilitySource = availability
-              ? `Product availability: ${formatProductAvailabilityStatus(availability.reason_code || availability.reasonCode || availability.status)}`
-              : `Account access: ${accessStatus || "pending"}`;
+            const entitlement = hasEntitlementState ? entitlementByKey.get(product.key) : null;
+            const entitlementDisplay = hasEntitlementState
+              ? getProductEntitlementDisplayState(entitlement, product.key, accessStatus)
+              : null;
+            const availabilityLabel = entitlementDisplay
+              ? entitlementDisplay.label
+              : formatProductAvailabilityLabel(availability, accessStatus);
+            const availabilitySource = entitlementDisplay
+              ? entitlementDisplay.source
+              : availability
+                ? `Product availability: ${formatProductAvailabilityStatus(availability.reason_code || availability.reasonCode || availability.status)}`
+                : `Account access: ${accessStatus || "pending"}`;
+            const availabilityTone = entitlementDisplay
+              ? entitlementDisplay.tone
+              : getProductAvailabilityTone(availability, hasWorkspaceAccess);
 
             return `
             <article
               class="settings-product-packaging-card"
               data-product-packaging-card="${escapeHtml(product.key)}"
               data-product-availability-status="${escapeHtml(availability?.status || "")}"
-              data-product-availability-enforced="${availability?.is_enforced === true ? "true" : "false"}"
+              data-product-availability-enforced="false"
+              data-product-entitlement-status="${escapeHtml(entitlementDisplay?.status || "")}"
+              data-product-entitlement-source="${escapeHtml(entitlementDisplay?.sourceKey || "")}"
+              data-product-entitlement-row-exists="${entitlementDisplay ? String(entitlementDisplay.rowExists) : ""}"
             >
               <div class="settings-product-packaging-head">
                 <div>
                   <p class="settings-shell-status-label">Product</p>
                   <h4 class="settings-product-packaging-title">${escapeHtml(product.name || product.label || "Vonza product")}</h4>
                 </div>
-                <span class="badge ${getProductAvailabilityTone(availability, hasWorkspaceAccess)}" data-product-packaging-status="${escapeHtml(product.key)}">${escapeHtml(availabilityLabel)}</span>
+                <span class="badge ${availabilityTone}" data-product-packaging-status="${escapeHtml(product.key)}">${escapeHtml(availabilityLabel)}</span>
               </div>
               <p class="settings-product-packaging-copy">${escapeHtml(product.targetUseCase || "")}</p>
               <div class="settings-product-packaging-meta">
