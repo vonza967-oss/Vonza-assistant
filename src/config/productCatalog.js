@@ -67,3 +67,21 @@ export function getProductCatalogEntry(productKey) {
 export function listProductCatalog() {
   return PRODUCT_KEY_VALUES.map((productKey) => getProductCatalogEntry(productKey));
 }
+
+function trimText(value) {
+  return String(value || "").trim();
+}
+
+export function listProductStripePriceMappings(env = process.env) {
+  return listProductCatalog().map((product) => {
+    const monthlyPriceEnvKey = product.futurePriceEnvVarNames?.monthly || "";
+
+    return {
+      productKey: product.key,
+      label: product.label,
+      interval: "month",
+      stripePriceEnvKey: monthlyPriceEnvKey,
+      stripePriceId: trimText(env?.[monthlyPriceEnvKey]),
+    };
+  });
+}
