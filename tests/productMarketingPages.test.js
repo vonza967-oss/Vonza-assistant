@@ -66,6 +66,24 @@ test("homepage and product page link to separate product marketing pages", async
       assert.match(html, /href="\/front-desk"/, pathname);
       assert.match(html, /href="\/website-widget"/, pathname);
       assert.match(html, /href="\/voice-agent"/, pathname);
+      assert.match(html, /Vonza is one company with three products/, pathname);
+    }
+  });
+});
+
+test("global marketing navigation exposes the three product pages", async () => {
+  await withServer(async (baseUrl) => {
+    const html = await getHtml(baseUrl, "/");
+
+    for (const [href, label] of [
+      ["/front-desk", "Front Desk"],
+      ["/website-widget", "Website Widget"],
+      ["/voice-agent", "Voice Agent"],
+    ]) {
+      const navLinkPattern = new RegExp(`<a href="${href}" data-nav-page="[^"]+">${label}</a>`);
+      const footerLinkPattern = new RegExp(`<a href="${href}">${label}</a>`);
+      assert.match(html, navLinkPattern);
+      assert.match(html, footerLinkPattern);
     }
   });
 });
@@ -83,6 +101,9 @@ test("/widget still returns the runtime widget document", async () => {
 test("pricing plan checkout links stay on account-capacity plan checkout paths", async () => {
   await withServer(async (baseUrl) => {
     const html = await getHtml(baseUrl, "/pricing");
+
+    assert.match(html, /account-capacity plans for the shared Vonza workspace/);
+    assert.match(html, /not separate product checkouts/);
 
     for (const planKey of ["starter", "growth", "pro"]) {
       assert.match(html, new RegExp(`data-plan-key="${planKey}"`));

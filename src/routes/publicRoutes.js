@@ -206,8 +206,8 @@ function renderProductRouteLinks() {
     <section class="section product-route-section" aria-label="Vonza products">
       <div class="section-heading-row" data-reveal>
         <div>
-          <h2>Three product surfaces, one Vonza workspace.</h2>
-          <p>Start with the recommended Front Desk, add the website widget where it fits, and use Voice Agent only for configured web voice experiences.</p>
+          <h2>Vonza is one company with three products.</h2>
+          <p>Front Desk is the recommended primary product. Website Widget and Voice Agent are separate Vonza products that share the same workspace and should be added only where they fit.</p>
         </div>
       </div>
       <div class="product-route-grid">
@@ -275,7 +275,7 @@ function renderMarketingHomePage() {
     <section class="hero">
       <div class="hero-copy" data-reveal>
         <h1>Your AI Front Desk for customer questions, quotes, bookings, and follow-ups.</h1>
-        <p class="hero-text">Give customers a dedicated page where they can ask questions, request quotes, leave details, and get useful answers grounded in your business.</p>
+        <p class="hero-text">Vonza is a product family for customer conversations. Front Desk gives customers a dedicated page where they can ask questions, request quotes, leave details, and get grounded next steps. Add Website Widget or Voice Agent as separate products when your workspace needs them.</p>
         <div class="hero-actions">
           <a class="button button-primary" data-app-link href="/dashboard?from=site">Create your Front Desk</a>
           <a class="button button-secondary" href="/product">See how it works</a>
@@ -632,20 +632,20 @@ function renderFeaturesPage() {
 
 function renderProductPage() {
   const steps = [
-    ["Front Desk page", "Give customers a hosted AI Front Desk where they can ask questions, request quotes, leave details, and get grounded first answers.", PRODUCT_IMAGES.frontDeskPage, "Vonza public Front Desk page"],
+    ["Front Desk page", "The recommended Vonza product gives customers a hosted AI Front Desk where they can ask questions, request quotes, leave details, and get grounded first answers.", PRODUCT_IMAGES.frontDeskPage, "Vonza public Front Desk page"],
     ["Dashboard", "Use Home, Customers, Front Desk, Analytics, Install, and Settings to run the assistant from one owner workspace.", PRODUCT_IMAGES.dashboardHome, "Vonza dashboard Home screen"],
     ["Training and feedback loop", "Practice questions, review weak answers, and turn approved corrections into better answers for next time.", PRODUCT_IMAGES.dashboardFrontDesk, "Vonza Front Desk practice and training workspace"],
     ["Customers and conversations", "Review guest or identified customer conversations, follow-up context, and recent customer details without claiming a full contact-management suite.", PRODUCT_IMAGES.dashboardCustomers, "Vonza Customers dashboard with conversation detail"],
     ["Analytics", "Measure conversations, messages, captured leads, source breakdown, and repeated customer questions.", PRODUCT_IMAGES.dashboardAnalytics, "Vonza Analytics dashboard source breakdown"],
-    ["Install and distribution", "Publish with WordPress, smart embed, hosted page, QR/direct link, or the optional website widget bubble.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Front Desk page choices"],
-    ["Settings and customization", "Adjust Front Desk identity, welcome copy, page content, design, voice options, and business context where configured.", PRODUCT_IMAGES.dashboardSettings, "Vonza Settings screen for Front Desk customization"],
+    ["Website Widget", "Use the separate Website Widget product when an existing site needs a compact launcher or embedded assistant surface.", PRODUCT_IMAGES.dashboardInstall, "Vonza Install screen with Front Desk page choices"],
+    ["Settings and customization", "Adjust Front Desk identity, welcome copy, page content, design, business context, and configured voice options. Voice Agent remains a separate Vonza product for browser-based voice input and spoken replies, not unsupported phone or telephony promises.", PRODUCT_IMAGES.dashboardSettings, "Vonza Settings screen for Front Desk customization"],
   ];
 
   return `
     <section class="page-hero page-hero-split">
       <div data-reveal>
-        <h1>The product surface starts with a full-page Front Desk.</h1>
-        <p>Vonza gives customers a focused assistant page and gives owners the dashboard they need to review conversations, train better answers, track sources, and install the experience.</p>
+        <h1>Vonza is a product family for customer conversations.</h1>
+        <p>Front Desk is the recommended primary product. Website Widget and Voice Agent are separate products that use the same owner workspace when they are enabled.</p>
       </div>
       ${renderAppImage({
         src: PRODUCT_IMAGES.frontDeskAnswer,
@@ -670,8 +670,8 @@ function renderProductPage() {
 
     <section class="section connected-section">
       <div class="connected-note" data-reveal>
-        <h2>Voice and widget support are optional surfaces, not the core promise.</h2>
-        <p>Voice input and spoken replies appear where configured. The website bubble remains useful, but the product is positioned around the full-page AI Front Desk and owner dashboard.</p>
+        <h2>One workspace, separate product surfaces.</h2>
+        <p>Front Desk, Website Widget, and Voice Agent are presented as separate Vonza products. Current account setup and billing still run through the shared dashboard workspace.</p>
         <span>Current product scope</span>
       </div>
     </section>
@@ -854,8 +854,8 @@ function renderPricingPage() {
   return `
     <section class="page-hero">
       <div data-reveal>
-        <h1>Simple plans for launching an AI Front Desk.</h1>
-        <p>Pricing follows the current billing setup: the core Front Desk experience is the same, and plans differ by monthly AI usage capacity.</p>
+        <h1>Simple workspace plans for Vonza.</h1>
+        <p>Pricing follows the current billing setup: Starter, Growth, and Pro are account-capacity plans for the shared Vonza workspace. They are not separate product checkouts for Front Desk, Website Widget, or Voice Agent.</p>
       </div>
     </section>
     ${renderMarketingPricingSection()}
@@ -865,10 +865,11 @@ function renderPricingPage() {
       </div>
       <div class="faq-grid">
         ${[
-          ["What is included in each plan?", "The AI Front Desk page, dashboard, conversations, install options, training loop, analytics, and optional widget are part of the core product experience."],
+          ["What is included in each plan?", "Current plans cover workspace/account capacity for the Vonza product family. Front Desk remains the recommended product to launch first."],
           ["Can I start without a technical setup?", "Yes. The hosted Front Desk page can be shared directly, and Install guides WordPress, smart embed, QR/direct link, and optional widget setup."],
           ["Can I change plans later?", "Yes. Plan movement is handled from the dashboard billing experience when billing is configured."],
-          ["Is the widget required?", "No. The website bubble is optional. Vonza is now centered on the customer-facing Front Desk page."],
+          ["Do products have separate checkout links?", "No. The public pricing page still sends Starter, Growth, and Pro to the existing account-plan checkout paths."],
+          ["Is the widget required?", "No. Website Widget is a separate Vonza product for existing sites. Front Desk remains the primary recommended product."],
           ["Is this replacing my team?", "No. Vonza answers common first questions and keeps human follow-up work visible."],
         ].map(([title, copy]) => `
           <article data-reveal>
@@ -1075,6 +1076,9 @@ const MARKETING_CHROME = Object.freeze({
     navHome: "Home",
     navFeatures: "Features",
     navProduct: "Product",
+    navFrontDesk: "Front Desk",
+    navWebsiteWidget: "Website Widget",
+    navVoiceAgent: "Voice Agent",
     navPricing: "Pricing",
     navAbout: "About",
     dashboard: "Dashboard",
@@ -1095,6 +1099,9 @@ const MARKETING_CHROME = Object.freeze({
     navHome: "Kezdőlap",
     navFeatures: "Funkciók",
     navProduct: "Termék",
+    navFrontDesk: "Front Desk",
+    navWebsiteWidget: "Website Widget",
+    navVoiceAgent: "Voice Agent",
     navPricing: "Árak",
     navAbout: "Rólunk",
     dashboard: "Dashboard",
@@ -1135,11 +1142,17 @@ function renderMarketingPage(rootDir, pageKey = "home", locale = "en") {
     .replace("<!-- VONZA_MARKETING_NAV_LABEL -->", escapeHtml(chrome.navLabel))
     .replaceAll("<!-- VONZA_MARKETING_FEATURES_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/features`))
     .replaceAll("<!-- VONZA_MARKETING_PRODUCT_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/product`))
+    .replaceAll("<!-- VONZA_MARKETING_FRONT_DESK_HREF -->", "/front-desk")
+    .replaceAll("<!-- VONZA_MARKETING_WEBSITE_WIDGET_HREF -->", "/website-widget")
+    .replaceAll("<!-- VONZA_MARKETING_VOICE_AGENT_HREF -->", "/voice-agent")
     .replaceAll("<!-- VONZA_MARKETING_PRICING_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/pricing`))
     .replaceAll("<!-- VONZA_MARKETING_ABOUT_HREF -->", escapeHtml(`${chrome.pathPrefix || ""}/about`))
     .replaceAll("<!-- VONZA_MARKETING_NAV_HOME -->", escapeHtml(chrome.navHome))
     .replaceAll("<!-- VONZA_MARKETING_NAV_FEATURES -->", escapeHtml(chrome.navFeatures))
     .replaceAll("<!-- VONZA_MARKETING_NAV_PRODUCT -->", escapeHtml(chrome.navProduct))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_FRONT_DESK -->", escapeHtml(chrome.navFrontDesk))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_WEBSITE_WIDGET -->", escapeHtml(chrome.navWebsiteWidget))
+    .replaceAll("<!-- VONZA_MARKETING_NAV_VOICE_AGENT -->", escapeHtml(chrome.navVoiceAgent))
     .replaceAll("<!-- VONZA_MARKETING_NAV_PRICING -->", escapeHtml(chrome.navPricing))
     .replaceAll("<!-- VONZA_MARKETING_NAV_ABOUT -->", escapeHtml(chrome.navAbout))
     .replace("<!-- VONZA_MARKETING_SIGN_IN -->", escapeHtml(chrome.signIn))
