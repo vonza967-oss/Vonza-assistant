@@ -15950,38 +15950,6 @@ html[data-dashboard-theme="dark"] .metric-tile-icon {
   line-height: 1.1;
 }
 
-.front-desk-orb {
-  position: relative;
-  z-index: 1;
-  min-height: 210px;
-  display: grid;
-  place-items: center;
-}
-
-.front-desk-orb-rings {
-  display: none;
-}
-
-.front-desk-orb-core {
-  position: relative;
-  width: 136px;
-  height: 136px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.52);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
-  color: var(--theme-accent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.front-desk-orb-core svg {
-  width: 62px;
-  height: 62px;
-}
-
 .glass-home-middle,
 .glass-home-bottom {
   display: grid;
@@ -16456,10 +16424,6 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select {
     grid-template-columns: 1fr;
   }
 
-  .front-desk-orb {
-    min-height: 160px;
-  }
-
   .glass-hero-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -16605,10 +16569,6 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select {
 
   .glass-hero p:not(.glass-kicker) {
     font-size: 14px;
-  }
-
-  .front-desk-orb {
-    display: none;
   }
 
   .glass-card {

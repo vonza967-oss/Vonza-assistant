@@ -8327,10 +8327,6 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                 ${buildMetricTile({ label: "AI handled", value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
               </div>
             </div>
-            <div class="front-desk-orb" aria-hidden="true">
-              <span class="front-desk-orb-rings"></span>
-              <span class="front-desk-orb-core">${buildV2Icon("sparkle")}</span>
-            </div>
           </section>
 
           <section class="glass-home-middle v2-home-two-col">

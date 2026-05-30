@@ -410,24 +410,6 @@ html[data-dashboard-theme] body::after {
   font-size: var(--vz-text-lg);
 }
 
-.front-desk-orb {
-  min-height: 170px;
-}
-
-.front-desk-orb-rings {
-  width: min(310px, 100%);
-}
-
-.front-desk-orb-core {
-  width: 116px;
-  height: 116px;
-}
-
-.front-desk-orb-core svg {
-  width: 50px;
-  height: 50px;
-}
-
 .glass-home-middle,
 .glass-home-bottom {
   gap: 18px;

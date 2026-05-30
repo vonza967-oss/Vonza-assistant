@@ -4585,17 +4585,6 @@ html[data-dashboard-theme="light"] .glass-hero p:not(.glass-kicker) {
   font-size: 16px;
 }
 
-html[data-dashboard-theme="bright"] .front-desk-orb-rings,
-html[data-dashboard-theme="light"] .front-desk-orb-rings {
-  display: none;
-}
-
-html[data-dashboard-theme="bright"] .front-desk-orb-core,
-html[data-dashboard-theme="light"] .front-desk-orb-core {
-  background: rgba(255, 255, 255, 0.52);
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
-}
-
 html[data-dashboard-theme="bright"] .quick-action-tile,
 html[data-dashboard-theme="light"] .quick-action-tile,
 html[data-dashboard-theme="bright"] .glass-mini-button,
