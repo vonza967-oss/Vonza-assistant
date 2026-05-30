@@ -38,6 +38,10 @@ import {
 import { listWidgetRoutingEventsByAgentId } from "../analytics/widgetTelemetryService.js";
 import { getOwnerBillingSnapshot } from "../billing/billingUsageService.js";
 import { listAgentMessages } from "../chat/messageService.js";
+import {
+  buildFallbackProductEntitlements,
+  listOwnerProductEntitlements,
+} from "../entitlements/productEntitlementService.js";
 import { listProductAvailability } from "../entitlements/productAvailabilityService.js";
 import { listFollowUpWorkflows } from "../followup/followUpService.js";
 import { listKnowledgeFixWorkflows } from "../knowledge/knowledgeFixService.js";
@@ -547,6 +551,28 @@ function buildWorkspaceProductAvailability(agent = {}, billingSnapshot = null) {
     billingSnapshot,
     billing: billingSnapshot,
   });
+}
+
+async function loadWorkspaceProductEntitlements(supabase, options = {}, alerts = []) {
+  const fallbackValue = buildFallbackProductEntitlements({
+    agent: options.agent || {},
+    accessStatus: options.agent?.accessStatus,
+    billingSnapshot: options.billingSnapshot,
+    billing: options.billingSnapshot,
+  });
+
+  return loadWorkspaceSection(
+    "Product entitlement state",
+    () => listOwnerProductEntitlements(supabase, {
+      ownerUserId: options.ownerUserId,
+      agent: options.agent || {},
+      accessStatus: options.agent?.accessStatus,
+      billingSnapshot: options.billingSnapshot,
+      billing: options.billingSnapshot,
+    }),
+    fallbackValue,
+    alerts
+  );
 }
 
 function normalizeArray(value) {
@@ -4098,6 +4124,11 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     const followUpResult = getSettledValue(followUpsResult, { records: [], persistenceAvailable: true });
     const conversionOutcomeResult = getSettledValue(outcomesResult, { records: [], persistenceAvailable: true });
     const billing = getSettledValue(billingResult, emptySnapshot.billing);
+    const productEntitlements = await loadWorkspaceProductEntitlements(supabase, {
+      agent,
+      ownerUserId,
+      billingSnapshot: billing,
+    }, alerts);
     const contactsWorkspace = await getOperatorContactsWorkspace(supabase, {
       agent,
       ownerUserId,
@@ -4153,6 +4184,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       },
       billing,
       product_availability: buildWorkspaceProductAvailability(agent, billing),
+      product_entitlements: productEntitlements,
       businessProfile: getSettledValue(
         businessProfileResult,
         createDefaultOperatorBusinessProfile({
@@ -4182,6 +4214,12 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
   };
 
   if (!capabilities.persistenceAvailable) {
+    const productEntitlements = await loadWorkspaceProductEntitlements(supabase, {
+      agent,
+      ownerUserId,
+      billingSnapshot: emptySnapshot.billing,
+    }, alerts);
+
     return createEmptyOperatorWorkspaceSnapshot({
       ...emptySnapshot,
       status: {
@@ -4203,6 +4241,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       },
       health: syncErrors,
       product_availability: buildWorkspaceProductAvailability(agent, emptySnapshot.billing),
+      product_entitlements: productEntitlements,
     });
   }
 
@@ -4620,6 +4659,11 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     billingResult,
     createEmptyOperatorWorkspaceSnapshot().billing
   );
+  const productEntitlements = await loadWorkspaceProductEntitlements(supabase, {
+    agent,
+    ownerUserId,
+    billingSnapshot: billing,
+  }, alerts);
   const copilot = hydrateTodayCopilotProposals({
     ...buildTodayCopilotSnapshot({
     featureEnabled: copilotFeatureEnabled,
@@ -4718,6 +4762,7 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
     },
     billing,
     product_availability: buildWorkspaceProductAvailability(agent, billing),
+    product_entitlements: productEntitlements,
     businessProfile,
     outcomes: {
       summary: conversionOutcomeResult.summary || null,

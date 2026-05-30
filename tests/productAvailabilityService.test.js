@@ -16,6 +16,10 @@ import {
   getProductCatalogEntry,
   listProductCatalog,
 } from "../src/config/productCatalog.js";
+import {
+  PRODUCT_ENTITLEMENT_REASON_CODES,
+  listOwnerProductEntitlements,
+} from "../src/services/entitlements/productEntitlementService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,6 +35,49 @@ function assertAvailabilityShape(result) {
   assert.equal(Object.hasOwn(result, "upgrade_url"), true);
   assert.equal(Array.isArray(result.capabilities), true);
   assert.equal(Object.hasOwn(result, "checkout_url"), false);
+}
+
+function createReadOnlyEntitlementSupabase(rows = []) {
+  const calls = [];
+  const mutations = [];
+
+  return {
+    calls,
+    mutations,
+    from(tableName) {
+      calls.push({ method: "from", tableName });
+
+      return {
+        select(columns) {
+          calls.push({ method: "select", tableName, columns });
+          return this;
+        },
+        eq(field, value) {
+          calls.push({ method: "eq", tableName, field, value });
+          return this;
+        },
+        insert(payload) {
+          mutations.push({ method: "insert", tableName, payload });
+          return this;
+        },
+        update(payload) {
+          mutations.push({ method: "update", tableName, payload });
+          return this;
+        },
+        delete() {
+          mutations.push({ method: "delete", tableName });
+          return this;
+        },
+        then(resolve, reject) {
+          try {
+            return resolve({ data: rows, error: null });
+          } catch (error) {
+            return reject(error);
+          }
+        },
+      };
+    },
+  };
 }
 
 test("normalizeProductKey handles canonical keys and reasonable aliases", () => {
@@ -260,4 +307,148 @@ test("service does not introduce product-specific checkout or enforcement wiring
     assert.equal(Object.hasOwn(product, "checkout_url"), false);
     assert.doesNotMatch(product.upgrade_url || "", /checkout|stripe|voice-agent|website-widget|front-desk/i);
   });
+});
+
+test("owner product entitlement lookup reads rows and returns all three products", async () => {
+  const supabase = createReadOnlyEntitlementSupabase([
+    {
+      id: "entitlement-1",
+      owner_user_id: "owner-1",
+      product_key: PRODUCT_KEYS.FRONT_DESK,
+      entitlement_status: "active",
+      source: "manual_beta",
+      feature_caps: { seats: 1 },
+      metadata: { note: "test" },
+    },
+  ]);
+
+  const products = await listOwnerProductEntitlements(supabase, {
+    ownerUserId: "owner-1",
+    accessStatus: "active",
+  });
+
+  assert.deepEqual(
+    products.map((product) => product.product_key),
+    [PRODUCT_KEYS.FRONT_DESK, PRODUCT_KEYS.WEBSITE_WIDGET, PRODUCT_KEYS.VOICE_AGENT]
+  );
+  assert.equal(supabase.calls[0].tableName, "owner_product_entitlements");
+  assert.deepEqual(
+    supabase.calls.find((call) => call.method === "eq"),
+    {
+      method: "eq",
+      tableName: "owner_product_entitlements",
+      field: "owner_user_id",
+      value: "owner-1",
+    }
+  );
+  assert.deepEqual(supabase.mutations, []);
+  products.forEach((product) => {
+    assertAvailabilityShape(product);
+    assert.equal(product.is_enforced, false);
+  });
+});
+
+test("grandfathered entitlement rows map to available read-only product state", async () => {
+  const supabase = createReadOnlyEntitlementSupabase([
+    {
+      id: "entitlement-legacy",
+      owner_user_id: "owner-1",
+      product_key: PRODUCT_KEYS.VOICE_AGENT,
+      entitlement_status: "grandfathered",
+      source: "legacy_workspace_plan",
+      plan_key: "starter",
+      current_period_end: "2026-06-30T00:00:00.000Z",
+      feature_caps: { calls: "legacy" },
+      metadata: { phase: "6a_read_only_entitlement_backfill" },
+    },
+  ]);
+
+  const products = await listOwnerProductEntitlements(supabase, {
+    ownerUserId: "owner-1",
+    accessStatus: "active",
+  });
+  const voice = products.find((product) => product.product_key === PRODUCT_KEYS.VOICE_AGENT);
+
+  assertAvailabilityShape(voice);
+  assert.equal(voice.status, AVAILABILITY_STATUSES.AVAILABLE);
+  assert.equal(voice.reason_code, PRODUCT_ENTITLEMENT_REASON_CODES.GRANDFATHERED);
+  assert.equal(voice.entitlement_status, "grandfathered");
+  assert.equal(voice.entitlement_source, "legacy_workspace_plan");
+  assert.equal(voice.entitlement_row_exists, true);
+  assert.equal(voice.status_source, "owner_product_entitlements");
+  assert.equal(voice.entitlement.plan_key, "starter");
+  assert.equal(voice.entitlement.current_period_end, "2026-06-30T00:00:00.000Z");
+  assert.equal(Object.hasOwn(voice.entitlement, "owner_user_id"), false);
+});
+
+test("missing entitlement rows keep current non-enforcing fallback availability", async () => {
+  const supabase = createReadOnlyEntitlementSupabase([]);
+  const products = await listOwnerProductEntitlements(supabase, {
+    ownerUserId: "owner-1",
+    accessStatus: "active",
+    billingSnapshot: {
+      usage: {
+        isCapped: false,
+      },
+    },
+  });
+
+  products.forEach((product) => {
+    assertAvailabilityShape(product);
+    assert.equal(product.status, AVAILABILITY_STATUSES.AVAILABLE);
+    assert.equal(product.reason_code, REASON_CODES.ACCOUNT_ACCESS_ACTIVE);
+    assert.equal(product.entitlement_status, "missing");
+    assert.equal(product.entitlement_source, "account_access_fallback");
+    assert.equal(product.entitlement_row_exists, false);
+    assert.equal(product.status_source, "account_access_fallback");
+    assert.equal(product.entitlement, null);
+    assert.equal(product.is_enforced, false);
+  });
+});
+
+test("read-only entitlement rows never become enforcing access gates", async () => {
+  const supabase = createReadOnlyEntitlementSupabase([
+    {
+      id: "entitlement-inactive",
+      owner_user_id: "owner-1",
+      product_key: PRODUCT_KEYS.WEBSITE_WIDGET,
+      entitlement_status: "inactive",
+      source: "manual_free",
+    },
+  ]);
+
+  const products = await listOwnerProductEntitlements(supabase, {
+    ownerUserId: "owner-1",
+    accessStatus: "active",
+  });
+  const widget = products.find((product) => product.product_key === PRODUCT_KEYS.WEBSITE_WIDGET);
+  const frontDesk = products.find((product) => product.product_key === PRODUCT_KEYS.FRONT_DESK);
+
+  assert.equal(widget.status, AVAILABILITY_STATUSES.UNAVAILABLE);
+  assert.equal(widget.reason_code, PRODUCT_ENTITLEMENT_REASON_CODES.INACTIVE);
+  assert.equal(widget.is_enforced, false);
+  assert.equal(frontDesk.status, AVAILABILITY_STATUSES.AVAILABLE);
+  assert.equal(frontDesk.entitlement_row_exists, false);
+  products.forEach((product) => {
+    assert.equal(product.is_enforced, false);
+  });
+});
+
+test("product entitlement service is read-only and has no checkout controls", () => {
+  const servicePath = path.join(
+    repoRoot,
+    "src",
+    "services",
+    "entitlements",
+    "productEntitlementService.js"
+  );
+  const source = readFileSync(servicePath, "utf8");
+
+  assert.match(source, /OWNER_PRODUCT_ENTITLEMENT_TABLE/);
+  assert.match(source, /\.select\(ENTITLEMENT_SELECT\)/);
+  assert.match(source, /\.eq\("owner_user_id", ownerUserId\)/);
+  assert.doesNotMatch(source, /stripe|checkoutService|webhook|createCheckout|\/billing\/checkout/i);
+  assert.doesNotMatch(source, /from\s+["'].*routes|from\s+["'].*chat|from\s+["'].*voice|from\s+["'].*phone/i);
+  assert.doesNotMatch(source, /insert\(|update\(|delete\(|upsert\(/i);
+  assert.doesNotMatch(source, /Buy Voice Agent|Buy Website Widget|Buy Front Desk|data-product-checkout|checkout_url/i);
 });

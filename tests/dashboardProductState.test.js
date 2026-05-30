@@ -223,12 +223,15 @@ test("frontend product cards read canonical product availability when present", 
   assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
 });
 
-test("operator workspace account response exposes additive product availability", () => {
+test("operator workspace account response exposes additive product availability and entitlements", () => {
   const source = readFileSync(path.join(repoRoot, "src", "services", "operator", "operatorWorkspaceService.js"), "utf8");
 
   assert.match(source, /import \{ listProductAvailability \} from "\.\.\/entitlements\/productAvailabilityService\.js";/);
+  assert.match(source, /listOwnerProductEntitlements/);
+  assert.match(source, /buildFallbackProductEntitlements/);
   assert.match(source, /product_availability:\s*buildWorkspaceProductAvailability\(agent,\s*billing\)/);
-  assert.match(source, /billing,\s*\n\s*product_availability:/);
+  assert.match(source, /product_entitlements:\s*productEntitlements/);
+  assert.match(source, /billing,\s*\n\s*product_availability:[\s\S]*product_entitlements:/);
   assert.doesNotMatch(source, /createHostedCheckoutSession|constructStripeWebhookEvent|changeStripeSubscriptionPlan/);
 });
 
