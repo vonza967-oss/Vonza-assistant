@@ -606,6 +606,15 @@
     return agent.voiceConfig || agent.voice_config || {};
   }
 
+  const READINESS_DEFAULT_WIDGET_VALUES = Object.freeze({
+    buttonLabels: Object.freeze(["chat with vonza", "open front desk", "chat"]),
+    welcomeMessages: Object.freeze([
+      "how may i be of your service today?",
+      "hi! how can we help today?",
+    ]),
+    colors: Object.freeze(["#10a37f", "#0c7f75", "#5b61ff", "#7c4dff", "#14b8a6", "#0f766e"]),
+  });
+
   function isReadinessPublicFullPageEnabled(agent = {}) {
     const config = getReadinessFullPageConfig(agent);
     return normalizeReadinessBoolean(config.publicPageEnabled ?? config.public_page_enabled)
@@ -629,12 +638,17 @@
   }
 
   function hasReadinessWidgetAppearance(agent = {}) {
+    const buttonLabel = trimText(agent.buttonLabel || agent.button_label).toLowerCase();
+    const welcomeMessage = trimText(agent.welcomeMessage || agent.welcome_message).toLowerCase();
+    const primaryColor = trimText(agent.primaryColor || agent.primary_color).toLowerCase();
+    const secondaryColor = trimText(agent.secondaryColor || agent.secondary_color).toLowerCase();
+
     return Boolean(
-      trimText(agent.buttonLabel || agent.button_label)
-      || trimText(agent.primaryColor || agent.primary_color)
-      || trimText(agent.secondaryColor || agent.secondary_color)
-      || trimText(agent.widgetLogoUrl || agent.widget_logo_url)
-      || trimText(agent.welcomeMessage || agent.welcome_message)
+      trimText(agent.widgetLogoUrl || agent.widget_logo_url)
+      || (buttonLabel && !READINESS_DEFAULT_WIDGET_VALUES.buttonLabels.includes(buttonLabel))
+      || (welcomeMessage && !READINESS_DEFAULT_WIDGET_VALUES.welcomeMessages.includes(welcomeMessage))
+      || (primaryColor && !READINESS_DEFAULT_WIDGET_VALUES.colors.includes(primaryColor))
+      || (secondaryColor && !READINESS_DEFAULT_WIDGET_VALUES.colors.includes(secondaryColor))
     );
   }
 
@@ -664,6 +678,99 @@
       webCallEnabled,
       webCallReady: voiceInputEnabled && spokenRepliesEnabled && webCallEnabled,
     };
+  }
+
+  function getReadinessArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function getReadinessNumber(value) {
+    const numberValue = Number(value || 0);
+    return Number.isFinite(numberValue) ? numberValue : 0;
+  }
+
+  function getReadinessMessageSourceText(message = {}) {
+    return [
+      message.displayMode,
+      message.display_mode,
+      message.conversationSource,
+      message.conversation_source,
+      message.source,
+      message.sourceType,
+      message.source_type,
+      message.captureSource,
+      message.capture_source,
+      message.sourceRoute,
+      message.source_route,
+      message.webCallId,
+      message.web_call_id,
+      message.webCallSessionId,
+      message.web_call_session_id,
+    ].map((value) => trimText(value).toLowerCase()).filter(Boolean).join(" ");
+  }
+
+  function hasReadinessSourceBucketActivity(bucket = {}) {
+    return getReadinessNumber(bucket.conversationCount || bucket.conversation_count) > 0
+      || getReadinessNumber(bucket.messageCount || bucket.message_count) > 0
+      || getReadinessNumber(bucket.visitorQuestionCount || bucket.visitor_question_count) > 0
+      || getReadinessNumber(bucket.leadsCaptured || bucket.leads_captured) > 0;
+  }
+
+  function getReadinessOwnerAnalyticsDashboard(snapshot = {}) {
+    return snapshot.ownerAnalyticsDashboard || snapshot.actionQueue?.ownerAnalyticsDashboard || {};
+  }
+
+  function hasReadinessFrontDeskActivity(snapshot = {}) {
+    const messages = getReadinessArray(snapshot.messages);
+    const dashboard = getReadinessOwnerAnalyticsDashboard(snapshot);
+    const pageBucket = dashboard.assistantSource?.page || dashboard.assistant_source?.page || {};
+
+    return messages.some((message) => {
+      const sourceText = getReadinessMessageSourceText(message);
+      return /\bpage\b/.test(sourceText) || sourceText.includes("full_page") || sourceText.includes("public_page");
+    }) || hasReadinessSourceBucketActivity(pageBucket);
+  }
+
+  function hasReadinessWidgetActivity(snapshot = {}, agent = {}) {
+    const messages = getReadinessArray(snapshot.messages);
+    const dashboard = getReadinessOwnerAnalyticsDashboard(snapshot);
+    const widgetBucket = dashboard.assistantSource?.widget || dashboard.assistant_source?.widget || {};
+    const widgetMetrics = snapshot.widgetMetrics || agent.widgetMetrics || agent.widget_metrics || {};
+
+    return messages.some((message) => getReadinessMessageSourceText(message).includes("widget"))
+      || hasReadinessSourceBucketActivity(widgetBucket)
+      || getReadinessNumber(widgetMetrics.conversationStartedCount || widgetMetrics.conversation_started_count) > 0
+      || getReadinessNumber(widgetMetrics.conversationsSinceInstall || widgetMetrics.conversations_since_install) > 0
+      || getReadinessNumber(widgetMetrics.uniqueSessionCount || widgetMetrics.unique_session_count) > 0
+      || getReadinessNumber(widgetMetrics.contactCapturedCount || widgetMetrics.contact_captured_count) > 0
+      || getReadinessNumber(widgetMetrics.ctaClicks || widgetMetrics.cta_clicks) > 0;
+  }
+
+  function hasReadinessWebCallActivity(snapshot = {}) {
+    const messages = getReadinessArray(snapshot.messages);
+    const dashboard = getReadinessOwnerAnalyticsDashboard(snapshot);
+    const webCallBucket = dashboard.assistantSource?.web_call
+      || dashboard.assistantSource?.webCall
+      || dashboard.assistant_source?.web_call
+      || dashboard.assistant_source?.webCall
+      || {};
+    const webCallHealth = snapshot.webCallHealth || dashboard.webCallHealth || dashboard.web_call_health || {};
+    const recentCalls = snapshot.recentWebCalls || dashboard.webCallRecentCalls || dashboard.web_call_recent_calls || {};
+    const recentCallItems = getReadinessArray(recentCalls.calls || recentCalls.items);
+
+    return messages.some((message) => getReadinessMessageSourceText(message).includes("web_call"))
+      || hasReadinessSourceBucketActivity(webCallBucket)
+      || getReadinessNumber(webCallHealth.starts) > 0
+      || getReadinessNumber(recentCalls.total) > 0
+      || recentCallItems.length > 0;
+  }
+
+  function hasReadinessTrainingKnowledge(frontDeskTraining = {}) {
+    return getReadinessArray(frontDeskTraining.items).some((item) => {
+      const status = trimText(item.status).toLowerCase();
+      const type = trimText(item.type).toLowerCase();
+      return status === "active" && ["approved_answer", "business_fact", "correction"].includes(type);
+    });
   }
 
   function createReadinessItem({
@@ -711,6 +818,10 @@
     const fullPageCustomized = hasReadinessFullPageCustomization(agent);
     const installDetected = isReadinessInstallDetected(installStatus);
     const webCallState = getReadinessWebCallState(agent);
+    const frontDeskActivity = hasReadinessFrontDeskActivity(snapshot);
+    const widgetActivity = hasReadinessWidgetActivity(snapshot, agent);
+    const webCallActivity = hasReadinessWebCallActivity(snapshot);
+    const trainingKnowledgeReady = hasReadinessTrainingKnowledge(snapshot.frontDeskTraining);
 
     if (normalizedProductKey === "website_widget") {
       return Object.freeze([
@@ -767,9 +878,11 @@
         createReadinessItem({
           key: "widget_test",
           label: "Test widget action",
-          copy: "Use the existing install panel to copy or test the secondary website widget.",
-          complete: null,
-          kind: "action",
+          copy: widgetActivity
+            ? "Widget-sourced conversation or telemetry activity exists in the current snapshot."
+            : "Use the existing install panel to copy or test the secondary website widget.",
+          complete: widgetActivity ? true : null,
+          kind: widgetActivity ? "derived" : "action",
           href: "#install/embed",
           shellTarget: "install",
           installMethod: "widget",
@@ -824,9 +937,11 @@
         createReadinessItem({
           key: "voice_test",
           label: "Test voice agent action",
-          copy: "Use the existing Front Desk practice and voice settings surfaces to run a voice test.",
-          complete: null,
-          kind: "action",
+          copy: webCallActivity
+            ? "Web Call message, health, or recent call activity exists in the current snapshot."
+            : "Use the existing Front Desk practice and voice settings surfaces to run a Web Call test.",
+          complete: webCallActivity ? true : null,
+          kind: webCallActivity ? "derived" : "action",
           href: "#front-desk/practice",
           shellTarget: "customize",
           icon: "sparkle",
@@ -861,12 +976,14 @@
       createReadinessItem({
         key: "front_desk_full_page",
         label: "Full-page assistant configured",
-        copy: fullPageEnabled
-          ? "The hosted Front Desk page is enabled."
+        copy: fullPageEnabled && fullPageCustomized
+          ? "The hosted Front Desk page is enabled and customized."
+          : fullPageEnabled
+            ? "The hosted Front Desk page is enabled; review the customer-facing content before launch."
           : fullPageCustomized
             ? "Full-page content has been customized; public access still needs review."
             : "Review the hosted Front Desk page headline, prompts, trust copy, and public access.",
-        complete: fullPageEnabled || fullPageCustomized,
+        complete: fullPageEnabled && fullPageCustomized,
         kind: "derived",
         href: "#settings/front-desk/full-page-assistant",
         shellTarget: "settings",
@@ -876,12 +993,12 @@
       createReadinessItem({
         key: "front_desk_knowledge",
         label: "Training/knowledge added",
-        copy: knowledgeReady
+        copy: knowledgeReady || trainingKnowledgeReady
           ? "Website knowledge is ready for customer answers."
           : knowledgeLimited
             ? "Website knowledge exists, but another pass would improve answers."
             : "Import or add business knowledge before launch.",
-        complete: knowledgeReady,
+        complete: knowledgeReady || trainingKnowledgeReady,
         kind: "derived",
         href: "#settings/business-profile",
         shellTarget: "settings",
@@ -900,6 +1017,18 @@
         shellTarget: "settings",
         settingsTarget: "front_desk",
         icon: "users",
+      }),
+      createReadinessItem({
+        key: "front_desk_test",
+        label: "Front Desk page tested",
+        copy: frontDeskActivity
+          ? "Page-mode conversation or analytics activity exists in the current snapshot."
+          : "Preview the hosted Front Desk page and send a realistic customer question.",
+        complete: frontDeskActivity ? true : null,
+        kind: frontDeskActivity ? "derived" : "action",
+        href: "#front-desk/practice",
+        shellTarget: "customize",
+        icon: "sparkle",
       }),
       createReadinessItem({
         key: "front_desk_publish",

@@ -464,6 +464,7 @@ test("product readiness helper returns product-specific checklist items", () => 
       "front_desk_full_page",
       "front_desk_knowledge",
       "front_desk_routing",
+      "front_desk_test",
       "front_desk_publish",
     ]
   );
@@ -512,6 +513,108 @@ test("product readiness helper derives only existing saved state and leaves setu
   assert.equal(domainStatus.complete, false);
 });
 
+test("product readiness keeps default widget appearance and disabled public page from completing setup", () => {
+  const { state } = loadDashboardState();
+  const widgetChecklist = state.getProductReadinessChecklist("website_widget", {
+    agent: {
+      buttonLabel: "Open Front Desk",
+      welcomeMessage: "Hi! How can we help today?",
+      primaryColor: "#5b61ff",
+      secondaryColor: "#7c4dff",
+    },
+  });
+  const frontDeskChecklist = state.getProductReadinessChecklist("front_desk", {
+    agent: {
+      fullPageConfig: {
+        publicPageEnabled: false,
+        publicPageKey: "page-key",
+        headline: "Custom headline",
+        subtitle: "Custom subtitle",
+      },
+    },
+  });
+
+  assert.equal(widgetChecklist.find((item) => item.key === "widget_appearance").complete, false);
+  assert.equal(frontDeskChecklist.find((item) => item.key === "front_desk_full_page").complete, false);
+  assert.equal(frontDeskChecklist.find((item) => item.key === "front_desk_publish").complete, false);
+});
+
+test("product readiness counts only explicit routing destinations", () => {
+  const { state } = loadDashboardState();
+  const defaultCtaChecklist = state.getProductReadinessChecklist("front_desk", {
+    agent: {
+      ctaMode: "contact",
+      directCtaMode: "booking",
+      leadCaptureMode: "quote",
+    },
+  });
+  const routedChecklist = state.getProductReadinessChecklist("front_desk", {
+    agent: {
+      bookingUrl: "https://example.com/book",
+    },
+  });
+
+  assert.equal(defaultCtaChecklist.find((item) => item.key === "front_desk_routing").complete, false);
+  assert.equal(routedChecklist.find((item) => item.key === "front_desk_routing").complete, true);
+});
+
+test("product readiness uses product-scoped activity for page, widget, and Web Call tests", () => {
+  const { state } = loadDashboardState();
+  const frontDeskChecklist = state.getProductReadinessChecklist("front_desk", {
+    messages: [
+      { id: "msg-page-1", displayMode: "page", role: "user", sessionKey: "page-session" },
+    ],
+  });
+  const widgetChecklist = state.getProductReadinessChecklist("website_widget", {
+    ownerAnalyticsDashboard: {
+      assistantSource: {
+        widget: { conversationCount: 1 },
+      },
+    },
+  });
+  const voiceChecklist = state.getProductReadinessChecklist("voice_agent", {
+    messages: [
+      { id: "msg-web-call-1", conversationSource: "web_call", role: "user", sessionKey: "voice-session" },
+    ],
+  });
+  const voiceHealthChecklist = state.getProductReadinessChecklist("voice_agent", {
+    ownerAnalyticsDashboard: {
+      webCallHealth: { starts: 1 },
+      webCallRecentCalls: { total: 1, calls: [{ id: "call-1", latestActivityAt: "2026-05-31T10:00:00.000Z" }] },
+    },
+  });
+
+  assert.deepEqual(
+    [
+      frontDeskChecklist.find((item) => item.key === "front_desk_test"),
+      widgetChecklist.find((item) => item.key === "widget_test"),
+      voiceChecklist.find((item) => item.key === "voice_test"),
+      voiceHealthChecklist.find((item) => item.key === "voice_test"),
+    ].map((item) => [item.kind, item.complete]),
+    [
+      ["derived", true],
+      ["derived", true],
+      ["derived", true],
+      ["derived", true],
+    ]
+  );
+});
+
+test("product readiness action-only items stay neutral and voice copy avoids phone claims", () => {
+  const { state } = loadDashboardState();
+  const widgetChecklist = state.getProductReadinessChecklist("website_widget");
+  const voiceChecklist = state.getProductReadinessChecklist("voice_agent");
+  const actionItems = [...widgetChecklist, ...voiceChecklist].filter((item) => item.kind === "action");
+  const voiceCopy = JSON.stringify(voiceChecklist);
+
+  assert.ok(actionItems.length > 0);
+  actionItems.forEach((item) => {
+    assert.equal(item.complete, null);
+  });
+  assert.match(voiceCopy, /Web Call|browser voice/);
+  assert.doesNotMatch(voiceCopy, /telephony|phone/i);
+});
+
 test("product readiness checklist links point to existing safe dashboard hashes", () => {
   const { state } = loadDashboardState();
   const allLinks = [
@@ -537,6 +640,9 @@ test("product landing renders readiness card from the active product context", (
   assert.match(script, /data-product-readiness-card/);
   assert.match(script, /data-product-readiness-item/);
   assert.match(script, /buildProductLandingContext\(activeDashboardProduct,\s*\{/);
+  assert.match(script, /saved-state checks ready/);
+  assert.match(script, /Action-only rows are neutral setup links/);
+  assert.doesNotMatch(script, /\$\{readyCount\} of \$\{checklist\.length\} items ready/);
 });
 
 test("analytics rendering receives the active dashboard product context", () => {

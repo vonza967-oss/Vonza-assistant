@@ -7628,8 +7628,9 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
     return "";
   }
 
-  const readyCount = checklist.filter((item) => item.complete === true).length;
-  const derivedCount = checklist.filter((item) => item.kind === "derived").length;
+  const statefulItems = checklist.filter((item) => item.kind === "derived" || item.complete === false);
+  const readyCount = statefulItems.filter((item) => item.complete === true).length;
+  const statefulReadinessCount = Math.max(statefulItems.length, 1);
   const productLabel = product?.label || "Front Desk";
 
   return `
@@ -7637,8 +7638,8 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
       <div class="product-readiness-header">
         <div>
           <p class="product-context-eyebrow">${escapeHtml(productLabel)} readiness</p>
-          <h3>${escapeHtml(`${readyCount} of ${checklist.length} items ready`)}</h3>
-          <p>${escapeHtml(`${derivedCount} items use existing saved workspace state; action items are setup links only.`)}</p>
+          <h3>${escapeHtml(`${readyCount} of ${statefulReadinessCount} saved-state checks ready`)}</h3>
+          <p>${escapeHtml("Progress uses existing workspace state. Action-only rows are neutral setup links.")}</p>
         </div>
       </div>
       <div class="product-readiness-list">
@@ -7725,7 +7726,7 @@ function buildProductLandingContext(product = activeDashboardProduct, snapshot =
   `);
 }
 
-function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
+function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
     ? dashboardState.getDashboardProductHomeContext(activeDashboardProduct.key)
@@ -8337,6 +8338,12 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
           setup,
           installStatus: overview.installStatus,
           analyticsSummary: overview.analyticsSummary,
+          messages,
+          frontDeskTraining,
+          ownerAnalyticsDashboard: actionQueue.ownerAnalyticsDashboard || null,
+          widgetMetrics: agent.widgetMetrics || agent.widget_metrics || {},
+          webCallHealth: actionQueue.ownerAnalyticsDashboard?.webCallHealth || null,
+          recentWebCalls: actionQueue.ownerAnalyticsDashboard?.webCallRecentCalls || null,
         })}
         <div class="home-surface dashboard-v2-home glass-home-layout">
           <section class="glass-hero glass-hero--front-desk">
@@ -13261,7 +13268,7 @@ function renderAssistantShell(
         ${buildWorkspaceContextBar(agent, setup, operatorWorkspace)}
         ${setupHintMarkup}
         <div class="workspace-pages">
-          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
@@ -13303,7 +13310,7 @@ function renderDashboardV2Shell(
       <div class="workspace-shell">
         ${setupHintMarkup}
         <div class="workspace-pages">
-          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
+          ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
