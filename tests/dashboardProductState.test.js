@@ -133,6 +133,40 @@ test("product packaging metadata exists for all commercial product keys", () => 
   });
 });
 
+test("product home context exists for all dashboard product keys", () => {
+  const { state } = loadDashboardState();
+  const contexts = ["front_desk", "website_widget", "voice_agent"].map((key) =>
+    state.getDashboardProductHomeContext(key)
+  );
+
+  assert.deepEqual(contexts.map((context) => context.key), ["front_desk", "website_widget", "voice_agent"]);
+  contexts.forEach((context) => {
+    assert.ok(context.homeTitle.length > 8);
+    assert.ok(context.homeSubtitle.length > 20);
+    assert.ok(context.statusKicker.length > 8);
+    assert.ok(context.sidebarNote.length > 20);
+    assert.ok(context.quickActions.length >= 4);
+    assert.ok(context.shortcuts.length >= 5);
+    assert.ok(context.previewActionLabel.length > 4);
+    assert.ok(context.analyticsLinkLabel.length > 4);
+    assert.ok(context.metricLabels.empty.length > 20);
+  });
+});
+
+test("product home context points widget and voice at safe existing surfaces", () => {
+  const { state } = loadDashboardState();
+  const widget = state.getDashboardProductHomeContext("widget");
+  const voice = state.getDashboardProductHomeContext("voice");
+  const widgetLinks = JSON.stringify(widget);
+  const voiceCopy = JSON.stringify(voice);
+
+  assert.match(widgetLinks, /#install\/embed/);
+  assert.match(widgetLinks, /#settings\/widget\/optional-widget/);
+  assert.match(widgetLinks, /Widget analytics/);
+  assert.match(voiceCopy, /browser\/Web Call|Web Call|browser voice/);
+  assert.doesNotMatch(voiceCopy, /telephony|phone/i);
+});
+
 test("existing billing plan keys remain account capacity plans", () => {
   const plans = listPublicBillingPlans();
 
@@ -375,12 +409,17 @@ test("product-scoped settings hashes normalize to the right settings context", (
 });
 
 test("dashboard product landing links point at product-scoped settings hashes", () => {
-  const script = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
+  const { state } = loadDashboardState();
+  const links = [
+    ...state.getDashboardProductHomeContext("front_desk").shortcuts,
+    ...state.getDashboardProductHomeContext("website_widget").shortcuts,
+    ...state.getDashboardProductHomeContext("voice_agent").shortcuts,
+  ];
 
-  assert.match(script, /href: "#settings\/front-desk\/full-page-assistant"[\s\S]*settingsTarget: "front_desk"/);
-  assert.match(script, /href: "#settings\/widget\/optional-widget"[\s\S]*settingsTarget: "website_widget"/);
-  assert.match(script, /href: "#settings\/voice\/voice"[\s\S]*settingsTarget: "voice_agent"/);
-  assert.doesNotMatch(script, /href: "#settings\/front-desk\/optional-widget"/);
+  assert.ok(links.some((link) => link.href === "#settings/front-desk/full-page-assistant" && link.settingsTarget === "front_desk"));
+  assert.ok(links.some((link) => link.href === "#settings/widget/optional-widget" && link.settingsTarget === "website_widget"));
+  assert.ok(links.some((link) => link.href === "#settings/voice/voice" && link.settingsTarget === "voice_agent"));
+  assert.equal(links.some((link) => link.href === "#settings/front-desk/optional-widget"), false);
 });
 
 test("product readiness helper returns product-specific checklist items", () => {

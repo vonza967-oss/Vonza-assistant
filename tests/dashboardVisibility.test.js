@@ -37,6 +37,7 @@ function createStorageMock() {
 }
 
 function createDashboardHarness({
+  pathname = "/dashboard",
   search = "?from=app",
   hash = "",
   session = {
@@ -141,10 +142,10 @@ function createDashboardHarness({
 
   const location = {
     origin: "https://vonza-assistant.onrender.com",
-    pathname: "/dashboard",
+    pathname,
     search,
     hash,
-    href: `https://vonza-assistant.onrender.com/dashboard${search}${hash}`,
+    href: `https://vonza-assistant.onrender.com${pathname}${search}${hash}`,
     reload() {},
   };
 
@@ -710,6 +711,71 @@ test("dashboard renders visible shell content when data loads normally", async (
   assert.match(harness.getRootHtml(), /Analytics/);
 });
 
+test("product dashboard routes render product-specific home and sidebar copy", async () => {
+  const cases = [
+    {
+      pathname: "/dashboard/front-desk",
+      title: /Front Desk home/,
+      copy: /full-page AI Front Desk/,
+      action: /Preview\/test assistant/,
+      sidebar: /primary full-page customer surface/,
+    },
+    {
+      pathname: "/dashboard/widget",
+      title: /Website Widget home/,
+      copy: /embedded on-site assistant/,
+      action: /Install\/embed setup/,
+      sidebar: /embedded on-site assistant/,
+    },
+    {
+      pathname: "/dashboard/voice",
+      title: /Voice Agent home/,
+      copy: /browser\/Web Call voice assistant/,
+      action: /Test voice agent/,
+      sidebar: /browser\/Web Call voice assistant/,
+    },
+  ];
+
+  for (const entry of cases) {
+    const harness = createDashboardHarness({
+      pathname: entry.pathname,
+      agents: () => [createActiveAgent()],
+    });
+    await harness.settle();
+    const html = harness.getRootHtml();
+
+    assert.match(html, entry.title, entry.pathname);
+    assert.match(html, entry.copy, entry.pathname);
+    assert.match(html, entry.action, entry.pathname);
+    assert.match(html, entry.sidebar, entry.pathname);
+    assert.doesNotMatch(html, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+  }
+});
+
+test("widget and voice product homes link to existing setup hashes without unsupported phone claims", async () => {
+  const widgetHarness = createDashboardHarness({
+    pathname: "/dashboard/widget",
+    agents: () => [createActiveAgent()],
+  });
+  await widgetHarness.settle();
+  const widgetHtml = widgetHarness.getRootHtml();
+
+  assert.match(widgetHtml, /href="#install\/embed"/);
+  assert.match(widgetHtml, /href="#settings\/widget\/optional-widget"/);
+  assert.match(widgetHtml, /Widget conversations\/leads/);
+
+  const voiceHarness = createDashboardHarness({
+    pathname: "/dashboard/voice",
+    agents: () => [createActiveAgent()],
+  });
+  await voiceHarness.settle();
+  const voiceHtml = voiceHarness.getRootHtml();
+
+  assert.match(voiceHtml, /Browser\/Web Call status/);
+  assert.match(voiceHtml, /Web Call transcripts\/analytics/);
+  assert.doesNotMatch(voiceHtml, /telephony|phone handoff|Phone\/web-call/i);
+});
+
 test("dashboard hash routes open the matching interior section", async () => {
   const hashRoutes = [
     ["#today", /data-shell-target="overview"[\s\S]{0,260}aria-current="page"/],
@@ -728,6 +794,25 @@ test("dashboard hash routes open the matching interior section", async () => {
     await harness.settle();
 
     assert.match(harness.getRootHtml(), expectedMarkup, `${hash} should render the expected dashboard section`);
+  }
+});
+
+test("product dashboard routes preserve existing dashboard hashes", async () => {
+  const hashRoutes = [
+    ["/dashboard/front-desk", "#settings/front-desk/full-page-assistant", /data-shell-target="customize"[\s\S]{0,260}aria-current="page"/],
+    ["/dashboard/widget", "#install/embed", /data-shell-target="install"[\s\S]{0,260}aria-current="page"/],
+    ["/dashboard/voice", "#analytics", /data-shell-target="analytics"[\s\S]{0,260}aria-current="page"/],
+  ];
+
+  for (const [pathname, hash, expectedMarkup] of hashRoutes) {
+    const harness = createDashboardHarness({
+      pathname,
+      hash,
+      agents: () => [createActiveAgent()],
+    });
+    await harness.settle();
+
+    assert.match(harness.getRootHtml(), expectedMarkup, `${pathname}${hash} should keep rendering`);
   }
 });
 
@@ -1080,13 +1165,13 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   const html = harness.getRootHtml();
 
   assert.match(html, /Review replies/);
-  assert.match(html, /View analytics/);
-  assert.match(html, /Conversations today/);
-  assert.match(html, /Leads captured/);
+  assert.match(html, /Front Desk analytics/);
+  assert.match(html, /Front Desk conversations/);
+  assert.match(html, /Front Desk leads/);
   assert.match(html, /Needs reply/);
   assert.match(html, /AI handled/);
   assert.match(html, /Today.?s priority/);
-  assert.match(html, /not available yet/);
+  assert.match(html, /Front Desk analytics will appear after customer conversations are recorded/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
 });

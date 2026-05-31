@@ -198,6 +198,117 @@
       availabilitySource: "account_access",
     }),
   });
+  const DASHBOARD_PRODUCT_HOME_CONTEXT = Object.freeze({
+    front_desk: Object.freeze({
+      key: "front_desk",
+      homeTitle: "Front Desk home",
+      homeSubtitle: "Operate the full-page AI Front Desk customers can open directly.",
+      sidebarNote: "Front Desk is the primary full-page customer surface.",
+      statusKicker: "Front Desk status",
+      statusLiveTitle: "Your Front Desk is",
+      statusReadyTitle: "Your Front Desk is ready to test",
+      statusSetupTitle: "Your Front Desk needs setup",
+      statusLiveCopy: "The full-page customer surface is ready for direct links, QR, or embeds.",
+      statusReadyCopy: "Test the full-page assistant, then publish the dedicated page through Install.",
+      statusSetupCopy: "Finish business identity, knowledge, and routing before sharing the Front Desk.",
+      contextTitle: "Launch the full-page AI Front Desk",
+      contextCopy: "Front Desk is the primary customer-facing product. Set up the full-page experience, business identity, knowledge, and routing before publishing.",
+      metricLabels: Object.freeze({
+        conversations: "Front Desk conversations",
+        leads: "Front Desk leads",
+        handled: "AI handled",
+        empty: "Front Desk analytics will appear after customer conversations are recorded.",
+      }),
+      previewActionLabel: "Preview/test assistant",
+      analyticsLinkLabel: "Front Desk analytics",
+      quickActions: Object.freeze([
+        Object.freeze({ label: "Full-page setup", icon: "frontdesk", shellTarget: "settings", settingsTarget: "front_desk" }),
+        Object.freeze({ label: "Business identity", icon: "settings", shellTarget: "settings", settingsTarget: "front_desk" }),
+        Object.freeze({ label: "Preview/test assistant", icon: "sparkle", action: "preview" }),
+        Object.freeze({ label: "Front Desk analytics", icon: "outcomes", target: "analytics" }),
+      ]),
+      shortcuts: Object.freeze([
+        Object.freeze({ label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install", primary: true }),
+        Object.freeze({ label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "frontdesk" }),
+        Object.freeze({ label: "Business identity", note: "Review identity and welcome copy", href: "#settings/front-desk/identity-welcome", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" }),
+        Object.freeze({ label: "Knowledge/training", note: "Open business knowledge settings", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" }),
+        Object.freeze({ label: "Routing/contact capture", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
+        Object.freeze({ label: "Front Desk analytics", note: "Review customer signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+    }),
+    website_widget: Object.freeze({
+      key: "website_widget",
+      homeTitle: "Website Widget home",
+      homeSubtitle: "Operate the embedded on-site assistant without changing the shared workspace.",
+      sidebarNote: "Website Widget is the embedded on-site assistant.",
+      statusKicker: "Widget status",
+      statusLiveTitle: "Your Website Widget is installed",
+      statusReadyTitle: "Your Website Widget is ready to test",
+      statusSetupTitle: "Your Website Widget needs setup",
+      statusLiveCopy: "Install verification has detected the embedded widget on a site.",
+      statusReadyCopy: "Review embed setup and appearance, then test the widget on the install surface.",
+      statusSetupCopy: "Finish install/embed setup, allowed domains, and widget appearance before relying on site traffic.",
+      contextTitle: "Install and tune the Website Widget",
+      contextCopy: "Use the existing install/embed and Website Widget settings areas. Contacts, conversations, analytics, and billing stay shared.",
+      metricLabels: Object.freeze({
+        conversations: "Widget conversations",
+        leads: "Widget leads",
+        handled: "AI handled",
+        empty: "Widget conversations, leads, and analytics will appear after site visitors use the embed.",
+      }),
+      previewActionLabel: "Test widget",
+      analyticsLinkLabel: "Widget analytics",
+      quickActions: Object.freeze([
+        Object.freeze({ label: "Install/embed setup", icon: "install", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ label: "Widget appearance", icon: "settings", shellTarget: "settings", settingsTarget: "website_widget" }),
+        Object.freeze({ label: "Test widget", icon: "sparkle", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ label: "Widget analytics", icon: "outcomes", target: "analytics" }),
+      ]),
+      shortcuts: Object.freeze([
+        Object.freeze({ label: "Install/embed setup", note: "Open the existing embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
+        Object.freeze({ label: "Allowed domains/status", note: "Review install verification", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
+        Object.freeze({ label: "Widget appearance", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Widget conversations/leads", note: "Review shared customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
+        Object.freeze({ label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+    }),
+    voice_agent: Object.freeze({
+      key: "voice_agent",
+      homeTitle: "Voice Agent home",
+      homeSubtitle: "Operate the browser/Web Call voice assistant from the shared dashboard.",
+      sidebarNote: "Voice Agent is the browser/Web Call voice assistant.",
+      statusKicker: "Browser/Web Call status",
+      statusLiveTitle: "Your Voice Agent is ready for browser/Web Call",
+      statusReadyTitle: "Your Voice Agent is ready to test",
+      statusSetupTitle: "Your Voice Agent needs setup",
+      statusLiveCopy: "Browser voice input, spoken replies, and Web Call settings are ready in this workspace.",
+      statusReadyCopy: "Test the voice agent and review voice/personality settings before sharing the experience.",
+      statusSetupCopy: "Review voice/personality settings and shared routing/contact handoff before relying on Web Call.",
+      contextTitle: "Configure browser/Web Call voice",
+      contextCopy: "Voice Agent uses the existing browser voice and Web Call surfaces. Shared contacts, conversations, analytics, and account settings remain available.",
+      metricLabels: Object.freeze({
+        conversations: "Web Call conversations",
+        leads: "Voice handoffs",
+        handled: "AI handled",
+        empty: "Web Call transcripts and analytics will appear when browser voice conversations are recorded.",
+      }),
+      previewActionLabel: "Test voice agent",
+      analyticsLinkLabel: "Web Call analytics",
+      quickActions: Object.freeze([
+        Object.freeze({ label: "Voice settings", icon: "chat", shellTarget: "settings", settingsTarget: "voice_agent" }),
+        Object.freeze({ label: "Routing/contact handoff", icon: "users", shellTarget: "settings", settingsTarget: "front_desk" }),
+        Object.freeze({ label: "Test voice agent", icon: "sparkle", shellTarget: "customize" }),
+        Object.freeze({ label: "Web Call analytics", icon: "outcomes", target: "analytics" }),
+      ]),
+      shortcuts: Object.freeze([
+        Object.freeze({ label: "Voice settings", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat", primary: true }),
+        Object.freeze({ label: "Voice/personality", note: "Review voice and assistant tone", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
+        Object.freeze({ label: "Routing/contact handoff", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
+        Object.freeze({ label: "Test voice agent", note: "Use the existing practice surface", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" }),
+        Object.freeze({ label: "Web Call transcripts/analytics", note: "Review available analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+    }),
+  });
 
   function trimText(value) {
     return String(value || "").trim();
@@ -263,6 +374,11 @@
 
   function listDashboardProductPackaging() {
     return Object.freeze(Object.keys(DASHBOARD_PRODUCT_PACKAGING).map((key) => getDashboardProductPackaging(key)));
+  }
+
+  function getDashboardProductHomeContext(key = "front_desk") {
+    const product = getDashboardProduct(normalizeDashboardProductKey(key));
+    return DASHBOARD_PRODUCT_HOME_CONTEXT[product.key] || DASHBOARD_PRODUCT_HOME_CONTEXT.front_desk;
   }
 
   function getDashboardProductNavItems(activeProduct = global.location?.pathname || "/dashboard") {
@@ -679,7 +795,7 @@
         }),
         createReadinessItem({
           key: "voice_routing",
-          label: "Call routing behavior configured",
+          label: "Routing/contact handoff configured",
           copy: hasRouting
             ? `${routingDestinationCount} shared routing destination${routingDestinationCount === 1 ? "" : "s"} available.`
             : "Voice uses the shared Front Desk routing destinations for handoffs.",
@@ -692,14 +808,14 @@
         }),
         createReadinessItem({
           key: "voice_availability",
-          label: "Phone/web-call availability",
-          copy: trimText(agent.contactPhone || agent.contact_phone)
-            ? "A phone handoff is present; Web Call readiness follows the voice settings."
+          label: "Browser/Web Call readiness",
+          copy: webCallState.webCallReady
+            ? "Browser voice input, spoken replies, and Web Call are enabled."
             : webCallState.webCallEnabled
-              ? "Web Call is enabled; no separate phone handoff is saved."
-              : "No phone handoff is saved, and Web Call is not enabled yet.",
-          complete: trimText(agent.contactPhone || agent.contact_phone) || webCallState.webCallEnabled ? true : null,
-          kind: trimText(agent.contactPhone || agent.contact_phone) || webCallState.webCallEnabled ? "derived" : "info",
+              ? "Web Call is enabled; review voice input and spoken replies before testing."
+              : "Web Call is not enabled yet.",
+          complete: webCallState.webCallReady ? true : (webCallState.webCallEnabled ? null : false),
+          kind: webCallState.webCallReady ? "derived" : "info",
           href: "#settings/voice/voice",
           shellTarget: "settings",
           settingsTarget: "voice_agent",
@@ -877,6 +993,7 @@
     ACTIVE_DASHBOARD_PRODUCT_CONTEXT,
     DASHBOARD_PRODUCT_REGISTRY,
     DASHBOARD_PRODUCT_PACKAGING,
+    DASHBOARD_PRODUCT_HOME_CONTEXT,
     DASHBOARD_UI_STATE_DEFAULTS,
     DASHBOARD_UI_STATE_PERSISTED_KEYS,
     DASHBOARD_SECTION_HASHES,
@@ -886,6 +1003,7 @@
     getDashboardProductRoutePath,
     getDashboardProductPackaging,
     listDashboardProductPackaging,
+    getDashboardProductHomeContext,
     getDashboardProductNavItems,
     exposeDashboardProductContext,
     getDashboardHashPathParts,

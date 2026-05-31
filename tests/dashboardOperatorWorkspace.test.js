@@ -434,15 +434,15 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     operatorWorkspace
   );
 
-  assert.match(markup, /Conversations today/);
-  assert.match(markup, /Leads captured/);
+  assert.match(markup, /Front Desk conversations/);
+  assert.match(markup, /Front Desk leads/);
   assert.match(markup, /Needs reply/);
   assert.match(markup, /AI handled/);
   assert.match(markup, /Recent activity/);
   assert.match(markup, /Can I book a consult\?/);
   assert.match(markup, /Front Desk readiness/);
   assert.match(markup, /Source activity/);
-  assert.match(markup, /not available yet/);
+  assert.match(markup, /Front Desk analytics will appear after customer conversations are recorded/);
   assert.doesNotMatch(markup, /Jessica Smith|Dylan Lee|Katherine Hall|Michael Miller|Sarah Brown|James Taylor|Lauren Martinez|David Carter/);
 
   const emptyMarkup = harness.buildOverviewPanel(
@@ -452,8 +452,8 @@ test("dashboard V2 Home uses real metrics, activity, readiness, and source empty
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyMarkup, /not available yet/);
-  assert.match(emptyMarkup, /Leads captured/);
+  assert.match(emptyMarkup, /Front Desk analytics will appear after customer conversations are recorded/);
+  assert.match(emptyMarkup, /Front Desk leads/);
   assert.match(emptyMarkup, /Source activity/);
 });
 
@@ -1583,7 +1583,7 @@ test("home overview AI priorities use business-facing wording and a calm empty s
     harness.createEmptyActionQueue(),
     harness.createEmptyOperatorWorkspace()
   );
-  assert.match(emptyPanel, /not available yet/);
+  assert.match(emptyPanel, /Front Desk analytics will appear after customer conversations are recorded/);
 });
 
 test("dashboard normalizes sparse operator payloads without forcing the legacy shell", async () => {
@@ -1834,7 +1834,7 @@ test("Home command center consolidates setup, priority workflows, and mobile-saf
     harness.createEmptyOperatorWorkspace()
   );
 
-  assert.match(sparseOverview, /not available yet/);
+  assert.match(sparseOverview, /Front Desk analytics will appear after customer conversations are recorded/);
   assert.match(sparseOverview, /Today&#39;s priority|Today's priority/);
   assert.doesNotMatch(sparseOverview, /Notifications/);
 
@@ -2239,8 +2239,8 @@ test("today workspace render uses a dominant queue and support rail shell", () =
 
   assert.match(overviewPanel, /Home/);
   assert.match(overviewPanel, /Your AI customer service snapshot for today/);
-  assert.match(overviewPanel, /Conversations today/);
-  assert.match(overviewPanel, /Leads captured/);
+  assert.match(overviewPanel, /Front Desk conversations/);
+  assert.match(overviewPanel, /Front Desk leads/);
   assert.match(overviewPanel, /Needs reply/);
   assert.match(overviewPanel, /AI handled/);
   assert.doesNotMatch(overviewPanel, /Customers helped today/);
@@ -3488,7 +3488,7 @@ test("sidebar rail keeps primary and utility navigation without placeholder conn
   );
 
   assert.match(sidebar, /Operate/);
-  assert.match(sidebar, /Front Desk is the primary customer surface/);
+  assert.match(sidebar, /Front Desk is the primary full-page customer surface/);
   assert.doesNotMatch(sidebar, /Connected Tools/);
   assert.doesNotMatch(sidebar, /\(coming soon\)/);
   assert.doesNotMatch(sidebar, /Email[\s\S]{0,80}Beta/);

@@ -6351,6 +6351,9 @@ function buildSidebarShell(
     : setup.knowledgeLimited
       ? "Website learning"
       : "Add website details";
+  const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
+    ? dashboardState.getDashboardProductHomeContext(activeDashboardProduct.key)
+    : null;
   const coreItems = [
     {
       key: "overview",
@@ -6405,7 +6408,7 @@ function buildSidebarShell(
       </div>
       ${buildDashboardProductSwitcher(activeDashboardProduct)}
       ${buildSidebarGroup(translateDashboardText("Operate"), coreItems, activeSection, {
-        note: "Front Desk is the primary customer surface.",
+        note: productHomeContext?.sidebarNote || "Front Desk is the primary full-page customer surface.",
       })}
       <div class="sidebar-footer">
         <div class="sidebar-status-dock">
@@ -6502,6 +6505,9 @@ function buildQuickActionTile({
   targetId = "",
   href = "",
   disabled = false,
+  shellTarget = "",
+  settingsTarget = "",
+  installMethod = "",
 } = {}) {
   const iconMarkup = `<span class="quick-action-tile-icon" aria-hidden="true">${buildV2Icon(icon)}</span>`;
   const labelMarkup = `<span>${escapeHtml(translateDashboardText(label))}</span>`;
@@ -6512,6 +6518,22 @@ function buildQuickActionTile({
         ${iconMarkup}
         ${labelMarkup}
       </a>
+    `;
+  }
+
+  if (shellTarget) {
+    return `
+      <button
+        class="quick-action-tile"
+        type="button"
+        data-shell-target="${escapeHtml(shellTarget)}"
+        ${settingsTarget ? `data-settings-target="${escapeHtml(settingsTarget)}"` : ""}
+        ${installMethod ? `data-install-method-jump="${escapeHtml(installMethod)}"` : ""}
+        ${disabled ? "disabled" : ""}
+      >
+        ${iconMarkup}
+        ${labelMarkup}
+      </button>
     `;
   }
 
@@ -7647,48 +7669,28 @@ function buildProductReadinessCard(product = activeDashboardProduct, snapshot = 
 }
 
 function getProductLandingContext(product = activeDashboardProduct) {
-  switch (product?.key) {
-    case "website_widget":
-      return {
-        eyebrow: "Website Widget",
-        title: "Install and tune the optional site widget",
-        copy: "Use the existing install and Front Desk settings areas for the website widget. Contacts, conversations, analytics, and account settings stay shared.",
-        links: [
-          { label: "Embed setup", note: "Open the existing install embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true },
-          { label: "Widget settings", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" },
-          { label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
-        ],
-      };
-    case "voice_agent":
-      return {
-        eyebrow: "Voice Agent",
-        title: "Configure browser voice without a new backend split",
-        copy: "Voice currently lives inside the shared Front Desk workspace. Use the existing voice settings, practice tools, and analytics health signals.",
-        links: [
-          { label: "Voice settings", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "phone", primary: true },
-          { label: "Practice voice prompts", note: "Test from the current Front Desk practice area", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" },
-          { label: "Web Call health", note: "Review shared analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
-        ],
-      };
-    case "front_desk":
-    default:
-      return {
-        eyebrow: "Front Desk",
-        title: "Launch the full-page AI Front Desk",
-        copy: "Front Desk remains the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
-        links: [
-          { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
-          { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
-          { label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
-        ],
-      };
-  }
+  const homeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
+    ? dashboardState.getDashboardProductHomeContext(product?.key || "front_desk")
+    : null;
+  const label = product?.label || homeContext?.homeTitle || "Front Desk";
+
+  return {
+    eyebrow: label,
+    title: homeContext?.contextTitle || "Launch the full-page AI Front Desk",
+    copy: homeContext?.contextCopy || "Front Desk is the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
+    links: Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
+      { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
+      { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
+      { label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" },
+    ],
+  };
 }
 
 function buildProductLandingContext(product = activeDashboardProduct, snapshot = {}) {
   const context = getProductLandingContext(product);
   const sharedLinks = [
     { label: "Contacts and leads", href: "#customers", shellTarget: "contacts", icon: "users" },
+    { label: "Conversations", href: "#front-desk/practice", shellTarget: "customize", icon: "chat" },
     { label: "Analytics", href: "#analytics", shellTarget: "analytics", icon: "outcomes" },
     { label: "Business profile", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "settings" },
     { label: "Knowledge/training", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" },
@@ -7718,6 +7720,9 @@ function buildProductLandingContext(product = activeDashboardProduct, snapshot =
 
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
+  const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
+    ? dashboardState.getDashboardProductHomeContext(activeDashboardProduct.key)
+    : {};
   const today = operatorWorkspace.today || createEmptyOperatorWorkspace().today;
   const contactSummary = operatorWorkspace.contacts?.summary || createEmptyOperatorWorkspace().contacts.summary;
   const dedupedQueueItems = (Array.isArray(actionQueue.items) ? actionQueue.items : []).filter((item, index, items) => {
@@ -8097,7 +8102,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       done: setup.knowledgeReady && !setup.knowledgeLimited,
     },
   ];
-  const notAvailableLabel = "not available yet";
+  const notAvailableLabel = productHomeContext.metricLabels?.empty || "not available yet";
   const priorityRows = attentionItems.slice(0, 3).map((item) => ({
     category: item.category || "",
     title: item.title || item.category || "Customer needs attention",
@@ -8142,16 +8147,16 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
   const accountInitials = trimText(accountLabel || workspaceName).slice(0, 2).toUpperCase() || "VO";
   const frontDeskLive = isPublicFullPageEnabled(agent) || isInstallSeen(overview.installStatus);
   const systemHealthy = setup.isReady || frontDeskLive;
-  const frontDeskStatusLine = frontDeskLive
-    ? "Your Front Desk is"
+  const productStatusLine = frontDeskLive
+    ? (productHomeContext.statusLiveTitle || "Your Front Desk is")
     : setup.isReady
-      ? "Your Front Desk is ready to test"
-      : "Your Front Desk needs setup";
-  const frontDeskStatusCopy = frontDeskLive
-    ? "Handling customer questions from the active Front Desk surface."
+      ? (productHomeContext.statusReadyTitle || "Your Front Desk is ready to test")
+      : (productHomeContext.statusSetupTitle || "Your Front Desk needs setup");
+  const productStatusCopy = frontDeskLive
+    ? (productHomeContext.statusLiveCopy || "Handling customer questions from the active Front Desk surface.")
     : setup.isReady
-      ? "The core setup is ready. Test the public experience before sharing it broadly."
-      : "Finish the setup checklist to make the customer-facing Front Desk ready.";
+      ? (productHomeContext.statusReadyCopy || "The core setup is ready. Test the public experience before sharing it broadly.")
+      : (productHomeContext.statusSetupCopy || "Finish the setup checklist to make the customer-facing Front Desk ready.");
   const previewUrl = buildFrontDeskPreviewUrl(agent);
   const insightRows = [
     priorityOpenCount > 0
@@ -8187,30 +8192,41 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
       }
       : null,
   ].filter(Boolean).slice(0, 4);
-  const quickActions = [
-    {
-      label: "Review replies",
-      icon: "chat",
-      target: "contacts",
-      filter: "needs_review",
-    },
-    {
-      label: "Open Front Desk",
-      icon: "frontdesk",
-      target: "customize",
-    },
-    {
-      label: "Test conversation",
-      icon: "sparkle",
-      href: previewUrl,
-      disabled: !previewUrl,
-    },
-    {
-      label: "View analytics",
-      icon: "outcomes",
-      target: "analytics",
-    },
-  ];
+  const quickActions = (Array.isArray(productHomeContext.quickActions) ? productHomeContext.quickActions : [])
+    .map((action) => action.action === "preview"
+      ? {
+        ...action,
+        label: action.label || productHomeContext.previewActionLabel || "Test conversation",
+        href: previewUrl,
+        disabled: !previewUrl,
+      }
+      : action);
+  if (!quickActions.length) {
+    quickActions.push(
+      {
+        label: "Review replies",
+        icon: "chat",
+        target: "contacts",
+        filter: "needs_review",
+      },
+      {
+        label: "Open Front Desk",
+        icon: "frontdesk",
+        target: "customize",
+      },
+      {
+        label: "Test conversation",
+        icon: "sparkle",
+        href: previewUrl,
+        disabled: !previewUrl,
+      },
+      {
+        label: "View analytics",
+        icon: "outcomes",
+        target: "analytics",
+      },
+    );
+  }
   const primarySetupAction = setupNeedsAttention
     ? (!setup.knowledgeReady || setup.knowledgeLimited
       ? { label: "Add knowledge", action: { type: "import", label: "Add knowledge" } }
@@ -8295,8 +8311,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
     <section class="workspace-page workspace-page-overview glass-dashboard-home" data-shell-section="overview" data-mobile-safe="true">
       <header class="page-header">
         <div class="page-header-copy">
-          <h1>Welcome back, ${escapeHtml(workspaceName)}</h1>
-          <p>${escapeHtml(`${t("home.copy")}. ${priorityRows.length ? "Start with the customer moments that need a clear next step, then review Front Desk health." : "Your AI Front Desk is ready to surface customer activity, setup health, and next steps."}`)}</p>
+          <h1>${escapeHtml(productHomeContext.homeTitle || `Welcome back, ${workspaceName}`)}</h1>
+          <p>${escapeHtml(`${productHomeContext.homeSubtitle || t("home.copy")} ${priorityRows.length ? "Start with the customer moments that need a clear next step." : "Setup health and next steps stay available here."}`)}</p>
         </div>
         <div class="page-header-actions">
           ${buildStatusPill({ label: systemHealthy ? "All systems healthy" : "Setup needs attention", tone: systemHealthy ? "online" : "attention" })}
@@ -8318,13 +8334,13 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
         <div class="home-surface dashboard-v2-home glass-home-layout">
           <section class="glass-hero glass-hero--front-desk">
             <div class="glass-hero-copy">
-              <p class="glass-kicker">Front Desk Status</p>
-              <h2>${escapeHtml(frontDeskStatusLine)} ${frontDeskLive ? '<span class="status-text-online">online</span>' : ""}</h2>
-              <p>${escapeHtml(frontDeskStatusCopy)}</p>
+              <p class="glass-kicker">${escapeHtml(productHomeContext.statusKicker || "Front Desk status")}</p>
+              <h2>${escapeHtml(productStatusLine)} ${frontDeskLive ? '<span class="status-text-online">online</span>' : ""}</h2>
+              <p>${escapeHtml(productStatusCopy)}</p>
               <div class="glass-hero-metrics">
-                ${buildMetricTile({ label: t("home.conversationsToday"), value: conversationsToday, note: "Today", icon: "chat", tone: "blue" })}
-                ${buildMetricTile({ label: "Leads captured", value: leadsCapturedCount, note: "Workspace", icon: "users", tone: "violet" })}
-                ${buildMetricTile({ label: "AI handled", value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
+                ${buildMetricTile({ label: productHomeContext.metricLabels?.conversations || t("home.conversationsToday"), value: conversationsToday, note: "Today", icon: "chat", tone: "blue" })}
+                ${buildMetricTile({ label: productHomeContext.metricLabels?.leads || "Leads captured", value: leadsCapturedCount, note: "Workspace", icon: "users", tone: "teal" })}
+                ${buildMetricTile({ label: productHomeContext.metricLabels?.handled || "AI handled", value: aiHandledCount, note: "Recorded outcomes", icon: "sparkle", tone: "teal" })}
               </div>
             </div>
           </section>
@@ -8357,7 +8373,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               <div class="glass-card-header">
                 <div>
                   <h2 class="glass-card-title">Quick actions</h2>
-                  <p class="glass-card-copy">Useful next moves for the current workspace.</p>
+                  <p class="glass-card-copy">Useful next moves for this product surface.</p>
                 </div>
               </div>
               <div class="quick-action-grid">
@@ -8371,7 +8387,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                   <h2 class="glass-card-title">Insights</h2>
                   <p class="glass-card-copy">Operational signals from available dashboard data.</p>
                 </div>
-                <button class="glass-mini-button" type="button" data-overview-target="analytics">View analytics</button>
+                <button class="glass-mini-button" type="button" data-overview-target="analytics">${escapeHtml(productHomeContext.analyticsLinkLabel || "View analytics")}</button>
               </div>
               <div class="insight-list">
                 ${insightRows.length ? insightRows.map((item) => `
@@ -8394,7 +8410,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
                   <h2 class="glass-card-title">Recent activity</h2>
                   <p class="glass-card-copy">Latest saved conversation events.</p>
                 </div>
-                <button class="glass-mini-button" type="button" data-overview-target="analytics">View all</button>
+                <button class="glass-mini-button" type="button" data-overview-target="analytics">${escapeHtml(productHomeContext.analyticsLinkLabel || "View all")}</button>
               </div>
               <div class="activity-list">
                 ${recentActivityItems.length ? recentActivityItems.map((item) => buildActivityItem({
@@ -8410,7 +8426,7 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               assistantName,
               greeting: agent.welcomeMessage,
               prompts: fullPagePrompts,
-              statusLabel: frontDeskLive ? "Live / ready" : "Ready to test",
+              statusLabel: frontDeskLive ? "Live / ready" : (productHomeContext.previewActionLabel || "Ready to test"),
               live: frontDeskLive,
             })}
           </section>
