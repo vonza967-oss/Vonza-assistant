@@ -150,6 +150,9 @@ function normalizeClaims(claims, evidenceIdSet, maxClaims) {
         return {
           text: cleanText(claim?.text).slice(0, 500),
           evidenceIds: evidence.evidenceIds,
+          ...(evidence.invalidEvidenceIds.length
+            ? { invalidEvidenceIds: evidence.invalidEvidenceIds }
+            : {}),
           riskType: normalizeAnswerContractRiskType(claim?.riskType),
           confidence: normalizeConfidence(claim?.confidence),
         };

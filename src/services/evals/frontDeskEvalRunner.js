@@ -15,6 +15,10 @@ import {
   parseAnswerContractOutput,
   summarizeAnswerContractForDebug,
 } from "../chat/answerContractService.js";
+import {
+  summarizeClaimVerifierForDebug,
+  verifyClaimSupport,
+} from "../chat/claimVerifierService.js";
 
 const FORBIDDEN_SIDE_EFFECT_TABLES = new Set([
   "agent_contact_leads",
@@ -336,13 +340,22 @@ function createDryRunReplyGenerator(state) {
         maxClaims: input.answerContract.maxClaims,
         fallbackAnswer: reply,
       });
+      const claimVerifierReport = input.answerContract.evidencePack
+        ? verifyClaimSupport(contract, input.answerContract.evidencePack)
+        : null;
 
       if (typeof input.answerContract.onContract === "function") {
         input.answerContract.onContract(
-          summarizeAnswerContractForDebug(contract, {
-            includeClaimText: input.answerContract.includeClaimText === true,
-          }),
-          contract
+          {
+            ...summarizeAnswerContractForDebug(contract, {
+              includeClaimText: input.answerContract.includeClaimText === true,
+            }),
+            ...(claimVerifierReport
+              ? { claimVerifier: summarizeClaimVerifierForDebug(claimVerifierReport) }
+              : {}),
+          },
+          contract,
+          claimVerifierReport
         );
       }
 
@@ -379,6 +392,10 @@ function sanitizeEvidenceSummary(summary = {}) {
 }
 
 function sanitizeAnswerContractSummary(summary = {}) {
+  const claimVerifier = summary.claimVerifier && typeof summary.claimVerifier === "object"
+    ? summary.claimVerifier
+    : null;
+
   return {
     version: Number(summary.version || 1),
     parseStatus: cleanText(summary.parseStatus),
@@ -395,6 +412,41 @@ function sanitizeAnswerContractSummary(summary = {}) {
       : [],
     confidence: cleanText(summary.confidence),
     needsHandoff: Boolean(summary.needsHandoff),
+    ...(claimVerifier
+      ? {
+          claimVerifier: {
+            version: Number(claimVerifier.version || 1),
+            mode: cleanText(claimVerifier.mode),
+            status: cleanText(claimVerifier.status),
+            claimsChecked: Number(claimVerifier.claimsChecked || 0),
+            supportedRiskyClaims: Number(claimVerifier.supportedRiskyClaims || 0),
+            unsupportedRiskyClaims: Number(claimVerifier.unsupportedRiskyClaims || 0),
+            invalidEvidenceReferences: Number(claimVerifier.invalidEvidenceReferences || 0),
+            lowConfidenceClaims: Number(claimVerifier.lowConfidenceClaims || 0),
+            verdicts: claimVerifier.verdicts && typeof claimVerifier.verdicts === "object"
+              ? Object.fromEntries(Object.entries(claimVerifier.verdicts).map(([key, value]) => [
+                  cleanText(key),
+                  Number(value || 0),
+                ]).filter(([key]) => key))
+              : {},
+            results: Array.isArray(claimVerifier.results)
+              ? claimVerifier.results.map((result) => ({
+                  claimIndex: Number(result.claimIndex || 0),
+                  riskType: cleanText(result.riskType),
+                  verdict: cleanText(result.verdict),
+                  evidenceIdCount: Number(result.evidenceIdCount || 0),
+                  invalidEvidenceIdCount: Number(result.invalidEvidenceIdCount || 0),
+                  notes: Array.isArray(result.notes)
+                    ? result.notes.map(cleanText).filter(Boolean)
+                    : [],
+                }))
+              : [],
+            warnings: Array.isArray(claimVerifier.warnings)
+              ? claimVerifier.warnings.map(cleanText).filter(Boolean)
+              : [],
+          },
+        }
+      : {}),
     ...(Array.isArray(summary.claims)
       ? {
           claims: summary.claims.map((claim) => ({
@@ -726,6 +778,16 @@ export function formatFrontDeskEvalReport(report = {}) {
   );
   if (answerContractTurnCount) {
     lines.push(`Answer Contract metadata: turns=${answerContractTurnCount}`);
+  }
+
+  const claimVerifierTurnCount = (report.results || []).reduce(
+    (sum, result) => sum + (Array.isArray(result.answerContract)
+      ? result.answerContract.filter((entry) => entry.claimVerifier).length
+      : 0),
+    0
+  );
+  if (claimVerifierTurnCount) {
+    lines.push(`Claim Verifier metadata: turns=${claimVerifierTurnCount}`);
   }
 
   return lines.join("\n");

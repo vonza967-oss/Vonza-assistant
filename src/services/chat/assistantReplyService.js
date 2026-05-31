@@ -8,6 +8,10 @@ import {
   parseAnswerContractOutput,
   summarizeAnswerContractForDebug,
 } from "./answerContractService.js";
+import {
+  summarizeClaimVerifierForDebug,
+  verifyClaimSupport,
+} from "./claimVerifierService.js";
 
 function buildReferenceContext(referenceBlocks = []) {
   const blocks = referenceBlocks
@@ -169,9 +173,19 @@ async function generateAnswerContractReport({
   }
 
   if (typeof onContract === "function") {
+    const claimVerifierReport = evidencePack && Array.isArray(evidencePack.items)
+      ? verifyClaimSupport(contract, evidencePack)
+      : null;
+
     onContract(
-      summarizeAnswerContractForDebug(contract, { includeClaimText }),
-      contract
+      {
+        ...summarizeAnswerContractForDebug(contract, { includeClaimText }),
+        ...(claimVerifierReport
+          ? { claimVerifier: summarizeClaimVerifierForDebug(claimVerifierReport) }
+          : {}),
+      },
+      contract,
+      claimVerifierReport
     );
   }
 }

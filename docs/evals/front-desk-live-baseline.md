@@ -34,7 +34,7 @@
 - Added an internal Evidence Pack before answer generation so retrieval can be inspected as structured metadata instead of only rendered prompt text.
 - Evidence Pack v1 tracks confidence, source counts, missing source categories, item IDs, source types, and trust levels for owner-approved answers, reviewed business profile facts, retrieved website/manual chunks, and weak keyword fallback context.
 - Eval JSON results now include redacted evidence metadata by turn. They do not include full evidence text by default, matching the existing behavior where full/sanitized replies are only shown with explicit reply-debug options.
-- Evidence Pack v1 does not change visitor-facing output, require JSON model responses, verify claims after generation, or enforce a formal Answer Contract. Answer Contract and Claim Verifier work remain future layers on top of this inspectable retrieval structure.
+- Evidence Pack v1 does not change visitor-facing output, require JSON model responses, or enforce a formal Answer Contract. Answer Contract and Claim Verifier run as opt-in report-only layers on top of this inspectable retrieval structure.
 
 ## Answer Contract v1
 - Added Answer Contract v1 in report-only mode for the Front Desk answer engine.
@@ -45,10 +45,20 @@
 - Redacted eval/debug metadata includes parse status, claim count, risk types, evidence coverage count, invalid evidence IDs, warnings, confidence, and handoff flag. Full claim text is omitted unless reply/debug verbosity is already enabled.
 - Run dry evals with contract metadata using: `npm run eval:front-desk:json -- --answer-contract`
 - Production traffic remains opt-in through `FRONT_DESK_ANSWER_CONTRACT_MODE=report-only`.
-- Next step: Claim Verifier v1 can consume Answer Contract claims and Evidence Pack IDs to verify or downgrade risky claims before release.
+- Claim Verifier v1 now consumes Answer Contract claims and Evidence Pack IDs in report-only mode when contract mode is enabled.
+
+## Claim Verifier v1
+- Added Claim Verifier v1 as an internal report-only check for Front Desk Answer Contract metadata.
+- It checks structural support for risky claim types: pricing, contact, service, availability, policy, and booking.
+- A risky claim is supported when it references owner-approved, reviewed business-profile, or retrieved website/manual Evidence Pack items. It is unsupported when no evidence IDs are present, `unknown_evidence` when IDs do not exist in the Evidence Pack, and `low_confidence` when only weak keyword fallback evidence is available or risky confidence is low/none without stronger evidence.
+- Non-risky `other` claims are reported as `not_risky` unless they explicitly reference invalid evidence IDs.
+- It does not perform semantic entailment, rewrite answers, block responses, mutate production records, or expose verifier reports to visitors.
+- Eval JSON includes redacted verifier metadata nested under each Answer Contract turn: status, summary counts, verdict counts, and per-claim risk/verdict/count metadata without claim text or evidence text.
+- Run dry evals with contract and verifier metadata using: `npm run eval:front-desk:json -- --answer-contract`
+- Next enforcement recommendation: enforce pricing/contact first, then service/availability once live report-only data shows stable low false-positive rates.
 
 ## Remaining Limitations
 - Live eval replies are model-dependent; rerun variance can still expose phrasing gaps.
 - `--show-replies` prints sanitized/truncated replies, so full text inspection may require a dedicated raw local debug path that still redacts secrets.
 - The current missing-service fallback is intentionally narrow and generic; future work should improve service-label extraction beyond the electric-scooter case without weakening grounding.
-- Answer Contract v1 is report-only and does not prove claims, enforce coverage, or change lead-capture/contact routing.
+- Answer Contract v1 and Claim Verifier v1 are report-only and do not prove semantic entailment, enforce coverage, or change lead-capture/contact routing.

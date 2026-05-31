@@ -48,7 +48,12 @@ function parseArgs(argv = []) {
       return;
     }
 
-    if (arg === "--answer-contract" || arg === "--answer-contract=report-only") {
+    if (
+      arg === "--answer-contract"
+      || arg === "--answer-contract=report-only"
+      || arg === "--claim-verifier"
+      || arg === "--claim-verifier=report-only"
+    ) {
       options.answerContractMode = true;
       return;
     }

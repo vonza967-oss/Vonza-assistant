@@ -135,6 +135,15 @@ test("Front Desk eval runner includes redacted Answer Contract metadata when ena
       && Number(entry.evidenceIdCoverageCount) >= 1
       && Array.isArray(entry.invalidEvidenceIds)
       && Array.isArray(entry.warnings)
+      && entry.claimVerifier?.status === "checked"
+      && Number(entry.claimVerifier.claimsChecked) >= 1
+      && Array.isArray(entry.claimVerifier.results)
+      && entry.claimVerifier.results.every((verifierResult) =>
+        typeof verifierResult.riskType === "string"
+          && typeof verifierResult.verdict === "string"
+          && Number.isFinite(verifierResult.evidenceIdCount)
+          && !("evidenceIds" in verifierResult)
+      )
       && !("claims" in entry)
   ));
 });
