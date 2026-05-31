@@ -9,11 +9,15 @@ import {
   buildBusinessReplyRepairPrompt,
   buildChatSystemPrompt,
   buildConversationGuidance,
-  buildRetrievedBusinessContextForChat,
   detectUserIntent,
   getFactualReplyGuardrailIssues,
   getReplyRepairIssues,
 } from "./prompting.js";
+import {
+  buildEvidencePack,
+  renderEvidencePackForPrompt,
+  summarizeEvidencePackForDebug,
+} from "./evidencePackService.js";
 import { generateAssistantReply } from "./assistantReplyService.js";
 import {
   assertMessagesSchemaReady,
@@ -279,6 +283,19 @@ function buildMissingVerifiedContactReply(language) {
   return "I do not have a confirmed contact detail for this business here.\n\nYou can leave your details and the business can follow up.";
 }
 
+export function buildMissingListedServiceReply(language, userMessage = "") {
+  const normalizedMessage = cleanText(userMessage).toLowerCase();
+  const serviceLabel = /\belectric scooters?\b/i.test(normalizedMessage)
+    ? "electric scooter repair"
+    : "that service";
+
+  if (language === "Hungarian") {
+    return `Front Desk does not have ${serviceLabel} listed for this business here.\n\nYou can share the details and the business can follow up.`;
+  }
+
+  return `Front Desk does not have ${serviceLabel} listed for this business here.\n\nYou can share the details and the business can follow up.`;
+}
+
 function buildAiCapacityReachedReply(language) {
   if (language === "Hungarian") {
     return "Ebben a hónapban elértük az AI kapacitást. Ha szeretnéd, add meg az elérhetőségeidet, és a vállalkozás közvetlenül folytathatja innen.";
@@ -395,6 +412,7 @@ export async function handleChatRequest({
     deps.buildBusinessContextForChat || buildBusinessContextForChat;
   const buildChatSystemPromptImpl = deps.buildChatSystemPrompt || buildChatSystemPrompt;
   const generateAssistantReplyImpl = deps.generateAssistantReply || generateAssistantReply;
+  const onEvidencePackImpl = typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null;
   const listRecentWidgetEventsImpl = deps.listRecentWidgetEvents || listRecentWidgetEvents;
   const evaluateLiveConversionRoutingImpl =
     deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
@@ -642,7 +660,7 @@ export async function handleChatRequest({
   const semanticHasWebsiteContext = semanticRetrieval.chunks?.some((chunk) =>
     ["website", "manual"].includes(chunk.sourceType)
   );
-  const retrievedBusinessContext = buildRetrievedBusinessContextForChat({
+  const evidencePack = buildEvidencePack({
     approvedAnswers: relevantApprovedAnswers,
     businessProfileFacts,
     semanticChunks: semanticRetrieval.chunks || [],
@@ -652,6 +670,17 @@ export async function handleChatRequest({
       : "low",
     semanticError: semanticRetrieval.error,
   });
+  const retrievedBusinessContext = renderEvidencePackForPrompt(evidencePack);
+
+  if (onEvidencePackImpl) {
+    onEvidencePackImpl(summarizeEvidencePackForDebug(evidencePack), {
+      agentId: agent.id,
+      businessId: business.id,
+      sessionKey,
+      displayMode,
+      conversationSource,
+    });
+  }
   const trustedReplyEmails = listTrustedReplyEmails({
     websiteContent,
     widgetConfig,
@@ -756,6 +785,22 @@ export async function handleChatRequest({
       });
       finalReply = buildMissingVerifiedContactReply(language);
     }
+  }
+
+  const finalGuardrailIssues = getFactualReplyGuardrailIssues({
+    reply: finalReply,
+    userMessage: effectiveUserText,
+    history,
+    businessContext: retrievedBusinessContext,
+    approvedAnswersPrompt,
+  });
+  if (finalGuardrailIssues.some((issue) => /unsupported service denial/i.test(issue))) {
+    console.warn("[chat] Replacing unsupported service-denial reply with grounded fallback.", {
+      agentId: agent.id,
+      installId,
+      pageUrl,
+    });
+    finalReply = buildMissingListedServiceReply(language, effectiveUserText);
   }
 
   const userMessageCreatedAt = new Date().toISOString();

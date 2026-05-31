@@ -22,7 +22,9 @@
     "validate:clean-db": "node scripts/validate-clean-database.js",
     "verify:prod-schema": "node scripts/verify-prod-schema.js",
     "verify:deploy-readiness": "node scripts/verify-deploy-readiness.js",
-    "eval:web-call": "node scripts/run-web-call-evals.js"
+    "eval:web-call": "node scripts/run-web-call-evals.js",
+    "eval:front-desk": "node scripts/run-front-desk-evals.js",
+    "eval:front-desk:json": "node scripts/run-front-desk-evals.js --json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",

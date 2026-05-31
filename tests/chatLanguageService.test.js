@@ -9,7 +9,10 @@ import {
   detectExplicitLanguageRequest,
   selectResponseLanguage,
 } from "../src/utils/text.js";
-import { buildNoWebsiteContentFallbackReply } from "../src/services/chat/chatService.js";
+import {
+  buildMissingListedServiceReply,
+  buildNoWebsiteContentFallbackReply,
+} from "../src/services/chat/chatService.js";
 
 test("English latest customer message keeps English despite Hungarian business context", () => {
   const businessContext = buildBusinessContextForChat({
@@ -69,4 +72,12 @@ test("Hungarian missing-website-content contact fallback stays Hungarian", () =>
   assert.match(reply, /Kérlek, vedd fel velünk a kapcsolatot/);
   assert.match(reply, /elérhetőségeken/);
   assert.doesNotMatch(reply, /Please contact us|listed contact details/i);
+});
+
+test("missing listed service fallback avoids categorical service denial", () => {
+  const reply = buildMissingListedServiceReply("English", "Do you repair electric scooters?");
+
+  assert.match(reply, /Front Desk does not have electric scooter repair listed/i);
+  assert.match(reply, /share the details/i);
+  assert.doesNotMatch(reply, /does not provide|do not offer|currently do not offer/i);
 });

@@ -229,6 +229,13 @@ test("factual guardrails flag invented pricing and services when trusted data is
     reply: "Cancellations are free within 24 hours. What time would you like to book?",
   });
   assert.ok(policyIssues.some((issue) => /invents a policy/i.test(issue)));
+
+  const missingServiceIssues = getFactualReplyGuardrailIssues({
+    userMessage: "Do you repair electric scooters?",
+    businessContext: "Most relevant website excerpts:\nHarbor Cycle does not list electric scooter repair. Services: standard tune-ups and e-bike diagnostics.",
+    reply: "Harbor Cycle Repair does not provide electric scooter repair services. Which bicycle service do you need?",
+  });
+  assert.ok(missingServiceIssues.some((issue) => /unsupported service denial/i.test(issue)));
 });
 
 test("approved answers allow relevant factual details to override weaker website context", () => {
