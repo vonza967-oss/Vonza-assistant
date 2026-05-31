@@ -32,6 +32,50 @@
     return labels[key] || key;
   }
 
+  const CUSTOMER_EMPTY_STATE_BY_PRODUCT = Object.freeze({
+    front_desk: Object.freeze({
+      title: "No Front Desk customer conversations yet.",
+      copy: "After page visitors use the full-page Front Desk or leave contact details, lead capture and follow-up context will appear here.",
+      actions: Object.freeze([
+        Object.freeze({ label: "Open full-page setup", href: "#install/full-page", shellTarget: "install", installMethod: "full-page" }),
+        Object.freeze({ label: "Test Front Desk", href: "#front-desk/practice", shellTarget: "customize" }),
+      ]),
+    }),
+    website_widget: Object.freeze({
+      title: "No Website Widget customer conversations yet.",
+      copy: "After website visitors use the embedded assistant, leads and conversation context from the widget will appear here.",
+      actions: Object.freeze([
+        Object.freeze({ label: "Open embed install", href: "#install/embed", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ label: "Open widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget" }),
+      ]),
+    }),
+    voice_agent: Object.freeze({
+      title: "No Voice Agent conversations yet.",
+      copy: "After Web Call conversations are recorded, transcripts, lead handoff context, and follow-up details will appear here.",
+      actions: Object.freeze([
+        Object.freeze({ label: "Open voice settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent" }),
+        Object.freeze({ label: "Review Web Call analytics", href: "#analytics", shellTarget: "analytics" }),
+      ]),
+    }),
+  });
+
+  function normalizeCustomerProductKey(value = "") {
+    const rawValue = typeof value === "object" && value ? value.key : value;
+    const normalized = fallbackTrimText(rawValue).toLowerCase().replace(/-/g, "_");
+    const aliases = {
+      frontdesk: "front_desk",
+      front_desk: "front_desk",
+      widget: "website_widget",
+      website: "website_widget",
+      website_widget: "website_widget",
+      voice: "voice_agent",
+      voice_agent: "voice_agent",
+    };
+    const candidate = aliases[normalized] || normalized;
+
+    return CUSTOMER_EMPTY_STATE_BY_PRODUCT[candidate] ? candidate : "front_desk";
+  }
+
   function createCustomerHelpers(dependencies = {}) {
   const sanitizeText = typeof dependencies.trimText === "function" ? dependencies.trimText : fallbackTrimText;
   const sanitizeHtml = typeof dependencies.escapeHtml === "function" ? dependencies.escapeHtml : fallbackEscapeHtml;
@@ -50,7 +94,7 @@
   const isCapabilityExplicitlyVisible = typeof dependencies.isCapabilityExplicitlyVisible === "function" ? dependencies.isCapabilityExplicitlyVisible : () => false;
   const buildDisclosureBlock = typeof dependencies.buildDisclosureBlock === "function" ? dependencies.buildDisclosureBlock : ({ contentMarkup = "" } = {}) => contentMarkup;
   const buildDisclosureDetailRows = typeof dependencies.buildDisclosureDetailRows === "function" ? dependencies.buildDisclosureDetailRows : () => "";
-  const buildOperatorEmptyState = typeof dependencies.buildOperatorEmptyState === "function" ? dependencies.buildOperatorEmptyState : ({ title = "", copy = "" } = {}) => `<div class="placeholder-card"><h3>${sanitizeHtml(title)}</h3><p>${sanitizeHtml(copy)}</p></div>`;
+  const buildOperatorEmptyState = typeof dependencies.buildOperatorEmptyState === "function" ? dependencies.buildOperatorEmptyState : ({ title = "", copy = "", actionMarkup = "" } = {}) => `<div class="placeholder-card"><h3>${sanitizeHtml(title)}</h3><p>${sanitizeHtml(copy)}</p>${actionMarkup}</div>`;
   const buildPageHeader = typeof dependencies.buildPageHeader === "function" ? dependencies.buildPageHeader : () => "";
   const buildPageToolbar = typeof dependencies.buildPageToolbar === "function" ? dependencies.buildPageToolbar : ({ searchMarkup = "", filtersMarkup = "" } = {}) => `${searchMarkup}${filtersMarkup}`;
   const formatContactLifecycleLabel = typeof dependencies.formatContactLifecycleLabel === "function" ? dependencies.formatContactLifecycleLabel : (value) => sanitizeText(value).replaceAll("_", " ");
@@ -1334,9 +1378,37 @@
       `;
     }
 
-    function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace()) {
+    function getCustomerEmptyStateContext(productKey = "front_desk") {
+      const normalizedProductKey = normalizeCustomerProductKey(productKey);
+      return CUSTOMER_EMPTY_STATE_BY_PRODUCT[normalizedProductKey] || CUSTOMER_EMPTY_STATE_BY_PRODUCT.front_desk;
+    }
+
+    function buildCustomerEmptyActionMarkup(action = {}) {
+      const attributes = [
+        `class="ghost-button"`,
+        `href="${escapeHtml(action.href || "#customers")}"`,
+        action.shellTarget ? `data-shell-target="${escapeHtml(action.shellTarget)}"` : "",
+        action.settingsTarget ? `data-settings-target="${escapeHtml(action.settingsTarget)}"` : "",
+        action.installMethod ? `data-install-method-jump="${escapeHtml(action.installMethod)}"` : "",
+      ].filter(Boolean);
+
+      return `<a ${attributes.join(" ")}>${escapeHtml(action.label || "Open setup")}</a>`;
+    }
+
+    function buildCustomerProductEmptyState(productKey = "front_desk") {
+      const context = getCustomerEmptyStateContext(productKey);
+
+      return buildOperatorEmptyState({
+        title: context.title,
+        copy: context.copy,
+        actionMarkup: context.actions.map(buildCustomerEmptyActionMarkup).join(""),
+      });
+    }
+
+    function buildContactsPanel(agent = {}, operatorWorkspace = createEmptyOperatorWorkspace(), options = {}) {
       const contacts = operatorWorkspace.contacts?.list || [];
       const contactsHealth = operatorWorkspace.contacts?.health || createEmptyOperatorWorkspace().contacts.health;
+      const activeProductKey = normalizeCustomerProductKey(options.activeProduct || options.productKey || options.product);
       const customerFilters = buildCustomerFilterDefinitions(contacts);
       const filtersMarkup = `
         <div class="customer-filter-strip" data-customer-filter-strip>
@@ -1396,10 +1468,7 @@
           <div class="workspace-page-body">
             <div class="workspace-section-stack">
               ${contactsHealth.loadError ? `<div class="operator-inline-alert"><p>${escapeHtml(localizeDashboardCopy("Some contact history is still loading:", "Néhány ügyfélelőzmény még töltődik:"))} ${escapeHtml(contactsHealth.loadError)}</p></div>` : ""}
-              ${!contacts.length ? buildOperatorEmptyState({
-                title: "No customer conversations yet.",
-                copy: "When visitors use the Front Desk, customer records, lead context, and follow-up signals will appear here.",
-              }) : peopleWorkspaceMarkup}
+              ${!contacts.length ? buildCustomerProductEmptyState(activeProductKey) : peopleWorkspaceMarkup}
             </div>
           </div>
         </section>
@@ -1460,8 +1529,8 @@
     return '<div class="customer-chat-message customer-chat-message--' + roleClass + '"><div class="customer-chat-message-meta"><strong>' + label + '</strong>' + created + '</div><p>' + sanitizeHtml(sanitizeText(message.content) || t("common.noMessageText")) + '</p>' + training + '</div>';
   }
 
-  function renderCustomerEmptyState() {
-    return buildOperatorEmptyState({ title: "No customer conversations yet.", copy: "Customer conversations, leads, and follow-up context will appear here after visitors contact the business." });
+  function renderCustomerEmptyState(productKey = "front_desk") {
+    return buildCustomerProductEmptyState(productKey);
   }
 
   function renderCustomerFilterTabs(contacts = []) {
@@ -1477,6 +1546,9 @@
   }
   return {
     normalizeCustomerFilter,
+    normalizeCustomerProductKey,
+    getCustomerEmptyStateContext,
+    buildCustomerProductEmptyState,
     getCustomerFilterLabel,
     getCustomerSourceLabel,
     deriveCustomerReachability,

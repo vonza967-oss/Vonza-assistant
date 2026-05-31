@@ -74,6 +74,12 @@
     "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
     "analytics.voiceAnalytics": "Voice Agent analytics",
     "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
+    "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
+    "analytics.frontDeskEmptyCopy": "Publish or open the full-page Front Desk, then ask one realistic test question. Page visitors, leads, and repeated questions will appear here after conversations are recorded.",
+    "analytics.widgetEmptyTitle": "No Website Widget analytics yet.",
+    "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and embedded assistant leads will appear here after use.",
+    "analytics.voiceEmptyTitle": "No Voice Agent analytics yet.",
+    "analytics.voiceEmptyCopy": "Set up browser voice and Web Call, run a Web Call test, then review transcripts, handoff context, and analytics after conversations are recorded.",
     "analytics.frontDeskConversations": "Front Desk conversations",
     "analytics.frontDeskLeads": "Front Desk leads",
     "analytics.frontDeskVisitsUnavailable": "Front Desk visit analytics are not available in the current dashboard analytics response.",
@@ -83,14 +89,15 @@
     "analytics.webCallSessions": "Web Call sessions",
     "analytics.webCallStarts": "Web Call starts",
     "analytics.averageCallDuration": "Average call duration",
-    "analytics.phoneCallSessions": "Phone call sessions",
-    "analytics.phoneCallsUnavailable": "Phone call session analytics are not available in the current dashboard analytics response.",
     "analytics.notAvailableYet": "Not available yet",
     "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
     "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
-    "analytics.setupFrontDesk": "Open Front Desk setup",
-    "analytics.setupWidget": "Open widget setup",
+    "analytics.setupFrontDesk": "Open full-page publish",
+    "analytics.setupWidget": "Open embed install",
     "analytics.setupVoice": "Open voice setup",
+    "analytics.frontDeskSettings": "Full-page setup",
+    "analytics.widgetSettings": "Widget settings",
+    "analytics.voiceTest": "Open Web Call test",
   });
 
   const PRODUCT_ANALYTICS_CONFIG = Object.freeze({
@@ -101,9 +108,15 @@
       titleKey: "analytics.frontDeskAnalytics",
       copyKey: "analytics.frontDeskAnalyticsCopy",
       setupLabelKey: "analytics.setupFrontDesk",
-      setupHref: "#settings/front-desk/full-page-assistant",
-      shellTarget: "settings",
-      settingsTarget: "front_desk",
+      setupHref: "#install/full-page",
+      shellTarget: "install",
+      installMethod: "full-page",
+      emptyTitleKey: "analytics.frontDeskEmptyTitle",
+      emptyCopyKey: "analytics.frontDeskEmptyCopy",
+      emptyActions: Object.freeze([
+        Object.freeze({ labelKey: "analytics.setupFrontDesk", href: "#install/full-page", shellTarget: "install", installMethod: "full-page" }),
+        Object.freeze({ labelKey: "analytics.frontDeskSettings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk" }),
+      ]),
     }),
     website_widget: Object.freeze({
       key: "website_widget",
@@ -115,6 +128,12 @@
       setupHref: "#install/embed",
       shellTarget: "install",
       installMethod: "widget",
+      emptyTitleKey: "analytics.widgetEmptyTitle",
+      emptyCopyKey: "analytics.widgetEmptyCopy",
+      emptyActions: Object.freeze([
+        Object.freeze({ labelKey: "analytics.setupWidget", href: "#install/embed", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ labelKey: "analytics.widgetSettings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget" }),
+      ]),
     }),
     voice_agent: Object.freeze({
       key: "voice_agent",
@@ -126,6 +145,12 @@
       setupHref: "#settings/voice/voice",
       shellTarget: "settings",
       settingsTarget: "voice_agent",
+      emptyTitleKey: "analytics.voiceEmptyTitle",
+      emptyCopyKey: "analytics.voiceEmptyCopy",
+      emptyActions: Object.freeze([
+        Object.freeze({ labelKey: "analytics.setupVoice", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent" }),
+        Object.freeze({ labelKey: "analytics.voiceTest", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent" }),
+      ]),
     }),
   });
 
@@ -436,15 +461,14 @@
 
     if (key === "voice_agent") {
       cards.push(sourceAvailable
-        ? buildAvailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), value: formatConversationCount(webCallRow.conversationCount || 0), note: sourceNote, icon: "phone", tone: "blue" })
-        : buildUnavailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), note: context.t("analytics.notAvailableYet"), icon: "phone" }));
+        ? buildAvailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), value: formatConversationCount(webCallRow.conversationCount || 0), note: sourceNote, icon: "chat", tone: "blue" })
+        : buildUnavailableProductMetric({ key: "web_call_sessions", label: context.t("analytics.webCallSessions"), note: context.t("analytics.notAvailableYet"), icon: "chat" }));
       cards.push(webCallTelemetryAvailable
-        ? buildAvailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), value: formatMetricValue(webCallHealth.starts || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "phone", tone: "teal" })
-        : buildUnavailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), note: context.t("analytics.notAvailableYet"), icon: "phone" }));
+        ? buildAvailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), value: formatMetricValue(webCallHealth.starts || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "chat", tone: "teal" })
+        : buildUnavailableProductMetric({ key: "web_call_starts", label: context.t("analytics.webCallStarts"), note: context.t("analytics.notAvailableYet"), icon: "chat" }));
       cards.push(webCallTelemetryAvailable
         ? buildAvailableProductMetric({ key: "web_call_average_duration", label: context.t("analytics.averageCallDuration"), value: formatMetricDuration(webCallHealth.averageDurationSeconds || 0), note: context.t("analytics.derivedFromSafeWebCallTelemetry"), icon: "clock", tone: "blue" })
         : buildUnavailableProductMetric({ key: "web_call_average_duration", label: context.t("analytics.averageCallDuration"), note: context.t("analytics.notAvailableYet"), icon: "clock" }));
-      cards.push(buildUnavailableProductMetric({ key: "phone_call_sessions", label: context.t("analytics.phoneCallSessions"), note: context.t("analytics.phoneCallsUnavailable"), icon: "phone" }));
       cards.push(buildProductSetupAction(config, context));
       return cards;
     }
@@ -459,6 +483,51 @@
     cards.push(buildProductSetupAction(config, context));
 
     return cards;
+  }
+
+  function hasProductAnalyticsActivity(productKey = "front_desk", sourceRows = [], ownerAnalyticsDashboard = null) {
+    const key = normalizeProductAnalyticsKey(productKey);
+    const pageRow = findSourceRow(sourceRows, "page");
+    const widgetRow = findSourceRow(sourceRows, "widget");
+    const webCallRow = findSourceRow(sourceRows, "web_call");
+    const webCallHealth = ownerAnalyticsDashboard?.webCallHealth || {};
+
+    if (key === "website_widget") {
+      return Number(widgetRow.conversationCount || 0) > 0 || Number(widgetRow.leadsCaptured || 0) > 0;
+    }
+
+    if (key === "voice_agent") {
+      return Number(webCallRow.conversationCount || 0) > 0
+        || Number(webCallRow.leadsCaptured || 0) > 0
+        || Number(webCallHealth.starts || 0) > 0
+        || Number(webCallHealth.averageDurationSeconds || 0) > 0;
+    }
+
+    return Number(pageRow.conversationCount || 0) > 0 || Number(pageRow.leadsCaptured || 0) > 0;
+  }
+
+  function renderProductAnalyticsEmptyAction(action = {}, context = createRenderContext()) {
+    const attributes = [
+      `class="${action.primary === false ? "ghost-button" : "product-analytics-action"}"`,
+      `href="${escapeHtml(action.href || "#analytics")}"`,
+      action.shellTarget ? `data-shell-target="${escapeHtml(action.shellTarget)}"` : "",
+      action.settingsTarget ? `data-settings-target="${escapeHtml(action.settingsTarget)}"` : "",
+      action.installMethod ? `data-install-method-jump="${escapeHtml(action.installMethod)}"` : "",
+    ].filter(Boolean);
+
+    return `<a ${attributes.join(" ")}>${escapeHtml(context.t(action.labelKey || "analytics.productScope"))}</a>`;
+  }
+
+  function renderProductAnalyticsEmptyState(config = {}, context = createRenderContext()) {
+    const actions = Array.isArray(config.emptyActions) ? config.emptyActions : [];
+
+    return `
+      <div class="operator-empty-state product-analytics-empty-state" data-product-analytics-empty-state="${escapeHtml(config.key || "")}">
+        <p class="operator-empty-title">${escapeHtml(context.t(config.emptyTitleKey || "analytics.productScope"))}</p>
+        <p class="operator-empty-copy">${escapeHtml(context.t(config.emptyCopyKey || "analytics.productScopeCopy"))}</p>
+        ${actions.length ? `<div class="inline-actions">${actions.map((action, index) => renderProductAnalyticsEmptyAction({ ...action, primary: index === 0 }, context)).join("")}</div>` : ""}
+      </div>
+    `;
   }
 
   function renderProductAnalyticsTab(config = {}, activeKey = "front_desk") {
@@ -512,6 +581,9 @@
     const activeKey = normalizeProductAnalyticsKey(options.activeProduct?.key || options.activeProduct || "front_desk");
     const config = PRODUCT_ANALYTICS_CONFIG[activeKey];
     const cards = buildProductAnalyticsCards(activeKey, sourceRows, ownerAnalyticsDashboard, context);
+    const emptyStateMarkup = hasProductAnalyticsActivity(activeKey, sourceRows, ownerAnalyticsDashboard)
+      ? ""
+      : renderProductAnalyticsEmptyState(config, context);
 
     return `
       <section class="v2-card product-analytics-section" data-product-analytics-view="${escapeHtml(activeKey)}" aria-label="${escapeHtml(context.t("analytics.productScope"))}">
@@ -528,6 +600,7 @@
         <div class="product-analytics-grid">
           ${cards.map((card) => renderProductAnalyticsCard(card, context)).join("")}
         </div>
+        ${emptyStateMarkup}
       </section>
     `;
   }
@@ -1269,6 +1342,8 @@
     renderRecentWebCallsCard,
     normalizeProductAnalyticsKey,
     buildProductAnalyticsCards,
+    hasProductAnalyticsActivity,
+    renderProductAnalyticsEmptyState,
     renderProductAnalyticsSection,
     renderAnalyticsPageFragment,
   });

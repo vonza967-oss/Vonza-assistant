@@ -776,6 +776,76 @@ test("widget and voice product homes link to existing setup hashes without unsup
   assert.doesNotMatch(voiceHtml, /telephony|phone handoff|Phone\/web-call/i);
 });
 
+test("product dashboard routes render product-aware analytics links and customer empty states", async () => {
+  const cases = [
+    {
+      pathname: "/dashboard/front-desk",
+      analyticsTitle: /No Front Desk analytics yet\./,
+      analyticsCopy: /full-page Front Desk/,
+      customerTitle: /No Front Desk customer conversations yet\./,
+      customerCopy: /page visitors use the full-page Front Desk/,
+      analyticsLinks: [/href="#install\/full-page"/, /href="#settings\/front-desk\/full-page-assistant"/],
+      customerLinks: [/href="#install\/full-page"/, /href="#front-desk\/practice"/],
+    },
+    {
+      pathname: "/dashboard/widget",
+      analyticsTitle: /No Website Widget analytics yet\./,
+      analyticsCopy: /Install the embed/,
+      customerTitle: /No Website Widget customer conversations yet\./,
+      customerCopy: /website visitors use the embedded assistant/,
+      analyticsLinks: [/href="#install\/embed"/, /href="#settings\/widget\/optional-widget"/],
+      customerLinks: [/href="#install\/embed"/, /href="#settings\/widget\/optional-widget"/],
+    },
+    {
+      pathname: "/dashboard/voice",
+      analyticsTitle: /No Voice Agent analytics yet\./,
+      analyticsCopy: /browser voice and Web Call/,
+      customerTitle: /No Voice Agent conversations yet\./,
+      customerCopy: /Web Call conversations are recorded/,
+      analyticsLinks: [/href="#settings\/voice\/voice"/],
+      customerLinks: [/href="#settings\/voice\/voice"/, /href="#analytics"/],
+      deniedEmptyStateWords: /phone|telephony/i,
+    },
+  ];
+
+  for (const entry of cases) {
+    const analyticsHarness = createDashboardHarness({
+      pathname: entry.pathname,
+      hash: "#analytics",
+      agents: () => [createActiveAgent()],
+    });
+    await analyticsHarness.settle();
+    const analyticsHtml = analyticsHarness.getRootHtml();
+
+    assert.match(analyticsHtml, /data-product-analytics-view=/, `${entry.pathname} analytics product view`);
+    for (const linkPattern of entry.analyticsLinks) {
+      assert.match(analyticsHtml, linkPattern, `${entry.pathname} analytics link ${linkPattern}`);
+    }
+    assert.doesNotMatch(analyticsHtml, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
+
+    const customerHarness = createDashboardHarness({
+      pathname: entry.pathname,
+      hash: "#customers",
+      agents: () => [createActiveAgent()],
+    });
+    await customerHarness.settle();
+    const customerHtml = customerHarness.getRootHtml();
+
+    assert.match(customerHtml, entry.customerTitle, `${entry.pathname} customer title`);
+    assert.match(customerHtml, entry.customerCopy, `${entry.pathname} customer copy`);
+    for (const linkPattern of entry.customerLinks) {
+      assert.match(customerHtml, linkPattern, `${entry.pathname} customer link ${linkPattern}`);
+    }
+
+    if (entry.deniedEmptyStateWords) {
+      const analyticsEmptyState = analyticsHtml.match(/data-product-analytics-empty-state="voice_agent"[\s\S]{0,900}/)?.[0] || "";
+      const customerEmptyState = customerHtml.match(/No Voice Agent conversations yet\.[\s\S]{0,600}/)?.[0] || "";
+      assert.doesNotMatch(analyticsEmptyState, entry.deniedEmptyStateWords);
+      assert.doesNotMatch(customerEmptyState, entry.deniedEmptyStateWords);
+    }
+  }
+});
+
 test("dashboard hash routes open the matching interior section", async () => {
   const hashRoutes = [
     ["#today", /data-shell-target="overview"[\s\S]{0,260}aria-current="page"/],

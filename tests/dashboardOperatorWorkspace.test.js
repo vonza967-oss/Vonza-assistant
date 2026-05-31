@@ -3857,8 +3857,9 @@ test("customers panel uses a polished empty state with no preview customer data"
   workspace.contacts.list = [];
   const contactsPanel = harness.buildContactsPanel({}, workspace);
 
-  assert.match(contactsPanel, /No customer conversations yet/);
-  assert.match(contactsPanel, /customer records, lead context, and follow-up signals will appear here/);
+  assert.match(contactsPanel, /No Front Desk customer conversations yet/);
+  assert.match(contactsPanel, /page visitors use the full-page Front Desk/);
+  assert.match(contactsPanel, /href="#install\/full-page"/);
   assert.doesNotMatch(contactsPanel, /Install Vonza or open your assistant preview to start testing/);
   assert.doesNotMatch(contactsPanel, /Sophia|Marcus|Olivia|Growth Plan/);
   assert.doesNotMatch(contactsPanel, /fake|mock/i);

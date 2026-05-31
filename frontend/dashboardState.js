@@ -228,7 +228,7 @@
         Object.freeze({ label: "Front Desk analytics", icon: "outcomes", target: "analytics" }),
       ]),
       shortcuts: Object.freeze([
-        Object.freeze({ label: "Publish page", note: "Share, embed, or QR the hosted page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install", primary: true }),
+        Object.freeze({ label: "Publish/open full-page", note: "Open the existing full-page publish and share options", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install", primary: true }),
         Object.freeze({ label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "frontdesk" }),
         Object.freeze({ label: "Business identity", note: "Review identity and welcome copy", href: "#settings/front-desk/identity-welcome", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" }),
         Object.freeze({ label: "Knowledge/training", note: "Open business knowledge settings", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" }),
@@ -265,8 +265,8 @@
         Object.freeze({ label: "Widget analytics", icon: "outcomes", target: "analytics" }),
       ]),
       shortcuts: Object.freeze([
-        Object.freeze({ label: "Install/embed setup", note: "Open the existing embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
-        Object.freeze({ label: "Allowed domains/status", note: "Review install verification", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
+        Object.freeze({ label: "Embed install", note: "Open the existing Website Widget embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
+        Object.freeze({ label: "Allowed domains/status", note: "Review domain guidance and install verification", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
         Object.freeze({ label: "Widget appearance", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
         Object.freeze({ label: "Widget conversations/leads", note: "Review shared customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
         Object.freeze({ label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
@@ -302,9 +302,9 @@
       ]),
       shortcuts: Object.freeze([
         Object.freeze({ label: "Voice settings", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat", primary: true }),
-        Object.freeze({ label: "Voice/personality", note: "Review voice and assistant tone", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
+        Object.freeze({ label: "Web Call test", note: "Use the existing voice QA tools in settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "sparkle" }),
+        Object.freeze({ label: "Voice style", note: "Review voice input and spoken reply settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
         Object.freeze({ label: "Routing/contact handoff", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
-        Object.freeze({ label: "Test voice agent", note: "Use the existing practice surface", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" }),
         Object.freeze({ label: "Web Call transcripts/analytics", note: "Review available analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
     }),
@@ -791,7 +791,7 @@
           href: "#settings/voice/voice",
           shellTarget: "settings",
           settingsTarget: "voice_agent",
-          icon: "phone",
+          icon: "chat",
         }),
         createReadinessItem({
           key: "voice_routing",
@@ -819,7 +819,7 @@
           href: "#settings/voice/voice",
           shellTarget: "settings",
           settingsTarget: "voice_agent",
-          icon: "phone",
+          icon: "chat",
         }),
         createReadinessItem({
           key: "voice_test",

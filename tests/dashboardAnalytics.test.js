@@ -310,7 +310,7 @@ test("Product analytics cards render Front Desk, Widget, and Voice contexts from
   assert.match(frontDesk, /Front Desk leads/);
   assert.match(frontDesk, /2 leads/);
   assert.match(frontDesk, /Front Desk visit analytics are not available/);
-  assert.match(frontDesk, /#settings\/front-desk\/full-page-assistant/);
+  assert.match(frontDesk, /#install\/full-page/);
 
   assert.match(widget, /Widget conversations/);
   assert.match(widget, /2 conversations/);
@@ -323,8 +323,8 @@ test("Product analytics cards render Front Desk, Widget, and Voice contexts from
   assert.match(voice, />5</);
   assert.match(voice, /Average call duration/);
   assert.match(voice, /1m 02s/);
-  assert.match(voice, /Phone call session analytics are not available/);
   assert.match(voice, /#settings\/voice\/voice/);
+  assert.doesNotMatch(voice, /phone|telephony/i);
 });
 
 test("Product analytics unavailable metrics do not render undefined values as numbers", () => {
@@ -339,4 +339,38 @@ test("Product analytics unavailable metrics do not render undefined values as nu
   assert.match(markup, /data-product-analytics-state="unavailable"/);
   assert.doesNotMatch(markup, /undefined|NaN/);
   assert.doesNotMatch(markup, /product-analytics-card-value">0</);
+});
+
+test("Product analytics empty states render product-specific setup guidance", () => {
+  const analytics = loadAnalyticsModule();
+  const options = createRenderOptions();
+  const frontDesk = analytics.renderProductAnalyticsSection([], null, {
+    ...options,
+    activeProduct: "front_desk",
+  });
+  const widget = analytics.renderProductAnalyticsSection([], null, {
+    ...options,
+    activeProduct: "website_widget",
+  });
+  const voice = analytics.renderProductAnalyticsSection([], null, {
+    ...options,
+    activeProduct: "voice_agent",
+  });
+
+  assert.match(frontDesk, /No Front Desk analytics yet\./);
+  assert.match(frontDesk, /full-page Front Desk/);
+  assert.match(frontDesk, /href="#install\/full-page"/);
+  assert.match(frontDesk, /href="#settings\/front-desk\/full-page-assistant"/);
+
+  assert.match(widget, /No Website Widget analytics yet\./);
+  assert.match(widget, /Install the embed/);
+  assert.match(widget, /href="#install\/embed"/);
+  assert.match(widget, /href="#settings\/widget\/optional-widget"/);
+
+  assert.match(voice, /No Voice Agent analytics yet\./);
+  assert.match(voice, /browser voice and Web Call/);
+  assert.match(voice, /transcripts, handoff context, and analytics/);
+  assert.match(voice, /href="#settings\/voice\/voice"/);
+  assert.doesNotMatch(voice, /phone|telephony/i);
+  assert.doesNotMatch(`${frontDesk}${widget}${voice}`, /data-product-checkout|data-product-plan-key|Buy Voice Agent|Buy Website Widget|Buy Front Desk/);
 });

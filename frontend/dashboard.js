@@ -457,6 +457,12 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.widgetAnalyticsCopy": "Optional widget outcomes from existing conversation source data.",
   "analytics.voiceAnalytics": "Voice Agent analytics",
   "analytics.voiceAnalyticsCopy": "Browser Web Call outcomes from existing conversation and safe call-health data.",
+  "analytics.frontDeskEmptyTitle": "No Front Desk analytics yet.",
+  "analytics.frontDeskEmptyCopy": "Publish or open the full-page Front Desk, then ask one realistic test question. Page visitors, leads, and repeated questions will appear here after conversations are recorded.",
+  "analytics.widgetEmptyTitle": "No Website Widget analytics yet.",
+  "analytics.widgetEmptyCopy": "Install the embed, confirm allowed domains, then test the widget on a site page. Website visitor conversations and embedded assistant leads will appear here after use.",
+  "analytics.voiceEmptyTitle": "No Voice Agent analytics yet.",
+  "analytics.voiceEmptyCopy": "Set up browser voice and Web Call, run a Web Call test, then review transcripts, handoff context, and analytics after conversations are recorded.",
   "analytics.frontDeskConversations": "Front Desk conversations",
   "analytics.frontDeskLeads": "Front Desk leads",
   "analytics.frontDeskVisitsUnavailable": "Front Desk visit analytics are not available in the current dashboard analytics response.",
@@ -466,14 +472,15 @@ const DASHBOARD_ENGLISH_FALLBACKS = {
   "analytics.webCallSessions": "Web Call sessions",
   "analytics.webCallStarts": "Web Call starts",
   "analytics.averageCallDuration": "Average call duration",
-  "analytics.phoneCallSessions": "Phone call sessions",
-  "analytics.phoneCallsUnavailable": "Phone call session analytics are not available in the current dashboard analytics response.",
   "analytics.notAvailableYet": "Not available yet",
   "analytics.derivedFromConversationSource": "Derived from existing conversation source data",
   "analytics.derivedFromSafeWebCallTelemetry": "Derived from safe Web Call telemetry",
-  "analytics.setupFrontDesk": "Open Front Desk setup",
-  "analytics.setupWidget": "Open widget setup",
+  "analytics.setupFrontDesk": "Open full-page publish",
+  "analytics.setupWidget": "Open embed install",
   "analytics.setupVoice": "Open voice setup",
+  "analytics.frontDeskSettings": "Full-page setup",
+  "analytics.widgetSettings": "Widget settings",
+  "analytics.voiceTest": "Open Web Call test",
   "install.title": "Install",
   "install.copyCode": "Copy code",
   "install.publish": "Publish it",
@@ -13255,7 +13262,7 @@ function renderAssistantShell(
         ${setupHintMarkup}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
@@ -13297,7 +13304,7 @@ function renderDashboardV2Shell(
         ${setupHintMarkup}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
-          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace) : ""}
+          ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
           ${isCapabilityVisibleForWorkspace("inbox", operatorWorkspace) ? buildInboxPanel(agent, operatorWorkspace) : ""}
