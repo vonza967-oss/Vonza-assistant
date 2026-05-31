@@ -1628,7 +1628,7 @@ test("dashboard normalizes sparse operator payloads without forcing the legacy s
   assert.deepEqual(Array.from(workspace.contacts.list), []);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"]
   );
 
   assert.match(harness.buildOperatorOverviewSection({}, workspace), /Home at a glance/);
@@ -1734,7 +1734,7 @@ test("dashboard renders a simplified Today command page and read-only calendar m
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"]
   );
 
   const overview = harness.buildOperatorOverviewSection({}, workspace);
@@ -4490,7 +4490,7 @@ test("launch mode hides Google beta tabs when Google config is unavailable", () 
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "operator_without_google_beta");
 });
@@ -4509,7 +4509,7 @@ test("front-desk-only mode keeps the stable non-operator shell available", () =>
 
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"]
   );
   assert.equal(harness.getWorkspaceMode(workspace).key, "front_desk_only");
 });
@@ -4586,7 +4586,7 @@ test("dashboard keeps the launch-core shell when the operator flag is off", asyn
   assert.equal(workspace.enabled, false);
   assert.deepEqual(
     Array.from(harness.getAvailableShellSections(workspace)),
-    ["overview", "contacts", "customize", "analytics", "install", "settings"]
+    ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"]
   );
 });
 

@@ -125,6 +125,7 @@
     frontdesk: "customize",
     conversations: "customize",
     customize: "customize",
+    setup: "setup",
     analytics: "analytics",
     install: "install",
     settings: "settings",
@@ -134,6 +135,7 @@
     overview: "",
     contacts: "customers",
     customize: "front-desk",
+    setup: "setup",
     analytics: "analytics",
     install: "install",
     settings: "settings",
@@ -170,9 +172,9 @@
     front_desk: Object.freeze({
       key: "front_desk",
       name: "Front Desk",
-      targetUseCase: "Hosted AI front desk page for customers who need answers, routing, and follow-up capture.",
-      setupLabel: "Configure Front Desk",
-      setupHref: "/dashboard/front-desk",
+      targetUseCase: "Dedicated full-page AI Front Desk for customers who need answers, routing, and follow-up capture.",
+      setupLabel: "Open Front Desk setup",
+      setupHref: "/dashboard/front-desk#setup",
       settingsHref: "#settings/front-desk/full-page-assistant",
       pricingLabel: "Product pricing coming soon",
       availabilitySource: "account_access",
@@ -180,9 +182,9 @@
     website_widget: Object.freeze({
       key: "website_widget",
       name: "Website Widget",
-      targetUseCase: "Optional embedded website launcher for visitors who need quick answers without leaving a page.",
-      setupLabel: "View widget setup",
-      setupHref: "/dashboard/widget",
+      targetUseCase: "Embedded website snippet and launcher for visitors who need quick answers without leaving a page.",
+      setupLabel: "Open widget setup",
+      setupHref: "/dashboard/widget#setup",
       settingsHref: "#settings/widget/optional-widget",
       pricingLabel: "Product pricing coming soon",
       availabilitySource: "account_access",
@@ -190,9 +192,9 @@
     voice_agent: Object.freeze({
       key: "voice_agent",
       name: "Voice Agent",
-      targetUseCase: "Browser voice and spoken replies for hands-free customer conversations where configured.",
-      setupLabel: "View voice setup",
-      setupHref: "/dashboard/voice",
+      targetUseCase: "Browser voice, spoken replies, and Web Call setup for hands-free customer conversations where configured.",
+      setupLabel: "Open Web Call setup",
+      setupHref: "/dashboard/voice#setup",
       settingsHref: "#settings/voice/voice",
       pricingLabel: "Product pricing coming soon",
       availabilitySource: "account_access",
@@ -222,7 +224,7 @@
       previewActionLabel: "Preview/test assistant",
       analyticsLinkLabel: "Front Desk analytics",
       quickActions: Object.freeze([
-        Object.freeze({ label: "Full-page setup", icon: "frontdesk", shellTarget: "settings", settingsTarget: "front_desk" }),
+        Object.freeze({ label: "Publish/open full-page", icon: "install", shellTarget: "install", installMethod: "full-page" }),
         Object.freeze({ label: "Business identity", icon: "settings", shellTarget: "settings", settingsTarget: "front_desk" }),
         Object.freeze({ label: "Preview/test assistant", icon: "sparkle", action: "preview" }),
         Object.freeze({ label: "Front Desk analytics", icon: "outcomes", target: "analytics" }),
@@ -230,9 +232,11 @@
       shortcuts: Object.freeze([
         Object.freeze({ label: "Publish/open full-page", note: "Open the existing full-page publish and share options", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install", primary: true }),
         Object.freeze({ label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "frontdesk" }),
+        Object.freeze({ label: "QR/direct link", note: "Open the existing QR and direct-link publish path", href: "#install/full-page", shellTarget: "install", installMethod: "qr", icon: "review" }),
         Object.freeze({ label: "Business identity", note: "Review identity and welcome copy", href: "#settings/front-desk/identity-welcome", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" }),
         Object.freeze({ label: "Knowledge/training", note: "Open business knowledge settings", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" }),
         Object.freeze({ label: "Routing/contact capture", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
+        Object.freeze({ label: "Preview/test assistant", note: "Practice a realistic customer question", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" }),
         Object.freeze({ label: "Front Desk analytics", note: "Review customer signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
     }),
@@ -259,15 +263,17 @@
       previewActionLabel: "Test widget",
       analyticsLinkLabel: "Widget analytics",
       quickActions: Object.freeze([
-        Object.freeze({ label: "Install/embed setup", icon: "install", shellTarget: "install", installMethod: "widget" }),
+        Object.freeze({ label: "Embed/install snippet", icon: "install", shellTarget: "install", installMethod: "widget" }),
         Object.freeze({ label: "Widget appearance", icon: "settings", shellTarget: "settings", settingsTarget: "website_widget" }),
         Object.freeze({ label: "Test widget", icon: "sparkle", shellTarget: "install", installMethod: "widget" }),
         Object.freeze({ label: "Widget analytics", icon: "outcomes", target: "analytics" }),
       ]),
       shortcuts: Object.freeze([
-        Object.freeze({ label: "Embed install", note: "Open the existing Website Widget embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
+        Object.freeze({ label: "Embed/install snippet", note: "Open the existing Website Widget embed panel", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install", primary: true }),
         Object.freeze({ label: "Allowed domains/status", note: "Review domain guidance and install verification", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
         Object.freeze({ label: "Widget appearance", note: "Open Website Widget settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Launcher behavior", note: "Review the existing optional widget launcher settings", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "frontdesk" }),
+        Object.freeze({ label: "Test widget", note: "Use the existing embed test and verification surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
         Object.freeze({ label: "Widget conversations/leads", note: "Review shared customer records", href: "#customers", shellTarget: "contacts", icon: "users" }),
         Object.freeze({ label: "Widget analytics", note: "Review shared traffic and outcomes", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
@@ -295,17 +301,80 @@
       previewActionLabel: "Test voice agent",
       analyticsLinkLabel: "Web Call analytics",
       quickActions: Object.freeze([
-        Object.freeze({ label: "Voice settings", icon: "chat", shellTarget: "settings", settingsTarget: "voice_agent" }),
+        Object.freeze({ label: "Browser voice/Web Call setup", icon: "chat", shellTarget: "settings", settingsTarget: "voice_agent" }),
         Object.freeze({ label: "Routing/contact handoff", icon: "users", shellTarget: "settings", settingsTarget: "front_desk" }),
-        Object.freeze({ label: "Test voice agent", icon: "sparkle", shellTarget: "customize" }),
+        Object.freeze({ label: "Test voice agent", icon: "sparkle", shellTarget: "settings", settingsTarget: "voice_agent" }),
         Object.freeze({ label: "Web Call analytics", icon: "outcomes", target: "analytics" }),
       ]),
       shortcuts: Object.freeze([
-        Object.freeze({ label: "Voice settings", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat", primary: true }),
-        Object.freeze({ label: "Web Call test", note: "Use the existing voice QA tools in settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "sparkle" }),
-        Object.freeze({ label: "Voice style", note: "Review voice input and spoken reply settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
+        Object.freeze({ label: "Browser voice/Web Call setup", note: "Open Voice Agent settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat", primary: true }),
+        Object.freeze({ label: "Voice/personality settings", note: "Review voice style, language behavior, and spoken replies", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
+        Object.freeze({ label: "Spoken replies readiness", note: "Check voice input, spoken replies, and Web Call together", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "review" }),
+        Object.freeze({ label: "Test voice agent", note: "Use the existing owner voice QA simulator", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "sparkle" }),
         Object.freeze({ label: "Routing/contact handoff", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
         Object.freeze({ label: "Web Call transcripts/analytics", note: "Review available analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+    }),
+  });
+  const DASHBOARD_PRODUCT_SETUP_CONTEXT = Object.freeze({
+    front_desk: Object.freeze({
+      key: "front_desk",
+      title: "Set up Front Desk",
+      eyebrow: "Front Desk setup",
+      copy: "Configure the full-page customer surface, then publish and test the hosted Front Desk page.",
+      primaryAction: Object.freeze({ label: "Publish/open Front Desk page", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" }),
+      secondaryActions: Object.freeze([
+        Object.freeze({ label: "Business identity", note: "Review customer-facing identity and welcome copy", href: "#settings/front-desk/identity-welcome", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" }),
+        Object.freeze({ label: "Knowledge/training", note: "Open business profile and knowledge setup", href: "#settings/business-profile", shellTarget: "settings", settingsTarget: "business_profile", icon: "sparkle" }),
+        Object.freeze({ label: "Full-page assistant configuration", note: "Tune headline, prompts, trust copy, and public access", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "frontdesk" }),
+        Object.freeze({ label: "QR/direct link", note: "Open the existing QR and direct-link publish path", href: "#install/full-page", shellTarget: "install", installMethod: "qr", icon: "review" }),
+        Object.freeze({ label: "Routing/contact capture", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
+        Object.freeze({ label: "Preview/test assistant", note: "Practice a realistic customer question", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" }),
+      ]),
+      launchPath: Object.freeze([
+        Object.freeze({ label: "Configure", note: "Finish business identity, knowledge, page settings, and routing.", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" }),
+        Object.freeze({ label: "Test", note: "Use Practice to check the assistant with a real customer question.", href: "#front-desk/practice", shellTarget: "customize", icon: "sparkle" }),
+        Object.freeze({ label: "Launch", note: "Publish or open the full-page Front Desk, then share QR/direct links.", href: "#install/full-page", shellTarget: "install", installMethod: "full-page", icon: "install" }),
+      ]),
+    }),
+    website_widget: Object.freeze({
+      key: "website_widget",
+      title: "Set up Website Widget",
+      eyebrow: "Website Widget setup",
+      copy: "Configure the secondary embedded launcher using the existing widget settings, install, verification, and analytics surfaces.",
+      primaryAction: Object.freeze({ label: "Open embed/install snippet", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+      secondaryActions: Object.freeze([
+        Object.freeze({ label: "Widget appearance", note: "Review launcher copy, colors, and welcome text", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Allowed domains", note: "Use the existing install surface for domain guidance and status", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
+        Object.freeze({ label: "Embed/install snippet", note: "Open the current Website Widget snippet", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+        Object.freeze({ label: "Install verification", note: "Check whether widget markup has been detected", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "review" }),
+        Object.freeze({ label: "Test widget", note: "Use the existing widget install/test surface", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "sparkle" }),
+        Object.freeze({ label: "Widget analytics/conversations", note: "Review shared analytics and customer records", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+      launchPath: Object.freeze([
+        Object.freeze({ label: "Style", note: "Confirm widget appearance and launcher behavior.", href: "#settings/widget/optional-widget", shellTarget: "settings", settingsTarget: "website_widget", icon: "settings" }),
+        Object.freeze({ label: "Install", note: "Copy the embed snippet and verify it on an allowed domain.", href: "#install/embed", shellTarget: "install", installMethod: "widget", icon: "install" }),
+        Object.freeze({ label: "Measure", note: "Review widget conversations and analytics after traffic arrives.", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+    }),
+    voice_agent: Object.freeze({
+      key: "voice_agent",
+      title: "Set up Voice Agent",
+      eyebrow: "Voice Agent setup",
+      copy: "Configure browser voice, spoken replies, Web Call readiness, handoff behavior, tests, and transcripts from existing dashboard surfaces.",
+      primaryAction: Object.freeze({ label: "Open Web Call settings", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat" }),
+      secondaryActions: Object.freeze([
+        Object.freeze({ label: "Browser voice/Web Call readiness", note: "Review voice input, spoken replies, and Web Call together", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat" }),
+        Object.freeze({ label: "Voice/personality settings", note: "Review voice style and language behavior", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "settings" }),
+        Object.freeze({ label: "Spoken replies", note: "Confirm spoken reply behavior before testing", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "review" }),
+        Object.freeze({ label: "Routing/contact handoff", note: "Review shared handoff destinations", href: "#settings/front-desk/routing", shellTarget: "settings", settingsTarget: "front_desk", icon: "users" }),
+        Object.freeze({ label: "Test Web Call", note: "Use the existing owner voice QA simulator", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "sparkle" }),
+        Object.freeze({ label: "Web Call analytics/transcripts", note: "Review available Web Call analytics signals", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
+      ]),
+      launchPath: Object.freeze([
+        Object.freeze({ label: "Prepare", note: "Enable browser voice, spoken replies, and Web Call readiness.", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "chat" }),
+        Object.freeze({ label: "Test", note: "Run a Web Call test from the existing voice settings surface.", href: "#settings/voice/voice", shellTarget: "settings", settingsTarget: "voice_agent", icon: "sparkle" }),
+        Object.freeze({ label: "Review", note: "Use analytics for Web Call transcripts and conversation signals.", href: "#analytics", shellTarget: "analytics", icon: "outcomes" }),
       ]),
     }),
   });
@@ -379,6 +448,11 @@
   function getDashboardProductHomeContext(key = "front_desk") {
     const product = getDashboardProduct(normalizeDashboardProductKey(key));
     return DASHBOARD_PRODUCT_HOME_CONTEXT[product.key] || DASHBOARD_PRODUCT_HOME_CONTEXT.front_desk;
+  }
+
+  function getDashboardProductSetupContext(key = "front_desk") {
+    const product = getDashboardProduct(normalizeDashboardProductKey(key));
+    return DASHBOARD_PRODUCT_SETUP_CONTEXT[product.key] || DASHBOARD_PRODUCT_SETUP_CONTEXT.front_desk;
   }
 
   function getDashboardProductNavItems(activeProduct = global.location?.pathname || "/dashboard") {
@@ -888,14 +962,25 @@
           installMethod: "widget",
           icon: "sparkle",
         }),
+        createReadinessItem({
+          key: "widget_analytics",
+          label: "Widget analytics/conversations",
+          copy: "Open shared Analytics and Customers to review widget conversations, leads, and outcomes.",
+          complete: null,
+          kind: "action",
+          href: "#analytics",
+          shellTarget: "analytics",
+          icon: "outcomes",
+        }),
       ]);
     }
 
     if (normalizedProductKey === "voice_agent") {
+      const spokenRepliesReady = webCallState.spokenRepliesEnabled === true;
       return Object.freeze([
         createReadinessItem({
           key: "voice_settings",
-          label: "Voice/web-call settings configured",
+          label: "Browser voice/Web Call readiness",
           copy: webCallState.webCallReady
             ? "Voice input, spoken replies, and Web Call are enabled in the current settings."
             : "Enable voice input, spoken replies, and Web Call before relying on browser voice.",
@@ -905,6 +990,30 @@
           shellTarget: "settings",
           settingsTarget: "voice_agent",
           icon: "chat",
+        }),
+        createReadinessItem({
+          key: "voice_personality",
+          label: "Voice/personality settings",
+          copy: "Open existing Voice Agent settings to review voice style and language behavior.",
+          complete: null,
+          kind: "action",
+          href: "#settings/voice/voice",
+          shellTarget: "settings",
+          settingsTarget: "voice_agent",
+          icon: "settings",
+        }),
+        createReadinessItem({
+          key: "voice_spoken_replies",
+          label: "Spoken replies configured",
+          copy: spokenRepliesReady
+            ? "Spoken replies are enabled in the current voice settings."
+            : "Review spoken replies before relying on Web Call tests.",
+          complete: spokenRepliesReady,
+          kind: "derived",
+          href: "#settings/voice/voice",
+          shellTarget: "settings",
+          settingsTarget: "voice_agent",
+          icon: "review",
         }),
         createReadinessItem({
           key: "voice_routing",
@@ -936,19 +1045,20 @@
         }),
         createReadinessItem({
           key: "voice_test",
-          label: "Test voice agent action",
+          label: "Test Web Call action",
           copy: webCallActivity
             ? "Web Call message, health, or recent call activity exists in the current snapshot."
-            : "Use the existing Front Desk practice and voice settings surfaces to run a Web Call test.",
+            : "Use the existing Voice Agent settings and owner QA simulator to run a Web Call test.",
           complete: webCallActivity ? true : null,
           kind: webCallActivity ? "derived" : "action",
-          href: "#front-desk/practice",
-          shellTarget: "customize",
+          href: "#settings/voice/voice",
+          shellTarget: "settings",
+          settingsTarget: "voice_agent",
           icon: "sparkle",
         }),
         createReadinessItem({
           key: "voice_analytics",
-          label: "Review transcripts/analytics",
+          label: "Web Call analytics/transcripts",
           copy: "Open the shared Analytics surface for Web Call health and conversation signals.",
           complete: null,
           kind: "action",
@@ -1004,6 +1114,17 @@
         shellTarget: "settings",
         settingsTarget: "business_profile",
         icon: "sparkle",
+      }),
+      createReadinessItem({
+        key: "front_desk_qr_direct_link",
+        label: "QR/direct link path reviewed",
+        copy: "Open the existing QR and direct-link publish path for the hosted Front Desk page.",
+        complete: null,
+        kind: "action",
+        href: "#install/full-page",
+        shellTarget: "install",
+        installMethod: "qr",
+        icon: "review",
       }),
       createReadinessItem({
         key: "front_desk_routing",
@@ -1123,6 +1244,7 @@
     DASHBOARD_PRODUCT_REGISTRY,
     DASHBOARD_PRODUCT_PACKAGING,
     DASHBOARD_PRODUCT_HOME_CONTEXT,
+    DASHBOARD_PRODUCT_SETUP_CONTEXT,
     DASHBOARD_UI_STATE_DEFAULTS,
     DASHBOARD_UI_STATE_PERSISTED_KEYS,
     DASHBOARD_SECTION_HASHES,
@@ -1133,6 +1255,7 @@
     getDashboardProductPackaging,
     listDashboardProductPackaging,
     getDashboardProductHomeContext,
+    getDashboardProductSetupContext,
     getDashboardProductNavItems,
     exposeDashboardProductContext,
     getDashboardHashPathParts,

@@ -188,14 +188,15 @@ let activationWizardState = null;
 let knowledgeImportPollState = null;
 let knowledgeImportStartRequestId = 0;
 let dashboardSystemThemeListenerBound = false;
-const FULL_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
-const LEGACY_SHELL_SECTIONS = ["overview", "contacts", "customize", "analytics", "install", "settings"];
+const FULL_SHELL_SECTIONS = ["overview", "setup", "contacts", "customize", "analytics", "inbox", "calendar", "automations", "install", "settings"];
+const LEGACY_SHELL_SECTIONS = ["overview", "setup", "contacts", "customize", "analytics", "install", "settings"];
 const FRONT_DESK_SECTIONS = ["practice", "improvements", "knowledge", "library", "launch", "customization"];
 const DASHBOARD_UI_STATE_DEFAULTS = dashboardState.DASHBOARD_UI_STATE_DEFAULTS;
 const DASHBOARD_UI_STATE_PERSISTED_KEYS = dashboardState.DASHBOARD_UI_STATE_PERSISTED_KEYS;
 const DASHBOARD_SECTION_HASHES = dashboardState.DASHBOARD_SECTION_HASHES;
 const DASHBOARD_HELP_SECTION_LABELS = {
   overview: "Home",
+  setup: "Setup",
   contacts: "Customers",
   customize: "Front Desk",
   analytics: "Analytics",
@@ -280,6 +281,7 @@ const EMAIL_READ_ONLY_GOOGLE_SCOPES = [
 ];
 const DASHBOARD_CAPABILITY_MAP = {
   overview: "today",
+  setup: "today",
   contacts: "contacts",
   inbox: "inbox",
   calendar: "calendar",
@@ -6257,6 +6259,7 @@ function getUiIconMarkup(icon = "") {
 function getShellNavIconMarkup(sectionKey = "") {
   const iconMap = {
     overview: "home",
+    setup: "review",
     contacts: "users",
     knowledge_improvement: "review",
     customize: "frontdesk",
@@ -6313,6 +6316,7 @@ function buildSidebarGroup(title, items, activeSection, options = {}) {
 
 function buildDashboardProductSwitcher(activeProduct = activeDashboardProduct) {
   const activeKey = activeProduct?.key || "front_desk";
+  const productHash = getDashboardHashRoot() === "setup" ? "#setup" : "";
 
   return `
     <nav class="dashboard-product-switcher" aria-label="Dashboard products" data-dashboard-product-nav>
@@ -6321,7 +6325,7 @@ function buildDashboardProductSwitcher(activeProduct = activeDashboardProduct) {
         return `
           <a
             class="dashboard-product-link ${isActive ? "active" : ""}"
-            href="${escapeHtml(item.routePath)}"
+            href="${escapeHtml(`${item.routePath}${productHash}`)}"
             data-dashboard-product-link
             data-dashboard-product-key="${escapeHtml(item.key)}"
             data-dashboard-product-active="${isActive ? "true" : "false"}"
@@ -6368,6 +6372,11 @@ function buildSidebarShell(
       note: "Operator command center",
       badge: todayAttention > 0 ? String(todayAttention) : "",
       badgeTone: todayAttention > 0 ? "Needs attention" : "Pending",
+    },
+    {
+      key: "setup",
+      label: "Setup",
+      note: "Product launch path",
     },
     {
       key: "customize",
@@ -7579,6 +7588,37 @@ function buildProductLandingLink(link = {}) {
   `;
 }
 
+function buildProductSetupActionLink(action = {}, { primary = false } = {}) {
+  if (!action?.href) {
+    return "";
+  }
+
+  const attributes = [
+    `class="${primary ? "primary-button" : "ghost-button"} product-setup-action-button"`,
+    `href="${escapeHtml(action.href)}"`,
+  ];
+
+  if (action.shellTarget) {
+    attributes.push(`data-shell-target="${escapeHtml(action.shellTarget)}"`);
+  }
+  if (action.settingsTarget) {
+    attributes.push(`data-settings-target="${escapeHtml(action.settingsTarget)}"`);
+  }
+  if (action.installMethod) {
+    attributes.push(`data-install-method-jump="${escapeHtml(action.installMethod)}"`);
+  }
+  if (action.frontDeskOpen) {
+    attributes.push(`data-frontdesk-open="${escapeHtml(action.frontDeskOpen)}"`);
+  }
+
+  return `
+    <a ${attributes.join(" ")}>
+      <span aria-hidden="true">${buildV2Icon(action.icon || "review")}</span>
+      <span>${escapeHtml(action.label || "Open")}</span>
+    </a>
+  `;
+}
+
 function getProductReadinessStateLabel(item = {}) {
   if (item.complete === true) {
     return "Ready";
@@ -7680,12 +7720,16 @@ function getProductLandingContext(product = activeDashboardProduct) {
   const homeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
     ? dashboardState.getDashboardProductHomeContext(product?.key || "front_desk")
     : null;
+  const setupContext = typeof dashboardState.getDashboardProductSetupContext === "function"
+    ? dashboardState.getDashboardProductSetupContext(product?.key || "front_desk")
+    : null;
   const label = product?.label || homeContext?.homeTitle || "Front Desk";
 
   return {
     eyebrow: label,
     title: homeContext?.contextTitle || "Launch the full-page AI Front Desk",
     copy: homeContext?.contextCopy || "Front Desk is the primary customer-facing product. Start in practice, tune the full-page setup, then publish through the existing install flow.",
+    setupLink: { label: setupContext?.eyebrow || "Open setup", note: "Open the product-specific setup checklist", href: "#setup", shellTarget: "setup", icon: "review", primary: true },
     links: Array.isArray(homeContext?.shortcuts) ? homeContext.shortcuts : [
       { label: "Practice", note: "Test the current customer experience", href: "#front-desk/practice", shellTarget: "customize", icon: "frontdesk", primary: true },
       { label: "Full-page setup", note: "Open existing Front Desk page settings", href: "#settings/front-desk/full-page-assistant", shellTarget: "settings", settingsTarget: "front_desk", icon: "settings" },
@@ -7713,6 +7757,7 @@ function buildProductLandingContext(product = activeDashboardProduct, snapshot =
         <p>${escapeHtml(context.copy)}</p>
       </div>
       <div class="product-context-link-grid">
+        ${buildProductLandingLink(context.setupLink)}
         ${context.links.map((link) => buildProductLandingLink(link)).join("")}
       </div>
       ${buildProductReadinessCard(product, snapshot)}
@@ -7721,6 +7766,116 @@ function buildProductLandingContext(product = activeDashboardProduct, snapshot =
         <div>
           ${sharedLinks.map((link) => buildProductLandingLink(link)).join("")}
         </div>
+      </div>
+    </section>
+  `);
+}
+
+function buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
+  const product = activeDashboardProduct || { key: "front_desk", label: "Front Desk" };
+  const setupContext = typeof dashboardState.getDashboardProductSetupContext === "function"
+    ? dashboardState.getDashboardProductSetupContext(product.key)
+    : null;
+  const checklist = typeof dashboardState.getProductReadinessChecklist === "function"
+    ? dashboardState.getProductReadinessChecklist(product.key, {
+      agent,
+      setup,
+      messages,
+      frontDeskTraining,
+      ownerAnalyticsDashboard: actionQueue.ownerAnalyticsDashboard || null,
+      widgetMetrics: agent.widgetMetrics || agent.widget_metrics || {},
+      webCallHealth: actionQueue.ownerAnalyticsDashboard?.webCallHealth || null,
+      recentWebCalls: actionQueue.ownerAnalyticsDashboard?.webCallRecentCalls || null,
+    })
+    : [];
+  const statefulItems = checklist.filter((item) => item.kind === "derived" || item.complete === false);
+  const readyCount = statefulItems.filter((item) => item.complete === true).length;
+  const statefulReadinessCount = Math.max(statefulItems.length, 1);
+  const secondaryActions = Array.isArray(setupContext?.secondaryActions) ? setupContext.secondaryActions : [];
+  const launchPath = Array.isArray(setupContext?.launchPath) ? setupContext.launchPath : [];
+
+  return localizeDashboardHtml(`
+    <section class="workspace-page product-setup-page" data-shell-section="setup" hidden>
+      ${buildPageHeader({
+        eyebrow: setupContext?.eyebrow || `${product.label || "Front Desk"} setup`,
+        title: setupContext?.title || `Set up ${product.label || "Front Desk"}`,
+        copy: setupContext?.copy || "Use the existing dashboard surfaces to configure, test, and launch this product.",
+        actionsMarkup: buildProductSetupActionLink(setupContext?.primaryAction, { primary: true }),
+      })}
+      <div class="workspace-page-body product-setup-body">
+        <section class="product-setup-activation" data-product-setup-view="${escapeHtml(product.key)}">
+          <div class="product-setup-section-header">
+            <div>
+              <p class="product-context-eyebrow">Activation checklist</p>
+              <h2>${escapeHtml(`${readyCount} of ${statefulReadinessCount} saved-state checks ready`)}</h2>
+              <p>Checklist status uses existing workspace state only. Action rows open the relevant setup surface without marking completion.</p>
+            </div>
+            ${buildProductSetupActionLink(setupContext?.primaryAction, { primary: true })}
+          </div>
+          <div class="product-readiness-list product-setup-checklist">
+            ${checklist.map((item) => {
+              const stateLabel = getProductReadinessStateLabel(item);
+              const stateClass = item.complete === true
+                ? "is-ready"
+                : item.complete === false
+                  ? "needs-setup"
+                  : "is-action";
+
+              return `
+                <article
+                  class="product-readiness-item ${stateClass}"
+                  data-product-readiness-item
+                  data-product-setup-check="${escapeHtml(item.key)}"
+                  data-readiness-kind="${escapeHtml(item.kind)}"
+                  data-readiness-state="${escapeHtml(item.complete === true ? "ready" : item.complete === false ? "setup" : "action")}"
+                >
+                  <span class="product-readiness-icon" aria-hidden="true">${buildV2Icon(item.complete === true ? "check" : item.icon || "review")}</span>
+                  <span class="product-readiness-copy">
+                    <strong>${escapeHtml(item.label)}</strong>
+                    <small>${escapeHtml(item.copy)}</small>
+                  </span>
+                  <span class="product-readiness-meta">
+                    <span class="${getBadgeClass(item.complete === true ? "Ready" : item.complete === false ? "Limited" : "Pending")}">${escapeHtml(stateLabel)}</span>
+                    ${buildProductReadinessAction(item)}
+                  </span>
+                </article>
+              `;
+            }).join("")}
+          </div>
+        </section>
+
+        <section class="product-setup-secondary">
+          <div class="product-setup-section-header">
+            <div>
+              <p class="product-context-eyebrow">Setup actions</p>
+              <h2>Open the existing safe surfaces</h2>
+            </div>
+          </div>
+          <div class="product-context-link-grid">
+            ${secondaryActions.map((link) => buildProductLandingLink(link)).join("")}
+          </div>
+        </section>
+
+        <section class="product-setup-launch-path">
+          <div class="product-setup-section-header">
+            <div>
+              <p class="product-context-eyebrow">Test and launch path</p>
+              <h2>Configure, test, then review results</h2>
+            </div>
+          </div>
+          <div class="product-setup-path-grid">
+            ${launchPath.map((link, index) => `
+              <article class="product-setup-path-card">
+                <span class="product-setup-path-step">${escapeHtml(String(index + 1))}</span>
+                <div>
+                  <h3>${escapeHtml(link.label)}</h3>
+                  <p>${escapeHtml(link.note || "")}</p>
+                  ${buildProductSetupActionLink(link)}
+                </div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
       </div>
     </section>
   `);
@@ -13269,6 +13424,7 @@ function renderAssistantShell(
         ${setupHintMarkup}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}
@@ -13311,6 +13467,7 @@ function renderDashboardV2Shell(
         ${setupHintMarkup}
         <div class="workspace-pages">
           ${buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
+          ${buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining)}
           ${isCapabilityVisibleForWorkspace("contacts", operatorWorkspace) ? buildContactsPanel(agent, operatorWorkspace, { activeProduct: activeDashboardProduct }) : ""}
           ${buildCustomizePanel(agent, setup, operatorWorkspace, frontDeskTraining, actionQueue)}
           ${buildAnalyticsPanel(agent, messages, setup, actionQueue, operatorWorkspace)}

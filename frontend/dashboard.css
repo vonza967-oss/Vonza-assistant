@@ -15707,6 +15707,110 @@ html[data-dashboard-theme="dark"] .glass-icon-button {
   text-decoration: underline;
 }
 
+.product-setup-page .page-header {
+  align-items: flex-start;
+}
+
+.product-setup-body,
+.product-setup-activation,
+.product-setup-secondary,
+.product-setup-launch-path {
+  display: grid;
+  gap: 14px;
+}
+
+.product-setup-activation,
+.product-setup-secondary,
+.product-setup-launch-path {
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.product-setup-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.product-setup-section-header h2 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.product-setup-section-header p:last-child {
+  max-width: 760px;
+  margin: 5px 0 0;
+  color: var(--theme-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.product-setup-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.product-setup-action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.product-setup-checklist {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.product-setup-path-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.product-setup-path-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.product-setup-path-step {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.product-setup-path-card h3 {
+  margin: 0;
+  color: var(--theme-text);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.product-setup-path-card p {
+  margin: 5px 0 12px;
+  color: var(--theme-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .glass-hero,
 .glass-card,
 .dashboard-v2-production-shell .workspace-page:not(.glass-dashboard-home) .workspace-card-soft,
@@ -15819,6 +15923,14 @@ html[data-dashboard-theme="dark"] .product-readiness-card,
 html[data-dashboard-theme="dark"] .product-readiness-item {
   border-color: rgba(148, 163, 184, 0.16);
   background: rgba(15, 23, 42, 0.72);
+}
+
+html[data-dashboard-theme="dark"] .product-setup-activation,
+html[data-dashboard-theme="dark"] .product-setup-secondary,
+html[data-dashboard-theme="dark"] .product-setup-launch-path,
+html[data-dashboard-theme="dark"] .product-setup-path-card {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.66);
 }
 
 html[data-dashboard-theme="dark"] .product-readiness-item.is-ready {
@@ -16418,6 +16530,10 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .product-setup-path-grid {
+    grid-template-columns: 1fr;
+  }
+
   .glass-home-middle,
   .glass-home-bottom,
   .glass-hero {
@@ -16434,6 +16550,14 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .v2-select {
 }
 
 @media (max-width: 900px) {
+  .product-setup-section-header {
+    display: grid;
+  }
+
+  .product-setup-action-button {
+    width: 100%;
+  }
+
   .dashboard-v2-production-shell {
     grid-template-columns: 1fr;
     gap: 18px;
