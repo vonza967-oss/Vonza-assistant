@@ -11,6 +11,10 @@ import {
   scoreFrontDeskEvalScenario,
 } from "./frontDeskEvalRubric.js";
 import { cleanText } from "../../utils/text.js";
+import {
+  parseAnswerContractOutput,
+  summarizeAnswerContractForDebug,
+} from "../chat/answerContractService.js";
 
 const FORBIDDEN_SIDE_EFFECT_TABLES = new Set([
   "agent_contact_leads",
@@ -301,13 +305,49 @@ function buildEvalLeadCapture(state, scenario) {
 }
 
 function createDryRunReplyGenerator(state) {
-  return async function generateDryRunReply() {
+  return async function generateDryRunReply(input = {}) {
     state.modelCalls += 1;
     const scenario = state.currentScenario;
     const turnIndex = state.currentTurnIndex || 0;
     const reply = scenario?.idealReplies?.[turnIndex]
       || scenario?.idealReplies?.[scenario.idealReplies.length - 1]
       || "I do not have enough detail to answer that confidently from the business information here.\n\nWhat are you trying to find out?";
+
+    if (input.answerContract?.enabled === true) {
+      const evidenceIds = Array.isArray(input.answerContract.evidencePack?.items)
+        ? input.answerContract.evidencePack.items.map((item) => cleanText(item.id)).filter(Boolean)
+        : [];
+      const contract = parseAnswerContractOutput(JSON.stringify({
+        version: 1,
+        answer: reply,
+        claims: [
+          {
+            text: cleanText(reply).slice(0, 180),
+            evidenceIds: evidenceIds.slice(0, 2),
+            riskType: scenario?.categories?.[0] || "other",
+            confidence: evidenceIds.length ? "high" : "low",
+          },
+        ],
+        confidence: evidenceIds.length ? "high" : "low",
+        needsHandoff: false,
+        warnings: [],
+      }), {
+        evidencePack: input.answerContract.evidencePack,
+        maxClaims: input.answerContract.maxClaims,
+        fallbackAnswer: reply,
+      });
+
+      if (typeof input.answerContract.onContract === "function") {
+        input.answerContract.onContract(
+          summarizeAnswerContractForDebug(contract, {
+            includeClaimText: input.answerContract.includeClaimText === true,
+          }),
+          contract
+        );
+      }
+
+      return contract.answer;
+    }
 
     return reply;
   };
@@ -338,8 +378,48 @@ function sanitizeEvidenceSummary(summary = {}) {
   };
 }
 
-function buildEvalDeps({ state, mode, fixture, evidenceSummaries }) {
+function sanitizeAnswerContractSummary(summary = {}) {
+  return {
+    version: Number(summary.version || 1),
+    parseStatus: cleanText(summary.parseStatus),
+    claimCount: Number(summary.claimCount || 0),
+    riskTypes: Array.isArray(summary.riskTypes)
+      ? summary.riskTypes.map(cleanText).filter(Boolean)
+      : [],
+    evidenceIdCoverageCount: Number(summary.evidenceIdCoverageCount || 0),
+    invalidEvidenceIds: Array.isArray(summary.invalidEvidenceIds)
+      ? summary.invalidEvidenceIds.map(cleanText).filter(Boolean)
+      : [],
+    warnings: Array.isArray(summary.warnings)
+      ? summary.warnings.map(cleanText).filter(Boolean)
+      : [],
+    confidence: cleanText(summary.confidence),
+    needsHandoff: Boolean(summary.needsHandoff),
+    ...(Array.isArray(summary.claims)
+      ? {
+          claims: summary.claims.map((claim) => ({
+            riskType: cleanText(claim.riskType),
+            confidence: cleanText(claim.confidence),
+            evidenceIdCount: Number(claim.evidenceIdCount || 0),
+            text: sanitizeFrontDeskEvalNote(claim.text || ""),
+          })),
+        }
+      : {}),
+  };
+}
+
+function buildEvalDeps({
+  state,
+  mode,
+  fixture,
+  evidenceSummaries,
+  answerContractSummaries,
+  answerContractMode,
+  includeClaimText,
+}) {
   const deps = {
+    answerContractMode,
+    answerContractIncludeClaimText: includeClaimText,
     resolveWidgetConversationContext: async () => ({
       agent: fixture.agent,
       business: fixture.business,
@@ -428,6 +508,12 @@ function buildEvalDeps({ state, mode, fixture, evidenceSummaries }) {
         ...sanitizeEvidenceSummary(summary),
       });
     },
+    onAnswerContract: (summary) => {
+      answerContractSummaries.push({
+        turnIndex: Number(state.currentTurnIndex || 0),
+        ...sanitizeAnswerContractSummary(summary),
+      });
+    },
   };
 
   if (mode === "dry-run") {
@@ -468,12 +554,31 @@ function buildRequestBody({ fixture, scenario, turn, history, runId }) {
   };
 }
 
-async function runScenario({ scenario, baseFixture, mode, openai, state, runId, includeReplies }) {
+async function runScenario({
+  scenario,
+  baseFixture,
+  mode,
+  openai,
+  state,
+  runId,
+  includeReplies,
+  answerContractMode,
+  includeClaimText,
+}) {
   const replies = [];
   const leadCaptures = [];
   const evidenceSummaries = [];
+  const answerContractSummaries = [];
   const fixture = cloneFixture(baseFixture, scenario);
-  const deps = buildEvalDeps({ state, mode, fixture, evidenceSummaries });
+  const deps = buildEvalDeps({
+    state,
+    mode,
+    fixture,
+    evidenceSummaries,
+    answerContractSummaries,
+    answerContractMode,
+    includeClaimText,
+  });
   const supabase = createEvalSupabaseGuard(state);
   let history = [];
 
@@ -509,6 +614,7 @@ async function runScenario({ scenario, baseFixture, mode, openai, state, runId, 
     source: FRONT_DESK_EVAL_SOURCE,
     mode,
     evidence: evidenceSummaries,
+    ...(answerContractMode ? { answerContract: answerContractSummaries } : {}),
     ...(includeReplies
       ? { sanitizedReplies: replies.map((reply) => sanitizeFrontDeskEvalNote(reply)) }
       : {}),
@@ -525,6 +631,11 @@ export async function runFrontDeskEvaluation(options = {}) {
   });
   const state = createSideEffectState();
   const runId = options.runId || createRunId(options.now || new Date());
+  const answerContractMode = options.answerContractMode === true
+    || cleanText(options.answerContractMode).toLowerCase() === "report-only"
+    || ["1", "true", "report-only", "enabled"].includes(
+      cleanText(process.env.FRONT_DESK_ANSWER_CONTRACT_MODE).toLowerCase()
+    );
   const openai = mode === "live"
     ? options.openai || getOpenAIClient()
     : options.openai || {};
@@ -540,6 +651,8 @@ export async function runFrontDeskEvaluation(options = {}) {
         state,
         runId,
         includeReplies: options.includeReplies === true,
+        answerContractMode,
+        includeClaimText: options.includeReplies === true || options.verbose === true,
       }));
     }
   });
@@ -606,6 +719,14 @@ export function formatFrontDeskEvalReport(report = {}) {
     0
   );
   lines.push(`Evidence metadata: turns=${evidenceTurnCount}`);
+
+  const answerContractTurnCount = (report.results || []).reduce(
+    (sum, result) => sum + (Array.isArray(result.answerContract) ? result.answerContract.length : 0),
+    0
+  );
+  if (answerContractTurnCount) {
+    lines.push(`Answer Contract metadata: turns=${answerContractTurnCount}`);
+  }
 
   return lines.join("\n");
 }

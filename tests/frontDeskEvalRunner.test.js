@@ -116,3 +116,25 @@ test("Front Desk eval JSON report shape is stable", async () => {
     "mode",
   ].every((key) => Object.hasOwn(parsed.results[0], key)));
 });
+
+test("Front Desk eval runner includes redacted Answer Contract metadata when enabled", async () => {
+  const report = await runFrontDeskEvaluation({
+    mode: "dry-run",
+    runId: "test-front-desk-answer-contract",
+    limit: 1,
+    answerContractMode: true,
+  });
+  const result = report.results[0];
+
+  assert.ok(Array.isArray(result.answerContract));
+  assert.equal(result.answerContract.length, result.turnCount);
+  assert.ok(result.answerContract.every((entry) =>
+    entry.parseStatus === "parsed"
+      && Number(entry.claimCount) >= 1
+      && Array.isArray(entry.riskTypes)
+      && Number(entry.evidenceIdCoverageCount) >= 1
+      && Array.isArray(entry.invalidEvidenceIds)
+      && Array.isArray(entry.warnings)
+      && !("claims" in entry)
+  ));
+});

@@ -72,6 +72,11 @@ function normalizePublicDisplayMode(value) {
   return cleanText(value).toLowerCase() === "page" ? "page" : "widget";
 }
 
+function isAnswerContractReportOnlyEnabled(value) {
+  const normalized = cleanText(value).toLowerCase().replace(/[\s_]+/g, "-");
+  return ["1", "true", "enabled", "report-only", "report"].includes(normalized);
+}
+
 export function normalizePublicConversationSource(value, options = {}) {
   const normalized = cleanText(value).toLowerCase().replace(/[\s-]+/g, "_");
   const displayMode = normalizePublicDisplayMode(options.displayMode || options.display_mode);
@@ -413,6 +418,8 @@ export async function handleChatRequest({
   const buildChatSystemPromptImpl = deps.buildChatSystemPrompt || buildChatSystemPrompt;
   const generateAssistantReplyImpl = deps.generateAssistantReply || generateAssistantReply;
   const onEvidencePackImpl = typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null;
+  const onAnswerContractImpl =
+    typeof deps.onAnswerContract === "function" ? deps.onAnswerContract : null;
   const listRecentWidgetEventsImpl = deps.listRecentWidgetEvents || listRecentWidgetEvents;
   const evaluateLiveConversionRoutingImpl =
     deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
@@ -450,6 +457,9 @@ export async function handleChatRequest({
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const normalizedMessage = cleanText(message || "");
   const language = selectResponseLanguage(normalizedMessage, history);
+  const answerContractEnabled = deps.answerContractMode === true
+    || isAnswerContractReportOnlyEnabled(deps.answerContractMode)
+    || isAnswerContractReportOnlyEnabled(process.env.FRONT_DESK_ANSWER_CONTRACT_MODE);
 
   if (!message || !String(message).trim()) {
     const error = new Error("Message cannot be empty.");
@@ -748,6 +758,24 @@ export async function handleChatRequest({
       onUsage(entry) {
         usageEntries.push(entry);
       },
+      answerContract: answerContractEnabled
+        ? {
+            enabled: true,
+            evidencePack,
+            includeClaimText: deps.answerContractIncludeClaimText === true,
+            onContract(summary) {
+              if (onAnswerContractImpl) {
+                onAnswerContractImpl(summary, {
+                  agentId: agent.id,
+                  businessId: business.id,
+                  sessionKey,
+                  displayMode,
+                  conversationSource,
+                });
+              }
+            },
+          }
+        : { enabled: false },
     });
   } finally {
     if (usageEntries.length && billingSnapshot && cleanText(agent.ownerUserId)) {

@@ -3,6 +3,11 @@ import {
   formatConversationHistory,
   normalizeAssistantReply,
 } from "../../utils/text.js";
+import {
+  buildAnswerContractInstructions,
+  parseAnswerContractOutput,
+  summarizeAnswerContractForDebug,
+} from "./answerContractService.js";
 
 function buildReferenceContext(referenceBlocks = []) {
   const blocks = referenceBlocks
@@ -80,6 +85,97 @@ async function rewriteAssistantReply({
     : normalizeAssistantReply(rewrittenReply);
 }
 
+async function generateAnswerContractReport({
+  openai,
+  model = "gpt-4o-mini",
+  temperature = 0,
+  reply,
+  userMessage,
+  history = [],
+  referenceBlocks = [],
+  evidencePack,
+  maxClaims,
+  includeClaimText = false,
+  onContract = null,
+  onUsage = null,
+  additionalWarnings = [],
+}) {
+  const completion = await openai.chat.completions.create({
+    model,
+    temperature,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: [
+          buildAnswerContractInstructions(evidencePack, { maxClaims }),
+          "This is a report-only extraction pass. The visitor-facing answer is already chosen.",
+          "Set `answer` exactly to the provided visitor-facing answer. Do not rewrite, improve, shorten, translate, or add content.",
+        ].join("\n\n"),
+      },
+      {
+        role: "user",
+        content: [
+          buildReferenceContext(referenceBlocks),
+          `Latest user message:\n${cleanText(userMessage)}`,
+          `Recent conversation:\n${formatConversationHistory(history)}`,
+          `Visitor-facing answer:\n${normalizeAssistantReply(reply)}`,
+        ].filter(Boolean).join("\n\n"),
+      },
+    ],
+  });
+  const usage = completion?.usage || {};
+
+  if (typeof onUsage === "function") {
+    onUsage({
+      usageSource: "chat_reply",
+      phase: "answer_contract",
+      model,
+      promptTokens: Number(usage.prompt_tokens || 0) || 0,
+      completionTokens: Number(usage.completion_tokens || 0) || 0,
+      cachedPromptTokens: Number(usage.prompt_tokens_details?.cached_tokens || 0) || 0,
+      occurredAt: new Date().toISOString(),
+    });
+  }
+
+  let contract = parseAnswerContractOutput(
+    completion.choices?.[0]?.message?.content || "",
+    {
+      evidencePack,
+      maxClaims,
+      fallbackAnswer: reply,
+    }
+  );
+
+  if (normalizeAssistantReply(contract.answer) !== normalizeAssistantReply(reply)) {
+    contract = {
+      ...contract,
+      answer: normalizeAssistantReply(reply),
+      warnings: [
+        ...(Array.isArray(contract.warnings) ? contract.warnings : []),
+        "answer_mismatch_normalized",
+      ],
+    };
+  }
+
+  if (additionalWarnings.length) {
+    contract = {
+      ...contract,
+      warnings: [
+        ...(Array.isArray(contract.warnings) ? contract.warnings : []),
+        ...additionalWarnings.map(cleanText).filter(Boolean),
+      ],
+    };
+  }
+
+  if (typeof onContract === "function") {
+    onContract(
+      summarizeAnswerContractForDebug(contract, { includeClaimText }),
+      contract
+    );
+  }
+}
+
 export async function generateAssistantReply({
   openai,
   userMessage,
@@ -94,6 +190,7 @@ export async function generateAssistantReply({
   postProcess = null,
   repair = {},
   onUsage = null,
+  answerContract = {},
 }) {
   if (!openai?.chat?.completions?.create) {
     const error = new Error("OpenAI chat completions are unavailable.");
@@ -161,6 +258,7 @@ export async function generateAssistantReply({
   const issues = typeof repair.getIssues === "function"
     ? repair.getIssues(reply)
     : [];
+  let repairApplied = false;
 
   if (issues.length) {
     const rewritePrompt = typeof repair.buildRewritePrompt === "function"
@@ -168,6 +266,7 @@ export async function generateAssistantReply({
       : cleanText(repair.rewritePrompt);
 
     if (rewritePrompt) {
+      repairApplied = true;
       reply = await rewriteAssistantReply({
         openai,
         model: repair.model || model,
@@ -187,6 +286,24 @@ export async function generateAssistantReply({
     const error = new Error("The assistant could not generate a reply.");
     error.statusCode = 502;
     throw error;
+  }
+
+  if (answerContract?.enabled === true) {
+    await generateAnswerContractReport({
+      openai,
+      model: answerContract.model || model,
+      temperature: answerContract.temperature ?? 0,
+      reply,
+      userMessage,
+      history,
+      referenceBlocks,
+      evidencePack: answerContract.evidencePack,
+      maxClaims: answerContract.maxClaims,
+      includeClaimText: answerContract.includeClaimText === true,
+      onContract: answerContract.onContract,
+      onUsage,
+      additionalWarnings: repairApplied ? ["repair_plain_text_only"] : [],
+    });
   }
 
   return reply;

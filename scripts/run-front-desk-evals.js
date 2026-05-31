@@ -18,6 +18,7 @@ function parseArgs(argv = []) {
     json: false,
     list: false,
     verbose: false,
+    answerContractMode: false,
     failUnder: null,
   };
 
@@ -44,6 +45,11 @@ function parseArgs(argv = []) {
 
     if (arg === "--verbose") {
       options.verbose = true;
+      return;
+    }
+
+    if (arg === "--answer-contract" || arg === "--answer-contract=report-only") {
+      options.answerContractMode = true;
       return;
     }
 

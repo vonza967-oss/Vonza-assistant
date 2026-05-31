@@ -36,7 +36,19 @@
 - Eval JSON results now include redacted evidence metadata by turn. They do not include full evidence text by default, matching the existing behavior where full/sanitized replies are only shown with explicit reply-debug options.
 - Evidence Pack v1 does not change visitor-facing output, require JSON model responses, verify claims after generation, or enforce a formal Answer Contract. Answer Contract and Claim Verifier work remain future layers on top of this inspectable retrieval structure.
 
+## Answer Contract v1
+- Added Answer Contract v1 in report-only mode for the Front Desk answer engine.
+- When enabled, the model is asked to return an internal JSON contract with `answer`, normalized claims, risk types, confidence, handoff flag, warnings, and Evidence Pack IDs.
+- Visitor-facing output remains the normal generated reply. Report-only extraction runs as a sidecar metadata pass after the reply and repair flow; if contract parsing fails, metadata records the failure and the visitor reply is unchanged.
+- Contract mode does not enforce claim verification yet. Invalid evidence IDs are flagged in metadata but do not block or rewrite the answer.
+- Repair remains plain-text only for v1: the repair pass runs against the visitor answer, then the sidecar contract pass records a `repair_plain_text_only` warning when repair was applied.
+- Redacted eval/debug metadata includes parse status, claim count, risk types, evidence coverage count, invalid evidence IDs, warnings, confidence, and handoff flag. Full claim text is omitted unless reply/debug verbosity is already enabled.
+- Run dry evals with contract metadata using: `npm run eval:front-desk:json -- --answer-contract`
+- Production traffic remains opt-in through `FRONT_DESK_ANSWER_CONTRACT_MODE=report-only`.
+- Next step: Claim Verifier v1 can consume Answer Contract claims and Evidence Pack IDs to verify or downgrade risky claims before release.
+
 ## Remaining Limitations
 - Live eval replies are model-dependent; rerun variance can still expose phrasing gaps.
 - `--show-replies` prints sanitized/truncated replies, so full text inspection may require a dedicated raw local debug path that still redacts secrets.
 - The current missing-service fallback is intentionally narrow and generic; future work should improve service-label extraction beyond the electric-scooter case without weakening grounding.
+- Answer Contract v1 is report-only and does not prove claims, enforce coverage, or change lead-capture/contact routing.
