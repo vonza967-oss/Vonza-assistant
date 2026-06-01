@@ -1295,12 +1295,15 @@ test("Hungarian core dashboard screens surface missing translation keys through 
 
 test("dashboard language preference requests stay separate from widget reply language", () => {
   const dashboardScript = readFileSync(path.join(repoRoot, "frontend", "dashboard.js"), "utf8");
-  const chatPrompt = readFileSync(path.join(repoRoot, "src", "services", "chat", "prompting.js"), "utf8");
+  const chatPromptCompiler = readFileSync(
+    path.join(repoRoot, "src", "services", "chat", "promptCompiler.js"),
+    "utf8"
+  );
 
   assert.match(dashboardScript, /vonza_dashboard_language/);
   assert.match(dashboardScript, /\/dashboard\/preferences/);
-  assert.doesNotMatch(chatPrompt, /dashboard_language|vonza_dashboard_language/);
-  assert.match(chatPrompt, /same language as the customer's latest message/);
+  assert.doesNotMatch(chatPromptCompiler, /dashboard_language|vonza_dashboard_language/);
+  assert.match(chatPromptCompiler, /same language as the customer's latest message/);
 });
 
 test("home AI priorities translate raw signals into practical business recommendations", () => {

@@ -44,6 +44,8 @@ create table if not exists public.agents (
   owner_user_id uuid,
   access_status text default 'pending',
   public_agent_key text unique,
+  package_key text not null default 'front_desk_general',
+  package_version text not null default '0.1.0',
   name text,
   purpose text,
   system_prompt text,
@@ -54,6 +56,13 @@ create table if not exists public.agents (
   updated_at timestamp with time zone default now()
 );
 
+alter table public.agents
+  drop constraint if exists agents_package_key_check;
+
+alter table public.agents
+  add constraint agents_package_key_check
+  check (package_key in ('front_desk_general', 'hotel_concierge'));
+
 create index if not exists agents_business_id_idx
   on public.agents (business_id);
 
@@ -62,6 +71,9 @@ create index if not exists agents_client_id_idx
 
 create index if not exists agents_owner_user_id_idx
   on public.agents (owner_user_id);
+
+create index if not exists agents_package_key_idx
+  on public.agents (package_key);
 
 create table if not exists public.widget_configs (
   id uuid primary key default gen_random_uuid(),

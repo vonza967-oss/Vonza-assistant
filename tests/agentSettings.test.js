@@ -7,6 +7,8 @@ import {
   normalizeVoiceConfig,
   normalizeFullPageDesignConfig,
   normalizeFullPageConfig,
+  requireAgentAccess,
+  updateAgentPackageAssignment,
   updateAgentSettings,
 } from "../src/services/agents/agentService.js";
 import {
@@ -174,6 +176,218 @@ function createSupabaseStub(initialState) {
     state,
   };
 }
+
+test("requireAgentAccess exposes default package fields for missing or blank agent row values", async () => {
+  const supabase = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+      {
+        id: "agent-2",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key-2",
+        package_key: "   ",
+        package_version: "",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+  });
+
+  const missingPackageAgent = await requireAgentAccess(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+  });
+  const blankPackageAgent = await requireAgentAccess(supabase, {
+    agentId: "agent-2",
+    ownerUserId: "owner-1",
+  });
+
+  assert.equal(missingPackageAgent.packageKey, "front_desk_general");
+  assert.equal(missingPackageAgent.packageVersion, "0.1.0");
+  assert.equal(blankPackageAgent.packageKey, "front_desk_general");
+  assert.equal(blankPackageAgent.packageVersion, "0.1.0");
+});
+
+test("requireAgentAccess exposes explicit package fields from agent rows", async () => {
+  const supabase = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        package_key: "front_desk_general",
+        package_version: "0.1.7",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+  });
+
+  const agent = await requireAgentAccess(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+  });
+
+  assert.equal(agent.packageKey, "front_desk_general");
+  assert.equal(agent.packageVersion, "0.1.7");
+});
+
+test("updateAgentPackageAssignment rejects unknown package keys before persistence", async () => {
+  await assert.rejects(
+    () =>
+      updateAgentPackageAssignment({
+        from() {
+          throw new Error("package validation should happen before DB writes");
+        },
+      }, {
+        agentId: "agent-1",
+        ownerUserId: "owner-1",
+        packageKey: "unknown_package",
+      }),
+    (error) => {
+      assert.equal(error.statusCode, 400);
+      assert.equal(error.code, "unknown_agent_package_key");
+      assert.match(error.message, /unknown agent package key/i);
+      return true;
+    }
+  );
+});
+
+test("updateAgentPackageAssignment updates only the matching owned agent and defaults version from manifest", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        package_key: "front_desk_general",
+        package_version: "0.1.0",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+  });
+
+  await assert.rejects(
+    () =>
+      updateAgentPackageAssignment(supabase, {
+        agentId: "agent-1",
+        ownerUserId: "other-owner",
+        packageKey: "hotel_concierge",
+      }),
+    (error) => {
+      assert.equal(error.statusCode, 404);
+      assert.equal(error.message, "Agent not found");
+      return true;
+    }
+  );
+
+  assert.equal(state.agents[0].package_key, "front_desk_general");
+  assert.equal(state.agents[0].package_version, "0.1.0");
+
+  const agent = await updateAgentPackageAssignment(supabase, {
+    agentId: "agent-1",
+    ownerUserId: "owner-1",
+    packageKey: " HOTEL_CONCIERGE ",
+  });
+
+  assert.equal(agent.packageKey, "hotel_concierge");
+  assert.equal(agent.packageVersion, "0.1.0");
+  assert.equal(state.agents[0].package_key, "hotel_concierge");
+  assert.equal(state.agents[0].package_version, "0.1.0");
+});
+
+test("updateAgentSettings does not expose package switching fields", async () => {
+  const { state, ...supabase } = createSupabaseStub({
+    agents: [
+      {
+        id: "agent-1",
+        business_id: "business-1",
+        client_id: "client-1",
+        owner_user_id: "owner-1",
+        access_status: "active",
+        public_agent_key: "agent-key",
+        package_key: "front_desk_general",
+        package_version: "0.1.0",
+        name: "Vonza",
+        purpose: "support",
+        system_prompt: "",
+        tone: "friendly",
+        language: "English",
+        is_active: true,
+      },
+    ],
+    businesses: [
+      {
+        id: "business-1",
+        name: "Vonza",
+        website_url: "https://example.com",
+      },
+    ],
+    widget_configs: [
+      {
+        id: "widget-1",
+        agent_id: "agent-1",
+        assistant_name: "Vonza",
+        welcome_message: "Hello there",
+        button_label: "Chat now",
+        primary_color: "#14b8a6",
+        secondary_color: "#0f766e",
+        launcher_text: "Chat now",
+        theme_mode: "light",
+      },
+    ],
+  });
+
+  const result = await updateAgentSettings(supabase, {
+    agentId: "agent-1",
+    assistantName: "Vonza Hotel",
+    packageKey: "hotel_concierge",
+    package_key: "hotel_concierge",
+    packageVersion: "9.9.9",
+    package_version: "9.9.9",
+  });
+
+  assert.equal(result.assistantName, "Vonza Hotel");
+  assert.equal(result.packageKey, "front_desk_general");
+  assert.equal(result.packageVersion, "0.1.0");
+  assert.equal(state.agents[0].package_key, "front_desk_general");
+  assert.equal(state.agents[0].package_version, "0.1.0");
+});
 
 test("updateAgentSettings normalizes website URLs and reuses an existing business row", async () => {
   const { state, ...supabase } = createSupabaseStub({

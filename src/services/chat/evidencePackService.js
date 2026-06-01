@@ -6,6 +6,7 @@ import {
   isPlaceholderEmail,
   isPlaceholderPhone,
 } from "../../utils/text.js";
+import { summarizeKnowledgePolicyForDebug } from "./knowledgePolicyService.js";
 
 const SOURCE_TYPES = new Set([
   "approved_answer",
@@ -13,6 +14,8 @@ const SOURCE_TYPES = new Set([
   "website",
   "manual",
   "keyword_fallback",
+  "live_booking",
+  "guest_record",
 ]);
 
 const TRUST_LEVEL_BY_SOURCE_TYPE = {
@@ -21,6 +24,8 @@ const TRUST_LEVEL_BY_SOURCE_TYPE = {
   website: "retrieved_website",
   manual: "retrieved_website",
   keyword_fallback: "weak_fallback",
+  live_booking: "live_booking_record",
+  guest_record: "guest_verified_record",
 };
 
 function escapeRegex(value = "") {
@@ -218,6 +223,8 @@ export function buildEvidencePack({
   keywordFallbackContext = "",
   retrievalConfidence = "none",
   semanticError = "",
+  agentPackage = null,
+  knowledgePolicy = null,
 } = {}) {
   const explicitApprovedItems = approvedAnswers
     .map((item, index) => approvedAnswerToEvidence(item, index))
@@ -233,6 +240,9 @@ export function buildEvidencePack({
     ...semanticItems,
     keywordFallbackItem,
   ].filter(Boolean));
+  const safeKnowledgePolicy = summarizeKnowledgePolicyForDebug(
+    knowledgePolicy || agentPackage
+  );
 
   return {
     version: 1,
@@ -240,6 +250,7 @@ export function buildEvidencePack({
     items,
     counts: buildCounts(items),
     missing: buildMissing(items, cleanText(semanticError)),
+    ...(safeKnowledgePolicy ? { knowledgePolicy: safeKnowledgePolicy } : {}),
     ...(cleanText(semanticError) ? { semanticError: cleanText(semanticError) } : {}),
   };
 }
@@ -324,6 +335,9 @@ export function renderEvidencePackForPrompt(evidencePack = {}) {
 
 export function summarizeEvidencePackForDebug(evidencePack = {}) {
   const items = Array.isArray(evidencePack.items) ? evidencePack.items : [];
+  const safeKnowledgePolicy = summarizeKnowledgePolicyForDebug(
+    evidencePack.knowledgePolicy || evidencePack.knowledge_policy
+  );
 
   return {
     version: Number(evidencePack.version || 1),
@@ -342,5 +356,6 @@ export function summarizeEvidencePackForDebug(evidencePack = {}) {
       sourceType: normalizeSourceType(item.sourceType),
       trustLevel: cleanText(item.trustLevel),
     })).filter((item) => item.id && item.sourceType && item.trustLevel),
+    ...(safeKnowledgePolicy ? { knowledgePolicy: safeKnowledgePolicy } : {}),
   };
 }

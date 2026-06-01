@@ -6,6 +6,7 @@ import {
   summarizeClaimVerifierForDebug,
   verifyClaimSupport,
 } from "../src/services/chat/claimVerifierService.js";
+import { getAgentPackage } from "../src/agentPackages/index.js";
 
 function makeEvidencePack() {
   return {
@@ -153,6 +154,48 @@ test("Claim Verifier marks risky claims with only keyword fallback low_confidenc
 
   assert.equal(report.results[0].verdict, "low_confidence");
   assert.equal(report.lowConfidenceClaims, 1);
+});
+
+test("Claim Verifier keeps structural verdicts while reporting package policy gaps", () => {
+  const evidencePack = {
+    version: 1,
+    confidence: "high",
+    items: [
+      {
+        id: "business_profile:facts",
+        sourceType: "business_profile",
+        trustLevel: "reviewed_business_fact",
+      },
+      {
+        id: "website:availability",
+        sourceType: "website",
+        trustLevel: "retrieved_website",
+      },
+    ],
+  };
+  const report = verifyClaimSupport(makeContract([
+    {
+      text: "Rooms are available tonight.",
+      riskType: "availability",
+      confidence: "high",
+      evidenceIds: ["business_profile:facts", "website:availability"],
+    },
+  ]), evidencePack, {
+    agentPackage: getAgentPackage("hotel_concierge"),
+  });
+  const summary = summarizeClaimVerifierForDebug(report);
+
+  assert.equal(report.results[0].verdict, "supported");
+  assert.equal(report.supportedRiskyClaims, 1);
+  assert.equal(report.policyCheckedClaims, 1);
+  assert.equal(report.policyUnsupportedClaims, 1);
+  assert.equal(report.results[0].policyEvaluation.allowed, false);
+  assert.deepEqual(report.results[0].policyEvaluation.allowedSourceTypes, ["live_booking"]);
+  assert.ok(report.results[0].policyEvaluation.notes.includes("source_type_not_allowed_by_package_policy"));
+  assert.equal(summary.results[0].verdict, "supported");
+  assert.equal(summary.results[0].policyEvaluation.allowed, false);
+  assert.equal(summary.results[0].policyEvaluation.evidenceIdCount, 2);
+  assert.equal("evidenceIds" in summary.results[0].policyEvaluation, false);
 });
 
 test("Claim Verifier marks non-risky other claims not_risky", () => {

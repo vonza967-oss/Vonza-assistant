@@ -1,5 +1,10 @@
 import { cleanText } from "../../utils/text.js";
 import { normalizeAnswerContractRiskType } from "./answerContractService.js";
+import {
+  evaluateClaimEvidencePolicy,
+  normalizeKnowledgePolicy,
+  summarizeKnowledgePolicyForDebug,
+} from "./knowledgePolicyService.js";
 
 export const CLAIM_VERIFIER_VERSION = 1;
 export const CLAIM_VERIFIER_MODE = "report-only";
@@ -24,6 +29,8 @@ const STRONG_SOURCE_TYPES = new Set([
   "business_profile",
   "website",
   "manual",
+  "live_booking",
+  "guest_record",
 ]);
 
 const WEAK_TRUST_LEVELS = new Set(["weak_fallback"]);
@@ -165,7 +172,35 @@ function verifyClaim(claim = {}, claimIndex, evidenceMap) {
   };
 }
 
-export function verifyClaimSupport(answerContract = {}, evidencePack = {}) {
+function getClaimEvidenceItems(claim = {}, evidenceMap) {
+  return uniqueCleanList(claim.evidenceIds)
+    .filter((id) => evidenceMap.has(id))
+    .map((id) => evidenceMap.get(id));
+}
+
+function buildPolicyReportFields(results = [], policy = null) {
+  if (!policy) {
+    return {};
+  }
+
+  const policyResults = results
+    .map((result) => result.policyEvaluation)
+    .filter(Boolean);
+
+  return {
+    knowledgePolicy: summarizeKnowledgePolicyForDebug(policy),
+    policyCheckedClaims: policyResults.filter((result) => result.status === "checked").length,
+    policyAllowedClaims: policyResults.filter((result) =>
+      result.status === "checked" && result.allowed === true
+    ).length,
+    policyUnsupportedClaims: policyResults.filter((result) =>
+      result.status === "checked" && result.allowed !== true
+    ).length,
+    policySkippedClaims: policyResults.filter((result) => result.status !== "checked").length,
+  };
+}
+
+export function verifyClaimSupport(answerContract = {}, evidencePack = {}, options = {}) {
   const skipReason = shouldSkip(answerContract, evidencePack);
 
   if (skipReason) {
@@ -173,9 +208,33 @@ export function verifyClaimSupport(answerContract = {}, evidencePack = {}) {
   }
 
   const evidenceMap = makeEvidenceMap(evidencePack);
-  const results = answerContract.claims.map((claim, index) =>
-    verifyClaim(claim, index, evidenceMap)
+  const knowledgePolicy = normalizeKnowledgePolicy(
+    options.knowledgePolicy ||
+      options.agentPackage ||
+      evidencePack.knowledgePolicy ||
+      evidencePack.knowledge_policy
   );
+  const results = answerContract.claims.map((claim, index) => {
+    const result = verifyClaim(claim, index, evidenceMap);
+
+    if (!knowledgePolicy) {
+      return result;
+    }
+
+    return {
+      ...result,
+      policyEvaluation: evaluateClaimEvidencePolicy({
+        claim: {
+          ...claim,
+          riskType: result.riskType,
+          evidenceIds: result.evidenceIds,
+        },
+        evidenceItems: getClaimEvidenceItems(result, evidenceMap),
+        knowledgePolicy,
+        evidencePack,
+      }),
+    };
+  });
 
   return {
     ...makeBaseReport("checked"),
@@ -193,12 +252,38 @@ export function verifyClaimSupport(answerContract = {}, evidencePack = {}) {
     lowConfidenceClaims: results.filter((result) =>
       RISKY_CLAIM_TYPES.has(result.riskType) && result.verdict === "low_confidence"
     ).length,
+    ...buildPolicyReportFields(results, knowledgePolicy),
     results,
+  };
+}
+
+function summarizePolicyEvaluationForDebug(policyEvaluation = {}) {
+  if (!policyEvaluation || typeof policyEvaluation !== "object") {
+    return null;
+  }
+
+  return {
+    version: Number(policyEvaluation.version || CLAIM_VERIFIER_VERSION),
+    packageKey: cleanText(policyEvaluation.packageKey),
+    mode: cleanText(policyEvaluation.mode) || CLAIM_VERIFIER_MODE,
+    status: cleanText(policyEvaluation.status) || "skipped",
+    riskType: normalizeAnswerContractRiskType(policyEvaluation.riskType),
+    ruleKey: cleanText(policyEvaluation.ruleKey),
+    allowed: policyEvaluation.allowed === true,
+    allowedSourceTypes: uniqueCleanList(policyEvaluation.allowedSourceTypes),
+    matchedSourceTypes: uniqueCleanList(policyEvaluation.matchedSourceTypes),
+    evidenceIdCount: Number(policyEvaluation.evidenceIdCount || 0),
+    allowedEvidenceCount: Number(policyEvaluation.allowedEvidenceCount || 0),
+    unsupportedEvidenceCount: Number(policyEvaluation.unsupportedEvidenceCount || 0),
+    notes: uniqueCleanList(policyEvaluation.notes),
   };
 }
 
 export function summarizeClaimVerifierForDebug(report = {}, options = {}) {
   const results = Array.isArray(report.results) ? report.results : [];
+  const knowledgePolicy = summarizeKnowledgePolicyForDebug(
+    report.knowledgePolicy || report.knowledge_policy
+  );
 
   return {
     version: Number(report.version || CLAIM_VERIFIER_VERSION),
@@ -209,6 +294,15 @@ export function summarizeClaimVerifierForDebug(report = {}, options = {}) {
     unsupportedRiskyClaims: Number(report.unsupportedRiskyClaims || 0),
     invalidEvidenceReferences: Number(report.invalidEvidenceReferences || 0),
     lowConfidenceClaims: Number(report.lowConfidenceClaims || 0),
+    ...(knowledgePolicy ? { knowledgePolicy } : {}),
+    ...("policyCheckedClaims" in report
+      ? {
+          policyCheckedClaims: Number(report.policyCheckedClaims || 0),
+          policyAllowedClaims: Number(report.policyAllowedClaims || 0),
+          policyUnsupportedClaims: Number(report.policyUnsupportedClaims || 0),
+          policySkippedClaims: Number(report.policySkippedClaims || 0),
+        }
+      : {}),
     verdicts: results.reduce((counts, result) => {
       const verdict = cleanText(result.verdict) || "unknown";
       counts[verdict] = Number(counts[verdict] || 0) + 1;
@@ -223,6 +317,9 @@ export function summarizeClaimVerifierForDebug(report = {}, options = {}) {
         ? result.invalidEvidenceIds.length
         : 0,
       notes: uniqueCleanList(result.notes),
+      ...(result.policyEvaluation
+        ? { policyEvaluation: summarizePolicyEvaluationForDebug(result.policyEvaluation) }
+        : {}),
       ...(options.includeEvidenceIds === true
         ? {
             evidenceIds: uniqueCleanList(result.evidenceIds),

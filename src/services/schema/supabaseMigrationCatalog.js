@@ -334,6 +334,24 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds read-only owner product entitlement rows for future product packaging without changing checkout, webhooks, or access enforcement.",
   }),
+  Object.freeze({
+    id: "agent_package_fields",
+    version: "20260601145748",
+    name: "agent_package_fields",
+    file: "supabase/migrations/20260601145748_agent_package_fields.sql",
+    legacySources: Object.freeze([]),
+    tier: "required",
+    note: "Adds minimal persisted agent package identity fields, defaulting existing agents to the general Front Desk package.",
+  }),
+  Object.freeze({
+    id: "agent_package_hotel_concierge_constraint",
+    version: "20260601162000",
+    name: "agent_package_hotel_concierge_constraint",
+    file: "supabase/migrations/20260601162000_agent_package_hotel_concierge_constraint.sql",
+    legacySources: Object.freeze([]),
+    tier: "required",
+    note: "Widens the agent package key constraint to allow controlled internal Hotel Concierge assignment while preserving the Front Desk default.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

@@ -651,6 +651,10 @@ test("agents update route preserves explicit blanks and omits untouched fields",
         primary_cta_mode: "quote",
         fallback_cta_mode: "capture",
         business_hours_note: "Weekdays, 9-5",
+        package_key: "hotel_concierge",
+        packageKey: "hotel_concierge",
+        package_version: "9.9.9",
+        packageVersion: "9.9.9",
       }),
     });
 
@@ -667,6 +671,10 @@ test("agents update route preserves explicit blanks and omits untouched fields",
     assert.equal(capturedPayload.primaryCtaMode, "quote");
     assert.equal(capturedPayload.fallbackCtaMode, "capture");
     assert.equal(capturedPayload.businessHoursNote, "Weekdays, 9-5");
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedPayload, "packageKey"), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedPayload, "package_key"), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedPayload, "packageVersion"), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(capturedPayload, "package_version"), false);
     assert.equal(
       Object.prototype.hasOwnProperty.call(capturedPayload, "tone"),
       true

@@ -48,6 +48,7 @@ import {
   retrieveSemanticKnowledge,
 } from "../rag/frontDeskRagService.js";
 import { getOperatorBusinessProfile } from "../operator/operatorBusinessProfileService.js";
+import { resolveAgentPackage } from "../agents/agentPackageResolver.js";
 import {
   buildEffectiveUserText,
   cleanText,
@@ -400,102 +401,122 @@ async function buildChatResponse({
   };
 }
 
-export async function handleChatRequest({
-  supabase,
-  openai,
-  body,
-}, deps = {}) {
-  const resolveWidgetConversationContextImpl =
-    deps.resolveWidgetConversationContext || resolveWidgetConversationContext;
-  const getStoredWebsiteContentImpl = deps.getStoredWebsiteContent || getStoredWebsiteContent;
-  const assertMessagesSchemaReadyImpl = deps.assertMessagesSchemaReady || assertMessagesSchemaReady;
-  const getOwnerBillingSnapshotImpl = deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot;
-  const processLiveChatLeadCaptureImpl =
-    deps.processLiveChatLeadCapture || processLiveChatLeadCapture;
-  const buildChatResponseImpl = deps.buildChatResponse || buildChatResponse;
-  const buildBusinessContextForChatImpl =
-    deps.buildBusinessContextForChat || buildBusinessContextForChat;
-  const buildChatSystemPromptImpl = deps.buildChatSystemPrompt || buildChatSystemPrompt;
-  const generateAssistantReplyImpl = deps.generateAssistantReply || generateAssistantReply;
-  const onEvidencePackImpl = typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null;
-  const onAnswerContractImpl =
-    typeof deps.onAnswerContract === "function" ? deps.onAnswerContract : null;
-  const listRecentWidgetEventsImpl = deps.listRecentWidgetEvents || listRecentWidgetEvents;
-  const evaluateLiveConversionRoutingImpl =
-    deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting;
-  const recordEstimatedUsageImpl = deps.recordEstimatedUsage || recordEstimatedUsage;
-  const storeMessagesImpl = deps.storeAgentMessages || storeAgentMessages;
-  const ensureWebCallSessionImpl = deps.ensureWebCallSession || ensureWebCallSession;
-  const selectRelevantApprovedAnswersImpl =
-    deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers;
-  const retrieveSemanticKnowledgeImpl =
-    deps.retrieveSemanticKnowledge || retrieveSemanticKnowledge;
-  const getOperatorBusinessProfileImpl =
-    deps.getOperatorBusinessProfile || getOperatorBusinessProfile;
+function resolveChatServiceDependencies(deps = {}) {
+  return {
+    resolveWidgetConversationContext: deps.resolveWidgetConversationContext || resolveWidgetConversationContext,
+    getStoredWebsiteContent: deps.getStoredWebsiteContent || getStoredWebsiteContent,
+    assertMessagesSchemaReady: deps.assertMessagesSchemaReady || assertMessagesSchemaReady,
+    getOwnerBillingSnapshot: deps.getOwnerBillingSnapshot || getOwnerBillingSnapshot,
+    processLiveChatLeadCapture: deps.processLiveChatLeadCapture || processLiveChatLeadCapture,
+    buildChatResponse: deps.buildChatResponse || buildChatResponse,
+    buildBusinessContextForChat: deps.buildBusinessContextForChat || buildBusinessContextForChat,
+    buildChatSystemPrompt: deps.buildChatSystemPrompt || buildChatSystemPrompt,
+    buildConversationGuidance: deps.buildConversationGuidance || buildConversationGuidance,
+    resolveAgentPackage: deps.resolveAgentPackage || resolveAgentPackage,
+    generateAssistantReply: deps.generateAssistantReply || generateAssistantReply,
+    listRecentWidgetEvents: deps.listRecentWidgetEvents || listRecentWidgetEvents,
+    evaluateLiveConversionRouting: deps.evaluateLiveConversionRouting || evaluateLiveConversionRouting,
+    recordEstimatedUsage: deps.recordEstimatedUsage || recordEstimatedUsage,
+    storeMessages: deps.storeAgentMessages || storeAgentMessages,
+    ensureWebCallSession: deps.ensureWebCallSession || ensureWebCallSession,
+    selectRelevantApprovedAnswers: deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers,
+    retrieveSemanticKnowledge: deps.retrieveSemanticKnowledge || retrieveSemanticKnowledge,
+    getOperatorBusinessProfile: deps.getOperatorBusinessProfile || getOperatorBusinessProfile,
+    onEvidencePack: typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null,
+    onAnswerContract: typeof deps.onAnswerContract === "function" ? deps.onAnswerContract : null,
+    answerContractEnabled: deps.answerContractMode === true
+      || isAnswerContractReportOnlyEnabled(deps.answerContractMode)
+      || isAnswerContractReportOnlyEnabled(process.env.FRONT_DESK_ANSWER_CONTRACT_MODE),
+    answerContractIncludeClaimText: deps.answerContractIncludeClaimText === true,
+  };
+}
+
+export function normalizeChatRequestBody(body) {
   const message = body.message;
-  const agentId = body.agent_id || body.agentId;
-  const agentKey = body.agent_key || body.agentKey;
-  const businessId = body.business_id || body.businessId;
-  const websiteUrl = cleanText(body.website_url || body.websiteUrl || "");
-  const sessionKey = cleanText(body.visitor_session_key || body.visitorSessionKey || "");
-  const installId = cleanText(body.install_id || body.installId || "");
-  const pageUrl = cleanText(body.page_url || body.pageUrl || "");
-  const origin = cleanText(body.origin || "");
-  const publicPageKey = cleanText(body.public_page_key || body.publicPageKey || body.k || "");
   const displayMode = normalizePublicDisplayMode(body.display_mode || body.displayMode || body.mode);
-  const conversationSource = normalizePublicConversationSource(
-    body.conversation_source || body.conversationSource || body.source_type || body.sourceType,
-    { displayMode }
-  );
   const history = sanitizeChatHistory(body.history);
-  const visitorIdentity = normalizeVisitorIdentity({
-    ...(body.visitor_identity || {}),
-    visitor_mode: body.visitor_identity_mode || body.visitorMode || body.visitor_mode,
-    visitor_email: body.visitor_email || body.visitorEmail,
-    visitor_name: body.visitor_name || body.visitorName,
-  });
   const effectiveUserText = buildEffectiveUserText(message || "", history);
   const normalizedMessage = cleanText(message || "");
-  const language = selectResponseLanguage(normalizedMessage, history);
-  const answerContractEnabled = deps.answerContractMode === true
-    || isAnswerContractReportOnlyEnabled(deps.answerContractMode)
-    || isAnswerContractReportOnlyEnabled(process.env.FRONT_DESK_ANSWER_CONTRACT_MODE);
 
-  if (!message || !String(message).trim()) {
+  return {
+    message,
+    agentId: body.agent_id || body.agentId,
+    agentKey: body.agent_key || body.agentKey,
+    businessId: body.business_id || body.businessId,
+    websiteUrl: cleanText(body.website_url || body.websiteUrl || ""),
+    sessionKey: cleanText(body.visitor_session_key || body.visitorSessionKey || ""),
+    installId: cleanText(body.install_id || body.installId || ""),
+    pageUrl: cleanText(body.page_url || body.pageUrl || ""),
+    origin: cleanText(body.origin || ""),
+    publicPageKey: cleanText(body.public_page_key || body.publicPageKey || body.k || ""),
+    displayMode,
+    conversationSource: normalizePublicConversationSource(
+      body.conversation_source || body.conversationSource || body.source_type || body.sourceType,
+      { displayMode }
+    ),
+    history,
+    visitorIdentity: normalizeVisitorIdentity({
+      ...(body.visitor_identity || {}),
+      visitor_mode: body.visitor_identity_mode || body.visitorMode || body.visitor_mode,
+      visitor_email: body.visitor_email || body.visitorEmail,
+      visitor_name: body.visitor_name || body.visitorName,
+    }),
+    effectiveUserText,
+    normalizedMessage,
+    language: selectResponseLanguage(normalizedMessage, history),
+    businessName: body.name,
+    webCallId: body.web_call_id || body.webCallId,
+  };
+}
+
+export function validateNormalizedChatRequest(request) {
+  if (!request.message || !String(request.message).trim()) {
     const error = new Error("Message cannot be empty.");
     error.statusCode = 400;
     throw error;
   }
 
-  if (!installId && !agentId && !agentKey && !businessId && !websiteUrl) {
+  if (
+    !request.installId &&
+    !request.agentId &&
+    !request.agentKey &&
+    !request.businessId &&
+    !request.websiteUrl
+  ) {
     const error = new Error(
       "install_id, agent_id, agent_key, website_url, or business_id is required."
     );
     error.statusCode = 400;
     throw error;
   }
+}
 
-  const { agent, business, widgetConfig } = await resolveWidgetConversationContextImpl(supabase, {
-    installId,
-    agentId,
-    agentKey,
-    businessId,
-    websiteUrl,
-    origin,
-    pageUrl,
-    publicPageKey,
-    businessName: body.name,
-    displayMode,
+async function resolvePublicChatContext({
+  supabase,
+  request,
+  services,
+}) {
+  const { agent, business, widgetConfig } = await services.resolveWidgetConversationContext(supabase, {
+    installId: request.installId,
+    agentId: request.agentId,
+    agentKey: request.agentKey,
+    businessId: request.businessId,
+    websiteUrl: request.websiteUrl,
+    origin: request.origin,
+    pageUrl: request.pageUrl,
+    publicPageKey: request.publicPageKey,
+    businessName: request.businessName,
+    displayMode: request.displayMode,
   });
-  const webCallSession = conversationSource === "web_call"
-    ? await ensureWebCallSessionImpl(supabase, {
+  const webCallSession = request.conversationSource === "web_call"
+    ? await services.ensureWebCallSession(supabase, {
       agent,
       business,
-      clientSessionKey: body.web_call_id || body.webCallId,
-      visitorSessionKey: sessionKey,
+      clientSessionKey: request.webCallId,
+      visitorSessionKey: request.sessionKey,
       eventName: "web_call_turn_sent",
       metadata: {
-        web_call_id: body.web_call_id || body.webCallId,
+        web_call_id: request.webCallId,
       },
     }).catch((error) => {
       console.warn("[web-call] chat session persistence skipped", {
@@ -509,124 +530,217 @@ export async function handleChatRequest({
     ...agent,
     vertical: cleanText(business.vertical || agent.vertical),
   };
-  const conversationGuidance = buildConversationGuidance(message, history, {
+  const agentPackage = services.resolveAgentPackage(agentWithBusinessContext);
+  const conversationGuidance = services.buildConversationGuidance(request.message, request.history, {
+    agentPackage,
     vertical: agentWithBusinessContext.vertical,
   });
 
-  const websiteContent = await getStoredWebsiteContentImpl(supabase, business.id);
-  await assertMessagesSchemaReadyImpl(supabase, { phase: "request" });
+  return {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+    agentWithBusinessContext,
+    agentPackage,
+    conversationGuidance,
+  };
+}
+
+async function loadChatCapacityContext({
+  supabase,
+  publicContext,
+  services,
+}) {
+  const { agent, business } = publicContext;
+  const websiteContent = await services.getStoredWebsiteContent(supabase, business.id);
+  await services.assertMessagesSchemaReady(supabase, { phase: "request" });
   const billingSnapshot = cleanText(agent.ownerUserId)
-    ? await getOwnerBillingSnapshotImpl(supabase, {
+    ? await services.getOwnerBillingSnapshot(supabase, {
       ownerUserId: agent.ownerUserId,
       accessStatus: agent.accessStatus,
     })
     : null;
 
-  if (billingSnapshot?.usage?.isCapped) {
-    const userMessageCreatedAt = new Date().toISOString();
-    const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
-      agent: agentWithBusinessContext,
-      business,
-      widgetConfig,
-      sessionKey,
-      installId,
-      pageUrl,
-      origin,
-      userMessage: message,
-      messageCreatedAt: userMessageCreatedAt,
-      language,
-      visitorIdentity,
-      displayMode,
-      conversationSource,
-    });
-
-    return buildChatResponseImpl({
-      supabase,
-      agent,
-      businessId: business.id,
-      widgetConfig,
-      userMessage: message,
-      reply: buildAiCapacityReachedReply(language),
-      sessionKey,
-      leadCapture: buildCappedLeadCaptureFallback(leadCapture, language),
-      visitorIdentity,
-      userMessageCreatedAt,
-      storeMessages: storeMessagesImpl,
-      displayMode,
-      conversationSource,
-      webCallSessionId: webCallSession?.id || "",
-    });
-  }
-
-  if (!websiteContent) {
-    const fallbackReply = buildNoWebsiteContentFallbackReply(language);
-
-    return buildChatResponseImpl({
-      supabase,
-      agent,
-      businessId: business.id,
-      widgetConfig,
-      userMessage: message,
-      reply: fallbackReply,
-      sessionKey,
-      visitorIdentity,
-      storeMessages: storeMessagesImpl,
-      displayMode,
-      conversationSource,
-      webCallSessionId: webCallSession?.id || "",
-    });
-  }
-
-  if (hasLimitedKnowledge(websiteContent)) {
-    return buildChatResponseImpl({
-      supabase,
-      agent,
-      businessId: websiteContent.businessId,
-      widgetConfig,
-      userMessage: message,
-      reply: appendImageLines(
-        buildLimitedKnowledgeReply(
-          language,
-          agentWithBusinessContext.name || widgetConfig.assistantName,
-          websiteContent
-        ),
-        websiteContent,
-        message
-      ),
-      sessionKey,
-      visitorIdentity,
-      storeMessages: storeMessagesImpl,
-      displayMode,
-      conversationSource,
-      webCallSessionId: webCallSession?.id || "",
-    });
-  }
-
-  const businessContext = buildBusinessContextForChatImpl(
+  return {
     websiteContent,
-    effectiveUserText,
+    billingSnapshot,
+  };
+}
+
+function buildLiveLeadCapturePayload({
+  request,
+  publicContext,
+  messageCreatedAt,
+}) {
+  const { business, widgetConfig, agentWithBusinessContext } = publicContext;
+
+  return {
+    agent: agentWithBusinessContext,
+    business,
+    widgetConfig,
+    sessionKey: request.sessionKey,
+    installId: request.installId,
+    pageUrl: request.pageUrl,
+    origin: request.origin,
+    userMessage: request.message,
+    messageCreatedAt,
+    language: request.language,
+    visitorIdentity: request.visitorIdentity,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+  };
+}
+
+async function buildCapacityReachedChatResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+  const userMessageCreatedAt = new Date().toISOString();
+  const leadCapture = await services.processLiveChatLeadCapture(
+    supabase,
+    buildLiveLeadCapturePayload({
+      request,
+      publicContext,
+      messageCreatedAt: userMessageCreatedAt,
+    })
+  );
+
+  return services.buildChatResponse({
+    supabase,
+    agent,
+    businessId: business.id,
+    widgetConfig,
+    userMessage: request.message,
+    reply: buildAiCapacityReachedReply(request.language),
+    sessionKey: request.sessionKey,
+    leadCapture: buildCappedLeadCaptureFallback(leadCapture, request.language),
+    visitorIdentity: request.visitorIdentity,
+    userMessageCreatedAt,
+    storeMessages: services.storeMessages,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+    webCallSessionId: webCallSession?.id || "",
+  });
+}
+
+function buildNoWebsiteContentResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+
+  return services.buildChatResponse({
+    supabase,
+    agent,
+    businessId: business.id,
+    widgetConfig,
+    userMessage: request.message,
+    reply: buildNoWebsiteContentFallbackReply(request.language),
+    sessionKey: request.sessionKey,
+    visitorIdentity: request.visitorIdentity,
+    storeMessages: services.storeMessages,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+    webCallSessionId: webCallSession?.id || "",
+  });
+}
+
+function buildLimitedKnowledgeResponse({
+  supabase,
+  request,
+  publicContext,
+  websiteContent,
+  services,
+}) {
+  const {
+    agent,
+    widgetConfig,
+    webCallSession,
+    agentWithBusinessContext,
+  } = publicContext;
+
+  return services.buildChatResponse({
+    supabase,
+    agent,
+    businessId: websiteContent.businessId,
+    widgetConfig,
+    userMessage: request.message,
+    reply: appendImageLines(
+      buildLimitedKnowledgeReply(
+        request.language,
+        agentWithBusinessContext.name || widgetConfig.assistantName,
+        websiteContent
+      ),
+      websiteContent,
+      request.message
+    ),
+    sessionKey: request.sessionKey,
+    visitorIdentity: request.visitorIdentity,
+    storeMessages: services.storeMessages,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+    webCallSessionId: webCallSession?.id || "",
+  });
+}
+
+async function assembleChatKnowledge({
+  supabase,
+  openai,
+  request,
+  publicContext,
+  websiteContent,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    agentWithBusinessContext,
+    agentPackage,
+  } = publicContext;
+  const businessContext = services.buildBusinessContextForChat(
+    websiteContent,
+    request.effectiveUserText,
     {
+      agentPackage,
       widgetConfig,
       vertical: agentWithBusinessContext.vertical,
     }
   );
+
   logChatMetadata("request_prepared", {
     agentId: agent.id,
     businessId: business.id,
-    installId,
-    sessionKey,
-    origin,
-    pageUrl,
-    messageLength: normalizedMessage.length,
-    historyCount: history.length,
+    installId: request.installId,
+    sessionKey: request.sessionKey,
+    origin: request.origin,
+    pageUrl: request.pageUrl,
+    messageLength: request.normalizedMessage.length,
+    historyCount: request.history.length,
     businessContextLength: businessContext.length,
   });
 
   const relevantApprovedAnswers = cleanText(agentWithBusinessContext.ownerUserId)
-    ? await selectRelevantApprovedAnswersImpl(supabase, {
+    ? await services.selectRelevantApprovedAnswers(supabase, {
       agentId: agent.id,
       ownerUserId: agentWithBusinessContext.ownerUserId,
-      queryText: effectiveUserText,
+      queryText: request.effectiveUserText,
       limit: 5,
     }).catch((error) => {
       console.warn("[front-desk training] Could not load approved answers:", error?.message || error);
@@ -635,7 +749,7 @@ export async function handleChatRequest({
     : [];
   const approvedAnswersPrompt = buildApprovedAnswersPrompt(relevantApprovedAnswers);
   const businessProfile = cleanText(agentWithBusinessContext.ownerUserId)
-    ? await getOperatorBusinessProfileImpl(supabase, {
+    ? await services.getOperatorBusinessProfile(supabase, {
       agent: agentWithBusinessContext,
       ownerUserId: agentWithBusinessContext.ownerUserId,
     }).catch((error) => {
@@ -645,16 +759,17 @@ export async function handleChatRequest({
     : null;
   const businessProfileFacts = buildBusinessProfileKnowledgeText(businessProfile || {});
   const systemPrompt = [
-    buildChatSystemPromptImpl(language, agentWithBusinessContext, {
-      conversationSource,
+    services.buildChatSystemPrompt(request.language, agentWithBusinessContext, {
+      agentPackage,
+      conversationSource: request.conversationSource,
     }),
     approvedAnswersPrompt,
   ].filter(Boolean).join("\n\n");
   const openaiClient = typeof openai === "function" ? openai() : openai;
-  const semanticRetrieval = await retrieveSemanticKnowledgeImpl(supabase, openaiClient, {
+  const semanticRetrieval = await services.retrieveSemanticKnowledge(supabase, openaiClient, {
     agentId: agent.id,
     ownerUserId: agentWithBusinessContext.ownerUserId,
-    queryText: effectiveUserText,
+    queryText: request.effectiveUserText,
     approvedAnswerCount: relevantApprovedAnswers.length,
     businessProfileFacts,
   }).catch((error) => {
@@ -679,45 +794,70 @@ export async function handleChatRequest({
       ? semanticRetrieval.confidence
       : "low",
     semanticError: semanticRetrieval.error,
+    agentPackage,
   });
   const retrievedBusinessContext = renderEvidencePackForPrompt(evidencePack);
 
-  if (onEvidencePackImpl) {
-    onEvidencePackImpl(summarizeEvidencePackForDebug(evidencePack), {
+  if (services.onEvidencePack) {
+    services.onEvidencePack(summarizeEvidencePackForDebug(evidencePack), {
       agentId: agent.id,
       businessId: business.id,
-      sessionKey,
-      displayMode,
-      conversationSource,
+      sessionKey: request.sessionKey,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
     });
   }
-  const trustedReplyEmails = listTrustedReplyEmails({
-    websiteContent,
-    widgetConfig,
-    userMessage: message,
-    history,
-    visitorIdentity,
-    approvedAnswers: relevantApprovedAnswers,
-  });
-  const trustedBusinessContactEvidence = collectTrustedBusinessContactEvidence({
-    widgetConfig,
-    approvedAnswers: relevantApprovedAnswers,
+
+  return {
     businessContext,
+    relevantApprovedAnswers,
+    approvedAnswersPrompt,
+    systemPrompt,
+    openaiClient,
+    evidencePack,
     retrievedBusinessContext,
-  });
+    trustedReplyEmails: listTrustedReplyEmails({
+      websiteContent,
+      widgetConfig,
+      userMessage: request.message,
+      history: request.history,
+      visitorIdentity: request.visitorIdentity,
+      approvedAnswers: relevantApprovedAnswers,
+    }),
+    trustedBusinessContactEvidence: collectTrustedBusinessContactEvidence({
+      widgetConfig,
+      approvedAnswers: relevantApprovedAnswers,
+      businessContext,
+      retrievedBusinessContext,
+    }),
+  };
+}
+
+async function generateRepairedChatReply({
+  supabase,
+  request,
+  publicContext,
+  capacityContext,
+  knowledge,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    conversationGuidance,
+  } = publicContext;
   const usageEntries = [];
-  let finalReply;
 
   try {
-    finalReply = await generateAssistantReplyImpl({
-      openai: openaiClient,
-      userMessage: message,
-      history,
-      systemPrompt,
+    return await services.generateAssistantReply({
+      openai: knowledge.openaiClient,
+      userMessage: request.message,
+      history: request.history,
+      systemPrompt: knowledge.systemPrompt,
       referenceBlocks: [
         {
           label: "Front Desk retrieved business context",
-          content: retrievedBusinessContext,
+          content: knowledge.retrievedBusinessContext,
         },
       ],
       conversationGuidance,
@@ -729,48 +869,49 @@ export async function handleChatRequest({
       repair: {
         getIssues: (reply) => {
           const issues = [
-            ...getReplyRepairIssues(reply, language),
+            ...getReplyRepairIssues(reply, request.language),
             ...getFactualReplyGuardrailIssues({
               reply,
-              userMessage: effectiveUserText,
-              history,
-              businessContext: retrievedBusinessContext,
-              approvedAnswersPrompt,
+              userMessage: request.effectiveUserText,
+              history: request.history,
+              businessContext: knowledge.retrievedBusinessContext,
+              approvedAnswersPrompt: knowledge.approvedAnswersPrompt,
             }),
           ];
           logChatMetadata("reply_repair_checked", {
             agentId: agent.id,
             businessId: business.id,
-            installId,
-            sessionKey,
-            origin,
-            pageUrl,
-            messageLength: normalizedMessage.length,
-            historyCount: history.length,
+            installId: request.installId,
+            sessionKey: request.sessionKey,
+            origin: request.origin,
+            pageUrl: request.pageUrl,
+            messageLength: request.normalizedMessage.length,
+            historyCount: request.history.length,
             replyLength: cleanText(reply).length,
             repairIssueCount: issues.length,
           });
           return issues;
         },
-        buildRewritePrompt: () => buildBusinessReplyRepairPrompt(language),
+        buildRewritePrompt: () => buildBusinessReplyRepairPrompt(request.language),
         temperature: 0.25,
       },
       onUsage(entry) {
         usageEntries.push(entry);
       },
-      answerContract: answerContractEnabled
+      answerContract: services.answerContractEnabled
         ? {
             enabled: true,
-            evidencePack,
-            includeClaimText: deps.answerContractIncludeClaimText === true,
+            evidencePack: knowledge.evidencePack,
+            agentPackage: publicContext.agentPackage,
+            includeClaimText: services.answerContractIncludeClaimText,
             onContract(summary) {
-              if (onAnswerContractImpl) {
-                onAnswerContractImpl(summary, {
+              if (services.onAnswerContract) {
+                services.onAnswerContract(summary, {
                   agentId: agent.id,
                   businessId: business.id,
-                  sessionKey,
-                  displayMode,
-                  conversationSource,
+                  sessionKey: request.sessionKey,
+                  displayMode: request.displayMode,
+                  conversationSource: request.conversationSource,
                 });
               }
             },
@@ -778,13 +919,13 @@ export async function handleChatRequest({
         : { enabled: false },
     });
   } finally {
-    if (usageEntries.length && billingSnapshot && cleanText(agent.ownerUserId)) {
+    if (usageEntries.length && capacityContext.billingSnapshot && cleanText(agent.ownerUserId)) {
       try {
-        await recordEstimatedUsageImpl(supabase, {
+        await services.recordEstimatedUsage(supabase, {
           ownerUserId: agent.ownerUserId,
           agentId: agent.id,
           businessId: business.id,
-          billingSnapshot,
+          billingSnapshot: capacityContext.billingSnapshot,
           entries: usageEntries,
         });
       } catch (usageError) {
@@ -792,113 +933,237 @@ export async function handleChatRequest({
       }
     }
   }
+}
 
-  if (replyContainsUnsafePlaceholderEmail(finalReply, trustedReplyEmails)) {
+function applyFinalReplySafetyValidation({
+  reply,
+  request,
+  publicContext,
+  knowledge,
+}) {
+  const { agent } = publicContext;
+  let finalReply = reply;
+
+  if (replyContainsUnsafePlaceholderEmail(finalReply, knowledge.trustedReplyEmails)) {
     console.warn("[chat] Replacing placeholder contact reply with grounded fallback.", {
       agentId: agent.id,
-      installId,
-      pageUrl,
+      installId: request.installId,
+      pageUrl: request.pageUrl,
     });
-    finalReply = buildMissingVerifiedContactReply(language);
+    finalReply = buildMissingVerifiedContactReply(request.language);
   }
 
-  if (detectUserIntent(effectiveUserText, history) === "contact") {
-    if (!trustedBusinessContactEvidence.hasVerifiedContactDetail && !trustedBusinessContactEvidence.hasApprovedContactGuidance) {
-      finalReply = buildMissingVerifiedContactReply(language);
-    } else if (replyContainsUntrustedContactDetail(finalReply, trustedBusinessContactEvidence)) {
+  if (detectUserIntent(request.effectiveUserText, request.history) === "contact") {
+    if (!knowledge.trustedBusinessContactEvidence.hasVerifiedContactDetail && !knowledge.trustedBusinessContactEvidence.hasApprovedContactGuidance) {
+      finalReply = buildMissingVerifiedContactReply(request.language);
+    } else if (replyContainsUntrustedContactDetail(finalReply, knowledge.trustedBusinessContactEvidence)) {
       console.warn("[chat] Replacing untrusted contact-detail reply with grounded fallback.", {
         agentId: agent.id,
-        installId,
-        pageUrl,
+        installId: request.installId,
+        pageUrl: request.pageUrl,
       });
-      finalReply = buildMissingVerifiedContactReply(language);
+      finalReply = buildMissingVerifiedContactReply(request.language);
     }
   }
 
   const finalGuardrailIssues = getFactualReplyGuardrailIssues({
     reply: finalReply,
-    userMessage: effectiveUserText,
-    history,
-    businessContext: retrievedBusinessContext,
-    approvedAnswersPrompt,
+    userMessage: request.effectiveUserText,
+    history: request.history,
+    businessContext: knowledge.retrievedBusinessContext,
+    approvedAnswersPrompt: knowledge.approvedAnswersPrompt,
   });
   if (finalGuardrailIssues.some((issue) => /unsupported service denial/i.test(issue))) {
     console.warn("[chat] Replacing unsupported service-denial reply with grounded fallback.", {
       agentId: agent.id,
-      installId,
-      pageUrl,
+      installId: request.installId,
+      pageUrl: request.pageUrl,
     });
-    finalReply = buildMissingListedServiceReply(language, effectiveUserText);
+    finalReply = buildMissingListedServiceReply(request.language, request.effectiveUserText);
   }
 
+  return finalReply;
+}
+
+async function resolveLeadCaptureAndDirectRouting({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const { agent, widgetConfig } = publicContext;
   const userMessageCreatedAt = new Date().toISOString();
-  const leadCapture = await processLiveChatLeadCaptureImpl(supabase, {
-    agent: agentWithBusinessContext,
-    business,
-    widgetConfig,
-    sessionKey,
-    installId,
-    pageUrl,
-    origin,
-    userMessage: message,
-    messageCreatedAt: userMessageCreatedAt,
-    language,
-    visitorIdentity,
-    displayMode,
-    conversationSource,
-  });
-  const recentWidgetEvents = await listRecentWidgetEventsImpl(supabase, {
+  const leadCapture = await services.processLiveChatLeadCapture(
+    supabase,
+    buildLiveLeadCapturePayload({
+      request,
+      publicContext,
+      messageCreatedAt: userMessageCreatedAt,
+    })
+  );
+  const recentWidgetEvents = await services.listRecentWidgetEvents(supabase, {
     agentId: agent.id,
-    installId: installId || widgetConfig.installId,
-    sessionId: sessionKey,
+    installId: request.installId || widgetConfig.installId,
+    sessionId: request.sessionKey,
   });
-  const directRouting = evaluateLiveConversionRoutingImpl({
+  const directRouting = services.evaluateLiveConversionRouting({
     widgetConfig,
-    userMessage: message,
-    sessionKey,
-    language,
+    userMessage: request.message,
+    sessionKey: request.sessionKey,
+    language: request.language,
     leadCapture,
     recentWidgetEvents,
   });
 
   console.info("[live routing] Evaluated direct conversion routing.", {
     agentId: agent.id,
-    sessionKey,
+    sessionKey: request.sessionKey,
     mode: directRouting?.mode || "chat_only",
     intentType: directRouting?.intentType || "",
     ctaType: directRouting?.primaryCta?.ctaType || "",
     suppressReason: directRouting?.suppressReason || "",
   });
+
+  return {
+    userMessageCreatedAt,
+    leadCapture,
+    directRouting,
+  };
+}
+
+function buildFinalChatResponse({
+  supabase,
+  request,
+  publicContext,
+  websiteContent,
+  finalReply,
+  leadAndRouting,
+  services,
+}) {
+  const {
+    agent,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+
   logChatMetadata("response_ready", {
     agentId: agent.id,
     businessId: websiteContent.businessId,
-    installId,
-    sessionKey,
-    origin,
-    pageUrl,
-    messageLength: normalizedMessage.length,
-    historyCount: history.length,
+    installId: request.installId,
+    sessionKey: request.sessionKey,
+    origin: request.origin,
+    pageUrl: request.pageUrl,
+    messageLength: request.normalizedMessage.length,
+    historyCount: request.history.length,
     replyLength: finalReply.length,
-    leadCaptureState: leadCapture?.state,
-    routingMode: directRouting?.mode,
+    leadCaptureState: leadAndRouting.leadCapture?.state,
+    routingMode: leadAndRouting.directRouting?.mode,
   });
 
-  return buildChatResponseImpl({
+  return services.buildChatResponse({
     supabase,
     agent,
     businessId: websiteContent.businessId,
     widgetConfig,
-    userMessage: message,
-    reply: appendImageLines(finalReply, websiteContent, message),
-    sessionKey,
-    leadCapture,
-    directRouting,
-    visitorIdentity,
-    userMessageCreatedAt,
-    storeMessages: storeMessagesImpl,
-    displayMode,
-    conversationSource,
+    userMessage: request.message,
+    reply: appendImageLines(finalReply, websiteContent, request.message),
+    sessionKey: request.sessionKey,
+    leadCapture: leadAndRouting.leadCapture,
+    directRouting: leadAndRouting.directRouting,
+    visitorIdentity: request.visitorIdentity,
+    userMessageCreatedAt: leadAndRouting.userMessageCreatedAt,
+    storeMessages: services.storeMessages,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
     webCallSessionId: webCallSession?.id || "",
+  });
+}
+
+export async function handleChatRequest({
+  supabase,
+  openai,
+  body,
+}, deps = {}) {
+  const services = resolveChatServiceDependencies(deps);
+  const request = normalizeChatRequestBody(body);
+  validateNormalizedChatRequest(request);
+  const publicContext = await resolvePublicChatContext({
+    supabase,
+    request,
+    services,
+  });
+  const capacityContext = await loadChatCapacityContext({
+    supabase,
+    publicContext,
+    services,
+  });
+  const { websiteContent, billingSnapshot } = capacityContext;
+
+  if (billingSnapshot?.usage?.isCapped) {
+    return buildCapacityReachedChatResponse({
+      supabase,
+      request,
+      publicContext,
+      services,
+    });
+  }
+
+  if (!websiteContent) {
+    return buildNoWebsiteContentResponse({
+      supabase,
+      request,
+      publicContext,
+      services,
+    });
+  }
+
+  if (hasLimitedKnowledge(websiteContent)) {
+    return buildLimitedKnowledgeResponse({
+      supabase,
+      request,
+      publicContext,
+      websiteContent,
+      services,
+    });
+  }
+
+  const knowledge = await assembleChatKnowledge({
+    supabase,
+    openai,
+    request,
+    publicContext,
+    websiteContent,
+    services,
+  });
+  const generatedReply = await generateRepairedChatReply({
+    supabase,
+    request,
+    publicContext,
+    capacityContext,
+    knowledge,
+    services,
+  });
+  const finalReply = applyFinalReplySafetyValidation({
+    reply: generatedReply,
+    request,
+    publicContext,
+    knowledge,
+  });
+  const leadAndRouting = await resolveLeadCaptureAndDirectRouting({
+    supabase,
+    request,
+    publicContext,
+    services,
+  });
+
+  return buildFinalChatResponse({
+    supabase,
+    request,
+    publicContext,
+    websiteContent,
+    finalReply,
+    leadAndRouting,
+    services,
   });
 }
 

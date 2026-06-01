@@ -24,7 +24,9 @@
     "verify:deploy-readiness": "node scripts/verify-deploy-readiness.js",
     "eval:web-call": "node scripts/run-web-call-evals.js",
     "eval:front-desk": "node scripts/run-front-desk-evals.js",
-    "eval:front-desk:json": "node scripts/run-front-desk-evals.js --json"
+    "eval:front-desk:json": "node scripts/run-front-desk-evals.js --json",
+    "eval:hotel-concierge": "node scripts/run-hotel-concierge-evals.js",
+    "eval:hotel-concierge:json": "node scripts/run-hotel-concierge-evals.js --json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.100.1",

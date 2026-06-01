@@ -152,3 +152,30 @@ test("Owner product entitlement schema is present in canonical schema and migrat
   assert.match(migrationSql, /on conflict \(owner_user_id, product_key\) do nothing/i);
   assert.doesNotMatch(migrationSql, /delete from public\.owner_product_entitlements|update public\.agents|update public\.owner_billing_accounts/i);
 });
+
+test("agent package persistence keeps Front Desk default and allows only registered activatable keys", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const fieldMigrationSql = readFileSync(
+    "supabase/migrations/20260601145748_agent_package_fields.sql",
+    "utf8"
+  );
+  const activationMigrationSql = readFileSync(
+    "supabase/migrations/20260601162000_agent_package_hotel_concierge_constraint.sql",
+    "utf8"
+  );
+
+  assert.match(schemaSql, /package_key text not null default 'front_desk_general'/i);
+  assert.match(schemaSql, /package_version text not null default '0\.1\.0'/i);
+  assert.match(fieldMigrationSql, /package_key text not null default 'front_desk_general'/i);
+  assert.match(fieldMigrationSql, /package_version text not null default '0\.1\.0'/i);
+  assert.match(
+    schemaSql,
+    /check \(package_key in \('front_desk_general', 'hotel_concierge'\)\)/i
+  );
+  assert.match(
+    activationMigrationSql,
+    /check \(package_key in \('front_desk_general', 'hotel_concierge'\)\)/i
+  );
+  assert.doesNotMatch(activationMigrationSql, /package_key text not null default|package_version text not null default/i);
+  assert.doesNotMatch(activationMigrationSql, /create table|add column|drop column|alter column/i);
+});

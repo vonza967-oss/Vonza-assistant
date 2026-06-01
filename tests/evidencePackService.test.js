@@ -6,6 +6,7 @@ import {
   renderEvidencePackForPrompt,
   summarizeEvidencePackForDebug,
 } from "../src/services/chat/evidencePackService.js";
+import { getAgentPackage } from "../src/agentPackages/index.js";
 
 test("Evidence Pack maps retrieval sources to stable trust levels and counts", () => {
   const pack = buildEvidencePack({
@@ -123,4 +124,28 @@ test("Evidence Pack sanitizes placeholder contact details and debug summaries om
     Object.keys(item).sort().join(",") === "id,sourceType,trustLevel"
   ));
   assert.equal(JSON.stringify(summary).includes("Email"), false);
+});
+
+test("Evidence Pack debug summary includes safe package knowledge policy metadata", () => {
+  const pack = buildEvidencePack({
+    agentPackage: getAgentPackage("hotel_concierge"),
+    businessProfileFacts: "Guest privacy: staff must handle reservation details.",
+    semanticChunks: [
+      {
+        id: "hotel-policy",
+        sourceType: "website",
+        title: "Hotel policy",
+        content: "Parking and pet fee details are documented on the hotel website.",
+      },
+    ],
+    retrievalConfidence: "medium",
+  });
+  const summary = summarizeEvidencePackForDebug(pack);
+  const serialized = JSON.stringify(summary);
+
+  assert.equal(summary.knowledgePolicy.packageKey, "hotel_concierge");
+  assert.equal(summary.knowledgePolicy.mode, "report-only");
+  assert.deepEqual(summary.knowledgePolicy.claimTypes.availability.allowedSourceTypes, ["live_booking"]);
+  assert.ok(summary.knowledgePolicy.claimTypes.policy.allowedSourceTypes.includes("website"));
+  assert.doesNotMatch(serialized, /Guest privacy: staff|Parking and pet fee details/i);
 });

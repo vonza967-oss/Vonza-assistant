@@ -11,6 +11,11 @@ import { ensureBusinessRecord, findBusinessByIdentifier } from "../business/busi
 import { getAgentMessageStats } from "../chat/messageService.js";
 import { listWidgetEventSummaryByAgentIds } from "../analytics/widgetTelemetryService.js";
 import { listBookingIntegrationStatusesByAgentIds } from "../bookings/bookingIntegrationService.js";
+import {
+  DEFAULT_AGENT_PACKAGE_KEY,
+  getAgentPackage,
+  isKnownAgentPackageKey,
+} from "../../agentPackages/index.js";
 import { normalizeOutcomeSettings, normalizeSuccessUrlMatchMode } from "../conversion/conversionOutcomeService.js";
 import {
   deriveAllowedDomains,
@@ -53,6 +58,7 @@ const WIDGET_CONFIGS_TABLE = "widget_configs";
 const WEBSITE_CONTENT_TABLE = "website_content";
 const LIMITED_CONTENT_MARKER = "Limited content available. This assistant may give general answers.";
 const DEFAULT_ACCESS_STATUS = "pending";
+const DEFAULT_AGENT_PACKAGE_VERSION = getAgentPackage(DEFAULT_AGENT_PACKAGE_KEY)?.version || "0.1.0";
 const DEFAULT_PRECLAIM_TOKEN_TTL_HOURS = 24;
 const CTA_MODES = ["booking", "quote", "checkout", "contact", "capture", "chat"];
 const BOOKING_PROVIDERS = ["manual", "calendly"];
@@ -103,6 +109,23 @@ const FULL_PAGE_WIDGET_CONFIG_KEYS = [
 const VOICE_WIDGET_CONFIG_KEYS = [
   "voiceConfig",
 ];
+const AGENT_SELECT = [
+  "id",
+  "business_id",
+  "client_id",
+  "owner_user_id",
+  "access_status",
+  "public_agent_key",
+  "package_key",
+  "package_version",
+  "name",
+  "purpose",
+  "system_prompt",
+  "tone",
+  "language",
+  "is_active",
+  "created_at",
+].join(", ");
 const LEGACY_WIDGET_CONFIG_SELECT = [
   "id",
   "agent_id",
@@ -274,6 +297,14 @@ function isInvalidUuidFilterError(error) {
 
 function normalizeAgentKey(value) {
   return slugifyLookupValue(value).replace(/_+/g, "");
+}
+
+function readAgentPackageKey(row) {
+  return cleanText(row?.package_key) || DEFAULT_AGENT_PACKAGE_KEY;
+}
+
+function readAgentPackageVersion(row) {
+  return cleanText(row?.package_version) || DEFAULT_AGENT_PACKAGE_VERSION;
 }
 
 function normalizePublicDisplayMode(value) {
@@ -1257,6 +1288,8 @@ function mapAgentRow(row) {
     ownerUserId: row.owner_user_id || "",
     accessStatus: normalizeAccessStatus(row.access_status),
     publicAgentKey: row.public_agent_key,
+    packageKey: readAgentPackageKey(row),
+    packageVersion: readAgentPackageVersion(row),
     name: row.name || DEFAULT_AGENT_NAME,
     purpose: normalizeWidgetPurpose(row.purpose || DEFAULT_PURPOSE),
     systemPrompt: row.system_prompt || "",
@@ -1556,9 +1589,7 @@ export async function ensureWidgetConfigForAgent(supabase, agentId) {
 async function findAgentById(supabase, agentId) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .eq("id", agentId)
     .eq("is_active", true)
     .maybeSingle();
@@ -1587,9 +1618,7 @@ async function findAgentByKey(supabase, agentKey) {
   const normalizedLookup = normalizeAgentKey(lookupKey);
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .eq("is_active", true);
 
   if (error) {
@@ -1616,9 +1645,7 @@ async function findDefaultAgentForBusiness(supabase, businessId, options = {}) {
   const ownerUserId = cleanText(options.ownerUserId);
   let query = supabase
     .from(AGENTS_TABLE)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .eq("business_id", businessId)
     .eq("is_active", true);
 
@@ -1644,9 +1671,7 @@ async function findDefaultAgentForBusiness(supabase, businessId, options = {}) {
 async function listActiveAgentsForBusiness(supabase, businessId) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .eq("business_id", businessId)
     .eq("is_active", true);
 
@@ -1675,9 +1700,7 @@ async function claimAgentOwnershipById(supabase, agentId, ownerUserId) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", agentId)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .single();
 
   if (error) {
@@ -1723,9 +1746,7 @@ export async function ensureAgentForBusiness(supabase, business, options = {}) {
       language: DEFAULT_LANGUAGE,
       is_active: true,
     })
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .single();
 
   if (error) {
@@ -1737,6 +1758,8 @@ export async function ensureAgentForBusiness(supabase, business, options = {}) {
         ownerUserId: ownerUserId || "",
         accessStatus: DEFAULT_ACCESS_STATUS,
         publicAgentKey: buildDefaultAgentKey(business),
+        packageKey: DEFAULT_AGENT_PACKAGE_KEY,
+        packageVersion: DEFAULT_AGENT_PACKAGE_VERSION,
         name: cleanText(business.name) || DEFAULT_AGENT_NAME,
         purpose: DEFAULT_PURPOSE,
         systemPrompt: "",
@@ -2105,7 +2128,7 @@ export async function listAgents(supabase, options = {}) {
 
   let query = supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
+    .select(AGENT_SELECT)
     .order("name", { ascending: true });
 
   if (normalizedOwnerUserId) {
@@ -2249,6 +2272,8 @@ export async function listAgents(supabase, options = {}) {
       assistantName:
         widgetConfig?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
       publicAgentKey: row.public_agent_key || "",
+      packageKey: readAgentPackageKey(row),
+      packageVersion: readAgentPackageVersion(row),
       installId: widgetConfig?.installId || "",
       allowedDomains: deriveAllowedDomains(widgetConfig?.allowedDomains, websiteUrl),
       isActive: row.is_active !== false,
@@ -2338,7 +2363,7 @@ export async function listAgents(supabase, options = {}) {
 export async function listAllAgents(supabase) {
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
+    .select(AGENT_SELECT)
     .order("name", { ascending: true });
 
   if (error) {
@@ -2442,6 +2467,8 @@ export async function listAllAgents(supabase) {
     assistantName:
       widgetConfigsByAgentId.get(row.id)?.assistantName || row.name || DEFAULT_WIDGET_CONFIG.assistantName,
     publicAgentKey: row.public_agent_key || "",
+    packageKey: readAgentPackageKey(row),
+    packageVersion: readAgentPackageVersion(row),
     installId: widgetConfigsByAgentId.get(row.id)?.installId || "",
     allowedDomains: deriveAllowedDomains(
       widgetConfigsByAgentId.get(row.id)?.allowedDomains,
@@ -3115,6 +3142,8 @@ export async function updateAgentSettings(
     id: normalizedAgentId,
     businessId: resolvedBusinessId,
     publicAgentKey: agent.publicAgentKey,
+    packageKey: agent.packageKey,
+    packageVersion: agent.packageVersion,
     name: nextAssistantName,
     assistantName: nextAssistantName,
     purpose: nextPurpose,
@@ -3197,7 +3226,7 @@ export async function findClaimableAgentByClientId(supabase, options = {}) {
 
   const { data, error } = await supabase
     .from(AGENTS_TABLE)
-    .select("id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, tone, system_prompt, is_active, created_at")
+    .select(AGENT_SELECT)
     .eq("client_id", normalizedClientId)
     .eq("is_active", true)
     .order("created_at", { ascending: false })
@@ -3364,6 +3393,59 @@ export async function requireActiveAgentAccess(supabase, options = {}) {
   };
 }
 
+export async function updateAgentPackageAssignment(supabase, options = {}) {
+  const normalizedAgentId = cleanText(options.agentId);
+  const normalizedOwnerUserId = cleanText(options.ownerUserId);
+  const normalizedPackageKey = cleanText(options.packageKey).toLowerCase();
+
+  if (!normalizedAgentId) {
+    const error = new Error("agent_id is required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!normalizedOwnerUserId) {
+    const error = new Error("Authenticated owner is required");
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (!isKnownAgentPackageKey(normalizedPackageKey)) {
+    const error = new Error("Unknown agent package key.");
+    error.statusCode = 400;
+    error.code = "unknown_agent_package_key";
+    throw error;
+  }
+
+  const agentPackage = getAgentPackage(normalizedPackageKey);
+  const nextPackageVersion = cleanText(options.packageVersion) || agentPackage.version || DEFAULT_AGENT_PACKAGE_VERSION;
+
+  const { data, error } = await supabase
+    .from(AGENTS_TABLE)
+    .update({
+      package_key: agentPackage.key,
+      package_version: nextPackageVersion,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", normalizedAgentId)
+    .eq("owner_user_id", normalizedOwnerUserId)
+    .select(AGENT_SELECT)
+    .maybeSingle();
+
+  if (error) {
+    console.error(error);
+    throw error;
+  }
+
+  if (!data) {
+    const notFoundError = new Error("Agent not found");
+    notFoundError.statusCode = 404;
+    throw notFoundError;
+  }
+
+  return mapAgentRow(data);
+}
+
 export async function updateAgentAccessStatus(supabase, options = {}) {
   const normalizedAgentId = cleanText(options.agentId);
 
@@ -3389,9 +3471,7 @@ export async function updateAgentAccessStatus(supabase, options = {}) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", normalizedAgentId)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    )
+    .select(AGENT_SELECT)
     .single();
 
   if (error) {
@@ -3419,9 +3499,7 @@ export async function updateOwnedAccessStatus(supabase, options = {}) {
       updated_at: new Date().toISOString(),
     })
     .eq("owner_user_id", normalizedOwnerUserId)
-    .select(
-      "id, business_id, client_id, owner_user_id, access_status, public_agent_key, name, purpose, system_prompt, tone, language, is_active, created_at"
-    );
+    .select(AGENT_SELECT);
 
   if (error) {
     console.error(error);

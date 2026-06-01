@@ -1472,6 +1472,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(dashboard.text, /Connecting your assistant, loading your business data, and getting your front desk ready\./);
         assert.match(dashboard.text, /dashboard-skeleton-preview/);
         assert.doesNotMatch(dashboard.text, /approvals/i);
+        assert.doesNotMatch(dashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         for (const productDashboardPath of ["/dashboard/front-desk", "/dashboard/widget", "/dashboard/voice"]) {
           const productDashboard = await getText(server.baseUrl, productDashboardPath);
@@ -1479,6 +1480,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
           assert.match(productDashboard.headers.get("cache-control") || "", /no-store/);
           assert.match(productDashboard.text, /dashboard-root/);
           assert.match(productDashboard.text, /\/dashboard\.js/);
+          assert.doesNotMatch(productDashboard.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
         }
 
         const dashboardV2Preview = await getText(server.baseUrl, "/dashboard-v2-preview");
@@ -1523,28 +1525,33 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(widget.text, /Powered by Vonza/);
         assert.match(widget.text, /vonza-mode-/);
         assert.doesNotMatch(widget.text, /Smith & Co\./);
+        assert.doesNotMatch(widget.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const pageModeWidget = await getText(server.baseUrl, "/widget?agent_id=agent-1&mode=page");
         assert.equal(pageModeWidget.status, 200);
         assert.match(pageModeWidget.text, /page-assistant-hero/);
         assert.match(pageModeWidget.text, /assistant-unavailable-state/);
         assert.doesNotMatch(pageModeWidget.text, /Smith & Co\./);
+        assert.doesNotMatch(pageModeWidget.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const assistantPage = await getText(server.baseUrl, "/a/agent-key");
         assert.equal(assistantPage.status, 200);
         assert.match(assistantPage.text, /page-assistant-hero/);
         assert.doesNotMatch(assistantPage.text, /Smith & Co\./);
+        assert.doesNotMatch(assistantPage.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const assistantAliasPage = await getText(server.baseUrl, "/assistant/agent-key");
         assert.equal(assistantAliasPage.status, 200);
         assert.match(assistantAliasPage.text, /page-assistant-hero/);
         assert.doesNotMatch(assistantAliasPage.text, /Smith & Co\./);
+        assert.doesNotMatch(assistantAliasPage.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const authScript = await getText(server.baseUrl, "/supabase-auth.js");
         assert.equal(authScript.status, 200);
 
         const dashboardScript = await getText(server.baseUrl, "/dashboard.js");
         assert.equal(dashboardScript.status, 200);
+        assert.doesNotMatch(dashboardScript.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const settingsShellScript = await getText(server.baseUrl, "/settings/SettingsShell.js");
         assert.equal(settingsShellScript.status, 200);
@@ -1552,6 +1559,7 @@ test("marketing homepage and app routes load without broken handoff paths", { co
         assert.match(settingsShellScript.text, /data-settings-nav="desktop"/);
         assert.match(settingsShellScript.text, /data-settings-nav="mobile"/);
         assert.doesNotMatch(settingsShellScript.text, /local-section-nav/);
+        assert.doesNotMatch(settingsShellScript.text, /hotel_concierge|front_desk_general|package_key|packageKey|agentPackage|data-agent-package/i);
 
         const settingsShellCss = await getText(server.baseUrl, "/settings/settings.css");
         assert.equal(settingsShellCss.status, 200);

@@ -98,6 +98,7 @@ async function generateAnswerContractReport({
   history = [],
   referenceBlocks = [],
   evidencePack,
+  agentPackage = null,
   maxClaims,
   includeClaimText = false,
   onContract = null,
@@ -174,7 +175,7 @@ async function generateAnswerContractReport({
 
   if (typeof onContract === "function") {
     const claimVerifierReport = evidencePack && Array.isArray(evidencePack.items)
-      ? verifyClaimSupport(contract, evidencePack)
+      ? verifyClaimSupport(contract, evidencePack, { agentPackage })
       : null;
 
     onContract(
@@ -312,6 +313,7 @@ export async function generateAssistantReply({
       history,
       referenceBlocks,
       evidencePack: answerContract.evidencePack,
+      agentPackage: answerContract.agentPackage,
       maxClaims: answerContract.maxClaims,
       includeClaimText: answerContract.includeClaimText === true,
       onContract: answerContract.onContract,
