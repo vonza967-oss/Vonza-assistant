@@ -289,6 +289,18 @@ test("connected app capabilities route returns safe registry metadata only", asy
     assert.equal(response.status, 200);
     assert.equal(response.json.ok, true);
     assert.equal(response.json.capabilities.length > 0, true);
+    assert.equal(
+      response.json.capabilities.some((capability) => capability.key === "whatsapp.business.webhook"),
+      true
+    );
+    assert.equal(
+      response.json.capabilities.some((capability) => capability.key === "whatsapp.business.send.template"),
+      true
+    );
+    assert.equal(
+      response.json.capabilities.some((capability) => capability.key === "whatsapp.business.send.session.reply"),
+      true
+    );
 
     for (const capability of response.json.capabilities) {
       assert.equal(capability.publicChatCallable, false);
@@ -300,7 +312,7 @@ test("connected app capabilities route returns safe registry metadata only", asy
     }
 
     const serialized = JSON.stringify(response.json);
-    assert.doesNotMatch(serialized, /https?:\/\/(?:accounts\.google\.com|oauth2\.googleapis\.com|api\.stripe\.com|api\.twilio\.com|api\.calendly\.com)/i);
+    assert.doesNotMatch(serialized, /https?:\/\/(?:accounts\.google\.com|oauth2\.googleapis\.com|graph\.facebook\.com|api\.stripe\.com|api\.twilio\.com|api\.calendly\.com)/i);
     assert.doesNotMatch(serialized, /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret|whsec)_[A-Za-z0-9._-]{10,}\b/);
   } finally {
     await server.close();
@@ -351,6 +363,38 @@ test("owner can create list and update an own connected app connection", async (
     assert.equal(updateResponse.json.connection.status, "needs_attention");
     assert.equal(updateResponse.json.connection.needsAttentionReason, "manual_review_required");
     assert.doesNotMatch(JSON.stringify(updateResponse.json), /token_secret_ref|secret-ref|tokenSecretRef/);
+
+    const whatsappResponse = await requestJson(server.baseUrl, "/agents/connected-apps", {
+      method: "POST",
+      body: JSON.stringify({
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: [
+          "whatsapp.business.webhook",
+          "whatsapp.business.send.template",
+        ],
+        status: "active",
+        provider_account_id: "123456789012345",
+        provider_account_label: "Acme WhatsApp Business",
+        webhook_status: "active",
+        metadata: {
+          whatsappBusinessAccountId: "123456789012345",
+          phoneNumberId: "987654321098765",
+          displayPhoneNumber: "+15551234567",
+          businessDisplayName: "Acme Front Desk",
+          webhookVerifyStatus: "verified",
+          graphApiVersion: "v23.0",
+        },
+      }),
+    });
+
+    assert.equal(whatsappResponse.status, 201);
+    assert.equal(whatsappResponse.json.connection.provider, "whatsapp");
+    assert.deepEqual(whatsappResponse.json.connection.capabilityKeys, [
+      "whatsapp.business.webhook",
+      "whatsapp.business.send.template",
+    ]);
+    assert.doesNotMatch(JSON.stringify(whatsappResponse.json), /accessToken|appSecret|verifyToken|token_secret_ref/i);
   } finally {
     await server.close();
   }
@@ -359,6 +403,7 @@ test("owner can create list and update an own connected app connection", async (
 test("connected app connection create rejects unknown capabilities and unsafe fields", async () => {
   const supabase = createConnectedAppRouteSupabase();
   const server = await startServer(createApp(buildRouteDeps(supabase)));
+  const fakeMetaAccessToken = ["EAA", "FakeMetaAccessTokenValue1234567890"].join("");
 
   try {
     const unknownResponse = await requestJson(server.baseUrl, "/agents/connected-apps", {
@@ -409,6 +454,42 @@ test("connected app connection create rejects unknown capabilities and unsafe fi
         app_key: "google.calendar",
         capabilities: ["google.calendar.read"],
         metadata: { source: "sk-proj_secretLookingValue1234567890" },
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        appSecret: "raw-app-secret",
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        verify_token: "raw-verify-token",
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        cloud_api_url: "graph.facebook.com/v23.0/123/messages",
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        webhook_endpoint_url: "graph.facebook.com/webhooks",
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        metadata: { whatsappAccessToken: "raw-token" },
+      },
+      {
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capabilities: ["whatsapp.business.send.template"],
+        metadata: { source: fakeMetaAccessToken },
       },
     ]) {
       const response = await requestJson(server.baseUrl, "/agents/connected-apps", {

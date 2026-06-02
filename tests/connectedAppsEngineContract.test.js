@@ -106,7 +106,7 @@ test("connected apps inspection documents that only the generic persistence foun
 
   assert.match(doc, /minimal generic Connected Apps persistence\/service foundation/i);
   assert.match(doc, /not have a generic OAuth\/provider setup or execution engine/i);
-  assert.match(doc, /Google, Calendly, Stripe, and Twilio/);
+  assert.match(doc, /Google, Calendly, Stripe, Twilio, and WhatsApp/);
   assert.match(doc, /report-only Connected Apps readiness/i);
   assert.match(doc, /report-only connected app capability registry/i);
   assert.match(doc, /package tool metadata is not executable permission/i);
@@ -125,6 +125,9 @@ test("connected app capability registry lists only report-only known provider-sp
     "calendly.booking.webhook",
     "stripe.billing.webhook",
     "twilio.phone.webhook",
+    "whatsapp.business.webhook",
+    "whatsapp.business.send.template",
+    "whatsapp.business.send.session.reply",
   ]);
   assert.equal(keys.length, new Set(keys).size);
   assert.deepEqual(
@@ -138,6 +141,14 @@ test("connected app capability registry lists only report-only known provider-sp
   assert.deepEqual(
     listConnectedAppCapabilitiesForProvider("calendly").map((definition) => definition.key),
     ["calendly.booking.webhook"]
+  );
+  assert.deepEqual(
+    listConnectedAppCapabilitiesForProvider("whatsapp").map((definition) => definition.key),
+    [
+      "whatsapp.business.webhook",
+      "whatsapp.business.send.template",
+      "whatsapp.business.send.session.reply",
+    ]
   );
 
   for (const definition of capabilities) {
@@ -161,6 +172,17 @@ test("connected app capability registry lists only report-only known provider-sp
     assert.equal(Array.isArray(definition.existingCodeRefs), true);
     assert.equal(Array.isArray(definition.safetyNotes), true);
   }
+
+  for (const definition of listConnectedAppCapabilitiesForProvider("whatsapp")) {
+    assert.equal(definition.appName, "WhatsApp Business");
+    assert.equal(definition.publicChatCallable, false);
+    assert.equal(definition.packageActivatable, false);
+    assert.equal(definition.externalExecution, false);
+  }
+
+  assert.equal(getConnectedAppCapability("whatsapp.business.webhook").requiresWebhook, true);
+  assert.equal(getConnectedAppCapability("whatsapp.business.send.template").requiresSecret, true);
+  assert.equal(getConnectedAppCapability("whatsapp.business.send.session.reply").requiresSecret, true);
 });
 
 test("connected app capability registry safely handles unknown and malformed keys", () => {
@@ -217,7 +239,7 @@ test("connected app capability registry exposes no executable handlers or provid
   const serialized = JSON.stringify(capabilities);
   const secretValuePattern = /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}\b/;
   const jwtPattern = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/;
-  const oauthUrlPattern = /https?:\/\/(?:accounts\.google\.com|oauth2\.googleapis\.com|api\.calendly\.com|api\.stripe\.com|api\.twilio\.com)/i;
+  const oauthUrlPattern = /https?:\/\/(?:accounts\.google\.com|oauth2\.googleapis\.com|graph\.facebook\.com|api\.calendly\.com|api\.stripe\.com|api\.twilio\.com)/i;
 
   assert.deepEqual(findExecutableFieldPaths(capabilities), []);
   assert.doesNotMatch(serialized, secretValuePattern);
@@ -242,11 +264,12 @@ test("public chat and package activation are disabled for every current connecte
   }
 });
 
-test("connected app docs describe Phase 9 Google Calendar adapter without execution expansion", () => {
+test("connected app docs describe Phase 10 WhatsApp foundation without execution expansion", () => {
   const docs = [
     DOC_PATH,
     REGISTRY_DOC_PATH,
     DATA_MODEL_PLAN_DOC_PATH,
+    path.join(REPO_ROOT, "docs/architecture/whatsapp-connected-app-plan.md"),
     path.join(REPO_ROOT, "docs/architecture/product-runtime-engine-plan.md"),
     path.join(REPO_ROOT, "docs/architecture/package-manifest-contract.md"),
     path.join(REPO_ROOT, "docs/architecture/agent-package-delivery-summary.md"),
@@ -258,6 +281,11 @@ test("connected app docs describe Phase 9 Google Calendar adapter without execut
   assert.match(docs, /Uses existing Google connection flow/i);
   assert.match(docs, /No chat execution/i);
   assert.match(docs, /No provider action without approval/i);
+  assert.match(docs, /WhatsApp Business.*foundation/i);
+  assert.match(docs, /No WhatsApp messages sent/i);
+  assert.match(docs, /No webhook receiver enabled yet/i);
+  assert.match(docs, /No Meta OAuth\/Embedded Signup yet/i);
+  assert.match(docs, /future WhatsApp work must separate inbound webhooks, session replies, and approved template messages/i);
   assert.match(docs, /report-only/i);
   assert.match(docs, /persistence\/service foundation only/i);
   assert.doesNotMatch(docs, /generic OAuth\/provider Connected Apps setup exists today/i);
@@ -366,7 +394,7 @@ test("tool metadata is not executable connected-app permission", () => {
   const serialized = JSON.stringify(definitions);
 
   assert.deepEqual(findExecutableFieldPaths(definitions), []);
-  assert.doesNotMatch(serialized, /google_connected_accounts|agent_booking_integrations|stripe|twilio/i);
+  assert.doesNotMatch(serialized, /google_connected_accounts|agent_booking_integrations|stripe|twilio|whatsapp/i);
 
   for (const definition of definitions) {
     assert.equal(Object.hasOwn(definition, "requiresIntegration"), false);
@@ -435,6 +463,7 @@ test("public chat path does not directly execute external providers", () => {
     /api\.calendly\.com/i,
     /new Stripe\(/i,
     /twilio/i,
+    /graph\.facebook\.com/i,
     /sendMessage\(/i,
     /createCalendarEvent\(/i,
     /updateCalendarEvent\(/i,

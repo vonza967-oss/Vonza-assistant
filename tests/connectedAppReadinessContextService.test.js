@@ -313,6 +313,143 @@ test("missing active webhook blocks webhook capabilities", async () => {
   );
 });
 
+test("WhatsApp readiness is blocked without manual connection and enablement records", async () => {
+  const { context, readiness } = await evaluateFromRecords({
+    connections: [],
+    enablements: [],
+    input: {
+      requiredCapabilities: ["whatsapp.business.send.template"],
+      surface: "dashboard",
+    },
+  });
+
+  assert.deepEqual(context.connectedCapabilities, []);
+  assert.equal(readiness.status, "blocked");
+  assert.equal(requirementByKey(readiness, "required.whatsapp.business.send.template").status, "blocked");
+});
+
+test("manual active WhatsApp connection plus explicit enablement satisfies report-only readiness", async () => {
+  const { context, readiness } = await evaluateFromRecords({
+    connections: [
+      connection({
+        provider: "whatsapp",
+        capability_keys: [
+          "whatsapp.business.send.template",
+          "whatsapp.business.send.session.reply",
+        ],
+        scopes_granted: [],
+        webhook_status: "not_required",
+        metadata: {
+          whatsappBusinessAccountId: "123456789012345",
+          phoneNumberId: "987654321098765",
+        },
+      }),
+    ],
+    enablements: [
+      enablement({
+        capability_keys: ["whatsapp.business.send.template"],
+        allowed_surfaces: ["dashboard"],
+      }),
+    ],
+    input: {
+      requiredCapabilities: ["whatsapp.business.send.template"],
+      surface: "dashboard",
+    },
+  });
+
+  assert.deepEqual(context.connectedCapabilities, ["whatsapp.business.send.template"]);
+  assert.deepEqual(context.scopeGrants, {});
+  assert.equal(context.surface, "dashboard");
+  assert.equal(readiness.status, "ready");
+  assert.equal(requirementByKey(readiness, "required.whatsapp.business.send.template").status, "ready");
+});
+
+test("manual WhatsApp webhook readiness requires an active webhook status", async () => {
+  const baseConnection = {
+    provider: "whatsapp",
+    capability_keys: ["whatsapp.business.webhook"],
+    scopes_granted: [],
+  };
+  const baseEnablement = {
+    capability_keys: ["whatsapp.business.webhook"],
+    allowed_surfaces: ["webhook"],
+  };
+  const blocked = await evaluateFromRecords({
+    connections: [
+      connection({
+        ...baseConnection,
+        webhook_status: "pending",
+      }),
+    ],
+    enablements: [enablement(baseEnablement)],
+    input: {
+      requiredCapabilities: ["whatsapp.business.webhook"],
+      surface: "webhook",
+    },
+  });
+
+  assert.equal(blocked.readiness.status, "blocked");
+  assert.equal(
+    requirementByKey(blocked.readiness, "required.whatsapp.business.webhook").reasons.some(
+      (reason) => reason.code === "webhook_inactive"
+    ),
+    true
+  );
+
+  const ready = await evaluateFromRecords({
+    connections: [
+      connection({
+        ...baseConnection,
+        webhook_status: "active",
+      }),
+    ],
+    enablements: [enablement(baseEnablement)],
+    input: {
+      requiredCapabilities: ["whatsapp.business.webhook"],
+      surface: "webhook",
+    },
+  });
+
+  assert.deepEqual(ready.context.webhookStatuses, {
+    "whatsapp.business.webhook": "active",
+  });
+  assert.equal(ready.readiness.status, "ready");
+});
+
+test("WhatsApp public chat execution remains blocked from derived records", async () => {
+  const { readiness } = await evaluateFromRecords({
+    connections: [
+      connection({
+        provider: "whatsapp",
+        capability_keys: ["whatsapp.business.send.session.reply"],
+        scopes_granted: [],
+        webhook_status: "not_required",
+      }),
+    ],
+    enablements: [
+      enablement({
+        capability_keys: ["whatsapp.business.send.session.reply"],
+        allowed_surfaces: ["dashboard"],
+      }),
+    ],
+    input: {
+      requiredCapabilities: ["whatsapp.business.send.session.reply"],
+      surface: "public_chat",
+      executionRequested: true,
+    },
+  });
+
+  assert.equal(readiness.status, "blocked");
+  assert.equal(requirementByKey(readiness, "required.whatsapp.business.send.session.reply").status, "ready");
+  assert.equal(requirementByKey(readiness, "execution.requested").status, "blocked");
+  assert.equal(
+    requirementByKey(readiness, "execution.requested").reasons.some(
+      (reason) => reason.code === "public_chat_execution_blocked"
+    ),
+    true
+  );
+});
+
 test("owner scoping prevents another owner's records from counting", async () => {
   const { context, readiness } = await evaluateFromRecords({
     connections: [

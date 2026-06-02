@@ -45,6 +45,22 @@ function readyCalendlyWebhookInput(overrides = {}) {
   };
 }
 
+function readyWhatsAppInput(capabilityKey = "whatsapp.business.send.template", overrides = {}) {
+  return {
+    packageKey: "front_desk_general",
+    agentId: "agent_123",
+    requiredCapabilities: [capabilityKey],
+    connectedCapabilities: [capabilityKey],
+    providerStatuses: {
+      whatsapp: "active",
+    },
+    surface: "dashboard",
+    approvalMode: "manual_review",
+    executionRequested: false,
+    ...overrides,
+  };
+}
+
 test("no connected app requirements reports ready", () => {
   const result = evaluateConnectedAppReadiness({
     packageKey: "front_desk_general",
@@ -166,6 +182,82 @@ test("required webhook capability reports ready with active webhook", () => {
   assert.equal(result.status, "ready");
   assert.equal(requirementByKey(result, "required.calendly.booking.webhook").status, "ready");
   assert.equal(requirementByKey(result, "required.calendly.booking.webhook").webhookActive, true);
+});
+
+test("WhatsApp webhook capability requires active webhook status", () => {
+  const blocked = evaluateConnectedAppReadiness(
+    readyWhatsAppInput("whatsapp.business.webhook", {
+      webhookStatuses: {},
+    })
+  );
+
+  assert.equal(blocked.status, "blocked");
+  assert.equal(requirementByKey(blocked, "required.whatsapp.business.webhook").webhookActive, false);
+  assert.equal(
+    requirementByKey(blocked, "required.whatsapp.business.webhook").reasons.some(
+      (item) => item.code === "webhook_inactive"
+    ),
+    true
+  );
+
+  const ready = evaluateConnectedAppReadiness(
+    readyWhatsAppInput("whatsapp.business.webhook", {
+      webhookStatuses: {
+        "whatsapp.business.webhook": "active",
+      },
+    })
+  );
+
+  assert.equal(ready.status, "ready");
+  assert.equal(requirementByKey(ready, "required.whatsapp.business.webhook").webhookActive, true);
+});
+
+test("WhatsApp send capabilities can be report-ready but are not runtime executable today", () => {
+  for (const capabilityKey of [
+    "whatsapp.business.send.template",
+    "whatsapp.business.send.session.reply",
+  ]) {
+    const reportOnly = evaluateConnectedAppReadiness(readyWhatsAppInput(capabilityKey));
+
+    assert.equal(reportOnly.status, "ready");
+    assert.equal(requirementByKey(reportOnly, `required.${capabilityKey}`).status, "ready");
+    assert.equal(requirementByKey(reportOnly, `required.${capabilityKey}`).externalExecution, false);
+
+    const executionRequested = evaluateConnectedAppReadiness(
+      readyWhatsAppInput(capabilityKey, {
+        executionRequested: true,
+      })
+    );
+
+    assert.equal(executionRequested.status, "blocked");
+    assert.equal(requirementByKey(executionRequested, `required.${capabilityKey}`).status, "ready");
+    assert.equal(requirementByKey(executionRequested, "execution.requested").status, "blocked");
+    assert.equal(
+      requirementByKey(executionRequested, "execution.requested").reasons.some(
+        (item) => item.code === "external_execution_not_allowed"
+      ),
+      true
+    );
+  }
+});
+
+test("WhatsApp public chat execution remains blocked even with ready connection metadata", () => {
+  const result = evaluateConnectedAppReadiness(
+    readyWhatsAppInput("whatsapp.business.send.session.reply", {
+      surface: "public_chat",
+      executionRequested: true,
+    })
+  );
+
+  assert.equal(result.status, "blocked");
+  assert.equal(requirementByKey(result, "required.whatsapp.business.send.session.reply").status, "ready");
+  assert.equal(requirementByKey(result, "execution.requested").status, "blocked");
+  assert.equal(
+    requirementByKey(result, "execution.requested").reasons.some(
+      (item) => item.code === "public_chat_execution_blocked"
+    ),
+    true
+  );
 });
 
 test("public chat execution is blocked for current capabilities", () => {

@@ -3924,9 +3924,22 @@
       && defaultTrimText(connection?.appKey).toLowerCase() === "google.calendar";
   }
 
+  function isWhatsAppBusinessCapability(capability = {}) {
+    return defaultTrimText(capability?.key).startsWith("whatsapp.business.");
+  }
+
+  function isWhatsAppBusinessConnection(connection = {}) {
+    return defaultTrimText(connection?.provider).toLowerCase() === "whatsapp"
+      && defaultTrimText(connection?.appKey).toLowerCase() === "whatsapp.business";
+  }
+
   function getConnectedAppSetupStatus(capability = {}) {
     if (isGoogleCalendarCapability(capability)) {
       return "Uses existing Google connection flow";
+    }
+
+    if (isWhatsAppBusinessCapability(capability)) {
+      return "Manual/internal setup";
     }
 
     if (capability.requiresOAuth) {
@@ -3947,6 +3960,9 @@
       "No chat execution",
       "No provider action without approval",
       "Report-only readiness",
+      "No WhatsApp messages sent",
+      "No webhook receiver enabled yet",
+      "No Meta OAuth/Embedded Signup yet",
     ];
 
     return `
@@ -4049,6 +4065,75 @@
             data-google-connect-status="Preparing Google Calendar connection..."
             data-google-connect-error="We couldn't start the Google Calendar connection."
           >${escapeHtml(activeConnection ? "Reconnect Google Calendar" : "Connect Google Calendar")}</button>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildWhatsAppBusinessFoundationPanel(connectedApps, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const whatsappCapabilities = connectedApps.capabilities.filter(isWhatsAppBusinessCapability);
+    const whatsappConnections = connectedApps.connections.filter(isWhatsAppBusinessConnection);
+    const activeConnection = whatsappConnections.find((connection) => defaultTrimText(connection.status) === "active") || whatsappConnections[0] || null;
+    const enabledConnectionIds = new Set(
+      connectedApps.enablements
+        .filter((enablement) => enablement?.enabled === true)
+        .map((enablement) => defaultTrimText(enablement.connectionId))
+        .filter(Boolean)
+    );
+    const enabledConnections = whatsappConnections.filter((connection) =>
+      enabledConnectionIds.has(defaultTrimText(connection.id))
+    ).length;
+    const capabilityLabels = whatsappCapabilities.length
+      ? whatsappCapabilities.map((capability) => capability.label || capability.key)
+      : [
+        "WhatsApp Business webhook readiness",
+        "WhatsApp Business template send",
+        "WhatsApp Business session reply",
+      ];
+
+    if (!whatsappCapabilities.length) {
+      return "";
+    }
+
+    return `
+      <section class="settings-shell-section settings-connected-app-adapter-panel">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">WhatsApp Business foundation</h3>
+            <p class="settings-shell-section-copy">Manual/internal setup. No WhatsApp messages sent. No webhook receiver enabled yet. No Meta OAuth/Embedded Signup yet.</p>
+          </div>
+          <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
+        </div>
+        <div class="settings-operational-summary settings-connected-app-summary" aria-label="WhatsApp Business connected app foundation">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Future capabilities</span>
+              <span class="${getBadgeClass(whatsappCapabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(whatsappCapabilities.length))}</span>
+            </div>
+            <p>${escapeHtml(summarizeConnectedAppList(capabilityLabels))}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Setup mode</span>
+              <span class="${getBadgeClass("Pending")}">Manual/internal setup</span>
+            </div>
+            <p>Safe identifiers can be represented through manual records; credentials do not belong in dashboard fields.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Messaging</span>
+              <span class="${getBadgeClass("Limited")}">No WhatsApp messages sent</span>
+            </div>
+            <p>Template and session reply capabilities are readiness metadata only in this phase.</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Webhook and signup</span>
+              <span class="${getBadgeClass("Limited")}">Not enabled</span>
+            </div>
+            <p>No webhook receiver enabled yet. No Meta OAuth/Embedded Signup yet. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
+          </article>
         </div>
       </section>
     `;
@@ -4364,6 +4449,7 @@
           </section>
 
           ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
+          ${buildWhatsAppBusinessFoundationPanel(connectedApps, helpers)}
 
           <section class="settings-shell-section">
             <div class="settings-shell-section-header">

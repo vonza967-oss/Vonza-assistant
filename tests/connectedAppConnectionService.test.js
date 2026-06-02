@@ -172,6 +172,51 @@ test("connected app connection create persists an owner connection with known ca
   assert.deepEqual(connection.metadata, { source: "service-test" });
 });
 
+test("WhatsApp manual connection stores safe non-secret metadata only", async () => {
+  const supabase = createConnectedAppSupabase();
+
+  const connection = await createConnectedAppConnection(supabase, {
+    ownerUserId: "owner-1",
+    provider: "whatsapp",
+    appKey: "whatsapp.business",
+    capabilityKeys: [
+      "whatsapp.business.webhook",
+      "whatsapp.business.send.template",
+      "whatsapp.business.send.session.reply",
+    ],
+    status: "active",
+    providerAccountId: "123456789012345",
+    providerAccountLabel: "Acme WhatsApp Business",
+    webhookStatus: "active",
+    metadata: {
+      whatsappBusinessAccountId: "123456789012345",
+      phoneNumberId: "987654321098765",
+      displayPhoneNumber: "+15551234567",
+      businessDisplayName: "Acme Front Desk",
+      webhookVerifyStatus: "verified",
+      graphApiVersion: "v23.0",
+    },
+  });
+
+  assert.equal(connection.provider, "whatsapp");
+  assert.equal(connection.appKey, "whatsapp.business");
+  assert.deepEqual(connection.capabilityKeys, [
+    "whatsapp.business.webhook",
+    "whatsapp.business.send.template",
+    "whatsapp.business.send.session.reply",
+  ]);
+  assert.equal(connection.webhookStatus, "active");
+  assert.equal(connection.hasTokenSecretRef, false);
+  assert.deepEqual(connection.metadata, {
+    whatsappBusinessAccountId: "123456789012345",
+    phoneNumberId: "987654321098765",
+    displayPhoneNumber: "+15551234567",
+    businessDisplayName: "Acme Front Desk",
+    webhookVerifyStatus: "verified",
+    graphApiVersion: "v23.0",
+  });
+});
+
 test("connected app connection create rejects unknown capabilities", async () => {
   const supabase = createConnectedAppSupabase();
 
@@ -304,21 +349,42 @@ test("connected app connection status update is owner scoped", async () => {
 
 test("connected app service rejects raw secret and execution input fields", async () => {
   const supabase = createConnectedAppSupabase();
+  const fakeMetaAccessToken = ["EAA", "FakeMetaAccessTokenValue1234567890"].join("");
 
-  await assert.rejects(
-    () => createConnectedAppConnection(supabase, {
-      ownerUserId: "owner-1",
-      provider: "google",
-      appKey: "google.calendar",
-      capabilityKeys: ["google.calendar.read"],
-      accessToken: "raw-token-value",
-    }),
-    (error) => {
-      assert.equal(error.statusCode, 400);
-      assert.equal(error.code, "connected_app_secret_or_execution_field_rejected");
-      return true;
-    }
-  );
+  for (const unsafeInput of [
+    { accessToken: "raw-token-value" },
+    { appSecret: "raw-app-secret" },
+    { verifyToken: "raw-verify-token" },
+    { permanentAccessToken: "raw-permanent-token" },
+    { systemUserAccessToken: "raw-system-user-token" },
+    { cloudApiAccessToken: "raw-cloud-api-token" },
+    { cloudApiUrl: "graph.facebook.com/v23.0/123/messages" },
+    { embeddedSignupUrl: "business.facebook.com/wa/manage/signup" },
+    { webhookUrl: "graph.facebook.com/webhooks" },
+    { metadata: { cloud_api_url: "graph.facebook.com/v23.0/123/messages" } },
+    { metadata: { endpointUrl: "graph.facebook.com/v23.0/123/messages" } },
+    { metadata: { webhook_endpoint_url: "graph.facebook.com/webhooks" } },
+    { whatsappAccessToken: "raw-whatsapp-token" },
+    { metadata: { apiKey: "raw-api-key" } },
+    { metadata: { appSecret: "raw-app-secret" } },
+    { metadata: { verifyToken: "raw-verify-token" } },
+    { metadata: { source: fakeMetaAccessToken } },
+  ]) {
+    await assert.rejects(
+      () => createConnectedAppConnection(supabase, {
+        ownerUserId: "owner-1",
+        provider: "whatsapp",
+        appKey: "whatsapp.business",
+        capabilityKeys: ["whatsapp.business.send.template"],
+        ...unsafeInput,
+      }),
+      (error) => {
+        assert.equal(error.statusCode, 400);
+        assert.equal(error.code, "connected_app_secret_or_execution_field_rejected");
+        return true;
+      }
+    );
+  }
 
   await assert.rejects(
     () => createConnectedAppConnection(supabase, {

@@ -42,18 +42,36 @@ const PUBLIC_SURFACES = new Set([
 const UNSAFE_INPUT_FIELD_NAMES = new Set([
   "accessToken",
   "access_token",
+  "appSecret",
+  "app_secret",
   "apiKey",
   "api_key",
+  "authUrl",
+  "auth_url",
   "authorizationCode",
   "authorization_code",
+  "authorizationUrl",
+  "authorization_url",
   "bearerToken",
   "bearer_token",
+  "businessIntegrationSystemUserToken",
+  "business_integration_system_user_token",
+  "callbackUrl",
+  "callback_url",
   "callable",
   "client",
   "clientSecret",
   "client_secret",
+  "cloudApiAccessToken",
+  "cloud_api_access_token",
+  "cloudApiUrl",
+  "cloud_api_url",
   "encryptedToken",
   "encrypted_token",
+  "embeddedSignupUrl",
+  "embedded_signup_url",
+  "endpointUrl",
+  "endpoint_url",
   "execute",
   "executionRequested",
   "execution_requested",
@@ -66,25 +84,46 @@ const UNSAFE_INPUT_FIELD_NAMES = new Set([
   "oauth_url",
   "providerClient",
   "provider_client",
+  "providerUrl",
+  "provider_url",
   "providers",
   "publicChatCallable",
   "public_chat_callable",
+  "permanentAccessToken",
+  "permanent_access_token",
   "refreshToken",
   "refresh_token",
   "runtimeHandler",
   "runtime_handler",
   "secret",
   "secrets",
+  "setupUrl",
+  "setup_url",
   "signingSecret",
   "signing_secret",
+  "systemUserAccessToken",
+  "system_user_access_token",
   "token",
   "tokens",
+  "verifyToken",
+  "verify_token",
+  "whatsappAccessToken",
+  "whatsapp_access_token",
+  "whatsappToken",
+  "whatsapp_token",
+  "webhookEndpoint",
+  "webhook_endpoint",
+  "webhookEndpointUrl",
+  "webhook_endpoint_url",
   "webhookSecret",
   "webhook_secret",
+  "webhookUrl",
+  "webhook_url",
 ]);
 const UNSAFE_INPUT_URL_PATTERN = /https?:\/\//i;
 const SECRET_LOOKING_VALUE_PATTERN = /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}\b/i;
 const JWT_LOOKING_VALUE_PATTERN = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/;
+const META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN = /\bEAA[A-Za-z0-9_-]{20,}\b/;
 
 const CONNECTION_SELECT = [
   "id",
@@ -357,6 +396,7 @@ function assertNoUnsafeInput(value, path = "input") {
         UNSAFE_INPUT_URL_PATTERN.test(nestedValue)
         || SECRET_LOOKING_VALUE_PATTERN.test(nestedValue)
         || JWT_LOOKING_VALUE_PATTERN.test(nestedValue)
+        || META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN.test(nestedValue)
       )
     ) {
       throw buildConnectedAppError(

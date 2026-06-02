@@ -17,6 +17,11 @@ test("dashboard source includes connected apps management surface", () => {
   assert.match(combined, /No chat execution/);
   assert.match(combined, /No provider action without approval/);
   assert.match(combined, /Report-only readiness/);
+  assert.match(combined, /WhatsApp Business foundation/);
+  assert.match(combined, /Manual\/internal setup/);
+  assert.match(combined, /No WhatsApp messages sent/);
+  assert.match(combined, /No webhook receiver enabled yet/);
+  assert.match(combined, /No Meta OAuth\/Embedded Signup yet/);
 });
 
 test("dashboard fetches connected app capability connection enablement and readiness endpoints", () => {
@@ -60,16 +65,28 @@ test("dashboard connected apps controls avoid credential oauth and provider exec
   const forbiddenNames = [
     "access_token",
     "accessToken",
+    "app_secret",
+    "appSecret",
     "api_key",
     "apiKey",
     "auth_url",
     "authUrl",
     "authorization_url",
     "authorizationUrl",
+    "callback_url",
+    "callbackUrl",
     "client_secret",
     "clientSecret",
+    "cloud_api_url",
+    "cloudApiUrl",
+    "embedded_signup_url",
+    "embeddedSignupUrl",
+    "endpoint_url",
+    "endpointUrl",
     "oauth_url",
     "oauthUrl",
+    "permanent_access_token",
+    "permanentAccessToken",
     "provider_client",
     "providerClient",
     "refresh_token",
@@ -78,6 +95,14 @@ test("dashboard connected apps controls avoid credential oauth and provider exec
     "token",
     "token_secret_ref",
     "tokenSecretRef",
+    "verify_token",
+    "verifyToken",
+    "whatsapp_access_token",
+    "whatsappAccessToken",
+    "whatsapp_token",
+    "whatsappToken",
+    "webhook_endpoint_url",
+    "webhookEndpointUrl",
     "webhook_url",
     "webhookUrl",
   ];
@@ -94,8 +119,9 @@ test("dashboard connected apps surface does not expose public chat execution con
   const combined = `${dashboard}\n${settingsShell}`;
 
   assert.doesNotMatch(combined, /data-connected-app-(?:execute|public-chat|oauth|provider-client)/i);
-  assert.doesNotMatch(combined, />\s*(?:Connect with OAuth|Run provider action|Execute provider|Call from public chat)\s*</i);
+  assert.doesNotMatch(combined, />\s*(?:Connect with OAuth|Run provider action|Execute provider|Call from public chat|Send message)\s*</i);
   assert.doesNotMatch(combined, /OAuth setup (?:is ready|enabled|available)/i);
+  assert.doesNotMatch(combined, /Embedded Signup (?:is ready|enabled|available)/i);
   assert.doesNotMatch(combined, /provider execution (?:is ready|enabled|available)/i);
 });
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Connected Apps Phase 5 implements the minimal generic persistence and internal service foundation from the Phase 4 design. It adds canonical owner connection and agent enablement tables plus a service skeleton. Connected Apps Phase 6 adds a report-only readiness context helper that can derive `evaluateConnectedAppReadiness()` input from those generic records. Connected Apps Phase 7 exposes those records through authenticated owner-scoped dashboard API routes only. Connected Apps Phase 8 adds an authenticated dashboard/settings management surface over those routes. Connected Apps Phase 9 adds Google Calendar as the first provider-specific adapter into the generic records by mirroring the existing Google operator connection flow. These phases do not add runtime chat behavior, widget/embed behavior, new Google scopes, generic OAuth setup, package activation enforcement, external API calls beyond existing Google operator workflows, generic provider clients, generic provider execution, or secrets.
+Connected Apps Phase 5 implements the minimal generic persistence and internal service foundation from the Phase 4 design. It adds canonical owner connection and agent enablement tables plus a service skeleton. Connected Apps Phase 6 adds a report-only readiness context helper that can derive `evaluateConnectedAppReadiness()` input from those generic records. Connected Apps Phase 7 exposes those records through authenticated owner-scoped dashboard API routes only. Connected Apps Phase 8 adds an authenticated dashboard/settings management surface over those routes. Connected Apps Phase 9 adds Google Calendar as the first provider-specific adapter into the generic records by mirroring the existing Google operator connection flow. Connected Apps Phase 10 adds a WhatsApp Business capability foundation: registry metadata, safe manual/status-only connection representation, readiness tests, dashboard copy, and docs. These phases do not add runtime chat behavior, widget/embed behavior, new Google scopes, generic OAuth setup, WhatsApp OAuth/Embedded Signup, WhatsApp webhook receiving, WhatsApp outbound sending, package activation enforcement, external API calls beyond existing Google operator workflows, generic provider clients, generic provider execution, or secrets.
 
 The model separates three decisions that must not be collapsed:
 
@@ -20,8 +20,8 @@ Implemented fields:
 
 - `id`: Stable connection id.
 - `owner_user_id`: Owner/workspace scope. This must be present on every connection row.
-- `provider`: Stable provider key such as `google`, `calendly`, `stripe`, or `twilio`.
-- `app_key`: Stable app/catalog key such as `google.calendar`, `google.gmail`, `calendly.booking`, `stripe.billing`, or `twilio.phone`.
+- `provider`: Stable provider key such as `google`, `calendly`, `stripe`, `twilio`, or `whatsapp`.
+- `app_key`: Stable app/catalog key such as `google.calendar`, `google.gmail`, `calendly.booking`, `stripe.billing`, `twilio.phone`, or `whatsapp.business`.
 - `capability_keys`: Normalized connected capability keys, such as `google.calendar.read` or `calendly.booking.webhook`.
 - `status`: Redacted lifecycle state constrained to `needs_setup`, `active`, `disabled`, `needs_attention`, or `revoked`.
 - `provider_account_id`: Provider account identifier when safe to store server-side.
@@ -87,7 +87,7 @@ All Phase 7 routes are authenticated owner/internal setup APIs only. There are n
 
 ## Implemented Authenticated Dashboard Surface
 
-Phase 8 adds a compact `Connected apps` management surface in the authenticated dashboard/settings area. Phase 9 updates that surface to show Google Calendar as a real adapter backed by the existing Google connection flow. It fetches:
+Phase 8 adds a compact `Connected apps` management surface in the authenticated dashboard/settings area. Phase 9 updates that surface to show Google Calendar as a real adapter backed by the existing Google connection flow. Phase 10 adds a WhatsApp Business foundation panel for manual/status-only readiness. It fetches:
 
 - `GET /agents/connected-app-capabilities`
 - `GET /agents/connected-apps`
@@ -96,7 +96,7 @@ Phase 8 adds a compact `Connected apps` management surface in the authenticated 
 
 It shows provider and capability labels, owner connection status, provider account labels, scopes/capability summaries, webhook status, agent enablement state, approval mode, allowed surfaces, and report-only readiness warnings. It can reuse the existing Google connect button for Google Calendar, create a manual/status-only connection record for non-adapter review, update a connection status, and create/update an agent enablement.
 
-The Phase 9 dashboard copy is explicit: `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Manual/status-only records remain available for non-adapter review, but the Google Calendar adapter does not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, or package selector/package switching controls. It does not add a new OAuth flow, call providers from the generic surface, provision webhooks, enforce package activation, expose public/anonymous connected-app routes, change runtime chat behavior, or change widget/embed bundles.
+The Phase 9 dashboard copy is explicit: `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Phase 10 WhatsApp copy is explicit: `Manual/internal setup`, `No WhatsApp messages sent`, `No webhook receiver enabled yet`, and `No Meta OAuth/Embedded Signup yet`. Manual/status-only records remain available for non-adapter review, but the Google Calendar adapter and WhatsApp Business foundation panel do not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, package selector/package switching controls, WhatsApp token inputs, or message-send controls. They do not add a new OAuth flow, call providers from the generic surface, provision webhooks, enforce package activation, expose public/anonymous connected-app routes, change runtime chat behavior, or change widget/embed bundles.
 
 ## Proposed Webhook Registry: `connected_app_webhooks`
 
@@ -186,8 +186,9 @@ Future provider-specific adapter mapping:
 - Google Gmail: Gmail remains inside the Google operator workspace. A future adapter can mirror `google.gmail.read` only if that scope is explicitly granted and the product phase requires it.
 - Stripe billing/webhook handling: Keep Stripe as owner billing infrastructure. Billing webhooks may appear in registry/readiness metadata, but Stripe billing state is not an agent connected-app grant and should not become package execution permission.
 - Twilio phone webhook handling: Keep Twilio phone numbers and call sessions as admin/provider-specific phone infrastructure. A future adapter can report redacted phone webhook readiness, but owner self-serve Twilio setup and agent enablements require a separate design.
+- WhatsApp Business: Phase 10 does not add a provider-specific table or adapter. The existing generic connection row can represent safe manual metadata such as WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, and Graph API version. Access tokens, app secrets, verify tokens, webhook secrets, copied provider payloads, and endpoint URLs must not live in metadata or route responses. Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
 
-Later migration can add webhook state, generic OAuth state, adapter backfills, or more provider-specific mappings beside existing provider tables. Existing Google, Calendly, Stripe, and Twilio code should keep their provider-specific execution checks until the generic permission service is at least as strict as the current flows.
+Later migration can add webhook state, generic OAuth state, adapter backfills, or more provider-specific mappings beside existing provider tables. Existing Google, Calendly, Stripe, Twilio, and future WhatsApp code should keep provider-specific execution checks until the generic permission service is at least as strict as the current flows.
 
 ## RLS and Security Model
 
@@ -243,7 +244,7 @@ The UI should make owner connection and agent enablement distinct. A connected p
 - No provider-specific legacy table inference.
 - No secrets committed.
 
-## Non-Goals For Phase 7-9
+## Non-Goals For Phase 7-10
 
 - No schema or migration changes.
 - No runtime chat changes.
@@ -256,8 +257,9 @@ The UI should make owner connection and agent enablement distinct. A connected p
 - No automatic agent enablement from provider-specific legacy tables.
 - No public or anonymous connected-app routes.
 - No token-secret-ref, raw token, raw secret, OAuth URL, provider client, handler, or execution fields accepted or returned by the new API routes.
+- No WhatsApp webhook receiver, inbound message processing, outbound message sending, Meta OAuth/Embedded Signup, Cloud API calls, Twilio WhatsApp API calls, template execution, session reply execution, or package activation enforcement.
 - No secrets committed.
 
 ## Implementation Status
 
-Phase 5 is implemented as schema, migration, service, tests, and docs only. Phase 6 is implemented as a service/tests/docs readiness adapter over the generic records only. Phase 7 is implemented as authenticated owner-scoped routes, service tightening, tests, and docs only. Phase 8 is implemented as authenticated dashboard UI/tests/docs only. Phase 9 is implemented as a Google Calendar adapter over the existing Google operator connection flow. Generic persistence now exists, readiness can be derived from those records, authenticated owners/internal setup paths can create/list/update redacted generic connection and enablement records, and successful Google Calendar connections mirror into `connected_app_connections`. The dashboard can reuse the existing Google connect flow, manage manual/status-only records, explicitly enable selected capabilities for an agent, and show report-only readiness. No new Google scopes, generic OAuth/provider setup, runtime permission enforcement, generic external API/provider execution, widget/embed behavior, runtime chat behavior, package activation enforcement, package switching, or generic secret storage exists yet. The current connected app registry and readiness services remain metadata/report-only, and provider-specific integrations remain provider-specific unless a scoped adapter explicitly mirrors redacted state into generic records.
+Phase 5 is implemented as schema, migration, service, tests, and docs only. Phase 6 is implemented as a service/tests/docs readiness adapter over the generic records only. Phase 7 is implemented as authenticated owner-scoped routes, service tightening, tests, and docs only. Phase 8 is implemented as authenticated dashboard UI/tests/docs only. Phase 9 is implemented as a Google Calendar adapter over the existing Google operator connection flow. Phase 10 is implemented as a WhatsApp Business capability foundation with metadata/readiness/manual-status/dashboard-copy/docs/tests only. Generic persistence now exists, readiness can be derived from those records, authenticated owners/internal setup paths can create/list/update redacted generic connection and enablement records, successful Google Calendar connections mirror into `connected_app_connections`, and WhatsApp Business can be represented manually with safe non-secret metadata. The dashboard can reuse the existing Google connect flow, show WhatsApp Business foundation status, manage manual/status-only records, explicitly enable selected capabilities for an agent, and show report-only readiness. No new Google scopes, generic OAuth/provider setup, Meta OAuth/Embedded Signup, WhatsApp webhook receiver, WhatsApp message sender, runtime permission enforcement, generic external API/provider execution, widget/embed behavior, runtime chat behavior, package activation enforcement, package switching, or generic secret storage exists yet. The current connected app registry and readiness services remain metadata/report-only, and provider-specific integrations remain provider-specific unless a scoped adapter explicitly mirrors redacted state into generic records.
