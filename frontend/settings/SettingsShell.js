@@ -20,7 +20,7 @@
     {
       key: "voice_agent",
       label: "Voice Agent",
-      note: "Browser voice, spoken replies, and web-call readiness.",
+      note: "Browser voice, spoken replies, and Web Call readiness.",
     },
     {
       key: "business_profile",
@@ -981,24 +981,24 @@
       {
         key: "front_desk",
         name: "Front Desk",
-        targetUseCase: "Hosted AI front desk page for customers who need answers, routing, and follow-up capture.",
-        setupLabel: "Configure Front Desk",
+        targetUseCase: "Dedicated full-page AI Front Desk for customers who need answers, routing, and follow-up capture.",
+        setupLabel: "Open Front Desk setup",
         setupHref: "/dashboard/front-desk",
         pricingLabel: "Product pricing coming soon",
       },
       {
         key: "website_widget",
         name: "Website Widget",
-        targetUseCase: "Optional embedded website launcher for visitors who need quick answers without leaving a page.",
-        setupLabel: "View widget setup",
+        targetUseCase: "Embedded website snippet and launcher for visitors who need quick answers without leaving a page.",
+        setupLabel: "Open widget setup",
         setupHref: "/dashboard/widget",
         pricingLabel: "Product pricing coming soon",
       },
       {
         key: "voice_agent",
         name: "Voice Agent",
-        targetUseCase: "Browser voice and spoken replies for hands-free customer conversations where configured.",
-        setupLabel: "View voice setup",
+        targetUseCase: "Browser voice, spoken replies, and Web Call setup for hands-free customer conversations where configured.",
+        setupLabel: "Open Web Call setup",
         setupHref: "/dashboard/voice",
         pricingLabel: "Product pricing coming soon",
       },
@@ -1506,25 +1506,25 @@
       return {
         kicker: "Website Widget",
         title: "Website Widget",
-        copy: "Tune the optional embedded widget using the existing appearance, launcher, install, and allowed-domain settings.",
+        copy: "Tune the embedded Website Widget using the existing snippet, launcher, install-status, and allowed-domain settings.",
         ariaLabel: "Website Widget settings summary",
         saveLabel: "Save Website Widget",
         tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
         rows: [
           {
-            label: "Widget install",
+            label: "Embed/install status",
             value: installStatus.label || "Not installed yet",
             tone: installStatus.state === "seen_recently" ? "Ready" : installStatus.state === "installed_unseen" ? "Limited" : "Pending",
-            copy: "Uses the existing website install verification and embed flow.",
+            copy: "Uses the existing Website Widget snippet and install verification flow.",
           },
           {
             label: "Allowed domains",
             value: allowedDomainCount ? `${allowedDomainCount} domain${allowedDomainCount === 1 ? "" : "s"}` : "Not limited",
             tone: allowedDomainCount ? "Ready" : "Limited",
-            copy: "The current allowed-domains field controls where the widget should run.",
+            copy: "The current allowed-domains field controls where the Website Widget should run.",
           },
           {
-            label: "Launcher style",
+            label: "Launcher behavior",
             value: selectedPurposeOption.label || "Guidance",
             tone: "Ready",
             copy: `Uses the current assistant identity, button text, logo, and accent color ${primaryColor}.`,
@@ -1537,13 +1537,13 @@
       return {
         kicker: "Voice Agent",
         title: "Voice Agent",
-        copy: "Configure browser voice, spoken replies, and web-call readiness from the existing Front Desk voice settings.",
+        copy: "Configure browser voice, spoken replies, and Web Call readiness from the existing Voice Agent settings.",
         ariaLabel: "Voice Agent settings summary",
         saveLabel: "Save Voice Agent",
         tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
         rows: [
           {
-            label: "Browser voice",
+            label: "Browser voice/Web Call",
             value: webCallReady ? "Ready" : "Incomplete",
             tone: webCallReady ? "Ready" : "Pending",
             copy: "Web Call readiness still follows the existing access, AI capacity, and rate-limit checks.",
@@ -1573,7 +1573,7 @@
       tabs: getProductSettingsTabs(normalizedSection, details.activeTab),
       rows: [
         {
-          label: "Hosted full-page assistant",
+          label: "Hosted Front Desk page",
           value: fullPageConfig.publicPageEnabled ? "Live" : "Disabled",
           tone: fullPageConfig.publicPageEnabled ? "Ready" : "Pending",
           copy: fullPageConfig.publicPageEnabled
@@ -2335,7 +2335,7 @@
     const frontDeskTabClass = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "active" : "";
     const frontDeskTabSelected = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "true" : "false";
     const frontDeskTabButton = (tab, label) => visibleFrontDeskTabs.includes(normalizeFrontDeskSettingsTab(tab))
-      ? `<button class="settings-frontdesk-subnav-button ${frontDeskTabClass(tab)}" type="button" data-frontdesk-settings-tab="${escapeHtml(normalizeFrontDeskSettingsTab(tab))}" aria-selected="${frontDeskTabSelected(tab)}">${escapeHtml(label)}</button>`
+      ? `<button class="settings-frontdesk-subnav-button ${frontDeskTabClass(tab)}" type="button" data-frontdesk-settings-tab="${escapeHtml(normalizeFrontDeskSettingsTab(tab))}" aria-selected="${frontDeskTabSelected(tab)}">${escapeHtml(helpers.translateDashboardText(label))}</button>`
       : "";
     const frontDeskPanelAttrs = (tab) => normalizeFrontDeskSettingsTab(tab) === activeFrontDeskTab ? "" : "hidden";
     const fullPageTabClass = (tab) => normalizeFullPageSettingsTab(tab) === activeFullPageTab ? "active" : "";
@@ -2368,8 +2368,8 @@
         ready: voiceConfig.spokenRepliesEnabled === true,
       },
       {
-        label: "Front Desk browser voice",
-        copy: voiceConfig.webCallEnabled ? "Ready on the hosted Front Desk page." : "Enable browser voice last.",
+        label: "Web Call",
+        copy: voiceConfig.webCallEnabled ? "Ready on the hosted Front Desk page." : "Enable Web Call last.",
         ready: voiceConfig.webCallEnabled === true,
       },
     ];
@@ -2515,8 +2515,8 @@
               <div class="settings-web-call-readiness" aria-label="${escapeHtml(helpers.translateDashboardText("Browser voice readiness checklist"))}">
                 <div class="settings-web-call-readiness-header">
                   <div>
-                    <h4 class="settings-web-call-readiness-title">Browser voice setup</h4>
-                    <p class="settings-web-call-readiness-copy">Turn-based voice in the visitor's browser for the hosted Front Desk page. It is not a phone number or live full-duplex call. It requires voice input and spoken replies, and uses AI capacity and rate limits.</p>
+                    <h4 class="settings-web-call-readiness-title">Browser voice/Web Call setup</h4>
+                    <p class="settings-web-call-readiness-copy">Turn-based browser voice for the hosted Front Desk page. It requires voice input and spoken replies, and uses AI capacity and rate limits.</p>
                   </div>
                   <span class="${helpers.getBadgeClass(webCallReady ? "Ready" : "Pending")}" data-web-call-readiness-badge>${webCallReady ? "Ready" : "Incomplete"}</span>
                 </div>
@@ -2655,7 +2655,7 @@
                     <div class="field">
                       <label for="full-page-logo-url">Logo/avatar URL</label>
                       <input id="full-page-logo-url" name="full_page_logo_url" type="url" value="${escapeHtml(fullPageConfig.logoUrl || "")}" placeholder="https://example.com/logo.png">
-                      <p class="field-help">Optional. Leave blank to use the assistant initial or optional website bubble logo.</p>
+                      <p class="field-help">Optional. Leave blank to use the assistant initial or Website Widget logo.</p>
                     </div>
                   </div>
                   <div class="settings-full-page-toggle-row">
@@ -3021,8 +3021,8 @@
             <section class="settings-shell-section" data-frontdesk-settings-panel="appearance" ${frontDeskPanelAttrs("appearance")}>
               <div class="settings-shell-section-header">
                 <div>
-                  <h3 class="settings-shell-section-title">Optional website bubble</h3>
-                  <p class="settings-shell-section-copy">Configure the compact website chat bubble. This does not control the primary Front Desk page.</p>
+                  <h3 class="settings-shell-section-title">Website Widget launcher</h3>
+                  <p class="settings-shell-section-copy">Configure the compact Website Widget launcher. This does not control the primary Front Desk page.</p>
                 </div>
               </div>
               <div class="settings-shell-field-stack">
@@ -3861,7 +3861,7 @@
     const capabilities = [
       { label: "Workspace mode", value: workspaceMode.title },
       { label: "Website knowledge", value: importState.value },
-      { label: "Widget install", value: installStatus.label || "Not installed yet" },
+      { label: "Website Widget install", value: installStatus.label || "Not installed yet" },
       { label: "Gmail read", value: google.gmailRead ? "Connected" : "Not connected" },
       { label: "Calendar write", value: google.calendarWrite ? "Connected" : "Not connected" },
     ];

@@ -68,9 +68,9 @@
       {
         key: "widget",
         icon: "install",
-        title: "Website widget bubble",
-        copy: "Add a compact chat bubble only after the full-page Front Desk launch path is clear.",
-        status: installDetected ? "Secondary installed" : hasInstall ? "Secondary" : "Secondary",
+        title: "Website widget",
+        copy: "Copy the embed snippet, review allowed domains/status, and test the optional launcher.",
+        status: installDetected ? "Detected" : hasInstall ? "Snippet ready" : "Setup",
         tone: installDetected ? "ready" : "neutral",
       },
     ];
@@ -266,7 +266,7 @@
       }
 
       if (installStatus.state === "installed_unseen") {
-        return "The optional website bubble snippet was found on the site, but Vonza has not yet received a live visitor ping.";
+        return "The Website Widget snippet was found on the site, but Vonza has not yet received a live visitor ping.";
       }
 
       if (installStatus.state === "domain_mismatch") {
@@ -277,7 +277,7 @@
         return "Verification needs attention. Vonza either could not fetch the site or could not find the expected install snippet yet.";
       }
 
-      return "No website bubble install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.";
+      return "No Website Widget install detected yet. The Front Desk page can still launch through the public page, WordPress, smart embed, or QR/direct link.";
     }
 
     function getInstallStatusTone(installStatus = {}) {
@@ -467,13 +467,13 @@
           number: "2",
           title: "Configure",
           state: hasInstall || fullPageUrl || qrEndpoint ? "done" : "pending",
-          copy: "Copy the link, page embed, smart snippet, or optional bubble code.",
+          copy: "Copy the Front Desk link, page embed, smart snippet, or Website Widget snippet.",
         },
         {
           number: "3",
           title: "Verify",
           state: verifyDone ? "done" : "pending",
-          copy: "Confirm website embed or bubble installs after publishing.",
+          copy: "Confirm website embed or widget installs after publishing.",
         },
         {
           number: "4",
@@ -545,9 +545,9 @@
         },
         {
           key: "widget",
-          title: "Website widget bubble",
+          title: "Website Widget",
           label: "Secondary",
-          copy: "Optional compact launcher for normal website pages after the full-page launch path is prepared.",
+          copy: "Optional embedded launcher for normal website pages, with snippet, domain, status, and test tools.",
           state: isInstallDetected(installStatus) ? "Seen live" : hasInstall ? "Code ready" : "Not generated",
           tone: isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending",
           action: "widget",
@@ -679,7 +679,7 @@
             <div>
               <p class="install-option-eyebrow">Platform quick guides</p>
               <h3 class="install-platform-guides-title">Install-only website guidance</h3>
-              <p class="install-option-copy">Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the website bubble as a secondary launcher.</p>
+              <p class="install-option-copy">Start with the hosted AI Front Desk page. Use embeds when you want Front Desk inside a website page, and keep the Website Widget as a secondary launcher.</p>
             </div>
           </div>
           <div class="install-platform-grid">
@@ -767,7 +767,7 @@
             <p class="overview-label">Launch shortcuts</p>
             <button class="ghost-button" type="button" data-install-method-jump="page">View Front Desk page setup</button>
             <button class="ghost-button" type="button" data-action="copy-full-page-url" ${fullPageEnabled ? "" : "disabled"}>Copy Front Desk page link</button>
-            <button class="ghost-button" type="button" data-install-method-jump="widget">View optional website bubble</button>
+            <button class="ghost-button" type="button" data-install-method-jump="widget">View Website Widget setup</button>
             <button class="ghost-button" type="button" data-shell-target="settings" data-settings-target="front_desk">Customize Front Desk page</button>
           </section>
         </aside>
@@ -858,34 +858,34 @@
             <div class="install-option-header">
               <div>
                 <p class="install-option-eyebrow">Optional add-on</p>
-                <h3 class="install-option-title">Website widget bubble</h3>
-                <p class="install-option-copy">Paste this code into your website header only if you also want a compact chat launcher on normal website pages. Your Front Desk page stays the primary product.</p>
+                <h3 class="install-option-title">Website Widget embed</h3>
+                <p class="install-option-copy">Copy the Website Widget snippet for normal website pages, then review allowed domains, install status, launcher appearance, and a live test.</p>
               </div>
-              <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Optional installed" : hasInstall ? "Optional" : "Optional")}</span>
+              <span class="${getBadgeClass(isInstallDetected(installStatus) ? "Ready" : hasInstall ? "Limited" : "Pending")}">${escapeHtml(isInstallDetected(installStatus) ? "Detected" : hasInstall ? "Snippet ready" : "Setup")}</span>
             </div>
             <div class="install-cta-row">
-              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy website bubble code" ${hasInstall ? "" : "disabled"}>Copy website bubble code</button>
+              <button class="primary-button" type="button" data-action="copy-install" aria-label="Copy Website Widget snippet" ${hasInstall ? "" : "disabled"}>Copy widget snippet</button>
               <button class="ghost-button" type="button" data-action="verify-install" aria-label="${escapeHtml(t("install.verifyInstallation"))}" ${hasInstall ? "" : "disabled"}>${escapeHtml(t("install.verifyInstallation"))}</button>
-              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test website bubble</a>
+              <a class="test-link ${hasInstall ? "" : "disabled"}" data-action="open-preview" href="${hasInstall ? buildWidgetUrl(agent.publicAgentKey) : "#"}" target="_blank" rel="noreferrer">Test widget</a>
             </div>
             ${buildInstallCopyBlock({
               id: "install-script-output",
-              label: "Website widget bubble code",
+              label: "Website Widget embed snippet",
               value: script,
               rows: 5,
               buttonAction: "copy-install",
-              buttonLabel: "Copy bubble code",
+              buttonLabel: "Copy widget snippet",
               disabled: !hasInstall,
               className: "install-code-block",
             })}
-            <p class="install-help">Paste this once into your site header only when you want the optional bubble.</p>
+            <p class="install-help">Paste this once into your site header only when you want the Website Widget launcher.</p>
             <div class="install-detail-grid">
               <div class="install-detail-card" role="status" aria-live="polite" aria-label="Detected install status">
                 <span>Allowed domains</span>
                 ${buildInstallDomainChips(allowedDomains)}
               </div>
               <div class="install-detail-card">
-                <span>Detected install status</span>
+                <span>Widget install status</span>
                 <strong>${escapeHtml(installStatus.label || t("common.notInstalled"))}</strong>
                 <p>${escapeHtml(statusCopy)}</p>
                 ${recentSeenMarkup}

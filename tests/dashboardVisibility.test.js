@@ -751,7 +751,7 @@ test("product dashboard routes render product-specific home and sidebar copy", a
       pathname: "/dashboard/widget",
       title: /Website Widget home/,
       copy: /embedded on-site assistant/,
-      action: /Install\/embed setup/,
+      action: /Embed\/install snippet/,
       sidebar: /embedded on-site assistant/,
     },
     {
@@ -789,6 +789,9 @@ test("widget and voice product homes link to existing setup hashes without unsup
 
   assert.match(widgetHtml, /href="#install\/embed"/);
   assert.match(widgetHtml, /href="#settings\/widget\/optional-widget"/);
+  assert.match(widgetHtml, /Allowed domains\/status/);
+  assert.match(widgetHtml, /Launcher behavior/);
+  assert.match(widgetHtml, /Test widget/);
   assert.match(widgetHtml, /Widget conversations\/leads/);
 
   const voiceHarness = createDashboardHarness({
@@ -797,10 +800,15 @@ test("widget and voice product homes link to existing setup hashes without unsup
   });
   await voiceHarness.settle();
   const voiceHtml = voiceHarness.getRootHtml();
+  const voiceProductHome = voiceHtml.match(/data-product-context-panel="voice_agent"[\s\S]*?<div class="product-context-shared">/)?.[0] || "";
 
   assert.match(voiceHtml, /Browser\/Web Call status/);
-  assert.match(voiceHtml, /Web Call transcripts\/analytics/);
-  assert.doesNotMatch(voiceHtml, /telephony|phone handoff|Phone\/web-call/i);
+  assert.match(voiceProductHome, /Browser voice\/Web Call setup/);
+  assert.match(voiceProductHome, /Voice\/personality settings/);
+  assert.match(voiceProductHome, /Test voice agent/);
+  assert.match(voiceProductHome, /href="#settings\/voice\/voice"/);
+  assert.match(voiceProductHome, /Web Call transcripts\/analytics/);
+  assert.doesNotMatch(voiceProductHome, /telephony|phone|Phone\/web-call/i);
 });
 
 test("product dashboard routes render product-aware analytics links and customer empty states", async () => {
@@ -974,7 +982,7 @@ test("Install dashboard renders website platform guidance cards", async () => {
   assert.match(html, /data-install-platform="wordpress-woocommerce"/);
   assert.match(html, /data-install-platform="shopify"/);
   assert.match(html, /Use the hosted Front Desk page for the fastest launch/);
-  assert.match(html, /Website widget bubble/);
+  assert.match(html, /Website Widget embed/);
   assert.match(html, /data-install-id=&quot;install-1&quot;|data-install-id="install-1"/);
   assert.match(html, /data-agent-id=&quot;agent-1&quot;|data-agent-id="agent-1"/);
   assert.match(html, /data-public-page-key=&quot;page-key-1&quot;|data-public-page-key="page-key-1"/);
@@ -1020,8 +1028,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#install",
       marker: 'data-shell-section="install"',
-      expected: [/Élesítési útvonalak sorrendje/, /Hosztolt Front Desk oldal/, /WordPress \/ okos beágyazás/, /Weboldali widget buborék/],
-      englishLeak: /Launch path hierarchy|Fastest launch path|Website widget bubble|Copy website bubble code|Use this QR code/i,
+      expected: [/Élesítési útvonalak sorrendje/, /Hosztolt Front Desk oldal/, /WordPress \/ okos beágyazás/, /Weboldali widget|Website Widget/],
+      englishLeak: /Launch path hierarchy|Fastest launch path|Copy website bubble code|Use this QR code/i,
     },
     {
       hash: "#front-desk/knowledge",
@@ -1044,8 +1052,8 @@ test("Hungarian launch path copy localizes release-facing Install Front Desk and
     {
       hash: "#front-desk/customization/voice",
       marker: 'data-frontdesk-section="customization"',
-      expected: [/Böngészős hang beállítása/, /Fordulóalapú hang a látogató böngészőjében/, /Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
-      englishLeak: /Browser voice setup|Turn-based voice in the visitor's browser|Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
+      expected: [/Böngészős hang\/Webes hívás beállítása|Böngészős hang\/Web Call beállítása/, /Fordulóalapú böngészős hang a hosztolt Front Desk oldalhoz/, /Tulajdonosi hang QA szimulátor/, /A hangtesztek AI-kapacitást használnak/, /Átirat előnézete/, /Használat Gyakorlásban/],
+      englishLeak: /Browser voice\/Web Call setup|Turn-based browser voice for the hosted Front Desk page|Owner voice QA simulator|Voice tests use AI capacity|Transcript preview|Use in Practice/i,
     },
     {
       hash: "#settings/business-profile",
@@ -1179,7 +1187,8 @@ test("legacy Settings Front Desk hash redirects to Front Desk customization cont
   assert.match(harness.getRootHtml(), /Language behavior/);
   assert.match(harness.getRootHtml(), /Visitors can speak their question/);
   assert.match(harness.getRootHtml(), /Spoken replies are AI-generated on demand/);
-  assert.match(harness.getRootHtml(), /not a phone number/);
+  assert.match(harness.getRootHtml(), /Turn-based browser voice for the hosted Front Desk page/);
+  assert.doesNotMatch(harness.getRootHtml(), /not a phone number/);
   assert.match(harness.getRootHtml(), /requires voice input and spoken replies/);
   assert.match(harness.getRootHtml(), /Owner voice QA simulator/);
   assert.match(harness.getRootHtml(), /Record sample/);

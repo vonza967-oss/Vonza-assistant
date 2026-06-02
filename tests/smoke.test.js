@@ -2005,7 +2005,7 @@ test("dashboard bundle exposes password auth entry, purchase-first handoff, and 
         assert.match(dashboardInstallScript.text, /Setup progress/);
         assert.match(dashboardInstallScript.text, /Domain status/);
         assert.match(dashboardInstallScript.text, /View Front Desk page setup/);
-        assert.match(dashboardInstallScript.text, /Copy website bubble code/);
+        assert.match(dashboardInstallScript.text, /Copy widget snippet/);
         assert.match(dashboardInstallScript.text, /Verify installation/);
         assert.match(dashboardInstallScript.text, /Platform quick guides/);
         assert.match(dashboardInstallScript.text, /Generic HTML \/ smart embed/);

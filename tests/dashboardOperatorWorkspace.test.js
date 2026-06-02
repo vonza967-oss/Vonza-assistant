@@ -2035,7 +2035,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(voiceAgentSettings, /<h2 class="settings-shell-page-title">Voice Agent<\/h2>/);
   assert.match(voiceAgentSettings, /data-settings-section="voice_agent"/);
   assert.match(voiceAgentSettings, /data-frontdesk-settings-tab="voice"[\s\S]*aria-selected="true"/);
-  assert.match(voiceAgentSettings, /Browser voice setup/);
+  assert.match(voiceAgentSettings, /Browser voice\/Web Call setup/);
   assert.match(voiceAgentSettings, /Save Voice Agent/);
 
   assert.match(frontDeskCustomization, /<h2 class="settings-shell-page-title">Front Desk<\/h2>/);
@@ -2045,11 +2045,11 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(frontDeskCustomization, /settings-primary-color/);
   assert.match(frontDeskCustomization, /Enable browser voice for Front Desk/);
   assert.match(frontDeskCustomization, /name="web_call_enabled"/);
-  assert.match(frontDeskCustomization, /Browser voice setup/);
+  assert.match(frontDeskCustomization, /Browser voice\/Web Call setup/);
   assert.match(frontDeskCustomization, /Voice input[\s\S]*Enable voice input first/);
   assert.match(frontDeskCustomization, /Spoken replies[\s\S]*Enable spoken replies next/);
-  assert.match(frontDeskCustomization, /Front Desk browser voice[\s\S]*Enable browser voice last/);
-  assert.match(frontDeskCustomization, /Turn-based voice in the visitor's browser for the hosted Front Desk page/);
+  assert.match(frontDeskCustomization, /Web Call[\s\S]*Enable Web Call last/);
+  assert.match(frontDeskCustomization, /Turn-based browser voice for the hosted Front Desk page/);
   assert.match(frontDeskCustomization, /Open owner voice QA simulator/);
   const completeWebCallSettings = harness.window.VonzaSettingsShell.buildFrontDeskSettingsForm({
     agent: {
@@ -2066,7 +2066,7 @@ test("today copilot renders inside Today when the flag is on", () => {
   assert.match(completeWebCallSettings, /data-web-call-readiness-badge[^>]*>Ready<\/span>/);
   assert.match(completeWebCallSettings, /Voice input[\s\S]*Ready for microphone recording/);
   assert.match(completeWebCallSettings, /Spoken replies[\s\S]*Ready to generate browser audio/);
-  assert.match(completeWebCallSettings, /Front Desk browser voice[\s\S]*Ready on the hosted Front Desk page/);
+  assert.match(completeWebCallSettings, /Web Call[\s\S]*Ready on the hosted Front Desk page/);
   assert.match(frontDeskCustomization, /Current live readout/);
   assert.match(frontDeskCustomization, /data-settings-form data-form-kind="customize"/);
   assert.doesNotMatch(frontDeskCustomization, /business-summary|business-services|Save Business Profile|Website knowledge/);
@@ -3966,19 +3966,19 @@ test("install section stays focused on install methods and verification", () => 
   assert.match(markup, /data-install-method-tab="widget"/);
   assert.match(markup, /data-install-method-tab="page"/);
   assert.match(markup, /data-install-method-tab="qr"/);
-  assert.match(markup, />Website widget bubble</);
+  assert.match(markup, />Website widget</);
   assert.match(markup, />Front Desk page</);
   assert.match(markup, />QR \/ direct link</);
   assert.match(markup, /id="install-panel-widget"/);
   assert.match(markup, /id="install-panel-page" role="tabpanel" data-install-method-panel="page"/);
   assert.match(markup, /id="install-panel-qr" role="tabpanel" data-install-method-panel="qr" hidden/);
-  assert.match(widgetPanel, /Website widget bubble code/);
+  assert.match(widgetPanel, /Website Widget embed snippet/);
   assert.match(widgetPanel, /data-action="copy-install"/);
-  assert.match(widgetPanel, /Paste this once into your site header only when you want the optional bubble\./);
-  assert.match(widgetPanel, /Detected install status/);
+  assert.match(widgetPanel, /Paste this once into your site header only when you want the Website Widget launcher\./);
+  assert.match(widgetPanel, /Widget install status/);
   assert.match(widgetPanel, /example\.com/);
   assert.match(widgetPanel, /data-action="verify-install"/);
-  assert.match(widgetPanel, /Test website bubble/);
+  assert.match(widgetPanel, /Test widget/);
   assert.doesNotMatch(widgetPanel, /full-page-assistant-iframe|Iframe snippet|data-full-page-qr-preview|Target URL/);
   assert.match(pagePanel, /Choose how customers should open the AI Front Desk page/);
   assert.match(pagePanel, /Front Desk page link/);
@@ -4052,7 +4052,7 @@ test("install section stays focused on install methods and verification", () => 
   assert.doesNotMatch(pagePanel, /Use <code>size=compact<\/code>|Use <code>surface=flat<\/code>/);
   assert.doesNotMatch(pagePanel, /min-height:520px/);
   assert.match(pagePanel, /Customize Front Desk page/);
-  assert.doesNotMatch(pagePanel, /install-script-output|Website widget bubble code|Allowed domains/);
+  assert.doesNotMatch(pagePanel, /install-script-output|Website Widget embed snippet|Allowed domains/);
   assert.match(qrPanel, /data-full-page-qr-preview/);
   assert.match(qrPanel, /Download QR code/);
   assert.match(qrPanel, /Copy Front Desk page link/);
