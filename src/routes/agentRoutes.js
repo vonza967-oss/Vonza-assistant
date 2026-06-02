@@ -104,6 +104,7 @@ import {
   isStripeCheckoutMinimumAmountError,
   verifySuccessfulCheckout,
 } from "../services/billing/checkoutService.js";
+import { logStripeEntitlementShadow } from "../services/billing/stripeEntitlementShadowService.js";
 import {
   getOwnerBillingRecord,
   getOwnerBillingSnapshot,
@@ -314,6 +315,8 @@ export function createAgentRouter(deps = {}) {
   const changeStripeSubscriptionPlanImpl =
     deps.changeStripeSubscriptionPlan || changeStripeSubscriptionPlan;
   const constructStripeWebhookEventImpl = deps.constructStripeWebhookEvent || constructStripeWebhookEvent;
+  const logStripeEntitlementShadowImpl =
+    deps.logStripeEntitlementShadow || logStripeEntitlementShadow;
   const getOperatorWorkspaceSnapshotImpl =
     deps.getOperatorWorkspaceSnapshot || getOperatorWorkspaceSnapshot;
   const createGoogleConnectionStartImpl =
@@ -468,6 +471,21 @@ export function createAgentRouter(deps = {}) {
     };
   }
 
+  async function runStripeEntitlementShadow(input = {}) {
+    try {
+      await logStripeEntitlementShadowImpl(input);
+    } catch (error) {
+      console.warn("[stripe entitlement shadow] failed", {
+        event_id: cleanText(input.eventId) || null,
+        event_type: cleanText(input.eventType) || null,
+        owner_user_id: cleanText(input.ownerUserId) || null,
+        subscription_id: cleanText(input.subscription?.id) || null,
+        customer_id: cleanText(input.subscription?.customer) || null,
+        message: cleanText(error?.message || "Shadow logging failed."),
+      });
+    }
+  }
+
   router.post("/stripe/webhook", async (req, res) => {
     try {
       const supabase = getSupabase();
@@ -477,21 +495,41 @@ export function createAgentRouter(deps = {}) {
       });
 
       if (event.type === "checkout.session.completed") {
+        const checkoutSession = event.data?.object;
         const billingPayload = await buildBillingSyncPayloadFromCheckoutSessionImpl(
-          event.data?.object
+          checkoutSession
         );
 
         if (billingPayload) {
           await syncOwnerBillingStateImpl(supabase, billingPayload);
         }
+
+        if (checkoutSession?.subscription && typeof checkoutSession.subscription === "object") {
+          await runStripeEntitlementShadow({
+            eventId: event.id,
+            eventType: event.type,
+            ownerUserId: billingPayload?.ownerUserId,
+            subscription: checkoutSession.subscription,
+          });
+        }
+        // Otherwise checkout sync retrieves the subscription internally but does not expose
+        // it here. Phase 6G intentionally avoids adding a second Stripe retrieval for logs.
       } else if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+        const subscription = event.data?.object;
         const billingPayload = await buildBillingSyncPayloadFromSubscriptionImpl(
-          event.data?.object
+          subscription
         );
 
         if (billingPayload) {
           await syncOwnerBillingStateImpl(supabase, billingPayload);
         }
+
+        await runStripeEntitlementShadow({
+          eventId: event.id,
+          eventType: event.type,
+          ownerUserId: billingPayload?.ownerUserId,
+          subscription,
+        });
       }
 
       res.json({ received: true });

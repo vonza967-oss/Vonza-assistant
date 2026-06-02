@@ -180,7 +180,9 @@ test("hosted checkout maps each plan to its configured Stripe monthly price", as
 
         const payload = capturedPayloads.at(-1);
         assert.equal(payload.mode, "subscription");
+        assert.equal(payload.line_items.length, 1);
         assert.equal(payload.line_items[0].price, expectedPriceId);
+        assert.equal(payload.line_items[0].quantity, 1);
         assert.equal(payload.metadata.plan_key, planKey);
         assert.equal(payload.subscription_data.metadata.plan_key, planKey);
         assert.match(payload.success_url, new RegExp(`plan=${planKey}`));
