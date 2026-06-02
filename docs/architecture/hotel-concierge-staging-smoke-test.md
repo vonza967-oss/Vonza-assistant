@@ -8,6 +8,51 @@ This is a staging-only validation plan. It must not be used to activate broad pr
 
 ## Recorded Staging Result
 
+### Phase 2 PR H Action-Request Smoke Attempt
+
+Recorded on 2026-06-01.
+
+Result: blocked by the configured Supabase target before an action request row could be created.
+
+The run started a local app process with `HOTEL_CONCIERGE_ACTION_REQUESTS_ENABLED=1`, created one temporary owner-scoped hotel smoke business and agent, assigned the agent to `hotel_concierge` via `updateAgentPackageAssignment()`, and called the existing `/chat` route with:
+
+```text
+Please bring two bottles of water to room 412 tonight.
+```
+
+The chat request reached the action-request creation path, but the insert failed with:
+
+```text
+PGRST205: Could not find the table 'public.agent_action_requests' in the schema cache
+```
+
+Because the configured target did not expose the action-request table, these PR H live checks were not completed on that target:
+
+- deterministic staff-request acknowledgement after a persisted row exists
+- `agent_action_requests.status = 'new'`
+- `request_type = 'hotel.bring_water'`
+- persisted room `412`, quantity `2`, and preferred timing
+- authenticated owner-scoped `GET /agents/action-requests`
+- dashboard staff queue display backed by the live row
+- status update to `accepted` or `done`
+- enabled-flag safety prompt row counts
+- default-off row count assertion
+
+Cleanup result for smoke token `phase2-pr-h-1780336560654`:
+
+| Smoke-created record type | Remaining count |
+| --- | ---: |
+| `agents` | 0 |
+| `businesses` | 0 |
+| `website_content` | 0 |
+| `widget_configs` | 0 |
+| `messages` | 0 |
+| temporary auth user | deleted |
+
+No code changes were needed for this attempt. No schema or migration was added. No public route, dashboard/admin package selector, widget/embed change, external provider execution, policy enforcement, or public package switching was added. The feature remains off by default.
+
+Automated verification still covers the intended action-request behavior: flag-off default behavior, flag-on deterministic water request creation with room and quantity payload, no metadata exposure in the public reply, emergency/booking/payment/vague-help no-create cases, owner-scoped staff queue listing and status updates, dashboard rendering, and schema/catalog expectations. The live HTTP smoke should be rerun after the configured target has the existing `agent_action_requests` schema available.
+
 Recorded on 2026-06-01 after applying the staging DB constraint that allows `hotel_concierge`.
 
 Result: service-only Hotel Concierge staging smoke passed 6/6 public chat prompts.

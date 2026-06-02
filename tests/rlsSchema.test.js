@@ -44,7 +44,15 @@ const ownerProductEntitlementsMigrationSql = readFileSync(
   "supabase/migrations/20260530000000_owner_product_entitlements.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}`;
+const agentActionRequestsMigrationSql = readFileSync(
+  "supabase/migrations/20260601185631_agent_action_requests.sql",
+  "utf8"
+);
+const agentBookingRequestsMigrationSql = readFileSync(
+  "supabase/migrations/20260602135522_agent_booking_requests.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -91,6 +99,8 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agents",
     "messages",
     "agent_action_queue_statuses",
+    "agent_action_requests",
+    "agent_booking_requests",
     "agent_follow_up_workflows",
     "agent_contact_leads",
     "agent_knowledge_fix_workflows",

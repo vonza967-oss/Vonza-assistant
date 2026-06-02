@@ -49,6 +49,13 @@ import {
 } from "../rag/frontDeskRagService.js";
 import { getOperatorBusinessProfile } from "../operator/operatorBusinessProfileService.js";
 import { resolveAgentPackage } from "../agents/agentPackageResolver.js";
+import { buildHotelConciergeActionDraft } from "../actions/hotelConciergeActionDraftService.js";
+import { createAgentActionRequest } from "../actions/agentActionRequestService.js";
+import { createAgentBookingRequest } from "../bookings/agentBookingRequestService.js";
+import {
+  buildChatBookingRequestDraft,
+  isBookingRequestsFromChatEnabled,
+} from "../bookings/bookingRequestDraftService.js";
 import {
   buildEffectiveUserText,
   cleanText,
@@ -76,6 +83,10 @@ function normalizePublicDisplayMode(value) {
 function isAnswerContractReportOnlyEnabled(value) {
   const normalized = cleanText(value).toLowerCase().replace(/[\s_]+/g, "-");
   return ["1", "true", "enabled", "report-only", "report"].includes(normalized);
+}
+
+function isHotelConciergeActionRequestsEnabled(value = process.env.HOTEL_CONCIERGE_ACTION_REQUESTS_ENABLED) {
+  return ["1", "true", "enabled", "on"].includes(String(value || "").trim().toLowerCase());
 }
 
 export function normalizePublicConversationSource(value, options = {}) {
@@ -362,6 +373,8 @@ async function buildChatResponse({
   userMessageCreatedAt = null,
   storeMessages = storeAgentMessages,
   webCallSessionId = "",
+  actionRequest = null,
+  bookingRequest = null,
 }) {
   const entries = [
     storeUserMessage ? { role: "user", content: userMessage, createdAt: userMessageCreatedAt || undefined } : null,
@@ -397,6 +410,8 @@ async function buildChatResponse({
     leadCapture,
     directRouting,
     visitorIdentity: buildPublicVisitorIdentity(visitorIdentity),
+    ...(actionRequest ? { actionRequest } : {}),
+    ...(bookingRequest ? { bookingRequest } : {}),
     ...(speech ? { speech } : {}),
   };
 }
@@ -422,6 +437,18 @@ function resolveChatServiceDependencies(deps = {}) {
     selectRelevantApprovedAnswers: deps.selectRelevantApprovedAnswers || selectRelevantApprovedAnswers,
     retrieveSemanticKnowledge: deps.retrieveSemanticKnowledge || retrieveSemanticKnowledge,
     getOperatorBusinessProfile: deps.getOperatorBusinessProfile || getOperatorBusinessProfile,
+    buildHotelConciergeActionDraft: deps.buildHotelConciergeActionDraft || buildHotelConciergeActionDraft,
+    createAgentActionRequest: deps.createAgentActionRequest || createAgentActionRequest,
+    buildChatBookingRequestDraft: deps.buildChatBookingRequestDraft || buildChatBookingRequestDraft,
+    createAgentBookingRequest: deps.createAgentBookingRequest || createAgentBookingRequest,
+    hotelConciergeActionRequestsEnabled:
+      Object.prototype.hasOwnProperty.call(deps, "hotelConciergeActionRequestsEnabled")
+        ? deps.hotelConciergeActionRequestsEnabled
+        : isHotelConciergeActionRequestsEnabled,
+    bookingRequestsFromChatEnabled:
+      Object.prototype.hasOwnProperty.call(deps, "bookingRequestsFromChatEnabled")
+        ? deps.bookingRequestsFromChatEnabled
+        : isBookingRequestsFromChatEnabled,
     onEvidencePack: typeof deps.onEvidencePack === "function" ? deps.onEvidencePack : null,
     onAnswerContract: typeof deps.onAnswerContract === "function" ? deps.onAnswerContract : null,
     answerContractEnabled: deps.answerContractMode === true
@@ -429,6 +456,120 @@ function resolveChatServiceDependencies(deps = {}) {
       || isAnswerContractReportOnlyEnabled(process.env.FRONT_DESK_ANSWER_CONTRACT_MODE),
     answerContractIncludeClaimText: deps.answerContractIncludeClaimText === true,
   };
+}
+
+function resolveHotelConciergeActionRequestFlag(value) {
+  const resolvedValue = typeof value === "function" ? value() : value;
+
+  return resolvedValue === true || isHotelConciergeActionRequestsEnabled(resolvedValue);
+}
+
+function resolveBookingRequestsFromChatFlag(value) {
+  const resolvedValue = typeof value === "function" ? value() : value;
+
+  return resolvedValue === true || isBookingRequestsFromChatEnabled(resolvedValue);
+}
+
+function hasBlockingHotelConciergeActionSafetyNote(draft = {}) {
+  const safetyNotes = Array.isArray(draft.safetyNotes) ? draft.safetyNotes : [];
+
+  return safetyNotes.some((note) =>
+    /\b(emergency|urgent safety|safety|escalation|refus|pms|staff-only|booking|reservation|payment|checkout mutation|guest-record)\b/i.test(
+      cleanText(note)
+    )
+  );
+}
+
+function isCreatableHotelConciergeActionDraft(draft = {}) {
+  return draft.matched === true
+    && Boolean(cleanText(draft.actionKey))
+    && ["high", "medium"].includes(cleanText(draft.confidence).toLowerCase())
+    && !hasBlockingHotelConciergeActionSafetyNote(draft);
+}
+
+function hotelActionPhrase(actionKey, language) {
+  const hungarian = language === "Hungarian";
+  const phrases = {
+    "hotel.bring_water": hungarian ? "vízbekészítés" : "water",
+    "hotel.extra_towels": hungarian ? "extra törölközők vagy ágynemű" : "extra towels or linens",
+    "hotel.maintenance_issue": hungarian ? "karbantartási probléma" : "maintenance",
+    "hotel.late_checkout_request": hungarian ? "késői kijelentkezési kérés" : "late checkout request",
+    "hotel.housekeeping_request": hungarian ? "takarítási kérés" : "housekeeping",
+    "hotel.room_service_request": hungarian ? "szobaszerviz kérés" : "room service",
+    "hotel.staff_help": hungarian ? "személyzeti segítség" : "staff assistance",
+  };
+
+  return phrases[actionKey] || (hungarian ? "vendégkérés" : "guest request");
+}
+
+function buildHotelConciergeActionCreatedReply(draft, language) {
+  const phrase = hotelActionPhrase(draft.actionKey, language);
+
+  if (language === "Hungarian") {
+    return `Elküldtem ezt a kérést a hotel személyzetének átnézésre (${phrase}). Innen ők kezelik; ebben a chatben nem tudok időpontot garantálni.`;
+  }
+
+  return `I’ve sent this request to hotel staff for review (${phrase}). They’ll handle it from here; I can’t guarantee timing in this chat.`;
+}
+
+function buildHotelConciergeActionCreateFailedReply(draft, language) {
+  const phrase = hotelActionPhrase(draft.actionKey, language);
+
+  if (language === "Hungarian") {
+    return `Nem tudtam elküldeni ezt a hotel személyzetének ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a recepciót vagy a hotel személyzetét.`;
+  }
+
+  return `I couldn’t send this to hotel staff from this chat (${phrase}). Please contact the front desk or hotel staff directly.`;
+}
+
+function bookingRequestIntentPhrase(intentType, language) {
+  const hungarian = language === "Hungarian";
+  const phrases = {
+    booking_request: hungarian ? "időpontkérés" : "booking request",
+    availability_question: hungarian ? "elérhetőségi kérés" : "availability request",
+    cancel_request: hungarian ? "lemondási kérés" : "cancellation request",
+    reschedule_request: hungarian ? "módosítási kérés" : "change request",
+  };
+
+  return phrases[intentType] || (hungarian ? "kérés" : "request");
+}
+
+function bookingRequestedTimePhrase(draft = {}, language) {
+  const requestedTimeText = cleanText(draft.requestedTimeText);
+
+  if (!requestedTimeText) {
+    return "";
+  }
+
+  return language === "Hungarian"
+    ? ` a kért időpontra (${requestedTimeText})`
+    : ` for ${requestedTimeText}`;
+}
+
+function buildBookingRequestCreatedReply(draft, language) {
+  const phrase = bookingRequestIntentPhrase(draft.intentType, language);
+  const requestedTimePhrase = bookingRequestedTimePhrase(draft, language);
+
+  if (language === "Hungarian") {
+    return `Megkaptuk a kérésedet${requestedTimePhrase}, és elküldtük a munkatársaknak átnézésre (${phrase}). A vállalkozásnak közvetlenül kell egyeztetnie a részleteket. Ebben a chatben nincs időpont véglegesítve.`;
+  }
+
+  return `I received your request${requestedTimePhrase} and sent it to staff for review (${phrase}). The business will need to confirm the details directly. No time is confirmed in this chat.`;
+}
+
+function buildBookingRequestCreateFailedReply(draft, language) {
+  const phrase = bookingRequestIntentPhrase(draft.intentType, language);
+  const requestedTimeText = cleanText(draft?.requestedTimeText);
+
+  if (language === "Hungarian") {
+    return requestedTimeText
+      ? `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). A kért időpontot (${requestedTimeText}) innen nem tudom megerősíteni; ebben a chatben nincs időpont véglegesítve. Kérlek, keresd közvetlenül a vállalkozást.`
+      : `Nem tudtam elküldeni ezt a kérést a munkatársaknak ebből a chatből (${phrase}). Kérlek, keresd közvetlenül a vállalkozást; ebben a chatben nincs időpont véglegesítve.`;
+  }
+
+  return requestedTimeText
+    ? `I couldn’t send this request to staff from this chat (${phrase}). I cannot confirm ${requestedTimeText} from here; no time is confirmed in this chat. Please contact the business directly.`
+    : `I couldn’t send this request to staff from this chat (${phrase}). Please contact the business directly; no time is confirmed in this chat.`;
 }
 
 export function normalizeChatRequestBody(body) {
@@ -697,6 +838,187 @@ function buildLimitedKnowledgeResponse({
     conversationSource: request.conversationSource,
     webCallSessionId: webCallSession?.id || "",
   });
+}
+
+async function maybeBuildHotelConciergeActionRequestResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+    agentPackage,
+  } = publicContext;
+
+  if (agentPackage?.key !== "hotel_concierge") {
+    return null;
+  }
+
+  if (!resolveHotelConciergeActionRequestFlag(services.hotelConciergeActionRequestsEnabled)) {
+    return null;
+  }
+
+  const draft = services.buildHotelConciergeActionDraft({
+    message: request.message,
+    history: request.history,
+    guestContext: {
+      language: request.language,
+    },
+    language: request.language,
+  });
+
+  if (!isCreatableHotelConciergeActionDraft(draft)) {
+    return null;
+  }
+
+  const userMessageCreatedAt = new Date().toISOString();
+
+  try {
+    const actionRequest = await services.createAgentActionRequest(supabase, {
+      ownerUserId: agent.ownerUserId,
+      agentId: agent.id,
+      packageKey: "hotel_concierge",
+      requestType: draft.actionKey,
+      visitorSessionKey: request.sessionKey,
+      conversationSource: request.conversationSource,
+      displayMode: request.displayMode,
+      guestContext: draft.guestContext,
+      payload: draft.payload,
+      sourceMessage: draft.sourceMessage,
+    });
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildHotelConciergeActionCreatedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+      actionRequest: {
+        created: true,
+        status: actionRequest?.status || "new",
+        requestType: draft.actionKey,
+      },
+    });
+  } catch (error) {
+    console.warn("[hotel concierge] Action request creation failed; returning safe fallback.", {
+      agentId: agent.id,
+      requestType: draft.actionKey,
+      message: error?.message || "Unknown action request error",
+    });
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildHotelConciergeActionCreateFailedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+    });
+  }
+}
+
+async function maybeBuildChatBookingRequestResponse({
+  supabase,
+  request,
+  publicContext,
+  services,
+}) {
+  const {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession,
+  } = publicContext;
+
+  if (!resolveBookingRequestsFromChatFlag(services.bookingRequestsFromChatEnabled)) {
+    return null;
+  }
+
+  const draft = services.buildChatBookingRequestDraft({
+    message: request.message,
+    visitorIdentity: request.visitorIdentity,
+    ownerUserId: agent.ownerUserId,
+    agentId: agent.id,
+    businessId: business.id,
+    sessionKey: request.sessionKey,
+    displayMode: request.displayMode,
+    conversationSource: request.conversationSource,
+  });
+
+  if (!draft?.matched) {
+    return null;
+  }
+
+  const userMessageCreatedAt = new Date().toISOString();
+
+  try {
+    const createdRequest = await services.createAgentBookingRequest(supabase, draft.createPayload);
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildBookingRequestCreatedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+      bookingRequest: {
+        created: true,
+        status: createdRequest?.status || draft.status,
+      },
+    });
+  } catch (error) {
+    console.warn("[booking request] Chat request creation failed; returning safe fallback.", {
+      agentId: agent.id,
+      intentType: draft.intentType,
+      message: error?.message || "Unknown booking request error",
+    });
+
+    return services.buildChatResponse({
+      supabase,
+      agent,
+      businessId: business.id,
+      widgetConfig,
+      userMessage: request.message,
+      reply: buildBookingRequestCreateFailedReply(draft, request.language),
+      sessionKey: request.sessionKey,
+      visitorIdentity: request.visitorIdentity,
+      userMessageCreatedAt,
+      storeMessages: services.storeMessages,
+      displayMode: request.displayMode,
+      conversationSource: request.conversationSource,
+      webCallSessionId: webCallSession?.id || "",
+      bookingRequest: {
+        created: false,
+        status: draft.status,
+      },
+    });
+  }
 }
 
 async function assembleChatKnowledge({
@@ -1106,6 +1428,28 @@ export async function handleChatRequest({
       publicContext,
       services,
     });
+  }
+
+  const hotelConciergeActionResponse = await maybeBuildHotelConciergeActionRequestResponse({
+    supabase,
+    request,
+    publicContext,
+    services,
+  });
+
+  if (hotelConciergeActionResponse) {
+    return hotelConciergeActionResponse;
+  }
+
+  const bookingRequestResponse = await maybeBuildChatBookingRequestResponse({
+    supabase,
+    request,
+    publicContext,
+    services,
+  });
+
+  if (bookingRequestResponse) {
+    return bookingRequestResponse;
   }
 
   if (!websiteContent) {

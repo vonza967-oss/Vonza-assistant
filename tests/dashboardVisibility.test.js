@@ -221,6 +221,33 @@ function createDashboardHarness({
       });
     }
 
+    if (resolvedUrl.pathname === "/agents/action-requests") {
+      return buildResponse({
+        status: 200,
+        body: {
+          ok: true,
+          records: [],
+          summary: {
+            total: 0,
+            new: 0,
+            accepted: 0,
+            done: 0,
+            dismissed: 0,
+          },
+        },
+      });
+    }
+
+    if (resolvedUrl.pathname === "/agents/booking-requests") {
+      return buildResponse({
+        status: 200,
+        body: {
+          ok: true,
+          records: [],
+        },
+      });
+    }
+
     if (resolvedUrl.pathname === "/agents/front-desk/training-items") {
       return buildResponse({
         status: 200,
@@ -1244,6 +1271,174 @@ test("dashboard Home renders the real-data V2 snapshot without command-center pl
   assert.match(html, /Front Desk analytics will appear after customer conversations are recorded/);
   assert.doesNotMatch(html, /data-target-id="knowledge-improvement"/);
   assert.doesNotMatch(html, /data-target-id="notifications"/);
+});
+
+test("dashboard Home renders existing staff request records without package internals", async () => {
+  const harness = createDashboardHarness({
+    agents: () => [createActiveAgent()],
+    customFetch: async ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/action-requests") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            records: [
+              {
+                id: "request-1",
+                actionLabel: "Bring water",
+                actionDescription: "Request bottled water delivery.",
+                status: "new",
+                createdAt: "2026-06-01T10:00:00.000Z",
+                guestContext: {
+                  roomLabel: "402",
+                  guestName: "Mara",
+                  language: "en",
+                },
+                sourceMessage: "Could someone bring two bottles of water?",
+                payload: {
+                  quantity: 2,
+                  deliveryLocation: "Room 402",
+                  package_key: "hotel_concierge",
+                },
+                packageKey: "hotel_concierge",
+                requestType: "hotel.bring_water",
+                staffNotes: "Call before delivery.",
+              },
+            ],
+            summary: {
+              total: 1,
+              new: 1,
+              accepted: 0,
+              done: 0,
+              dismissed: 0,
+            },
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /Guest service requests/);
+  assert.match(html, /Bring water/);
+  assert.match(html, /Room 402/);
+  assert.match(html, /Guest Mara/);
+  assert.match(html, /Could someone bring two bottles of water/);
+  assert.match(html, /Quantity: 2/);
+  assert.match(html, /Call before delivery/);
+  assert.match(html, /data-staff-request-status-action/);
+  assert.match(html, />Accept</);
+  assert.match(html, />Mark done</);
+  assert.match(html, />Dismiss</);
+  assert.doesNotMatch(html, /hotel_concierge/);
+  assert.doesNotMatch(html, /front_desk_general/);
+  assert.doesNotMatch(html, /package_key|packageKey|agentPackage/);
+});
+
+test("dashboard staff request buttons are wired to the authenticated status API", () => {
+  const bundle = readFileSync(dashboardBundlePath, "utf8");
+
+  assert.match(bundle, /loadStaffActionRequests[\s\S]*\/agents\/action-requests/);
+  assert.match(bundle, /data-staff-request-status-action/);
+  assert.match(bundle, /fetchJson\("\/agents\/action-requests\/status"/);
+  assert.doesNotMatch(bundle, /name="package_key"|name="packageKey"|data-package-key|data-agent-package/i);
+});
+
+test("dashboard renders authenticated booking request review surface", async () => {
+  const harness = createDashboardHarness({
+    agents: [createActiveAgent()],
+    customFetch: ({ pathname, buildResponse }) => {
+      if (pathname === "/agents/booking-requests") {
+        return buildResponse({
+          status: 200,
+          body: {
+            ok: true,
+            records: [
+              {
+                id: "booking-request-1",
+                requestedService: "Consultation",
+                requestedTimeText: "Tomorrow afternoon",
+                customerName: "Ada Lovelace",
+                customerEmail: "ada@example.com",
+                customerPhone: "+15551234567",
+                status: "needs_staff_review",
+                statusReason: "Request received from Front Desk.",
+                staffNotes: "Check staff coverage before offering a time.",
+                createdAt: "2026-06-01T10:00:00.000Z",
+                agentLabel: "Main Front Desk",
+                businessLabel: "Example Studio",
+              },
+            ],
+          },
+        });
+      }
+
+      return null;
+    },
+  });
+  await harness.settle();
+
+  const html = harness.getRootHtml();
+
+  assert.match(html, /Booking requests/);
+  assert.match(html, /Consultation/);
+  assert.match(html, /Tomorrow afternoon/);
+  assert.match(html, /Ada Lovelace/);
+  assert.match(html, /ada@example\.com/);
+  assert.match(html, /\+15551234567/);
+  assert.match(html, /Needs staff review/);
+  assert.match(html, /Request received from Front Desk/);
+  assert.match(html, /Check staff coverage before offering a time/);
+  assert.match(html, /Main Front Desk/);
+  assert.match(html, /Example Studio/);
+  assert.match(html, /data-booking-request-status-action/);
+  assert.match(html, />Needs info</);
+  assert.match(html, />Offered</);
+  assert.match(html, />Declined</);
+  assert.match(html, />Expired</);
+  assert.doesNotMatch(html, /Confirm booking|Cancel booking|data-next-status="confirmed_externally"|data-next-status="cancelled_externally"/i);
+});
+
+test("dashboard fetches booking requests from the owner API", async () => {
+  const harness = createDashboardHarness({
+    agents: [createActiveAgent()],
+  });
+  await harness.settle();
+
+  const bookingFetch = harness.fetchCalls.find((call) => call.pathname === "/agents/booking-requests");
+
+  assert.ok(bookingFetch);
+  assert.equal(bookingFetch.options.method || "GET", "GET");
+});
+
+test("dashboard booking request status updates post to the owner API only", () => {
+  const bundle = readFileSync(dashboardBundlePath, "utf8");
+
+  assert.match(bundle, /loadBookingRequests[\s\S]*\/agents\/booking-requests/);
+  assert.match(bundle, /data-booking-request-status-action/);
+  assert.match(bundle, /fetchJson\("\/agents\/booking-requests\/status"/);
+  assert.match(bundle, /status_reason/);
+  assert.match(bundle, /staff_notes/);
+  assert.doesNotMatch(bundle, /fetchJson\("\/agents\/booking-requests",\s*\{[\s\S]{0,200}method:\s*"POST"/);
+  const reviewStatusBlock = bundle.match(/const BOOKING_REQUEST_REVIEW_STATUSES = Object\.freeze\(\[[\s\S]*?\]\);/)?.[0] || "";
+  assert.match(reviewStatusBlock, /needs_info/);
+  assert.match(reviewStatusBlock, /needs_staff_review/);
+  assert.match(reviewStatusBlock, /offered/);
+  assert.match(reviewStatusBlock, /declined/);
+  assert.match(reviewStatusBlock, /expired/);
+  assert.doesNotMatch(reviewStatusBlock, /confirmed_externally|cancelled_externally|Confirm booking|Cancel booking/i);
+});
+
+test("dashboard booking request surface keeps package keys and public creation hidden", () => {
+  const bundle = readFileSync(dashboardBundlePath, "utf8");
+
+  assert.doesNotMatch(bundle, /name="package_key"|name="packageKey"|data-package-key|data-agent-package/i);
+  assert.doesNotMatch(bundle, /createAgentBookingRequest|agentBookingRequestService/);
+  assert.doesNotMatch(bundle, /fetchJson\("\/booking-requests/);
 });
 
 test("Customers labels separate guest review from reachable follow-up", async () => {

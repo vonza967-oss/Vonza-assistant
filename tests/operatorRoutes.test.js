@@ -859,6 +859,203 @@ test("action queue route stays visible when outcome reporting fails", async () =
   }
 });
 
+test("action request routes reject unauthenticated list and update", async () => {
+  const authError = new Error("Unauthorized");
+  authError.statusCode = 401;
+  const server = await startServer(createApp(buildRouteDeps({
+    getAuthenticatedUser: async () => {
+      throw authError;
+    },
+    listAgentActionRequests: async () => {
+      throw new Error("list should not run");
+    },
+    updateAgentActionRequestStatus: async () => {
+      throw new Error("update should not run");
+    },
+  })));
+
+  try {
+    const listResponse = await requestJson(server.baseUrl, "/agents/action-requests?agent_id=agent-1");
+    const updateResponse = await requestJson(server.baseUrl, "/agents/action-requests/status", {
+      method: "POST",
+      body: JSON.stringify({
+        request_id: "request-1",
+        status: "accepted",
+      }),
+    });
+
+    assert.equal(listResponse.status, 401);
+    assert.equal(updateResponse.status, 401);
+  } finally {
+    await server.close();
+  }
+});
+
+test("action request list requires active owner access before listing records", async () => {
+  let accessCheck = null;
+  let listCalled = false;
+  const server = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async (_supabase, options) => {
+      accessCheck = options;
+      const error = new Error("Forbidden");
+      error.statusCode = 403;
+      throw error;
+    },
+    listAgentActionRequests: async () => {
+      listCalled = true;
+      return [];
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/action-requests?agent_id=agent-1&client_id=client-1");
+
+    assert.equal(response.status, 403);
+    assert.deepEqual(accessCheck, {
+      agentId: "agent-1",
+      ownerUserId: "owner-1",
+      clientId: "client-1",
+    });
+    assert.equal(listCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("action request list degrades when persistence schema is missing after access check", async () => {
+  let accessChecked = false;
+  const missingSchemaError = new Error("Could not find the table 'public.agent_action_requests' in the schema cache");
+  missingSchemaError.code = "PGRST205";
+  const server = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async () => {
+      accessChecked = true;
+      return { id: "agent-1", ownerUserId: "owner-1" };
+    },
+    listAgentActionRequests: async () => {
+      throw missingSchemaError;
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/action-requests?agent_id=agent-1");
+
+    assert.equal(response.status, 200);
+    assert.equal(accessChecked, true);
+    assert.deepEqual(response.json.records, []);
+    assert.equal(response.json.persistenceAvailable, false);
+    assert.equal(response.json.migrationRequired, true);
+  } finally {
+    await server.close();
+  }
+});
+
+test("action request list is owner and agent scoped and returns summary with safe labels", async () => {
+  let listPayload = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    listAgentActionRequests: async (_supabase, payload) => {
+      listPayload = payload;
+      return [
+        {
+          id: "request-1",
+          ownerUserId: payload.ownerUserId,
+          agentId: payload.agentId,
+          packageKey: "hotel_concierge",
+          requestType: "hotel.bring_water",
+          status: "new",
+          payload: { quantity: 2 },
+        },
+        {
+          id: "request-2",
+          ownerUserId: payload.ownerUserId,
+          agentId: payload.agentId,
+          packageKey: "hotel_concierge",
+          requestType: "hotel.extra_towels",
+          status: "accepted",
+          payload: { quantity: 4 },
+        },
+      ];
+    },
+  })));
+
+  try {
+    const response = await requestJson(
+      server.baseUrl,
+      "/agents/action-requests?agent_id=agent-1&status=new&package_key=hotel_concierge&request_type=hotel.bring_water&limit=20"
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.deepEqual(listPayload, {
+      ownerUserId: "owner-1",
+      agentId: "agent-1",
+      status: "new",
+      packageKey: "hotel_concierge",
+      requestType: "hotel.bring_water",
+      limit: "20",
+    });
+    assert.deepEqual(response.json.summary, {
+      total: 2,
+      new: 1,
+      accepted: 1,
+      done: 0,
+      dismissed: 0,
+    });
+    assert.equal(response.json.records[0].actionLabel, "Bring water");
+    assert.equal(response.json.records[0].actionDescription.includes("delivery"), true);
+    assert.equal("handler" in response.json.records[0], false);
+    assert.equal("callable" in response.json.records[0], false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("action request status update is owner-scoped, accepts staff notes, and does not create requests", async () => {
+  let updatePayload = null;
+  let listCalled = false;
+  const server = await startServer(createApp(buildRouteDeps({
+    listAgentActionRequests: async () => {
+      listCalled = true;
+      return [];
+    },
+    updateAgentActionRequestStatus: async (_supabase, payload) => {
+      updatePayload = payload;
+      return {
+        id: payload.requestId,
+        ownerUserId: payload.ownerUserId,
+        agentId: "agent-1",
+        requestType: "hotel.extra_towels",
+        status: payload.status,
+        staffNotes: payload.staffNotes,
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/action-requests/status", {
+      method: "POST",
+      body: JSON.stringify({
+        request_id: "request-1",
+        status: "done",
+        staff_notes: "Delivered by night shift.",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.deepEqual(updatePayload, {
+      ownerUserId: "owner-1",
+      requestId: "request-1",
+      status: "done",
+      staffNotes: "Delivered by night shift.",
+    });
+    assert.equal(response.json.request.actionLabel, "Extra towels");
+    assert.equal(response.json.request.staffNotes, "Delivered by night shift.");
+    assert.equal(listCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
 test("operator activation route persists onboarding progress for the owner scope", async () => {
   const server = await startServer(createApp(buildRouteDeps()));
 

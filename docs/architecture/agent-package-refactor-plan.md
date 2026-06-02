@@ -60,6 +60,8 @@ PR 12 records the activation readiness checkpoint in `docs/architecture/agent-pa
 
 PR 14 widens `agents_package_key_check` to allow `hotel_concierge` for controlled internal/service-level assignment only. Dashboard package UI, public switching, runtime tools, and enforcement remain off.
 
+The next architecture track is the Phase 2 Product Runtime Engine plan in `docs/architecture/product-runtime-engine-plan.md`. That plan is intentionally separate from the completed prompt/eval package refactor. It describes future product-package declarations for surfaces, settings, data requirements, action requests, staff workflows, eval gates, and activation gates without changing current runtime behavior.
+
 ## Phased Plan
 
 ### Phase 0: Documentation and Baseline (completed)
@@ -187,3 +189,5 @@ Future behavior-changing package PRs should run the relevant parts of the refact
 - `git diff --check`
 
 If public assistant, widget, embed, dashboard UI, or web-call behavior is touched, run the corresponding browser checks before merge.
+
+Product Runtime Engine implementation PRs should also preserve the separation between package declarations and execution. Action requests should be staff-visible before any real-world action happens, live provider tools should require explicit integration configuration, and activation gate enforcement should be scoped separately from answer mutation or policy enforcement.

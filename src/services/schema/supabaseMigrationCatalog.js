@@ -352,6 +352,24 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "required",
     note: "Widens the agent package key constraint to allow controlled internal Hotel Concierge assignment while preserving the Front Desk default.",
   }),
+  Object.freeze({
+    id: "agent_action_requests",
+    version: "20260601185631",
+    name: "agent_action_requests",
+    file: "supabase/migrations/20260601185631_agent_action_requests.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds package-neutral owner-scoped action request persistence for future package-owned workflows without runtime execution wiring.",
+  }),
+  Object.freeze({
+    id: "agent_booking_requests",
+    version: "20260602135522",
+    name: "agent_booking_requests",
+    file: "supabase/migrations/20260602135522_agent_booking_requests.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds generic owner-scoped booking request persistence and read-only owner RLS for future staff review workflows without public chat or provider booking behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

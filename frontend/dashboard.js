@@ -7881,6 +7881,291 @@ function buildProductSetupPanel(agent, messages, setup, actionQueue, operatorWor
   `);
 }
 
+function getStaffRequestStatusLabel(status = "") {
+  const normalized = trimText(status).toLowerCase();
+  if (normalized === "accepted") return "Accepted";
+  if (normalized === "done") return "Done";
+  if (normalized === "dismissed") return "Dismissed";
+  return "New";
+}
+
+const BOOKING_REQUEST_REVIEW_STATUSES = Object.freeze([
+  "needs_info",
+  "needs_staff_review",
+  "offered",
+  "declined",
+  "expired",
+]);
+
+function getBookingRequestStatusLabel(status = "") {
+  const normalized = trimText(status).toLowerCase();
+  const labels = {
+    request_received: "Request received",
+    needs_info: "Needs info",
+    needs_staff_review: "Needs staff review",
+    offered: "Offered",
+    confirmed_externally: "Confirmed externally",
+    declined: "Declined",
+    cancel_requested: "Cancel requested",
+    reschedule_requested: "Reschedule requested",
+    cancelled_externally: "Cancelled externally",
+    expired: "Expired",
+  };
+
+  return labels[normalized] || "Request received";
+}
+
+function getBookingRequestBadgeTone(status = "") {
+  const normalized = trimText(status).toLowerCase();
+
+  if (normalized === "offered") return "Ready";
+  if (normalized === "declined" || normalized === "expired") return "Limited";
+  if (normalized === "needs_info" || normalized === "needs_staff_review") return "Pending";
+  if (normalized === "confirmed_externally" || normalized === "cancelled_externally") return "Ready";
+  return "Pending";
+}
+
+function buildBookingRequestStatusButton(record, status) {
+  const isCurrent = trimText(record.status).toLowerCase() === status;
+  return `
+    <button
+      class="glass-mini-button"
+      type="button"
+      data-booking-request-status-action
+      data-request-id="${escapeHtml(record.id || "")}"
+      data-next-status="${escapeHtml(status)}"
+      ${isCurrent ? "disabled" : ""}
+    >${escapeHtml(getBookingRequestStatusLabel(status))}</button>
+  `;
+}
+
+function getBookingRequestContactSummary(record = {}) {
+  return [
+    record.customerName || record.customer_name,
+    record.customerEmail || record.customer_email,
+    record.customerPhone || record.customer_phone,
+  ].map(trimText).filter(Boolean).join(" · ") || "Customer details not captured";
+}
+
+function getBookingRequestRelationSummary(record = {}) {
+  const agentLabel = trimText(record.agentName || record.agentLabel || record.agent_name || record.agent_label);
+  const businessLabel = trimText(record.businessName || record.businessLabel || record.business_name || record.business_label);
+  const parts = [
+    agentLabel ? `Agent: ${agentLabel}` : (trimText(record.agentId || record.agent_id) ? "Agent linked" : ""),
+    businessLabel ? `Business: ${businessLabel}` : (trimText(record.businessId || record.business_id) ? "Business linked" : ""),
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function buildBookingRequestReviewCard(bookingRequests = createEmptyActionQueue().bookingRequests) {
+  const records = Array.isArray(bookingRequests.records) ? bookingRequests.records : [];
+  const summary = {
+    ...createEmptyActionQueue().bookingRequests.summary,
+    ...(bookingRequests.summary || {}),
+  };
+  const summaryCopy = records.length
+    ? `${summary.requestReceived || 0} request received · ${summary.needsStaffReview || 0} needs staff review · ${summary.offered || 0} offered`
+    : "There are no booking requests yet.";
+  const recordMarkup = records.slice(0, 6).map((record) => {
+    const status = trimText(record.status).toLowerCase() || "request_received";
+    const service = trimText(record.requestedService || record.requested_service) || "Service not specified";
+    const requestedTime = trimText(record.requestedTimeText || record.requested_time_text) || "Requested time not specified";
+    const statusReasonId = `booking-request-reason-${escapeHtml(record.id || "")}`;
+    const notesId = `booking-request-notes-${escapeHtml(record.id || "")}`;
+    const statusReason = trimText(record.statusReason || record.status_reason);
+    const staffNotes = trimText(record.staffNotes || record.staff_notes);
+    const relationSummary = getBookingRequestRelationSummary(record);
+    const proofRequired = status === "confirmed_externally" || status === "cancelled_externally";
+
+    return `
+      <article class="insight-item insight-item--blue" data-booking-request-record data-request-id="${escapeHtml(record.id || "")}">
+        <span aria-hidden="true">${buildV2Icon(status === "offered" ? "check" : "calendar")}</span>
+        <div>
+          <div class="workspace-record-row-top">
+            <strong>${escapeHtml(service)}</strong>
+            <span class="${getBadgeClass(getBookingRequestBadgeTone(status))}">${escapeHtml(getBookingRequestStatusLabel(status))}</span>
+          </div>
+          <p>${escapeHtml(requestedTime)}</p>
+          <p>${escapeHtml(getBookingRequestContactSummary(record))}</p>
+          ${statusReason ? `<p>Status reason: ${escapeHtml(statusReason)}</p>` : ""}
+          ${staffNotes ? `<p>Staff notes: ${escapeHtml(staffNotes)}</p>` : ""}
+          ${relationSummary ? `<p>${escapeHtml(relationSummary)}</p>` : ""}
+          ${record.createdAt || record.created_at ? `<p class="workspace-record-row-meta">${escapeHtml(formatSeenAt(record.createdAt || record.created_at))}</p>` : ""}
+          ${proofRequired ? `<p class="workspace-record-row-meta">Proof-required status. Review proof outside casual dashboard actions.</p>` : ""}
+          <label class="field" for="${statusReasonId}">
+            <span>Status reason</span>
+            <textarea id="${statusReasonId}" data-booking-request-status-reason data-request-id="${escapeHtml(record.id || "")}" rows="2">${escapeHtml(statusReason)}</textarea>
+          </label>
+          <label class="field" for="${notesId}">
+            <span>Staff notes</span>
+            <textarea id="${notesId}" data-booking-request-staff-notes data-request-id="${escapeHtml(record.id || "")}" rows="2">${escapeHtml(staffNotes)}</textarea>
+          </label>
+          <div class="workspace-badge-row">
+            ${BOOKING_REQUEST_REVIEW_STATUSES.map((nextStatus) => buildBookingRequestStatusButton(record, nextStatus)).join("")}
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="glass-home-bottom">
+      <article class="glass-card" data-booking-request-review>
+        <div class="glass-card-header">
+          <div>
+            <h2 class="glass-card-title">Booking requests</h2>
+            <p class="glass-card-copy">${escapeHtml(summaryCopy)}</p>
+          </div>
+        </div>
+        <div class="insight-list">
+          ${records.length ? recordMarkup : `<div class="glass-empty-state">There are no booking requests yet.</div>`}
+        </div>
+      </article>
+    </section>
+  `;
+}
+
+function formatStaffRequestFieldLabel(key = "") {
+  return trimText(key)
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+
+function shouldShowStaffRequestField(key = "") {
+  const compactKey = trimText(key).replace(/[-_]/g, "").toLowerCase();
+  const pkgKey = ["pack", "age", "key"].join("");
+  const ownerProductKey = ["agent", "pack", "age"].join("");
+
+  return compactKey !== pkgKey && compactKey !== ownerProductKey;
+}
+
+function summarizeStaffRequestValue(value) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(summarizeStaffRequestValue).filter(Boolean).join(", ");
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value)
+      .filter(([key]) => shouldShowStaffRequestField(key))
+      .map(([key, nestedValue]) => {
+        const valueLabel = summarizeStaffRequestValue(nestedValue);
+        return valueLabel ? `${formatStaffRequestFieldLabel(key)}: ${valueLabel}` : "";
+      })
+      .filter(Boolean)
+      .join("; ");
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Yes" : "No";
+  }
+
+  return trimText(String(value));
+}
+
+function summarizeStaffRequestRecordFields(record = {}, fieldName = "payload") {
+  const source = record?.[fieldName] && typeof record[fieldName] === "object" ? record[fieldName] : {};
+
+  return Object.entries(source)
+    .filter(([key]) => shouldShowStaffRequestField(key))
+    .map(([key, value]) => {
+      const valueLabel = summarizeStaffRequestValue(value);
+      return valueLabel ? `${formatStaffRequestFieldLabel(key)}: ${valueLabel}` : "";
+    })
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function getStaffRequestGuestSummary(record = {}) {
+  const context = record.guestContext || record.guest_context || {};
+  const parts = [
+    context.roomLabel ? `Room ${context.roomLabel}` : "",
+    context.guestName ? `Guest ${context.guestName}` : "",
+    context.language ? `Language ${context.language}` : "",
+  ].map(trimText).filter(Boolean);
+
+  return parts.join(" · ") || "Guest context not captured";
+}
+
+function buildStaffRequestActionButton(record, status, label) {
+  return `
+    <button
+      class="glass-mini-button"
+      type="button"
+      data-staff-request-status-action
+      data-request-id="${escapeHtml(record.id || "")}"
+      data-next-status="${escapeHtml(status)}"
+    >${escapeHtml(label)}</button>
+  `;
+}
+
+function buildStaffRequestQueueCard(staffRequests = createEmptyActionQueue().staffRequests) {
+  const records = Array.isArray(staffRequests.records) ? staffRequests.records : [];
+  const summary = {
+    ...createEmptyActionQueue().staffRequests.summary,
+    ...(staffRequests.summary || {}),
+  };
+
+  const recordMarkup = records.slice(0, 6).map((record) => {
+    const status = trimText(record.status).toLowerCase() || "new";
+    const canAct = status === "new" || status === "accepted";
+    const payloadSummary = summarizeStaffRequestRecordFields(record, "payload") || "No request details captured";
+    const sourceSnippet = trimText(record.sourceMessage || record.source_message);
+    const notesId = `staff-request-notes-${escapeHtml(record.id || "")}`;
+
+    return `
+      <article class="insight-item insight-item--teal" data-staff-request-record data-request-id="${escapeHtml(record.id || "")}">
+        <span aria-hidden="true">${buildV2Icon(status === "done" ? "check" : "bell")}</span>
+        <div>
+          <div class="workspace-record-row-top">
+            <strong>${escapeHtml(record.actionLabel || "Guest service request")}</strong>
+            <span class="pill">${escapeHtml(getStaffRequestStatusLabel(status))}</span>
+          </div>
+          ${record.actionDescription ? `<p>${escapeHtml(record.actionDescription)}</p>` : ""}
+          <p>${escapeHtml(getStaffRequestGuestSummary(record))}</p>
+          <p>${escapeHtml(payloadSummary)}</p>
+          ${sourceSnippet ? `<p>${escapeHtml(sourceSnippet.slice(0, 180))}</p>` : ""}
+          ${record.createdAt || record.created_at ? `<p class="workspace-record-row-meta">${escapeHtml(formatSeenAt(record.createdAt || record.created_at))}</p>` : ""}
+          <label class="field" for="${notesId}">
+            <span>Staff notes</span>
+            <textarea id="${notesId}" data-staff-request-notes data-request-id="${escapeHtml(record.id || "")}" rows="2">${escapeHtml(record.staffNotes || record.staff_notes || "")}</textarea>
+          </label>
+          ${canAct ? `
+            <div class="workspace-badge-row">
+              ${status === "new" ? buildStaffRequestActionButton(record, "accepted", "Accept") : ""}
+              ${buildStaffRequestActionButton(record, "done", "Mark done")}
+              ${buildStaffRequestActionButton(record, "dismissed", "Dismiss")}
+            </div>
+          ` : ""}
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="glass-home-bottom">
+      <article class="glass-card" data-staff-request-queue>
+        <div class="glass-card-header">
+          <div>
+            <h2 class="glass-card-title">Guest service requests</h2>
+            <p class="glass-card-copy">${escapeHtml(records.length ? `${summary.new || 0} new · ${summary.accepted || 0} accepted · ${summary.done || 0} done` : "No guest service requests yet.")}</p>
+          </div>
+        </div>
+        <div class="insight-list">
+          ${records.length ? recordMarkup : `<div class="glass-empty-state">No guest service requests yet.</div>`}
+        </div>
+      </article>
+    </section>
+  `;
+}
+
 function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
   const overview = buildOverviewState(agent, messages, setup, actionQueue);
   const productHomeContext = typeof dashboardState.getDashboardProductHomeContext === "function"
@@ -8599,6 +8884,8 @@ function buildOverviewPanel(agent, messages, setup, actionQueue, operatorWorkspa
               live: frontDeskLive,
             })}
           </section>
+          ${buildStaffRequestQueueCard(actionQueue.staffRequests)}
+          ${buildBookingRequestReviewCard(actionQueue.bookingRequests)}
           ${legacyHomeContractMarkup}
         </div>
       </div>
@@ -9799,6 +10086,30 @@ function createEmptyActionQueue() {
         dismissed: 0,
         active: 0,
         total: 0,
+      },
+      persistenceAvailable: true,
+    },
+    staffRequests: {
+      records: [],
+      summary: {
+        total: 0,
+        new: 0,
+        accepted: 0,
+        done: 0,
+        dismissed: 0,
+      },
+      persistenceAvailable: true,
+    },
+    bookingRequests: {
+      records: [],
+      summary: {
+        total: 0,
+        requestReceived: 0,
+        needsInfo: 0,
+        needsStaffReview: 0,
+        offered: 0,
+        declined: 0,
+        expired: 0,
       },
       persistenceAvailable: true,
     },
@@ -13721,6 +14032,63 @@ async function loadActionQueue(agentId) {
   };
 }
 
+function normalizeStaffRequestQueue(data = null) {
+  const empty = createEmptyActionQueue().staffRequests;
+  const summary = data?.summary || {};
+
+  return {
+    ...empty,
+    records: Array.isArray(data?.records) ? data.records : [],
+    summary: {
+      ...empty.summary,
+      total: Number(summary.total || 0),
+      new: Number(summary.new || 0),
+      accepted: Number(summary.accepted || 0),
+      done: Number(summary.done || 0),
+      dismissed: Number(summary.dismissed || 0),
+    },
+    persistenceAvailable: data?.persistenceAvailable !== false,
+  };
+}
+
+async function loadStaffActionRequests(agentId) {
+  const url = new URL("/agents/action-requests", window.location.origin);
+  url.searchParams.set("agent_id", agentId);
+  url.searchParams.set("client_id", getClientId());
+  const data = await fetchJson(url.toString());
+  return normalizeStaffRequestQueue(data);
+}
+
+function normalizeBookingRequestQueue(data = null) {
+  const empty = createEmptyActionQueue().bookingRequests;
+  const records = Array.isArray(data?.records) ? data.records : [];
+  const countByStatus = (status) => records.filter((record) => trimText(record.status).toLowerCase() === status).length;
+
+  return {
+    ...empty,
+    records,
+    summary: {
+      ...empty.summary,
+      total: records.length,
+      requestReceived: countByStatus("request_received"),
+      needsInfo: countByStatus("needs_info"),
+      needsStaffReview: countByStatus("needs_staff_review"),
+      offered: countByStatus("offered"),
+      declined: countByStatus("declined"),
+      expired: countByStatus("expired"),
+    },
+    persistenceAvailable: data?.persistenceAvailable !== false,
+  };
+}
+
+async function loadBookingRequests() {
+  const url = new URL("/agents/booking-requests", window.location.origin);
+  url.searchParams.set("client_id", getClientId());
+  url.searchParams.set("limit", "25");
+  const data = await fetchJson(url.toString());
+  return normalizeBookingRequestQueue(data);
+}
+
 async function loadOwnerAnalyticsDashboard(agentId) {
   const url = new URL("/dashboard/analytics/summary", window.location.origin);
   url.searchParams.set("agent_id", agentId);
@@ -14029,22 +14397,32 @@ function coalesceWorkspaceLoadState({
   messagesResult,
   trainingResult,
   actionQueueResult,
+  actionRequestsResult,
+  bookingRequestsResult,
   ownerAnalyticsResult,
   operatorResult,
 } = {}) {
-  const partialErrors = [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult]
+  const partialErrors = [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult]
     .filter((result) => result?.status === "rejected")
     .map((result) => trimText(result.reason?.message || result.reason))
     .filter(Boolean);
   const actionQueue = actionQueueResult?.status === "fulfilled"
     ? actionQueueResult.value
     : createEmptyActionQueue();
+  const staffRequests = actionRequestsResult?.status === "fulfilled"
+    ? actionRequestsResult.value
+    : createEmptyActionQueue().staffRequests;
+  const bookingRequests = bookingRequestsResult?.status === "fulfilled"
+    ? bookingRequestsResult.value
+    : createEmptyActionQueue().bookingRequests;
 
   return {
     messages: messagesResult?.status === "fulfilled" ? messagesResult.value : [],
     frontDeskTraining: trainingResult?.status === "fulfilled" ? trainingResult.value : createEmptyFrontDeskTraining(),
     actionQueue: {
       ...actionQueue,
+      staffRequests,
+      bookingRequests,
       ownerAnalyticsDashboard: ownerAnalyticsResult?.status === "fulfilled"
         ? ownerAnalyticsResult.value
         : actionQueue.ownerAnalyticsDashboard || null,
@@ -14058,7 +14436,7 @@ function coalesceWorkspaceLoadState({
           globalError: "We couldn't load the customer service workspace.",
         },
       },
-    hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
+    hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
     partialErrors,
   };
 }
@@ -14098,11 +14476,13 @@ async function refreshAgentInstallState(agentId, options = {}) {
 
   setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
   try {
-    const [agentResult, messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
+    const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
       loadAgentInstallSnapshot(agentId),
       loadAgentMessages(agentId),
       loadFrontDeskTraining(agentId),
       loadActionQueue(agentId),
+      loadStaffActionRequests(agentId),
+      loadBookingRequests(),
       loadOwnerAnalyticsDashboard(agentId),
       loadOperatorWorkspaceSafe(agentId, {
         forceSync: options.forceSync === true,
@@ -14114,12 +14494,20 @@ async function refreshAgentInstallState(agentId, options = {}) {
     const actionQueue = actionQueueResult.status === "fulfilled"
       ? {
         ...actionQueueResult.value,
+        staffRequests: actionRequestsResult.status === "fulfilled"
+          ? actionRequestsResult.value
+          : createEmptyActionQueue().staffRequests,
+        bookingRequests: bookingRequestsResult.status === "fulfilled"
+          ? bookingRequestsResult.value
+          : createEmptyActionQueue().bookingRequests,
         ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled"
           ? ownerAnalyticsResult.value
           : actionQueueResult.value?.ownerAnalyticsDashboard || null,
       }
       : {
         ...createEmptyActionQueue(),
+        staffRequests: actionRequestsResult.status === "fulfilled" ? actionRequestsResult.value : createEmptyActionQueue().staffRequests,
+        bookingRequests: bookingRequestsResult.status === "fulfilled" ? bookingRequestsResult.value : createEmptyActionQueue().bookingRequests,
         ownerAnalyticsDashboard: ownerAnalyticsResult.status === "fulfilled" ? ownerAnalyticsResult.value : null,
       };
     const operatorWorkspace = operatorResult.status === "fulfilled"
@@ -14154,7 +14542,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
     };
     renderWorkspaceFromState();
 
-    if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
+    if (messagesResult.status === "rejected" || trainingResult.status === "rejected" || actionQueueResult.status === "rejected" || actionRequestsResult.status === "rejected" || bookingRequestsResult.status === "rejected" || ownerAnalyticsResult.status === "rejected" || operatorResult.status === "rejected") {
       setStatus("Some workspace panels could not refresh, but the dashboard stayed open.");
     }
   } finally {
@@ -15655,6 +16043,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const actionQueueStatusInputs = document.querySelectorAll("[data-action-queue-status]");
   const actionQueueForms = document.querySelectorAll("[data-action-queue-form]");
   const actionQueueToggleButtons = document.querySelectorAll("[data-action-queue-toggle]");
+  const staffRequestStatusButtons = document.querySelectorAll("[data-staff-request-status-action]");
+  const bookingRequestStatusButtons = document.querySelectorAll("[data-booking-request-status-action]");
   const followUpForms = document.querySelectorAll("[data-follow-up-form]");
   const followUpStatusButtons = document.querySelectorAll("[data-follow-up-status-action]");
   const knowledgeFixForms = document.querySelectorAll("[data-knowledge-fix-form]");
@@ -17588,6 +17978,72 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     });
   });
 
+  staffRequestStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const requestId = button.dataset.requestId || "";
+      const nextStatus = button.dataset.nextStatus || "";
+      const notesInput = document.querySelector(`[data-staff-request-notes][data-request-id="${requestId}"]`);
+      const previousDisabled = button.disabled;
+
+      button.disabled = true;
+      setStatus("Updating guest service request...");
+
+      try {
+        await fetchJson("/agents/action-requests/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            status: nextStatus,
+            staff_notes: trimText(notesInput?.value || ""),
+          }),
+        });
+        setStatus(`Guest service request marked ${getStaffRequestStatusLabel(nextStatus).toLowerCase()}.`);
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "staff-request-status" });
+      } catch (error) {
+        setStatus(error.message || "We couldn't update that guest service request.");
+      } finally {
+        button.disabled = previousDisabled;
+      }
+    });
+  });
+
+  bookingRequestStatusButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const requestId = button.dataset.requestId || "";
+      const nextStatus = button.dataset.nextStatus || "";
+      const reasonInput = document.querySelector(`[data-booking-request-status-reason][data-request-id="${requestId}"]`);
+      const notesInput = document.querySelector(`[data-booking-request-staff-notes][data-request-id="${requestId}"]`);
+      const previousDisabled = button.disabled;
+
+      button.disabled = true;
+      setStatus("Updating booking request...");
+
+      try {
+        await fetchJson("/agents/booking-requests/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            request_id: requestId,
+            status: nextStatus,
+            status_reason: trimText(reasonInput?.value || ""),
+            staff_notes: trimText(notesInput?.value || ""),
+          }),
+        });
+        setStatus(`Booking request marked ${getBookingRequestStatusLabel(nextStatus).toLowerCase()}.`);
+        await refreshDashboardInBackground({ agentId: agent.id, activeAction: "booking-request-status" });
+      } catch (error) {
+        setStatus(error.message || "We couldn't update that booking request.");
+      } finally {
+        button.disabled = previousDisabled;
+      }
+    });
+  });
+
   followUpForms.forEach((form) => {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -19155,10 +19611,12 @@ async function boot(options = {}) {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, trainingResult, actionQueueResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
+    const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadFrontDeskTraining(agent.id),
       loadActionQueue(agent.id),
+      loadStaffActionRequests(agent.id),
+      loadBookingRequests(),
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
       loadActivationWizard(agent.id),
@@ -19174,6 +19632,8 @@ async function boot(options = {}) {
       messagesResult,
       trainingResult,
       actionQueueResult,
+      actionRequestsResult,
+      bookingRequestsResult,
       ownerAnalyticsResult,
       operatorResult,
     });

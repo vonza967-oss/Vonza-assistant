@@ -26,6 +26,7 @@ export const frontDeskGeneralManifest = Object.freeze({
   description:
     "Default AI Front Desk package for public business chat, full-page, widget, and web-call interactions.",
   supportedSurfaces: Object.freeze(["widget", "full_page", "web_call"]),
+  actions: Object.freeze([]),
   tools: frontDeskGeneralToolKeys,
   knowledgePolicy: frontDeskGeneralKnowledgePolicy,
   verticals: Object.freeze({

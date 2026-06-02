@@ -179,3 +179,26 @@ test("agent package persistence keeps Front Desk default and allows only registe
   assert.doesNotMatch(activationMigrationSql, /package_key text not null default|package_version text not null default/i);
   assert.doesNotMatch(activationMigrationSql, /create table|add column|drop column|alter column/i);
 });
+
+test("generic booking request schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260602135522_agent_booking_requests.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.agent_booking_requests/i);
+    assert.match(sql, /owner_user_id uuid not null/i);
+    assert.match(sql, /agent_id uuid not null references public\.agents \(id\) on delete cascade/i);
+    assert.match(sql, /requested_service text/i);
+    assert.match(sql, /requested_time_text text/i);
+    assert.match(sql, /status text not null default 'request_received'/i);
+    assert.match(sql, /evidence jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /metadata jsonb not null default '\{\}'::jsonb/i);
+    assert.match(sql, /agent_booking_requests_owner_agent_idempotency_idx/i);
+    assert.match(sql, /Owners can read booking requests/i);
+    assert.doesNotMatch(sql, /on public\.agent_booking_requests\s+for insert/i);
+    assert.doesNotMatch(sql, /on public\.agent_booking_requests\s+for update/i);
+  });
+});

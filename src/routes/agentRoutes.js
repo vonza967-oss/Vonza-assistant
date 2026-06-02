@@ -174,6 +174,15 @@ import {
   syncApprovedAnswerKnowledgeChunk,
 } from "../services/rag/frontDeskRagService.js";
 import {
+  listAgentActionRequests,
+  updateAgentActionRequestStatus,
+} from "../services/actions/agentActionRequestService.js";
+import { getActionRequestDefinition } from "../services/actions/actionRequestRegistry.js";
+import {
+  listAgentBookingRequests,
+  updateAgentBookingRequestStatus,
+} from "../services/bookings/agentBookingRequestService.js";
+import {
   getDashboardPreferences,
   normalizeDashboardLanguage,
   saveDashboardLanguagePreference,
@@ -351,6 +360,16 @@ export function createAgentRouter(deps = {}) {
     deps.getDashboardPreferences || getDashboardPreferences;
   const saveDashboardLanguagePreferenceImpl =
     deps.saveDashboardLanguagePreference || saveDashboardLanguagePreference;
+  const listAgentActionRequestsImpl =
+    deps.listAgentActionRequests || listAgentActionRequests;
+  const updateAgentActionRequestStatusImpl =
+    deps.updateAgentActionRequestStatus || updateAgentActionRequestStatus;
+  const listAgentBookingRequestsImpl =
+    deps.listAgentBookingRequests || listAgentBookingRequests;
+  const updateAgentBookingRequestStatusImpl =
+    deps.updateAgentBookingRequestStatus || updateAgentBookingRequestStatus;
+  const getActionRequestDefinitionImpl =
+    deps.getActionRequestDefinition || getActionRequestDefinition;
   const trackOwnerProductEvent = createTrackOwnerProductEvent(trackProductEventImpl);
   const limitWidgetBootstrap =
     deps.limitWidgetBootstrap || createRateLimitMiddleware("widget_bootstrap");
@@ -395,6 +414,58 @@ export function createAgentRouter(deps = {}) {
       }
       throw error;
     });
+  }
+
+  function buildActionRequestRouteError(message, statusCode = 400) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+  }
+
+  function buildBookingRequestRouteError(message, statusCode = 400) {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+  }
+
+  function buildActionRequestSummary(records = []) {
+    const summary = {
+      total: 0,
+      new: 0,
+      accepted: 0,
+      done: 0,
+      dismissed: 0,
+    };
+
+    records.forEach((record) => {
+      const status = cleanText(record?.status).toLowerCase();
+      summary.total += 1;
+      if (Object.prototype.hasOwnProperty.call(summary, status)) {
+        summary[status] += 1;
+      }
+    });
+
+    return summary;
+  }
+
+  function isMissingActionRequestsSchemaError(error = {}) {
+    const message = cleanText(error.message || "").toLowerCase();
+    return (
+      error.code === "PGRST205"
+      || error.code === "PGRST204"
+      || error.code === "42P01"
+      || message.includes("agent_action_requests")
+    );
+  }
+
+  function enrichActionRequestForDashboard(record = {}) {
+    const definition = getActionRequestDefinitionImpl(record.requestType || record.request_type);
+
+    return {
+      ...record,
+      actionLabel: cleanText(definition?.label) || cleanText(record.requestType || record.request_type) || "Staff request",
+      actionDescription: cleanText(definition?.description),
+    };
   }
 
   router.post("/stripe/webhook", async (req, res) => {
@@ -1786,6 +1857,161 @@ export function createAgentRouter(deps = {}) {
       res.status(err.statusCode || 500).json({
         error: err.message || "Something went wrong",
       });
+    }
+  });
+
+  router.get("/agents/action-requests", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.query.agent_id || req.query.agentId);
+
+      if (!agentId) {
+        throw buildActionRequestRouteError("agent_id is required", 400);
+      }
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const records = await listAgentActionRequestsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        status: req.query.status,
+        packageKey: req.query.package_key || req.query.packageKey,
+        requestType: req.query.request_type || req.query.requestType,
+        limit: req.query.limit,
+      });
+      const enrichedRecords = (Array.isArray(records) ? records : []).map(enrichActionRequestForDashboard);
+
+      res.json({
+        ok: true,
+        records: enrichedRecords,
+        summary: buildActionRequestSummary(enrichedRecords),
+      });
+    } catch (err) {
+      if (isMissingActionRequestsSchemaError(err)) {
+        res.json({
+          ok: true,
+          records: [],
+          summary: buildActionRequestSummary([]),
+          persistenceAvailable: false,
+          migrationRequired: true,
+        });
+        return;
+      }
+
+      sendRouteError(req, res, err, { route: "/agents/action-requests" });
+    }
+  });
+
+  router.post("/agents/action-requests/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const requestId = readBodyField(req.body, "request_id", "requestId");
+      const status = readBodyField(req.body, "status");
+
+      if (!cleanText(requestId)) {
+        throw buildActionRequestRouteError("request_id is required", 400);
+      }
+
+      if (!cleanText(status)) {
+        throw buildActionRequestRouteError("status is required", 400);
+      }
+
+      const request = await updateAgentActionRequestStatusImpl(supabase, {
+        ownerUserId: user.id,
+        requestId,
+        status,
+        staffNotes: readBodyField(req.body, "staff_notes", "staffNotes"),
+      });
+
+      res.json({
+        ok: true,
+        request: enrichActionRequestForDashboard(request),
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/action-requests/status" });
+    }
+  });
+
+  router.get("/agents/booking-requests", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.query.agent_id || req.query.agentId);
+
+      if (agentId) {
+        await requireActiveAgentAccessImpl(supabase, {
+          agentId,
+          ownerUserId: user.id,
+          clientId: req.query.client_id || req.query.clientId,
+        });
+      }
+
+      const records = await listAgentBookingRequestsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        status: req.query.status,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        records,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/booking-requests" });
+    }
+  });
+
+  router.post("/agents/booking-requests/status", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const requestId = readBodyField(req.body, "request_id", "requestId");
+      const status = readBodyField(req.body, "status");
+
+      if (!cleanText(requestId)) {
+        throw buildBookingRequestRouteError("request_id is required", 400);
+      }
+
+      if (!cleanText(status)) {
+        throw buildBookingRequestRouteError("status is required", 400);
+      }
+
+      const updateOptions = {
+        ownerUserId: user.id,
+        requestId,
+        status,
+      };
+      const statusReason = readBodyField(req.body, "status_reason", "statusReason");
+      const staffNotes = readBodyField(req.body, "staff_notes", "staffNotes");
+      const evidence = readBodyField(req.body, "evidence");
+
+      if (statusReason !== undefined) {
+        updateOptions.statusReason = statusReason;
+      }
+
+      if (staffNotes !== undefined) {
+        updateOptions.staffNotes = staffNotes;
+      }
+
+      if (evidence !== undefined) {
+        updateOptions.evidence = evidence;
+      }
+
+      const request = await updateAgentBookingRequestStatusImpl(supabase, updateOptions);
+
+      res.json({
+        ok: true,
+        request,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/booking-requests/status" });
     }
   });
 

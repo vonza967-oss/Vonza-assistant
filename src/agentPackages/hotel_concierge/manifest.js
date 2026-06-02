@@ -28,6 +28,17 @@ export const hotelConciergeRiskRules = Object.freeze([
   "Route urgent safety issues to staff/emergency services.",
 ]);
 
+export const hotelConciergeActionRequestKeys = Object.freeze([
+  "common.human_handoff",
+  "hotel.bring_water",
+  "hotel.extra_towels",
+  "hotel.room_service_request",
+  "hotel.housekeeping_request",
+  "hotel.maintenance_issue",
+  "hotel.late_checkout_request",
+  "hotel.staff_help",
+]);
+
 export const hotelConciergeManifest = Object.freeze({
   key: "hotel_concierge",
   version: "0.1.0",
@@ -35,6 +46,7 @@ export const hotelConciergeManifest = Object.freeze({
   description:
     "Internal guest and pre-arrival concierge package for hotel stay questions, booking next steps, property details, policies, and staff handoff.",
   supportedSurfaces: Object.freeze(["widget", "full_page", "web_call"]),
+  actions: hotelConciergeActionRequestKeys,
   tools: hotelConciergeToolKeys,
   knowledgePolicy: hotelConciergeKnowledgePolicy,
   role: Object.freeze({

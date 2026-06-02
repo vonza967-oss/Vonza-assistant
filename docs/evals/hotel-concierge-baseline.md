@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This baseline adds the first internal eval suite for the `hotel_concierge` package. It exercises the existing chat runtime through dependency injection with a synthetic package-selected agent. PR 14 also allows controlled service-level persistence for `hotel_concierge`, but the eval runner still does not rely on persisted DB package selection. It does not make Hotel Concierge dashboard-selectable, add dashboard UI, wire runtime tools, add enforcement, or relax the existing Front Desk guardrails.
+This baseline adds the first internal eval suite for the `hotel_concierge` package. It exercises the existing chat runtime through dependency injection with a synthetic package-selected agent. PR 14 also allows controlled service-level persistence for `hotel_concierge`, but the eval runner still does not rely on persisted DB package selection. Phase 2 PR G adds feature-flagged Hotel Concierge staff request creation from chat, but the eval suite keeps the flag off by default so baseline answer behavior remains unchanged. It does not make Hotel Concierge dashboard-selectable, add dashboard UI, wire runtime tools, add enforcement, or relax the existing Front Desk guardrails.
 
 ## Fixture
 
@@ -86,7 +86,29 @@ Answer Contract and Claim Verifier metadata remain report-only. The JSON report 
 
 As of PR 14, `hotel_concierge` can be persisted only through controlled internal/service assignment. Dashboard UI remains hidden, no public/widget/embed route can switch packages, tools remain metadata-only, and knowledge policy, Answer Contract, and Claim Verifier behavior remain report-only with no enforcement.
 
+## Chat Action Request Boundary
+
+Phase 2 PR G adds `HOTEL_CONCIERGE_ACTION_REQUESTS_ENABLED` for controlled chat-created staff requests. The flag is off by default; accepted true values are `1`, `true`, `enabled`, and `on`.
+
+When the flag is on, only resolved `hotel_concierge` agents may create supported staff-visible `agent_action_requests` records from deterministic drafts. The deterministic acknowledgement path stores the chat messages and does not call OpenAI. `front_desk_general` remains unchanged and never creates Hotel Concierge action requests.
+
+This feature creates staff-visible requests only. It does not execute providers or tools, enforce policy, approve or complete service, mutate PMS records, change checkout or booking state, change rates or availability, process payments, or access guest records. Emergency/safety language and booking, reservation, payment, or guest-record mutation requests do not create normal action requests and should be answered safely through the hotel prompt.
+
 ## Staging Smoke Checkpoint
+
+### Phase 2 PR H Action-Request Smoke Attempt
+
+Recorded on 2026-06-01.
+
+- A controlled local HTTP smoke was run with `HOTEL_CONCIERGE_ACTION_REQUESTS_ENABLED=1`.
+- The smoke created a temporary owner-scoped business, auth user, widget config, website content row, and agent, then assigned the agent to `hotel_concierge` via `updateAgentPackageAssignment()`.
+- The water request prompt was `Please bring two bottles of water to room 412 tonight.`
+- The configured Supabase target returned `PGRST205` for `public.agent_action_requests`, so no live `agent_action_requests` row was created and the staff queue/status/default-off live checks could not be completed on that target.
+- Cleanup deleted the temporary auth user and verified 0 remaining smoke-created agents, businesses, website content rows, widget configs, and messages.
+- No code changes were needed. The feature remains off by default.
+- No schema/migration, public route, dashboard package selector, widget/embed change, external execution, policy enforcement, or public package switching was added.
+
+The automated eval and smoke suites below continue to cover the intended behavior without real DB side effects. The live action-request smoke should be rerun after the configured target has the existing action-request table available through the Supabase API.
 
 Recorded on 2026-06-01 after applying the staging DB constraint that allows `hotel_concierge`.
 
@@ -104,7 +126,7 @@ Related verification facts:
 | --- | --- |
 | `npm run eval:hotel-concierge:json -- --answer-contract` | Passed, 12/12 scenarios in dry-run mode. |
 | `FRONT_DESK_EVAL_MODE=dry-run npm run eval:front-desk:json -- --answer-contract` | Passed, 12/12 scenarios in dry-run mode. |
-| `npm run test:smoke` | Passed, 972/972 tests. |
+| `npm run test:smoke` | Passed, 1027/1027 tests. |
 | `npm run check:schema-sync` | Passed. |
 | `npm run lint` | Passed. |
 | `git diff --check` | Passed. |
