@@ -370,6 +370,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds generic owner-scoped booking request persistence and read-only owner RLS for future staff review workflows without public chat or provider booking behavior.",
   }),
+  Object.freeze({
+    id: "connected_app_connection_foundation",
+    version: "20260602150000",
+    name: "connected_app_connection_foundation",
+    file: "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds generic owner-scoped connected app connection and agent enablement persistence with owner-select RLS only; no OAuth, provider execution, dashboard UI, or package activation enforcement.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

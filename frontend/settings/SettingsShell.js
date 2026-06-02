@@ -28,6 +28,11 @@
       note: "Grounding facts and readiness for customer answers.",
     },
     {
+      key: "connected_apps",
+      label: "Connected Apps",
+      note: "Manual/internal connected app status and report-only readiness.",
+    },
+    {
       key: "account_billing",
       label: "Account & Billing",
       note: "Real account, plan, subscription, and usage status.",
@@ -161,6 +166,11 @@
     business_context: "business_profile",
     profile: "business_profile",
     workspace: "business_profile",
+    apps: "connected_apps",
+    connected: "connected_apps",
+    connected_apps: "connected_apps",
+    "connected-apps": "connected_apps",
+    integrations: "connected_apps",
     account: "account_billing",
     billing: "account_billing",
     plan: "account_billing",
@@ -2076,6 +2086,7 @@
       website_widget: '<rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M15 10h1.5a1.5 1.5 0 0 1 0 3H15z"/>',
       voice_agent: '<path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><path d="M12 18v4"/><path d="M8 22h8"/>',
       business_profile: '<path d="M4 21V5a2 2 0 0 1 2-2h9l5 5v13"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h8"/>',
+      connected_apps: '<path d="M9 7H7a4 4 0 0 0 0 8h2"/><path d="M15 7h2a4 4 0 0 1 0 8h-2"/><path d="M8 12h8"/><path d="M12 4v3M12 17v3"/>',
       external: '<path d="M14 3h7v7"/><path d="m10 14 11-11"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/>',
       chevron: '<path d="m9 18 6-6-6-6"/>',
       check: '<path d="m20 6-11 11-5-5"/>',
@@ -3842,6 +3853,446 @@
     `;
   }
 
+  function normalizeConnectedAppsState(state = {}) {
+    return {
+      capabilities: Array.isArray(state.capabilities) ? state.capabilities : [],
+      connections: Array.isArray(state.connections) ? state.connections : [],
+      enablements: Array.isArray(state.enablements) ? state.enablements : [],
+      readiness: state.readiness || null,
+      readinessContext: state.readinessContext || null,
+      loading: state.loading === true,
+      error: defaultTrimText(state.error),
+      lastLoadedAt: state.lastLoadedAt || null,
+    };
+  }
+
+  function humanizeConnectedAppValue(value = "") {
+    const normalized = defaultTrimText(value);
+    return normalized
+      ? normalized.replace(/[_-]+/g, " ").replace(/\b\w/g, (match) => match.toUpperCase())
+      : "Not set";
+  }
+
+  function summarizeConnectedAppList(values = [], fallback = "None") {
+    const list = Array.isArray(values)
+      ? values.map((item) => defaultTrimText(item)).filter(Boolean)
+      : [];
+    return list.length ? list.join(", ") : fallback;
+  }
+
+  function connectedAppStatusTone(status = "") {
+    const normalized = defaultTrimText(status).toLowerCase();
+    if (["active", "ready", "connected", "enabled", "ok"].includes(normalized)) return "Ready";
+    if (["needs_attention", "warning", "blocked", "revoked"].includes(normalized)) return "Limited";
+    if (["disabled", "needs_setup", "pending"].includes(normalized)) return "Pending";
+    return normalized ? "Limited" : "Pending";
+  }
+
+  function getConnectedAppCapabilityMap(capabilities = []) {
+    return new Map(
+      capabilities
+        .filter((capability) => defaultTrimText(capability?.key))
+        .map((capability) => [defaultTrimText(capability.key), capability])
+    );
+  }
+
+  function getConnectedAppCapabilityOptions(capabilities = []) {
+    return capabilities
+      .filter((capability) => defaultTrimText(capability?.key))
+      .map((capability) => {
+        const appKey = defaultTrimText(capability.key).split(".").slice(0, 2).join(".");
+        return {
+          key: defaultTrimText(capability.key),
+          label: defaultTrimText(capability.label) || defaultTrimText(capability.key),
+          appKey,
+          provider: defaultTrimText(capability.provider),
+        };
+      });
+  }
+
+  function getConnectedAppEnablementForConnection(enablements = [], connectionId = "") {
+    const normalizedConnectionId = defaultTrimText(connectionId);
+    return enablements.find((enablement) => defaultTrimText(enablement?.connectionId) === normalizedConnectionId) || null;
+  }
+
+  function buildConnectedAppSafetyStrip(helpers) {
+    const { escapeHtml } = helpers;
+    const labels = [
+      "Manual/internal setup",
+      "No OAuth setup yet",
+      "No provider execution",
+      "Report-only readiness",
+    ];
+
+    return `
+      <div class="settings-connected-app-safety-strip" aria-label="Connected apps safety limits">
+        ${labels.map((label) => `<span>${escapeHtml(label)}</span>`).join("")}
+      </div>
+    `;
+  }
+
+  function buildConnectedAppCapabilityList(capabilities, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+
+    if (!capabilities.length) {
+      return `
+        <div class="settings-connected-app-empty">
+          <strong>No capabilities returned yet</strong>
+          <p>Capability metadata appears here after the authenticated registry endpoint loads.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="settings-connected-app-capability-grid">
+        ${capabilities.map((capability) => `
+          <article class="settings-connected-app-card">
+            <div class="settings-connected-app-card-head">
+              <div>
+                <p class="settings-shell-status-label">${escapeHtml(humanizeConnectedAppValue(capability.provider))}</p>
+                <h4 class="settings-shell-status-value">${escapeHtml(capability.label || capability.key || "Connected app capability")}</h4>
+              </div>
+              <span class="${getBadgeClass(capability.publicChatCallable ? "Limited" : "Ready")}">${escapeHtml(capability.publicChatCallable ? "Public callable" : "Not public callable")}</span>
+            </div>
+            <p class="settings-shell-status-copy">${escapeHtml(capability.description || "Generic connected app capability metadata.")}</p>
+            <dl class="settings-connected-app-meta">
+              <div><dt>Provider app</dt><dd>${escapeHtml(capability.appName || "Generic app")}</dd></div>
+              <div><dt>Capability</dt><dd>${escapeHtml(capability.capability || capability.key || "Not set")}</dd></div>
+              <div><dt>Allowed surfaces</dt><dd>${escapeHtml(summarizeConnectedAppList(capability.allowedSurfaces))}</dd></div>
+              <div><dt>Setup status</dt><dd>${escapeHtml(capability.requiresOAuth ? "No OAuth setup yet" : capability.requiresWebhook ? "Manual webhook status only" : "Manual/internal setup")}</dd></div>
+            </dl>
+          </article>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function buildConnectedAppConnectionForms(connections, capabilities, enablements, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const capabilityMap = getConnectedAppCapabilityMap(capabilities);
+    const surfaceOptions = [
+      { value: "operator", label: "Operator" },
+      { value: "dashboard", label: "Dashboard" },
+      { value: "internal", label: "Internal" },
+      { value: "webhook", label: "Webhook" },
+    ];
+
+    if (!connections.length) {
+      return `
+        <div class="settings-connected-app-empty">
+          <strong>No manual connection records yet</strong>
+          <p>Create a status-only record below. It does not start OAuth, store credentials, or execute providers.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="settings-connected-app-connection-list">
+        ${connections.map((connection) => {
+          const connectionCapabilities = Array.isArray(connection.capabilityKeys) ? connection.capabilityKeys : [];
+          const enablement = getConnectedAppEnablementForConnection(enablements, connection.id);
+          const selectedCapabilities = new Set(Array.isArray(enablement?.capabilityKeys) ? enablement.capabilityKeys : connectionCapabilities.slice(0, 1));
+          const allowedSurfaces = new Set(Array.isArray(enablement?.allowedSurfaces) ? enablement.allowedSurfaces : ["operator"]);
+          return `
+            <article class="settings-connected-app-connection-row">
+              <div class="settings-connected-app-connection-main">
+                <div>
+                  <p class="settings-shell-status-label">${escapeHtml(`${humanizeConnectedAppValue(connection.provider)} / ${connection.appKey || "app"}`)}</p>
+                  <h4 class="settings-shell-status-value">${escapeHtml(connection.providerAccountLabel || connection.providerAccountId || "Provider account label not set")}</h4>
+                  <p class="settings-shell-status-copy">Capabilities: ${escapeHtml(summarizeConnectedAppList(connectionCapabilities))}</p>
+                  <p class="settings-shell-status-copy">Scopes: ${escapeHtml(summarizeConnectedAppList(connection.scopesGranted))}</p>
+                  <p class="settings-shell-status-copy">Webhook status: ${escapeHtml(humanizeConnectedAppValue(connection.webhookStatus || "not_required"))}</p>
+                </div>
+                <div class="settings-connected-app-badges">
+                  <span class="${getBadgeClass(connectedAppStatusTone(connection.status))}">${escapeHtml(humanizeConnectedAppValue(connection.status))}</span>
+                  <span class="${getBadgeClass(enablement?.enabled ? "Ready" : "Pending")}">${escapeHtml(enablement?.enabled ? "Enabled for agent" : "Not enabled for agent")}</span>
+                </div>
+              </div>
+
+              <div class="settings-connected-app-control-grid">
+                <form data-connected-app-status-form class="settings-connected-app-mini-form">
+                  <input type="hidden" name="connection_id" value="${escapeHtml(connection.id || "")}">
+                  <div class="field">
+                    <label for="connected-app-status-${escapeHtml(connection.id || "")}">Connection status</label>
+                    <select id="connected-app-status-${escapeHtml(connection.id || "")}" name="status">
+                      ${["needs_setup", "active", "disabled", "needs_attention", "revoked"].map((status) => `
+                        <option value="${escapeHtml(status)}" ${connection.status === status ? "selected" : ""}>${escapeHtml(humanizeConnectedAppValue(status))}</option>
+                      `).join("")}
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="connected-app-webhook-${escapeHtml(connection.id || "")}">Webhook status</label>
+                    <select id="connected-app-webhook-${escapeHtml(connection.id || "")}" name="webhook_status">
+                      ${["not_required", "needs_setup", "active", "disabled", "needs_attention"].map((status) => `
+                        <option value="${escapeHtml(status)}" ${defaultTrimText(connection.webhookStatus || "not_required") === status ? "selected" : ""}>${escapeHtml(humanizeConnectedAppValue(status))}</option>
+                      `).join("")}
+                    </select>
+                  </div>
+                  <div class="field settings-field-wide">
+                    <label for="connected-app-reason-${escapeHtml(connection.id || "")}">Needs-attention reason</label>
+                    <input id="connected-app-reason-${escapeHtml(connection.id || "")}" name="needs_attention_reason" type="text" value="${escapeHtml(connection.needsAttentionReason || "")}" placeholder="manual review note">
+                  </div>
+                  <button class="ghost-button" type="submit">Update status</button>
+                </form>
+
+                <form data-connected-app-enable-form class="settings-connected-app-mini-form">
+                  <input type="hidden" name="connection_id" value="${escapeHtml(connection.id || "")}">
+                  ${enablement?.id ? `<input type="hidden" name="enablement_id" value="${escapeHtml(enablement.id)}">` : ""}
+                  <div class="field">
+                    <label for="connected-app-enabled-${escapeHtml(connection.id || "")}">Agent enablement</label>
+                    <select id="connected-app-enabled-${escapeHtml(connection.id || "")}" name="enabled">
+                      <option value="true" ${enablement?.enabled === false ? "" : "selected"}>Enabled</option>
+                      <option value="false" ${enablement?.enabled === false ? "selected" : ""}>Disabled</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="connected-app-approval-${escapeHtml(connection.id || "")}">Approval mode</label>
+                    <select id="connected-app-approval-${escapeHtml(connection.id || "")}" name="approval_mode">
+                      ${["manual_review", "owner_approved", "automatic_internal", "disabled"].map((mode) => `
+                        <option value="${escapeHtml(mode)}" ${defaultTrimText(enablement?.approvalMode || "manual_review") === mode ? "selected" : ""}>${escapeHtml(humanizeConnectedAppValue(mode))}</option>
+                      `).join("")}
+                    </select>
+                  </div>
+                  <div class="settings-connected-app-checkbox-group" aria-label="Enable capabilities for this agent">
+                    ${connectionCapabilities.map((capabilityKey) => {
+                      const definition = capabilityMap.get(capabilityKey);
+                      return `
+                        <label>
+                          <input name="capability_keys" type="checkbox" value="${escapeHtml(capabilityKey)}" ${selectedCapabilities.has(capabilityKey) ? "checked" : ""}>
+                          <span>${escapeHtml(definition?.label || capabilityKey)}</span>
+                        </label>
+                      `;
+                    }).join("")}
+                  </div>
+                  <div class="settings-connected-app-checkbox-group" aria-label="Allowed non-public surfaces">
+                    ${surfaceOptions.map((surface) => `
+                      <label>
+                        <input name="allowed_surfaces" type="checkbox" value="${escapeHtml(surface.value)}" ${allowedSurfaces.has(surface.value) ? "checked" : ""}>
+                        <span>${escapeHtml(surface.label)}</span>
+                      </label>
+                    `).join("")}
+                  </div>
+                  <button class="ghost-button" type="submit">Save agent enablement</button>
+                </form>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  }
+
+  function buildConnectedAppCreateForm(capabilities, helpers) {
+    const { escapeHtml } = helpers;
+    const capabilityOptions = getConnectedAppCapabilityOptions(capabilities);
+    const providerOptions = [...new Set(capabilityOptions.map((option) => option.provider).filter(Boolean))];
+    const appOptions = [...new Set(capabilityOptions.map((option) => option.appKey).filter(Boolean))];
+
+    return `
+      <form data-connected-app-connection-form class="settings-shell-section settings-connected-app-create-form">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Create manual connection record</h3>
+            <p class="settings-shell-section-copy">Manual/internal setup only. This creates status metadata and does not create OAuth setup, provider execution, provider clients, or public chat tools.</p>
+          </div>
+        </div>
+        <div class="settings-field-grid settings-field-grid--two">
+          <div class="field">
+            <label for="connected-app-provider">Provider</label>
+            <select id="connected-app-provider" name="provider">
+              ${providerOptions.length ? providerOptions.map((provider) => `<option value="${escapeHtml(provider)}">${escapeHtml(humanizeConnectedAppValue(provider))}</option>`).join("") : '<option value="">No providers loaded</option>'}
+            </select>
+          </div>
+          <div class="field">
+            <label for="connected-app-key">App key</label>
+            <input id="connected-app-key" name="app_key" type="text" list="connected-app-key-options" value="${escapeHtml(appOptions[0] || "")}" placeholder="google.calendar">
+            <datalist id="connected-app-key-options">
+              ${appOptions.map((appKey) => `<option value="${escapeHtml(appKey)}"></option>`).join("")}
+            </datalist>
+          </div>
+          <div class="field">
+            <label for="connected-app-capability">Capability</label>
+            <select id="connected-app-capability" name="capabilities">
+              ${capabilityOptions.length ? capabilityOptions.map((option) => `
+                <option value="${escapeHtml(option.key)}">${escapeHtml(option.label)}</option>
+              `).join("") : '<option value="">No capabilities loaded</option>'}
+            </select>
+          </div>
+          <div class="field">
+            <label for="connected-app-status">Status</label>
+            <select id="connected-app-status" name="status">
+              ${["needs_setup", "active", "disabled", "needs_attention", "revoked"].map((status) => `
+                <option value="${escapeHtml(status)}">${escapeHtml(humanizeConnectedAppValue(status))}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="connected-app-account-label">Provider account label</label>
+            <input id="connected-app-account-label" name="provider_account_label" type="text" placeholder="owner@example.com">
+          </div>
+          <div class="field">
+            <label for="connected-app-webhook-status">Webhook status</label>
+            <select id="connected-app-webhook-status" name="webhook_status">
+              ${["not_required", "needs_setup", "active", "disabled", "needs_attention"].map((status) => `
+                <option value="${escapeHtml(status)}">${escapeHtml(humanizeConnectedAppValue(status))}</option>
+              `).join("")}
+            </select>
+          </div>
+          <div class="field settings-field-wide">
+            <label for="connected-app-scopes">Scopes/capabilities summary</label>
+            <textarea id="connected-app-scopes" name="scopes" placeholder="calendar.read"></textarea>
+            <p class="field-help">Status-only labels for internal readiness review. Do not enter credentials.</p>
+          </div>
+        </div>
+        <div class="settings-shell-sticky-save">
+          <span class="save-state">No OAuth setup yet. No provider execution.</span>
+          <button class="primary-button" type="submit">Create manual record</button>
+        </div>
+      </form>
+    `;
+  }
+
+  function buildConnectedAppReadinessPanel(readiness, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const requirements = Array.isArray(readiness?.requirements) ? readiness.requirements : [];
+    const summary = readiness?.summary || {};
+
+    return `
+      <section class="settings-shell-section settings-connected-app-readiness-panel">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Report-only readiness</h3>
+            <p class="settings-shell-section-copy">Readiness is an owner dashboard report only. It does not activate packages, execute providers, or expose public chat tools.</p>
+          </div>
+          <span class="${getBadgeClass(connectedAppStatusTone(readiness?.status || "ready"))}">${escapeHtml(humanizeConnectedAppValue(readiness?.status || "ready"))}</span>
+        </div>
+        <div class="settings-connected-app-summary-row">
+          <span>Ready: ${escapeHtml(String(summary.ready || 0))}</span>
+          <span>Warnings: ${escapeHtml(String(summary.warning || 0))}</span>
+          <span>Blocked: ${escapeHtml(String(summary.blocked || 0))}</span>
+          <span>Optional warnings: ${escapeHtml(String(summary.optionalWarnings || 0))}</span>
+        </div>
+        ${requirements.length ? `
+          <div class="settings-connected-app-readiness-list">
+            ${requirements.map((requirement) => `
+              <article class="settings-connected-app-readiness-item">
+                <div>
+                  <p class="settings-shell-status-label">${escapeHtml(humanizeConnectedAppValue(requirement.requirementType || "requirement"))}</p>
+                  <h4 class="settings-shell-status-value">${escapeHtml(requirement.label || requirement.key || "Connected app readiness")}</h4>
+                  <p class="settings-shell-status-copy">${escapeHtml(requirement.reasons?.length
+                    ? requirement.reasons.map((reason) => reason.message || reason.code).join(" ")
+                    : "Ready in this report-only context.")}</p>
+                </div>
+                <span class="${getBadgeClass(connectedAppStatusTone(requirement.status))}">${escapeHtml(humanizeConnectedAppValue(requirement.status))}</span>
+              </article>
+            `).join("")}
+          </div>
+        ` : `
+          <div class="settings-connected-app-empty">
+            <strong>No readiness warnings returned</strong>
+            <p>The report-only evaluator did not return required or optional warnings for this agent yet.</p>
+          </div>
+        `}
+      </section>
+    `;
+  }
+
+  function buildConnectedAppsSettingsSection(agent, connectedAppsState, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const connectedApps = normalizeConnectedAppsState(connectedAppsState);
+    const activeConnections = connectedApps.connections.filter((connection) => defaultTrimText(connection.status) === "active").length;
+    const enabledCount = connectedApps.enablements.filter((enablement) => enablement.enabled === true).length;
+    const readinessStatus = connectedApps.readiness?.status || "ready";
+
+    return `
+      <section id="settings-section-connected_apps" data-settings-section="connected_apps" class="settings-connected-apps-section">
+        <div class="settings-shell-form">
+          <header class="settings-shell-page-header">
+            <div class="settings-shell-page-title-group">
+              <p class="studio-kicker">Connected apps</p>
+              <h2 class="settings-shell-page-title">Connected apps</h2>
+              <p class="settings-shell-page-copy">View generic connected app capabilities, manage manual status-only records, and review report-only readiness for ${escapeHtml(agent?.assistantName || agent?.name || "the selected agent")}.</p>
+            </div>
+            <div class="settings-shell-page-meta">
+              <span class="${getBadgeClass("Pending")}">Manual/internal setup</span>
+              <span class="${getBadgeClass("Limited")}">No OAuth setup yet</span>
+              <span class="${getBadgeClass("Limited")}">No provider execution</span>
+            </div>
+          </header>
+
+          ${buildConnectedAppSafetyStrip(helpers)}
+
+          ${connectedApps.loading ? `
+            <div class="settings-connected-app-empty">
+              <strong>Loading connected apps</strong>
+              <p>Fetching authenticated owner connection status and report-only readiness.</p>
+            </div>
+          ` : ""}
+
+          ${connectedApps.error ? `
+            <div class="settings-shell-billing-notice settings-shell-billing-notice--warning">
+              ${escapeHtml(connectedApps.error)}
+            </div>
+          ` : ""}
+
+          <section class="settings-operational-summary settings-connected-app-summary" aria-label="Connected apps summary">
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Capabilities</span>
+                <span class="${getBadgeClass(connectedApps.capabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(connectedApps.capabilities.length))}</span>
+              </div>
+              <p>Safe registry metadata only. No OAuth setup yet and no provider execution.</p>
+            </article>
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Connection status records</span>
+                <span class="${getBadgeClass(activeConnections ? "Ready" : "Pending")}">${escapeHtml(`${activeConnections} active`)}</span>
+              </div>
+              <p>${escapeHtml(connectedApps.connections.length ? `${connectedApps.connections.length} manual/internal record${connectedApps.connections.length === 1 ? "" : "s"} loaded.` : "No manual connection records yet.")}</p>
+            </article>
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Agent enablements</span>
+                <span class="${getBadgeClass(enabledCount ? "Ready" : "Pending")}">${escapeHtml(`${enabledCount} enabled`)}</span>
+              </div>
+              <p>Agent enablement controls are dashboard-only and not public chat callable.</p>
+            </article>
+            <article class="settings-operational-card">
+              <div class="settings-operational-card-head">
+                <span>Readiness</span>
+                <span class="${getBadgeClass(connectedAppStatusTone(readinessStatus))}">${escapeHtml(humanizeConnectedAppValue(readinessStatus))}</span>
+              </div>
+              <p>Report-only readiness. No package activation enforcement.</p>
+            </article>
+          </section>
+
+          <section class="settings-shell-section">
+            <div class="settings-shell-section-header">
+              <div>
+                <h3 class="settings-shell-section-title">Capability registry</h3>
+                <p class="settings-shell-section-copy">Provider and capability labels are read-only metadata. Public chat callable controls are not exposed.</p>
+              </div>
+            </div>
+            ${buildConnectedAppCapabilityList(connectedApps.capabilities, helpers)}
+          </section>
+
+          <section class="settings-shell-section">
+            <div class="settings-shell-section-header">
+              <div>
+                <h3 class="settings-shell-section-title">Connection records and agent enablement</h3>
+                <p class="settings-shell-section-copy">List and update status-only connection records, then enable or disable selected capabilities for this agent with approval mode and allowed non-public surfaces.</p>
+              </div>
+            </div>
+            ${buildConnectedAppConnectionForms(connectedApps.connections, connectedApps.capabilities, connectedApps.enablements, helpers)}
+          </section>
+
+          ${buildConnectedAppCreateForm(connectedApps.capabilities, helpers)}
+          ${buildConnectedAppReadinessPanel(connectedApps.readiness, helpers)}
+        </div>
+      </section>
+    `;
+  }
+
   function _buildIntegrationsCard(agent, setup, operatorWorkspace, helpers) {
     const { escapeHtml, getDefaultInstallStatus, getGoogleWorkspaceCapabilities, getWorkspaceMode } = helpers;
     const installStatus = getDefaultInstallStatus(agent);
@@ -3978,6 +4429,8 @@
         return buildFrontDeskSettingsForm(agent, setup, helpers, { sectionKey: activeSettingsSection });
       case "business_profile":
         return buildBusinessContextSetupPanel(agent, setup, operatorWorkspace, helpers);
+      case "connected_apps":
+        return buildConnectedAppsSettingsSection(agent, options.connectedApps, helpers);
       case "account_billing":
         return buildAccountBillingSettingsSection(agent, operatorWorkspace, authUser, helpers);
       case "privacy_legal":

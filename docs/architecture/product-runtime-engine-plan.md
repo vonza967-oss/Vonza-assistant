@@ -20,6 +20,14 @@ The current package manifest contract is v1 and intentionally limited:
 - Phase 2 PR H is verification/docs-only. A controlled HTTP smoke was attempted with `HOTEL_CONCIERGE_ACTION_REQUESTS_ENABLED=1`, a temporary owner-scoped `hotel_concierge` agent, and the water-to-room request prompt. The configured Supabase target blocked the action-request insert because `public.agent_action_requests` was not available in the PostgREST schema cache (`PGRST205`). The temporary auth user, business, agent, widget config cascade, website content, and messages were cleaned up to 0 remaining rows. No runtime code, schema, migration, route, selector, widget/embed, external execution, policy enforcement, or public package switching change was needed or made for PR H.
 - Booking Phase 1 is spec/test-only. `docs/architecture/booking-capability-contract.md` defines booking capability terms and future status taxonomy without adding schema, runtime chat behavior, dashboard/admin UI, widget/embed behavior, package activation, provider integrations, or enforcement.
 - Booking Phase 2 is docs/tests-only. `docs/architecture/booking-request-layer-plan.md` designs the generic booking request layer as request-only staff review, with proposed fields, lifecycle/proof rules, chat behavior, staff/dashboard behavior, and eval gates. Later Booking Phases 3-7 added the request-only table/service, authenticated owner review API, dashboard review surface, feature-flagged public chat request creation, and staging smoke record. They add no widget/embed behavior, package activation, provider integration, policy enforcement, live availability, or confirmed booking behavior from chat.
+- Connected Apps Phase 1 adds `src/services/integrations/connectedAppRegistry.js` as a report-only capability registry for existing provider-specific Google, Calendly, Stripe, and Twilio surfaces. It adds no schema, migration, dashboard UI, chat behavior, OAuth, provider execution, package activation enforcement, or external API calls.
+- Connected Apps Phase 2 adds `src/services/integrations/connectedAppReadinessService.js` as a provider-neutral, report-only readiness service over the Phase 1 registry. It reports `ready`, `warning`, or `blocked` requirement details from supplied metadata only. It adds no user-facing Connected Apps setup, runtime permission enforcement, OAuth/provider setup, external provider execution, package activation enforcement, dashboard/widget/embed behavior, or chat changes.
+- Connected Apps Phase 3 lets package activation readiness attach that connected-app readiness result as optional report-only `connectedApps` metadata when callers explicitly pass connected-app context. It does not change package activation status, enforce activation, create setup flows, call providers, execute external APIs, or change dashboard/widget/embed/chat behavior.
+- Connected Apps Phase 4 adds `docs/architecture/connected-apps-data-model-plan.md` as a design-only generic persistence model. It separates future owner/workspace app connections from agent-level app enablements, webhook endpoint state, OAuth state, secret storage, permission evaluation, RLS, product UX, and adapter-first migration. It adds no schema, migration, runtime chat behavior, dashboard/widget/embed changes, OAuth/provider setup, external API/provider execution, package activation enforcement, or secrets.
+- Connected Apps Phase 5 adds generic `connected_app_connections` and `agent_connected_app_enablements` persistence plus internal service helpers only. The records are status/configuration records, not runtime provider permissions.
+- Connected Apps Phase 6 adds explicit report-only readiness context derivation from those generic records. Activation readiness still does not query Supabase automatically.
+- Connected Apps Phase 7 adds authenticated owner-scoped `/agents/...` API routes for safe registry metadata, owner connection records, agent enablements, and report-only readiness reports. It adds no dashboard UI, widget/embed exposure, runtime chat behavior, public/anonymous routes, OAuth/provider setup, provider execution, package activation enforcement, or secrets.
+- Connected Apps Phase 8 adds a compact authenticated dashboard/settings `Connected apps` management surface over the Phase 7 routes. It is manual/status-only, labels `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`, and adds no schema/migration changes, runtime chat behavior, widget/embed exposure, public/anonymous routes, OAuth/provider setup, provider execution, package activation enforcement, package switching, or secrets.
 
 Phase 2 should preserve those safety boundaries until each new capability is explicitly implemented, tested, and activated behind scoped controls.
 
@@ -50,6 +58,11 @@ Proposed future manifest sections:
   dataRequirements: [],
   allowedActions: [],
   allowedTools: [],
+  connectedAppRequirements: {
+    reportOnly: true,
+    requiredCapabilities: [],
+    optionalCapabilities: []
+  },
   staffWorkflows: [],
   evalGates: [],
   activationRequirements: []
@@ -119,6 +132,24 @@ Declares package-compatible provider or internal tools for a later execution lay
 
 Allowed tools must remain separate from allowed actions. A package may allow an action request without allowing live provider execution. No tool should execute unless an integration is explicitly configured and activation gates allow it.
 
+### `connectedAppRequirements`
+
+Declares future connected app capability requirements for report-only readiness review. Examples:
+
+- `google.calendar.read`
+- `google.calendar.write`
+- `calendly.booking.webhook`
+- `stripe.billing.webhook`
+- `twilio.phone.webhook`
+
+Connected app requirements must validate against `src/services/integrations/connectedAppRegistry.js`, but they are not permission grants. They must not start OAuth, create connections, expose provider scopes, install webhook handlers, activate packages, call providers, or make public chat callable.
+
+`src/services/integrations/connectedAppReadinessService.js` can evaluate future required and optional requirement keys against supplied connected-capability, provider-status, scope-grant, and webhook-status metadata. `src/services/agents/agentPackageActivationReadinessService.js` can include that result in a separate `connectedApps` report block when `context.connectedApps` is supplied. The output is report-only and redacted. It can warn or block inside the connected-app metadata, but it must not enforce activation, change the activation status, or grant runtime execution.
+
+Current registered packages do not declare connected app requirements. Existing providers remain provider-specific, and no generic OAuth/provider Connected Apps setup exists yet. Phase 7 exposes authenticated owner/internal setup APIs for generic status records only. Phase 8 exposes those records in the authenticated dashboard as manual/status-only management and report-only readiness; it does not make package requirements executable.
+
+Connected Apps Phase 4 designed the persistence model for those requirements. Phases 5-8 now implement generic records, report-only readiness derivation, authenticated owner APIs, and a manual/status-only authenticated dashboard surface over those records. An owner/workspace `connected_app_connections` record proves only that an owner has a redacted provider/app/capability status record. An `agent_connected_app_enablements` record proves only that an owner enabled a subset of connected capabilities for one agent. Neither record, the Phase 7 API, nor the Phase 8 dashboard controls are sufficient by themselves for runtime execution; a later permission service must also check package declaration, provider scopes/webhook state, allowed surface, approval mode, billing/access state, execution policy, and audit logging.
+
 ### `staffWorkflows`
 
 Declares the staff workflow required to handle package actions. Examples:
@@ -156,6 +187,8 @@ Declares package-specific gates required before a package can be exposed beyond 
 - Report-only policy has been reviewed before any enforcement mode is enabled.
 
 Phase 2 PR F adds a service-only readiness evaluator for these requirements. It checks package registration, action declaration validity, action request registry confirmation, staff workflow flags, required hotel data, eval results, exposure flags, integration execution flags, and report-only policy mode. The evaluator returns plain objects for review and automation, but it does not enforce activation, mutate answers, create requests, expose package selection, or wire public/runtime behavior.
+
+Connected Apps Phase 3 extends the evaluator input with optional `connectedApps` context and attaches the connected-app readiness result as metadata only. Connected-app readiness status is not an activation requirement in this phase.
 
 Activation requirements may become engine-enforced later, but enforcement requires a separate scoped PR.
 
@@ -268,6 +301,8 @@ Gate categories:
 - Action request types registered: every `allowedActions` key maps to a known request type with payload validation and lifecycle rules.
 - Staff workflow enabled when actions are enabled: public guest/passenger actions cannot activate without a staff-visible queue or equivalent internal workflow.
 - Integrations explicitly configured before live provider actions: external PMS, crew systems, notification, food service, maintenance, or booking tools cannot run from declarations alone.
+- Connected app requirements declared for readiness: optional future package requirements can report missing app capabilities, but they do not grant provider execution or activate packages.
+- Generic connection records designed separately: owner connections and agent enablements now exist as generic status/configuration records and authenticated owner APIs, but they remain separate from package activation and are not runtime provider permissions.
 - No public package switching unless intentionally designed: public traffic must not select arbitrary package keys.
 - Report-only policy reviewed before enforcement: Answer Contract, Claim Verifier, knowledge policy, action policy, or tool policy enforcement requires review of report-only signals and a separate scoped PR.
 
@@ -323,6 +358,86 @@ Current PR F behavior:
 
 - Add report-only/service-only checks for data requirements, eval gates, action registration, staff workflow availability, integration configuration, exposure flags, and report-only policy mode.
 - Keep the service unwired from public/runtime behavior. It must not enforce activation, mutate answers, create requests, expose package selection, add dashboard/admin UI, add public routes, touch widget/embed behavior, execute external tools/providers, or enable public package switching.
+
+### Connected Apps Phase 1: Report-Only Capability Registry
+
+- Add `src/services/integrations/connectedAppRegistry.js` with frozen, copy-safe metadata for existing provider-specific capabilities.
+- Keep every current connected app capability `publicChatCallable: false` and `packageActivatable: false`.
+- Validate unknown and malformed capability keys safely.
+- Keep tool registry declarations separate from connected app capability declarations.
+- Keep package manifests free of active provider execution requirements.
+- Add docs/tests only; do not add schema, OAuth, dashboard UI, runtime chat behavior, widget/embed behavior, provider execution, package activation enforcement, or external API calls.
+
+### Connected Apps Phase 2: Report-Only Readiness Service
+
+- Add `src/services/integrations/connectedAppReadinessService.js` with pure helpers for package/agent readiness reports.
+- Return overall `ready`, `warning`, or `blocked` plus requirement details.
+- Treat unknown required capabilities, missing required capabilities, required `disabled`/`needs_attention` providers, missing required OAuth scope grants, and missing required webhook status as blocked.
+- Treat missing optional capabilities as warnings.
+- Keep execution requests blocked unless all required capabilities are connected and the registry allows external execution for the requested non-public surface.
+- Keep public chat execution blocked for all current capabilities.
+- Keep current registered packages free of connected-app requirements and package activation enforcement.
+- Add service/tests/docs only; do not add schema, migrations, OAuth/provider setup, dashboard UI, runtime chat behavior, widget/embed behavior, provider execution, external API calls, package activation enforcement, or secrets.
+
+### Connected Apps Phase 3: Activation Readiness Reporting
+
+- Thread `evaluateConnectedAppReadiness()` into `agentPackageActivationReadinessService` only for explicit `context.connectedApps` input.
+- Include report-only `connectedApps` metadata with overall connected-app `ready`, `warning`, or `blocked` status, requirement entries, and summary counts.
+- Preserve current package activation readiness output when no connected-app context is supplied.
+- Keep current registered package manifests free of connected-app requirements.
+- Keep connected-app readiness separate from package activation enforcement and activation status.
+- Add service/tests/docs only; do not add schema, migrations, OAuth/provider setup, dashboard UI, runtime chat behavior, widget/embed behavior, provider execution, external API calls, package activation enforcement, or secrets.
+
+### Connected Apps Phase 4: Generic Connection Model Design
+
+- Add `docs/architecture/connected-apps-data-model-plan.md`.
+- Define future `connected_app_connections` owner/workspace connection records.
+- Define future `agent_connected_app_enablements` agent-level capability enablements.
+- Define future `connected_app_webhooks` endpoint/proof registry state.
+- Define OAuth state/session, secret/token storage, permission evaluation, RLS/security, product UX, and adapter-first migration contracts.
+- Require existing `agent_booking_integrations`, Google OAuth/account tables, Stripe billing/webhook handling, and Twilio phone webhook handling to coexist through adapters before any destructive migration.
+- Keep public chat execution blocked by default.
+- Add docs/tests only; do not add schema, migrations, OAuth/provider setup, dashboard UI, runtime chat behavior, widget/embed behavior, provider execution, external API calls, package activation enforcement, package activation changes, or secrets.
+
+### Connected Apps Phase 5: Generic Persistence and Service Foundation
+
+- Add `connected_app_connections` and `agent_connected_app_enablements` to the canonical schema and migration set.
+- Keep rows owner scoped and redacted.
+- Keep authenticated owner-select-only RLS and service/internal write expectations.
+- Add service helpers for owner connection status and agent enablement CRUD.
+- Validate registry providers/capabilities, owned agents, connection ownership, allowed non-public surfaces, and capability membership.
+- Return DTOs without raw tokens, token secret refs, secrets, OAuth URLs, provider clients, handlers, or execution fields.
+- Add schema/migration/service/tests/docs only; do not add dashboard UI, runtime chat behavior, widget/embed behavior, OAuth/provider setup, provider execution, external API calls, package activation enforcement, or secrets.
+
+### Connected Apps Phase 6: Generic-Record Readiness Context
+
+- Add `buildConnectedAppReadinessContext()` as an explicit helper over the Phase 5 records.
+- Read only generic owner connections and owner/agent enablements.
+- Build report-only context for `evaluateConnectedAppReadiness()`.
+- Keep activation readiness pure: callers must explicitly supply connected-app context.
+- Exclude token refs, metadata secrets, OAuth URLs, provider clients, account payloads, and provider-specific legacy tables.
+- Add service/tests/docs only; do not add schema/migration changes, dashboard UI, runtime chat behavior, widget/embed behavior, OAuth/provider setup, provider execution, external API calls, package activation enforcement, or secrets.
+
+### Connected Apps Phase 7: Authenticated Owner API
+
+- Add authenticated owner-scoped routes under existing `/agents/...` dashboard API conventions.
+- Return safe registry metadata through `GET /agents/connected-app-capabilities` with every current capability `publicChatCallable: false`.
+- List, create, and update only the authenticated owner's generic connection status records through `/agents/connected-apps`.
+- List, create, and update agent enablements only after verifying owner access to the URL agent through `/agents/:agentId/connected-apps`.
+- Validate connection owner scope, known capability keys, and capability membership on the selected connection.
+- Add `GET /agents/:agentId/connected-app-readiness` for report-only readiness context/report from generic records.
+- Reject raw token, secret, token-secret-ref, OAuth URL, provider client, handler, public callable, and execution fields.
+- Add routes/service/tests/docs only; do not add schema/migration changes, dashboard UI, widget/embed exposure, runtime chat behavior, public/anonymous routes, OAuth/provider setup, provider execution, external API calls, package activation enforcement, runtime permission enforcement, or secrets.
+
+### Connected Apps Phase 8: Authenticated Dashboard Management Surface
+
+- Add a compact `Connected apps` surface in authenticated dashboard/settings only.
+- Fetch `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `GET /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness`.
+- Show provider/capability labels, connection status, provider account label, scopes/capability summary, webhook status, agent enablement, approval mode, allowed surfaces, and report-only readiness warnings.
+- Allow owners to create manual/status-only connection records, update connection status, and enable/disable selected capabilities for the selected agent.
+- Label the surface as `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`.
+- Do not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, package selector controls, or package switching controls.
+- Add dashboard UI/tests/docs only; do not add schema/migration changes, runtime chat behavior, widget/embed behavior, public/anonymous routes, OAuth/provider setup, provider execution, external API calls, package activation enforcement, runtime permission enforcement, package switching, or secrets.
 
 ### PR G: Second Product Package Proof
 

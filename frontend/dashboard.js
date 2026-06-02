@@ -550,6 +550,7 @@ let authCallbackIssue = null;
 let authStateListenerBound = false;
 let shellHashNavigationHandler = null;
 let workspaceState = null;
+let connectedAppsRefreshRequestId = 0;
 const dashboardRuntimeState = {
   hasBooted: false,
   isBootLoading: false,
@@ -9141,12 +9142,19 @@ function buildWorkspaceSettingsPanel(agent, setup, operatorWorkspace = createEmp
   `;
 }
 
-function getSettingsShellOptions(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
+function getSettingsShellOptions(
+  agent,
+  setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  actionQueue = createEmptyActionQueue(),
+  connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
+) {
   return {
     agent,
     setup,
     operatorWorkspace,
     actionQueue,
+    connectedApps: normalizeConnectedAppsState(connectedApps),
     authUser,
     escapeHtml,
     trimText,
@@ -9174,7 +9182,13 @@ function getSettingsShellOptions(agent, setup, operatorWorkspace = createEmptyOp
   };
 }
 
-function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue()) {
+function buildSettingsPanel(
+  agent,
+  setup,
+  operatorWorkspace = createEmptyOperatorWorkspace(),
+  actionQueue = createEmptyActionQueue(),
+  connectedApps = workspaceState?.connectedApps || createEmptyConnectedAppsState()
+) {
   const settingsShell = window.VonzaSettingsShell;
 
   if (!settingsShell || typeof settingsShell.buildSettingsPanel !== "function") {
@@ -9189,7 +9203,7 @@ function buildSettingsPanel(agent, setup, operatorWorkspace = createEmptyOperato
     `;
   }
 
-  return settingsShell.buildSettingsPanel(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue));
+  return settingsShell.buildSettingsPanel(getSettingsShellOptions(agent, setup, operatorWorkspace, actionQueue, connectedApps));
 }
 
 function buildFrontDeskCustomizationPanel(agent, setup, operatorWorkspace = createEmptyOperatorWorkspace(), actionQueue = createEmptyActionQueue(), activeFrontDeskSection = "practice") {
@@ -13743,12 +13757,13 @@ function renderAssistantShell(
   setup,
   actionQueue = createEmptyActionQueue(),
   operatorWorkspace = createEmptyOperatorWorkspace(),
-  frontDeskTraining = createEmptyFrontDeskTraining()
+  frontDeskTraining = createEmptyFrontDeskTraining(),
+  connectedApps = createEmptyConnectedAppsState()
 ) {
   setup = mergeKnowledgeImportIntoSetup(setup, agent);
 
   if (DASHBOARD_V2_ENABLED) {
-    renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
+    renderDashboardV2Shell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
     return;
   }
 
@@ -13780,7 +13795,7 @@ function renderAssistantShell(
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
           ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
         </div>
       </div>
     </div>
@@ -13795,7 +13810,8 @@ function renderDashboardV2Shell(
   setup,
   actionQueue = createEmptyActionQueue(),
   operatorWorkspace = createEmptyOperatorWorkspace(),
-  frontDeskTraining = createEmptyFrontDeskTraining()
+  frontDeskTraining = createEmptyFrontDeskTraining(),
+  connectedApps = createEmptyConnectedAppsState()
 ) {
   renderTopbarMeta();
   const activeSection = getActiveShellSection(setup, operatorWorkspace);
@@ -13823,7 +13839,7 @@ function renderDashboardV2Shell(
           ${isCapabilityVisibleForWorkspace("calendar", operatorWorkspace) ? buildCalendarPanel(agent, operatorWorkspace) : ""}
           ${isCapabilityVisibleForWorkspace("automations", operatorWorkspace) ? buildAutomationsPanel(agent, operatorWorkspace) : ""}
           ${buildInstallPanel(agent, setup, operatorWorkspace, messages, actionQueue)}
-          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue)}
+          ${buildSettingsPanel(agent, setup, operatorWorkspace, actionQueue, connectedApps)}
         </div>
       </div>
     </div>
@@ -13832,7 +13848,15 @@ function renderDashboardV2Shell(
   bindSharedDashboardEvents(agent, messages, setup, actionQueue, operatorWorkspace);
 }
 
-function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
+function renderSetupState(
+  agent,
+  messages,
+  setup,
+  actionQueue,
+  operatorWorkspace,
+  frontDeskTraining = createEmptyFrontDeskTraining(),
+  connectedApps = createEmptyConnectedAppsState()
+) {
   markDashboardBooted();
   workspaceState = {
     agent,
@@ -13841,12 +13865,20 @@ function renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace
     actionQueue,
     operatorWorkspace,
     frontDeskTraining,
+    connectedApps: normalizeConnectedAppsState(connectedApps),
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
 }
 
-function renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining = createEmptyFrontDeskTraining()) {
+function renderReadyState(
+  agent,
+  messages,
+  actionQueue,
+  operatorWorkspace,
+  frontDeskTraining = createEmptyFrontDeskTraining(),
+  connectedApps = createEmptyConnectedAppsState()
+) {
   const setup = inferSetup(agent);
   markDashboardBooted();
   workspaceState = {
@@ -13856,9 +13888,10 @@ function renderReadyState(agent, messages, actionQueue, operatorWorkspace, front
     actionQueue,
     operatorWorkspace,
     frontDeskTraining,
+    connectedApps: normalizeConnectedAppsState(connectedApps),
   };
   bindWorkspaceAutoRefresh(agent.id);
-  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
+  renderAssistantShell(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
 }
 
 // Data loading and persistence helpers
@@ -14124,6 +14157,115 @@ async function loadBookingRequests() {
   url.searchParams.set("limit", "25");
   const data = await fetchJson(url.toString());
   return normalizeBookingRequestQueue(data);
+}
+
+function createEmptyConnectedAppsState(overrides = {}) {
+  return {
+    capabilities: [],
+    connections: [],
+    enablements: [],
+    readiness: null,
+    readinessContext: null,
+    loading: false,
+    error: "",
+    lastLoadedAt: null,
+    ...overrides,
+  };
+}
+
+function uniqueTextList(values = []) {
+  const seen = new Set();
+
+  return values.flatMap((value) => {
+    const normalized = trimText(value);
+    if (!normalized || seen.has(normalized)) {
+      return [];
+    }
+
+    seen.add(normalized);
+    return [normalized];
+  });
+}
+
+function normalizeConnectedAppsState(value = {}) {
+  return createEmptyConnectedAppsState({
+    capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
+    connections: Array.isArray(value.connections) ? value.connections : [],
+    enablements: Array.isArray(value.enablements) ? value.enablements : [],
+    readiness: value.readiness || value.report || null,
+    readinessContext: value.readinessContext || value.context || null,
+    loading: value.loading === true,
+    error: trimText(value.error),
+    lastLoadedAt: value.lastLoadedAt || null,
+  });
+}
+
+function getConnectedAppsCapabilityKeys(capabilities = []) {
+  return uniqueTextList(
+    capabilities
+      .map((capability) => capability?.key)
+      .filter(Boolean)
+  );
+}
+
+function getAgentConnectedAppRequiredCapabilities(enablements = []) {
+  return uniqueTextList(
+    enablements
+      .filter((enablement) => enablement?.enabled !== false)
+      .flatMap((enablement) => Array.isArray(enablement.capabilityKeys) ? enablement.capabilityKeys : [])
+  );
+}
+
+async function loadConnectedApps(agentId) {
+  const encodedAgentId = encodeURIComponent(agentId);
+  const [capabilitiesData, connectionsData, enablementsData] = await Promise.all([
+    fetchJson("/agents/connected-app-capabilities"),
+    fetchJson("/agents/connected-apps"),
+    fetchJson(`/agents/${encodedAgentId}/connected-apps`),
+  ]);
+  const capabilities = Array.isArray(capabilitiesData.capabilities) ? capabilitiesData.capabilities : [];
+  const connections = Array.isArray(connectionsData.connections) ? connectionsData.connections : [];
+  const enablements = Array.isArray(enablementsData.enablements) ? enablementsData.enablements : [];
+  const readinessUrl = new URL(`/agents/${encodedAgentId}/connected-app-readiness`, window.location.origin);
+  const requiredCapabilities = getAgentConnectedAppRequiredCapabilities(enablements);
+  const optionalCapabilities = getConnectedAppsCapabilityKeys(capabilities)
+    .filter((capabilityKey) => !requiredCapabilities.includes(capabilityKey));
+
+  readinessUrl.searchParams.set("surface", "operator");
+  if (requiredCapabilities.length) {
+    readinessUrl.searchParams.set("required_capabilities", requiredCapabilities.join(","));
+  }
+  if (optionalCapabilities.length) {
+    readinessUrl.searchParams.set("optional_capabilities", optionalCapabilities.join(","));
+  }
+
+  const readinessData = await fetchJson(readinessUrl.toString());
+
+  return normalizeConnectedAppsState({
+    capabilities,
+    connections,
+    enablements,
+    readiness: readinessData.report || null,
+    readinessContext: readinessData.context || null,
+    lastLoadedAt: new Date().toISOString(),
+  });
+}
+
+async function loadConnectedAppsSafe(agentId) {
+  if (!agentId) {
+    return createEmptyConnectedAppsState({
+      error: "Connected apps need a saved assistant before status can be loaded.",
+    });
+  }
+
+  try {
+    return await loadConnectedApps(agentId);
+  } catch (error) {
+    return createEmptyConnectedAppsState({
+      error: error.message || "Connected apps could not load right now.",
+      lastLoadedAt: new Date().toISOString(),
+    });
+  }
 }
 
 async function loadOwnerAnalyticsDashboard(agentId) {
@@ -14438,6 +14580,7 @@ function coalesceWorkspaceLoadState({
   bookingRequestsResult,
   ownerAnalyticsResult,
   operatorResult,
+  connectedAppsResult,
 } = {}) {
   const partialErrors = [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult]
     .filter((result) => result?.status === "rejected")
@@ -14473,6 +14616,11 @@ function coalesceWorkspaceLoadState({
           globalError: "We couldn't load the customer service workspace.",
         },
       },
+    connectedApps: connectedAppsResult?.status === "fulfilled"
+      ? connectedAppsResult.value
+      : createEmptyConnectedAppsState({
+        error: "Connected apps could not load right now.",
+      }),
     hasPartialFailure: [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult].some((result) => result?.status === "rejected"),
     partialErrors,
   };
@@ -14490,7 +14638,8 @@ function renderWorkspaceFromState() {
       workspaceState.messages || [],
       workspaceState.actionQueue || createEmptyActionQueue(),
       workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
-      workspaceState.frontDeskTraining || createEmptyFrontDeskTraining()
+      workspaceState.frontDeskTraining || createEmptyFrontDeskTraining(),
+      workspaceState.connectedApps || createEmptyConnectedAppsState()
     );
     return;
   }
@@ -14501,7 +14650,8 @@ function renderWorkspaceFromState() {
     setup,
     workspaceState.actionQueue || createEmptyActionQueue(),
     workspaceState.operatorWorkspace || createEmptyOperatorWorkspace(),
-    workspaceState.frontDeskTraining || createEmptyFrontDeskTraining()
+    workspaceState.frontDeskTraining || createEmptyFrontDeskTraining(),
+    workspaceState.connectedApps || createEmptyConnectedAppsState()
   );
 }
 
@@ -14513,7 +14663,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
 
   setDashboardBackgroundRefreshing(true, options.activeAction || "workspace-refresh");
   try {
-    const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult] = await Promise.allSettled([
+    const [agentResult, messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentInstallSnapshot(agentId),
       loadAgentMessages(agentId),
       loadFrontDeskTraining(agentId),
@@ -14524,6 +14674,7 @@ async function refreshAgentInstallState(agentId, options = {}) {
       loadOperatorWorkspaceSafe(agentId, {
         forceSync: options.forceSync === true,
       }),
+      loadConnectedAppsSafe(agentId),
     ]);
     const nextAgent = agentResult.status === "fulfilled" ? agentResult.value : null;
     const messages = messagesResult.status === "fulfilled" ? messagesResult.value : [];
@@ -14575,6 +14726,11 @@ async function refreshAgentInstallState(agentId, options = {}) {
       frontDeskTraining,
       actionQueue,
       operatorWorkspace,
+      connectedApps: connectedAppsResult.status === "fulfilled"
+        ? connectedAppsResult.value
+        : createEmptyConnectedAppsState({
+          error: "Connected apps could not refresh right now.",
+        }),
       setup: inferSetup(nextAgent),
     };
     renderWorkspaceFromState();
@@ -14606,6 +14762,173 @@ async function refreshDashboardInBackground(options = {}) {
     if (dashboardRuntimeState.hasBooted !== true || !workspaceState?.agent) {
       await boot({ forceBootLoading: true });
     }
+  }
+}
+
+function readConnectedAppFormList(formData, fieldName) {
+  return uniqueTextList(
+    formData.getAll(fieldName).flatMap((value) =>
+      String(value || "")
+        .split(/[\n,]/)
+        .map((part) => trimText(part))
+        .filter(Boolean)
+    )
+  );
+}
+
+function setConnectedAppFormDisabled(form, disabled) {
+  form.querySelectorAll("button, input, select, textarea").forEach((control) => {
+    control.disabled = disabled;
+  });
+}
+
+async function reloadConnectedAppsForAgent(agentId, options = {}) {
+  const normalizedAgentId = trimText(agentId);
+
+  if (!normalizedAgentId) {
+    return createEmptyConnectedAppsState({
+      error: "Connected apps need a saved assistant before status can be loaded.",
+    });
+  }
+
+  const requestId = connectedAppsRefreshRequestId + 1;
+  connectedAppsRefreshRequestId = requestId;
+  const connectedApps = await loadConnectedAppsSafe(normalizedAgentId);
+
+  if (requestId !== connectedAppsRefreshRequestId) {
+    return connectedApps;
+  }
+
+  if (workspaceState?.agent?.id === normalizedAgentId) {
+    workspaceState = {
+      ...workspaceState,
+      connectedApps,
+    };
+    renderWorkspaceFromState();
+  }
+
+  if (options.statusMessage) {
+    setStatus(options.statusMessage);
+  }
+
+  return connectedApps;
+}
+
+async function submitConnectedAppConnectionForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    provider: trimText(formData.get("provider")),
+    app_key: trimText(formData.get("app_key")),
+    capabilities: readConnectedAppFormList(formData, "capabilities"),
+    status: trimText(formData.get("status")) || "needs_setup",
+    provider_account_label: trimText(formData.get("provider_account_label")),
+    scopes: readConnectedAppFormList(formData, "scopes"),
+    webhook_status: trimText(formData.get("webhook_status")),
+    metadata: {
+      setupMode: "manual_internal",
+      dashboardSurface: "connected_apps_phase_8",
+    },
+  };
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Saving manual connected app status...");
+
+  try {
+    await fetchJson("/agents/connected-apps", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    form.reset();
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage: "Manual connected app status saved.",
+    });
+  } catch (error) {
+    setStatus(error.message || "Connected app status could not be saved.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function submitConnectedAppStatusForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    connection_id: trimText(formData.get("connection_id")),
+    status: trimText(formData.get("status")),
+    webhook_status: trimText(formData.get("webhook_status")),
+    needs_attention_reason: trimText(formData.get("needs_attention_reason")),
+    metadata: {
+      setupMode: "manual_internal",
+      dashboardSurface: "connected_apps_phase_8",
+    },
+  };
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Updating connected app status...");
+
+  try {
+    await fetchJson("/agents/connected-apps/status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage: "Connected app status updated.",
+    });
+  } catch (error) {
+    setStatus(error.message || "Connected app status could not be updated.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function submitConnectedAppEnablementForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const enablementId = trimText(formData.get("enablement_id"));
+  const payload = {
+    connection_id: trimText(formData.get("connection_id")),
+    capability_keys: readConnectedAppFormList(formData, "capability_keys"),
+    enabled: trimText(formData.get("enabled")) !== "false",
+    approval_mode: trimText(formData.get("approval_mode")) || "manual_review",
+    allowed_surfaces: readConnectedAppFormList(formData, "allowed_surfaces"),
+    metadata: {
+      setupMode: "manual_internal",
+      dashboardSurface: "connected_apps_phase_8",
+    },
+  };
+
+  if (enablementId) {
+    payload.enablement_id = enablementId;
+  }
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Saving agent connected app enablement...");
+
+  try {
+    await fetchJson(`/agents/${encodeURIComponent(agent.id)}/connected-apps`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage: "Agent connected app enablement saved.",
+    });
+  } catch (error) {
+    setStatus(error.message || "Agent connected app enablement could not be saved.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
   }
 }
 
@@ -16140,6 +16463,9 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const dashboardDensityInputs = document.querySelectorAll("[data-dashboard-density-choice]");
   const dashboardLanguageForms = document.querySelectorAll("[data-dashboard-language-form]");
   const billingChangeButtons = document.querySelectorAll("[data-billing-plan-key]");
+  const connectedAppConnectionForms = document.querySelectorAll("[data-connected-app-connection-form]");
+  const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
+  const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
   const helpCloseButtons = document.querySelectorAll("[data-help-close]");
@@ -17699,6 +18025,24 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
       } finally {
         setBillingPlanButtonsDisabled(false);
       }
+    });
+  });
+
+  connectedAppConnectionForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppConnectionForm(event, agent);
+    });
+  });
+
+  connectedAppStatusForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppStatusForm(event, agent);
+    });
+  });
+
+  connectedAppEnablementForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppEnablementForm(event, agent);
     });
   });
 
@@ -19648,7 +19992,7 @@ async function boot(options = {}) {
       setStatus(t("language.settingsError"));
     }
 
-    const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult] = await Promise.allSettled([
+    const [messagesResult, trainingResult, actionQueueResult, actionRequestsResult, bookingRequestsResult, ownerAnalyticsResult, operatorResult, activationWizardResult, connectedAppsResult] = await Promise.allSettled([
       loadAgentMessages(agent.id),
       loadFrontDeskTraining(agent.id),
       loadActionQueue(agent.id),
@@ -19657,12 +20001,14 @@ async function boot(options = {}) {
       loadOwnerAnalyticsDashboard(agent.id),
       loadOperatorWorkspaceSafe(agent.id),
       loadActivationWizard(agent.id),
+      loadConnectedAppsSafe(agent.id),
     ]);
     const {
       messages,
       frontDeskTraining,
       actionQueue,
       operatorWorkspace,
+      connectedApps,
       hasPartialFailure,
       partialErrors,
     } = coalesceWorkspaceLoadState({
@@ -19673,6 +20019,7 @@ async function boot(options = {}) {
       bookingRequestsResult,
       ownerAnalyticsResult,
       operatorResult,
+      connectedAppsResult,
     });
     const setup = inferSetup(agent);
     activationWizardState = activationWizardResult.status === "fulfilled" ? activationWizardResult.value : null;
@@ -19687,11 +20034,11 @@ async function boot(options = {}) {
     }
 
     if (setup.isReady) {
-      renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining);
+      renderReadyState(agent, messages, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
       return;
     }
 
-    renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining);
+    renderSetupState(agent, messages, setup, actionQueue, operatorWorkspace, frontDeskTraining, connectedApps);
   } catch (error) {
     clearLaunchState();
     setStatus(error.message || "We couldn't load your Vonza workspace right now.");

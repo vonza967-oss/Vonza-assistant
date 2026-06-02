@@ -7,6 +7,9 @@ import {
   listActionRequestDefinitionsForPackage,
   validatePackageActionDeclarations,
 } from "../actions/actionRequestRegistry.js";
+import {
+  evaluateConnectedAppReadiness,
+} from "../integrations/connectedAppReadinessService.js";
 
 const HOTEL_CONCIERGE_PACKAGE_KEY = "hotel_concierge";
 const DEFAULT_ACTIVATION_TARGET = "internal";
@@ -161,6 +164,55 @@ function statusFromSummary(summary) {
   }
 
   return "ready";
+}
+
+function normalizeManifestConnectedAppRequirements(agentPackage) {
+  const requirements = agentPackage?.connectedAppRequirements;
+
+  if (Array.isArray(requirements)) {
+    return {
+      requiredCapabilities: requirements,
+      optionalCapabilities: [],
+    };
+  }
+
+  const plainRequirements = toPlainObject(requirements);
+
+  return {
+    requiredCapabilities: Array.isArray(plainRequirements.requiredCapabilities)
+      ? plainRequirements.requiredCapabilities
+      : [],
+    optionalCapabilities: Array.isArray(plainRequirements.optionalCapabilities)
+      ? plainRequirements.optionalCapabilities
+      : [],
+  };
+}
+
+function hasConnectedAppContext(context) {
+  return Object.hasOwn(context, "connectedApps");
+}
+
+function buildConnectedAppReadinessInput(resolved, context) {
+  const connectedApps = toPlainObject(context.connectedApps);
+  const manifestRequirements = normalizeManifestConnectedAppRequirements(resolved.agentPackage);
+
+  return {
+    packageKey: resolved.packageKey,
+    agentId: connectedApps.agentId,
+    requiredCapabilities: Object.hasOwn(connectedApps, "requiredCapabilities")
+      ? connectedApps.requiredCapabilities
+      : manifestRequirements.requiredCapabilities,
+    optionalCapabilities: Object.hasOwn(connectedApps, "optionalCapabilities")
+      ? connectedApps.optionalCapabilities
+      : manifestRequirements.optionalCapabilities,
+    connectedCapabilities: connectedApps.connectedCapabilities,
+    providerStatuses: connectedApps.providerStatuses,
+    scopeGrants: connectedApps.scopeGrants,
+    webhookStatuses: connectedApps.webhookStatuses,
+    approvalMode: connectedApps.approvalMode,
+    surface: connectedApps.surface,
+    executionRequested: connectedApps.executionRequested === true,
+  };
 }
 
 function evaluateRegisteredPackageGate(resolved) {
@@ -465,14 +517,21 @@ export function evaluateAgentPackageActivationReadiness(packageOrKey, context = 
   const resolved = resolvePackageInput(packageOrKey);
   const requirements = buildRequirements(resolved, safeContext);
   const summary = summarizeRequirements(requirements);
-
-  return {
+  const result = {
     packageKey: resolved.packageKey,
     packageVersion: resolved.packageVersion,
     status: statusFromSummary(summary),
     requirements,
     summary,
   };
+
+  if (hasConnectedAppContext(safeContext)) {
+    result.connectedApps = evaluateConnectedAppReadiness(
+      buildConnectedAppReadinessInput(resolved, safeContext)
+    );
+  }
+
+  return result;
 }
 
 export function listAgentPackageActivationRequirements(packageOrKey) {

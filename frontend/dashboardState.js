@@ -32,13 +32,14 @@
     launch: "launch",
     customization: "customization",
   });
-  const SETTINGS_MAIN_TABS = Object.freeze(["general", "front_desk", "website_widget", "voice_agent", "business_profile", "account_billing", "privacy_legal"]);
+  const SETTINGS_MAIN_TABS = Object.freeze(["general", "front_desk", "website_widget", "voice_agent", "business_profile", "connected_apps", "account_billing", "privacy_legal"]);
   const SETTINGS_MAIN_TAB_HASH_SEGMENTS = Object.freeze({
     general: "general",
     front_desk: "front-desk",
     website_widget: "widget",
     voice_agent: "voice",
     business_profile: "business-profile",
+    connected_apps: "connected-apps",
     account_billing: "account-billing",
     privacy_legal: "privacy-legal",
   });
@@ -64,6 +65,11 @@
     "business-profile": "business_profile",
     profile: "business_profile",
     workspace: "business_profile",
+    apps: "connected_apps",
+    connected: "connected_apps",
+    connected_apps: "connected_apps",
+    "connected-apps": "connected_apps",
+    integrations: "connected_apps",
     account: "account_billing",
     billing: "account_billing",
     plan: "account_billing",

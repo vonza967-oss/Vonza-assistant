@@ -34,6 +34,11 @@ export const examplePackageManifest = Object.freeze({
   riskRules: examplePackageRiskRules,
   promptBlocks: examplePromptBlocks,
   tools: exampleToolKeys,
+  connectedAppRequirements: Object.freeze({
+    reportOnly: true,
+    requiredCapabilities: Object.freeze([]),
+    optionalCapabilities: Object.freeze([]),
+  }),
   knowledgePolicy: exampleKnowledgePolicy,
 });
 

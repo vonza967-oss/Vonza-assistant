@@ -1,0 +1,174 @@
+# Connected App Capability Registry
+
+## Purpose
+
+`src/services/integrations/connectedAppRegistry.js` is a report-only metadata registry for external app capabilities Vonza already knows about from provider-specific code.
+
+It does not create a generic Connected Apps execution engine. It does not add OAuth setup, chat behavior, webhook handlers, provider clients, package activation, permission grants, or external execution. The Phase 8 dashboard surface renders this metadata for authenticated owners only as manual/status-only setup and report-only readiness.
+
+Connected Apps Phase 2 adds `src/services/integrations/connectedAppReadinessService.js` as a provider-neutral, report-only evaluator over this registry. It can report whether supplied package/agent context appears `ready`, `warning`, or `blocked` for declared capabilities, but it still does not create a setup flow, enforce activation, call providers, or grant runtime permission.
+
+Connected Apps Phase 3 threads that report into `src/services/agents/agentPackageActivationReadinessService.js` when activation readiness callers explicitly pass `context.connectedApps`. The activation readiness response can now include a `connectedApps` metadata block with overall connected-app status, requirement entries, and summary counts. This metadata does not change package activation status, does not enforce activation, and does not enable provider execution.
+
+Connected Apps Phase 4 is documented in `docs/architecture/connected-apps-data-model-plan.md`. It designs future owner/workspace connection records, agent-level enablement records, webhook registry state, OAuth state contracts, token storage contracts, permission evaluation, RLS expectations, product UX, and adapter-first migration strategy. Phase 4 is docs/tests only; it adds no schema, migrations, runtime chat behavior, dashboard/widget/embed changes, OAuth/provider setup, external API/provider execution, package activation enforcement, or secrets.
+
+Connected Apps Phase 5 implements only the generic persistence and internal service foundation from that plan: `connected_app_connections`, `agent_connected_app_enablements`, and `src/services/integrations/connectedAppConnectionService.js`. It still adds no user-facing setup, OAuth/provider setup, runtime chat behavior, dashboard/widget/embed changes, external API/provider execution, package activation enforcement, or secrets.
+
+Connected Apps Phase 6 adds `src/services/integrations/connectedAppReadinessContextService.js`, an explicit report-only adapter from the Phase 5 generic records into the Phase 2 readiness service input shape. It still adds no user-facing setup, OAuth/provider setup, runtime chat behavior, dashboard/widget/embed changes, external API/provider execution, package activation enforcement, provider-specific legacy table inference, or secrets.
+
+Connected Apps Phase 7 adds authenticated owner-scoped `/agents/...` API routes over the registry and generic records. The API is for internal/manual owner setup and status review only. It does not add OAuth/provider setup, provider execution, runtime chat behavior, widget/embed exposure, package activation enforcement, public chat/tool use, or secrets.
+
+Connected Apps Phase 8 adds a compact authenticated dashboard/settings surface over the Phase 7 routes. It lists registry capabilities, owner connection status records, agent enablements, approval mode, allowed non-public surfaces, and report-only readiness. It can create manual/status-only connection records, update connection status, and create/update agent enablements. It does not add OAuth setup, provider setup, provider execution, runtime chat behavior, widget/embed exposure, package activation enforcement, public/anonymous routes, package switching, or secrets.
+
+## Current Capabilities
+
+The Phase 1 registry lists these provider-specific capabilities:
+
+- `google.calendar.read`
+- `google.calendar.write`
+- `google.gmail.read`
+- `calendly.booking.webhook`
+- `stripe.billing.webhook`
+- `twilio.phone.webhook`
+
+Each declaration includes provider, app name, capability, status, owner/agent scoping flags, OAuth/webhook/secret requirements, allowed surfaces, proof sources, existing code references, and safety notes.
+
+Every current declaration has:
+
+- `publicChatCallable: false`
+- `packageActivatable: false`
+
+Some declarations have `externalExecution: true` because existing provider-specific operator workflows can execute Google Calendar/Gmail API calls after their own route auth, owner/agent checks, connection checks, and scope checks. That flag is descriptive only. It is not a generic execution permission.
+
+## Existing Provider Boundaries
+
+Google remains the provider-specific operator workspace integration. Gmail exists only inside that Google operator workspace.
+
+Calendly remains a signed booking webhook proof integration. It does not let public chat book, cancel, reschedule, or check live availability.
+
+Stripe remains owner billing infrastructure. Stripe webhooks and checkout state are not agent connected-app grants.
+
+Twilio remains admin/provider-specific phone webhook infrastructure. It is not an owner self-serve connected-app setup surface.
+
+## Helper Contract
+
+The registry exposes pure helpers only:
+
+- `getConnectedAppCapability(key)`
+- `listConnectedAppCapabilities()`
+- `listConnectedAppCapabilitiesForProvider(provider)`
+- `hasConnectedAppCapability(key)`
+- `validateConnectedAppCapabilityDeclarations(keys)`
+
+Unknown and malformed keys fail closed. Returned data is copy-safe and frozen.
+
+## Phase 2 Readiness Service
+
+The readiness service exposes pure helpers only:
+
+- `evaluateConnectedAppReadiness(input)`
+- `listConnectedAppReadinessRequirements(input)`
+
+The input is a plain object for tests and future adapters. It can include package key, agent id, required and optional capability keys, connected capabilities, provider statuses, scope grants, webhook statuses, approval mode, surface, and whether execution was requested.
+
+Readiness is report-only:
+
+- Unknown required capabilities block.
+- Missing required capabilities block.
+- Missing optional capabilities warn.
+- Required capabilities block when their provider status is `disabled` or `needs_attention`.
+- Required OAuth capabilities block without a supplied scope grant.
+- Required webhook capabilities block without a supplied active webhook status.
+- Execution requests block unless every required capability is connected and the registry definition allows external execution for the requested surface.
+- Public chat execution remains blocked for all current capabilities.
+
+The readiness output is redacted and copy-safe. It returns status codes, registry metadata, booleans, and fixed messages only. It does not return secrets, tokens, OAuth URLs, webhook URLs, provider clients, account ids, or copied provider payloads.
+
+## Phase 3 Activation Readiness Reporting
+
+Package activation readiness can accept optional connected-app context under `connectedApps`:
+
+- `requiredCapabilities`
+- `optionalCapabilities`
+- `connectedCapabilities`
+- `providerStatuses`
+- `scopeGrants`
+- `webhookStatuses`
+- `approvalMode`
+- `surface`
+- `executionRequested`
+
+When that context is present, activation readiness calls `evaluateConnectedAppReadiness()` and attaches the redacted result as report-only `connectedApps` metadata. The existing activation requirements, activation summary, and activation status remain based on package activation checks only. A blocked connected-app report is not package activation enforcement in this phase.
+
+When no connected-app context is supplied, current packages behave as before and the activation readiness output omits connected-app metadata.
+
+## Phase 6 Generic Record Readiness Context
+
+The readiness context helper exposes:
+
+- `buildConnectedAppReadinessContext(supabase, input)`
+
+Input includes `ownerUserId`, `agentId`, `packageKey`, optional required capabilities, optional capabilities, optional surface, and optional execution-request state.
+
+The helper reads only `connected_app_connections` and `agent_connected_app_enablements`. A capability is emitted as connected only when the owner-scoped connection is `active`, the same owner/agent has an enabled enablement for that connection, and the capability appears on both records. Scope grants come from connection scopes but are returned as known capability grants only. Webhook status comes from the connection `webhook_status`. Approval mode and default surface come from matching enablement records.
+
+This helper is explicit: activation readiness does not query Supabase automatically. Callers or tests can build the context first, then pass it to `evaluateConnectedAppReadiness()` or to activation readiness under `context.connectedApps`.
+
+The helper output is redacted and provider-neutral. It does not expose token refs, raw secrets, metadata secrets, OAuth URLs, webhook signing material, provider clients, account payloads, or copied provider responses. It does not call providers and does not infer readiness from Google, Calendly, Stripe, Twilio, or other provider-specific legacy tables yet; those remain future adapters.
+
+## Phase 7 Authenticated API Exposure
+
+`src/routes/agentRoutes.js` exposes the registry and generic record status through authenticated owner routes only:
+
+- `GET /agents/connected-app-capabilities`
+- `GET /agents/connected-apps`
+- `POST /agents/connected-apps`
+- `POST /agents/connected-apps/status`
+- `GET /agents/:agentId/connected-apps`
+- `POST /agents/:agentId/connected-apps`
+- `GET /agents/:agentId/connected-app-readiness`
+
+The capability route returns a safe projection of registry metadata. It deliberately does not expose executable handlers, provider clients, OAuth URLs, webhook URLs, token refs, raw encrypted fields, tokens, or secrets. Every current returned capability has `publicChatCallable: false`.
+
+The owner connection routes are scoped to the authenticated owner. They can record generic provider/app/capability status, redacted account labels, scope names, webhook status, needs-attention reason, and redacted metadata. They reject raw token, secret, token-secret-ref, OAuth URL, provider client, handler, and execution fields. They do not call providers or create OAuth/provider setup artifacts.
+
+The agent enablement routes verify owner access to the URL agent, validate that the selected connection belongs to the same owner, and validate that enabled capabilities exist on the selected connection. Allowed surfaces must stay non-public under the service rules. The readiness route builds a report-only context from the generic records and evaluates the existing readiness service; it does not enforce package activation or provider execution.
+
+## Phase 8 Authenticated Dashboard Surface
+
+The dashboard/settings surface fetches `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `GET /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness` for the selected/current agent. It shows provider labels, capability labels, connection status, provider account label, scopes/capability summary, webhook status, agent enablement status, approval mode, allowed surfaces, and report-only readiness warnings.
+
+The surface is intentionally labeled `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`. It does not show or accept raw token, secret, OAuth URL, webhook URL, provider client, handler, execution, public chat callable, package selector, or package switching controls.
+
+## Non-Goals
+
+- No new OAuth start, callback, scope, or provider setup flow.
+- No provider client construction.
+- No executable handler metadata.
+- No external API calls.
+- No public chat provider execution.
+- No widget or embed change.
+- No package activation enforcement.
+- No secrets, tokens, OAuth URLs, webhook URLs, account ids, or credentials in registry data.
+- No OAuth/provider setup surface.
+- No runtime permission enforcement.
+- No provider-specific legacy table migration or inference in Phase 6.
+- No public or anonymous connected-app API route.
+- No widget/embed exposure in Phase 7-8.
+- No package activation enforcement through Phase 7 routes or Phase 8 dashboard controls.
+
+## Future Manifest Relationship
+
+Package manifests may later declare optional `connectedAppRequirements` for readiness reporting. A requirement declaration must not be treated as a connected app grant, provider scope, OAuth permission, package activation rule, or runtime permission.
+
+Current registered packages do not require connected apps. If a future manifest declares `connectedAppRequirements`, the readiness service may report missing or ready capabilities only when activation/reporting code explicitly supplies connected-app context. It must remain optional/report-only until a separate activation and runtime permission phase is explicitly implemented.
+
+Before any provider execution can become generic, Vonza still needs explicit owner connection records, agent enablements, package grants, scope/capability checks, approval mode, audit logging, and a central runtime permission service.
+
+The Phase 4 data model keeps those future pieces separate:
+
+- `connected_app_connections` represents an owner/workspace connection status record only.
+- `agent_connected_app_enablements` represents an owner-approved capability subset for one agent only.
+- `connected_app_webhooks` would represent webhook endpoint/proof state only.
+
+Phase 5 implements the first two records as persistence only. Those records are not enough by themselves to authorize provider execution, and the webhook registry remains future work.

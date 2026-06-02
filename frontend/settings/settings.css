@@ -5622,6 +5622,148 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell
   min-width: 0;
 }
 
+.settings-connected-apps-section .settings-shell-form {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-connected-app-safety-strip,
+.settings-connected-app-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-connected-app-safety-strip span,
+.settings-connected-app-summary-row span {
+  border: 1px solid var(--glass-operating-border, #dbe4f0);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--theme-text, #172033);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.settings-connected-app-capability-grid,
+.settings-connected-app-connection-list,
+.settings-connected-app-readiness-list {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-connected-app-capability-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-connected-app-card,
+.settings-connected-app-connection-row,
+.settings-connected-app-readiness-item,
+.settings-connected-app-empty {
+  border: 1px solid var(--glass-operating-border, #dbe4f0);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: var(--glass-operating-highlight, none);
+  padding: 16px;
+}
+
+.settings-connected-app-card-head,
+.settings-connected-app-connection-main,
+.settings-connected-app-readiness-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settings-connected-app-meta {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+}
+
+.settings-connected-app-meta div {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.38fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.settings-connected-app-meta dt {
+  color: var(--theme-muted, #64748b);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.settings-connected-app-meta dd {
+  color: var(--theme-text, #172033);
+  font-size: 13px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-connected-app-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-connected-app-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.settings-connected-app-mini-form {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-connected-app-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-connected-app-checkbox-group label {
+  align-items: center;
+  border: 1px solid var(--glass-operating-border, #dbe4f0);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 7px;
+  padding: 7px 9px;
+}
+
+.settings-connected-app-checkbox-group input {
+  margin: 0;
+}
+
+.settings-connected-app-checkbox-group span {
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.settings-connected-app-empty {
+  color: var(--theme-muted, #64748b);
+}
+
+.settings-connected-app-empty strong {
+  color: var(--theme-text, #172033);
+  display: block;
+  margin-bottom: 4px;
+}
+
+html[data-dashboard-theme="dark"] .settings-connected-app-safety-strip span,
+html[data-dashboard-theme="dark"] .settings-connected-app-summary-row span,
+html[data-dashboard-theme="dark"] .settings-connected-app-card,
+html[data-dashboard-theme="dark"] .settings-connected-app-connection-row,
+html[data-dashboard-theme="dark"] .settings-connected-app-readiness-item,
+html[data-dashboard-theme="dark"] .settings-connected-app-empty,
+html[data-dashboard-theme="dark"] .settings-connected-app-checkbox-group label {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 @media (min-width: 1180px) {
   .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav {
     flex-wrap: wrap !important;
@@ -5631,5 +5773,22 @@ html[data-dashboard-theme="dark"] .dashboard-v2-production-shell .settings-shell
   .settings-shell-root .settings-shell-top-nav-group .settings-shell-nav-button {
     flex: 1 1 126px;
     min-width: 126px;
+  }
+}
+
+@media (max-width: 900px) {
+  .settings-connected-app-capability-grid,
+  .settings-connected-app-control-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-connected-app-card-head,
+  .settings-connected-app-connection-main,
+  .settings-connected-app-readiness-item {
+    display: grid;
+  }
+
+  .settings-connected-app-badges {
+    justify-content: flex-start;
   }
 }

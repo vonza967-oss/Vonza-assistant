@@ -21,6 +21,7 @@ PR 14 adds the first controlled persistence step only: `hotel_concierge` can be 
 - The tool registry is metadata-only, not executable.
 - Package tool declarations do not call providers, grant permissions, route requests, mutate records, or execute visitor-facing actions.
 - `hotel.booking_availability` is planned metadata only. It is not a live availability tool and must not be treated as room inventory access.
+- Connected app capability metadata is report-only. Activation readiness can include a connected-app readiness block when explicit connected-app context is supplied, but current registered package manifests do not declare connected app requirements, and future `connectedAppRequirements` must not be interpreted as OAuth setup, provider execution, package activation, or permission grants.
 - Knowledge policy checks are report-only.
 - Claim Verifier package policy checks are report-only.
 - Answer Contract and Claim Verifier do not enforce, rewrite, or block visitor replies.
@@ -105,6 +106,7 @@ Before any Hotel Concierge activation, the team must:
 - Define rollback path to `front_desk_general`.
 - Keep enforcement off until report-only metrics are reviewed.
 - Keep tools metadata-only until a later PR explicitly wires runtime execution and safety controls.
+- Keep connected app requirements metadata-only until a later PR adds explicit owner connections, agent enablements, package grants, runtime permission checks, and audit logging.
 
 ## Readiness Conclusion
 

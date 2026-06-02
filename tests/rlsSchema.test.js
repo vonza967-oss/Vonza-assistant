@@ -52,7 +52,11 @@ const agentBookingRequestsMigrationSql = readFileSync(
   "supabase/migrations/20260602135522_agent_booking_requests.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}`;
+const connectedAppConnectionFoundationMigrationSql = readFileSync(
+  "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -108,6 +112,8 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "agent_booking_integrations",
     "operator_contacts",
     "operator_contact_identities",
+    "connected_app_connections",
+    "agent_connected_app_enablements",
     "operator_tasks",
     "agent_visitor_reply_feedback",
     "front_desk_training_items",
@@ -129,4 +135,30 @@ test("critical owner and customer tables have authenticated owner-scoped policie
   assert.match(postRlsMigrationSql, /owner_user_id = \(select auth\.uid\(\)\)/i);
   assert.doesNotMatch(postRlsMigrationSql, /agent_visitor_reply_feedback[\s\S]+?for insert\s+to anon/i);
   assert.doesNotMatch(postRlsMigrationSql, /messages[\s\S]+?for select\s+to anon/i);
+});
+
+test("connected app foundation policies are authenticated owner-select only", () => {
+  [
+    "connected_app_connections",
+    "agent_connected_app_enablements",
+  ].forEach((tableName) => {
+    assert.match(
+      connectedAppConnectionFoundationMigrationSql,
+      new RegExp(`alter table public\\.${tableName} enable row level security`, "i")
+    );
+    assert.match(
+      connectedAppConnectionFoundationMigrationSql,
+      new RegExp(`on public\\.${tableName}\\s+for select\\s+to authenticated`, "i")
+    );
+    assert.match(
+      connectedAppConnectionFoundationMigrationSql,
+      new RegExp(`on public\\.${tableName}[\\s\\S]+?owner_user_id = \\(select auth\\.uid\\(\\)\\)`, "i")
+    );
+    assert.doesNotMatch(
+      connectedAppConnectionFoundationMigrationSql,
+      new RegExp(`on public\\.${tableName}[\\s\\S]+?for (?:insert|update|delete|all)\\s+to authenticated`, "i")
+    );
+  });
+
+  assert.doesNotMatch(connectedAppConnectionFoundationMigrationSql, /to anon/i);
 });

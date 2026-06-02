@@ -271,6 +271,40 @@ async function stubDashboardWorkspaceApis(page, { agent = buildDashboardFixtureA
   await page.route("**/agents/activation-wizard**", (route) => fulfillJson(route, {
     wizard: null,
   }));
+  await page.route("**/agents/connected-app-capabilities**", (route) => fulfillJson(route, {
+    capabilities: [],
+  }));
+  await page.route("**/agents/connected-apps**", (route) => fulfillJson(route, {
+    connections: [],
+  }));
+  await page.route("**/agents/*/connected-apps**", (route) => fulfillJson(route, {
+    enablements: [],
+  }));
+  await page.route("**/agents/*/connected-app-readiness**", (route) => fulfillJson(route, {
+    report: {
+      reportOnly: true,
+      status: "ready",
+      requirements: [],
+      summary: {
+        ready: 0,
+        warning: 0,
+        blocked: 0,
+        requiredBlocked: 0,
+        optionalWarnings: 0,
+      },
+    },
+    context: {
+      requiredCapabilities: [],
+      optionalCapabilities: [],
+      connectedCapabilities: [],
+      providerStatuses: {},
+      scopeGrants: {},
+      webhookStatuses: {},
+      approvalMode: "manual",
+      surface: "operator",
+      executionRequested: false,
+    },
+  }));
 }
 
 async function stubAsyncKnowledgeImport(page, {

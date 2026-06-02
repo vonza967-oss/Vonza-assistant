@@ -184,6 +184,23 @@ import {
   updateAgentBookingRequestStatus,
 } from "../services/bookings/agentBookingRequestService.js";
 import {
+  listConnectedAppCapabilities,
+} from "../services/integrations/connectedAppRegistry.js";
+import {
+  createConnectedAppConnection,
+  enableConnectedAppForAgent,
+  listAgentConnectedAppEnablements,
+  listConnectedAppConnections,
+  updateAgentConnectedAppEnablement,
+  updateConnectedAppConnectionStatus,
+} from "../services/integrations/connectedAppConnectionService.js";
+import {
+  buildConnectedAppReadinessContext,
+} from "../services/integrations/connectedAppReadinessContextService.js";
+import {
+  evaluateConnectedAppReadiness,
+} from "../services/integrations/connectedAppReadinessService.js";
+import {
   getDashboardPreferences,
   normalizeDashboardLanguage,
   saveDashboardLanguagePreference,
@@ -200,6 +217,212 @@ import {
   readBodyField,
   readMultipartBackgroundFile,
 } from "./agentRouteHelpers.js";
+
+const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
+  "accessToken",
+  "access_token",
+  "apiKey",
+  "api_key",
+  "authUrl",
+  "auth_url",
+  "authorizationCode",
+  "authorization_code",
+  "authorizationUrl",
+  "authorization_url",
+  "bearerToken",
+  "bearer_token",
+  "callable",
+  "client",
+  "clientSecret",
+  "client_secret",
+  "encryptedToken",
+  "encrypted_token",
+  "execute",
+  "executionRequested",
+  "execution_requested",
+  "executor",
+  "externalExecution",
+  "external_execution",
+  "handler",
+  "handlers",
+  "oauthUrl",
+  "oauth_url",
+  "providerClient",
+  "provider_client",
+  "providers",
+  "publicChatCallable",
+  "public_chat_callable",
+  "refreshToken",
+  "refresh_token",
+  "runtimeHandler",
+  "runtime_handler",
+  "secret",
+  "secrets",
+  "setupUrl",
+  "setup_url",
+  "signingSecret",
+  "signing_secret",
+  "token",
+  "tokenSecretRef",
+  "token_secret_ref",
+  "tokens",
+  "webhookSecret",
+  "webhook_secret",
+  "webhookUrl",
+  "webhook_url",
+]);
+
+function buildConnectedAppRouteError(message, statusCode = 400, code = "connected_app_route_invalid") {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  return error;
+}
+
+function assertNoConnectedAppRouteUnsafeInput(value, path = "body") {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES.has(key)) {
+      throw buildConnectedAppRouteError(
+        `Connected app API does not accept secret, OAuth URL, or execution field '${path}.${key}'.`,
+        400,
+        "connected_app_secret_or_execution_field_rejected"
+      );
+    }
+
+    if (nestedValue && typeof nestedValue === "object") {
+      assertNoConnectedAppRouteUnsafeInput(nestedValue, `${path}.${key}`);
+    }
+  }
+}
+
+function readOptionalBoolean(value, fieldName) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  const normalized = cleanText(value).toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw buildConnectedAppRouteError(`${fieldName} must be a boolean value.`, 400);
+}
+
+function readBooleanFlag(value) {
+  return readOptionalBoolean(value, "flag") === true;
+}
+
+function normalizeRouteList(value) {
+  const rawItems = Array.isArray(value)
+    ? value
+    : value === undefined || value === null
+      ? []
+      : [value];
+
+  return rawItems.flatMap((item) =>
+    String(item || "")
+      .split(",")
+      .map((part) => cleanText(part))
+      .filter(Boolean)
+  );
+}
+
+function readBodyList(body, snakeCaseKey, camelCaseKey, fallbackKey) {
+  const value = readBodyField(body, snakeCaseKey, camelCaseKey);
+
+  return normalizeRouteList(value === undefined && fallbackKey ? body[fallbackKey] : value);
+}
+
+function hasBodyField(body, snakeCaseKey, camelCaseKey, fallbackKey) {
+  return Object.prototype.hasOwnProperty.call(body, snakeCaseKey)
+    || (camelCaseKey && Object.prototype.hasOwnProperty.call(body, camelCaseKey))
+    || (fallbackKey && Object.prototype.hasOwnProperty.call(body, fallbackKey));
+}
+
+function readQueryList(query, snakeCaseKey, camelCaseKey) {
+  const value = Object.prototype.hasOwnProperty.call(query, snakeCaseKey)
+    ? query[snakeCaseKey]
+    : query[camelCaseKey];
+
+  return normalizeRouteList(value);
+}
+
+function sanitizeConnectedAppCapability(definition = {}) {
+  return {
+    key: definition.key,
+    provider: definition.provider,
+    appName: definition.appName,
+    capability: definition.capability,
+    label: definition.label,
+    description: definition.description,
+    status: definition.status,
+    ownerScoped: definition.ownerScoped === true,
+    agentScoped: definition.agentScoped === true,
+    requiresOAuth: definition.requiresOAuth === true,
+    requiresWebhook: definition.requiresWebhook === true,
+    requiresSecret: definition.requiresSecret === true,
+    externalExecution: definition.externalExecution === true,
+    publicChatCallable: definition.publicChatCallable === true,
+    packageActivatable: definition.packageActivatable === true,
+    allowedSurfaces: Array.isArray(definition.allowedSurfaces) ? [...definition.allowedSurfaces] : [],
+    proofSources: Array.isArray(definition.proofSources) ? [...definition.proofSources] : [],
+    existingCodeRefs: Array.isArray(definition.existingCodeRefs) ? [...definition.existingCodeRefs] : [],
+    safetyNotes: Array.isArray(definition.safetyNotes) ? [...definition.safetyNotes] : [],
+  };
+}
+
+function shouldIncludeConnectedAppReadiness(query = {}) {
+  return readBooleanFlag(query.readiness)
+    || readBooleanFlag(query.include_readiness)
+    || readBooleanFlag(query.includeReadiness)
+    || readQueryList(query, "required_capabilities", "requiredCapabilities").length > 0
+    || readQueryList(query, "optional_capabilities", "optionalCapabilities").length > 0;
+}
+
+async function buildConnectedAppReadinessRoutePayload({
+  supabase,
+  ownerUserId,
+  agentId,
+  query = {},
+  buildConnectedAppReadinessContextImpl,
+  evaluateConnectedAppReadinessImpl,
+}) {
+  const context = await buildConnectedAppReadinessContextImpl(supabase, {
+    ownerUserId,
+    agentId,
+    packageKey: query.package_key || query.packageKey,
+    requiredCapabilities: readQueryList(query, "required_capabilities", "requiredCapabilities"),
+    optionalCapabilities: readQueryList(query, "optional_capabilities", "optionalCapabilities"),
+    surface: query.surface,
+    executionRequested: readOptionalBoolean(
+      query.execution_requested ?? query.executionRequested,
+      "execution_requested"
+    ) === true,
+  });
+  const report = evaluateConnectedAppReadinessImpl({
+    packageKey: query.package_key || query.packageKey,
+    agentId,
+    ...context,
+  });
+
+  return {
+    context,
+    report,
+  };
+}
 
 export function createAgentRouter(deps = {}) {
   const router = express.Router();
@@ -371,6 +594,24 @@ export function createAgentRouter(deps = {}) {
     deps.listAgentBookingRequests || listAgentBookingRequests;
   const updateAgentBookingRequestStatusImpl =
     deps.updateAgentBookingRequestStatus || updateAgentBookingRequestStatus;
+  const listConnectedAppCapabilitiesImpl =
+    deps.listConnectedAppCapabilities || listConnectedAppCapabilities;
+  const createConnectedAppConnectionImpl =
+    deps.createConnectedAppConnection || createConnectedAppConnection;
+  const listConnectedAppConnectionsImpl =
+    deps.listConnectedAppConnections || listConnectedAppConnections;
+  const updateConnectedAppConnectionStatusImpl =
+    deps.updateConnectedAppConnectionStatus || updateConnectedAppConnectionStatus;
+  const enableConnectedAppForAgentImpl =
+    deps.enableConnectedAppForAgent || enableConnectedAppForAgent;
+  const listAgentConnectedAppEnablementsImpl =
+    deps.listAgentConnectedAppEnablements || listAgentConnectedAppEnablements;
+  const updateAgentConnectedAppEnablementImpl =
+    deps.updateAgentConnectedAppEnablement || updateAgentConnectedAppEnablement;
+  const buildConnectedAppReadinessContextImpl =
+    deps.buildConnectedAppReadinessContext || buildConnectedAppReadinessContext;
+  const evaluateConnectedAppReadinessImpl =
+    deps.evaluateConnectedAppReadiness || evaluateConnectedAppReadiness;
   const getActionRequestDefinitionImpl =
     deps.getActionRequestDefinition || getActionRequestDefinition;
   const trackOwnerProductEvent = createTrackOwnerProductEvent(trackProductEventImpl);
@@ -2050,6 +2291,248 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/booking-requests/status" });
+    }
+  });
+
+  router.get("/agents/connected-app-capabilities", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+
+      await authenticateUser(supabase, req);
+
+      res.json({
+        ok: true,
+        capabilities: listConnectedAppCapabilitiesImpl().map(sanitizeConnectedAppCapability),
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-capabilities" });
+    }
+  });
+
+  router.get("/agents/connected-apps", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const connections = await listConnectedAppConnectionsImpl(supabase, {
+        ownerUserId: user.id,
+        provider: req.query.provider,
+        status: req.query.status,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        connections,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-apps" });
+    }
+  });
+
+  router.post("/agents/connected-apps", async (req, res) => {
+    try {
+      assertNoConnectedAppRouteUnsafeInput(req.body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const connection = await createConnectedAppConnectionImpl(supabase, {
+        ownerUserId: user.id,
+        provider: readBodyField(req.body, "provider"),
+        appKey: readBodyField(req.body, "app_key", "appKey") || req.body.app,
+        capabilityKeys: readBodyList(req.body, "capability_keys", "capabilityKeys", "capabilities"),
+        status: readBodyField(req.body, "status"),
+        providerAccountId: readBodyField(req.body, "provider_account_id", "providerAccountId"),
+        providerAccountLabel: readBodyField(req.body, "provider_account_label", "providerAccountLabel"),
+        scopesGranted: readBodyList(req.body, "scopes_granted", "scopesGranted", "scopes"),
+        webhookStatus: readBodyField(req.body, "webhook_status", "webhookStatus"),
+        lastVerifiedAt: readBodyField(req.body, "last_verified_at", "lastVerifiedAt"),
+        needsAttentionReason: readBodyField(req.body, "needs_attention_reason", "needsAttentionReason"),
+        metadata: req.body.metadata,
+      });
+
+      res.status(201).json({
+        ok: true,
+        connection,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-apps" });
+    }
+  });
+
+  router.post("/agents/connected-apps/status", async (req, res) => {
+    try {
+      assertNoConnectedAppRouteUnsafeInput(req.body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const connection = await updateConnectedAppConnectionStatusImpl(supabase, {
+        ownerUserId: user.id,
+        connectionId: readBodyField(req.body, "connection_id", "connectionId"),
+        status: readBodyField(req.body, "status"),
+        webhookStatus: readBodyField(req.body, "webhook_status", "webhookStatus"),
+        lastVerifiedAt: readBodyField(req.body, "last_verified_at", "lastVerifiedAt"),
+        needsAttentionReason: readBodyField(req.body, "needs_attention_reason", "needsAttentionReason"),
+        metadata: req.body.metadata,
+      });
+
+      res.json({
+        ok: true,
+        connection,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-apps/status" });
+    }
+  });
+
+  router.get("/agents/:agentId/connected-apps", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const enablements = await listAgentConnectedAppEnablementsImpl(supabase, {
+        ownerUserId: user.id,
+        agentId,
+        limit: req.query.limit,
+      });
+      const payload = {
+        ok: true,
+        enablements,
+      };
+
+      if (shouldIncludeConnectedAppReadiness(req.query)) {
+        payload.readiness = await buildConnectedAppReadinessRoutePayload({
+          supabase,
+          ownerUserId: user.id,
+          agentId,
+          query: req.query,
+          buildConnectedAppReadinessContextImpl,
+          evaluateConnectedAppReadinessImpl,
+        });
+      }
+
+      res.json(payload);
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/connected-apps" });
+    }
+  });
+
+  router.post("/agents/:agentId/connected-apps", async (req, res) => {
+    try {
+      assertNoConnectedAppRouteUnsafeInput(req.body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+      const enablementId = readBodyField(req.body, "enablement_id", "enablementId");
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const enabled = readOptionalBoolean(req.body.enabled, "enabled");
+      const hasCapabilityInput = hasBodyField(req.body, "capability_keys", "capabilityKeys", "capabilities");
+      const hasAllowedSurfaceInput = hasBodyField(req.body, "allowed_surfaces", "allowedSurfaces", "surfaces");
+      const baseOptions = {
+        ownerUserId: user.id,
+        capabilityKeys: readBodyList(req.body, "capability_keys", "capabilityKeys", "capabilities"),
+        approvalMode: readBodyField(req.body, "approval_mode", "approvalMode"),
+        allowedSurfaces: readBodyList(req.body, "allowed_surfaces", "allowedSurfaces", "surfaces"),
+        packageKey: readBodyField(req.body, "package_key", "packageKey"),
+        metadata: req.body.metadata,
+      };
+      let enablement;
+
+      if (enablementId) {
+        const updateOptions = {
+          ownerUserId: user.id,
+          agentId,
+          enablementId,
+        };
+
+        if (hasCapabilityInput) {
+          updateOptions.capabilityKeys = baseOptions.capabilityKeys;
+        }
+
+        if (enabled !== undefined) {
+          updateOptions.enabled = enabled;
+        }
+
+        if (hasBodyField(req.body, "approval_mode", "approvalMode")) {
+          updateOptions.approvalMode = baseOptions.approvalMode;
+        }
+
+        if (hasAllowedSurfaceInput) {
+          updateOptions.allowedSurfaces = baseOptions.allowedSurfaces;
+        }
+
+        if (hasBodyField(req.body, "package_key", "packageKey")) {
+          updateOptions.packageKey = baseOptions.packageKey;
+        }
+
+        if (hasBodyField(req.body, "metadata", "metadata")) {
+          updateOptions.metadata = baseOptions.metadata;
+        }
+
+        enablement = await updateAgentConnectedAppEnablementImpl(supabase, updateOptions);
+      } else {
+        const createOptions = {
+          ...baseOptions,
+          agentId,
+          connectionId: readBodyField(req.body, "connection_id", "connectionId"),
+        };
+
+        if (enabled !== undefined) {
+          createOptions.enabled = enabled;
+        }
+
+        enablement = await enableConnectedAppForAgentImpl(supabase, createOptions);
+      }
+
+      res.status(enablementId ? 200 : 201).json({
+        ok: true,
+        enablement,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/connected-apps" });
+    }
+  });
+
+  router.get("/agents/:agentId/connected-app-readiness", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = cleanText(req.params.agentId);
+
+      await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.query.client_id || req.query.clientId,
+      });
+
+      const readiness = await buildConnectedAppReadinessRoutePayload({
+        supabase,
+        ownerUserId: user.id,
+        agentId,
+        query: req.query,
+        buildConnectedAppReadinessContextImpl,
+        evaluateConnectedAppReadinessImpl,
+      });
+
+      res.json({
+        ok: true,
+        ...readiness,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/:agentId/connected-app-readiness" });
     }
   });
 

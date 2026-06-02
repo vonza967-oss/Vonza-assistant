@@ -20,7 +20,7 @@ Changing which package is sellable requires a separate product and schema decisi
 
 A package manifest is an object with stable, serializable metadata and optional package-owned helpers. Current manifests use frozen objects to avoid accidental mutation.
 
-This is the current v1 contract. A future Product Package Contract v2 is proposed in `docs/architecture/product-runtime-engine-plan.md` for package-owned `surfaces`, `settingsSchema`, `dataRequirements`, `allowedActions`, `allowedTools`, `staffWorkflows`, `evalGates`, and `activationRequirements`. Those v2 sections are not implemented by the current runtime. Phase 2 PR F adds a report-only readiness service around the current manifest and registry state, but it does not add v2 runtime activation.
+This is the current v1 contract. A future Product Package Contract v2 is proposed in `docs/architecture/product-runtime-engine-plan.md` for package-owned `surfaces`, `settingsSchema`, `dataRequirements`, `allowedActions`, `allowedTools`, `staffWorkflows`, `evalGates`, `activationRequirements`, and optional `connectedAppRequirements`. Those v2 sections are not implemented by the current runtime. Phase 2 PR F adds a report-only readiness service around the current manifest and registry state, Connected Apps Phase 3 lets that readiness output include optional connected-app metadata, Phase 4 designs the generic connected-app data model, and Phases 5-8 add generic connection/enablement persistence, report-only readiness derivation, authenticated owner API routes, and a manual/status-only authenticated dashboard surface. None of those phases adds v2 runtime activation.
 
 Required fields:
 
@@ -38,6 +38,7 @@ Package manifests may contain:
 - `riskRules`: Human-readable package safety rules. These are documentation and test metadata unless code explicitly consumes them.
 - `actions`: Action request declaration keys. These describe staff-visible request types a package may create in later scoped work; they are not executable tools.
 - `tools`: Tool declaration keys. These are metadata-only and are not executable tools.
+- `connectedAppRequirements`: Future optional connected app capability keys for readiness reporting only. The example template uses `{ reportOnly: true, requiredCapabilities: [], optionalCapabilities: [] }`. Current registered packages do not require connected apps.
 - `knowledgePolicy`: Report-only evidence policy for Answer Contract and Claim Verifier metadata.
 - `verticals` and `purposes`: Compatibility helpers used by `front_desk_general` to preserve current vertical and widget-purpose behavior.
 
@@ -52,6 +53,56 @@ Current tool registry behavior is metadata-only:
 - `common.lead_capture`, `common.contact_route`, `common.booking_link`, and `common.human_handoff` describe existing shared Front Desk surfaces.
 - `hotel.booking_availability` is planned metadata for `hotel_concierge`; it has no runtime surface and must not be treated as live inventory access.
 - Tool validation may report invalid declarations in tests, but package tools do not block, rewrite, route, mutate, or execute visitor replies.
+
+## Connected App Requirements
+
+Future package manifests may include optional `connectedAppRequirements` entries that reference keys from `src/services/integrations/connectedAppRegistry.js`, such as `google.calendar.read` or `calendly.booking.webhook`.
+
+Template shape:
+
+```js
+connectedAppRequirements: Object.freeze({
+  reportOnly: true,
+  requiredCapabilities: Object.freeze([]),
+  optionalCapabilities: Object.freeze([]),
+})
+```
+
+This is future readiness metadata only. A connected app requirement is not:
+
+- an OAuth setup flow,
+- a provider connection,
+- a package activation rule,
+- an agent or owner permission grant,
+- a public chat callable tool,
+- a webhook handler,
+- a provider client,
+- a secret, token, OAuth URL, or webhook URL.
+
+`src/services/integrations/connectedAppReadinessService.js` can evaluate supplied metadata for these future declarations and return `ready`, `warning`, or `blocked` requirement details. `src/services/agents/agentPackageActivationReadinessService.js` can attach that result as a separate `connectedApps` metadata block when callers explicitly pass `context.connectedApps`. It is report-only. It does not call Supabase, provider clients, OAuth endpoints, webhook setup, external APIs, chat routes, dashboard code, widget code, or embed code.
+
+Current registered package manifests do not declare connected app requirements, and package activation readiness does not enforce provider execution. Connected-app readiness status does not change package activation status in this phase. Tool metadata and package actions must remain separate from connected app capability metadata.
+
+Current connected-app readiness rules:
+
+- Unknown required capability blocks.
+- Known required capability missing from supplied connected capabilities blocks.
+- Optional missing capability warns.
+- Required provider status `disabled` or `needs_attention` blocks.
+- Required OAuth capability without a supplied scope grant blocks.
+- Required webhook capability without a supplied active webhook status blocks.
+- Public chat execution remains blocked for every current capability.
+- Execution requests are still report-only and blocked unless all required capabilities are connected and the registry allows external execution for the requested non-public surface.
+
+Generic Connected Apps records, authenticated owner/internal API routes, and a manual/status-only authenticated dashboard surface now exist. They are not generic OAuth/provider setup, runtime permission enforcement, or external provider execution. No external provider execution is enabled by manifest metadata, generic records, dashboard controls, or readiness reporting.
+
+Connected Apps Phase 4 defines the data-model distinction package manifests will depend on:
+
+- `connected_app_connections` are implemented owner/workspace provider/app status records.
+- `agent_connected_app_enablements` are implemented per-agent capability enablement records.
+- `connected_app_webhooks` would be webhook endpoint/proof state.
+
+The implemented connection and enablement records do not turn a package `connectedAppRequirements` declaration into permission. A future runtime permission service must still verify owner connection, agent enablement, package allowance, provider scopes/webhook state, allowed surface, approval mode, billing/access state, execution policy, and audit logging. Public chat provider execution remains blocked by default.
 
 ## Action Request Declarations
 
@@ -75,7 +126,7 @@ Exports:
 - `evaluateAgentPackageActivationReadiness(packageOrKey, context = {})`
 - `listAgentPackageActivationRequirements(packageOrKey)`
 
-The service returns deterministic plain objects with package key/version, overall `ready`, `blocked`, or `warning` status, individual requirement results, and summary counts. It uses the package registry and action request registry only. It does not call Supabase, OpenAI, routes, chat, dashboard, widget, embed, eval report files, provider clients, or external tools.
+The service returns deterministic plain objects with package key/version, overall `ready`, `blocked`, or `warning` status, individual activation requirement results, and activation summary counts. When `context.connectedApps` is explicitly supplied, it also returns a separate report-only `connectedApps` block with connected-app status, requirement entries, and summary counts. It does not call Supabase, OpenAI, routes, chat, dashboard, widget, embed, eval report files, provider clients, or external tools.
 
 Current readiness scope:
 
@@ -84,6 +135,7 @@ Current readiness scope:
 - `hotel_concierge` internal readiness requires a registered package, valid action declarations, confirmed action request registry validation, enabled staff action queue, required hotel data flags, passing Hotel Concierge eval context, disabled public/dashboard/widget switching flags, disabled external execution or explicit integration readiness, and report-only policy mode.
 - `hotel_concierge` public/dashboard readiness remains blocked by default. Any broader activation requires a later explicit activation PR.
 - Missing recommended hotel data can warn; missing required hotel data blocks.
+- Optional connected-app context can report connected-app readiness as metadata. Missing required connected-app capabilities can appear as `connectedApps.status = "blocked"`, optional missing capabilities can appear as warnings, and public chat execution requests remain blocked in metadata. These connected-app results do not change activation status or enforce package activation.
 
 The readiness service does not enforce activation, create action requests, expose package selection, change public routes, change dashboard/admin UI, change widget/embed behavior, execute tools/providers, or enable policy enforcement.
 
@@ -115,8 +167,9 @@ Phase 2 should evolve packages from prompt/eval metadata into product runtime de
 - `dataRequirements`: Required, recommended, and optional knowledge inputs for activation.
 - `allowedActions`: Package-neutral action request types, such as `hotel.bring_water`, that create staff-visible work rather than executing providers directly.
 - `allowedTools`: Future provider or internal tools allowed only after explicit integration configuration and activation gates.
+- `connectedAppRequirements`: Future optional report-only app capability requirements for packages that need an external app before activation review. These declarations must validate against the connected app capability registry but must not be interpreted as provider execution permission.
 - `staffWorkflows`: Staff-visible queues and lifecycle rules required before public real-world requests are enabled.
 - `evalGates`: Package-specific eval suites required before activation.
 - `activationRequirements`: Data, eval, action, workflow, integration, package-switching, and report-only policy review gates.
 
-The full plan is in `docs/architecture/product-runtime-engine-plan.md`. Until those sections are implemented, v1 behavior remains unchanged: `supportedSurfaces` is descriptive, `actions` are action-request declarations only, `tools` are metadata-only, knowledge policy is report-only, and activation readiness checks are report-only/service-only rather than runtime enforcement.
+The full plan is in `docs/architecture/product-runtime-engine-plan.md`, with the generic connected-app persistence design in `docs/architecture/connected-apps-data-model-plan.md`. Until those sections are implemented, v1 behavior remains unchanged: `supportedSurfaces` is descriptive, `actions` are action-request declarations only, `tools` are metadata-only, connected app requirements are absent from current registered packages, knowledge policy is report-only, and activation readiness checks are report-only/service-only rather than runtime enforcement.
