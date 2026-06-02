@@ -2,11 +2,11 @@
 
 Inspection date: 2026-06-02
 
-This is an inspection, architecture, and contract-test planning document. Phase 5 now implements the minimal generic persistence and internal service foundation only. Phase 6 now derives report-only readiness context from those generic records. Phase 7 now exposes authenticated owner-scoped API routes over the registry and generic records only. Phase 8 now exposes those routes through an authenticated dashboard/settings management surface only. These phases do not implement a new integration, runtime chat behavior, widget/embed behavior, OAuth provider, webhook provider, package activation rule, external provider execution, public chat/tool use, or tool execution path.
+This is an inspection, architecture, and contract-test planning document. Phase 5 now implements the minimal generic persistence and internal service foundation only. Phase 6 now derives report-only readiness context from those generic records. Phase 7 now exposes authenticated owner-scoped API routes over the registry and generic records only. Phase 8 now exposes those routes through an authenticated dashboard/settings management surface only. Phase 9 now implements the Google Calendar adapter by mirroring the existing Google operator connection into generic records. These phases do not implement runtime chat behavior, widget/embed behavior, a new generic OAuth provider, webhook provider, package activation rule, generic external provider execution, public chat/tool use, or tool execution path.
 
 ## Executive summary
 
-Vonza now has a minimal generic Connected Apps persistence/service foundation, authenticated owner-scoped status/readiness API routes, and a compact authenticated dashboard management surface for those records. It still does not have a generic OAuth/provider setup or execution engine.
+Vonza now has a minimal generic Connected Apps persistence/service foundation, authenticated owner-scoped status/readiness API routes, a compact authenticated dashboard management surface for those records, and Google Calendar as the first adapter into that generic model. It still does not have a generic OAuth/provider setup or execution engine.
 
 The current repo has several external app integrations and integration-like records, but they are provider-specific:
 
@@ -31,6 +31,8 @@ Phase 6 adds `src/services/integrations/connectedAppReadinessContextService.js` 
 Phase 7 adds authenticated owner-scoped Connected Apps routes under `src/routes/agentRoutes.js`: `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `POST /agents/connected-apps`, `POST /agents/connected-apps/status`, `GET /agents/:agentId/connected-apps`, `POST /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness`. The routes use existing auth/agent-access conventions, return redacted registry/connection/enablement/readiness DTOs, and reject secret, token-ref, OAuth URL, provider client, handler, and execution fields. They do not add public/anonymous routes, OAuth/provider setup, provider execution, runtime chat behavior, widget/embed exposure, or package activation enforcement.
 
 Phase 8 adds an authenticated dashboard/settings `Connected apps` surface. It fetches the Phase 7 capability, connection, agent enablement, and readiness endpoints; shows provider/capability labels, connection status, account label, scopes/capabilities, webhook status, agent enablement, approval mode, allowed surfaces, and report-only readiness; and posts only manual/status-only connection, status, and enablement updates. It does not add schema/migration changes, OAuth/provider setup, provider execution, runtime chat behavior, widget/embed exposure, package activation enforcement, package switching, public/anonymous routes, or secrets.
+
+Phase 9 adds a Google Calendar adapter in `src/services/integrations/googleConnectedAppAdapter.js`. The existing Google OAuth start/callback, state storage, encrypted token storage, refresh, sync, and approved Calendar mutation workflow remains the source of truth. The adapter mirrors redacted Calendar connection status into `connected_app_connections` and lets the existing generic enablement endpoint explicitly enable selected Calendar capabilities for an owned agent. It does not add new Google scopes, chat execution, widget/embed behavior, public routes, package activation enforcement, generic provider execution, or automatic agent enablement.
 
 ## What external app integrations exist today
 
@@ -750,16 +752,27 @@ Implemented Phase 8 behavior:
 - Creates manual/status-only owner connection records through `POST /agents/connected-apps`.
 - Updates owner connection status through `POST /agents/connected-apps/status`.
 - Creates or updates selected-agent enablements through `POST /agents/:agentId/connected-apps`.
-- Labels the surface as `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`.
+- Labels manual records as status-only and labels the Google Calendar adapter as `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`.
 - Avoids raw token, secret, OAuth URL, webhook URL, provider client, executable handler, public chat callable, package selector, and package switching controls.
 
 Current Phase 8 behavior is dashboard UI/tests/docs only. It does not add schema/migration changes, runtime chat behavior, widget/embed behavior, OAuth/provider setup, provider webhook provisioning, external API/provider execution, package activation enforcement, runtime permission enforcement, provider-specific legacy adapters, public/anonymous routes, package activation controls, package switching, or secrets.
 
-### Phase 9: future provider-specific adapters
+### Phase 9: Google Calendar adapter
 
-Build read-only adapters over existing provider tables later:
+Implemented Phase 9 behavior:
 
-- Google account adapter from `google_connected_accounts`.
+- Adds `src/services/integrations/googleConnectedAppAdapter.js`.
+- Hooks the adapter after existing successful Google OAuth connection finalization.
+- Mirrors later Google token-refresh issue state into the generic connection as `needs_attention`.
+- Writes `connected_app_connections` only; it never writes `agent_connected_app_enablements`.
+- Uses `provider = google`, `app_key = google.calendar`, `google.calendar.read` when Calendar read/write scope is granted, and `google.calendar.write` only when Calendar write scope is granted.
+- Keeps raw access tokens, refresh tokens, OAuth codes, state secrets, client secrets, and provider clients out of route responses, dashboard JavaScript, tests, docs, and logs.
+- Reuses the existing dashboard Google connect button from the Connected Apps surface instead of inventing a new OAuth flow.
+
+Current Phase 9 behavior is adapter/tests/docs/dashboard-copy alignment only. It adds no schema/migration change, no new Google scopes, no chat/tool provider execution, no widget/embed behavior, no public route, no package activation enforcement, no generic provider execution, no package switching, and no secrets.
+
+Future provider-specific adapters can still be added later:
+
 - Calendly proof adapter from `agent_booking_integrations`.
 - Stripe billing adapter from `owner_billing_accounts`.
 - Twilio phone adapter from `agent_phone_numbers`.
@@ -769,7 +782,7 @@ Future provider-specific adapters should return redacted connection/readiness DT
 Existing provider-specific tables should coexist with the generic model first:
 
 - `agent_booking_integrations` stays the Calendly-specific signed webhook proof table.
-- `google_oauth_states` and `google_connected_accounts` stay the Google operator workspace OAuth/account tables while adapters preserve current scope and account checks.
+- `google_oauth_states` and `google_connected_accounts` stay the Google operator workspace OAuth/account tables while the Google Calendar adapter mirrors only redacted generic status.
 - Stripe billing/webhook handling stays account billing infrastructure, not an agent app grant.
 - Twilio phone webhook handling stays admin/provider-specific phone infrastructure until a separate self-serve design exists.
 
@@ -864,21 +877,34 @@ Phase 8 adds an authenticated dashboard management surface over existing generic
 - The dashboard/settings `Connected apps` surface fetches registry capabilities, owner connection records, selected-agent enablements, and selected-agent report-only readiness.
 - The surface displays provider/capability labels, connection status, account label, scopes/capability summary, webhook status, agent enablement state, approval mode, allowed surfaces, and readiness warnings.
 - Dashboard controls create manual/status-only owner connection records, update connection status, and enable/disable selected capabilities for the selected agent.
-- Copy explicitly says `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`.
+- Copy now distinguishes manual/status-only records from the Google Calendar adapter.
 - Controls do not accept raw token, secret, OAuth URL, webhook URL, provider client, handler, public chat callable, package selector, package switching, or execution fields.
 - No schema/migration change, runtime chat behavior, widget/embed surface, OAuth/provider setup, external provider execution, package activation enforcement, runtime permission enforcement, public/anonymous route, package activation change, or secret storage was added.
 
+## Phase 9 implementation result
+
+Phase 9 adds Google Calendar as the first adapter into the generic Connected Apps model:
+
+- `src/services/integrations/googleConnectedAppAdapter.js` maps existing `google_connected_accounts` state into `connected_app_connections`.
+- Existing Google OAuth/provider behavior remains the source of truth for state validation, owner binding, scopes, encrypted token storage, refresh, sync, and Calendar API behavior.
+- Successful Google Calendar connection finalization upserts the generic connection row.
+- Calendar read scope grants `google.calendar.read`; Calendar write scope grants both `google.calendar.read` and `google.calendar.write`; missing Calendar scope claims no Calendar capability and marks the generic record `needs_attention`.
+- Token/refresh issues map to `needs_attention`; disabled or revoked source states map to disabled/revoked generic status.
+- The Connected Apps dashboard shows Google Calendar as using the existing Google connection flow and lets owners explicitly enable selected capabilities for the selected agent through the existing generic enablement endpoint.
+- No agent is automatically enabled. Public chat execution remains blocked by readiness policy.
+- No new Google scope, runtime chat/tool execution, widget/embed change, public route, package activation enforcement, generic provider execution, package switching, or secret exposure was added.
+
 ## Explicit current-state conclusions
 
-- Vonza currently has a generic Connected Apps persistence/service foundation, authenticated owner/internal API routes, and a manual/status-only authenticated dashboard surface, not an OAuth/provider setup or execution engine.
+- Vonza currently has a generic Connected Apps persistence/service foundation, authenticated owner/internal API routes, a manual/status-only authenticated dashboard surface, and a Google Calendar mirror adapter, not a generic OAuth/provider setup or execution engine.
 - Existing outside apps are Google, Calendly, Stripe, and Twilio.
 - Gmail exists only inside the Google operator workspace.
 - Current reusable pieces are security and scoping patterns, not a generic engine.
 - Current highest-risk gap is the lack of a central app capability and runtime permission service.
 - Current package tools and action metadata are not executable integration permissions.
 - Current public chat paths must not execute external providers directly.
-- Current dashboard/settings surfaces now include a generic Connected apps status catalog, but it is manual/internal and report-only.
-- No generic OAuth/provider Connected Apps setup exists yet.
+- Current dashboard/settings surfaces now include a generic Connected apps status catalog and Google Calendar adapter status, but readiness remains report-only.
+- No generic OAuth/provider Connected Apps setup exists yet; Google Calendar uses the existing Google operator flow.
 - No runtime connected app permission enforcement exists yet.
 - No external provider execution is enabled through package metadata or readiness reporting.
 

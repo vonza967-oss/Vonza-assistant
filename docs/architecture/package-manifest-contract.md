@@ -20,7 +20,7 @@ Changing which package is sellable requires a separate product and schema decisi
 
 A package manifest is an object with stable, serializable metadata and optional package-owned helpers. Current manifests use frozen objects to avoid accidental mutation.
 
-This is the current v1 contract. A future Product Package Contract v2 is proposed in `docs/architecture/product-runtime-engine-plan.md` for package-owned `surfaces`, `settingsSchema`, `dataRequirements`, `allowedActions`, `allowedTools`, `staffWorkflows`, `evalGates`, `activationRequirements`, and optional `connectedAppRequirements`. Those v2 sections are not implemented by the current runtime. Phase 2 PR F adds a report-only readiness service around the current manifest and registry state, Connected Apps Phase 3 lets that readiness output include optional connected-app metadata, Phase 4 designs the generic connected-app data model, and Phases 5-8 add generic connection/enablement persistence, report-only readiness derivation, authenticated owner API routes, and a manual/status-only authenticated dashboard surface. None of those phases adds v2 runtime activation.
+This is the current v1 contract. A future Product Package Contract v2 is proposed in `docs/architecture/product-runtime-engine-plan.md` for package-owned `surfaces`, `settingsSchema`, `dataRequirements`, `allowedActions`, `allowedTools`, `staffWorkflows`, `evalGates`, `activationRequirements`, and optional `connectedAppRequirements`. Those v2 sections are not implemented by the current runtime. Phase 2 PR F adds a report-only readiness service around the current manifest and registry state, Connected Apps Phase 3 lets that readiness output include optional connected-app metadata, Phase 4 designs the generic connected-app data model, Phases 5-8 add generic connection/enablement persistence, report-only readiness derivation, authenticated owner API routes, and a manual/status-only authenticated dashboard surface, and Phase 9 mirrors Google Calendar from the existing Google operator flow into generic connection records. None of those phases adds v2 runtime activation.
 
 Required fields:
 
@@ -94,7 +94,7 @@ Current connected-app readiness rules:
 - Public chat execution remains blocked for every current capability.
 - Execution requests are still report-only and blocked unless all required capabilities are connected and the registry allows external execution for the requested non-public surface.
 
-Generic Connected Apps records, authenticated owner/internal API routes, and a manual/status-only authenticated dashboard surface now exist. They are not generic OAuth/provider setup, runtime permission enforcement, or external provider execution. No external provider execution is enabled by manifest metadata, generic records, dashboard controls, or readiness reporting.
+Generic Connected Apps records, authenticated owner/internal API routes, a manual/status-only authenticated dashboard surface, and a Google Calendar mirror adapter now exist. They are not generic OAuth/provider setup, runtime permission enforcement, or external provider execution. Existing Google OAuth/provider behavior remains the source of truth for Google Calendar. No external provider execution is enabled by manifest metadata, generic records, dashboard controls, or readiness reporting.
 
 Connected Apps Phase 4 defines the data-model distinction package manifests will depend on:
 

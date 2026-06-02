@@ -27,7 +27,8 @@ The current package manifest contract is v1 and intentionally limited:
 - Connected Apps Phase 5 adds generic `connected_app_connections` and `agent_connected_app_enablements` persistence plus internal service helpers only. The records are status/configuration records, not runtime provider permissions.
 - Connected Apps Phase 6 adds explicit report-only readiness context derivation from those generic records. Activation readiness still does not query Supabase automatically.
 - Connected Apps Phase 7 adds authenticated owner-scoped `/agents/...` API routes for safe registry metadata, owner connection records, agent enablements, and report-only readiness reports. It adds no dashboard UI, widget/embed exposure, runtime chat behavior, public/anonymous routes, OAuth/provider setup, provider execution, package activation enforcement, or secrets.
-- Connected Apps Phase 8 adds a compact authenticated dashboard/settings `Connected apps` management surface over the Phase 7 routes. It is manual/status-only, labels `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`, and adds no schema/migration changes, runtime chat behavior, widget/embed exposure, public/anonymous routes, OAuth/provider setup, provider execution, package activation enforcement, package switching, or secrets.
+- Connected Apps Phase 8 adds a compact authenticated dashboard/settings `Connected apps` management surface over the Phase 7 routes. It is manual/status-only for non-adapter records, labels report-only readiness, and adds no schema/migration changes, runtime chat behavior, widget/embed exposure, public/anonymous routes, OAuth/provider setup, provider execution, package activation enforcement, package switching, or secrets.
+- Connected Apps Phase 9 adds Google Calendar as the first adapter into the generic Connected Apps model. It reuses the existing Google operator connection flow, mirrors redacted Calendar connection status into `connected_app_connections`, and keeps agent enablement explicit through the generic endpoint. It adds no new Google scopes, runtime chat/tool execution, widget/embed exposure, public/anonymous routes, package activation enforcement, generic provider execution, package switching, automatic enablement, or secrets.
 
 Phase 2 should preserve those safety boundaries until each new capability is explicitly implemented, tested, and activated behind scoped controls.
 
@@ -146,9 +147,9 @@ Connected app requirements must validate against `src/services/integrations/conn
 
 `src/services/integrations/connectedAppReadinessService.js` can evaluate future required and optional requirement keys against supplied connected-capability, provider-status, scope-grant, and webhook-status metadata. `src/services/agents/agentPackageActivationReadinessService.js` can include that result in a separate `connectedApps` report block when `context.connectedApps` is supplied. The output is report-only and redacted. It can warn or block inside the connected-app metadata, but it must not enforce activation, change the activation status, or grant runtime execution.
 
-Current registered packages do not declare connected app requirements. Existing providers remain provider-specific, and no generic OAuth/provider Connected Apps setup exists yet. Phase 7 exposes authenticated owner/internal setup APIs for generic status records only. Phase 8 exposes those records in the authenticated dashboard as manual/status-only management and report-only readiness; it does not make package requirements executable.
+Current registered packages do not declare connected app requirements. Existing providers remain provider-specific, and no generic OAuth/provider Connected Apps setup exists yet. Phase 7 exposes authenticated owner/internal setup APIs for generic status records only. Phase 8 exposes those records in the authenticated dashboard as manual/status-only management and report-only readiness. Phase 9 mirrors Google Calendar from the existing Google operator flow into generic records; it does not make package requirements executable.
 
-Connected Apps Phase 4 designed the persistence model for those requirements. Phases 5-8 now implement generic records, report-only readiness derivation, authenticated owner APIs, and a manual/status-only authenticated dashboard surface over those records. An owner/workspace `connected_app_connections` record proves only that an owner has a redacted provider/app/capability status record. An `agent_connected_app_enablements` record proves only that an owner enabled a subset of connected capabilities for one agent. Neither record, the Phase 7 API, nor the Phase 8 dashboard controls are sufficient by themselves for runtime execution; a later permission service must also check package declaration, provider scopes/webhook state, allowed surface, approval mode, billing/access state, execution policy, and audit logging.
+Connected Apps Phase 4 designed the persistence model for those requirements. Phases 5-8 now implement generic records, report-only readiness derivation, authenticated owner APIs, and a manual/status-only authenticated dashboard surface over those records. Phase 9 adds the Google Calendar adapter into those records. An owner/workspace `connected_app_connections` record proves only that an owner has a redacted provider/app/capability status record. An `agent_connected_app_enablements` record proves only that an owner enabled a subset of connected capabilities for one agent. Neither record, the Phase 7 API, the Phase 8 dashboard controls, nor the Phase 9 adapter are sufficient by themselves for runtime execution; a later permission service must also check package declaration, provider scopes/webhook state, allowed surface, approval mode, billing/access state, execution policy, and audit logging.
 
 ### `staffWorkflows`
 
@@ -435,9 +436,20 @@ Current PR F behavior:
 - Fetch `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `GET /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness`.
 - Show provider/capability labels, connection status, provider account label, scopes/capability summary, webhook status, agent enablement, approval mode, allowed surfaces, and report-only readiness warnings.
 - Allow owners to create manual/status-only connection records, update connection status, and enable/disable selected capabilities for the selected agent.
-- Label the surface as `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`.
+- Label non-adapter records as manual/status-only and label Google Calendar as using the existing Google connection flow with no chat execution and no provider action without approval.
 - Do not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, package selector controls, or package switching controls.
 - Add dashboard UI/tests/docs only; do not add schema/migration changes, runtime chat behavior, widget/embed behavior, public/anonymous routes, OAuth/provider setup, provider execution, external API calls, package activation enforcement, runtime permission enforcement, package switching, or secrets.
+
+### Connected Apps Phase 9: Google Calendar Adapter
+
+- Add a Google Calendar adapter over the existing Google operator connection flow.
+- Upsert a redacted `connected_app_connections` row after successful existing Google OAuth finalization.
+- Mirror Google token/scope attention states into generic connection status without exposing tokens, OAuth codes, state secrets, or client secrets.
+- Grant `google.calendar.read` only when Calendar read/write scope is granted.
+- Grant `google.calendar.write` only when Calendar write scope is granted.
+- Reuse the existing Google connect dashboard action from the Connected Apps surface.
+- Keep `agent_connected_app_enablements` explicit through the existing generic endpoint; do not automatically enable any agent.
+- Add adapter/tests/docs/dashboard-copy alignment only; do not add schema/migration changes, new Google scopes, runtime chat/tool execution, widget/embed behavior, public/anonymous routes, package activation enforcement, generic provider execution, package switching, or secrets.
 
 ### PR G: Second Product Package Proof
 

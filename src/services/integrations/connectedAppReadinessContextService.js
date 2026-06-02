@@ -132,8 +132,15 @@ function packageMatches(enablementPackageKey, packageKey) {
 
 function hasCapabilityScope(scopes, definition) {
   const scopeSet = new Set(normalizeArray(scopes));
+  const oauthScopes = normalizeArray(definition.oauthScopes);
+  const acceptedScopes = oauthScopes.length > 0
+    ? oauthScopes
+    : normalizeArray([
+      definition.key,
+      definition.capability,
+    ]);
 
-  return scopeSet.has(definition.key) || scopeSet.has(definition.capability);
+  return acceptedScopes.some((scope) => scopeSet.has(scope));
 }
 
 function pickHighestPriority(currentValue, nextValue, priorityList) {

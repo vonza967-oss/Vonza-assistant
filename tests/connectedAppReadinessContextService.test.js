@@ -93,7 +93,7 @@ function connection(overrides = {}) {
     provider: "google",
     capability_keys: ["google.calendar.read"],
     status: "active",
-    scopes_granted: ["calendar.read"],
+    scopes_granted: ["https://www.googleapis.com/auth/calendar.readonly"],
     webhook_status: "not_required",
     token_secret_ref: "vault/google/secret-ref",
     metadata: {
@@ -252,6 +252,36 @@ test("missing OAuth scope blocks OAuth capabilities", async () => {
     ),
     true
   );
+});
+
+test("Google Calendar OAuth scope URLs satisfy mirrored readiness scope grants", async () => {
+  const { context, readiness } = await evaluateFromRecords({
+    connections: [
+      connection({
+        scopes_granted: ["https://www.googleapis.com/auth/calendar.readonly"],
+      }),
+    ],
+  });
+
+  assert.deepEqual(context.scopeGrants, {
+    "google.calendar.read": true,
+  });
+  assert.equal(readiness.status, "ready");
+  assert.equal(requirementByKey(readiness, "required.google.calendar.read").scopeGranted, true);
+});
+
+test("Google Calendar capability keys alone do not satisfy OAuth scope grants", async () => {
+  const { context, readiness } = await evaluateFromRecords({
+    connections: [
+      connection({
+        scopes_granted: ["google.calendar.read", "calendar.read"],
+      }),
+    ],
+  });
+
+  assert.deepEqual(context.scopeGrants, {});
+  assert.equal(readiness.status, "blocked");
+  assert.equal(requirementByKey(readiness, "required.google.calendar.read").scopeGranted, false);
 });
 
 test("missing active webhook blocks webhook capabilities", async () => {

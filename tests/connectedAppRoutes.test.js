@@ -145,7 +145,7 @@ function connection(overrides = {}) {
     status: "active",
     provider_account_id: "google-account-1",
     provider_account_label: "owner@example.com",
-    scopes_granted: ["calendar.read"],
+    scopes_granted: ["https://www.googleapis.com/auth/calendar.readonly"],
     webhook_status: "not_required",
     token_secret_ref: "vault/google/secret-ref",
     metadata: {},

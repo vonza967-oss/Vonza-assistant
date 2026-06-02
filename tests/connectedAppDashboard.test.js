@@ -12,9 +12,10 @@ test("dashboard source includes connected apps management surface", () => {
   const combined = `${dashboard}\n${settingsShell}`;
 
   assert.match(combined, /Connected apps/i);
-  assert.match(combined, /Manual\/internal setup/);
-  assert.match(combined, /No OAuth setup yet/);
-  assert.match(combined, /No provider execution/);
+  assert.match(combined, /Google Calendar adapter/);
+  assert.match(combined, /Uses existing Google connection flow/);
+  assert.match(combined, /No chat execution/);
+  assert.match(combined, /No provider action without approval/);
   assert.match(combined, /Report-only readiness/);
 });
 
@@ -34,6 +35,16 @@ test("dashboard posts status-only connected app and agent enablement endpoints",
   assert.match(dashboard, /fetchJson\("\/agents\/connected-apps\/status",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\(`\/agents\/\$\{encodeURIComponent\(agent\.id\)\}\/connected-apps`,\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /setupMode:\s*"manual_internal"/);
+});
+
+test("dashboard connected apps surface reuses existing Google connect flow", () => {
+  const dashboard = readSource("frontend/dashboard.js");
+  const settingsShell = readSource("frontend/settings/SettingsShell.js");
+
+  assert.match(settingsShell, /data-google-connect/);
+  assert.match(settingsShell, /Connect Google Calendar|Reconnect Google Calendar/);
+  assert.match(settingsShell, /Uses existing Google connection flow/);
+  assert.match(dashboard, /fetchJson\("\/agents\/google\/connect\/start"/);
 });
 
 test("dashboard settings state routes connected apps hashes to the settings section", () => {

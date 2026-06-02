@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Connected Apps Phase 5 implements the minimal generic persistence and internal service foundation from the Phase 4 design. It adds canonical owner connection and agent enablement tables plus a service skeleton. Connected Apps Phase 6 adds a report-only readiness context helper that can derive `evaluateConnectedAppReadiness()` input from those generic records. Connected Apps Phase 7 exposes those records through authenticated owner-scoped dashboard API routes only. Connected Apps Phase 8 adds an authenticated dashboard/settings management surface over those routes. These phases do not add runtime chat behavior, widget/embed behavior, OAuth setup, provider setup, package activation enforcement, external API calls, provider clients, provider execution, or secrets.
+Connected Apps Phase 5 implements the minimal generic persistence and internal service foundation from the Phase 4 design. It adds canonical owner connection and agent enablement tables plus a service skeleton. Connected Apps Phase 6 adds a report-only readiness context helper that can derive `evaluateConnectedAppReadiness()` input from those generic records. Connected Apps Phase 7 exposes those records through authenticated owner-scoped dashboard API routes only. Connected Apps Phase 8 adds an authenticated dashboard/settings management surface over those routes. Connected Apps Phase 9 adds Google Calendar as the first provider-specific adapter into the generic records by mirroring the existing Google operator connection flow. These phases do not add runtime chat behavior, widget/embed behavior, new Google scopes, generic OAuth setup, package activation enforcement, external API calls beyond existing Google operator workflows, generic provider clients, generic provider execution, or secrets.
 
 The model separates three decisions that must not be collapsed:
 
@@ -10,7 +10,7 @@ The model separates three decisions that must not be collapsed:
 - An owner enables a connected app capability for a specific agent.
 - A later runtime permission service decides whether a specific operation may execute.
 
-The current Connected Apps registry and readiness services remain metadata/report-only. The persistence records, Phase 7 API responses, and Phase 8 dashboard controls are status/configuration records only. Phases 6-8 can report whether generic records look ready for a package/agent/capability context, but those records, routes, dashboard controls, and reports do not grant runtime permission or execute providers.
+The current Connected Apps registry and readiness services remain metadata/report-only. The persistence records, Phase 7 API responses, and Phase 8/9 dashboard controls are status/configuration records only. Phases 6-9 can report whether generic records look ready for a package/agent/capability context, but those records, routes, dashboard controls, and reports do not grant runtime permission or execute providers. Existing Google provider-specific workflow remains the source of truth for OAuth, token refresh, Calendar sync, and approved Calendar mutation behavior.
 
 ## Implemented Owner Connection: `connected_app_connections`
 
@@ -87,16 +87,16 @@ All Phase 7 routes are authenticated owner/internal setup APIs only. There are n
 
 ## Implemented Authenticated Dashboard Surface
 
-Phase 8 adds a compact `Connected apps` management surface in the authenticated dashboard/settings area. It fetches:
+Phase 8 adds a compact `Connected apps` management surface in the authenticated dashboard/settings area. Phase 9 updates that surface to show Google Calendar as a real adapter backed by the existing Google connection flow. It fetches:
 
 - `GET /agents/connected-app-capabilities`
 - `GET /agents/connected-apps`
 - `GET /agents/:agentId/connected-apps`
 - `GET /agents/:agentId/connected-app-readiness`
 
-It shows provider and capability labels, owner connection status, provider account labels, scopes/capability summaries, webhook status, agent enablement state, approval mode, allowed surfaces, and report-only readiness warnings. It can create a manual/status-only connection record, update a connection status, and create/update an agent enablement.
+It shows provider and capability labels, owner connection status, provider account labels, scopes/capability summaries, webhook status, agent enablement state, approval mode, allowed surfaces, and report-only readiness warnings. It can reuse the existing Google connect button for Google Calendar, create a manual/status-only connection record for non-adapter review, update a connection status, and create/update an agent enablement.
 
-The Phase 8 dashboard copy is explicit: `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`. The surface does not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, or package selector/package switching controls. It does not call providers, start OAuth, provision webhooks, enforce package activation, expose public/anonymous connected-app routes, change runtime chat behavior, or change widget/embed bundles.
+The Phase 9 dashboard copy is explicit: `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Manual/status-only records remain available for non-adapter review, but the Google Calendar adapter does not show or accept raw tokens, secrets, OAuth URLs, webhook URLs, provider client fields, executable handler fields, public chat callable controls, or package selector/package switching controls. It does not add a new OAuth flow, call providers from the generic surface, provision webhooks, enforce package activation, expose public/anonymous connected-app routes, change runtime chat behavior, or change widget/embed bundles.
 
 ## Proposed Webhook Registry: `connected_app_webhooks`
 
@@ -173,16 +173,21 @@ The service should return redacted allow/deny decisions with reason codes. It mu
 
 ## Migration and Coexistence Strategy
 
-Phase 5 adds `db/schema.sql`, `supabase/migrations/20260602150000_connected_app_connection_foundation.sql`, and the full current-main recovery bundle entries for `connected_app_connections` and `agent_connected_app_enablements`. Existing provider-specific tables continue unchanged. Destructive migration should not be proposed until the generic model is proven against production-like traffic.
+Phase 5 adds `db/schema.sql`, `supabase/migrations/20260602150000_connected_app_connection_foundation.sql`, and the full current-main recovery bundle entries for `connected_app_connections` and `agent_connected_app_enablements`. Existing provider-specific tables continue unchanged. Phase 9 adds `src/services/integrations/googleConnectedAppAdapter.js`, which mirrors existing Google Calendar connection status into `connected_app_connections` after the existing Google OAuth callback and token-refresh issue paths. Destructive migration should not be proposed until the generic model is proven against production-like traffic.
+
+Implemented provider-specific adapter mapping:
+
+- `google_connected_accounts`: Google Calendar is the first generic Connected Apps adapter. The existing Google operator OAuth flow remains the source of truth for requested/granted scopes, encrypted token storage, refresh, sync, and provider behavior. The adapter mirrors only redacted owner/provider/app/capability status into `connected_app_connections` with `provider = google`, `app_key = google.calendar`, `google.calendar.read` when Calendar read or write scope is granted, and `google.calendar.write` only when Calendar write scope is granted. It does not create `agent_connected_app_enablements`; owners must explicitly enable selected capabilities for an owned agent through the existing generic enablement endpoint.
 
 Future provider-specific adapter mapping:
 
 - `agent_booking_integrations`: Keep as the Calendly-specific webhook proof table. A future adapter can expose a redacted `calendly.booking.webhook` connection/readiness DTO using `owner_user_id`, `agent_id`, `provider`, `status`, `provider_account_id`, `provider_event_type_id`, and webhook status. Endpoint token hashes and encrypted webhook secrets stay in the provider-specific table or service-only secret storage.
-- Google OAuth/calendar tables: Keep `google_oauth_states` and `google_connected_accounts` for the operator workspace. A future adapter can map connected Google accounts to `connected_app_connections`-like DTOs and same-agent enablement DTOs, while preserving the current Google scope-to-capability checks. Because current Google records are agent-bound, migration must be careful before treating them as reusable owner-wide connections.
+- Google OAuth/calendar tables: Keep `google_oauth_states` and `google_connected_accounts` for the operator workspace. The Phase 9 adapter coexists with those tables and does not replace their owner/agent checks.
+- Google Gmail: Gmail remains inside the Google operator workspace. A future adapter can mirror `google.gmail.read` only if that scope is explicitly granted and the product phase requires it.
 - Stripe billing/webhook handling: Keep Stripe as owner billing infrastructure. Billing webhooks may appear in registry/readiness metadata, but Stripe billing state is not an agent connected-app grant and should not become package execution permission.
 - Twilio phone webhook handling: Keep Twilio phone numbers and call sessions as admin/provider-specific phone infrastructure. A future adapter can report redacted phone webhook readiness, but owner self-serve Twilio setup and agent enablements require a separate design.
 
-Later migration can add webhook state, OAuth state, adapter backfills, or provider-specific mappings beside existing provider tables. Existing Google, Calendly, Stripe, and Twilio code should keep their provider-specific execution checks until the generic permission service is at least as strict as the current flows.
+Later migration can add webhook state, generic OAuth state, adapter backfills, or more provider-specific mappings beside existing provider tables. Existing Google, Calendly, Stripe, and Twilio code should keep their provider-specific execution checks until the generic permission service is at least as strict as the current flows.
 
 ## RLS and Security Model
 
@@ -238,21 +243,21 @@ The UI should make owner connection and agent enablement distinct. A connected p
 - No provider-specific legacy table inference.
 - No secrets committed.
 
-## Non-Goals For Phase 7-8
+## Non-Goals For Phase 7-9
 
 - No schema or migration changes.
 - No runtime chat changes.
 - No widget or embed changes.
-- No OAuth/provider setup.
+- No new OAuth/provider setup. Google Calendar uses the existing Google operator connection flow.
 - No external API or provider execution.
 - No package activation enforcement.
 - No generic OAuth setup, provider setup, or execution-capable Connected Apps surface.
 - No runtime permission enforcement.
-- No provider-specific legacy table inference.
+- No automatic agent enablement from provider-specific legacy tables.
 - No public or anonymous connected-app routes.
 - No token-secret-ref, raw token, raw secret, OAuth URL, provider client, handler, or execution fields accepted or returned by the new API routes.
 - No secrets committed.
 
 ## Implementation Status
 
-Phase 5 is implemented as schema, migration, service, tests, and docs only. Phase 6 is implemented as a service/tests/docs readiness adapter over the generic records only. Phase 7 is implemented as authenticated owner-scoped routes, service tightening, tests, and docs only. Phase 8 is implemented as authenticated dashboard UI/tests/docs only. Generic persistence now exists, readiness can be derived from those records, and authenticated owners/internal setup paths can create/list/update redacted generic connection and enablement records. The dashboard can manage those manual/status-only records and show report-only readiness. No OAuth/provider setup, runtime permission enforcement, external API/provider execution, widget/embed behavior, runtime chat behavior, package activation enforcement, package switching, or secret storage exists yet. The current connected app registry and readiness services remain metadata/report-only, and provider-specific integrations remain provider-specific until a later adapter or migration phase explicitly changes that boundary.
+Phase 5 is implemented as schema, migration, service, tests, and docs only. Phase 6 is implemented as a service/tests/docs readiness adapter over the generic records only. Phase 7 is implemented as authenticated owner-scoped routes, service tightening, tests, and docs only. Phase 8 is implemented as authenticated dashboard UI/tests/docs only. Phase 9 is implemented as a Google Calendar adapter over the existing Google operator connection flow. Generic persistence now exists, readiness can be derived from those records, authenticated owners/internal setup paths can create/list/update redacted generic connection and enablement records, and successful Google Calendar connections mirror into `connected_app_connections`. The dashboard can reuse the existing Google connect flow, manage manual/status-only records, explicitly enable selected capabilities for an agent, and show report-only readiness. No new Google scopes, generic OAuth/provider setup, runtime permission enforcement, generic external API/provider execution, widget/embed behavior, runtime chat behavior, package activation enforcement, package switching, or generic secret storage exists yet. The current connected app registry and readiness services remain metadata/report-only, and provider-specific integrations remain provider-specific unless a scoped adapter explicitly mirrors redacted state into generic records.

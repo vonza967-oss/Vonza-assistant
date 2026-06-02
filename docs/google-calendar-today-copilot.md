@@ -4,6 +4,9 @@ This slice keeps the operator workspace approval-first and intentionally narrow:
 
 - Google OAuth requests only basic identity plus read-only Google Calendar access.
 - OAuth uses offline access so refresh-token-based sync remains possible.
+- The existing Google flow remains the source of truth for OAuth, provider behavior, encrypted tokens, and Calendar sync.
+- Connected Apps Phase 9 mirrors the successful Google Calendar connection into `connected_app_connections` as the first generic Connected Apps adapter.
+- The generic mirror is readiness/status only. It does not add new Google scopes, public chat execution, widget/embed behavior, public routes, package activation enforcement, or provider action without approval.
 - Today surfaces:
   - a Google connect empty state
   - today's schedule

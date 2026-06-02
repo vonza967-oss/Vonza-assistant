@@ -242,7 +242,7 @@ test("public chat and package activation are disabled for every current connecte
   }
 });
 
-test("connected app docs limit Phase 8 to manual status-only dashboard management", () => {
+test("connected app docs describe Phase 9 Google Calendar adapter without execution expansion", () => {
   const docs = [
     DOC_PATH,
     REGISTRY_DOC_PATH,
@@ -254,8 +254,10 @@ test("connected app docs limit Phase 8 to manual status-only dashboard managemen
 
   assert.match(docs, /No generic OAuth\/provider Connected Apps setup exists yet/i);
   assert.match(docs, /manual\/status-only/i);
-  assert.match(docs, /No OAuth setup yet/i);
-  assert.match(docs, /No provider execution/i);
+  assert.match(docs, /Google Calendar.*first adapter/i);
+  assert.match(docs, /Uses existing Google connection flow/i);
+  assert.match(docs, /No chat execution/i);
+  assert.match(docs, /No provider action without approval/i);
   assert.match(docs, /report-only/i);
   assert.match(docs, /persistence\/service foundation only/i);
   assert.doesNotMatch(docs, /generic OAuth\/provider Connected Apps setup exists today/i);

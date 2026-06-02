@@ -2107,6 +2107,17 @@ test("Google OAuth callback completes and updates activation state", async () =>
     assert.equal(supabase.state.google_connected_accounts[0].status, "connected");
     assert.equal(supabase.state.operator_workspace_activations[0].google_connected, true);
     assert.equal(supabase.state.operator_workspace_activations[0].calendar_context_selected, true);
+    assert.equal(supabase.state.connected_app_connections.length, 1);
+    assert.equal(supabase.state.connected_app_connections[0].owner_user_id, "owner-1");
+    assert.equal(supabase.state.connected_app_connections[0].provider, "google");
+    assert.equal(supabase.state.connected_app_connections[0].app_key, "google.calendar");
+    assert.deepEqual(supabase.state.connected_app_connections[0].capability_keys, ["google.calendar.read"]);
+    assert.equal(supabase.state.connected_app_connections[0].status, "active");
+    assert.equal(supabase.state.connected_app_connections[0].provider_account_label, "Owner Example <owner@example.com>");
+    assert.equal(supabase.state.connected_app_connections[0].scopes_granted.includes("https://www.googleapis.com/auth/calendar.readonly"), true);
+    assert.equal(supabase.state.connected_app_connections[0].scopes_granted.includes("google.calendar.read"), false);
+    assert.doesNotMatch(JSON.stringify(supabase.state.connected_app_connections[0]), /access_token_encrypted|refresh_token_encrypted|authorization_code/i);
+    assert.equal(supabase.state.agent_connected_app_enablements?.length || 0, 0);
   });
 });
 

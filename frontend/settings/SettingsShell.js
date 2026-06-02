@@ -3915,12 +3915,37 @@
     return enablements.find((enablement) => defaultTrimText(enablement?.connectionId) === normalizedConnectionId) || null;
   }
 
+  function isGoogleCalendarCapability(capability = {}) {
+    return defaultTrimText(capability?.key).startsWith("google.calendar.");
+  }
+
+  function isGoogleCalendarConnection(connection = {}) {
+    return defaultTrimText(connection?.provider).toLowerCase() === "google"
+      && defaultTrimText(connection?.appKey).toLowerCase() === "google.calendar";
+  }
+
+  function getConnectedAppSetupStatus(capability = {}) {
+    if (isGoogleCalendarCapability(capability)) {
+      return "Uses existing Google connection flow";
+    }
+
+    if (capability.requiresOAuth) {
+      return "Manual status only";
+    }
+
+    if (capability.requiresWebhook) {
+      return "Manual webhook status only";
+    }
+
+    return "Manual/internal setup";
+  }
+
   function buildConnectedAppSafetyStrip(helpers) {
     const { escapeHtml } = helpers;
     const labels = [
-      "Manual/internal setup",
-      "No OAuth setup yet",
-      "No provider execution",
+      "Uses existing Google connection flow",
+      "No chat execution",
+      "No provider action without approval",
       "Report-only readiness",
     ];
 
@@ -3959,11 +3984,73 @@
               <div><dt>Provider app</dt><dd>${escapeHtml(capability.appName || "Generic app")}</dd></div>
               <div><dt>Capability</dt><dd>${escapeHtml(capability.capability || capability.key || "Not set")}</dd></div>
               <div><dt>Allowed surfaces</dt><dd>${escapeHtml(summarizeConnectedAppList(capability.allowedSurfaces))}</dd></div>
-              <div><dt>Setup status</dt><dd>${escapeHtml(capability.requiresOAuth ? "No OAuth setup yet" : capability.requiresWebhook ? "Manual webhook status only" : "Manual/internal setup")}</dd></div>
+              <div><dt>Setup status</dt><dd>${escapeHtml(getConnectedAppSetupStatus(capability))}</dd></div>
             </dl>
           </article>
         `).join("")}
       </div>
+    `;
+  }
+
+  function buildGoogleCalendarAdapterPanel(connectedApps, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const googleCalendarCapabilities = connectedApps.capabilities.filter(isGoogleCalendarCapability);
+    const googleCalendarConnections = connectedApps.connections.filter(isGoogleCalendarConnection);
+    const activeConnection = googleCalendarConnections.find((connection) => defaultTrimText(connection.status) === "active") || googleCalendarConnections[0] || null;
+    const enabledConnectionIds = new Set(
+      connectedApps.enablements
+        .filter((enablement) => enablement?.enabled === true)
+        .map((enablement) => defaultTrimText(enablement.connectionId))
+        .filter(Boolean)
+    );
+    const enabledForAgent = activeConnection ? enabledConnectionIds.has(defaultTrimText(activeConnection.id)) : false;
+    const capabilityLabels = googleCalendarCapabilities.length
+      ? googleCalendarCapabilities.map((capability) => capability.label || capability.key)
+      : ["Google Calendar read", "Google Calendar write"];
+
+    return `
+      <section class="settings-shell-section settings-connected-app-adapter-panel">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Google Calendar adapter</h3>
+            <p class="settings-shell-section-copy">Google Calendar is mirrored from the existing Google operator connection into generic Connected Apps records. Uses existing Google connection flow. No chat execution. No provider action without approval.</p>
+          </div>
+          <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
+        </div>
+        <div class="settings-operational-summary settings-connected-app-summary" aria-label="Google Calendar connected app adapter">
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Provider capability</span>
+              <span class="${getBadgeClass(googleCalendarCapabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(googleCalendarCapabilities.length))}</span>
+            </div>
+            <p>${escapeHtml(summarizeConnectedAppList(capabilityLabels))}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Google connection</span>
+              <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
+            </div>
+            <p>${escapeHtml(activeConnection?.providerAccountLabel || "Connect Google Calendar through the existing Google flow to populate the generic record.")}</p>
+          </article>
+          <article class="settings-operational-card">
+            <div class="settings-operational-card-head">
+              <span>Agent enablement</span>
+              <span class="${getBadgeClass(enabledForAgent ? "Ready" : "Pending")}">${escapeHtml(enabledForAgent ? "Enabled" : "Not enabled")}</span>
+            </div>
+            <p>Use the connection record below to explicitly enable selected Google Calendar capability for this agent. Manual review is the default approval mode.</p>
+          </article>
+        </div>
+        <div class="settings-shell-sticky-save">
+          <span class="save-state">Uses existing Google connection flow. No chat execution.</span>
+          <button
+            class="ghost-button"
+            type="button"
+            data-google-connect
+            data-google-connect-status="Preparing Google Calendar connection..."
+            data-google-connect-error="We couldn't start the Google Calendar connection."
+          >${escapeHtml(activeConnection ? "Reconnect Google Calendar" : "Connect Google Calendar")}</button>
+        </div>
+      </section>
     `;
   }
 
@@ -4093,7 +4180,7 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">Create manual connection record</h3>
-            <p class="settings-shell-section-copy">Manual/internal setup only. This creates status metadata and does not create OAuth setup, provider execution, provider clients, or public chat tools.</p>
+            <p class="settings-shell-section-copy">Manual/internal status records stay available for non-adapter review. Google Calendar uses the existing Google connection flow instead of credential or OAuth URL inputs.</p>
           </div>
         </div>
         <div class="settings-field-grid settings-field-grid--two">
@@ -4145,7 +4232,7 @@
           </div>
         </div>
         <div class="settings-shell-sticky-save">
-          <span class="save-state">No OAuth setup yet. No provider execution.</span>
+          <span class="save-state">Manual status only. No provider execution.</span>
           <button class="primary-button" type="submit">Create manual record</button>
         </div>
       </form>
@@ -4214,9 +4301,9 @@
               <p class="settings-shell-page-copy">View generic connected app capabilities, manage manual status-only records, and review report-only readiness for ${escapeHtml(agent?.assistantName || agent?.name || "the selected agent")}.</p>
             </div>
             <div class="settings-shell-page-meta">
-              <span class="${getBadgeClass("Pending")}">Manual/internal setup</span>
-              <span class="${getBadgeClass("Limited")}">No OAuth setup yet</span>
-              <span class="${getBadgeClass("Limited")}">No provider execution</span>
+              <span class="${getBadgeClass("Ready")}">Uses existing Google connection flow</span>
+              <span class="${getBadgeClass("Limited")}">No chat execution</span>
+              <span class="${getBadgeClass("Limited")}">No provider action without approval</span>
             </div>
           </header>
 
@@ -4241,7 +4328,7 @@
                 <span>Capabilities</span>
                 <span class="${getBadgeClass(connectedApps.capabilities.length ? "Ready" : "Pending")}">${escapeHtml(String(connectedApps.capabilities.length))}</span>
               </div>
-              <p>Safe registry metadata only. No OAuth setup yet and no provider execution.</p>
+              <p>Safe registry metadata only. Google Calendar uses the existing Google flow; other records remain manual/status-only.</p>
             </article>
             <article class="settings-operational-card">
               <div class="settings-operational-card-head">
@@ -4275,6 +4362,8 @@
             </div>
             ${buildConnectedAppCapabilityList(connectedApps.capabilities, helpers)}
           </section>
+
+          ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
 
           <section class="settings-shell-section">
             <div class="settings-shell-section-header">

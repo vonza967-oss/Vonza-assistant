@@ -13,6 +13,10 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     ownerScoped: true,
     agentScoped: true,
     requiresOAuth: true,
+    oauthScopes: Object.freeze([
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
+    ]),
     requiresWebhook: false,
     requiresSecret: true,
     externalExecution: true,
@@ -47,6 +51,9 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     ownerScoped: true,
     agentScoped: true,
     requiresOAuth: true,
+    oauthScopes: Object.freeze([
+      "https://www.googleapis.com/auth/calendar.events",
+    ]),
     requiresWebhook: false,
     requiresSecret: true,
     externalExecution: true,

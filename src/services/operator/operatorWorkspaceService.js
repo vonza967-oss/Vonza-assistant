@@ -51,6 +51,7 @@ import {
 } from "../leads/liveLeadCaptureService.js";
 import { getStoredWebsiteContent } from "../scraping/websiteContentService.js";
 import { listConversionOutcomesForAgent, recordOutcomeEvent } from "../conversion/conversionOutcomeService.js";
+import { mirrorGoogleCalendarConnectedAppConnection } from "../integrations/googleConnectedAppAdapter.js";
 import {
   buildOperatorActivationChecklist,
   buildOperatorBriefing,
@@ -1643,6 +1644,24 @@ async function markConnectedAccountConnectionIssue(supabase, account, options = 
       lastError,
     },
   });
+
+  await mirrorGoogleCalendarConnectionSafely(supabase, {
+    ...account,
+    status,
+    lastError,
+  });
+}
+
+async function mirrorGoogleCalendarConnectionSafely(supabase, account) {
+  try {
+    return await mirrorGoogleCalendarConnectedAppConnection(supabase, account);
+  } catch (error) {
+    console.warn(
+      "[connected apps] Google Calendar mirror skipped:",
+      cleanText(error?.message) || "unknown error"
+    );
+    return null;
+  }
 }
 
 async function ensureFreshGoogleAccessToken(supabase, account, deps = {}) {
@@ -1711,6 +1730,8 @@ async function ensureFreshGoogleAccessToken(supabase, account, deps = {}) {
     throw error;
   }
 
+  const refreshedAccount = mapConnectedAccountRow(data);
+
   await writeAuditLog(supabase, {
     agentId: account.agentId,
     businessId: account.businessId,
@@ -1726,7 +1747,9 @@ async function ensureFreshGoogleAccessToken(supabase, account, deps = {}) {
     },
   });
 
-  return decryptSecret(mapConnectedAccountRow(data).accessTokenEncrypted, encryptionSecret);
+  await mirrorGoogleCalendarConnectionSafely(supabase, refreshedAccount);
+
+  return decryptSecret(refreshedAccount.accessTokenEncrypted, encryptionSecret);
 }
 
 export async function createGoogleConnectionStart(supabase, options = {}) {
@@ -1974,6 +1997,8 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
     ]);
     throw activationError;
   }
+
+  await mirrorGoogleCalendarConnectionSafely(supabase, connectedAccount);
 
   await supabase
     .from(GOOGLE_OAUTH_STATE_TABLE)

@@ -4,7 +4,7 @@
 
 `src/services/integrations/connectedAppRegistry.js` is a report-only metadata registry for external app capabilities Vonza already knows about from provider-specific code.
 
-It does not create a generic Connected Apps execution engine. It does not add OAuth setup, chat behavior, webhook handlers, provider clients, package activation, permission grants, or external execution. The Phase 8 dashboard surface renders this metadata for authenticated owners only as manual/status-only setup and report-only readiness.
+It does not create a generic Connected Apps execution engine. It does not add chat behavior, webhook handlers, generic provider clients, package activation, permission grants, or external execution. The Phase 8 dashboard surface renders this metadata for authenticated owners only as manual/status-only setup and report-only readiness. Phase 9 adds Google Calendar as the first adapter that mirrors the existing Google operator OAuth connection into generic records; the existing Google flow remains the source of truth for provider behavior.
 
 Connected Apps Phase 2 adds `src/services/integrations/connectedAppReadinessService.js` as a provider-neutral, report-only evaluator over this registry. It can report whether supplied package/agent context appears `ready`, `warning`, or `blocked` for declared capabilities, but it still does not create a setup flow, enforce activation, call providers, or grant runtime permission.
 
@@ -19,6 +19,8 @@ Connected Apps Phase 6 adds `src/services/integrations/connectedAppReadinessCont
 Connected Apps Phase 7 adds authenticated owner-scoped `/agents/...` API routes over the registry and generic records. The API is for internal/manual owner setup and status review only. It does not add OAuth/provider setup, provider execution, runtime chat behavior, widget/embed exposure, package activation enforcement, public chat/tool use, or secrets.
 
 Connected Apps Phase 8 adds a compact authenticated dashboard/settings surface over the Phase 7 routes. It lists registry capabilities, owner connection status records, agent enablements, approval mode, allowed non-public surfaces, and report-only readiness. It can create manual/status-only connection records, update connection status, and create/update agent enablements. It does not add OAuth setup, provider setup, provider execution, runtime chat behavior, widget/embed exposure, package activation enforcement, public/anonymous routes, package switching, or secrets.
+
+Connected Apps Phase 9 adds `src/services/integrations/googleConnectedAppAdapter.js` for Google Calendar only. The adapter mirrors successful existing Google Calendar connections and token-refresh issue states into `connected_app_connections` with redacted provider account label, capability keys, granted scope metadata, and status. It does not add new Google scopes, does not create a new OAuth flow, does not create agent enablements automatically, does not add public chat/tool execution, and does not expose tokens or OAuth codes.
 
 ## Current Capabilities
 
@@ -42,7 +44,7 @@ Some declarations have `externalExecution: true` because existing provider-speci
 
 ## Existing Provider Boundaries
 
-Google remains the provider-specific operator workspace integration. Gmail exists only inside that Google operator workspace.
+Google remains the provider-specific operator workspace integration. Google Calendar is now the first adapter into the generic Connected Apps records, but OAuth start/callback, encrypted token storage, refresh, sync, and approved Calendar mutations remain in the existing Google operator workflow. Gmail exists only inside that Google operator workspace.
 
 Calendly remains a signed booking webhook proof integration. It does not let public chat book, cancel, reschedule, or check live availability.
 
@@ -114,7 +116,7 @@ The helper reads only `connected_app_connections` and `agent_connected_app_enabl
 
 This helper is explicit: activation readiness does not query Supabase automatically. Callers or tests can build the context first, then pass it to `evaluateConnectedAppReadiness()` or to activation readiness under `context.connectedApps`.
 
-The helper output is redacted and provider-neutral. It does not expose token refs, raw secrets, metadata secrets, OAuth URLs, webhook signing material, provider clients, account payloads, or copied provider responses. It does not call providers and does not infer readiness from Google, Calendly, Stripe, Twilio, or other provider-specific legacy tables yet; those remain future adapters.
+The helper output is redacted and provider-neutral. It does not expose token refs, raw secrets, metadata secrets, OAuth URLs, webhook signing material, provider clients, account payloads, or copied provider responses. It does not call providers and does not query Google, Calendly, Stripe, Twilio, or other provider-specific legacy tables. Phase 9 performs Google Calendar mirroring before this helper reads the generic records.
 
 ## Phase 7 Authenticated API Exposure
 
@@ -134,15 +136,15 @@ The owner connection routes are scoped to the authenticated owner. They can reco
 
 The agent enablement routes verify owner access to the URL agent, validate that the selected connection belongs to the same owner, and validate that enabled capabilities exist on the selected connection. Allowed surfaces must stay non-public under the service rules. The readiness route builds a report-only context from the generic records and evaluates the existing readiness service; it does not enforce package activation or provider execution.
 
-## Phase 8 Authenticated Dashboard Surface
+## Phase 8-9 Authenticated Dashboard Surface
 
 The dashboard/settings surface fetches `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `GET /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness` for the selected/current agent. It shows provider labels, capability labels, connection status, provider account label, scopes/capability summary, webhook status, agent enablement status, approval mode, allowed surfaces, and report-only readiness warnings.
 
-The surface is intentionally labeled `Manual/internal setup`, `No OAuth setup yet`, `No provider execution`, and `Report-only readiness`. It does not show or accept raw token, secret, OAuth URL, webhook URL, provider client, handler, execution, public chat callable, package selector, or package switching controls.
+The surface now labels the Google Calendar adapter as `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Manual/status-only controls remain for non-adapter records. It does not show or accept raw token, secret, OAuth URL, webhook URL, provider client, handler, execution, public chat callable, package selector, or package switching controls.
 
 ## Non-Goals
 
-- No new OAuth start, callback, scope, or provider setup flow.
+- No new OAuth start, callback, scope, or provider setup flow. Google Calendar reuses the existing Google operator connection flow.
 - No provider client construction.
 - No executable handler metadata.
 - No external API calls.
@@ -152,10 +154,10 @@ The surface is intentionally labeled `Manual/internal setup`, `No OAuth setup ye
 - No secrets, tokens, OAuth URLs, webhook URLs, account ids, or credentials in registry data.
 - No OAuth/provider setup surface.
 - No runtime permission enforcement.
-- No provider-specific legacy table migration or inference in Phase 6.
+- No automatic provider-specific legacy table inference in Phase 6. Google Calendar mirroring is explicit in Phase 9.
 - No public or anonymous connected-app API route.
 - No widget/embed exposure in Phase 7-8.
-- No package activation enforcement through Phase 7 routes or Phase 8 dashboard controls.
+- No package activation enforcement through Phase 7 routes or Phase 8/9 dashboard controls.
 
 ## Future Manifest Relationship
 
