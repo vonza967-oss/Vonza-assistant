@@ -411,6 +411,14 @@ Smoke checklist:
 - No token, code, client secret, refresh token, or provider response payload appears in logs or route responses.
 - Public chat and widget/embed routes remain unchanged and cannot access calendar execution.
 
+Phase 4 smoke attempt on 2026-06-03:
+
+- The configured Supabase target `wjrgzvprxkkgbjppxphk.supabase.co` exposed `google_oauth_states`, `google_connected_accounts`, `operator_calendar_events`, `connected_app_connections`, and `agent_connected_app_enablements`.
+- A real-account Google OAuth connect was not run from this workspace because local server-side Google OAuth config was missing for `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, and `GOOGLE_TOKEN_ENCRYPTION_SECRET`.
+- No controlled owner session, Google account, Google calendar event, OAuth code, access token, refresh token, client secret, or provider payload was created or recorded.
+- Focused lifecycle coverage was used for the non-live evidence: mirror creation/update, scope downgrade, safe OAuth failure metadata, readiness blocking/ready states, owner-scoped disconnect, token clearing, enablement disablement, and historical calendar event retention.
+- Full real-account staging evidence remains required before production-ready self-serve rollout. The detailed record is in `docs/architecture/google-calendar-staging-smoke-test.md`.
+
 ### Phase 5: later only, public-agent calendar capability gates
 
 Goal: consider public-agent calendar functionality only after private operator workflow is production-grade.
