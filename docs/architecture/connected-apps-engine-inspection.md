@@ -2,7 +2,7 @@
 
 Inspection date: 2026-06-02
 
-This is an inspection, architecture, and contract-test planning document. Phase 5 now implements the minimal generic persistence and internal service foundation only. Phase 6 now derives report-only readiness context from those generic records. Phase 7 now exposes authenticated owner-scoped API routes over the registry and generic records only. Phase 8 now exposes those routes through an authenticated dashboard/settings management surface only. Phase 9 now implements the Google Calendar adapter by mirroring the existing Google operator connection into generic records. Phase 10 now adds the WhatsApp Business capability foundation as metadata, manual/status-only connection representation, readiness, dashboard copy, docs, and tests only. These phases do not implement runtime chat behavior, widget/embed behavior, a new generic OAuth provider, webhook provider, WhatsApp webhook receiver, WhatsApp message sender, package activation rule, generic external provider execution, public chat/tool use, or tool execution path.
+This is an inspection, architecture, and contract-test planning document. Phase 5 now implements the minimal generic persistence and internal service foundation only. Phase 6 now derives report-only readiness context from those generic records. Phase 7 now exposes authenticated owner-scoped API routes over the registry and generic records only. Phase 8 now exposes those routes through an authenticated dashboard/settings management surface only. Phase 9 now implements the Google Calendar adapter by mirroring the existing Google operator connection into generic records. Phase 10 now adds the WhatsApp Business capability foundation as metadata, manual/status-only connection representation, readiness, dashboard copy, docs, and tests only. Phase 11 adds WhatsApp webhook verification/readiness. Phase 12 adds WhatsApp POST signature helpers and safe inbound event normalization only. These phases do not implement runtime chat behavior, widget/embed behavior, a new generic OAuth provider, generic webhook provider, WhatsApp message sender, package activation rule, generic external provider execution, public chat/tool use, or tool execution path.
 
 ## Executive summary
 
@@ -14,7 +14,7 @@ The current repo has several external app integrations and integration-like reco
 - Calendly webhook provisioning and signed webhook ingestion for trusted booking-confirmation outcomes.
 - Stripe hosted checkout, subscription webhooks, billing sync, and entitlement shadow logging.
 - Twilio phone webhooks for inbound/status callbacks, backed by admin-assigned phone-number records.
-- WhatsApp Business capability metadata for future webhook readiness, approved template messages, and customer-service-window session replies. Phase 10 is manual/status-only and does not send or receive WhatsApp messages.
+- WhatsApp Business capability metadata for webhook readiness, future approved template messages, and future customer-service-window session replies. Phase 12 is still foundation-only and does not send WhatsApp messages, hand off inbound messages to chat, or generate AI replies.
 - Package tools and action requests that are explicitly metadata-only or staff-review-only, not executable connected-app permissions.
 
 The reusable pieces are patterns, not an engine: owner/agent scoping, hashed OAuth/webhook state tokens, AES-GCM encrypted secrets, provider scope summaries, route rate limiting, webhook signature validation, service-role-only server workflows, audit logs, readiness probes, and report-only/draft-first product boundaries.
@@ -35,7 +35,7 @@ Phase 8 adds an authenticated dashboard/settings `Connected apps` surface. It fe
 
 Phase 9 adds a Google Calendar adapter in `src/services/integrations/googleConnectedAppAdapter.js`. The existing Google OAuth start/callback, state storage, encrypted token storage, refresh, sync, and approved Calendar mutation workflow remains the source of truth. The adapter mirrors redacted Calendar connection status into `connected_app_connections` and lets the existing generic enablement endpoint explicitly enable selected Calendar capabilities for an owned agent. It does not add new Google scopes, chat execution, widget/embed behavior, public routes, package activation enforcement, generic provider execution, or automatic agent enablement.
 
-Phase 10 adds WhatsApp Business as a capability foundation only. `whatsapp.business.webhook` represents future verified inbound webhook readiness and requires an active generic webhook status before report-only readiness can become ready. `whatsapp.business.send.template` represents future approved-template outbound messaging. `whatsapp.business.send.session.reply` represents future replies inside an allowed customer-service window. All three capabilities have `publicChatCallable: false`, `packageActivatable: false`, and `externalExecution: false` in this phase.
+Phase 10 adds WhatsApp Business as a capability foundation only. Phase 11 adds scoped webhook verification/readiness. Phase 12 adds POST signature helpers and safe inbound event normalization. `whatsapp.business.webhook` represents verified inbound webhook readiness and requires an active generic webhook status before report-only readiness can become ready. `whatsapp.business.send.template` represents future approved-template outbound messaging. `whatsapp.business.send.session.reply` represents future replies inside an allowed customer-service window. All three capabilities have `publicChatCallable: false`, `packageActivatable: false`, and `externalExecution: false` in this phase.
 
 ## What external app integrations exist today
 
@@ -193,7 +193,9 @@ Current code:
 - `src/services/integrations/connectedAppConnectionService.js`
 - `src/services/integrations/connectedAppReadinessService.js`
 - `src/services/integrations/connectedAppReadinessContextService.js`
+- `src/services/integrations/whatsappWebhookService.js`
 - `src/routes/agentRoutes.js`
+- `src/routes/integrationRoutes.js`
 - `frontend/settings/SettingsShell.js`
 - `db/schema.sql`
 
@@ -201,9 +203,12 @@ Current behavior:
 
 - Phase 10 adds `whatsapp.business.webhook`, `whatsapp.business.send.template`, and `whatsapp.business.send.session.reply` to the report-only registry.
 - Authenticated owners can represent WhatsApp Business manual/status-only connection state with safe non-secret metadata in `connected_app_connections`.
-- Safe metadata can include WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, and Graph API version.
+- Safe metadata can include WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, Graph API version, webhook verified timestamp, last webhook receipt timestamp, last webhook object, safe event type names, safe message type names, and signature status.
 - `whatsapp.business.webhook` can be report-ready only when a manual active connection, explicit agent enablement, and active generic webhook status exist.
 - Template and session-reply capabilities can be report-ready for non-execution checks when a manual active connection and explicit agent enablement exist.
+- Phase 11 adds `/integrations/whatsapp/webhook/:connectionId` for webhook verification/readiness only.
+- Phase 12 validates `X-Hub-Signature-256` with HMAC-SHA256 when a service-only app secret is supplied, and otherwise records `not_configured` rather than a false verified status.
+- Phase 12 normalizes inbound message/status/unknown events into redacted summaries only; it does not process inbound messages into chat or persist provider payloads.
 - Execution requests remain blocked because WhatsApp definitions are not externally executable in this phase.
 - Public chat execution remains blocked even when manual connection and enablement records exist.
 
@@ -211,17 +216,21 @@ Provider-specific parts:
 
 - No WhatsApp Cloud API client exists.
 - No Meta OAuth or Embedded Signup flow exists.
-- No public WhatsApp webhook route exists.
+- The public WhatsApp webhook route exists only for verification/readiness metadata.
 - No inbound WhatsApp message processor exists.
+- No inbound chat handoff exists.
+- No AI reply path exists.
 - No outbound template or session reply sender exists.
 - No Twilio WhatsApp API path exists.
-- Token, app-secret, verify-token, webhook-secret, and access-token-looking fields are rejected at route/service boundaries.
+- Token, app-secret, verify-token, webhook-secret, and access-token-looking fields are rejected at generic owner route/service boundaries.
+- Full app-secret signature validation remains future until service-only app-secret storage or provider-specific signing-secret references exist.
 
 Reusable parts:
 
 - Generic owner connection and agent enablement records can safely represent non-secret readiness status.
 - Readiness can separate inbound webhook readiness from future template and session-reply capabilities.
 - Dashboard copy can expose provider foundation status without adding credential fields or execution buttons.
+- Signature helper code can be reused after future service-only secret storage/config exists.
 - Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
 
 ### Gmail and Google connected tool references
@@ -845,7 +854,30 @@ Implemented Phase 10 behavior:
 
 Current Phase 10 behavior is registry/readiness/manual-status/dashboard-copy/tests/docs only. It adds no schema/migration change, no runtime chat behavior, no widget/embed behavior, no WhatsApp webhook route, no inbound message processing, no outbound message sending, no Meta OAuth/Embedded Signup, no WhatsApp Cloud API calls, no Twilio WhatsApp API calls, no package activation enforcement, no generic provider execution, and no secrets.
 
-### Phase 11: runtime permission service
+### Phase 11: WhatsApp webhook verification/readiness
+
+Implemented Phase 11 behavior:
+
+- Adds `/integrations/whatsapp/webhook/:connectionId` for Meta GET challenge verification and POST readiness metadata only.
+- GET verification checks `hub.mode`, `hub.verify_token`, and `hub.challenge` against a derived verifier reference and returns only the challenge on success.
+- POST recognizes `whatsapp_business_account` payloads and safe message/status event type names only enough to update readiness metadata.
+- Keeps public chat execution blocked even when webhook readiness reports active.
+
+Current Phase 11 behavior adds no schema/migration change, no runtime chat behavior, no widget/embed behavior, no inbound message processing, no outbound message sending, no Meta OAuth/Embedded Signup, no WhatsApp Cloud API calls, no Twilio WhatsApp API calls, no package activation enforcement, no generic provider execution, and no secrets.
+
+### Phase 12: WhatsApp POST signature and normalization foundation
+
+Implemented Phase 12 behavior:
+
+- Adds pure Meta `X-Hub-Signature-256` helpers that support `sha256=<hex>` HMAC-SHA256 signatures and constant-time comparison.
+- Adds raw-body route wiring so POST signature validation can use Meta's exact request body bytes.
+- Records `not_configured` signature status when no service-only app secret is supplied, rather than marking the webhook verified.
+- Normalizes WhatsApp message/status/unknown webhook changes into redacted internal summaries.
+- Persists only safe aggregate metadata: last webhook receipt time, object, event types, message types, and signature status.
+
+Current Phase 12 behavior does not process inbound messages, does not persist normalized events, does not store full provider payloads, does not store message body text, does not store customer phone numbers or profile names, does not create chat messages, leads, action requests, booking requests, contacts, or outbound replies, and does not call WhatsApp Cloud API or Twilio WhatsApp APIs. Full app-secret signature validation remains future until service-only app-secret storage or provider-specific signing-secret references exist.
+
+### Future phase: runtime permission service
 
 Add a central service such as `assertConnectedAppCapabilityAllowed()` before any generic provider execution exists.
 
@@ -951,20 +983,22 @@ Phase 9 adds Google Calendar as the first adapter into the generic Connected App
 - No agent is automatically enabled. Public chat execution remains blocked by readiness policy.
 - No new Google scope, runtime chat/tool execution, widget/embed change, public route, package activation enforcement, generic provider execution, package switching, or secret exposure was added.
 
-## Phase 10 implementation result
+## Phase 10-12 implementation result
 
-Phase 10 adds WhatsApp Business as a Connected Apps capability foundation:
+Phase 10 adds WhatsApp Business as a Connected Apps capability foundation, Phase 11 adds webhook verification/readiness, and Phase 12 adds POST signature helpers plus safe normalization:
 
 - `whatsapp.business.webhook` represents future verified inbound webhook readiness only.
 - `whatsapp.business.send.template` represents future approved-template outbound messaging only.
 - `whatsapp.business.send.session.reply` represents future replies inside an allowed customer-service window only.
 - The existing generic `connected_app_connections` and `agent_connected_app_enablements` records can represent manual active connection status and explicit agent enablement for report-only readiness.
-- Safe metadata can include WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, and Graph API version.
+- Safe metadata can include WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, Graph API version, webhook verified timestamp, last webhook receipt timestamp, last webhook object, safe event type names, safe message type names, and signature status.
 - WhatsApp access tokens, app secrets, verify tokens, webhook secrets, API keys, OAuth codes, and access-token-looking values are rejected by the generic connection service and route boundaries.
-- The dashboard shows WhatsApp Business foundation status with `Manual/internal setup`, `No WhatsApp messages sent`, `No webhook receiver enabled yet`, and `No Meta OAuth/Embedded Signup yet`.
+- The dashboard shows WhatsApp Business foundation status with `Manual/internal setup`, `No WhatsApp messages sent`, `Webhook verification/readiness only`, and `No Meta OAuth/Embedded Signup yet`.
+- Phase 12 can validate `X-Hub-Signature-256` only when a service-only app secret is supplied; otherwise POST signature status is `not_configured`.
+- Full app-secret signature validation remains future until service-only app-secret storage or provider-specific signing-secret references exist.
 - Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
 - Runtime execution must require explicit owner connection, agent enablement, approved surface, provider proof, safe logging, and probably staff approval.
-- No schema/migration change, runtime chat behavior, widget/embed change, WhatsApp webhook route, Meta OAuth/Embedded Signup, WhatsApp Cloud API call, Twilio WhatsApp API call, outbound messages, inbound message processing, package activation enforcement, or secret exposure was added.
+- No schema/migration change, runtime chat behavior, widget/embed change, Meta OAuth/Embedded Signup, WhatsApp Cloud API call, Twilio WhatsApp API call, outbound messages, inbound chat handoff, AI replies, package activation enforcement, or secret exposure was added.
 
 ## Explicit current-state conclusions
 

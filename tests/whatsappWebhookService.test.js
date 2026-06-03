@@ -6,10 +6,15 @@ import express from "express";
 
 import { createIntegrationRouter } from "../src/routes/integrationRoutes.js";
 import {
+  buildMetaWebhookSignature,
+  getMetaWebhookSignatureHeader,
   buildWhatsAppVerifyTokenSecretRef,
   deriveWhatsAppVerifyTokenHash,
+  extractWhatsAppWebhookEvents,
+  normalizeWhatsAppWebhookPayload,
   parseWhatsAppWebhookPayload,
   recordWhatsAppWebhookReceipt,
+  verifyMetaWebhookSignature,
   verifyWhatsAppWebhookChallenge,
 } from "../src/services/integrations/whatsappWebhookService.js";
 import {
@@ -22,6 +27,7 @@ const AGENT_ID = "33333333-3333-4333-8333-333333333333";
 const WABA_ID = "123456789012345";
 const VERIFY_TOKEN = "meta-verify-token-1";
 const CHALLENGE = "1158201444";
+const META_TEST_SIGNING_KEY = "test-signing-key";
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -108,7 +114,10 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
   const state = {
     connected_app_connections: connections.map(clone),
     messages: [],
+    leads: [],
     agent_action_requests: [],
+    agent_booking_requests: [],
+    booking_requests: [],
     queriedTables: [],
   };
 
@@ -167,12 +176,14 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
   };
 }
 
-function startIntegrationServer(supabase) {
+function startIntegrationServer(supabase, deps = {}) {
   const app = express();
+  app.use("/integrations/whatsapp/webhook", express.raw({ type: "application/json", limit: "96kb" }));
   app.use(express.json({ limit: "96kb" }));
   app.use(createIntegrationRouter({
     getSupabaseClient: () => supabase,
     limitWhatsAppWebhook: (_req, _res, next) => next(),
+    ...deps,
   }));
 
   const server = http.createServer(app);
@@ -205,6 +216,79 @@ test("WhatsApp verify token helper derives a deterministic non-raw secret ref", 
   assert.match(hash, /^[a-f0-9]{64}$/);
   assert.match(secretRef, /^whatsapp-webhook-verify-token-sha256:[a-f0-9]{64}$/);
   assert.equal(secretRef.includes(VERIFY_TOKEN), false);
+});
+
+test("Meta webhook signature helper verifies valid sha256 signatures", () => {
+  const rawBody = JSON.stringify(whatsappPayload());
+  const signatureHeader = buildMetaWebhookSignature(rawBody, META_TEST_SIGNING_KEY);
+
+  assert.match(signatureHeader, /^sha256=[a-f0-9]{64}$/);
+  assert.equal(
+    getMetaWebhookSignatureHeader({ "X-Hub-Signature-256": signatureHeader }),
+    signatureHeader
+  );
+  assert.deepEqual(
+    verifyMetaWebhookSignature({
+      rawBody,
+      signatureHeader,
+      appSecret: META_TEST_SIGNING_KEY,
+    }),
+    {
+      ok: true,
+      verified: true,
+      status: "verified",
+    }
+  );
+});
+
+test("Meta webhook signature helper rejects missing malformed and invalid signatures when configured", () => {
+  const rawBody = JSON.stringify(whatsappPayload());
+  const validSignature = buildMetaWebhookSignature(rawBody, META_TEST_SIGNING_KEY);
+  const lastHex = validSignature.slice(-1);
+  const invalidSameLengthSignature = `${validSignature.slice(0, -1)}${lastHex === "0" ? "1" : "0"}`;
+
+  assert.equal(
+    verifyMetaWebhookSignature({
+      rawBody,
+      signatureHeader: "",
+      appSecret: META_TEST_SIGNING_KEY,
+    }).status,
+    "missing"
+  );
+  assert.equal(
+    verifyMetaWebhookSignature({
+      rawBody,
+      signatureHeader: "sha1=abc",
+      appSecret: META_TEST_SIGNING_KEY,
+    }).status,
+    "malformed"
+  );
+  assert.equal(
+    verifyMetaWebhookSignature({
+      rawBody,
+      signatureHeader: invalidSameLengthSignature,
+      appSecret: META_TEST_SIGNING_KEY,
+    }).status,
+    "invalid"
+  );
+});
+
+test("Meta webhook signature helper reports not_configured without false verification", () => {
+  const rawBody = JSON.stringify(whatsappPayload());
+  const signatureHeader = buildMetaWebhookSignature(rawBody, META_TEST_SIGNING_KEY);
+
+  assert.deepEqual(
+    verifyMetaWebhookSignature({
+      rawBody,
+      signatureHeader,
+      appSecret: "",
+    }),
+    {
+      ok: false,
+      verified: false,
+      status: "not_configured",
+    }
+  );
 });
 
 test("valid WhatsApp webhook verification returns only the challenge and activates webhook status", async () => {
@@ -298,7 +382,9 @@ test("WhatsApp POST parsing records only safe status metadata and no message sid
         metadata: {
           whatsappBusinessAccountId: WABA_ID,
           businessDisplayName: "Acme Front Desk",
-          token: "sk-proj_should_not_survive_1234567890",
+          token: "unsafe-token-should-not-survive",
+          webhookEndpointUrl: "https://graph.facebook.com/webhook",
+          graphApiVersion: "https://graph.facebook.com/v23.0",
         },
       }),
     ],
@@ -315,26 +401,79 @@ test("WhatsApp POST parsing records only safe status metadata and no message sid
     ok: true,
     received: true,
     ignored: false,
-    eventTypes: ["messages", "statuses"],
+    eventTypes: ["message", "status"],
+    messageTypes: ["text"],
+    signatureStatus: "not_configured",
   });
   assert.equal(metadata.lastWebhookReceivedAt, receivedAt);
   assert.equal(metadata.lastWebhookObject, "whatsapp_business_account");
-  assert.deepEqual(metadata.lastWebhookEventTypes, ["messages", "statuses"]);
+  assert.deepEqual(metadata.lastWebhookEventTypes, ["message", "status"]);
+  assert.deepEqual(metadata.lastWebhookMessageTypes, ["text"]);
+  assert.equal(metadata.lastWebhookSignatureStatus, "not_configured");
   assert.equal(Object.hasOwn(metadata, "token"), false);
+  assert.equal(Object.hasOwn(metadata, "webhookEndpointUrl"), false);
+  assert.equal(Object.hasOwn(metadata, "graphApiVersion"), false);
   assert.equal(serializedMetadata.includes("Please book the private suite"), false);
   assert.equal(serializedMetadata.includes("15559876543"), false);
+  assert.equal(serializedMetadata.includes("Customer Name"), false);
+  assert.equal(serializedMetadata.includes("https://"), false);
   assert.equal(supabase.state.messages.length, 0);
+  assert.equal(supabase.state.leads.length, 0);
   assert.equal(supabase.state.agent_action_requests.length, 0);
+  assert.equal(supabase.state.agent_booking_requests.length, 0);
+  assert.equal(supabase.state.booking_requests.length, 0);
   assert.deepEqual([...new Set(supabase.state.queriedTables)], ["connected_app_connections"]);
 });
 
-test("WhatsApp payload parser recognizes only object and message/status event types", () => {
+test("WhatsApp payload normalization returns safe message and status summaries", () => {
+  const events = extractWhatsAppWebhookEvents(whatsappPayload());
+  const summary = normalizeWhatsAppWebhookPayload(whatsappPayload());
+
+  assert.deepEqual(events, [
+    {
+      object: "whatsapp_business_account",
+      entryId: WABA_ID,
+      phoneNumberId: "987654321098765",
+      displayPhoneNumber: "+15551230000",
+      eventType: "message",
+      messageId: "wamid.test",
+      messageType: "text",
+      timestamp: "1780430000",
+      status: "",
+      metadata: {
+        hasText: true,
+        textLength: 41,
+        contactPresent: true,
+      },
+    },
+    {
+      object: "whatsapp_business_account",
+      entryId: WABA_ID,
+      phoneNumberId: "987654321098765",
+      displayPhoneNumber: "+15551230000",
+      eventType: "status",
+      messageId: "wamid.status",
+      messageType: "",
+      timestamp: "1780430001",
+      status: "delivered",
+      metadata: {},
+    },
+  ]);
+  assert.deepEqual(summary.eventTypes, ["message", "status"]);
+  assert.deepEqual(summary.messageTypes, ["text"]);
+  assert.equal(JSON.stringify(events).includes("Please book the private suite"), false);
+  assert.equal(JSON.stringify(events).includes("15559876543"), false);
+  assert.equal(JSON.stringify(events).includes("Customer Name"), false);
+});
+
+test("WhatsApp payload parser recognizes object message/status event and message types", () => {
   const summary = parseWhatsAppWebhookPayload(whatsappPayload());
 
   assert.deepEqual(summary, {
     object: "whatsapp_business_account",
     entryIds: [WABA_ID],
-    eventTypes: ["messages", "statuses"],
+    eventTypes: ["message", "status"],
+    messageTypes: ["text"],
   });
 });
 
@@ -392,11 +531,91 @@ test("WhatsApp route accepts POST payload without creating messages replies or a
     assert.equal(response.status, 200);
     assert.deepEqual(body, { received: true });
     assert.equal(supabase.state.messages.length, 0);
+    assert.equal(supabase.state.leads.length, 0);
     assert.equal(supabase.state.agent_action_requests.length, 0);
+    assert.equal(supabase.state.agent_booking_requests.length, 0);
+    assert.equal(supabase.state.booking_requests.length, 0);
+    assert.equal(
+      supabase.state.connected_app_connections[0].metadata.lastWebhookSignatureStatus,
+      "not_configured"
+    );
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Please book"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("15559876543"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Customer Name"), false);
   } finally {
     await server.close();
+  }
+});
+
+test("WhatsApp route enforces POST signature when service-only app secret is supplied", async () => {
+  const validSupabase = createSupabaseStub({
+    connections: [
+      whatsappConnection({
+        webhook_status: "active",
+      }),
+    ],
+  });
+  const validServer = await startIntegrationServer(validSupabase, {
+    getWhatsAppWebhookAppSecret: () => META_TEST_SIGNING_KEY,
+  });
+  const rawBody = JSON.stringify(whatsappPayload());
+  const signatureHeader = buildMetaWebhookSignature(rawBody, META_TEST_SIGNING_KEY);
+
+  try {
+    const validResponse = await fetch(
+      `${validServer.baseUrl}/integrations/whatsapp/webhook/${CONNECTION_ID}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Hub-Signature-256": signatureHeader,
+        },
+        body: rawBody,
+      }
+    );
+
+    assert.equal(validResponse.status, 200);
+    assert.equal(
+      validSupabase.state.connected_app_connections[0].metadata.lastWebhookSignatureStatus,
+      "verified"
+    );
+  } finally {
+    await validServer.close();
+  }
+
+  const invalidSupabase = createSupabaseStub({
+    connections: [
+      whatsappConnection({
+        webhook_status: "active",
+      }),
+    ],
+  });
+  const invalidServer = await startIntegrationServer(invalidSupabase, {
+    getWhatsAppWebhookAppSecret: () => META_TEST_SIGNING_KEY,
+  });
+
+  try {
+    const invalidResponse = await fetch(
+      `${invalidServer.baseUrl}/integrations/whatsapp/webhook/${CONNECTION_ID}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Hub-Signature-256": buildMetaWebhookSignature(`${rawBody} `, META_TEST_SIGNING_KEY),
+        },
+        body: rawBody,
+      }
+    );
+    const invalidBody = await invalidResponse.json();
+
+    assert.equal(invalidResponse.status, 403);
+    assert.deepEqual(invalidBody, { error: "Invalid webhook request." });
+    assert.equal(
+      Object.hasOwn(invalidSupabase.state.connected_app_connections[0].metadata, "lastWebhookReceivedAt"),
+      false
+    );
+  } finally {
+    await invalidServer.close();
   }
 });
 
@@ -477,4 +696,21 @@ test("WhatsApp webhook readiness is ready only after active webhook and agent en
 
   assert.equal(ready.status, "ready");
   assert.equal(requirementByKey(ready, "required.whatsapp.business.webhook").status, "ready");
+
+  const publicChatExecution = evaluateConnectedAppReadiness({
+    ...baseInput,
+    connectedCapabilities: ["whatsapp.business.webhook"],
+    webhookStatuses: {
+      "whatsapp.business.webhook": "active",
+    },
+    surface: "public_chat",
+    executionRequested: true,
+  });
+
+  assert.equal(publicChatExecution.status, "blocked");
+  assert.equal(
+    requirementByKey(publicChatExecution, "execution.requested").reasons
+      .some((reason) => reason.code === "public_chat_execution_blocked"),
+    true
+  );
 });

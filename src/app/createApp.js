@@ -26,6 +26,7 @@ export function createApp({ rootDir }) {
   app.use(applyRouteCors);
   app.use("/stripe/webhook", express.raw({ type: "application/json" }));
   app.use("/bookings/webhooks/calendly", express.raw({ type: "application/json", limit: "128kb" }));
+  app.use("/integrations/whatsapp/webhook", express.raw({ type: "application/json", limit: "96kb" }));
   app.use(express.json({ limit: "96kb" }));
   app.use(express.static(path.join(rootDir, "frontend"), {
     index: false,

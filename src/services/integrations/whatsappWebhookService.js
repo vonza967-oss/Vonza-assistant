@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { CONNECTED_APP_CONNECTION_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
@@ -10,6 +10,7 @@ const WHATSAPP_WEBHOOK_OBJECT = "whatsapp_business_account";
 const VERIFY_TOKEN_SECRET_REF_PREFIX = "whatsapp-webhook-verify-token-sha256:";
 const VERIFY_TOKEN_HASH_CONTEXT = "vonza:whatsapp:webhook-verify-token:v1";
 const MAX_EVENT_TYPES = 8;
+const MAX_MESSAGE_TYPES = 8;
 
 const CONNECTION_SELECT = [
   "id",
@@ -39,11 +40,14 @@ const SAFE_EXISTING_METADATA_KEYS = new Set([
   "lastWebhookReceivedAt",
   "lastWebhookObject",
   "lastWebhookEventTypes",
+  "lastWebhookSignatureStatus",
+  "lastWebhookMessageTypes",
 ]);
 
 const SECRET_LOOKING_VALUE_PATTERN = /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}\b/i;
 const JWT_LOOKING_VALUE_PATTERN = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/;
 const META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN = /\bEAA[A-Za-z0-9_-]{20,}\b/;
+const URL_LOOKING_VALUE_PATTERN = /\bhttps?:\/\//i;
 
 function buildWhatsAppWebhookError(message, statusCode = 403, code = "whatsapp_webhook_invalid") {
   const error = new Error(message);
@@ -94,6 +98,7 @@ function normalizeSafeMetadataString(value, maxLength = 160) {
     || SECRET_LOOKING_VALUE_PATTERN.test(normalized)
     || JWT_LOOKING_VALUE_PATTERN.test(normalized)
     || META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN.test(normalized)
+    || URL_LOOKING_VALUE_PATTERN.test(normalized)
   ) {
     return "";
   }
@@ -119,6 +124,12 @@ function normalizeEventType(value) {
   return /^[a-z][a-z0-9_.-]{0,63}$/.test(normalized) ? normalized : "";
 }
 
+function normalizeMessageType(value) {
+  const normalized = normalizeKey(value).replace(/[^a-z0-9_.-]+/g, "_");
+
+  return /^[a-z][a-z0-9_.-]{0,63}$/.test(normalized) ? normalized : "";
+}
+
 function normalizeEventTypes(value) {
   const seen = new Set();
 
@@ -134,6 +145,63 @@ function normalizeEventTypes(value) {
   });
 }
 
+function normalizeMessageTypes(value) {
+  const seen = new Set();
+
+  return (Array.isArray(value) ? value : []).flatMap((item) => {
+    const messageType = normalizeMessageType(item);
+
+    if (!messageType || seen.has(messageType) || seen.size >= MAX_MESSAGE_TYPES) {
+      return [];
+    }
+
+    seen.add(messageType);
+    return [messageType];
+  });
+}
+
+function normalizeProviderTimestamp(value) {
+  const normalized = normalizeSafeMetadataString(value, 64);
+
+  return /^(?:\d{1,16}|\d{4}-\d{2}-\d{2}T[0-9:.+-Z]+)$/.test(normalized) ? normalized : "";
+}
+
+function normalizeRawBody(rawBody) {
+  if (Buffer.isBuffer(rawBody)) {
+    return rawBody;
+  }
+
+  if (rawBody instanceof Uint8Array) {
+    return Buffer.from(rawBody);
+  }
+
+  if (typeof rawBody === "string") {
+    return Buffer.from(rawBody, "utf8");
+  }
+
+  return Buffer.from("", "utf8");
+}
+
+function parseWebhookBody(payload) {
+  if (Buffer.isBuffer(payload) || payload instanceof Uint8Array) {
+    try {
+      return normalizePlainObject(JSON.parse(Buffer.from(payload).toString("utf8")));
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof payload === "string") {
+    try {
+      return normalizePlainObject(JSON.parse(payload));
+    } catch {
+      return {};
+    }
+  }
+
+  return normalizePlainObject(payload);
+}
+
 function safeExistingMetadata(metadata) {
   const plainMetadata = normalizePlainObject(metadata);
   const safeMetadata = {};
@@ -147,6 +215,22 @@ function safeExistingMetadata(metadata) {
       const eventTypes = normalizeEventTypes(value);
       if (eventTypes.length > 0) {
         safeMetadata[key] = eventTypes;
+      }
+      continue;
+    }
+
+    if (key === "lastWebhookMessageTypes") {
+      const messageTypes = normalizeMessageTypes(value);
+      if (messageTypes.length > 0) {
+        safeMetadata[key] = messageTypes;
+      }
+      continue;
+    }
+
+    if (key === "lastWebhookSignatureStatus") {
+      const signatureStatus = normalizeEventType(value);
+      if (["verified", "not_configured", "missing", "malformed", "invalid"].includes(signatureStatus)) {
+        safeMetadata[key] = signatureStatus;
       }
       continue;
     }
@@ -190,6 +274,101 @@ function timingSafeEqualText(left, right) {
   const rightBuffer = Buffer.from(cleanText(right));
 
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function parseMetaWebhookSignatureHex(signatureHeader) {
+  const normalized = cleanText(signatureHeader);
+  const match = normalized.match(/^sha256=([a-f0-9]{64})$/i);
+
+  return match ? match[1].toLowerCase() : "";
+}
+
+function timingSafeEqualHex(leftHex, rightHex) {
+  if (!/^[a-f0-9]{64}$/i.test(leftHex) || !/^[a-f0-9]{64}$/i.test(rightHex)) {
+    return false;
+  }
+
+  const leftBuffer = Buffer.from(leftHex, "hex");
+  const rightBuffer = Buffer.from(rightHex, "hex");
+
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+export function getMetaWebhookSignatureHeader(headers = {}) {
+  if (headers && typeof headers.get === "function") {
+    return cleanText(headers.get("x-hub-signature-256"));
+  }
+
+  const plainHeaders = normalizePlainObject(headers);
+
+  for (const [key, value] of Object.entries(plainHeaders)) {
+    if (normalizeKey(key) !== "x-hub-signature-256") {
+      continue;
+    }
+
+    return cleanText(Array.isArray(value) ? value[0] : value);
+  }
+
+  return "";
+}
+
+export function buildMetaWebhookSignature(rawBody, appSecret) {
+  const secret = cleanText(appSecret);
+
+  if (!secret) {
+    return "";
+  }
+
+  const digest = createHmac("sha256", secret)
+    .update(normalizeRawBody(rawBody))
+    .digest("hex");
+
+  return `sha256=${digest}`;
+}
+
+export function verifyMetaWebhookSignature({
+  rawBody,
+  signatureHeader,
+  appSecret,
+} = {}) {
+  const secret = cleanText(appSecret);
+
+  if (!secret) {
+    return {
+      ok: false,
+      verified: false,
+      status: "not_configured",
+    };
+  }
+
+  const suppliedSignatureHex = parseMetaWebhookSignatureHex(signatureHeader);
+
+  if (!cleanText(signatureHeader)) {
+    return {
+      ok: false,
+      verified: false,
+      status: "missing",
+    };
+  }
+
+  if (!suppliedSignatureHex) {
+    return {
+      ok: false,
+      verified: false,
+      status: "malformed",
+    };
+  }
+
+  const expectedSignatureHex = parseMetaWebhookSignatureHex(
+    buildMetaWebhookSignature(rawBody, secret)
+  );
+  const verified = timingSafeEqualHex(expectedSignatureHex, suppliedSignatureHex);
+
+  return {
+    ok: verified,
+    verified,
+    status: verified ? "verified" : "invalid",
+  };
 }
 
 function getQueryValue(query = {}, key) {
@@ -317,46 +496,147 @@ export function buildWhatsAppVerifyTokenSecretRef(input = {}) {
   return hash ? `${VERIFY_TOKEN_SECRET_REF_PREFIX}${hash}` : "";
 }
 
-export function parseWhatsAppWebhookPayload(payload = {}) {
-  const body = normalizePlainObject(payload);
+function buildBaseWebhookEvent({ object, entry, value }) {
+  const metadata = normalizePlainObject(value.metadata);
+
+  return {
+    object,
+    entryId: normalizeSafeMetadataString(entry.id, 96),
+    phoneNumberId: normalizeSafeMetadataString(metadata.phone_number_id, 96),
+    displayPhoneNumber: normalizeSafeMetadataString(metadata.display_phone_number, 48),
+  };
+}
+
+function normalizeMessageEvent({ object, entry, value, message }) {
+  const text = normalizePlainObject(message.text);
+  const textBody = cleanText(text.body);
+  const contacts = Array.isArray(value.contacts) ? value.contacts : [];
+  const messageType = normalizeMessageType(message.type) || "unknown";
+  const event = {
+    ...buildBaseWebhookEvent({ object, entry, value }),
+    eventType: "message",
+    messageId: normalizeSafeMetadataString(message.id, 160),
+    messageType,
+    timestamp: normalizeProviderTimestamp(message.timestamp),
+    status: "",
+    metadata: {},
+  };
+
+  if (textBody) {
+    event.metadata.hasText = true;
+    event.metadata.textLength = textBody.length;
+  }
+
+  if (contacts.length > 0) {
+    event.metadata.contactPresent = true;
+  }
+
+  return event;
+}
+
+function normalizeStatusEvent({ object, entry, value, status }) {
+  return {
+    ...buildBaseWebhookEvent({ object, entry, value }),
+    eventType: "status",
+    messageId: normalizeSafeMetadataString(status.id, 160),
+    messageType: "",
+    timestamp: normalizeProviderTimestamp(status.timestamp),
+    status: normalizeEventType(status.status),
+    metadata: {},
+  };
+}
+
+function normalizeUnknownEvent({ object, entry, value, field }) {
+  return {
+    ...buildBaseWebhookEvent({ object, entry, value }),
+    eventType: "unknown",
+    messageId: "",
+    messageType: "",
+    timestamp: "",
+    status: "",
+    metadata: field ? { field } : {},
+  };
+}
+
+export function extractWhatsAppWebhookEvents(payload = {}) {
+  const body = parseWebhookBody(payload);
   const object = normalizeWebhookObject(body.object);
   const entries = Array.isArray(body.entry) ? body.entry : [];
-  const eventTypes = [];
-  const entryIds = [];
+  const events = [];
 
   for (const rawEntry of entries.slice(0, 20)) {
     const entry = normalizePlainObject(rawEntry);
-    const entryId = normalizeSafeMetadataString(entry.id, 96);
-
-    if (entryId) {
-      entryIds.push(entryId);
-    }
-
     const changes = Array.isArray(entry.changes) ? entry.changes : [];
 
     for (const rawChange of changes.slice(0, 20)) {
       const change = normalizePlainObject(rawChange);
       const field = normalizeEventType(change.field);
       const value = normalizePlainObject(change.value);
+      const messages = Array.isArray(value.messages) ? value.messages : [];
+      const statuses = Array.isArray(value.statuses) ? value.statuses : [];
 
-      if (Array.isArray(value.messages)) {
-        eventTypes.push("messages");
+      for (const rawMessage of messages.slice(0, 20)) {
+        const message = normalizePlainObject(rawMessage);
+        events.push(normalizeMessageEvent({
+          object,
+          entry,
+          value,
+          message,
+        }));
       }
 
-      if (Array.isArray(value.statuses)) {
-        eventTypes.push("statuses");
+      for (const rawStatus of statuses.slice(0, 20)) {
+        const status = normalizePlainObject(rawStatus);
+        events.push(normalizeStatusEvent({
+          object,
+          entry,
+          value,
+          status,
+        }));
       }
 
-      if (!Array.isArray(value.messages) && !Array.isArray(value.statuses) && field) {
-        eventTypes.push(field);
+      if (messages.length === 0 && statuses.length === 0 && field) {
+        events.push(normalizeUnknownEvent({
+          object,
+          entry,
+          value,
+          field,
+        }));
       }
     }
   }
 
+  return events;
+}
+
+export function normalizeWhatsAppWebhookPayload(payload = {}) {
+  const body = parseWebhookBody(payload);
+  const object = normalizeWebhookObject(body.object);
+  const entries = Array.isArray(body.entry) ? body.entry : [];
+  const entryIds = entries.flatMap((rawEntry) => {
+    const entryId = normalizeSafeMetadataString(normalizePlainObject(rawEntry).id, 96);
+
+    return entryId ? [entryId] : [];
+  });
+  const events = extractWhatsAppWebhookEvents(body);
+
   return {
     object,
     entryIds: normalizeStringList(entryIds),
-    eventTypes: normalizeEventTypes(eventTypes),
+    eventTypes: normalizeEventTypes(events.map((event) => event.eventType)),
+    messageTypes: normalizeMessageTypes(events.map((event) => event.messageType)),
+    events,
+  };
+}
+
+export function parseWhatsAppWebhookPayload(payload = {}) {
+  const summary = normalizeWhatsAppWebhookPayload(payload);
+
+  return {
+    object: summary.object,
+    entryIds: summary.entryIds,
+    eventTypes: summary.eventTypes,
+    messageTypes: summary.messageTypes,
   };
 }
 
@@ -424,7 +704,22 @@ export async function verifyWhatsAppWebhookChallenge(supabase, options = {}) {
 export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
   const connectionId = cleanText(options.connectionId || options.connection_id);
   const connection = await fetchWhatsAppWebhookConnection(supabase, connectionId);
-  const summary = parseWhatsAppWebhookPayload(options.payload);
+  const rawBody = options.rawBody === undefined ? options.payload : options.rawBody;
+  const signatureStatus = verifyMetaWebhookSignature({
+    rawBody,
+    signatureHeader: getMetaWebhookSignatureHeader(options.headers),
+    appSecret: options.appSecret || options.app_secret,
+  }).status;
+
+  if (!["verified", "not_configured"].includes(signatureStatus)) {
+    throw buildWhatsAppWebhookError(
+      "Invalid WhatsApp webhook signature.",
+      403,
+      "whatsapp_webhook_signature_invalid"
+    );
+  }
+
+  const summary = normalizeWhatsAppWebhookPayload(options.payload);
 
   if (summary.object !== WHATSAPP_WEBHOOK_OBJECT) {
     return {
@@ -432,6 +727,8 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
       received: true,
       ignored: true,
       eventTypes: [],
+      messageTypes: [],
+      signatureStatus,
     };
   }
 
@@ -455,7 +752,12 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
     lastWebhookReceivedAt: receivedAt,
     lastWebhookObject: WHATSAPP_WEBHOOK_OBJECT,
     lastWebhookEventTypes: summary.eventTypes,
+    lastWebhookSignatureStatus: signatureStatus,
   };
+
+  if (summary.messageTypes.length > 0) {
+    metadata.lastWebhookMessageTypes = summary.messageTypes;
+  }
 
   await updateWhatsAppWebhookConnection(supabase, connection, {
     metadata,
@@ -467,5 +769,7 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
     received: true,
     ignored: false,
     eventTypes: summary.eventTypes,
+    messageTypes: summary.messageTypes,
+    signatureStatus,
   };
 }

@@ -19,6 +19,7 @@ export function createIntegrationRouter(deps = {}) {
     deps.verifyWhatsAppWebhookChallenge || verifyWhatsAppWebhookChallenge;
   const recordWhatsAppReceipt =
     deps.recordWhatsAppWebhookReceipt || recordWhatsAppWebhookReceipt;
+  const getWhatsAppWebhookAppSecret = deps.getWhatsAppWebhookAppSecret;
   const limitWhatsAppWebhook =
     deps.limitWhatsAppWebhook || createRateLimitMiddleware("whatsapp_webhook");
 
@@ -50,9 +51,18 @@ export function createIntegrationRouter(deps = {}) {
     limitWhatsAppWebhook,
     async (req, res) => {
       try {
+        const appSecret = typeof getWhatsAppWebhookAppSecret === "function"
+          ? await getWhatsAppWebhookAppSecret({
+            connectionId: req.params.connectionId,
+          })
+          : "";
+
         await recordWhatsAppReceipt(getSupabase(), {
           connectionId: req.params.connectionId,
+          rawBody: req.body,
           payload: req.body,
+          headers: req.headers,
+          appSecret,
         });
 
         res.status(200).json({ received: true });
