@@ -212,7 +212,12 @@ function buildDashboardFixtureAgent(overrides = {}) {
   };
 }
 
-async function stubDashboardWorkspaceApis(page, { agent = buildDashboardFixtureAgent() } = {}) {
+async function stubDashboardWorkspaceApis(page, {
+  agent = buildDashboardFixtureAgent(),
+  connectedAppThreads = [],
+  connectedAppEvents = [],
+  manualReplies = { enabled: false, status: "disabled", lastOutbound: null },
+} = {}) {
   const fulfillJson = async (route, body) => {
     await route.fulfill({
       status: 200,
@@ -304,6 +309,13 @@ async function stubDashboardWorkspaceApis(page, { agent = buildDashboardFixtureA
       surface: "operator",
       executionRequested: false,
     },
+  }));
+  await page.route("**/agents/connected-app-inbound-threads**", (route) => fulfillJson(route, {
+    threads: connectedAppThreads,
+    manualReplies,
+  }));
+  await page.route("**/agents/connected-app-inbound-events**", (route) => fulfillJson(route, {
+    events: connectedAppEvents,
   }));
 }
 
@@ -513,6 +525,61 @@ test("Front Desk practice route renders", async () => {
     await assertVisibleText(page, "Run a visitor-style question");
   } finally {
     await page.close();
+  }
+});
+
+test("Connected apps inbox renders disabled manual staff reply composer without layout overlap", async () => {
+  for (const viewport of [
+    { width: 1280, height: 820 },
+    { width: 390, height: 844 },
+  ]) {
+    const page = await newPage({ viewport });
+
+    try {
+      await page.goto(`${baseUrl}/dashboard-v2-fixture#settings/connected-apps`, { waitUntil: "domcontentloaded" });
+      await page.locator('[data-settings-section="connected_apps"]').waitFor({ state: "visible" });
+      await page.locator(".settings-connected-app-thread-row").first().waitFor({ state: "visible" });
+      await assertVisibleText(page, "Manual staff reply");
+      await assertVisibleText(page, "No AI reply. No automatic WhatsApp messages.");
+      await assertVisibleText(page, "Sending is disabled by server feature flag.");
+      await assertNoHorizontalOverflow(page);
+
+      const layout = await page.locator(".settings-connected-app-thread-row").first().evaluate((row) => {
+        const statusForm = row.querySelector("[data-connected-app-inbox-status-form]");
+        const disabledComposer = Array.from(row.querySelectorAll(".settings-connected-app-empty"))
+          .find((element) => element.textContent.includes("Sending is disabled"));
+        const rectFor = (element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          };
+        };
+
+        return {
+          statusForm: rectFor(statusForm),
+          disabledComposer: rectFor(disabledComposer),
+          viewportWidth: globalThis.document.documentElement.clientWidth,
+        };
+      });
+
+      assert.ok(
+        layout.disabledComposer.top >= layout.statusForm.bottom - 1,
+        `disabled manual reply panel overlaps status form: ${JSON.stringify(layout)}`
+      );
+      assert.ok(layout.disabledComposer.width > 120, `disabled manual reply panel is too narrow: ${JSON.stringify(layout)}`);
+      assert.ok(
+        layout.disabledComposer.right <= layout.viewportWidth + 1,
+        `disabled manual reply panel overflows: ${JSON.stringify(layout)}`
+      );
+      assert.equal(await page.locator("[data-connected-app-manual-reply-form]").count(), 0);
+    } finally {
+      await page.close();
+    }
   }
 });
 

@@ -1,6 +1,6 @@
 # WhatsApp Connected App Plan
 
-## Phase 10-14 Scope
+## Phase 10-14 Scope And Manual Reply Milestone
 
 Connected Apps Phase 10 adds WhatsApp Business as a capability foundation only. It is metadata, manual/status-only connection support, report-only readiness, dashboard copy, docs, and tests.
 
@@ -46,6 +46,15 @@ Phase 14 groups redacted WhatsApp inbound events by owner, connection, provider,
 
 Phase 14 is a manual read-only staff inbox foundation. It has no WhatsApp replies, no AI handoff, no outbound messaging, no WhatsApp Cloud API calls, no Twilio WhatsApp API calls, no Meta OAuth/Embedded Signup, no package activation enforcement, no runtime public chat behavior, and no widget/embed change.
 
+The manual staff reply milestone adds a separate, feature-flagged authenticated owner/dashboard path for staff-authored WhatsApp replies from inbound threads:
+
+- `public.connected_app_outbound_messages` stores owner-readable redacted outbound audit rows with service/internal writes only.
+- `src/services/integrations/whatsappManualReplyService.js` validates owner/thread/connection scope, active WhatsApp connection status, capability presence, optional agent enablement, manual actor id, feature flag, session-window proof, server-side credential lookup, and destination lookup before calling an injectable WhatsApp Cloud API provider client.
+- `POST /agents/connected-app-inbound-threads/reply` accepts only authenticated owner/staff manual inputs (`threadId`, `messageText` or template fields, optional `agentId`, optional `capabilityKey`) and rejects tokens, phone fields, connection/provider overrides, and provider payloads.
+- Dashboard composer copy is explicit: `Manual staff reply`, `No AI reply`, and `No automatic WhatsApp messages`.
+
+Manual replies are off by default. `WHATSAPP_MANUAL_REPLIES_ENABLED` must be explicitly set to `1`, `true`, `enabled`, or `on`. The route and service do not add AI replies, automatic replies, public chat behavior, widget/embed changes, Meta OAuth/Embedded Signup, package activation enforcement, or Twilio WhatsApp.
+
 ## Official Meta Documentation Checked
 
 This plan is based on current official Meta WhatsApp Business Platform documentation for:
@@ -58,7 +67,12 @@ This plan is based on current official Meta WhatsApp Business Platform documenta
 - [Webhooks overview](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/overview/)
 - [Webhook endpoint creation and verification](https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/create-webhook-endpoint/)
 - [Sending messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/messages/send-messages/)
+- [WhatsApp Cloud API messages endpoint](https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages)
+- [WhatsApp Cloud API phone numbers](https://developers.facebook.com/docs/whatsapp/cloud-api/reference/phone-numbers)
+- [WhatsApp customer-service windows](https://developers.facebook.com/docs/whatsapp/pricing#customer-service-windows)
 - [Message templates](https://developers.facebook.com/documentation/business-messaging/whatsapp/templates/overview/)
+- [WhatsApp Cloud API error codes](https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes)
+- [WhatsApp Cloud API throughput and rate limits](https://developers.facebook.com/docs/whatsapp/cloud-api/overview#throughput)
 - [Access tokens](https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/)
 
 ## Safe Manual Metadata
@@ -87,11 +101,19 @@ Phase 12 does not store raw app secrets. The generic schema still lacks a safe p
 
 `whatsapp.business.webhook` represents verified inbound webhook readiness only. It requires `requiresWebhook: true`, `requiresSecret: true`, `externalExecution: false`, and `publicChatCallable: false`. In readiness, it can become ready only when an active manual connection, explicit agent enablement, and active generic webhook status exist.
 
-`whatsapp.business.send.template` represents future approved-template outbound messaging only. Templates are WhatsApp Business Account assets, have categories such as authentication, marketing, and utility, and must be approved before use. This capability is not executable today.
+`whatsapp.business.send.template` represents approved-template outbound messaging only. Templates are WhatsApp Business Account assets, have categories such as authentication, marketing, and utility, and must be approved before use. The current manual reply service deliberately blocks template sends until approved-template support is explicitly implemented and configured.
 
-`whatsapp.business.send.session.reply` represents future replies during an allowed customer-service window only. Meta's WhatsApp messaging rules distinguish replies inside the customer-service window from template messages used outside that window. This capability is not executable today.
+`whatsapp.business.send.session.reply` represents manual staff replies during an allowed customer-service window only. Meta's WhatsApp messaging rules distinguish replies inside the customer-service window from template messages used outside that window. Vonza enforces a conservative internal session-window guard from the thread's `metadata.lastInboundMessageAt` or last inbound message event time. This is internal policy proof, not provider proof.
 
-Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
+WhatsApp work must keep inbound webhooks, manual session replies, and approved template messages separate.
+
+## Manual Outbound Audit And Sending Contract
+
+`connected_app_outbound_messages` stores no destination phone number, no access token, no app secret, no verify token, no webhook secret, no full provider payload, and no raw error payload. `destination_ref_hash` uses the existing inbound thread hash. `body_redacted` stores only a length/preview-style marker such as `manual staff text redacted`, not the staff-authored message text. Metadata records that the row is manual staff reply audit, no AI reply, no automatic WhatsApp messages, message text was not stored, provider payload was not stored, and whether template support was implemented.
+
+The service can call WhatsApp Cloud API only after every guard passes. Credentials must come from server-side configuration or an injected service-only secret lookup such as `getWhatsAppCloudApiCredentials`; the dashboard/request body cannot supply tokens, phone number IDs, destinations, or provider payloads. The destination must come from a service-only destination resolver because inbound thread rows intentionally store only a hash. Tests inject the provider client and destination resolver so no live Meta request is required.
+
+Text/session replies require `whatsapp.business.send.session.reply`, an active owner-scoped WhatsApp connection, optional agent enablement when an agent id is present, and a current internal customer-service-window proof. Outside-window text replies are blocked and audited as `blocked`. Template attempts require `whatsapp.business.send.template` but are blocked in this phase until approved-template support exists. Provider success writes `sent`; provider failure writes `failed` with redacted error status.
 
 ## Phase 11 Webhook Verification And Phase 12-14 POST Foundation
 
@@ -113,23 +135,23 @@ Phase 13 stores only redacted normalized event summaries. It still does not stor
 
 Phase 14 stores only redacted thread grouping state. It still does not store full provider payloads, message body text, customer contact phone numbers, profile names, contacts/leads/action requests/booking requests/chat messages, outbound replies, provider payloads, or provider clients.
 
-Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, consent/session windows, manual staff replies, and only later AI-drafted replies or outbound messaging.
+Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, richer consent/session proof, approved template catalog management, and only later AI-drafted replies.
 
-## Outbound Notes For Future Work
+## Outbound Notes
 
-A future sender must be a separate scoped phase. It must require:
+The implemented manual sender is a separate scoped milestone. It requires:
 
 - Explicit owner connection.
 - Explicit agent enablement.
 - Approved surface.
-- Provider proof that the target phone number and WhatsApp Business Account are valid for the connection.
+- Server-side destination lookup/proof that the target WhatsApp destination and WhatsApp Business Account are valid for the connection.
 - Opt-in and policy compliance evidence.
 - Approved template status before template sends.
 - Customer-service-window proof before session replies.
 - Safe logging and audit events before and after any provider call.
-- Probably staff approval for customer-impacting outbound messages.
+- A manual staff click/send for every customer-impacting outbound message.
 
-Phase 14 sends no WhatsApp messages. Manual staff replies are a future phase. AI-drafted replies are a later future phase after manual staff replies and review controls exist.
+AI-drafted replies are not implemented. Automatic replies are not implemented.
 
 ## Dashboard Copy
 
@@ -137,28 +159,27 @@ The authenticated Connected Apps dashboard can show WhatsApp Business as a found
 
 - `Manual/internal setup`
 - `Inbound review only`
-- `No WhatsApp replies sent`
-- `No AI handoff`
-- `No outbound messaging`
+- `Manual staff reply`
+- `No AI reply`
+- `No automatic WhatsApp messages`
 - `No Meta OAuth/Embedded Signup yet`
 
-The authenticated Connected Apps dashboard can also show a compact `Connected app inbox` for redacted threads and recent redacted events. It may show thread status, provider/app, last event time, last event type/message type, unread count, the safe label `WhatsApp conversation`, and status controls for `reviewing`, `resolved`, `ignored`, and `archived`.
+The authenticated Connected Apps dashboard can also show a compact `Connected app inbox` for redacted threads and recent redacted events. It may show thread status, provider/app, last event time, last event type/message type, unread count, the safe label `WhatsApp conversation`, status controls for `reviewing`, `resolved`, `ignored`, and `archived`, and a manual staff reply composer only when the server feature status is enabled.
 
-The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, WhatsApp reply controls, WhatsApp sender controls, AI draft controls, public chat controls, package activation controls, or phone number display.
+The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, AI draft controls, public chat controls, package activation controls, template-management UI, destination/phone inputs, provider-payload fields, or phone number display.
 
 ## Non-Goals
 
 - No runtime chat behavior.
 - No widget/embed change.
-- No outbound messages.
+- No automatic outbound messages.
 - No full app-secret signature enforcement until service-only secret storage/config exists.
 - No chat handoff.
 - No AI replies.
-- No WhatsApp replies.
 - No AI-drafted replies.
 - No customer phone/profile/body persistence.
 - No Meta OAuth/Embedded Signup.
-- No WhatsApp Cloud API calls.
+- No WhatsApp Cloud API calls unless the manual-replies feature flag is on and server-side credentials, destination lookup, active owner connection, capability, optional agent enablement, and session-window checks pass.
 - No Twilio WhatsApp API calls.
 - No package activation enforcement.
 - No runtime permission enforcement.

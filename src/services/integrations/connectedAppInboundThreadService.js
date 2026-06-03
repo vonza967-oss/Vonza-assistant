@@ -550,10 +550,14 @@ function buildInsertPayload(input = {}) {
   const metadata = {
     ...normalizePlainObject(input.metadata),
     inboundReviewOnly: true,
-    noOutboundMessaging: true,
+    noAutomaticWhatsAppMessages: true,
     noAiReplies: true,
     noAiHandoff: true,
   };
+
+  if (eventSummary.eventType === "message") {
+    metadata.lastInboundMessageAt = eventSummary.eventAt;
+  }
 
   assertSafeValue(metadata, "metadata");
 
@@ -675,6 +679,15 @@ async function updateExistingThread(supabase, existingRow, payload) {
     unread_count: unreadCount,
     updated_at: new Date().toISOString(),
   };
+  const nextMetadata = normalizePlainObject(payload.metadata);
+
+  if (nextMetadata.lastInboundMessageAt) {
+    updatePayload.metadata = {
+      ...normalizePlainObject(existingRow.metadata),
+      ...nextMetadata,
+    };
+    assertSafeValue(updatePayload.metadata, "metadata");
+  }
 
   const { data, error } = await supabase
     .from(CONNECTED_APP_INBOUND_THREAD_TABLE)

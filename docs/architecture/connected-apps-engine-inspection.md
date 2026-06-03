@@ -849,7 +849,7 @@ Implemented Phase 10 behavior:
 - Keeps all WhatsApp capabilities `publicChatCallable: false`, `packageActivatable: false`, and `externalExecution: false`.
 - Allows safe manual/status-only records for WhatsApp Business using the existing generic connection and enablement tables.
 - Rejects WhatsApp access-token, app-secret, verify-token, webhook-secret, and API-key fields at route/service boundaries.
-- Adds dashboard copy that states `Manual/internal setup`, `Inbound review only`, `No WhatsApp replies sent`, `No AI handoff`, `No outbound messaging`, and `No Meta OAuth/Embedded Signup yet`.
+- Adds dashboard copy that states `Manual/internal setup`, `Manual staff reply`, `No AI reply`, `No automatic WhatsApp messages`, and `No Meta OAuth/Embedded Signup yet`.
 - Keeps public chat execution blocked even when manual connection and enablement records exist.
 
 Current Phase 10 behavior is registry/readiness/manual-status/dashboard-copy/tests/docs only. It adds no schema/migration change, no runtime chat behavior, no widget/embed behavior, no WhatsApp webhook route, no inbound message processing, no outbound message sending, no Meta OAuth/Embedded Signup, no WhatsApp Cloud API calls, no Twilio WhatsApp API calls, no package activation enforcement, no generic provider execution, and no secrets.
@@ -993,7 +993,7 @@ Phase 10 adds WhatsApp Business as a Connected Apps capability foundation, Phase
 - The existing generic `connected_app_connections` and `agent_connected_app_enablements` records can represent manual active connection status and explicit agent enablement for report-only readiness.
 - Safe metadata can include WhatsApp Business Account ID, phone number ID, business display name, webhook verification status, Graph API version, webhook verified timestamp, last webhook receipt timestamp, last webhook object, safe event type names, safe message type names, and signature status.
 - WhatsApp access tokens, app secrets, verify tokens, webhook secrets, API keys, OAuth codes, and access-token-looking values are rejected by the generic connection service and route boundaries.
-- The dashboard shows WhatsApp Business foundation and read-only inbox status with `Manual/internal setup`, `Inbound review only`, `No WhatsApp replies sent`, `No AI handoff`, `No outbound messaging`, and `No Meta OAuth/Embedded Signup yet`.
+- The dashboard shows WhatsApp Business foundation and manual inbox status with `Manual/internal setup`, `Manual staff reply`, `No AI reply`, `No automatic WhatsApp messages`, and `No Meta OAuth/Embedded Signup yet`.
 - Phase 12 can validate `X-Hub-Signature-256` only when a service-only app secret is supplied; otherwise POST signature status is `not_configured`.
 - Full app-secret signature validation remains future until service-only app-secret storage or provider-specific signing-secret references exist.
 - Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.

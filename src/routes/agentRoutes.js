@@ -202,6 +202,10 @@ import {
   updateConnectedAppInboundThreadStatus,
 } from "../services/integrations/connectedAppInboundThreadService.js";
 import {
+  getWhatsAppManualReplyFeatureStatus,
+  sendWhatsAppManualReply,
+} from "../services/integrations/whatsappManualReplyService.js";
+import {
   buildConnectedAppReadinessContext,
 } from "../services/integrations/connectedAppReadinessContextService.js";
 import {
@@ -348,6 +352,53 @@ function assertNoConnectedAppRouteUnsafeInput(value, path = "body") {
 
     if (nestedValue && typeof nestedValue === "object") {
       assertNoConnectedAppRouteUnsafeInput(nestedValue, `${path}.${key}`);
+    }
+  }
+}
+
+const CONNECTED_APP_REPLY_ALLOWED_FIELD_NAMES = new Set([
+  "agent_id",
+  "agentid",
+  "capability_key",
+  "capabilitykey",
+  "message_text",
+  "messagetext",
+  "message_type",
+  "messagetype",
+  "template_language",
+  "templatelanguage",
+  "template_name",
+  "templatename",
+  "thread_id",
+  "threadid",
+]);
+
+function normalizeConnectedAppRouteFieldName(value) {
+  return cleanText(value).replace(/[^a-zA-Z0-9_]+/g, "_").toLowerCase();
+}
+
+function assertConnectedAppReplyRouteInput(value, path = "body") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const normalizedKey = normalizeConnectedAppRouteFieldName(key);
+
+    if (!CONNECTED_APP_REPLY_ALLOWED_FIELD_NAMES.has(normalizedKey)) {
+      throw buildConnectedAppRouteError(
+        `Connected app reply API does not accept field '${path}.${key}'.`,
+        400,
+        "connected_app_reply_field_rejected"
+      );
+    }
+
+    if (nestedValue && typeof nestedValue === "object") {
+      throw buildConnectedAppRouteError(
+        `Connected app reply API does not accept nested field '${path}.${key}'.`,
+        400,
+        "connected_app_reply_field_rejected"
+      );
     }
   }
 }
@@ -659,6 +710,10 @@ export function createAgentRouter(deps = {}) {
     deps.listConnectedAppInboundThreads || listConnectedAppInboundThreads;
   const updateConnectedAppInboundThreadStatusImpl =
     deps.updateConnectedAppInboundThreadStatus || updateConnectedAppInboundThreadStatus;
+  const sendWhatsAppManualReplyImpl =
+    deps.sendWhatsAppManualReply || sendWhatsAppManualReply;
+  const getWhatsAppManualReplyFeatureStatusImpl =
+    deps.getWhatsAppManualReplyFeatureStatus || getWhatsAppManualReplyFeatureStatus;
   const listConnectedAppInboundEventsImpl =
     deps.listConnectedAppInboundEvents || listConnectedAppInboundEvents;
   const enableConnectedAppForAgentImpl =
@@ -2460,6 +2515,7 @@ export function createAgentRouter(deps = {}) {
       res.json({
         ok: true,
         threads,
+        manualReplies: getWhatsAppManualReplyFeatureStatusImpl(deps.env || process.env),
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads" });
@@ -2484,6 +2540,47 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads/status" });
+    }
+  });
+
+  router.post("/agents/connected-app-inbound-threads/reply", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      assertConnectedAppReplyRouteInput(req.body);
+      const outbound = await sendWhatsAppManualReplyImpl(
+        supabase,
+        {
+          ownerUserId: user.id,
+          actorOwnerUserId: user.id,
+          threadId: readBodyField(req.body, "thread_id", "threadId"),
+          agentId: readBodyField(req.body, "agent_id", "agentId"),
+          capabilityKey: readBodyField(req.body, "capability_key", "capabilityKey"),
+          messageType: readBodyField(req.body, "message_type", "messageType"),
+          messageText: readBodyField(req.body, "message_text", "messageText"),
+          templateName: readBodyField(req.body, "template_name", "templateName"),
+          templateLanguage: readBodyField(req.body, "template_language", "templateLanguage"),
+        },
+        {
+          env: deps.env || process.env,
+          now: deps.now,
+          sessionWindowHours: deps.whatsappSessionWindowHours,
+          getWhatsAppDestinationRef: deps.getWhatsAppDestinationRef,
+          resolveWhatsAppDestinationRef: deps.resolveWhatsAppDestinationRef,
+          getWhatsAppCloudApiCredentials: deps.getWhatsAppCloudApiCredentials,
+          getWhatsAppManualReplyCredentials: deps.getWhatsAppManualReplyCredentials,
+          whatsappProviderClient: deps.whatsappProviderClient,
+          providerClient: deps.whatsappProviderClient || deps.providerClient,
+          fetch: deps.fetch,
+        }
+      );
+
+      res.json({
+        ok: outbound?.status === "sent",
+        outbound,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads/reply" });
     }
   });
 

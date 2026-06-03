@@ -3869,12 +3869,21 @@
   }
 
   function normalizeConnectedAppsState(state = {}) {
+    const manualReplies = state.manualReplies && typeof state.manualReplies === "object"
+      ? state.manualReplies
+      : {};
+
     return {
       capabilities: Array.isArray(state.capabilities) ? state.capabilities : [],
       connections: Array.isArray(state.connections) ? state.connections : [],
       enablements: Array.isArray(state.enablements) ? state.enablements : [],
       inboundThreads: Array.isArray(state.inboundThreads || state.threads) ? (state.inboundThreads || state.threads) : [],
       inboundEvents: Array.isArray(state.inboundEvents || state.events) ? (state.inboundEvents || state.events) : [],
+      manualReplies: {
+        enabled: manualReplies.enabled === true,
+        status: defaultTrimText(manualReplies.status) || (manualReplies.enabled === true ? "enabled" : "disabled"),
+        lastOutbound: manualReplies.lastOutbound || null,
+      },
       readiness: state.readiness || null,
       readinessContext: state.readinessContext || null,
       loading: state.loading === true,
@@ -3978,9 +3987,9 @@
       "No provider action without approval",
       "Report-only readiness",
       "Inbound review only",
-      "No WhatsApp replies sent",
-      "No AI handoff",
-      "No outbound messaging",
+      "Manual staff replies only",
+      "No AI reply",
+      "No automatic WhatsApp messages",
       "No Meta OAuth/Embedded Signup yet",
     ];
 
@@ -4094,6 +4103,7 @@
     const whatsappCapabilities = connectedApps.capabilities.filter(isWhatsAppBusinessCapability);
     const whatsappConnections = connectedApps.connections.filter(isWhatsAppBusinessConnection);
     const activeConnection = whatsappConnections.find((connection) => defaultTrimText(connection.status) === "active") || whatsappConnections[0] || null;
+    const manualRepliesEnabled = connectedApps.manualReplies?.enabled === true;
     const enabledConnectionIds = new Set(
       connectedApps.enablements
         .filter((enablement) => enablement?.enabled === true)
@@ -4120,7 +4130,7 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">WhatsApp Business foundation</h3>
-            <p class="settings-shell-section-copy">Manual read-only inbound review. No WhatsApp replies sent. No AI handoff. No outbound messaging. No Meta OAuth/Embedded Signup yet.</p>
+            <p class="settings-shell-section-copy">Manual staff replies are feature-flagged. No AI reply. No automatic WhatsApp messages. No Meta OAuth/Embedded Signup yet.</p>
           </div>
           <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
         </div>
@@ -4142,26 +4152,29 @@
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Messaging</span>
-              <span class="${getBadgeClass("Limited")}">No WhatsApp replies sent</span>
+              <span class="${getBadgeClass(manualRepliesEnabled ? "Ready" : "Pending")}">${escapeHtml(manualRepliesEnabled ? "Manual replies enabled" : "Manual replies disabled")}</span>
             </div>
-            <p>No outbound messaging. Template and session reply capabilities are readiness metadata only in this phase.</p>
+            <p>Staff can send only manual session replies when the server flag, active owner connection, agent enablement, and session window all allow it. No AI reply or automatic sending.</p>
           </article>
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Inbox mode</span>
               <span class="${getBadgeClass("Limited")}">Inbound review only</span>
             </div>
-            <p>Redacted inbound events can be reviewed manually. No AI handoff. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
+            <p>Redacted inbound events can be reviewed manually. No AI reply. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
           </article>
         </div>
       </section>
     `;
   }
 
-  function buildConnectedAppInboxPanel(connectedApps, helpers) {
+  function buildConnectedAppInboxPanel(connectedApps, helpers, agent = {}) {
     const { escapeHtml, getBadgeClass } = helpers;
     const threads = Array.isArray(connectedApps.inboundThreads) ? connectedApps.inboundThreads : [];
     const events = Array.isArray(connectedApps.inboundEvents) ? connectedApps.inboundEvents : [];
+    const manualReplies = connectedApps.manualReplies || {};
+    const manualRepliesEnabled = manualReplies.enabled === true;
+    const lastOutbound = manualReplies.lastOutbound || null;
     const selectedThreadId = defaultTrimText(threads[0]?.id);
     const recentEvents = selectedThreadId
       ? events.filter((event) => defaultTrimText(event.threadId) === selectedThreadId).slice(0, 8)
@@ -4173,9 +4186,16 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">Connected app inbox</h3>
-            <p class="settings-shell-section-copy">Inbound review only. No WhatsApp replies sent. No AI handoff. No outbound messaging.</p>
+            <p class="settings-shell-section-copy">Manual staff reply. No AI reply. No automatic WhatsApp messages.</p>
           </div>
           <button class="ghost-button" type="button" data-connected-app-inbox-refresh>Refresh</button>
+        </div>
+        <div class="settings-connected-app-empty">
+          <strong>${escapeHtml(manualRepliesEnabled ? "Manual WhatsApp replies enabled" : "Manual WhatsApp replies disabled")}</strong>
+          <p>${escapeHtml(manualRepliesEnabled ? "Text replies still require an active owner connection, explicit agent enablement, server-side credentials, and a current customer-service window." : "Replies are off until WHATSAPP_MANUAL_REPLIES_ENABLED is enabled on the server. Staff can keep reviewing inbound threads without sending messages.")}</p>
+          ${lastOutbound?.status ? `
+            <span class="${getBadgeClass(connectedAppStatusTone(lastOutbound.status))}">Last manual reply: ${escapeHtml(humanizeConnectedAppValue(lastOutbound.status))}</span>
+          ` : ""}
         </div>
 
         <div class="settings-connected-app-inbox-grid">
@@ -4205,6 +4225,24 @@
                   </label>
                   <button class="ghost-button" type="submit">Mark status</button>
                 </form>
+                ${manualRepliesEnabled ? `
+                  <form data-connected-app-manual-reply-form class="settings-connected-app-inbox-status-form">
+                    <input type="hidden" name="thread_id" value="${escapeHtml(thread.id || "")}">
+                    <input type="hidden" name="agent_id" value="${escapeHtml(agent?.id || "")}">
+                    <input type="hidden" name="capability_key" value="whatsapp.business.send.session.reply">
+                    <label>
+                      <span>Manual staff reply</span>
+                      <textarea name="message_text" maxlength="4096" placeholder="Write the staff-authored WhatsApp reply"></textarea>
+                    </label>
+                    <p class="settings-shell-status-copy">No AI reply. No automatic WhatsApp messages.</p>
+                    <button class="primary-button" type="submit">Send manual reply</button>
+                  </form>
+                ` : `
+                  <div class="settings-connected-app-empty">
+                    <strong>Manual staff reply</strong>
+                    <p>No AI reply. No automatic WhatsApp messages. Sending is disabled by server feature flag.</p>
+                  </div>
+                `}
               </article>
             `).join("") : `
               <div class="settings-connected-app-empty">
@@ -4551,7 +4589,7 @@
 
           ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
           ${buildWhatsAppBusinessFoundationPanel(connectedApps, helpers)}
-          ${buildConnectedAppInboxPanel(connectedApps, helpers)}
+          ${buildConnectedAppInboxPanel(connectedApps, helpers, agent)}
 
           <section class="settings-shell-section">
             <div class="settings-shell-section-header">

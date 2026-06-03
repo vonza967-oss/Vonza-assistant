@@ -14,6 +14,7 @@ export const CONNECTED_APP_CONNECTION_TABLE = "connected_app_connections";
 export const AGENT_CONNECTED_APP_ENABLEMENT_TABLE = "agent_connected_app_enablements";
 export const CONNECTED_APP_INBOUND_EVENT_TABLE = "connected_app_inbound_events";
 export const CONNECTED_APP_INBOUND_THREAD_TABLE = "connected_app_inbound_threads";
+export const CONNECTED_APP_OUTBOUND_MESSAGE_TABLE = "connected_app_outbound_messages";
 export const AGENT_PHONE_NUMBER_TABLE = "agent_phone_numbers";
 export const AGENT_PHONE_CALL_SESSION_TABLE = "agent_phone_call_sessions";
 export const WEB_CALL_SESSION_TABLE = "web_call_sessions";

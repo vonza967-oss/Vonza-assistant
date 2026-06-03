@@ -14166,6 +14166,11 @@ function createEmptyConnectedAppsState(overrides = {}) {
     enablements: [],
     inboundThreads: [],
     inboundEvents: [],
+    manualReplies: {
+      enabled: false,
+      status: "disabled",
+      lastOutbound: null,
+    },
     readiness: null,
     readinessContext: null,
     loading: false,
@@ -14190,12 +14195,21 @@ function uniqueTextList(values = []) {
 }
 
 function normalizeConnectedAppsState(value = {}) {
+  const manualReplies = value.manualReplies && typeof value.manualReplies === "object"
+    ? value.manualReplies
+    : {};
+
   return createEmptyConnectedAppsState({
     capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
     connections: Array.isArray(value.connections) ? value.connections : [],
     enablements: Array.isArray(value.enablements) ? value.enablements : [],
     inboundThreads: Array.isArray(value.inboundThreads || value.threads) ? (value.inboundThreads || value.threads) : [],
     inboundEvents: Array.isArray(value.inboundEvents || value.events) ? (value.inboundEvents || value.events) : [],
+    manualReplies: {
+      enabled: manualReplies.enabled === true,
+      status: trimText(manualReplies.status) || (manualReplies.enabled === true ? "enabled" : "disabled"),
+      lastOutbound: manualReplies.lastOutbound || null,
+    },
     readiness: value.readiness || value.report || null,
     readinessContext: value.readinessContext || value.context || null,
     loading: value.loading === true,
@@ -14234,6 +14248,7 @@ async function loadConnectedApps(agentId) {
   const enablements = Array.isArray(enablementsData.enablements) ? enablementsData.enablements : [];
   const inboundThreads = Array.isArray(inboundThreadsData.threads) ? inboundThreadsData.threads : [];
   const inboundEvents = Array.isArray(inboundEventsData.events) ? inboundEventsData.events : [];
+  const manualReplies = inboundThreadsData.manualReplies || {};
   const readinessUrl = new URL(`/agents/${encodedAgentId}/connected-app-readiness`, window.location.origin);
   const requiredCapabilities = getAgentConnectedAppRequiredCapabilities(enablements);
   const optionalCapabilities = getConnectedAppsCapabilityKeys(capabilities)
@@ -14255,6 +14270,7 @@ async function loadConnectedApps(agentId) {
     enablements,
     inboundThreads,
     inboundEvents,
+    manualReplies,
     readiness: readinessData.report || null,
     readinessContext: readinessData.context || null,
     lastLoadedAt: new Date().toISOString(),
@@ -14979,6 +14995,58 @@ async function submitConnectedAppInboxStatusForm(event, agent) {
     });
   } catch (error) {
     setStatus(error.message || "Connected app inbox status could not be updated.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function submitConnectedAppManualReplyForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const messageText = trimText(formData.get("message_text"));
+
+  if (!messageText) {
+    setStatus("Write a manual staff reply before sending.");
+    return;
+  }
+
+  const payload = {
+    thread_id: trimText(formData.get("thread_id")),
+    agent_id: trimText(formData.get("agent_id")),
+    capability_key: trimText(formData.get("capability_key")) || "whatsapp.business.send.session.reply",
+    message_text: messageText,
+  };
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Sending manual WhatsApp staff reply...");
+
+  try {
+    const result = await fetchJson("/agents/connected-app-inbound-threads/reply", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const outbound = result.outbound || null;
+    const status = trimText(outbound?.status) || (result.ok ? "sent" : "failed");
+    const loadedConnectedApps = await loadConnectedAppsSafe(agent.id);
+
+    workspaceState = {
+      ...(workspaceState || {}),
+      connectedApps: normalizeConnectedAppsState({
+        ...loadedConnectedApps,
+        manualReplies: {
+          ...(loadedConnectedApps.manualReplies || {}),
+          lastOutbound: outbound,
+        },
+      }),
+    };
+    renderWorkspaceFromState();
+    setStatus(status === "sent" ? "Manual WhatsApp reply sent." : `Manual WhatsApp reply ${status}.`);
+  } catch (error) {
+    setStatus(error.message || "Manual WhatsApp reply could not be sent.");
   } finally {
     setConnectedAppFormDisabled(form, false);
   }
@@ -16519,6 +16587,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
   const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
   const connectedAppInboxStatusForms = document.querySelectorAll("[data-connected-app-inbox-status-form]");
+  const connectedAppManualReplyForms = document.querySelectorAll("[data-connected-app-manual-reply-form]");
   const connectedAppInboxRefreshButtons = document.querySelectorAll("[data-connected-app-inbox-refresh]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
@@ -18103,6 +18172,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   connectedAppInboxStatusForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
       submitConnectedAppInboxStatusForm(event, agent);
+    });
+  });
+
+  connectedAppManualReplyForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppManualReplyForm(event, agent);
     });
   });
 
@@ -19917,7 +19992,7 @@ function renderLocalDashboardV2Fixture() {
         appName: "WhatsApp Business",
         capability: "business.send.template",
         label: "WhatsApp Business template send",
-        description: "Manual/status-only WhatsApp Business capability for future approved-template outbound messaging. It is not executable in the current runtime.",
+        description: "Manual WhatsApp Business capability for approved-template outbound messaging. Template sends are blocked until approved-template support is explicitly implemented.",
         status: "planned",
         requiresOAuth: false,
         requiresWebhook: false,
@@ -19933,7 +20008,7 @@ function renderLocalDashboardV2Fixture() {
         appName: "WhatsApp Business",
         capability: "business.send.session.reply",
         label: "WhatsApp Business session reply",
-        description: "Manual/status-only WhatsApp Business capability for future customer-service-window replies. It is not executable in the current runtime.",
+        description: "Manual staff WhatsApp Business session replies inside an allowed customer-service window. No AI reply or automatic sending.",
         status: "planned",
         requiresOAuth: false,
         requiresWebhook: false,
@@ -19980,7 +20055,10 @@ function renderLocalDashboardV2Fixture() {
         ownerUserId: authUser.id,
         agentId: agent.id,
         connectionId: "fixture-whatsapp-connection",
-        capabilityKeys: ["whatsapp.business.send.template"],
+        capabilityKeys: [
+          "whatsapp.business.send.template",
+          "whatsapp.business.send.session.reply",
+        ],
         enabled: true,
         approvalMode: "manual_review",
         allowedSurfaces: ["dashboard"],
@@ -20005,9 +20083,10 @@ function renderLocalDashboardV2Fixture() {
         unreadCount: 1,
         metadata: {
           inboundReviewOnly: true,
-          noOutboundMessaging: true,
+          noAutomaticWhatsAppMessages: true,
           noAiReplies: true,
           noAiHandoff: true,
+          lastInboundMessageAt: now,
         },
         createdAt: now,
         updatedAt: now,
@@ -20046,6 +20125,11 @@ function renderLocalDashboardV2Fixture() {
         createdAt: now,
       },
     ],
+    manualReplies: {
+      enabled: false,
+      status: "disabled",
+      lastOutbound: null,
+    },
     readiness: {
       status: "ready",
       reportOnly: true,

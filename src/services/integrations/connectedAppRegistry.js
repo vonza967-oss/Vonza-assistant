@@ -261,8 +261,8 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     capability: "business.send.template",
     label: "WhatsApp Business template send",
     description:
-      "Manual/status-only WhatsApp Business capability for future approved-template outbound messaging. It is not executable in the current runtime.",
-    status: "planned",
+      "Feature-flagged manual WhatsApp Business capability for future approved-template outbound messaging. Template sends are blocked until approved-template support is explicitly implemented.",
+    status: "internal",
     ownerScoped: true,
     agentScoped: true,
     requiresOAuth: false,
@@ -274,7 +274,7 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     allowedSurfaces: Object.freeze(["dashboard", "internal"]),
     proofSources: Object.freeze([
       "Future template sends must use approved WhatsApp Business templates and provider proof.",
-      "Current generic records can store only redacted readiness/status metadata.",
+      "The current manual reply service records blocked audit rows for template attempts until approved-template support is implemented.",
     ]),
     existingCodeRefs: Object.freeze([
       "src/services/integrations/connectedAppRegistry.js",
@@ -284,7 +284,7 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     ]),
     safetyNotes: Object.freeze([
       "Manual/internal setup only.",
-      "No WhatsApp template message sender exists yet.",
+      "Template sends are deliberately blocked in the current service.",
       "Future template execution must require approved templates, opt-in, owner connection, agent enablement, approved surface, provider proof, and audit logging.",
       "Access tokens and app secrets must stay out of metadata and route responses.",
     ]),
@@ -296,8 +296,8 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     capability: "business.send.session.reply",
     label: "WhatsApp Business session reply",
     description:
-      "Manual/status-only WhatsApp Business capability for future replies within an allowed customer-service session window. It is not executable in the current runtime.",
-    status: "planned",
+      "Feature-flagged manual staff WhatsApp Business replies within an allowed customer-service session window. It is not callable by AI, public chat, widget, or embed paths.",
+    status: "internal",
     ownerScoped: true,
     agentScoped: true,
     requiresOAuth: false,
@@ -308,8 +308,8 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     packageActivatable: false,
     allowedSurfaces: Object.freeze(["dashboard", "internal"]),
     proofSources: Object.freeze([
-      "Future session replies must prove an eligible WhatsApp customer-service window.",
-      "Current generic records can store only redacted readiness/status metadata.",
+      "Manual session replies must prove an eligible WhatsApp customer-service window from redacted inbound thread metadata.",
+      "The manual reply service writes redacted outbound audit rows and never stores customer phone numbers or provider payloads.",
     ]),
     existingCodeRefs: Object.freeze([
       "src/services/integrations/connectedAppRegistry.js",
@@ -319,8 +319,8 @@ const CONNECTED_APP_CAPABILITY_INPUTS = Object.freeze([
     ]),
     safetyNotes: Object.freeze([
       "Manual/internal setup only.",
-      "No WhatsApp session reply sender exists yet.",
-      "Future session replies must stay inside the allowed customer-service window and require owner connection, agent enablement, approved surface, provider proof, and audit logging.",
+      "Manual session replies are feature-flagged off by default.",
+      "Session replies must stay inside the allowed customer-service window and require owner connection, agent enablement, approved surface, provider proof, server-side credentials, and audit logging.",
       "Access tokens and app secrets must stay out of metadata and route responses.",
     ]),
   },

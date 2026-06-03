@@ -841,7 +841,7 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
           source: "whatsapp_webhook_thread_resolver",
           signatureStatus,
           inboundReviewOnly: true,
-          noOutboundMessaging: true,
+          noAutomaticWhatsAppMessages: true,
           noAiReplies: true,
           noAiHandoff: true,
         },

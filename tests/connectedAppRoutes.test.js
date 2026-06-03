@@ -17,6 +17,7 @@ function createConnectedAppRouteSupabase({
   enablements = [],
   inboundThreads = [],
   inboundEvents = [],
+  outboundMessages = [],
 } = {}) {
   const state = {
     agents: agents.map(clone),
@@ -24,11 +25,13 @@ function createConnectedAppRouteSupabase({
     agent_connected_app_enablements: enablements.map(clone),
     connected_app_inbound_threads: inboundThreads.map(clone),
     connected_app_inbound_events: inboundEvents.map(clone),
+    connected_app_outbound_messages: outboundMessages.map(clone),
     insertCounts: {
       connected_app_connections: 0,
       agent_connected_app_enablements: 0,
       connected_app_inbound_threads: 0,
       connected_app_inbound_events: 0,
+      connected_app_outbound_messages: 0,
     },
   };
 
@@ -51,6 +54,10 @@ function createConnectedAppRouteSupabase({
 
     if (table === "connected_app_inbound_events") {
       return state.connected_app_inbound_events;
+    }
+
+    if (table === "connected_app_outbound_messages") {
+      return state.connected_app_outbound_messages;
     }
 
     throw new Error(`Unexpected table ${table}`);
@@ -130,7 +137,9 @@ function createConnectedAppRouteSupabase({
               ? "enablement"
               : table === "connected_app_inbound_threads"
                 ? "thread"
-                : "event";
+                : table === "connected_app_inbound_events"
+                  ? "event"
+                  : "outbound";
           const now = new Date().toISOString();
           const row = {
             id: `${prefix}-${state.insertCounts[table]}`,
@@ -217,9 +226,10 @@ function inboundThread(overrides = {}) {
     assigned_owner_user_id: null,
     metadata: {
       inboundReviewOnly: true,
-      noOutboundMessaging: true,
+      noAutomaticWhatsAppMessages: true,
       noAiReplies: true,
       noAiHandoff: true,
+      lastInboundMessageAt: "2026-06-03T10:00:00.000Z",
     },
     created_at: "2026-06-03T10:00:00.000Z",
     updated_at: "2026-06-03T10:00:00.000Z",
@@ -717,7 +727,7 @@ test("connected app inbound inbox routes are authenticated owner scoped and read
   }
 });
 
-test("connected app inbound inbox API rejects reply send and AI handoff payloads and has no reply route", async () => {
+test("connected app inbound inbox status API rejects reply send and AI handoff payloads", async () => {
   const supabase = createConnectedAppRouteSupabase({
     inboundThreads: [inboundThread()],
   });
@@ -739,15 +749,205 @@ test("connected app inbound inbox API rejects reply send and AI handoff payloads
       assert.equal(response.json.code, "connected_app_secret_or_execution_field_rejected");
     }
 
-    const replyRoute = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app manual reply route requires auth and feature flag", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    connections: [
+      connection({
+        id: "connection-1",
+        owner_user_id: "owner-1",
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capability_keys: [
+          "whatsapp.business.webhook",
+          "whatsapp.business.send.session.reply",
+        ],
+        status: "active",
+        webhook_status: "active",
+        token_secret_ref: "vault/whatsapp/token",
+        metadata: {
+          phoneNumberId: "987654321098765",
+          graphApiVersion: "v25.0",
+        },
+      }),
+    ],
+    inboundThreads: [inboundThread()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: {},
+      getWhatsAppDestinationRef: async () => ({ destinationRef: "+15551234567" }),
+      whatsappProviderClient: async () => ({ messages: [{ id: "wamid.sent" }] }),
+    },
+  })));
+
+  try {
+    const unauthenticated = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+      auth: false,
       method: "POST",
       body: JSON.stringify({
         thread_id: "thread-1",
-        text: "hello",
+        message_text: "Manual staff reply",
       }),
     });
 
-    assert.equal(replyRoute.status, 404);
+    assert.equal(unauthenticated.status, 401);
+
+    const disabled = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+        message_text: "Manual staff reply",
+      }),
+    });
+
+    assert.equal(disabled.status, 403);
+    assert.equal(disabled.json.code, "whatsapp_manual_replies_disabled");
+    assert.equal(supabase.state.connected_app_outbound_messages.length, 1);
+    assert.equal(supabase.state.connected_app_outbound_messages[0].status, "blocked");
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app manual reply route rejects token phone and provider payload fields", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    inboundThreads: [inboundThread()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: { WHATSAPP_MANUAL_REPLIES_ENABLED: "true" },
+    },
+  })));
+
+  try {
+    for (const body of [
+      { thread_id: "thread-1", message_text: "Manual", accessToken: "raw-token" },
+      { thread_id: "thread-1", message_text: "Manual", phone: "+15551234567" },
+      { thread_id: "thread-1", message_text: "Manual", to: "+15551234567" },
+      { thread_id: "thread-1", message_text: "Manual", phone_number_id: "987654321098765" },
+      { thread_id: "thread-1", message_text: "Manual", provider_payload: { raw: true } },
+      { thread_id: "thread-1", message_text: "Manual", payload: { messaging_product: "whatsapp" } },
+    ]) {
+      const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      assert.equal(response.status, 400);
+      assert.equal(response.json.code, "connected_app_reply_field_rejected");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app manual reply route sends owner-scoped staff text through injected WhatsApp provider", async () => {
+  const providerCalls = [];
+  const supabase = createConnectedAppRouteSupabase({
+    connections: [
+      connection({
+        id: "connection-1",
+        owner_user_id: "owner-1",
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capability_keys: [
+          "whatsapp.business.webhook",
+          "whatsapp.business.send.session.reply",
+        ],
+        status: "active",
+        webhook_status: "active",
+        token_secret_ref: "vault/whatsapp/token",
+        metadata: {
+          phoneNumberId: "987654321098765",
+          graphApiVersion: "v25.0",
+        },
+      }),
+    ],
+    inboundThreads: [inboundThread()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: {
+        WHATSAPP_MANUAL_REPLIES_ENABLED: "true",
+      },
+      now: "2026-06-03T10:30:00.000Z",
+      getWhatsAppDestinationRef: async () => ({ destinationRef: "+15551234567" }),
+      getWhatsAppCloudApiCredentials: async () => ({ accessToken: "server-token" }),
+      whatsappProviderClient: async (request) => {
+        providerCalls.push(request);
+        return { messages: [{ id: "wamid.route.sent", message_status: "accepted" }] };
+      },
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+        message_text: "Manual staff-authored route reply",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.outbound.status, "sent");
+    assert.equal(response.json.outbound.providerMessageId, "wamid.route.sent");
+    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls[0].payload.text.body, "Manual staff-authored route reply");
+    assert.equal(JSON.stringify(response.json).includes("+15551234567"), false);
+    assert.equal(JSON.stringify(response.json).includes("server-token"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_outbound_messages).includes("Manual staff-authored route reply"), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app manual reply route remains owner scoped", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    connections: [
+      connection({
+        id: "connection-2",
+        owner_user_id: "owner-2",
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capability_keys: ["whatsapp.business.send.session.reply"],
+        status: "active",
+      }),
+    ],
+    inboundThreads: [
+      inboundThread({
+        id: "thread-2",
+        owner_user_id: "owner-2",
+        connection_id: "connection-2",
+        external_thread_key_hash: "b".repeat(64),
+      }),
+    ],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: { WHATSAPP_MANUAL_REPLIES_ENABLED: "true" },
+      getWhatsAppDestinationRef: async () => ({ destinationRef: "+15551234567" }),
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-2",
+        message_text: "Manual staff reply",
+      }),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(response.json.code, "connected_app_inbound_thread_not_found");
+    assert.equal(supabase.state.connected_app_outbound_messages.length, 0);
   } finally {
     await server.close();
   }

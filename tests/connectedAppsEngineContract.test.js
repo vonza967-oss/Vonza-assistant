@@ -283,13 +283,13 @@ test("connected app docs describe Phase 11 WhatsApp verification foundation with
   assert.match(docs, /No provider action without approval/i);
   assert.match(docs, /WhatsApp Business.*foundation/i);
   assert.match(docs, /Phase 11 adds.*webhook verification\/readiness/i);
-  assert.match(docs, /manual read-only inbound staff inbox/i);
-  assert.match(docs, /No WhatsApp replies sent|no WhatsApp replies/i);
-  assert.match(docs, /No AI handoff|no AI handoff/i);
-  assert.match(docs, /No outbound messaging|no outbound messaging/i);
+  assert.match(docs, /manual .*inbound staff inbox/i);
+  assert.match(docs, /Manual staff reply/i);
+  assert.match(docs, /No AI reply|no AI replies/i);
+  assert.match(docs, /No automatic WhatsApp messages|no automatic replies/i);
   assert.match(docs, /No Meta OAuth\/Embedded Signup yet/i);
   assert.match(docs, /app-secret signature validation.*future/i);
-  assert.match(docs, /future WhatsApp work must separate inbound webhooks, session replies, and approved template messages/i);
+  assert.match(docs, /WhatsApp work must keep inbound webhooks, manual session replies, and approved template messages separate/i);
   assert.match(docs, /report-only/i);
   assert.match(docs, /persistence\/service foundation only/i);
   assert.doesNotMatch(docs, /generic OAuth\/provider Connected Apps setup exists today/i);

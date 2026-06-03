@@ -205,7 +205,7 @@ function safeThreadInput(overrides = {}) {
     metadata: {
       source: "test",
       inboundReviewOnly: true,
-      noOutboundMessaging: true,
+      noAutomaticWhatsAppMessages: true,
       noAiReplies: true,
       noAiHandoff: true,
     },
@@ -245,6 +245,8 @@ test("resolve connected app inbound thread creates redacted WhatsApp thread and 
   assert.equal(thread.lastEventType, "message");
   assert.equal(thread.lastMessageType, "text");
   assert.equal(thread.unreadCount, 1);
+  assert.equal(thread.metadata.lastInboundMessageAt, "2026-06-03T10:00:00.000Z");
+  assert.equal(thread.metadata.noAutomaticWhatsAppMessages, true);
   assert.equal(supabase.state.connected_app_inbound_events[0].thread_id, "thread-1");
   assert.equal(serialized.includes("whatsapp-test-sender"), false);
   assert.equal(serialized.includes("+15551234567"), false);
