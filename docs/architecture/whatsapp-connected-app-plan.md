@@ -1,6 +1,6 @@
 # WhatsApp Connected App Plan
 
-## Phase 10-14 Scope And Manual Reply Milestone
+## Phase 10-14 Scope, Manual Reply, And AI Draft Milestones
 
 Connected Apps Phase 10 adds WhatsApp Business as a capability foundation only. It is metadata, manual/status-only connection support, report-only readiness, dashboard copy, docs, and tests.
 
@@ -51,9 +51,19 @@ The manual staff reply milestone adds a separate, feature-flagged authenticated 
 - `public.connected_app_outbound_messages` stores owner-readable redacted outbound audit rows with service/internal writes only.
 - `src/services/integrations/whatsappManualReplyService.js` validates owner/thread/connection scope, active WhatsApp connection status, capability presence, optional agent enablement, manual actor id, feature flag, session-window proof, server-side credential lookup, and destination lookup before calling an injectable WhatsApp Cloud API provider client.
 - `POST /agents/connected-app-inbound-threads/reply` accepts only authenticated owner/staff manual inputs (`threadId`, `messageText` or template fields, optional `agentId`, optional `capabilityKey`) and rejects tokens, phone fields, connection/provider overrides, and provider payloads.
-- Dashboard composer copy is explicit: `Manual staff reply`, `No AI reply`, and `No automatic WhatsApp messages`.
+- Dashboard composer copy is explicit that the manual send path is staff initiated and separate from any draft generation.
 
 Manual replies are off by default. `WHATSAPP_MANUAL_REPLIES_ENABLED` must be explicitly set to `1`, `true`, `enabled`, or `on`. The route and service do not add AI replies, automatic replies, public chat behavior, widget/embed changes, Meta OAuth/Embedded Signup, package activation enforcement, or Twilio WhatsApp.
+
+The AI reply draft milestone adds staff-review-only draft generation for the authenticated WhatsApp inbox:
+
+- `public.connected_app_inbound_events.normalized_message_text` can store nullable, owner-scoped normalized WhatsApp text only for inbound WhatsApp `message` events.
+- `src/services/integrations/whatsappAiReplyDraftService.js` validates authenticated owner/staff actor, owner/thread/connection scope, active WhatsApp connection, `whatsapp.business.send.session.reply` capability, optional agent enablement, manual reply feature readiness, customer-service-window proof, and recent normalized inbound text before calling the existing OpenAI client.
+- `POST /agents/connected-app-inbound-threads/ai-draft` accepts only `threadId`, optional `agentId`, optional staff instructions, and optional safe locale/tone values. It rejects token, secret, provider payload, destination/phone, raw message body, and auto-send fields, and returns only a safe draft DTO without internal ids or audit metadata.
+- The dashboard shows `AI draft only`, `Staff must review before sending`, and `No automatic WhatsApp replies`. A generated draft populates the existing manual composer; the existing manual send button remains the only send path.
+- Draft audit rows use `connected_app_outbound_messages.status = draft`, `approval_mode = manual_staff`, no `sent_at`, no provider message id, no provider status, redacted `body_redacted`, and metadata that records `draftTextStored = false`, `noProviderSend = true`, and `staffApprovalRequired = true`.
+
+AI drafts are off by default. `WHATSAPP_AI_REPLY_DRAFTS_ENABLED` must be explicitly set to `1`, `true`, `enabled`, or `on`. Draft generation does not call WhatsApp Cloud API, does not call Twilio, does not write `sent` or `queued` outbound rows, does not create public chat messages, does not change widget/embed behavior, and does not enable automatic replies.
 
 ## Official Meta Documentation Checked
 
@@ -107,9 +117,19 @@ Phase 12 does not store raw app secrets. The generic schema still lacks a safe p
 
 WhatsApp work must keep inbound webhooks, manual session replies, and approved template messages separate.
 
+## Message Context Privacy For AI Drafts
+
+The chosen context boundary is minimal owner-scoped normalized text retention on inbound event rows. The generic webhook normalizer still does not store raw provider payloads, contacts arrays, profile names, sender phone numbers, destination numbers, URLs, or secret-looking values. `normalized_message_text` is nullable and constrained to WhatsApp inbound `message` events with a 1,500 character maximum. The service rejects phone-looking, email-looking, URL-looking, and secret-looking text before storage.
+
+Dashboard inbound event DTOs do not expose `normalized_message_text`; they continue to show redacted event summaries. The AI draft service fetches recent text only by authenticated owner id and thread id, and returns an `insufficient_context` no-draft response without calling OpenAI when no safe recent text is available.
+
+Staff instructions are not treated as customer context. They can steer tone/focus only and cannot include provider payload, destination, token, raw message body, or auto-send fields.
+
 ## Manual Outbound Audit And Sending Contract
 
 `connected_app_outbound_messages` stores no destination phone number, no access token, no app secret, no verify token, no webhook secret, no full provider payload, and no raw error payload. `destination_ref_hash` uses the existing inbound thread hash. `body_redacted` stores only a length/preview-style marker such as `manual staff text redacted`, not the staff-authored message text. Metadata records that the row is manual staff reply audit, no AI reply, no automatic WhatsApp messages, message text was not stored, provider payload was not stored, and whether template support was implemented.
+
+AI draft audit rows reuse the same table only with `status = draft`. They store no generated draft body, no sent timestamp, no provider result, no provider payload, and no customer destination. Draft text is returned to the authenticated dashboard response so staff can review/edit it in the manual composer.
 
 The service can call WhatsApp Cloud API only after every guard passes. Credentials must come from server-side configuration or an injected service-only secret lookup such as `getWhatsAppCloudApiCredentials`; the dashboard/request body cannot supply tokens, phone number IDs, destinations, or provider payloads. The destination must come from a service-only destination resolver because inbound thread rows intentionally store only a hash. Tests inject the provider client and destination resolver so no live Meta request is required.
 
@@ -136,14 +156,14 @@ Meta webhook setup expects a publicly reachable TLS endpoint. Phase 11 supports 
 - When no safe app-secret configuration exists, POST remains readiness-only and records signature status as `not_configured`, not verified.
 - POST normalizes inbound webhook changes into redacted message/status/unknown summaries only. Normalized summaries may include entry id, WhatsApp Business phone number id, message id, message type, timestamp, status, and redacted indicators such as `hasText`, `textLength`, or `contactPresent`.
 - POST updates only safe readiness metadata such as `lastWebhookReceivedAt`, `lastWebhookObject`, `lastWebhookEventTypes`, `lastWebhookSignatureStatus`, and `lastWebhookMessageTypes`.
-- Phase 13 also writes those redacted summaries into `connected_app_inbound_events` with owner, connection, provider, app, optional capability, event type, message id, provider timestamp, source account/channel ids, redaction summary, and a dedupe key.
+- Phase 13 also writes those redacted summaries into `connected_app_inbound_events` with owner, connection, provider, app, optional capability, event type, message id, provider timestamp, source account/channel ids, redaction summary, and a dedupe key. The AI draft milestone can additionally store safe `normalized_message_text` under the context privacy boundary above.
 - Phase 14 resolves those stored WhatsApp message/status events into `connected_app_inbound_threads` using a hash of the raw external conversation key. The raw key is used only transiently for hashing and is not persisted or returned.
 
-Phase 13 stores only redacted normalized event summaries. It still does not store full provider payloads, does not persist message body text, does not persist customer contact phone numbers or profile names, does not create chat messages, leads, action requests, booking requests, contacts, or outbound replies, and does not call WhatsApp or Twilio APIs.
+Inbound event storage still does not store full provider payloads, customer contact phone numbers, profile names, contacts arrays, chat messages, leads, action requests, booking requests, contacts, or outbound replies, and it does not call WhatsApp or Twilio APIs. The only message text retention is the nullable owner-scoped `normalized_message_text` column for safe WhatsApp draft context.
 
-Phase 14 stores only redacted thread grouping state. It still does not store full provider payloads, message body text, customer contact phone numbers, profile names, contacts/leads/action requests/booking requests/chat messages, outbound replies, provider payloads, or provider clients.
+Phase 14 stores only redacted thread grouping state. It still does not store full provider payloads, customer contact phone numbers, profile names, contacts/leads/action requests/booking requests/chat messages, outbound replies, provider payloads, or provider clients.
 
-Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, richer consent/session proof, approved template catalog management, and only later AI-drafted replies.
+Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, richer consent/session proof, and approved template catalog management.
 
 ## Outbound Notes
 
@@ -159,7 +179,7 @@ The implemented manual sender is a separate scoped milestone. It requires:
 - Safe logging and audit events before and after any provider call.
 - A manual staff click/send for every customer-impacting outbound message.
 
-AI-drafted replies are not implemented. Automatic replies are not implemented.
+AI-drafted replies are implemented only as staff-approval drafts. Automatic replies are not implemented.
 
 ## Dashboard Copy
 
@@ -168,13 +188,14 @@ The authenticated Connected Apps dashboard can show WhatsApp Business as a found
 - `Manual/internal setup`
 - `Inbound review only`
 - `Manual staff reply`
-- `No AI reply`
-- `No automatic WhatsApp messages`
+- `AI draft only`
+- `Staff must review before sending`
+- `No automatic WhatsApp replies`
 - `No Meta OAuth/Embedded Signup yet`
 
-The authenticated Connected Apps dashboard can also show a compact `Connected app inbox` for redacted threads and recent redacted events. It may show thread status, provider/app, last event time, last event type/message type, unread count, the safe label `WhatsApp conversation`, status controls for `reviewing`, `resolved`, `ignored`, and `archived`, and a manual staff reply composer only when the server feature status is enabled.
+The authenticated Connected Apps dashboard can also show a compact `Connected app inbox` for redacted threads and recent redacted events. It may show thread status, provider/app, last event time, last event type/message type, unread count, the safe label `WhatsApp conversation`, status controls for `reviewing`, `resolved`, `ignored`, and `archived`, an AI draft panel only when draft and manual reply readiness allow it, and a manual staff reply composer only when the server feature status is enabled.
 
-The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, AI draft controls, public chat controls, package activation controls, template-management UI, destination/phone inputs, provider-payload fields, or phone number display.
+The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, send-AI controls, auto-send controls, public chat controls, package activation controls, template-management UI, destination/phone inputs, provider-payload fields, or phone number display.
 
 ## Non-Goals
 
@@ -183,9 +204,10 @@ The dashboard must not add token inputs, app-secret inputs, verify-token inputs,
 - No automatic outbound messages.
 - No full app-secret signature enforcement until service-only secret storage/config exists.
 - No chat handoff.
-- No AI replies.
-- No AI-drafted replies.
-- No customer phone/profile/body persistence.
+- No automatic AI replies.
+- No AI-to-provider send.
+- AI drafts require staff approval and manual sending.
+- No customer phone/profile/full-payload persistence.
 - No Meta OAuth/Embedded Signup.
 - No WhatsApp Cloud API calls unless the manual-replies feature flag is on and server-side credentials, destination lookup, active owner connection, capability, optional agent enablement, and session-window checks pass.
 - No Twilio WhatsApp API calls.

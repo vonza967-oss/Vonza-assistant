@@ -206,6 +206,10 @@ import {
   sendWhatsAppManualReply,
 } from "../services/integrations/whatsappManualReplyService.js";
 import {
+  createWhatsAppAiReplyDraft,
+  getWhatsAppAiReplyDraftFeatureStatus,
+} from "../services/integrations/whatsappAiReplyDraftService.js";
+import {
   buildConnectedAppReadinessContext,
 } from "../services/integrations/connectedAppReadinessContextService.js";
 import {
@@ -373,6 +377,18 @@ const CONNECTED_APP_REPLY_ALLOWED_FIELD_NAMES = new Set([
   "threadid",
 ]);
 
+const CONNECTED_APP_AI_DRAFT_ALLOWED_FIELD_NAMES = new Set([
+  "agent_id",
+  "agentid",
+  "instructions",
+  "locale",
+  "staff_instructions",
+  "staffinstructions",
+  "thread_id",
+  "threadid",
+  "tone",
+]);
+
 function normalizeConnectedAppRouteFieldName(value) {
   return cleanText(value).replace(/[^a-zA-Z0-9_]+/g, "_").toLowerCase();
 }
@@ -398,6 +414,32 @@ function assertConnectedAppReplyRouteInput(value, path = "body") {
         `Connected app reply API does not accept nested field '${path}.${key}'.`,
         400,
         "connected_app_reply_field_rejected"
+      );
+    }
+  }
+}
+
+function assertConnectedAppAiDraftRouteInput(value, path = "body") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const normalizedKey = normalizeConnectedAppRouteFieldName(key);
+
+    if (!CONNECTED_APP_AI_DRAFT_ALLOWED_FIELD_NAMES.has(normalizedKey)) {
+      throw buildConnectedAppRouteError(
+        `Connected app AI draft API does not accept field '${path}.${key}'.`,
+        400,
+        "connected_app_ai_draft_field_rejected"
+      );
+    }
+
+    if (nestedValue && typeof nestedValue === "object") {
+      throw buildConnectedAppRouteError(
+        `Connected app AI draft API does not accept nested field '${path}.${key}'.`,
+        400,
+        "connected_app_ai_draft_field_rejected"
       );
     }
   }
@@ -714,6 +756,10 @@ export function createAgentRouter(deps = {}) {
     deps.sendWhatsAppManualReply || sendWhatsAppManualReply;
   const getWhatsAppManualReplyFeatureStatusImpl =
     deps.getWhatsAppManualReplyFeatureStatus || getWhatsAppManualReplyFeatureStatus;
+  const createWhatsAppAiReplyDraftImpl =
+    deps.createWhatsAppAiReplyDraft || createWhatsAppAiReplyDraft;
+  const getWhatsAppAiReplyDraftFeatureStatusImpl =
+    deps.getWhatsAppAiReplyDraftFeatureStatus || getWhatsAppAiReplyDraftFeatureStatus;
   const listConnectedAppInboundEventsImpl =
     deps.listConnectedAppInboundEvents || listConnectedAppInboundEvents;
   const enableConnectedAppForAgentImpl =
@@ -2516,6 +2562,7 @@ export function createAgentRouter(deps = {}) {
         ok: true,
         threads,
         manualReplies: getWhatsAppManualReplyFeatureStatusImpl(deps.env || process.env),
+        aiDrafts: getWhatsAppAiReplyDraftFeatureStatusImpl(deps.env || process.env),
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads" });
@@ -2540,6 +2587,51 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads/status" });
+    }
+  });
+
+  router.post("/agents/connected-app-inbound-threads/ai-draft", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      assertConnectedAppAiDraftRouteInput(req.body);
+      const result = await createWhatsAppAiReplyDraftImpl(
+        supabase,
+        {
+          ownerUserId: user.id,
+          actorOwnerUserId: user.id,
+          threadId: readBodyField(req.body, "thread_id", "threadId"),
+          agentId: readBodyField(req.body, "agent_id", "agentId"),
+          staffInstructions:
+            readBodyField(req.body, "staff_instructions", "staffInstructions")
+            ?? readBodyField(req.body, "instructions"),
+          locale: readBodyField(req.body, "locale"),
+          tone: readBodyField(req.body, "tone"),
+        },
+        {
+          env: deps.env || process.env,
+          now: deps.now,
+          sessionWindowHours: deps.whatsappSessionWindowHours,
+          getOpenAIClient: getOpenAI,
+          openai: deps.openai,
+          model: deps.whatsappAiReplyDraftModel,
+        }
+      );
+
+      res.json({
+        ok: result.status === "draft",
+        draft: result.draft || result.draftText || "",
+        draftText: result.draftText || result.draft || "",
+        status: result.status,
+        reasonCode: result.reasonCode,
+        message: result.message,
+        aiDraftOnly: true,
+        requiresStaffApproval: true,
+        noAutomaticWhatsAppReplies: true,
+        noProviderSend: true,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads/ai-draft" });
     }
   });
 

@@ -3872,6 +3872,9 @@
     const manualReplies = state.manualReplies && typeof state.manualReplies === "object"
       ? state.manualReplies
       : {};
+    const aiDrafts = state.aiDrafts && typeof state.aiDrafts === "object"
+      ? state.aiDrafts
+      : {};
 
     return {
       capabilities: Array.isArray(state.capabilities) ? state.capabilities : [],
@@ -3883,6 +3886,11 @@
         enabled: manualReplies.enabled === true,
         status: defaultTrimText(manualReplies.status) || (manualReplies.enabled === true ? "enabled" : "disabled"),
         lastOutbound: manualReplies.lastOutbound || null,
+      },
+      aiDrafts: {
+        enabled: aiDrafts.enabled === true,
+        status: defaultTrimText(aiDrafts.status) || (aiDrafts.enabled === true ? "enabled" : "disabled"),
+        lastDraft: aiDrafts.lastDraft || null,
       },
       readiness: state.readiness || null,
       readinessContext: state.readinessContext || null,
@@ -3988,8 +3996,9 @@
       "Report-only readiness",
       "Inbound review only",
       "Manual staff replies only",
-      "No AI reply",
-      "No automatic WhatsApp messages",
+      "AI draft only",
+      "Staff must review before sending",
+      "No automatic WhatsApp replies",
       "No Meta OAuth/Embedded Signup yet",
     ];
 
@@ -4130,7 +4139,7 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">WhatsApp Business foundation</h3>
-            <p class="settings-shell-section-copy">Manual staff replies are feature-flagged. No AI reply. No automatic WhatsApp messages. No Meta OAuth/Embedded Signup yet.</p>
+            <p class="settings-shell-section-copy">Manual staff replies and AI drafts are feature-flagged. AI draft only. Staff must review before sending. No automatic WhatsApp replies. No Meta OAuth/Embedded Signup yet.</p>
           </div>
           <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
         </div>
@@ -4154,14 +4163,14 @@
               <span>Messaging</span>
               <span class="${getBadgeClass(manualRepliesEnabled ? "Ready" : "Pending")}">${escapeHtml(manualRepliesEnabled ? "Manual replies enabled" : "Manual replies disabled")}</span>
             </div>
-            <p>Staff can send only manual session replies when the server flag, active owner connection, agent enablement, and session window all allow it. No AI reply or automatic sending.</p>
+            <p>Staff can send only manual session replies when the server flag, active owner connection, agent enablement, and session window all allow it. AI drafts never send automatically.</p>
           </article>
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Inbox mode</span>
               <span class="${getBadgeClass("Limited")}">Inbound review only</span>
             </div>
-            <p>Redacted inbound events can be reviewed manually. No AI reply. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
+            <p>Redacted inbound events can be reviewed manually. AI draft only. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
           </article>
         </div>
       </section>
@@ -4173,7 +4182,10 @@
     const threads = Array.isArray(connectedApps.inboundThreads) ? connectedApps.inboundThreads : [];
     const events = Array.isArray(connectedApps.inboundEvents) ? connectedApps.inboundEvents : [];
     const manualReplies = connectedApps.manualReplies || {};
+    const aiDrafts = connectedApps.aiDrafts || {};
     const manualRepliesEnabled = manualReplies.enabled === true;
+    const aiDraftsEnabled = aiDrafts.enabled === true;
+    const aiDraftsAvailable = aiDraftsEnabled && manualRepliesEnabled;
     const lastOutbound = manualReplies.lastOutbound || null;
     const selectedThreadId = defaultTrimText(threads[0]?.id);
     const recentEvents = selectedThreadId
@@ -4186,13 +4198,14 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">Connected app inbox</h3>
-            <p class="settings-shell-section-copy">Manual staff reply. No AI reply. No automatic WhatsApp messages.</p>
+            <p class="settings-shell-section-copy">AI draft only. Staff must review before sending. No automatic WhatsApp replies.</p>
           </div>
           <button class="ghost-button" type="button" data-connected-app-inbox-refresh>Refresh</button>
         </div>
         <div class="settings-connected-app-empty">
           <strong>${escapeHtml(manualRepliesEnabled ? "Manual WhatsApp replies enabled" : "Manual WhatsApp replies disabled")}</strong>
           <p>${escapeHtml(manualRepliesEnabled ? "Text replies still require an active owner connection, explicit agent enablement, server-side credentials, and a current customer-service window." : "Replies are off until WHATSAPP_MANUAL_REPLIES_ENABLED is enabled on the server. Staff can keep reviewing inbound threads without sending messages.")}</p>
+          <p>${escapeHtml(aiDraftsAvailable ? "AI draft only is enabled for staff review. Drafts populate the manual composer and never send automatically." : "AI draft only is disabled until WHATSAPP_AI_REPLY_DRAFTS_ENABLED and the manual reply path are both enabled.")}</p>
           ${lastOutbound?.status ? `
             <span class="${getBadgeClass(connectedAppStatusTone(lastOutbound.status))}">Last manual reply: ${escapeHtml(humanizeConnectedAppValue(lastOutbound.status))}</span>
           ` : ""}
@@ -4225,6 +4238,23 @@
                   </label>
                   <button class="ghost-button" type="submit">Mark status</button>
                 </form>
+                ${aiDraftsAvailable ? `
+                  <form data-connected-app-ai-draft-form class="settings-connected-app-inbox-status-form">
+                    <input type="hidden" name="thread_id" value="${escapeHtml(thread.id || "")}">
+                    <input type="hidden" name="agent_id" value="${escapeHtml(agent?.id || "")}">
+                    <label>
+                      <span>AI draft only</span>
+                      <textarea name="staff_instructions" maxlength="500" placeholder="Optional staff guidance for tone or focus"></textarea>
+                    </label>
+                    <p class="settings-shell-status-copy">Staff must review before sending. No automatic WhatsApp replies.</p>
+                    <button class="ghost-button" type="submit">Generate AI draft</button>
+                  </form>
+                ` : `
+                  <div class="settings-connected-app-empty">
+                    <strong>AI draft only</strong>
+                    <p>Staff must review before sending. No automatic WhatsApp replies. Drafting is disabled by server feature flag or manual reply readiness.</p>
+                  </div>
+                `}
                 ${manualRepliesEnabled ? `
                   <form data-connected-app-manual-reply-form class="settings-connected-app-inbox-status-form">
                     <input type="hidden" name="thread_id" value="${escapeHtml(thread.id || "")}">
@@ -4232,15 +4262,15 @@
                     <input type="hidden" name="capability_key" value="whatsapp.business.send.session.reply">
                     <label>
                       <span>Manual staff reply</span>
-                      <textarea name="message_text" maxlength="4096" placeholder="Write the staff-authored WhatsApp reply"></textarea>
+                      <textarea name="message_text" maxlength="4096" placeholder="Write or review the staff-authored WhatsApp reply" data-connected-app-manual-reply-text></textarea>
                     </label>
-                    <p class="settings-shell-status-copy">No AI reply. No automatic WhatsApp messages.</p>
+                    <p class="settings-shell-status-copy">Existing manual send path only. Staff must review before sending. No automatic WhatsApp replies.</p>
                     <button class="primary-button" type="submit">Send manual reply</button>
                   </form>
                 ` : `
                   <div class="settings-connected-app-empty">
                     <strong>Manual staff reply</strong>
-                    <p>No AI reply. No automatic WhatsApp messages. Sending is disabled by server feature flag.</p>
+                    <p>Staff must review before sending. No automatic WhatsApp replies. Sending is disabled by server feature flag.</p>
                   </div>
                 `}
               </article>
@@ -4262,14 +4292,14 @@
                 <div>
                   <p class="settings-shell-status-label">${escapeHtml(formatConnectedAppTimestamp(event.receivedAt || event.createdAt))}</p>
                   <h4 class="settings-shell-status-value">${escapeHtml(humanizeConnectedAppValue(event.providerEventType || "event"))}${event.normalized?.messageType ? ` / ${escapeHtml(humanizeConnectedAppValue(event.normalized.messageType))}` : ""}</h4>
-                  <p class="settings-shell-status-copy">Message body redacted. Contact fields redacted. Full provider payload not stored.</p>
+                  <p class="settings-shell-status-copy">Provider payload and contact fields redacted. Safe normalized text is not displayed in this event list.</p>
                 </div>
                 <span class="${getBadgeClass(connectedAppStatusTone(event.eventStatus || "received"))}">${escapeHtml(humanizeConnectedAppValue(event.eventStatus || "received"))}</span>
               </article>
             `).join("") : `
               <div class="settings-connected-app-empty">
                 <strong>No recent redacted events</strong>
-                <p>Inbound event summaries are stored without customer phone numbers, message bodies, profile names, or full provider payloads.</p>
+                <p>Inbound event summaries are stored without customer phone numbers, profile names, or full provider payloads. Safe normalized text may be retained owner-scoped for draft context only.</p>
               </div>
             `}
           </div>

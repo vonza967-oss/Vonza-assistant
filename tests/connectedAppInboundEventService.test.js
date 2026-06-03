@@ -11,6 +11,10 @@ const MIGRATION_SQL = readFileSync(
   "supabase/migrations/20260603105759_connected_app_inbound_events.sql",
   "utf8"
 );
+const DRAFT_CONTEXT_MIGRATION_SQL = readFileSync(
+  "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
+  "utf8"
+);
 const SCHEMA_SQL = readFileSync("db/schema.sql", "utf8");
 const OWNER_ID = "22222222-2222-4222-8222-222222222222";
 const CONNECTION_ID = "11111111-1111-4111-8111-111111111111";
@@ -179,6 +183,14 @@ test("connected app inbound event schema and RLS are present", () => {
   assert.match(MIGRATION_SQL, /event_direction text not null default 'inbound'/i);
   assert.match(MIGRATION_SQL, /event_status text not null default 'received'/i);
   assert.match(MIGRATION_SQL, /connected_app_inbound_events_owner_provider_dedupe_idx/i);
+  assert.match(SCHEMA_SQL, /normalized_message_text text/i);
+  assert.match(DRAFT_CONTEXT_MIGRATION_SQL, /connected_app_inbound_events_normalized_message_text_check/i);
+  assert.ok(DRAFT_CONTEXT_MIGRATION_SQL.includes("normalized_message_text !~* '[A-Z0-9._%+-]+@[A-Z0-9.-]+[.][A-Z]{2,}'"));
+  assert.ok(DRAFT_CONTEXT_MIGRATION_SQL.includes("normalized_message_text !~* '([+]?[0-9][0-9[:space:]().-]{6,}[0-9])'"));
+  assert.ok(DRAFT_CONTEXT_MIGRATION_SQL.includes("normalized_message_text !~* '((sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}|EAA[A-Za-z0-9_-]{20,})'"));
+  assert.ok(DRAFT_CONTEXT_MIGRATION_SQL.includes("normalized_message_text !~* 'eyJ[A-Za-z0-9_-]{10,}[.][A-Za-z0-9_-]{10,}[.][A-Za-z0-9_-]{10,}'"));
+  assert.ok(SCHEMA_SQL.includes("normalized_message_text !~* '[A-Z0-9._%+-]+@[A-Z0-9.-]+[.][A-Z]{2,}'"));
+  assert.match(DRAFT_CONTEXT_MIGRATION_SQL, /connected_app_inbound_events_thread_message_context_idx/i);
   assert.match(MIGRATION_SQL, /alter table public\.connected_app_inbound_events enable row level security/i);
   assert.match(MIGRATION_SQL, /for select\s+to authenticated/i);
   assert.doesNotMatch(MIGRATION_SQL, /to anon/i);
@@ -203,6 +215,63 @@ test("create connected app inbound event stores redacted normalized summary", as
   assert.equal(event.redactionSummary.providerPayloadStored, false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("+15551230000"), false);
+});
+
+test("create connected app inbound event can store safe owner-scoped normalized WhatsApp text", async () => {
+  const supabase = createSupabaseStub();
+  await createConnectedAppInboundEvent(supabase, safeWhatsAppEvent({
+    normalizedMessageText: "Can you help with availability tonight?",
+  }));
+
+  const stored = supabase.state.connected_app_inbound_events[0];
+
+  assert.equal(stored.normalized_message_text, "Can you help with availability tonight?");
+  assert.equal(stored.owner_user_id, OWNER_ID);
+  assert.equal(stored.provider, "whatsapp");
+  assert.equal(stored.provider_event_type, "message");
+  assert.equal(stored.event_direction, "inbound");
+  assert.equal(stored.event_status, "received");
+  assert.equal(stored.redaction_summary.messageBodyStored, false);
+  assert.equal(JSON.stringify(stored.normalized).includes("Can you help"), false);
+});
+
+test("normalized WhatsApp message text rejects contact URL secret and wrong-scope values", async () => {
+  const cases = [
+    safeWhatsAppEvent({ normalizedMessageText: "+15551234567" }),
+    safeWhatsAppEvent({ normalizedMessageText: "Email me at customer@example.com" }),
+    safeWhatsAppEvent({ normalizedMessageText: "See https://example.invalid" }),
+    safeWhatsAppEvent({ normalizedMessageText: "token sk-proj_secretsecretsecret" }),
+    safeWhatsAppEvent({
+      provider: "google",
+      appKey: "google.calendar",
+      capabilityKey: "google.calendar.read",
+      normalizedMessageText: "Can you help tonight?",
+    }),
+    safeWhatsAppEvent({
+      providerEventType: "status",
+      normalized: {
+        ...safeWhatsAppEvent().normalized,
+        eventType: "status",
+      },
+      normalizedMessageText: "Can you help tonight?",
+    }),
+    safeWhatsAppEvent({
+      normalized: {
+        ...safeWhatsAppEvent().normalized,
+        messageType: "image",
+      },
+      normalizedMessageText: "Can you help tonight?",
+    }),
+  ];
+
+  for (const input of cases) {
+    const supabase = createSupabaseStub();
+    await assert.rejects(
+      () => createConnectedAppInboundEvent(supabase, input),
+      /Normalized inbound message text|Connected app inbound events do not accept/
+    );
+    assert.equal(supabase.state.connected_app_inbound_events.length, 0);
+  }
 });
 
 test("connected app inbound event rejects raw body contact profile and secret metadata", async () => {

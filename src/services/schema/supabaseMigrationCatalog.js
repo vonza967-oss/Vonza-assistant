@@ -406,6 +406,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-readable WhatsApp manual staff outbound audit rows with service/internal writes only; feature-flagged off by default and no AI, automatic, public chat, widget, embed, Meta OAuth, or Twilio WhatsApp behavior.",
   }),
+  Object.freeze({
+    id: "whatsapp_ai_reply_draft_context",
+    version: "20260603143000",
+    name: "whatsapp_ai_reply_draft_context",
+    file: "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds tightly constrained WhatsApp-only inbound text context for staff-approved AI reply drafts; feature-flagged off by default and no automatic replies, provider sends, public chat, widget, embed, Meta OAuth, or Twilio WhatsApp behavior.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

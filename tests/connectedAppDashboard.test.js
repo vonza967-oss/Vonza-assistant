@@ -22,8 +22,9 @@ test("dashboard source includes connected apps management surface", () => {
   assert.match(combined, /Connected app inbox/);
   assert.match(combined, /Inbound review only/);
   assert.match(combined, /Manual staff reply/);
-  assert.match(combined, /No AI reply/);
-  assert.match(combined, /No automatic WhatsApp messages/);
+  assert.match(combined, /AI draft only/);
+  assert.match(combined, /Staff must review before sending/);
+  assert.match(combined, /No automatic WhatsApp replies/);
   assert.match(combined, /No Meta OAuth\/Embedded Signup yet/);
 });
 
@@ -36,6 +37,7 @@ test("dashboard fetches connected app capability connection enablement and readi
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\?provider=whatsapp&limit=25"\)/);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-events\?provider=whatsapp&limit=50"\)/);
   assert.match(dashboard, /const manualReplies = inboundThreadsData\.manualReplies \|\| \{\};/);
+  assert.match(dashboard, /const aiDrafts = inboundThreadsData\.aiDrafts \|\| \{\};/);
   assert.match(dashboard, /connected-app-readiness/);
 });
 
@@ -46,6 +48,7 @@ test("dashboard posts status-only connected app and agent enablement endpoints",
   assert.match(dashboard, /fetchJson\("\/agents\/connected-apps\/status",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\(`\/agents\/\$\{encodeURIComponent\(agent\.id\)\}\/connected-apps`,\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\/status",\s*\{[^}]*method:\s*"POST"/s);
+  assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\/ai-draft",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /fetchJson\("\/agents\/connected-app-inbound-threads\/reply",\s*\{[^}]*method:\s*"POST"/s);
   assert.match(dashboard, /setupMode:\s*"manual_internal"/);
 });
@@ -127,25 +130,28 @@ test("dashboard connected apps surface does not expose public chat execution con
   const combined = `${dashboard}\n${settingsShell}`;
 
   assert.doesNotMatch(combined, /data-connected-app-(?:execute|public-chat|oauth|provider-client)/i);
-  assert.doesNotMatch(combined, />\s*(?:Connect with OAuth|Run provider action|Execute provider|Call from public chat|Send message|Send WhatsApp|Draft with AI)\s*</i);
+  assert.doesNotMatch(combined, />\s*(?:Connect with OAuth|Run provider action|Execute provider|Call from public chat|Send message|Send WhatsApp|Send AI reply|Send AI draft|Draft with AI)\s*</i);
+  assert.doesNotMatch(combined, /data-connected-app-(?:auto-send|send-ai|ai-send|handoff)/i);
   assert.doesNotMatch(combined, /OAuth setup (?:is ready|enabled|available)/i);
   assert.doesNotMatch(combined, /Embedded Signup (?:is ready|enabled|available)/i);
   assert.doesNotMatch(combined, /provider execution (?:is ready|enabled|available)/i);
 });
 
-test("dashboard connected app inbox has manual staff reply composer without AI token phone controls", () => {
+test("dashboard connected app inbox has staff-approved AI draft and manual composer without token phone controls", () => {
   const settingsShell = readSource("frontend/settings/SettingsShell.js");
 
   assert.match(settingsShell, /data-connected-app-inbox-refresh/);
   assert.match(settingsShell, /data-connected-app-inbox-status-form/);
+  assert.match(settingsShell, /data-connected-app-ai-draft-form/);
   assert.match(settingsShell, /data-connected-app-manual-reply-form/);
+  assert.match(settingsShell, /AI draft only/);
+  assert.match(settingsShell, /Staff must review before sending/);
+  assert.match(settingsShell, /No automatic WhatsApp replies/);
   assert.match(settingsShell, /Manual staff reply/);
-  assert.match(settingsShell, /No AI reply/);
-  assert.match(settingsShell, /No automatic WhatsApp messages/);
   assert.match(settingsShell, /name="message_text"/);
-  assert.doesNotMatch(settingsShell, /data-connected-app-(?:ai|handoff)/i);
+  assert.doesNotMatch(settingsShell, /data-connected-app-(?:auto-send|send-ai|ai-send|handoff)/i);
   assert.doesNotMatch(settingsShell, /<(?:input|textarea)[^>]+name=["'](?:reply|reply_text|message|message_body|phone|profile|ai_draft|token|access_token|phone_number|phone_number_id)["']/i);
-  assert.doesNotMatch(settingsShell, /<button[^>]*>\s*(?:AI draft|Draft reply)\s*<\/button>/i);
+  assert.doesNotMatch(settingsShell, /<button[^>]*>\s*(?:Send AI reply|Send AI draft)\s*<\/button>/i);
 });
 
 test("widget embed and chat bundles do not include connected app dashboard endpoints", () => {
@@ -158,6 +164,6 @@ test("widget embed and chat bundles do not include connected app dashboard endpo
   ]) {
     const source = readSource(filePath);
 
-    assert.doesNotMatch(source, /connected-app-capabilities|connected-apps|connected-app-readiness|whatsappManualReplyService|sendWhatsAppManualReply/i);
+    assert.doesNotMatch(source, /connected-app-capabilities|connected-apps|connected-app-readiness|whatsappManualReplyService|sendWhatsAppManualReply|whatsappAiReplyDraftService|createWhatsAppAiReplyDraft/i);
   }
 });

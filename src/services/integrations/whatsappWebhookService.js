@@ -48,7 +48,10 @@ const SAFE_EXISTING_METADATA_KEYS = new Set([
 const SECRET_LOOKING_VALUE_PATTERN = /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}\b/i;
 const JWT_LOOKING_VALUE_PATTERN = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/;
 const META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN = /\bEAA[A-Za-z0-9_-]{20,}\b/;
-const URL_LOOKING_VALUE_PATTERN = /\bhttps?:\/\//i;
+const URL_LOOKING_VALUE_PATTERN = /\b(?:https?:\/\/|www\.)/i;
+const EMAIL_LOOKING_VALUE_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const PHONE_LOOKING_VALUE_PATTERN = /(?:\+?\d[\d\s().-]{6,}\d)/;
+const MAX_NORMALIZED_MESSAGE_TEXT_LENGTH = 1500;
 
 function buildWhatsAppWebhookError(message, statusCode = 403, code = "whatsapp_webhook_invalid") {
   const error = new Error(message);
@@ -507,6 +510,27 @@ function buildBaseWebhookEvent({ object, entry, value }) {
   };
 }
 
+function normalizeMessageTextForDraftContext(value) {
+  const text = cleanText(value);
+
+  if (!text || text.length > MAX_NORMALIZED_MESSAGE_TEXT_LENGTH) {
+    return "";
+  }
+
+  if (
+    URL_LOOKING_VALUE_PATTERN.test(text)
+    || SECRET_LOOKING_VALUE_PATTERN.test(text)
+    || JWT_LOOKING_VALUE_PATTERN.test(text)
+    || META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN.test(text)
+    || EMAIL_LOOKING_VALUE_PATTERN.test(text)
+    || PHONE_LOOKING_VALUE_PATTERN.test(text)
+  ) {
+    return "";
+  }
+
+  return text;
+}
+
 function normalizeMessageEvent({ object, entry, value, message }) {
   const text = normalizePlainObject(message.text);
   const textBody = cleanText(text.body);
@@ -525,6 +549,10 @@ function normalizeMessageEvent({ object, entry, value, message }) {
   if (textBody) {
     event.metadata.hasText = true;
     event.metadata.textLength = textBody.length;
+    Object.defineProperty(event, "messageTextForDraft", {
+      value: normalizeMessageTextForDraftContext(textBody),
+      enumerable: false,
+    });
   }
 
   if (contacts.length > 0) {
@@ -814,6 +842,7 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
       sourceAccountId: event.entryId,
       sourceChannelId: event.phoneNumberId,
       normalized: event,
+      normalizedMessageText: event.messageTextForDraft || "",
       redactionSummary: {
         source: "whatsapp_webhook_normalizer",
       },

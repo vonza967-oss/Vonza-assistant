@@ -285,8 +285,9 @@ test("connected app docs describe Phase 11 WhatsApp verification foundation with
   assert.match(docs, /Phase 11 adds.*webhook verification\/readiness/i);
   assert.match(docs, /manual .*inbound staff inbox/i);
   assert.match(docs, /Manual staff reply/i);
-  assert.match(docs, /No AI reply|no AI replies/i);
-  assert.match(docs, /No automatic WhatsApp messages|no automatic replies/i);
+  assert.match(docs, /AI draft only|staff-approved WhatsApp AI reply drafts/i);
+  assert.match(docs, /Staff must review before sending/i);
+  assert.match(docs, /No automatic WhatsApp replies|no automatic replies/i);
   assert.match(docs, /No Meta OAuth\/Embedded Signup yet/i);
   assert.match(docs, /app-secret signature validation.*future/i);
   assert.match(docs, /WhatsApp work must keep inbound webhooks, manual session replies, and approved template messages separate/i);

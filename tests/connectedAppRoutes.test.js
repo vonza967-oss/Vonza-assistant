@@ -254,6 +254,7 @@ function inboundEvent(overrides = {}) {
     source_channel_id: "987654321098765",
     event_direction: "inbound",
     event_status: "received",
+    normalized_message_text: "Can you help with availability tonight?",
     normalized: {
       eventType: "message",
       messageType: "text",
@@ -749,6 +750,189 @@ test("connected app inbound inbox status API rejects reply send and AI handoff p
       assert.equal(response.json.code, "connected_app_secret_or_execution_field_rejected");
     }
 
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app AI draft route requires auth and feature flag before OpenAI", async () => {
+  const openaiCalls = [];
+  const supabase = createConnectedAppRouteSupabase({
+    connections: [
+      connection({
+        id: "connection-1",
+        owner_user_id: "owner-1",
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capability_keys: [
+          "whatsapp.business.webhook",
+          "whatsapp.business.send.session.reply",
+        ],
+        status: "active",
+      }),
+    ],
+    inboundThreads: [inboundThread()],
+    inboundEvents: [inboundEvent()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: {
+        WHATSAPP_MANUAL_REPLIES_ENABLED: "true",
+      },
+      openai: {
+        responses: {
+          create: async () => {
+            openaiCalls.push("called");
+            return { output_text: "Draft" };
+          },
+        },
+      },
+    },
+  })));
+
+  try {
+    const unauthenticated = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/ai-draft", {
+      auth: false,
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+      }),
+    });
+
+    assert.equal(unauthenticated.status, 401);
+
+    const disabled = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/ai-draft", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+      }),
+    });
+
+    assert.equal(disabled.status, 403);
+    assert.equal(disabled.json.code, "whatsapp_ai_reply_drafts_disabled");
+    assert.deepEqual(openaiCalls, []);
+    assert.equal(supabase.state.connected_app_outbound_messages.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app AI draft route rejects token phone provider payload and auto-send fields", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    inboundThreads: [inboundThread()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: {
+        WHATSAPP_MANUAL_REPLIES_ENABLED: "true",
+        WHATSAPP_AI_REPLY_DRAFTS_ENABLED: "true",
+      },
+    },
+  })));
+
+  try {
+    for (const body of [
+      { thread_id: "thread-1", accessToken: "raw-token" },
+      { thread_id: "thread-1", phone: "+15551234567" },
+      { thread_id: "thread-1", to: "+15551234567" },
+      { thread_id: "thread-1", provider_payload: { raw: true } },
+      { thread_id: "thread-1", payload: { messaging_product: "whatsapp" } },
+      { thread_id: "thread-1", autoSend: true },
+      { thread_id: "thread-1", message_text: "Use this arbitrary dashboard context." },
+    ]) {
+      const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/ai-draft", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      assert.equal(response.status, 400);
+      assert.equal(response.json.code, "connected_app_ai_draft_field_rejected");
+    }
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app AI draft route creates draft-only audit and does not call provider send", async () => {
+  const openaiCalls = [];
+  const providerCalls = [];
+  const supabase = createConnectedAppRouteSupabase({
+    connections: [
+      connection({
+        id: "connection-1",
+        owner_user_id: "owner-1",
+        provider: "whatsapp",
+        app_key: "whatsapp.business",
+        capability_keys: [
+          "whatsapp.business.webhook",
+          "whatsapp.business.send.session.reply",
+        ],
+        status: "active",
+      }),
+    ],
+    inboundThreads: [inboundThread({ agent_id: "agent-1" })],
+    inboundEvents: [inboundEvent({ agent_id: "agent-1" })],
+    enablements: [
+      enablement({
+        agent_id: "agent-1",
+        connection_id: "connection-1",
+        capability_keys: ["whatsapp.business.send.session.reply"],
+        allowed_surfaces: ["dashboard"],
+      }),
+    ],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase, {
+    overrides: {
+      env: {
+        WHATSAPP_MANUAL_REPLIES_ENABLED: "true",
+        WHATSAPP_AI_REPLY_DRAFTS_ENABLED: "true",
+      },
+      openai: {
+        responses: {
+          create: async (payload) => {
+            openaiCalls.push(payload);
+            return {
+              output_text: "Thanks for reaching out. Our team will check availability and reply here shortly.",
+            };
+          },
+        },
+      },
+      whatsappProviderClient: async () => providerCalls.push("called"),
+    },
+  })));
+
+  try {
+    const listResponse = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads?provider=whatsapp");
+
+    assert.equal(listResponse.status, 200);
+    assert.equal(listResponse.json.aiDrafts.enabled, true);
+
+    const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/ai-draft", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+        agent_id: "agent-1",
+        staff_instructions: "Keep it concise.",
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.status, "draft");
+    assert.match(response.json.draftText, /Our team will check availability/);
+    assert.equal(response.json.aiDraftOnly, true);
+    assert.equal(response.json.requiresStaffApproval, true);
+    assert.equal(response.json.noAutomaticWhatsAppReplies, true);
+    assert.equal(Object.hasOwn(response.json, "outbound"), false);
+    assert.equal(JSON.stringify(response.json).includes("connection-1"), false);
+    assert.equal(JSON.stringify(response.json).includes("owner-1"), false);
+    assert.equal(JSON.stringify(response.json).includes("whatsapp.business.send.session.reply"), false);
+    assert.deepEqual(providerCalls, []);
+    assert.equal(openaiCalls.length, 1);
+    assert.equal(supabase.state.connected_app_outbound_messages.length, 1);
+    assert.equal(supabase.state.connected_app_outbound_messages[0].status, "draft");
+    assert.equal(supabase.state.connected_app_outbound_messages[0].sent_at, null);
+    assert.equal(supabase.state.connected_app_outbound_messages[0].provider_message_id, null);
   } finally {
     await server.close();
   }

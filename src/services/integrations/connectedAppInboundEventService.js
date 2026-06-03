@@ -193,10 +193,13 @@ const SAFE_FIELD_NAMES = new Set([
   "timestamp",
 ]);
 
-const URL_LOOKING_VALUE_PATTERN = /\bhttps?:\/\//i;
+const URL_LOOKING_VALUE_PATTERN = /\b(?:https?:\/\/|www\.)/i;
 const SECRET_LOOKING_VALUE_PATTERN = /\b(?:sk|sk-proj|rk|whsec|sbp|sb_secret)_[A-Za-z0-9._-]{10,}\b/i;
 const JWT_LOOKING_VALUE_PATTERN = /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/;
 const META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN = /\bEAA[A-Za-z0-9_-]{20,}\b/;
+const EMAIL_LOOKING_VALUE_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const PHONE_LOOKING_VALUE_PATTERN = /(?:\+?\d[\d\s().-]{6,}\d)/;
+const MAX_NORMALIZED_MESSAGE_TEXT_LENGTH = 1500;
 
 function buildInboundEventError(message, statusCode = 400, code = "connected_app_inbound_event_invalid") {
   const error = new Error(message);
@@ -466,6 +469,55 @@ function normalizeEventPayload(value) {
   return normalized;
 }
 
+function normalizeInboundMessageText(value, { provider, providerEventType, normalized } = {}) {
+  const messageText = cleanInputText(value);
+
+  if (!messageText) {
+    return null;
+  }
+
+  if (normalizeKey(provider) !== "whatsapp" || normalizeKey(providerEventType) !== "message") {
+    throw buildInboundEventError(
+      "Normalized inbound message text is only accepted for WhatsApp message events.",
+      400,
+      "connected_app_inbound_event_message_text_scope_invalid"
+    );
+  }
+
+  if (normalizeKey(normalized?.messageType) !== "text") {
+    throw buildInboundEventError(
+      "Normalized inbound message text is only accepted for text messages.",
+      400,
+      "connected_app_inbound_event_message_text_type_invalid"
+    );
+  }
+
+  if (messageText.length > MAX_NORMALIZED_MESSAGE_TEXT_LENGTH) {
+    throw buildInboundEventError(
+      "Normalized inbound message text is too long.",
+      400,
+      "connected_app_inbound_event_message_text_too_long"
+    );
+  }
+
+  if (
+    URL_LOOKING_VALUE_PATTERN.test(messageText)
+    || SECRET_LOOKING_VALUE_PATTERN.test(messageText)
+    || JWT_LOOKING_VALUE_PATTERN.test(messageText)
+    || META_ACCESS_TOKEN_LOOKING_VALUE_PATTERN.test(messageText)
+    || EMAIL_LOOKING_VALUE_PATTERN.test(messageText)
+    || PHONE_LOOKING_VALUE_PATTERN.test(messageText)
+  ) {
+    throw buildInboundEventError(
+      "Normalized inbound message text cannot include contact, URL, or secret-looking values.",
+      400,
+      "connected_app_inbound_event_message_text_unsafe"
+    );
+  }
+
+  return messageText;
+}
+
 function normalizeRedactionSummary(value, normalized = {}) {
   const redactionSummary = normalizePlainObject(value);
   const derived = {
@@ -575,6 +627,10 @@ function buildInsertPayload(input = {}) {
     event_direction: normalizeEventDirection(input.eventDirection || input.event_direction),
     event_status: normalizeEventStatus(input.eventStatus || input.event_status),
     normalized,
+    normalized_message_text: normalizeInboundMessageText(
+      input.normalizedMessageText || input.normalized_message_text || input.messageText || input.message_text,
+      { provider, providerEventType, normalized }
+    ),
     redaction_summary: normalizeRedactionSummary(input.redactionSummary || input.redaction_summary, normalized),
     dedupe_key: dedupeKey,
     metadata,

@@ -14171,6 +14171,11 @@ function createEmptyConnectedAppsState(overrides = {}) {
       status: "disabled",
       lastOutbound: null,
     },
+    aiDrafts: {
+      enabled: false,
+      status: "disabled",
+      lastDraft: null,
+    },
     readiness: null,
     readinessContext: null,
     loading: false,
@@ -14198,6 +14203,9 @@ function normalizeConnectedAppsState(value = {}) {
   const manualReplies = value.manualReplies && typeof value.manualReplies === "object"
     ? value.manualReplies
     : {};
+  const aiDrafts = value.aiDrafts && typeof value.aiDrafts === "object"
+    ? value.aiDrafts
+    : {};
 
   return createEmptyConnectedAppsState({
     capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
@@ -14209,6 +14217,11 @@ function normalizeConnectedAppsState(value = {}) {
       enabled: manualReplies.enabled === true,
       status: trimText(manualReplies.status) || (manualReplies.enabled === true ? "enabled" : "disabled"),
       lastOutbound: manualReplies.lastOutbound || null,
+    },
+    aiDrafts: {
+      enabled: aiDrafts.enabled === true,
+      status: trimText(aiDrafts.status) || (aiDrafts.enabled === true ? "enabled" : "disabled"),
+      lastDraft: aiDrafts.lastDraft || null,
     },
     readiness: value.readiness || value.report || null,
     readinessContext: value.readinessContext || value.context || null,
@@ -14249,6 +14262,7 @@ async function loadConnectedApps(agentId) {
   const inboundThreads = Array.isArray(inboundThreadsData.threads) ? inboundThreadsData.threads : [];
   const inboundEvents = Array.isArray(inboundEventsData.events) ? inboundEventsData.events : [];
   const manualReplies = inboundThreadsData.manualReplies || {};
+  const aiDrafts = inboundThreadsData.aiDrafts || {};
   const readinessUrl = new URL(`/agents/${encodedAgentId}/connected-app-readiness`, window.location.origin);
   const requiredCapabilities = getAgentConnectedAppRequiredCapabilities(enablements);
   const optionalCapabilities = getConnectedAppsCapabilityKeys(capabilities)
@@ -14271,6 +14285,7 @@ async function loadConnectedApps(agentId) {
     inboundThreads,
     inboundEvents,
     manualReplies,
+    aiDrafts,
     readiness: readinessData.report || null,
     readinessContext: readinessData.context || null,
     lastLoadedAt: new Date().toISOString(),
@@ -15047,6 +15062,65 @@ async function submitConnectedAppManualReplyForm(event, agent) {
     setStatus(status === "sent" ? "Manual WhatsApp reply sent." : `Manual WhatsApp reply ${status}.`);
   } catch (error) {
     setStatus(error.message || "Manual WhatsApp reply could not be sent.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function submitConnectedAppAiDraftForm(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    thread_id: trimText(formData.get("thread_id")),
+    agent_id: trimText(formData.get("agent_id")),
+    staff_instructions: trimText(formData.get("staff_instructions")),
+  };
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Generating WhatsApp AI draft for staff review...");
+
+  try {
+    const result = await fetchJson("/agents/connected-app-inbound-threads/ai-draft", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const draftText = trimText(result.draftText || result.draft);
+    const manualComposer = form
+      .closest?.(".settings-connected-app-thread-row")
+      ?.querySelector?.("[data-connected-app-manual-reply-text]");
+
+    if (!draftText) {
+      setStatus(result.message || "AI draft needs more recent WhatsApp context. Staff must reply manually.");
+      return;
+    }
+
+    if (manualComposer) {
+      manualComposer.value = draftText;
+      manualComposer.focus();
+    }
+
+    workspaceState = {
+      ...(workspaceState || {}),
+      connectedApps: normalizeConnectedAppsState({
+        ...(workspaceState?.connectedApps || createEmptyConnectedAppsState()),
+        aiDrafts: {
+          ...(workspaceState?.connectedApps?.aiDrafts || {}),
+          enabled: true,
+          status: "enabled",
+          lastDraft: {
+            threadId: payload.thread_id,
+            status: result.status || "draft",
+          },
+        },
+      }),
+    };
+    setStatus("AI draft only. Staff must review before sending. No automatic WhatsApp replies.");
+  } catch (error) {
+    setStatus(error.message || "WhatsApp AI draft could not be generated.");
   } finally {
     setConnectedAppFormDisabled(form, false);
   }
@@ -16587,6 +16661,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
   const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
   const connectedAppInboxStatusForms = document.querySelectorAll("[data-connected-app-inbox-status-form]");
+  const connectedAppAiDraftForms = document.querySelectorAll("[data-connected-app-ai-draft-form]");
   const connectedAppManualReplyForms = document.querySelectorAll("[data-connected-app-manual-reply-form]");
   const connectedAppInboxRefreshButtons = document.querySelectorAll("[data-connected-app-inbox-refresh]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
@@ -18172,6 +18247,12 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   connectedAppInboxStatusForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
       submitConnectedAppInboxStatusForm(event, agent);
+    });
+  });
+
+  connectedAppAiDraftForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppAiDraftForm(event);
     });
   });
 
@@ -20008,7 +20089,7 @@ function renderLocalDashboardV2Fixture() {
         appName: "WhatsApp Business",
         capability: "business.send.session.reply",
         label: "WhatsApp Business session reply",
-        description: "Manual staff WhatsApp Business session replies inside an allowed customer-service window. No AI reply or automatic sending.",
+        description: "Manual staff WhatsApp Business session replies inside an allowed customer-service window. AI drafts require staff review and never send automatically.",
         status: "planned",
         requiresOAuth: false,
         requiresWebhook: false,
@@ -20129,6 +20210,11 @@ function renderLocalDashboardV2Fixture() {
       enabled: false,
       status: "disabled",
       lastOutbound: null,
+    },
+    aiDrafts: {
+      enabled: false,
+      status: "disabled",
+      lastDraft: null,
     },
     readiness: {
       status: "ready",

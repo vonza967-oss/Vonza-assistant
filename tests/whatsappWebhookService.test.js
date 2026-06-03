@@ -526,7 +526,11 @@ test("WhatsApp POST parsing records only safe status metadata and no message sid
   assert.equal(supabase.state.connected_app_inbound_threads.length, 1);
   assert.equal(supabase.state.connected_app_inbound_threads[0].external_thread_label, "WhatsApp conversation");
   assert.equal(supabase.state.connected_app_inbound_threads[0].unread_count, 1);
-  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
+  const storedMessageEvent = supabase.state.connected_app_inbound_events.find((event) =>
+    event.provider_event_type === "message"
+  );
+  assert.equal(storedMessageEvent.normalized_message_text, "Please book the private suite for Friday.");
+  assert.equal(JSON.stringify(storedMessageEvent.normalized).includes("Please book"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("whatsapp-test-sender"), false);
@@ -574,6 +578,50 @@ test("WhatsApp payload normalization returns safe message and status summaries",
   assert.equal(JSON.stringify(events).includes("Please book the private suite"), false);
   assert.equal(JSON.stringify(events).includes("whatsapp-test-sender"), false);
   assert.equal(JSON.stringify(events).includes("Test Contact"), false);
+});
+
+test("WhatsApp webhook drops unsafe text from draft context while storing redacted event", async () => {
+  const supabase = createSupabaseStub({
+    connections: [whatsappConnection({ webhook_status: "active" })],
+  });
+  const payload = whatsappPayload({
+    entry: [
+      {
+        id: WABA_ID,
+        changes: [
+          {
+            field: "messages",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: {
+                phone_number_id: "987654321098765",
+              },
+              messages: [
+                {
+                  from: "whatsapp-test-sender",
+                  id: "wamid.unsafe",
+                  timestamp: "1780430000",
+                  text: {
+                    body: "Please call me at +15551234567.",
+                  },
+                  type: "text",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  await recordWhatsAppWebhookReceipt(supabase, {
+    connectionId: CONNECTION_ID,
+    payload,
+  });
+
+  assert.equal(supabase.state.connected_app_inbound_events.length, 1);
+  assert.equal(supabase.state.connected_app_inbound_events[0].normalized_message_text, null);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("+15551234567"), false);
 });
 
 test("WhatsApp payload parser recognizes object message/status event and message types", () => {
@@ -694,7 +742,11 @@ test("WhatsApp route accepts POST payload without creating messages replies or a
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Please book"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("whatsapp-test-sender"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Test Contact"), false);
-    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
+    const storedMessageEvent = supabase.state.connected_app_inbound_events.find((event) =>
+      event.provider_event_type === "message"
+    );
+    assert.equal(storedMessageEvent.normalized_message_text, "Please book the private suite for Friday.");
+    assert.equal(JSON.stringify(storedMessageEvent.normalized).includes("Please book"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("Please book"), false);
