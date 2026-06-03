@@ -68,7 +68,11 @@ const connectedAppOutboundMessagesMigrationSql = readFileSync(
   "supabase/migrations/20260603133840_connected_app_outbound_messages.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}`;
+const whatsappAiReplyDraftContextMigrationSql = readFileSync(
+  "supabase/migrations/20260603143000_whatsapp_ai_reply_draft_context.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}\n${connectedAppInboundThreadsMigrationSql}\n${connectedAppOutboundMessagesMigrationSql}\n${whatsappAiReplyDraftContextMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -220,4 +224,39 @@ test("connected app inbound thread policies are authenticated owner-select only"
     /on public\.connected_app_inbound_threads[\s\S]+?for (?:insert|update|delete|all)\s+to authenticated/i
   );
   assert.doesNotMatch(connectedAppInboundThreadsMigrationSql, /to anon/i);
+});
+
+test("WhatsApp AI draft context migration keeps inbound text constrained and owner indexed", () => {
+  assert.match(
+    whatsappAiReplyDraftContextMigrationSql,
+    /add column if not exists normalized_message_text text/i
+  );
+  assert.match(
+    whatsappAiReplyDraftContextMigrationSql,
+    /connected_app_inbound_events_normalized_message_text_check/i
+  );
+  assert.match(
+    whatsappAiReplyDraftContextMigrationSql,
+    /provider = 'whatsapp'[\s\S]+provider_event_type = 'message'[\s\S]+event_direction = 'inbound'[\s\S]+event_status = 'received'/i
+  );
+  assert.match(
+    whatsappAiReplyDraftContextMigrationSql,
+    /length\(normalized_message_text\) between 1 and 1500/i
+  );
+  [
+    /https\?:\/\/\|www\[.\]/i,
+    /A-Z0-9\._%/i,
+    /\[\+\]\?\[0-9\]/i,
+    /sk-proj/i,
+    /EAA\[A-Za-z0-9_-\]\{20,\}/i,
+    /eyJ\[A-Za-z0-9_-\]\{10,\}/i,
+  ].forEach((pattern) => {
+    assert.match(whatsappAiReplyDraftContextMigrationSql, pattern);
+  });
+  assert.match(
+    whatsappAiReplyDraftContextMigrationSql,
+    /on public\.connected_app_inbound_events \(owner_user_id, thread_id, created_at desc\)[\s\S]+where normalized_message_text is not null/i
+  );
+  assert.doesNotMatch(whatsappAiReplyDraftContextMigrationSql, /grant\s+(?:insert|update|delete|all)/i);
+  assert.doesNotMatch(whatsappAiReplyDraftContextMigrationSql, /to anon/i);
 });

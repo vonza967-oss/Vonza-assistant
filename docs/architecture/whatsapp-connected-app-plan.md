@@ -143,6 +143,22 @@ On 2026-06-03, the configured Supabase target `wjrgzvprxkkgbjppxphk.supabase.co`
 
 The local environment did not contain service-only Meta app-secret, Cloud API token, phone-number-id, or authenticated dashboard-session configuration. As a result, signature status was correctly recorded as `not_configured`, the live Meta Cloud API send was not executed from this workspace, and browser dashboard smoke was not run. No code changes or bug fixes were made by the smoke.
 
+## Release Readiness Checklist
+
+The deployment-ready WhatsApp audit and checklist is in `docs/architecture/whatsapp-release-readiness.md`.
+
+Current readiness status: controlled staging enablement is ready after the documented migration, schema-cache, server-side credential/destination, feature-flag, and smoke checks pass. Production beta remains blocked on operational configuration: service-only Meta app-secret/signature validation or tightly constrained test traffic, service-only Cloud API credentials, service-only destination lookup, recipient/owner allow-list, and rollback by disabling `WHATSAPP_MANUAL_REPLIES_ENABLED` and `WHATSAPP_AI_REPLY_DRAFTS_ENABLED`.
+
+Deploy order for the WhatsApp Connected Apps data path:
+
+1. `20260602150000_connected_app_connection_foundation.sql`
+2. `20260603105759_connected_app_inbound_events.sql`
+3. `20260603133000_connected_app_inbound_threads.sql`
+4. `20260603133840_connected_app_outbound_messages.sql`
+5. `20260603143000_whatsapp_ai_reply_draft_context.sql`
+
+Reload PostgREST schema cache after deployment before dashboard/API smoke checks. Keep both WhatsApp feature flags off by default; only `1`, `true`, `enabled`, or `on` enables either flag.
+
 ## Phase 11 Webhook Verification And Phase 12-14 POST Foundation
 
 Meta webhook setup expects a publicly reachable TLS endpoint. Phase 11 supports only the foundation needed to verify setup safely:
