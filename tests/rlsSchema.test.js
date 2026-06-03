@@ -56,7 +56,11 @@ const connectedAppConnectionFoundationMigrationSql = readFileSync(
   "supabase/migrations/20260602150000_connected_app_connection_foundation.sql",
   "utf8"
 );
-const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}`;
+const connectedAppInboundEventsMigrationSql = readFileSync(
+  "supabase/migrations/20260603105759_connected_app_inbound_events.sql",
+  "utf8"
+);
+const postRlsMigrationSql = `${rlsMigrationSql}\n${visitorReplyFeedbackMigrationSql}\n${customerValueTrustMigrationSql}\n${activationWizardMigrationSql}\n${frontDeskTrainingMigrationSql}\n${frontDeskRagMigrationSql}\n${enterpriseReadinessMigrationSql}\n${bookingIntegrationsMigrationSql}\n${phoneFrontDeskMigrationSql}\n${webCallSessionsMigrationSql}\n${ownerProductEntitlementsMigrationSql}\n${agentActionRequestsMigrationSql}\n${agentBookingRequestsMigrationSql}\n${connectedAppConnectionFoundationMigrationSql}\n${connectedAppInboundEventsMigrationSql}`;
 
 function listPublicTables(sql) {
   return [...sql.matchAll(/create table(?: if not exists)? public\.(\w+)\s*\(/gi)]
@@ -114,6 +118,7 @@ test("critical owner and customer tables have authenticated owner-scoped policie
     "operator_contact_identities",
     "connected_app_connections",
     "agent_connected_app_enablements",
+    "connected_app_inbound_events",
     "operator_tasks",
     "agent_visitor_reply_feedback",
     "front_desk_training_items",
@@ -161,4 +166,24 @@ test("connected app foundation policies are authenticated owner-select only", ()
   });
 
   assert.doesNotMatch(connectedAppConnectionFoundationMigrationSql, /to anon/i);
+});
+
+test("connected app inbound event policies are authenticated owner-select only", () => {
+  assert.match(
+    connectedAppInboundEventsMigrationSql,
+    /alter table public\.connected_app_inbound_events enable row level security/i
+  );
+  assert.match(
+    connectedAppInboundEventsMigrationSql,
+    /on public\.connected_app_inbound_events\s+for select\s+to authenticated/i
+  );
+  assert.match(
+    connectedAppInboundEventsMigrationSql,
+    /on public\.connected_app_inbound_events[\s\S]+?owner_user_id = \(select auth\.uid\(\)\)/i
+  );
+  assert.doesNotMatch(
+    connectedAppInboundEventsMigrationSql,
+    /on public\.connected_app_inbound_events[\s\S]+?for (?:insert|update|delete|all)\s+to authenticated/i
+  );
+  assert.doesNotMatch(connectedAppInboundEventsMigrationSql, /to anon/i);
 });

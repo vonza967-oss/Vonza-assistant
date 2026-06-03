@@ -76,15 +76,15 @@ function whatsappPayload(overrides = {}) {
               },
               contacts: [
                 {
-                  wa_id: "15559876543",
+                  wa_id: "whatsapp-test-sender",
                   profile: {
-                    name: "Customer Name",
+                    name: "Test Contact",
                   },
                 },
               ],
               messages: [
                 {
-                  from: "15559876543",
+                  from: "whatsapp-test-sender",
                   id: "wamid.test",
                   timestamp: "1780430000",
                   text: {
@@ -96,7 +96,7 @@ function whatsappPayload(overrides = {}) {
               statuses: [
                 {
                   id: "wamid.status",
-                  recipient_id: "15559876543",
+                  recipient_id: "whatsapp-test-sender",
                   status: "delivered",
                   timestamp: "1780430001",
                 },
@@ -110,15 +110,41 @@ function whatsappPayload(overrides = {}) {
   };
 }
 
+function unknownWhatsAppPayload() {
+  return whatsappPayload({
+    entry: [
+      {
+        id: WABA_ID,
+        changes: [
+          {
+            field: "messages",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: {
+                display_phone_number: "+15551230000",
+                phone_number_id: "987654321098765",
+              },
+            },
+          },
+        ],
+      },
+    ],
+  });
+}
+
 function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
   const state = {
     connected_app_connections: connections.map(clone),
+    connected_app_inbound_events: [],
     messages: [],
     leads: [],
     agent_action_requests: [],
     agent_booking_requests: [],
     booking_requests: [],
     queriedTables: [],
+    insertCounts: {
+      connected_app_inbound_events: 0,
+    },
   };
 
   function rowsFor(table) {
@@ -134,6 +160,7 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
       this.table = table;
       this.filters = [];
       this.updatePayload = null;
+      this.insertPayload = null;
     }
 
     select() {
@@ -150,6 +177,19 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
       return this;
     }
 
+    insert(payload) {
+      this.insertPayload = clone(payload);
+      return this;
+    }
+
+    resolveRows() {
+      return rowsFor(this.table)
+        .filter((candidate) =>
+          this.filters.every(({ column, value }) => candidate[column] === value)
+        )
+        .map(clone);
+    }
+
     maybeSingle() {
       const rows = rowsFor(this.table);
       const row = rows.find((candidate) =>
@@ -162,6 +202,43 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
 
       return Promise.resolve({
         data: row ? clone(row) : null,
+        error: null,
+      });
+    }
+
+    single() {
+      if (this.insertPayload) {
+        const duplicate = rowsFor(this.table).find((row) =>
+          row.owner_user_id === this.insertPayload.owner_user_id
+          && row.provider === this.insertPayload.provider
+          && row.dedupe_key
+          && row.dedupe_key === this.insertPayload.dedupe_key
+        );
+
+        if (duplicate) {
+          return Promise.resolve({
+            data: null,
+            error: { code: "23505", message: "duplicate key value violates unique constraint" },
+          });
+        }
+
+        state.insertCounts[this.table] += 1;
+        const now = new Date().toISOString();
+        const row = {
+          id: `${this.table}-${state.insertCounts[this.table]}`,
+          created_at: now,
+          ...this.insertPayload,
+        };
+
+        rowsFor(this.table).push(row);
+        return Promise.resolve({
+          data: clone(row),
+          error: null,
+        });
+      }
+
+      return Promise.resolve({
+        data: this.resolveRows()[0] || null,
         error: null,
       });
     }
@@ -414,15 +491,22 @@ test("WhatsApp POST parsing records only safe status metadata and no message sid
   assert.equal(Object.hasOwn(metadata, "webhookEndpointUrl"), false);
   assert.equal(Object.hasOwn(metadata, "graphApiVersion"), false);
   assert.equal(serializedMetadata.includes("Please book the private suite"), false);
-  assert.equal(serializedMetadata.includes("15559876543"), false);
-  assert.equal(serializedMetadata.includes("Customer Name"), false);
+  assert.equal(serializedMetadata.includes("whatsapp-test-sender"), false);
+  assert.equal(serializedMetadata.includes("Test Contact"), false);
   assert.equal(serializedMetadata.includes("https://"), false);
   assert.equal(supabase.state.messages.length, 0);
   assert.equal(supabase.state.leads.length, 0);
   assert.equal(supabase.state.agent_action_requests.length, 0);
   assert.equal(supabase.state.agent_booking_requests.length, 0);
   assert.equal(supabase.state.booking_requests.length, 0);
-  assert.deepEqual([...new Set(supabase.state.queriedTables)], ["connected_app_connections"]);
+  assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
+  assert.deepEqual(
+    [...new Set(supabase.state.queriedTables)],
+    ["connected_app_connections", "connected_app_inbound_events"]
+  );
 });
 
 test("WhatsApp payload normalization returns safe message and status summaries", () => {
@@ -462,8 +546,8 @@ test("WhatsApp payload normalization returns safe message and status summaries",
   assert.deepEqual(summary.eventTypes, ["message", "status"]);
   assert.deepEqual(summary.messageTypes, ["text"]);
   assert.equal(JSON.stringify(events).includes("Please book the private suite"), false);
-  assert.equal(JSON.stringify(events).includes("15559876543"), false);
-  assert.equal(JSON.stringify(events).includes("Customer Name"), false);
+  assert.equal(JSON.stringify(events).includes("whatsapp-test-sender"), false);
+  assert.equal(JSON.stringify(events).includes("Test Contact"), false);
 });
 
 test("WhatsApp payload parser recognizes object message/status event and message types", () => {
@@ -535,13 +619,128 @@ test("WhatsApp route accepts POST payload without creating messages replies or a
     assert.equal(supabase.state.agent_action_requests.length, 0);
     assert.equal(supabase.state.agent_booking_requests.length, 0);
     assert.equal(supabase.state.booking_requests.length, 0);
+    assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+    assert.deepEqual(
+      supabase.state.connected_app_inbound_events.map((event) => ({
+        ownerUserId: event.owner_user_id,
+        connectionId: event.connection_id,
+        agentId: event.agent_id,
+        provider: event.provider,
+        appKey: event.app_key,
+        capabilityKey: event.capability_key,
+        eventType: event.provider_event_type,
+        messageId: event.provider_message_id,
+        dedupeKey: event.dedupe_key,
+      })),
+      [
+        {
+          ownerUserId: OWNER_ID,
+          connectionId: CONNECTION_ID,
+          agentId: null,
+          provider: "whatsapp",
+          appKey: "whatsapp.business",
+          capabilityKey: "whatsapp.business.webhook",
+          eventType: "message",
+          messageId: "wamid.test",
+          dedupeKey: "whatsapp:message:wamid.test",
+        },
+        {
+          ownerUserId: OWNER_ID,
+          connectionId: CONNECTION_ID,
+          agentId: null,
+          provider: "whatsapp",
+          appKey: "whatsapp.business",
+          capabilityKey: "whatsapp.business.webhook",
+          eventType: "status",
+          messageId: "wamid.status",
+          dedupeKey: "whatsapp:message:wamid.status",
+        },
+      ]
+    );
     assert.equal(
       supabase.state.connected_app_connections[0].metadata.lastWebhookSignatureStatus,
       "not_configured"
     );
     assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Please book"), false);
-    assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("15559876543"), false);
-    assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Customer Name"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("whatsapp-test-sender"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_connections).includes("Test Contact"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("WhatsApp duplicate POST dedupes inbound event rows without side effects", async () => {
+  const supabase = createSupabaseStub({
+    connections: [
+      whatsappConnection({
+        webhook_status: "active",
+      }),
+    ],
+  });
+  const server = await startIntegrationServer(supabase);
+  const url = `${server.baseUrl}/integrations/whatsapp/webhook/${CONNECTION_ID}`;
+  const request = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(whatsappPayload()),
+  };
+
+  try {
+    const firstResponse = await fetch(url, request);
+    const secondResponse = await fetch(url, request);
+
+    assert.equal(firstResponse.status, 200);
+    assert.equal(secondResponse.status, 200);
+    assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+    assert.equal(supabase.state.messages.length, 0);
+    assert.equal(supabase.state.leads.length, 0);
+    assert.equal(supabase.state.agent_action_requests.length, 0);
+    assert.equal(supabase.state.agent_booking_requests.length, 0);
+    assert.equal(supabase.state.booking_requests.length, 0);
+  } finally {
+    await server.close();
+  }
+});
+
+test("WhatsApp duplicate POST dedupes unknown inbound event summaries", async () => {
+  const supabase = createSupabaseStub({
+    connections: [
+      whatsappConnection({
+        webhook_status: "active",
+      }),
+    ],
+  });
+  const server = await startIntegrationServer(supabase);
+  const url = `${server.baseUrl}/integrations/whatsapp/webhook/${CONNECTION_ID}`;
+  const request = {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(unknownWhatsAppPayload()),
+  };
+
+  try {
+    const firstResponse = await fetch(url, request);
+    const secondResponse = await fetch(url, request);
+
+    assert.equal(firstResponse.status, 200);
+    assert.equal(secondResponse.status, 200);
+    assert.equal(supabase.state.connected_app_inbound_events.length, 1);
+    assert.equal(
+      supabase.state.connected_app_inbound_events[0].dedupe_key.startsWith("whatsapp:summary:"),
+      true
+    );
+    assert.equal(supabase.state.messages.length, 0);
+    assert.equal(supabase.state.leads.length, 0);
+    assert.equal(supabase.state.agent_action_requests.length, 0);
+    assert.equal(supabase.state.agent_booking_requests.length, 0);
+    assert.equal(supabase.state.booking_requests.length, 0);
   } finally {
     await server.close();
   }

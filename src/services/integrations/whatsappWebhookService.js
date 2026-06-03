@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import { CONNECTED_APP_CONNECTION_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
+import { createConnectedAppInboundEvent } from "./connectedAppInboundEventService.js";
 
 const WHATSAPP_PROVIDER = "whatsapp";
 const WHATSAPP_APP_KEY = "whatsapp.business";
@@ -763,6 +764,30 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
     metadata,
     updated_at: receivedAt,
   });
+
+  for (const event of summary.events) {
+    await createConnectedAppInboundEvent(supabase, {
+      ownerUserId: connection.owner_user_id,
+      connectionId: connection.id,
+      agentId: null,
+      provider: WHATSAPP_PROVIDER,
+      appKey: WHATSAPP_APP_KEY,
+      capabilityKey: WHATSAPP_WEBHOOK_CAPABILITY,
+      providerEventType: event.eventType,
+      providerMessageId: event.messageId,
+      providerTimestamp: event.timestamp,
+      sourceAccountId: event.entryId,
+      sourceChannelId: event.phoneNumberId,
+      normalized: event,
+      redactionSummary: {
+        source: "whatsapp_webhook_normalizer",
+      },
+      metadata: {
+        signatureStatus,
+      },
+      receivedAt,
+    });
+  }
 
   return {
     ok: true,

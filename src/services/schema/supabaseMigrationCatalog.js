@@ -379,6 +379,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds generic owner-scoped connected app connection and agent enablement persistence with owner-select RLS only; no OAuth, provider execution, dashboard UI, or package activation enforcement.",
   }),
+  Object.freeze({
+    id: "connected_app_inbound_events",
+    version: "20260603105759",
+    name: "connected_app_inbound_events",
+    file: "supabase/migrations/20260603105759_connected_app_inbound_events.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped redacted connected app inbound event persistence for WhatsApp webhook audit/routing preparation with owner-select RLS only; no chat messages, replies, provider calls, or package activation enforcement.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(
