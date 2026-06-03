@@ -115,6 +115,14 @@ The service can call WhatsApp Cloud API only after every guard passes. Credentia
 
 Text/session replies require `whatsapp.business.send.session.reply`, an active owner-scoped WhatsApp connection, optional agent enablement when an agent id is present, and a current internal customer-service-window proof. Outside-window text replies are blocked and audited as `blocked`. Template attempts require `whatsapp.business.send.template` but are blocked in this phase until approved-template support exists. Provider success writes `sent`; provider failure writes `failed` with redacted error status.
 
+## Staging Smoke Record
+
+The WhatsApp manual reply staging smoke record is in `docs/architecture/whatsapp-manual-reply-staging-smoke-test.md`.
+
+On 2026-06-03, the configured Supabase target `wjrgzvprxkkgbjppxphk.supabase.co` exposed the required connected-app inbound event, inbound thread, and outbound message tables. A controlled smoke created temporary owner/business/agent/connection/enablement rows, verified hashed webhook challenge handling, stored one redacted inbound event/thread, verified duplicate POST dedupe, blocked feature-off manual reply without provider execution, ran a feature-on manual reply through an injected provider client exactly once, verified owner isolation and unsafe-field rejection, and cleaned all temporary rows back to zero.
+
+The local environment did not contain service-only Meta app-secret, Cloud API token, phone-number-id, or authenticated dashboard-session configuration. As a result, signature status was correctly recorded as `not_configured`, the live Meta Cloud API send was not executed from this workspace, and browser dashboard smoke was not run. No code changes or bug fixes were made by the smoke.
+
 ## Phase 11 Webhook Verification And Phase 12-14 POST Foundation
 
 Meta webhook setup expects a publicly reachable TLS endpoint. Phase 11 supports only the foundation needed to verify setup safely:
