@@ -157,7 +157,6 @@ test("connected app connection create persists an owner connection with known ca
     providerAccountId: "google-account-1",
     providerAccountLabel: "owner@example.com",
     scopesGranted: ["calendar.read"],
-    tokenSecretRef: "vault/google/connection-1",
     metadata: { source: "service-test" },
   });
 
@@ -167,7 +166,7 @@ test("connected app connection create persists an owner connection with known ca
   assert.equal(connection.appKey, "google.calendar");
   assert.deepEqual(connection.capabilityKeys, ["google.calendar.read"]);
   assert.equal(connection.status, "active");
-  assert.equal(connection.hasTokenSecretRef, true);
+  assert.equal(connection.hasTokenSecretRef, false);
   assert.equal(Object.hasOwn(connection, "tokenSecretRef"), false);
   assert.deepEqual(connection.metadata, { source: "service-test" });
 });
@@ -354,6 +353,8 @@ test("connected app service rejects raw secret and execution input fields", asyn
   for (const unsafeInput of [
     { accessToken: "raw-token-value" },
     { appSecret: "raw-app-secret" },
+    { tokenSecretRef: "vault/google/raw-secret-ref" },
+    { token_secret_ref: "vault/google/raw-secret-ref" },
     { verifyToken: "raw-verify-token" },
     { permanentAccessToken: "raw-permanent-token" },
     { systemUserAccessToken: "raw-system-user-token" },
@@ -405,14 +406,28 @@ test("connected app service rejects raw secret and execution input fields", asyn
 });
 
 test("connected app connection output does not return raw tokens or secret refs", async () => {
-  const supabase = createConnectedAppSupabase();
-
-  const connection = await createConnectedAppConnection(supabase, {
+  const supabase = createConnectedAppSupabase({
+    connections: [
+      {
+        id: "connection-1",
+        owner_user_id: "owner-1",
+        provider: "google",
+        app_key: "google.calendar",
+        capability_keys: ["google.calendar.read"],
+        status: "active",
+        provider_account_id: "google-account-1",
+        provider_account_label: "owner@example.com",
+        scopes_granted: [],
+        webhook_status: "not_required",
+        token_secret_ref: "vault/google/raw-secret-ref",
+        metadata: {},
+        created_at: "2026-06-02T10:00:00.000Z",
+        updated_at: "2026-06-02T10:00:00.000Z",
+      },
+    ],
+  });
+  const [connection] = await listConnectedAppConnections(supabase, {
     ownerUserId: "owner-1",
-    provider: "google",
-    appKey: "google.calendar",
-    capabilityKeys: ["google.calendar.read"],
-    tokenSecretRef: "vault/google/raw-secret-ref",
   });
   const serialized = JSON.stringify(connection);
 

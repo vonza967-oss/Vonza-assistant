@@ -264,7 +264,7 @@ test("public chat and package activation are disabled for every current connecte
   }
 });
 
-test("connected app docs describe Phase 10 WhatsApp foundation without execution expansion", () => {
+test("connected app docs describe Phase 11 WhatsApp verification foundation without execution expansion", () => {
   const docs = [
     DOC_PATH,
     REGISTRY_DOC_PATH,
@@ -282,9 +282,12 @@ test("connected app docs describe Phase 10 WhatsApp foundation without execution
   assert.match(docs, /No chat execution/i);
   assert.match(docs, /No provider action without approval/i);
   assert.match(docs, /WhatsApp Business.*foundation/i);
+  assert.match(docs, /Phase 11 adds.*webhook verification\/readiness/i);
+  assert.match(docs, /Webhook verification\/readiness only/i);
   assert.match(docs, /No WhatsApp messages sent/i);
-  assert.match(docs, /No webhook receiver enabled yet/i);
+  assert.match(docs, /does not process inbound messages/i);
   assert.match(docs, /No Meta OAuth\/Embedded Signup yet/i);
+  assert.match(docs, /app-secret signature validation.*future/i);
   assert.match(docs, /future WhatsApp work must separate inbound webhooks, session replies, and approved template messages/i);
   assert.match(docs, /report-only/i);
   assert.match(docs, /persistence\/service foundation only/i);

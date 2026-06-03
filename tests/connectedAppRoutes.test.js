@@ -441,6 +441,12 @@ test("connected app connection create rejects unknown capabilities and unsafe fi
         provider: "google",
         app_key: "google.calendar",
         capabilities: ["google.calendar.read"],
+        tokenSecretRef: "vault/google/secret-ref",
+      },
+      {
+        provider: "google",
+        app_key: "google.calendar",
+        capabilities: ["google.calendar.read"],
         scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
       },
       {

@@ -4,7 +4,7 @@
 
 `src/services/integrations/connectedAppRegistry.js` is a report-only metadata registry for external app capabilities Vonza already knows about from provider-specific code.
 
-It does not create a generic Connected Apps execution engine. It does not add chat behavior, webhook handlers, generic provider clients, package activation, permission grants, or external execution. The Phase 8 dashboard surface renders this metadata for authenticated owners only as manual/status-only setup and report-only readiness. Phase 9 adds Google Calendar as the first adapter that mirrors the existing Google operator OAuth connection into generic records; the existing Google flow remains the source of truth for provider behavior. Connected Apps Phase 10 adds WhatsApp Business as a capability foundation only. It adds registry metadata, manual/status-only representation, readiness reporting, dashboard copy, docs, and tests, but no WhatsApp webhook receiver, no WhatsApp message sender, no Meta OAuth/Embedded Signup, and no Cloud API calls.
+It does not create a generic Connected Apps execution engine. It does not add chat behavior, generic provider clients, package activation, permission grants, or external execution. The Phase 8 dashboard surface renders this metadata for authenticated owners only as manual/status-only setup and report-only readiness. Phase 9 adds Google Calendar as the first adapter that mirrors the existing Google operator OAuth connection into generic records; the existing Google flow remains the source of truth for provider behavior. Connected Apps Phase 10 adds WhatsApp Business as a capability foundation only. Connected Apps Phase 11 adds a scoped WhatsApp webhook verification/readiness endpoint only. It verifies Meta setup and records safe webhook status metadata, but still adds no WhatsApp message processing, no WhatsApp message sender, no Meta OAuth/Embedded Signup, no Cloud API calls, no Twilio WhatsApp API calls, no package activation enforcement, and no runtime chat behavior.
 
 Connected Apps Phase 2 adds `src/services/integrations/connectedAppReadinessService.js` as a provider-neutral, report-only evaluator over this registry. It can report whether supplied package/agent context appears `ready`, `warning`, or `blocked` for declared capabilities, but it still does not create a setup flow, enforce activation, call providers, or grant runtime permission.
 
@@ -23,6 +23,8 @@ Connected Apps Phase 8 adds a compact authenticated dashboard/settings surface o
 Connected Apps Phase 9 adds `src/services/integrations/googleConnectedAppAdapter.js` for Google Calendar only. The adapter mirrors successful existing Google Calendar connections and token-refresh issue states into `connected_app_connections` with redacted provider account label, capability keys, granted scope metadata, and status. It does not add new Google scopes, does not create a new OAuth flow, does not create agent enablements automatically, does not add public chat/tool execution, and does not expose tokens or OAuth codes.
 
 Connected Apps Phase 10 adds three planned WhatsApp Business capability declarations: inbound webhook readiness, future approved-template outbound messaging, and future customer-service-window session replies. They are metadata/report-only and manual/status-only. They do not send or receive WhatsApp messages, do not expose WhatsApp public webhook routes, do not start Meta OAuth or Embedded Signup, and do not store access tokens, app secrets, verify tokens, or webhook secrets in metadata or route responses.
+
+Connected Apps Phase 11 adds `src/services/integrations/whatsappWebhookService.js` and `/integrations/whatsapp/webhook/:connectionId` for GET verification and POST readiness metadata only. GET handles Meta `hub.mode`, `hub.verify_token`, and `hub.challenge` verification against a derived verifier reference stored outside public metadata. POST recognizes `whatsapp_business_account` payloads and message/status event types only enough to update safe metadata. It does not process inbound messages, send replies, create chat messages, create action requests, validate app-secret signatures yet, start Meta OAuth/Embedded Signup, call the WhatsApp Cloud API, call Twilio WhatsApp APIs, or enforce package activation.
 
 ## Current Capabilities
 
@@ -57,7 +59,7 @@ Stripe remains owner billing infrastructure. Stripe webhooks and checkout state 
 
 Twilio remains admin/provider-specific phone webhook infrastructure. It is not an owner self-serve connected-app setup surface.
 
-WhatsApp Business is a Phase 10 Connected Apps capability foundation only. Safe manual metadata may include a WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, and Graph API version. It does not have a Vonza webhook receiver, OAuth/Embedded Signup setup, Cloud API client, template sender, session reply sender, inbound message processor, or Twilio WhatsApp path. Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
+WhatsApp Business is a Phase 10-11 Connected Apps capability foundation only. Safe manual metadata may include a WhatsApp Business Account ID, phone number ID, display phone number, business display name, webhook verification status, Graph API version, webhook verification timestamp, last webhook receipt timestamp, last webhook object, and safe event type names. Phase 11 has a verification/readiness webhook route only; it has no inbound message processor, no reply generator, no Cloud API client, no template sender, no session reply sender, no OAuth/Embedded Signup setup, and no Twilio WhatsApp path. Future WhatsApp work must separately handle app-secret signature validation, inbound message normalization, consent/session windows, outbound session replies, and approved template messages.
 
 ## Helper Contract
 
@@ -147,7 +149,7 @@ The agent enablement routes verify owner access to the URL agent, validate that 
 
 The dashboard/settings surface fetches `GET /agents/connected-app-capabilities`, `GET /agents/connected-apps`, `GET /agents/:agentId/connected-apps`, and `GET /agents/:agentId/connected-app-readiness` for the selected/current agent. It shows provider labels, capability labels, connection status, provider account label, scopes/capability summary, webhook status, agent enablement status, approval mode, allowed surfaces, and report-only readiness warnings.
 
-The surface now labels the Google Calendar adapter as `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Phase 10 adds WhatsApp Business foundation copy: `Manual/internal setup`, `No WhatsApp messages sent`, `No webhook receiver enabled yet`, and `No Meta OAuth/Embedded Signup yet`. Manual/status-only controls remain for non-adapter records. It does not show or accept raw token, secret, OAuth URL, webhook URL, provider client, handler, execution, public chat callable, package selector, package switching controls, WhatsApp sender controls, or WhatsApp token inputs.
+The surface now labels the Google Calendar adapter as `Uses existing Google connection flow`, `No chat execution`, `No provider action without approval`, and `Report-only readiness`. Phase 11 WhatsApp Business copy should remain status-only: `Manual/internal setup`, `No WhatsApp messages sent`, `Webhook verification/readiness only`, and `No Meta OAuth/Embedded Signup yet`. Manual/status-only controls remain for non-adapter records. It does not show or accept raw token, secret, OAuth URL, webhook URL, provider client, handler, execution, public chat callable, package selector, package switching controls, WhatsApp sender controls, or WhatsApp token inputs.
 
 ## Non-Goals
 
@@ -165,7 +167,7 @@ The surface now labels the Google Calendar adapter as `Uses existing Google conn
 - No public or anonymous connected-app API route.
 - No widget/embed exposure in Phase 7-8.
 - No package activation enforcement through Phase 7 routes or Phase 8-10 dashboard controls.
-- No WhatsApp inbound webhook receiver, outbound message sender, Meta OAuth/Embedded Signup, Cloud API call, Twilio WhatsApp API call, inbound message processing, or package activation enforcement in Phase 10.
+- No WhatsApp inbound message processing, outbound message sender, Meta OAuth/Embedded Signup, Cloud API call, Twilio WhatsApp API call, app-secret signature validation, or package activation enforcement in Phase 11.
 
 ## Future Manifest Relationship
 

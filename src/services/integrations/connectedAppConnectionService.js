@@ -104,6 +104,8 @@ const UNSAFE_INPUT_FIELD_NAMES = new Set([
   "systemUserAccessToken",
   "system_user_access_token",
   "token",
+  "tokenSecretRef",
+  "token_secret_ref",
   "tokens",
   "verifyToken",
   "verify_token",
