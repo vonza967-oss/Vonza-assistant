@@ -388,6 +388,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped redacted connected app inbound event persistence for WhatsApp webhook audit/routing preparation with owner-select RLS only; no chat messages, replies, provider calls, or package activation enforcement.",
   }),
+  Object.freeze({
+    id: "connected_app_inbound_threads",
+    version: "20260603133000",
+    name: "connected_app_inbound_threads",
+    file: "supabase/migrations/20260603133000_connected_app_inbound_threads.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped read-only staff inbox thread grouping for redacted connected app inbound events with owner-select RLS only; no replies, AI handoff, outbound messaging, provider calls, or package activation enforcement.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

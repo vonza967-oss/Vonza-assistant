@@ -195,6 +195,13 @@ import {
   updateConnectedAppConnectionStatus,
 } from "../services/integrations/connectedAppConnectionService.js";
 import {
+  listConnectedAppInboundEvents,
+} from "../services/integrations/connectedAppInboundEventService.js";
+import {
+  listConnectedAppInboundThreads,
+  updateConnectedAppInboundThreadStatus,
+} from "../services/integrations/connectedAppInboundThreadService.js";
+import {
   buildConnectedAppReadinessContext,
 } from "../services/integrations/connectedAppReadinessContextService.js";
 import {
@@ -233,6 +240,7 @@ const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
   "authorization_url",
   "bearerToken",
   "bearer_token",
+  "body",
   "businessIntegrationSystemUserToken",
   "business_integration_system_user_token",
   "callbackUrl",
@@ -259,6 +267,14 @@ const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
   "external_execution",
   "handler",
   "handlers",
+  "handoff",
+  "aiDraft",
+  "ai_draft",
+  "chatHandoff",
+  "chat_handoff",
+  "message",
+  "messageBody",
+  "message_body",
   "oauthUrl",
   "oauth_url",
   "providerClient",
@@ -272,8 +288,14 @@ const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
   "permanent_access_token",
   "refreshToken",
   "refresh_token",
+  "reply",
+  "replyText",
+  "reply_text",
   "runtimeHandler",
   "runtime_handler",
+  "send",
+  "sendMessage",
+  "send_message",
   "secret",
   "secrets",
   "setupUrl",
@@ -286,6 +308,7 @@ const CONNECTED_APP_ROUTE_UNSAFE_FIELD_NAMES = new Set([
   "tokenSecretRef",
   "token_secret_ref",
   "tokens",
+  "text",
   "verifyToken",
   "verify_token",
   "whatsappAccessToken",
@@ -632,6 +655,12 @@ export function createAgentRouter(deps = {}) {
     deps.listConnectedAppConnections || listConnectedAppConnections;
   const updateConnectedAppConnectionStatusImpl =
     deps.updateConnectedAppConnectionStatus || updateConnectedAppConnectionStatus;
+  const listConnectedAppInboundThreadsImpl =
+    deps.listConnectedAppInboundThreads || listConnectedAppInboundThreads;
+  const updateConnectedAppInboundThreadStatusImpl =
+    deps.updateConnectedAppInboundThreadStatus || updateConnectedAppInboundThreadStatus;
+  const listConnectedAppInboundEventsImpl =
+    deps.listConnectedAppInboundEvents || listConnectedAppInboundEvents;
   const enableConnectedAppForAgentImpl =
     deps.enableConnectedAppForAgent || enableConnectedAppForAgent;
   const listAgentConnectedAppEnablementsImpl =
@@ -2411,6 +2440,73 @@ export function createAgentRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/agents/connected-apps/status" });
+    }
+  });
+
+  router.get("/agents/connected-app-inbound-threads", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const threads = await listConnectedAppInboundThreadsImpl(supabase, {
+        ownerUserId: user.id,
+        provider: req.query.provider,
+        connectionId: req.query.connection_id || req.query.connectionId,
+        agentId: req.query.agent_id || req.query.agentId,
+        status: req.query.status,
+        threadId: req.query.thread_id || req.query.threadId,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        threads,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads" });
+    }
+  });
+
+  router.post("/agents/connected-app-inbound-threads/status", async (req, res) => {
+    try {
+      assertNoConnectedAppRouteUnsafeInput(req.body);
+
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const thread = await updateConnectedAppInboundThreadStatusImpl(supabase, {
+        ownerUserId: user.id,
+        threadId: readBodyField(req.body, "thread_id", "threadId"),
+        status: readBodyField(req.body, "status"),
+      });
+
+      res.json({
+        ok: true,
+        thread,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-threads/status" });
+    }
+  });
+
+  router.get("/agents/connected-app-inbound-events", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const events = await listConnectedAppInboundEventsImpl(supabase, {
+        ownerUserId: user.id,
+        provider: req.query.provider,
+        connectionId: req.query.connection_id || req.query.connectionId,
+        agentId: req.query.agent_id || req.query.agentId,
+        status: req.query.status,
+        threadId: req.query.thread_id || req.query.threadId,
+        limit: req.query.limit,
+      });
+
+      res.json({
+        ok: true,
+        events,
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/agents/connected-app-inbound-events" });
     }
   });
 

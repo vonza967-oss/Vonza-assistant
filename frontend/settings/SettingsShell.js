@@ -982,6 +982,21 @@
     });
   }
 
+  function formatConnectedAppTimestamp(value) {
+    const timestamp = new Date(value || "").getTime();
+
+    if (!Number.isFinite(timestamp)) {
+      return "Not available yet";
+    }
+
+    return new Date(timestamp).toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
   function getDashboardProductPackagingItems() {
     if (typeof global.VonzaDashboardState?.listDashboardProductPackaging === "function") {
       return global.VonzaDashboardState.listDashboardProductPackaging();
@@ -3858,6 +3873,8 @@
       capabilities: Array.isArray(state.capabilities) ? state.capabilities : [],
       connections: Array.isArray(state.connections) ? state.connections : [],
       enablements: Array.isArray(state.enablements) ? state.enablements : [],
+      inboundThreads: Array.isArray(state.inboundThreads || state.threads) ? (state.inboundThreads || state.threads) : [],
+      inboundEvents: Array.isArray(state.inboundEvents || state.events) ? (state.inboundEvents || state.events) : [],
       readiness: state.readiness || null,
       readinessContext: state.readinessContext || null,
       loading: state.loading === true,
@@ -3960,8 +3977,10 @@
       "No chat execution",
       "No provider action without approval",
       "Report-only readiness",
-      "No WhatsApp messages sent",
-      "No webhook receiver enabled yet",
+      "Inbound review only",
+      "No WhatsApp replies sent",
+      "No AI handoff",
+      "No outbound messaging",
       "No Meta OAuth/Embedded Signup yet",
     ];
 
@@ -4101,7 +4120,7 @@
         <div class="settings-shell-section-header">
           <div>
             <h3 class="settings-shell-section-title">WhatsApp Business foundation</h3>
-            <p class="settings-shell-section-copy">Manual/internal setup. No WhatsApp messages sent. No webhook receiver enabled yet. No Meta OAuth/Embedded Signup yet.</p>
+            <p class="settings-shell-section-copy">Manual read-only inbound review. No WhatsApp replies sent. No AI handoff. No outbound messaging. No Meta OAuth/Embedded Signup yet.</p>
           </div>
           <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
         </div>
@@ -4123,17 +4142,99 @@
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Messaging</span>
-              <span class="${getBadgeClass("Limited")}">No WhatsApp messages sent</span>
+              <span class="${getBadgeClass("Limited")}">No WhatsApp replies sent</span>
             </div>
-            <p>Template and session reply capabilities are readiness metadata only in this phase.</p>
+            <p>No outbound messaging. Template and session reply capabilities are readiness metadata only in this phase.</p>
           </article>
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
-              <span>Webhook and signup</span>
-              <span class="${getBadgeClass("Limited")}">Not enabled</span>
+              <span>Inbox mode</span>
+              <span class="${getBadgeClass("Limited")}">Inbound review only</span>
             </div>
-            <p>No webhook receiver enabled yet. No Meta OAuth/Embedded Signup yet. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
+            <p>Redacted inbound events can be reviewed manually. No AI handoff. Enabled records for this agent: ${escapeHtml(String(enabledConnections))}.</p>
           </article>
+        </div>
+      </section>
+    `;
+  }
+
+  function buildConnectedAppInboxPanel(connectedApps, helpers) {
+    const { escapeHtml, getBadgeClass } = helpers;
+    const threads = Array.isArray(connectedApps.inboundThreads) ? connectedApps.inboundThreads : [];
+    const events = Array.isArray(connectedApps.inboundEvents) ? connectedApps.inboundEvents : [];
+    const selectedThreadId = defaultTrimText(threads[0]?.id);
+    const recentEvents = selectedThreadId
+      ? events.filter((event) => defaultTrimText(event.threadId) === selectedThreadId).slice(0, 8)
+      : events.slice(0, 8);
+    const statusOptions = ["reviewing", "resolved", "ignored", "archived"];
+
+    return `
+      <section class="settings-shell-section settings-connected-app-inbox" aria-label="Connected app inbox">
+        <div class="settings-shell-section-header">
+          <div>
+            <h3 class="settings-shell-section-title">Connected app inbox</h3>
+            <p class="settings-shell-section-copy">Inbound review only. No WhatsApp replies sent. No AI handoff. No outbound messaging.</p>
+          </div>
+          <button class="ghost-button" type="button" data-connected-app-inbox-refresh>Refresh</button>
+        </div>
+
+        <div class="settings-connected-app-inbox-grid">
+          <div class="settings-connected-app-thread-list" aria-label="Connected app inbound threads">
+            ${threads.length ? threads.map((thread) => `
+              <article class="settings-connected-app-thread-row">
+                <div class="settings-connected-app-thread-main">
+                  <div>
+                    <p class="settings-shell-status-label">${escapeHtml(`${humanizeConnectedAppValue(thread.provider)} / ${thread.appKey || "app"}`)}</p>
+                    <h4 class="settings-shell-status-value">${escapeHtml(thread.externalThreadLabel || "Connected app conversation")}</h4>
+                    <p class="settings-shell-status-copy">Last event: ${escapeHtml(formatConnectedAppTimestamp(thread.lastEventAt))}. Type: ${escapeHtml(humanizeConnectedAppValue(thread.lastEventType || "unknown"))}${thread.lastMessageType ? ` / ${escapeHtml(humanizeConnectedAppValue(thread.lastMessageType))}` : ""}.</p>
+                  </div>
+                  <div class="settings-connected-app-badges">
+                    <span class="${getBadgeClass(connectedAppStatusTone(thread.status))}">${escapeHtml(humanizeConnectedAppValue(thread.status || "open"))}</span>
+                    <span class="${getBadgeClass(Number(thread.unreadCount || 0) > 0 ? "Limited" : "Ready")}">${escapeHtml(`${Number(thread.unreadCount || 0)} unread`)}</span>
+                  </div>
+                </div>
+                <form data-connected-app-inbox-status-form class="settings-connected-app-inbox-status-form">
+                  <input type="hidden" name="thread_id" value="${escapeHtml(thread.id || "")}">
+                  <label>
+                    <span>Review status</span>
+                    <select name="status">
+                      ${statusOptions.map((status) => `
+                        <option value="${escapeHtml(status)}" ${thread.status === status ? "selected" : ""}>${escapeHtml(humanizeConnectedAppValue(status))}</option>
+                      `).join("")}
+                    </select>
+                  </label>
+                  <button class="ghost-button" type="submit">Mark status</button>
+                </form>
+              </article>
+            `).join("") : `
+              <div class="settings-connected-app-empty">
+                <strong>No inbound threads yet</strong>
+                <p>Redacted WhatsApp webhook events will appear here for manual staff review after delivery.</p>
+              </div>
+            `}
+          </div>
+
+          <div class="settings-connected-app-event-list" aria-label="Recent redacted inbound events">
+            <div class="settings-connected-app-event-list-head">
+              <strong>Recent redacted events</strong>
+              <span>${escapeHtml(recentEvents.length ? `${recentEvents.length} shown` : "None yet")}</span>
+            </div>
+            ${recentEvents.length ? recentEvents.map((event) => `
+              <article class="settings-connected-app-event-row">
+                <div>
+                  <p class="settings-shell-status-label">${escapeHtml(formatConnectedAppTimestamp(event.receivedAt || event.createdAt))}</p>
+                  <h4 class="settings-shell-status-value">${escapeHtml(humanizeConnectedAppValue(event.providerEventType || "event"))}${event.normalized?.messageType ? ` / ${escapeHtml(humanizeConnectedAppValue(event.normalized.messageType))}` : ""}</h4>
+                  <p class="settings-shell-status-copy">Message body redacted. Contact fields redacted. Full provider payload not stored.</p>
+                </div>
+                <span class="${getBadgeClass(connectedAppStatusTone(event.eventStatus || "received"))}">${escapeHtml(humanizeConnectedAppValue(event.eventStatus || "received"))}</span>
+              </article>
+            `).join("") : `
+              <div class="settings-connected-app-empty">
+                <strong>No recent redacted events</strong>
+                <p>Inbound event summaries are stored without customer phone numbers, message bodies, profile names, or full provider payloads.</p>
+              </div>
+            `}
+          </div>
         </div>
       </section>
     `;
@@ -4450,6 +4551,7 @@
 
           ${buildGoogleCalendarAdapterPanel(connectedApps, helpers)}
           ${buildWhatsAppBusinessFoundationPanel(connectedApps, helpers)}
+          ${buildConnectedAppInboxPanel(connectedApps, helpers)}
 
           <section class="settings-shell-section">
             <div class="settings-shell-section-header">

@@ -136,6 +136,7 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
   const state = {
     connected_app_connections: connections.map(clone),
     connected_app_inbound_events: [],
+    connected_app_inbound_threads: [],
     messages: [],
     leads: [],
     agent_action_requests: [],
@@ -144,6 +145,7 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
     queriedTables: [],
     insertCounts: {
       connected_app_inbound_events: 0,
+      connected_app_inbound_threads: 0,
     },
   };
 
@@ -168,6 +170,11 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
     }
 
     eq(column, value) {
+      this.filters.push({ column, value });
+      return this;
+    }
+
+    is(column, value) {
       this.filters.push({ column, value });
       return this;
     }
@@ -208,12 +215,26 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
 
     single() {
       if (this.insertPayload) {
-        const duplicate = rowsFor(this.table).find((row) =>
-          row.owner_user_id === this.insertPayload.owner_user_id
-          && row.provider === this.insertPayload.provider
-          && row.dedupe_key
-          && row.dedupe_key === this.insertPayload.dedupe_key
-        );
+        const duplicate = rowsFor(this.table).find((row) => {
+          if (this.table === "connected_app_inbound_events") {
+            return row.owner_user_id === this.insertPayload.owner_user_id
+              && row.provider === this.insertPayload.provider
+              && row.dedupe_key
+              && row.dedupe_key === this.insertPayload.dedupe_key;
+          }
+
+          if (this.table === "connected_app_inbound_threads") {
+            return row.owner_user_id === this.insertPayload.owner_user_id
+              && row.connection_id === this.insertPayload.connection_id
+              && row.provider === this.insertPayload.provider
+              && row.app_key === this.insertPayload.app_key
+              && row.capability_key === this.insertPayload.capability_key
+              && (row.agent_id || null) === (this.insertPayload.agent_id || null)
+              && row.external_thread_key_hash === this.insertPayload.external_thread_key_hash;
+          }
+
+          return false;
+        });
 
         if (duplicate) {
           return Promise.resolve({
@@ -224,9 +245,11 @@ function createSupabaseStub({ connections = [whatsappConnection()] } = {}) {
 
         state.insertCounts[this.table] += 1;
         const now = new Date().toISOString();
+        const prefix = this.table === "connected_app_inbound_threads" ? "thread" : this.table;
         const row = {
-          id: `${this.table}-${state.insertCounts[this.table]}`,
+          id: `${prefix}-${state.insertCounts[this.table]}`,
           created_at: now,
+          updated_at: now,
           ...this.insertPayload,
         };
 
@@ -500,12 +523,17 @@ test("WhatsApp POST parsing records only safe status metadata and no message sid
   assert.equal(supabase.state.agent_booking_requests.length, 0);
   assert.equal(supabase.state.booking_requests.length, 0);
   assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+  assert.equal(supabase.state.connected_app_inbound_threads.length, 1);
+  assert.equal(supabase.state.connected_app_inbound_threads[0].external_thread_label, "WhatsApp conversation");
+  assert.equal(supabase.state.connected_app_inbound_threads[0].unread_count, 1);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("whatsapp-test-sender"), false);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("Test Contact"), false);
   assert.deepEqual(
     [...new Set(supabase.state.queriedTables)],
-    ["connected_app_connections", "connected_app_inbound_events"]
+    ["connected_app_connections", "connected_app_inbound_events", "connected_app_inbound_threads"]
   );
 });
 
@@ -518,7 +546,6 @@ test("WhatsApp payload normalization returns safe message and status summaries",
       object: "whatsapp_business_account",
       entryId: WABA_ID,
       phoneNumberId: "987654321098765",
-      displayPhoneNumber: "+15551230000",
       eventType: "message",
       messageId: "wamid.test",
       messageType: "text",
@@ -534,7 +561,6 @@ test("WhatsApp payload normalization returns safe message and status summaries",
       object: "whatsapp_business_account",
       entryId: WABA_ID,
       phoneNumberId: "987654321098765",
-      displayPhoneNumber: "+15551230000",
       eventType: "status",
       messageId: "wamid.status",
       messageType: "",
@@ -620,6 +646,10 @@ test("WhatsApp route accepts POST payload without creating messages replies or a
     assert.equal(supabase.state.agent_booking_requests.length, 0);
     assert.equal(supabase.state.booking_requests.length, 0);
     assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+    assert.equal(supabase.state.connected_app_inbound_threads.length, 1);
+    assert.equal(supabase.state.connected_app_inbound_threads[0].unread_count, 1);
+    assert.equal(supabase.state.connected_app_inbound_events[0].thread_id, "thread-1");
+    assert.equal(supabase.state.connected_app_inbound_events[1].thread_id, "thread-1");
     assert.deepEqual(
       supabase.state.connected_app_inbound_events.map((event) => ({
         ownerUserId: event.owner_user_id,
@@ -667,6 +697,9 @@ test("WhatsApp route accepts POST payload without creating messages replies or a
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("whatsapp-test-sender"), false);
     assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Test Contact"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("Please book"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("whatsapp-test-sender"), false);
+    assert.equal(JSON.stringify(supabase.state.connected_app_inbound_threads).includes("Test Contact"), false);
   } finally {
     await server.close();
   }
@@ -697,6 +730,8 @@ test("WhatsApp duplicate POST dedupes inbound event rows without side effects", 
     assert.equal(firstResponse.status, 200);
     assert.equal(secondResponse.status, 200);
     assert.equal(supabase.state.connected_app_inbound_events.length, 2);
+    assert.equal(supabase.state.connected_app_inbound_threads.length, 1);
+    assert.equal(supabase.state.connected_app_inbound_threads[0].unread_count, 1);
     assert.equal(supabase.state.messages.length, 0);
     assert.equal(supabase.state.leads.length, 0);
     assert.equal(supabase.state.agent_action_requests.length, 0);
@@ -732,6 +767,7 @@ test("WhatsApp duplicate POST dedupes unknown inbound event summaries", async ()
     assert.equal(firstResponse.status, 200);
     assert.equal(secondResponse.status, 200);
     assert.equal(supabase.state.connected_app_inbound_events.length, 1);
+    assert.equal(supabase.state.connected_app_inbound_threads.length, 0);
     assert.equal(
       supabase.state.connected_app_inbound_events[0].dedupe_key.startsWith("whatsapp:summary:"),
       true

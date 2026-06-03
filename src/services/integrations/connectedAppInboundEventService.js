@@ -32,6 +32,7 @@ const EVENT_SELECT = [
   "normalized",
   "redaction_summary",
   "dedupe_key",
+  "thread_id",
   "metadata",
   "received_at",
   "created_at",
@@ -137,8 +138,6 @@ const SAFE_FIELD_NAMES = new Set([
   "createdat",
   "dedupe_key",
   "dedupekey",
-  "display_phone_number",
-  "displayphonenumber",
   "entry_id",
   "entryid",
   "event_direction",
@@ -607,6 +606,7 @@ export function mapConnectedAppInboundEvent(row = {}) {
     normalized: safeJsonForDto(row.normalized),
     redactionSummary: safeJsonForDto(row.redaction_summary),
     dedupeKey: normalizeOptionalText(row.dedupe_key),
+    threadId: normalizeOptionalText(row.thread_id),
     metadata: safeJsonForDto(row.metadata),
     receivedAt: row.received_at || null,
     createdAt: row.created_at || null,
@@ -682,6 +682,11 @@ export async function listConnectedAppInboundEvents(supabase, input = {}) {
 
   const provider = cleanInputText(input.provider) ? normalizeProvider(input.provider) : "";
   const connectionId = normalizeOptionalText(input.connectionId || input.connection_id);
+  const agentId = normalizeOptionalText(input.agentId || input.agent_id);
+  const eventStatus = cleanInputText(input.status || input.eventStatus || input.event_status)
+    ? normalizeEventStatus(input.status || input.eventStatus || input.event_status)
+    : "";
+  const threadId = normalizeOptionalText(input.threadId || input.thread_id);
 
   if (provider) {
     query = query.eq("provider", provider);
@@ -689,6 +694,18 @@ export async function listConnectedAppInboundEvents(supabase, input = {}) {
 
   if (connectionId) {
     query = query.eq("connection_id", connectionId);
+  }
+
+  if (agentId) {
+    query = query.eq("agent_id", agentId);
+  }
+
+  if (eventStatus) {
+    query = query.eq("event_status", eventStatus);
+  }
+
+  if (threadId) {
+    query = query.eq("thread_id", threadId);
   }
 
   const { data, error } = await query

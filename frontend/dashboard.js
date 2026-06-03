@@ -14164,6 +14164,8 @@ function createEmptyConnectedAppsState(overrides = {}) {
     capabilities: [],
     connections: [],
     enablements: [],
+    inboundThreads: [],
+    inboundEvents: [],
     readiness: null,
     readinessContext: null,
     loading: false,
@@ -14192,6 +14194,8 @@ function normalizeConnectedAppsState(value = {}) {
     capabilities: Array.isArray(value.capabilities) ? value.capabilities : [],
     connections: Array.isArray(value.connections) ? value.connections : [],
     enablements: Array.isArray(value.enablements) ? value.enablements : [],
+    inboundThreads: Array.isArray(value.inboundThreads || value.threads) ? (value.inboundThreads || value.threads) : [],
+    inboundEvents: Array.isArray(value.inboundEvents || value.events) ? (value.inboundEvents || value.events) : [],
     readiness: value.readiness || value.report || null,
     readinessContext: value.readinessContext || value.context || null,
     loading: value.loading === true,
@@ -14218,14 +14222,18 @@ function getAgentConnectedAppRequiredCapabilities(enablements = []) {
 
 async function loadConnectedApps(agentId) {
   const encodedAgentId = encodeURIComponent(agentId);
-  const [capabilitiesData, connectionsData, enablementsData] = await Promise.all([
+  const [capabilitiesData, connectionsData, enablementsData, inboundThreadsData, inboundEventsData] = await Promise.all([
     fetchJson("/agents/connected-app-capabilities"),
     fetchJson("/agents/connected-apps"),
     fetchJson(`/agents/${encodedAgentId}/connected-apps`),
+    fetchJson("/agents/connected-app-inbound-threads?provider=whatsapp&limit=25"),
+    fetchJson("/agents/connected-app-inbound-events?provider=whatsapp&limit=50"),
   ]);
   const capabilities = Array.isArray(capabilitiesData.capabilities) ? capabilitiesData.capabilities : [];
   const connections = Array.isArray(connectionsData.connections) ? connectionsData.connections : [];
   const enablements = Array.isArray(enablementsData.enablements) ? enablementsData.enablements : [];
+  const inboundThreads = Array.isArray(inboundThreadsData.threads) ? inboundThreadsData.threads : [];
+  const inboundEvents = Array.isArray(inboundEventsData.events) ? inboundEventsData.events : [];
   const readinessUrl = new URL(`/agents/${encodedAgentId}/connected-app-readiness`, window.location.origin);
   const requiredCapabilities = getAgentConnectedAppRequiredCapabilities(enablements);
   const optionalCapabilities = getConnectedAppsCapabilityKeys(capabilities)
@@ -14245,6 +14253,8 @@ async function loadConnectedApps(agentId) {
     capabilities,
     connections,
     enablements,
+    inboundThreads,
+    inboundEvents,
     readiness: readinessData.report || null,
     readinessContext: readinessData.context || null,
     lastLoadedAt: new Date().toISOString(),
@@ -14927,6 +14937,48 @@ async function submitConnectedAppEnablementForm(event, agent) {
     });
   } catch (error) {
     setStatus(error.message || "Agent connected app enablement could not be saved.");
+  } finally {
+    setConnectedAppFormDisabled(form, false);
+  }
+}
+
+async function refreshConnectedAppInbox(agent) {
+  if (!agent?.id) {
+    setStatus("Connected app inbox needs a saved assistant before it can refresh.");
+    return;
+  }
+
+  setStatus("Refreshing connected app inbox...");
+  await reloadConnectedAppsForAgent(agent.id, {
+    statusMessage: "Connected app inbox refreshed.",
+  });
+}
+
+async function submitConnectedAppInboxStatusForm(event, agent) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  const payload = {
+    thread_id: trimText(formData.get("thread_id")),
+    status: trimText(formData.get("status")),
+  };
+
+  setConnectedAppFormDisabled(form, true);
+  setStatus("Updating connected app inbox status...");
+
+  try {
+    await fetchJson("/agents/connected-app-inbound-threads/status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    await reloadConnectedAppsForAgent(agent.id, {
+      statusMessage: "Connected app inbox status updated.",
+    });
+  } catch (error) {
+    setStatus(error.message || "Connected app inbox status could not be updated.");
   } finally {
     setConnectedAppFormDisabled(form, false);
   }
@@ -16466,6 +16518,8 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const connectedAppConnectionForms = document.querySelectorAll("[data-connected-app-connection-form]");
   const connectedAppStatusForms = document.querySelectorAll("[data-connected-app-status-form]");
   const connectedAppEnablementForms = document.querySelectorAll("[data-connected-app-enable-form]");
+  const connectedAppInboxStatusForms = document.querySelectorAll("[data-connected-app-inbox-status-form]");
+  const connectedAppInboxRefreshButtons = document.querySelectorAll("[data-connected-app-inbox-refresh]");
   const dashboardHelp = document.querySelector("[data-dashboard-help]");
   const helpToggleButton = document.querySelector("[data-help-toggle]");
   const helpCloseButtons = document.querySelectorAll("[data-help-close]");
@@ -18043,6 +18097,18 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   connectedAppEnablementForms.forEach((form) => {
     form.addEventListener("submit", (event) => {
       submitConnectedAppEnablementForm(event, agent);
+    });
+  });
+
+  connectedAppInboxStatusForms.forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      submitConnectedAppInboxStatusForm(event, agent);
+    });
+  });
+
+  connectedAppInboxRefreshButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      refreshConnectedAppInbox(agent);
     });
   });
 
@@ -19901,7 +19967,7 @@ function renderLocalDashboardV2Fixture() {
           setupMode: "manual_internal",
           whatsappBusinessAccountId: "123456789012345",
           phoneNumberId: "987654321098765",
-          displayPhoneNumber: "+15551234567",
+          displayPhoneNumber: "redacted",
           businessDisplayName: "Local Services",
           webhookVerifyStatus: "verified",
           graphApiVersion: "v23.0",
@@ -19919,6 +19985,65 @@ function renderLocalDashboardV2Fixture() {
         approvalMode: "manual_review",
         allowedSurfaces: ["dashboard"],
         metadata: { setupMode: "manual_internal" },
+      },
+    ],
+    inboundThreads: [
+      {
+        id: "fixture-whatsapp-thread",
+        ownerUserId: authUser.id,
+        connectionId: "fixture-whatsapp-connection",
+        agentId: null,
+        provider: "whatsapp",
+        appKey: "whatsapp.business",
+        capabilityKey: "whatsapp.business.webhook",
+        externalThreadLabel: "WhatsApp conversation",
+        status: "open",
+        lastEventId: "fixture-whatsapp-event",
+        lastEventAt: now,
+        lastEventType: "message",
+        lastMessageType: "text",
+        unreadCount: 1,
+        metadata: {
+          inboundReviewOnly: true,
+          noOutboundMessaging: true,
+          noAiReplies: true,
+          noAiHandoff: true,
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    inboundEvents: [
+      {
+        id: "fixture-whatsapp-event",
+        ownerUserId: authUser.id,
+        connectionId: "fixture-whatsapp-connection",
+        agentId: null,
+        provider: "whatsapp",
+        appKey: "whatsapp.business",
+        capabilityKey: "whatsapp.business.webhook",
+        providerEventType: "message",
+        providerMessageId: "wamid.fixture",
+        providerTimestamp: now,
+        eventDirection: "inbound",
+        eventStatus: "received",
+        normalized: {
+          eventType: "message",
+          messageType: "text",
+          metadata: {
+            hasText: true,
+            textLength: 24,
+            contactPresent: true,
+          },
+        },
+        redactionSummary: {
+          messageBodyStored: false,
+          contactFieldsStored: false,
+          providerPayloadStored: false,
+        },
+        threadId: "fixture-whatsapp-thread",
+        receivedAt: now,
+        createdAt: now,
       },
     ],
     readiness: {

@@ -11,14 +11,24 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createConnectedAppRouteSupabase({ agents = [], connections = [], enablements = [] } = {}) {
+function createConnectedAppRouteSupabase({
+  agents = [],
+  connections = [],
+  enablements = [],
+  inboundThreads = [],
+  inboundEvents = [],
+} = {}) {
   const state = {
     agents: agents.map(clone),
     connected_app_connections: connections.map(clone),
     agent_connected_app_enablements: enablements.map(clone),
+    connected_app_inbound_threads: inboundThreads.map(clone),
+    connected_app_inbound_events: inboundEvents.map(clone),
     insertCounts: {
       connected_app_connections: 0,
       agent_connected_app_enablements: 0,
+      connected_app_inbound_threads: 0,
+      connected_app_inbound_events: 0,
     },
   };
 
@@ -33,6 +43,14 @@ function createConnectedAppRouteSupabase({ agents = [], connections = [], enable
 
     if (table === "agent_connected_app_enablements") {
       return state.agent_connected_app_enablements;
+    }
+
+    if (table === "connected_app_inbound_threads") {
+      return state.connected_app_inbound_threads;
+    }
+
+    if (table === "connected_app_inbound_events") {
+      return state.connected_app_inbound_events;
     }
 
     throw new Error(`Unexpected table ${table}`);
@@ -106,7 +124,13 @@ function createConnectedAppRouteSupabase({ agents = [], connections = [], enable
       async single() {
         if (this.insertPayload) {
           state.insertCounts[table] += 1;
-          const prefix = table === "connected_app_connections" ? "connection" : "enablement";
+          const prefix = table === "connected_app_connections"
+            ? "connection"
+            : table === "agent_connected_app_enablements"
+              ? "enablement"
+              : table === "connected_app_inbound_threads"
+                ? "thread"
+                : "event";
           const now = new Date().toISOString();
           const row = {
             id: `${prefix}-${state.insertCounts[table]}`,
@@ -169,6 +193,78 @@ function enablement(overrides = {}) {
     metadata: {},
     created_at: "2026-06-02T10:00:00.000Z",
     updated_at: "2026-06-02T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function inboundThread(overrides = {}) {
+  return {
+    id: "thread-1",
+    owner_user_id: "owner-1",
+    connection_id: "connection-1",
+    agent_id: null,
+    provider: "whatsapp",
+    app_key: "whatsapp.business",
+    capability_key: "whatsapp.business.webhook",
+    external_thread_key_hash: "a".repeat(64),
+    external_thread_label: "WhatsApp conversation",
+    status: "open",
+    last_event_id: "event-1",
+    last_event_at: "2026-06-03T10:00:00.000Z",
+    last_event_type: "message",
+    last_message_type: "text",
+    unread_count: 1,
+    assigned_owner_user_id: null,
+    metadata: {
+      inboundReviewOnly: true,
+      noOutboundMessaging: true,
+      noAiReplies: true,
+      noAiHandoff: true,
+    },
+    created_at: "2026-06-03T10:00:00.000Z",
+    updated_at: "2026-06-03T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function inboundEvent(overrides = {}) {
+  return {
+    id: "event-1",
+    owner_user_id: "owner-1",
+    connection_id: "connection-1",
+    agent_id: null,
+    provider: "whatsapp",
+    app_key: "whatsapp.business",
+    capability_key: "whatsapp.business.webhook",
+    provider_event_id: null,
+    provider_event_type: "message",
+    provider_message_id: "wamid.safe",
+    provider_timestamp: "2026-06-03T10:00:00.000Z",
+    source_account_id: "123456789012345",
+    source_channel_id: "987654321098765",
+    event_direction: "inbound",
+    event_status: "received",
+    normalized: {
+      eventType: "message",
+      messageType: "text",
+      metadata: {
+        hasText: true,
+        textLength: 41,
+        contactPresent: true,
+      },
+    },
+    redaction_summary: {
+      messageBodyStored: false,
+      contactFieldsStored: false,
+      providerPayloadStored: false,
+    },
+    dedupe_key: "whatsapp:message:wamid.safe",
+    thread_id: "thread-1",
+    metadata: {
+      signatureStatus: "not_configured",
+    },
+    received_at: "2026-06-03T10:00:00.000Z",
+    created_at: "2026-06-03T10:00:00.000Z",
     ...overrides,
   };
 }
@@ -536,6 +632,122 @@ test("owner cannot see or update another owner's connected app connection", asyn
 
     assert.equal(updateResponse.status, 404);
     assert.equal(updateResponse.json.code, "connected_app_connection_not_found");
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app inbound inbox routes are authenticated owner scoped and read only", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    inboundThreads: [
+      inboundThread({ id: "thread-1", owner_user_id: "owner-1" }),
+      inboundThread({
+        id: "thread-2",
+        owner_user_id: "owner-2",
+        connection_id: "connection-2",
+        external_thread_key_hash: "b".repeat(64),
+      }),
+    ],
+    inboundEvents: [
+      inboundEvent({ id: "event-1", owner_user_id: "owner-1", thread_id: "thread-1" }),
+      inboundEvent({
+        id: "event-2",
+        owner_user_id: "owner-2",
+        connection_id: "connection-2",
+        thread_id: "thread-2",
+        provider_message_id: "wamid.other",
+        dedupe_key: "whatsapp:message:wamid.other",
+      }),
+    ],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase)));
+
+  try {
+    const unauthenticated = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads", {
+      auth: false,
+    });
+
+    assert.equal(unauthenticated.status, 401);
+
+    const threadsResponse = await requestJson(
+      server.baseUrl,
+      "/agents/connected-app-inbound-threads?provider=whatsapp&status=open"
+    );
+
+    assert.equal(threadsResponse.status, 200);
+    assert.equal(threadsResponse.json.ok, true);
+    assert.deepEqual(threadsResponse.json.threads.map((thread) => thread.id), ["thread-1"]);
+    assert.equal(threadsResponse.json.threads[0].externalThreadLabel, "WhatsApp conversation");
+    assert.equal(Object.hasOwn(threadsResponse.json.threads[0], "externalThreadKeyHash"), false);
+
+    const eventsResponse = await requestJson(
+      server.baseUrl,
+      "/agents/connected-app-inbound-events?provider=whatsapp&threadId=thread-1"
+    );
+
+    assert.equal(eventsResponse.status, 200);
+    assert.deepEqual(eventsResponse.json.events.map((event) => event.id), ["event-1"]);
+    assert.equal(JSON.stringify(eventsResponse.json).includes("Please book"), false);
+    assert.equal(JSON.stringify(eventsResponse.json).includes("Test Contact"), false);
+
+    const statusResponse = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/status", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+        status: "reviewing",
+      }),
+    });
+
+    assert.equal(statusResponse.status, 200);
+    assert.equal(statusResponse.json.thread.status, "reviewing");
+    assert.equal(statusResponse.json.thread.unreadCount, 0);
+
+    const otherOwnerUpdate = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/status", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-2",
+        status: "resolved",
+      }),
+    });
+
+    assert.equal(otherOwnerUpdate.status, 404);
+    assert.equal(otherOwnerUpdate.json.code, "connected_app_inbound_thread_not_found");
+  } finally {
+    await server.close();
+  }
+});
+
+test("connected app inbound inbox API rejects reply send and AI handoff payloads and has no reply route", async () => {
+  const supabase = createConnectedAppRouteSupabase({
+    inboundThreads: [inboundThread()],
+  });
+  const server = await startServer(createApp(buildRouteDeps(supabase)));
+
+  try {
+    for (const body of [
+      { thread_id: "thread-1", status: "reviewing", replyText: "hello" },
+      { thread_id: "thread-1", status: "reviewing", sendMessage: true },
+      { thread_id: "thread-1", status: "reviewing", aiDraft: true },
+      { thread_id: "thread-1", status: "reviewing", chatHandoff: true },
+    ]) {
+      const response = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/status", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      assert.equal(response.status, 400);
+      assert.equal(response.json.code, "connected_app_secret_or_execution_field_rejected");
+    }
+
+    const replyRoute = await requestJson(server.baseUrl, "/agents/connected-app-inbound-threads/reply", {
+      method: "POST",
+      body: JSON.stringify({
+        thread_id: "thread-1",
+        text: "hello",
+      }),
+    });
+
+    assert.equal(replyRoute.status, 404);
   } finally {
     await server.close();
   }

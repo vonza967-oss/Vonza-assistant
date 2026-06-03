@@ -152,7 +152,6 @@ function safeWhatsAppEvent(overrides = {}) {
       object: "whatsapp_business_account",
       entryId: "123456789012345",
       phoneNumberId: "987654321098765",
-      displayPhoneNumber: "+15551230000",
       eventType: "message",
       messageId: "wamid.test",
       messageType: "text",
@@ -203,6 +202,7 @@ test("create connected app inbound event stores redacted normalized summary", as
   assert.equal(event.redactionSummary.contactFieldsStored, false);
   assert.equal(event.redactionSummary.providerPayloadStored, false);
   assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("Please book"), false);
+  assert.equal(JSON.stringify(supabase.state.connected_app_inbound_events).includes("+15551230000"), false);
 });
 
 test("connected app inbound event rejects raw body contact profile and secret metadata", async () => {
@@ -263,7 +263,6 @@ test("connected app inbound event dedupes redacted summaries without message ids
     object: "whatsapp_business_account",
     entryId: "123456789012345",
     phoneNumberId: "987654321098765",
-    displayPhoneNumber: "+15551230000",
     eventType: "unknown",
     messageId: "",
     messageType: "",
@@ -292,7 +291,6 @@ test("connected app inbound event dedupes redacted summaries without message ids
       messageType: "",
       messageId: "",
       eventType: "unknown",
-      displayPhoneNumber: "+15551230000",
       phoneNumberId: "987654321098765",
       entryId: "123456789012345",
       object: "whatsapp_business_account",

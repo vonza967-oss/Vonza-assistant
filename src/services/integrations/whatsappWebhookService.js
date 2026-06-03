@@ -3,6 +3,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { CONNECTED_APP_CONNECTION_TABLE } from "../../config/constants.js";
 import { cleanText } from "../../utils/text.js";
 import { createConnectedAppInboundEvent } from "./connectedAppInboundEventService.js";
+import { resolveConnectedAppInboundThread } from "./connectedAppInboundThreadService.js";
 
 const WHATSAPP_PROVIDER = "whatsapp";
 const WHATSAPP_APP_KEY = "whatsapp.business";
@@ -33,7 +34,6 @@ const CONNECTION_SELECT = [
 const SAFE_EXISTING_METADATA_KEYS = new Set([
   "whatsappBusinessAccountId",
   "phoneNumberId",
-  "displayPhoneNumber",
   "businessDisplayName",
   "webhookVerifyStatus",
   "graphApiVersion",
@@ -504,7 +504,6 @@ function buildBaseWebhookEvent({ object, entry, value }) {
     object,
     entryId: normalizeSafeMetadataString(entry.id, 96),
     phoneNumberId: normalizeSafeMetadataString(metadata.phone_number_id, 96),
-    displayPhoneNumber: normalizeSafeMetadataString(metadata.display_phone_number, 48),
   };
 }
 
@@ -608,6 +607,41 @@ export function extractWhatsAppWebhookEvents(payload = {}) {
   }
 
   return events;
+}
+
+function extractWhatsAppWebhookThreadKeys(payload = {}) {
+  const body = parseWebhookBody(payload);
+  const entries = Array.isArray(body.entry) ? body.entry : [];
+  const threadKeys = [];
+
+  for (const rawEntry of entries.slice(0, 20)) {
+    const entry = normalizePlainObject(rawEntry);
+    const changes = Array.isArray(entry.changes) ? entry.changes : [];
+
+    for (const rawChange of changes.slice(0, 20)) {
+      const change = normalizePlainObject(rawChange);
+      const field = normalizeEventType(change.field);
+      const value = normalizePlainObject(change.value);
+      const messages = Array.isArray(value.messages) ? value.messages : [];
+      const statuses = Array.isArray(value.statuses) ? value.statuses : [];
+
+      for (const rawMessage of messages.slice(0, 20)) {
+        const message = normalizePlainObject(rawMessage);
+        threadKeys.push(normalizeSafeMetadataString(message.from, 160));
+      }
+
+      for (const rawStatus of statuses.slice(0, 20)) {
+        const status = normalizePlainObject(rawStatus);
+        threadKeys.push(normalizeSafeMetadataString(status.recipient_id, 160));
+      }
+
+      if (messages.length === 0 && statuses.length === 0 && field) {
+        threadKeys.push("");
+      }
+    }
+  }
+
+  return threadKeys;
 }
 
 export function normalizeWhatsAppWebhookPayload(payload = {}) {
@@ -721,6 +755,7 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
   }
 
   const summary = normalizeWhatsAppWebhookPayload(options.payload);
+  const threadKeys = extractWhatsAppWebhookThreadKeys(options.payload);
 
   if (summary.object !== WHATSAPP_WEBHOOK_OBJECT) {
     return {
@@ -765,8 +800,8 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
     updated_at: receivedAt,
   });
 
-  for (const event of summary.events) {
-    await createConnectedAppInboundEvent(supabase, {
+  for (const [index, event] of summary.events.entries()) {
+    const inboundEvent = await createConnectedAppInboundEvent(supabase, {
       ownerUserId: connection.owner_user_id,
       connectionId: connection.id,
       agentId: null,
@@ -787,6 +822,31 @@ export async function recordWhatsAppWebhookReceipt(supabase, options = {}) {
       },
       receivedAt,
     });
+
+    const externalThreadKey = threadKeys[index];
+
+    if (externalThreadKey) {
+      await resolveConnectedAppInboundThread(supabase, {
+        ownerUserId: connection.owner_user_id,
+        connectionId: connection.id,
+        agentId: null,
+        provider: WHATSAPP_PROVIDER,
+        appKey: WHATSAPP_APP_KEY,
+        capabilityKey: WHATSAPP_WEBHOOK_CAPABILITY,
+        externalThreadKey,
+        externalThreadLabel: "WhatsApp conversation",
+        event: inboundEvent,
+        duplicate: inboundEvent.duplicate === true,
+        metadata: {
+          source: "whatsapp_webhook_thread_resolver",
+          signatureStatus,
+          inboundReviewOnly: true,
+          noOutboundMessaging: true,
+          noAiReplies: true,
+          noAiHandoff: true,
+        },
+      });
+    }
   }
 
   return {

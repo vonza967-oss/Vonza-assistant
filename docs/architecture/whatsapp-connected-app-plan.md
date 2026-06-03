@@ -1,6 +1,6 @@
 # WhatsApp Connected App Plan
 
-## Phase 10-13 Scope
+## Phase 10-14 Scope
 
 Connected Apps Phase 10 adds WhatsApp Business as a capability foundation only. It is metadata, manual/status-only connection support, report-only readiness, dashboard copy, docs, and tests.
 
@@ -35,6 +35,17 @@ Connected Apps Phase 13 adds only the redacted inbound event storage foundation:
 
 Phase 13 persists redacted inbound events for audit and future routing preparation only. This is not a customer inbox, not chat handoff, not AI reply behavior, not outbound WhatsApp sending, not package activation enforcement, and not runtime chat behavior.
 
+Connected Apps Phase 14 adds the manual read-only inbound staff inbox foundation:
+
+- `public.connected_app_inbound_threads`,
+- `src/services/integrations/connectedAppInboundThreadService.js`,
+- authenticated owner routes for listing inbound threads, updating thread review status, and listing redacted inbound events,
+- dashboard Connected Apps inbox copy and controls for review status only.
+
+Phase 14 groups redacted WhatsApp inbound events by owner, connection, provider, app, capability, optional agent, and a hashed external conversation key. It stores the safe label `WhatsApp conversation`, not a customer phone number or profile name. It increments unread count only for inbound WhatsApp message events. Delivery/status events can update the thread's last event fields but do not increment unread count. Duplicate webhook retries reuse the existing event/thread state.
+
+Phase 14 is a manual read-only staff inbox foundation. It has no WhatsApp replies, no AI handoff, no outbound messaging, no WhatsApp Cloud API calls, no Twilio WhatsApp API calls, no Meta OAuth/Embedded Signup, no package activation enforcement, no runtime public chat behavior, and no widget/embed change.
+
 ## Official Meta Documentation Checked
 
 This plan is based on current official Meta WhatsApp Business Platform documentation for:
@@ -56,7 +67,6 @@ Safe WhatsApp metadata can be stored only as redacted setup/status context:
 
 - `whatsappBusinessAccountId`
 - `phoneNumberId`
-- `displayPhoneNumber`
 - `businessDisplayName`
 - `webhookVerifyStatus`
 - `graphApiVersion`
@@ -83,7 +93,7 @@ Phase 12 does not store raw app secrets. The generic schema still lacks a safe p
 
 Future WhatsApp work must separate inbound webhooks, session replies, and approved template messages.
 
-## Phase 11 Webhook Verification And Phase 12-13 POST Foundation
+## Phase 11 Webhook Verification And Phase 12-14 POST Foundation
 
 Meta webhook setup expects a publicly reachable TLS endpoint. Phase 11 supports only the foundation needed to verify setup safely:
 
@@ -94,13 +104,16 @@ Meta webhook setup expects a publicly reachable TLS endpoint. Phase 11 supports 
 - POST preserves raw JSON bytes before parsing so future signature enforcement can use Meta's exact HMAC input.
 - POST can validate `X-Hub-Signature-256: sha256=<hex>` with HMAC-SHA256 when a service-only app secret is supplied.
 - When no safe app-secret configuration exists, POST remains readiness-only and records signature status as `not_configured`, not verified.
-- POST normalizes inbound webhook changes into redacted message/status/unknown summaries only. Normalized summaries may include entry id, WhatsApp Business phone number id, display phone number, message id, message type, timestamp, status, and redacted indicators such as `hasText`, `textLength`, or `contactPresent`.
+- POST normalizes inbound webhook changes into redacted message/status/unknown summaries only. Normalized summaries may include entry id, WhatsApp Business phone number id, message id, message type, timestamp, status, and redacted indicators such as `hasText`, `textLength`, or `contactPresent`.
 - POST updates only safe readiness metadata such as `lastWebhookReceivedAt`, `lastWebhookObject`, `lastWebhookEventTypes`, `lastWebhookSignatureStatus`, and `lastWebhookMessageTypes`.
 - Phase 13 also writes those redacted summaries into `connected_app_inbound_events` with owner, connection, provider, app, optional capability, event type, message id, provider timestamp, source account/channel ids, redaction summary, and a dedupe key.
+- Phase 14 resolves those stored WhatsApp message/status events into `connected_app_inbound_threads` using a hash of the raw external conversation key. The raw key is used only transiently for hashing and is not persisted or returned.
 
 Phase 13 stores only redacted normalized event summaries. It still does not store full provider payloads, does not persist message body text, does not persist customer contact phone numbers or profile names, does not create chat messages, leads, action requests, booking requests, contacts, or outbound replies, and does not call WhatsApp or Twilio APIs.
 
-Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, routing, consent/session windows, idempotency/replay safety beyond stored-event dedupe, staff inbox handoff, and only later outbound messaging.
+Phase 14 stores only redacted thread grouping state. It still does not store full provider payloads, message body text, customer contact phone numbers, profile names, contacts/leads/action requests/booking requests/chat messages, outbound replies, provider payloads, or provider clients.
+
+Future WhatsApp webhook phases must separately handle service-only app-secret storage or signing-secret references, full signature enforcement, consent/session windows, manual staff replies, and only later AI-drafted replies or outbound messaging.
 
 ## Outbound Notes For Future Work
 
@@ -116,28 +129,34 @@ A future sender must be a separate scoped phase. It must require:
 - Safe logging and audit events before and after any provider call.
 - Probably staff approval for customer-impacting outbound messages.
 
-Phase 13 sends no WhatsApp messages.
+Phase 14 sends no WhatsApp messages. Manual staff replies are a future phase. AI-drafted replies are a later future phase after manual staff replies and review controls exist.
 
 ## Dashboard Copy
 
 The authenticated Connected Apps dashboard can show WhatsApp Business as a foundation status panel with:
 
 - `Manual/internal setup`
-- `No WhatsApp messages sent`
-- `Webhook verification/readiness only`
+- `Inbound review only`
+- `No WhatsApp replies sent`
+- `No AI handoff`
+- `No outbound messaging`
 - `No Meta OAuth/Embedded Signup yet`
 
-The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, WhatsApp sender controls, public chat controls, or package activation controls.
+The authenticated Connected Apps dashboard can also show a compact `Connected app inbox` for redacted threads and recent redacted events. It may show thread status, provider/app, last event time, last event type/message type, unread count, the safe label `WhatsApp conversation`, and status controls for `reviewing`, `resolved`, `ignored`, and `archived`.
+
+The dashboard must not add token inputs, app-secret inputs, verify-token inputs, webhook-secret inputs, OAuth/Embedded Signup buttons, WhatsApp reply controls, WhatsApp sender controls, AI draft controls, public chat controls, package activation controls, or phone number display.
 
 ## Non-Goals
 
 - No runtime chat behavior.
 - No widget/embed change.
-- No inbound message processing.
 - No outbound messages.
 - No full app-secret signature enforcement until service-only secret storage/config exists.
 - No chat handoff.
 - No AI replies.
+- No WhatsApp replies.
+- No AI-drafted replies.
+- No customer phone/profile/body persistence.
 - No Meta OAuth/Embedded Signup.
 - No WhatsApp Cloud API calls.
 - No Twilio WhatsApp API calls.
