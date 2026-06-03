@@ -778,6 +778,63 @@ function normalizeGoogleCapabilities(value = {}) {
   };
 }
 
+function normalizeGoogleAccountLifecycleStatus(account = {}) {
+  const explicitStatus = trimText(account.lifecycleStatus || account.lifecycle_status).toLowerCase();
+
+  if (["active", "needs_attention", "disabled", "revoked"].includes(explicitStatus)) {
+    return explicitStatus;
+  }
+
+  const rawStatus = trimText(account.status).toLowerCase().replace(/_/g, "-");
+  const capabilities = normalizeGoogleCapabilities(account.capabilities);
+
+  if (rawStatus === "revoked") {
+    return "revoked";
+  }
+
+  if (rawStatus === "disabled") {
+    return "disabled";
+  }
+
+  if ((rawStatus === "connected" || rawStatus === "active") && capabilities.calendarRead) {
+    return "active";
+  }
+
+  return "needs_attention";
+}
+
+function isGoogleAccountActive(account = {}) {
+  return normalizeGoogleAccountLifecycleStatus(account) === "active";
+}
+
+function getGoogleAccountStatusCopy(account = {}) {
+  const lifecycleStatus = normalizeGoogleAccountLifecycleStatus(account);
+
+  if (lifecycleStatus === "active") {
+    return "connected";
+  }
+
+  if (lifecycleStatus === "needs_attention") {
+    return "needs reconnect";
+  }
+
+  return "disconnected";
+}
+
+function getGoogleAccountReconnectCopy(account = {}) {
+  const lifecycleStatus = normalizeGoogleAccountLifecycleStatus(account);
+
+  if (lifecycleStatus === "active") {
+    return "Google Calendar is connected. You can reconnect if access changes, or disconnect it from this workspace.";
+  }
+
+  if (lifecycleStatus === "needs_attention") {
+    return "Google Calendar needs reconnect before Calendar sync can run again.";
+  }
+
+  return "Google Calendar is disconnected.";
+}
+
 function getGoogleWorkspaceCapabilities(operatorWorkspace = createEmptyOperatorWorkspace()) {
   const statusCapabilities = normalizeGoogleCapabilities(operatorWorkspace?.status?.googleCapabilities);
   const accounts = Array.isArray(operatorWorkspace?.connectedAccounts)
@@ -789,6 +846,10 @@ function getGoogleWorkspaceCapabilities(operatorWorkspace = createEmptyOperatorW
   }
 
   return accounts.reduce((summary, account) => {
+    if (!isGoogleAccountActive(account)) {
+      return summary;
+    }
+
     const capabilities = normalizeGoogleCapabilities(account?.capabilities);
     return {
       identity: summary.identity || capabilities.identity,
@@ -1020,6 +1081,10 @@ function normalizeOperatorWorkspaceAccount(account = {}) {
     scopes: Array.isArray(source.scopes) ? source.scopes.filter(Boolean) : [],
     scopeAudit: normalizeOperatorRecord(source.scopeAudit),
     capabilities: normalizeGoogleCapabilities(source.capabilities),
+    lifecycleStatus: normalizeGoogleAccountLifecycleStatus(source),
+    needsAttentionReason: trimText(source.needsAttentionReason || source.needs_attention_reason),
+    statusCopy: trimText(source.statusCopy || source.status_copy) || getGoogleAccountStatusCopy(source),
+    reconnectRequired: source.reconnectRequired === true || normalizeGoogleAccountLifecycleStatus(source) === "needs_attention",
   };
 }
 
@@ -13291,7 +13356,10 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
   }
 
   const accounts = operatorWorkspace.connectedAccounts || [];
-  const primaryAccount = accounts[0] || null;
+  const primaryAccount = accounts.find(isGoogleAccountActive) || accounts[0] || null;
+  const googleLifecycleStatus = primaryAccount ? normalizeGoogleAccountLifecycleStatus(primaryAccount) : "revoked";
+  const googleAccountActive = isGoogleAccountActive(primaryAccount || {});
+  const googleStatusCopy = primaryAccount ? getGoogleAccountStatusCopy(primaryAccount) : "disconnected";
   const calendar = operatorWorkspace.calendar || createEmptyOperatorWorkspace().calendar;
   const events = (calendar.events || []).slice(0, 8);
   const pendingApprovals = events.filter((event) => event.approvalStatus === "pending_owner");
@@ -13307,22 +13375,23 @@ function buildCalendarPanel(agent, operatorWorkspace = createEmptyOperatorWorksp
     <section class="workspace-page" data-shell-section="calendar" hidden>
       ${buildPageHeader({
         title: "Calendar",
-        actionsMarkup: primaryAccount?.status === "connected"
+        actionsMarkup: googleAccountActive
           ? `<button class="primary-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button>`
-          : `<button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button>`,
+          : `<button class="primary-button" type="button" data-google-connect data-google-connect-status="Preparing Google Calendar connection..." data-google-connect-error="We couldn't start the Google Calendar connection." ${status.googleConfigReady ? "" : "disabled"}>${googleLifecycleStatus === "needs_attention" ? "Reconnect Google Calendar" : "Connect Google Calendar"}</button>`,
       })}
       <div class="workspace-page-body">
         <section class="workspace-card-soft">
           <h3 class="studio-group-title">Daily summary</h3>
+          <p class="overview-label">Google Calendar status: ${escapeHtml(googleStatusCopy)}</p>
           <p class="workspace-panel-copy">${escapeHtml(calendar.dailySummary || "Connect Google Calendar to see today’s schedule.")}</p>
-          ${primaryAccount?.status === "connected"
+          ${googleAccountActive
             ? `<div class="inline-actions"><button class="ghost-button" type="button" data-refresh-operator data-force-sync="true">Run calendar sync</button><button class="ghost-button" type="button" data-complete-operator-step="calendar_review">Mark reviewed</button></div>`
-            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect ${status.googleConfigReady ? "" : "disabled"}>Connect Google</button></div>`}
+            : `<div class="inline-actions"><button class="primary-button" type="button" data-google-connect data-google-connect-status="Preparing Google Calendar connection..." data-google-connect-error="We couldn't start the Google Calendar connection." ${status.googleConfigReady ? "" : "disabled"}>${googleLifecycleStatus === "needs_attention" ? "Reconnect Google Calendar" : "Connect Google Calendar"}</button></div>`}
         </section>
-        ${primaryAccount?.status !== "connected" ? buildOperatorEmptyState({
-          title: "Connect Google",
+        ${!googleAccountActive ? buildOperatorEmptyState({
+          title: googleLifecycleStatus === "needs_attention" ? "Needs reconnect" : "Disconnected",
           copy: status.googleConfigReady
-            ? "Calendar events and slots will appear here after connection."
+            ? getGoogleAccountReconnectCopy(primaryAccount || {})
             : "Calendar is not available on this workspace yet.",
         }) : !activation.calendarSynced ? buildOperatorEmptyState({
           title: "Run your first calendar sync",
@@ -16627,6 +16696,7 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
   const draftContactCampaignButtons = document.querySelectorAll("[data-draft-contact-campaign]");
   const draftContactCalendarButtons = document.querySelectorAll("[data-draft-contact-calendar]");
   const googleConnectButtons = document.querySelectorAll("[data-google-connect]");
+  const googleDisconnectButtons = document.querySelectorAll("[data-google-disconnect]");
   const refreshOperatorButtons = document.querySelectorAll("[data-refresh-operator]");
   const inboxThreadForms = document.querySelectorAll("[data-inbox-thread-form]");
   const draftInboxReplyButtons = document.querySelectorAll("[data-draft-inbox-reply]");
@@ -17878,6 +17948,34 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
     }
   };
 
+  const disconnectGoogleWorkspace = async (event) => {
+    const button = event?.currentTarget || event?.target || null;
+    const accountId = trimText(button?.dataset.googleConnectedAccountId);
+
+    button.disabled = true;
+    setStatus("Disconnecting Google Calendar...");
+
+    try {
+      await fetchJson("/agents/google/disconnect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          client_id: getClientId(),
+          agent_id: agent.id,
+          ...(accountId ? { connected_account_id: accountId } : {}),
+        }),
+      });
+
+      await refreshDashboardInBackground({ agentId: agent.id, activeAction: "google-disconnect" });
+      setStatus("Google Calendar disconnected.");
+    } catch (error) {
+      button.disabled = false;
+      setStatus(error.message || "We couldn't disconnect Google Calendar.");
+    }
+  };
+
   const saveOperatorActivationState = async (payload = {}, options = {}) => {
     const nextStatusMessage = options.statusMessage || "Saving workspace progress...";
     setStatus(nextStatusMessage);
@@ -19082,6 +19180,10 @@ function bindSharedDashboardEvents(agent, messages, setup, actionQueue, operator
 
   googleConnectButtons.forEach((button) => {
     button.addEventListener("click", connectGoogleWorkspace);
+  });
+
+  googleDisconnectButtons.forEach((button) => {
+    button.addEventListener("click", disconnectGoogleWorkspace);
   });
 
   refreshOperatorButtons.forEach((button) => {

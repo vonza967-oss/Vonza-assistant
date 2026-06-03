@@ -97,6 +97,18 @@ function buildRouteDeps(overrides = {}) {
     completeGoogleConnection: async () => ({
       redirectUrl: "/dashboard?google=connected",
     }),
+    disconnectGoogleConnection: async () => ({
+      ok: true,
+      status: "revoked",
+      account: {
+        id: "google-account-1",
+        accountEmail: "owner@example.com",
+        lifecycleStatus: "revoked",
+        statusCopy: "Disconnected",
+        reconnectRequired: true,
+      },
+      providerRevoke: "not_attempted_local_disconnect_only",
+    }),
     getOperatorWorkspaceSnapshot: async () => ({
       enabled: true,
       featureEnabled: true,
@@ -263,6 +275,120 @@ test("google connect start route returns an auth URL for the owner workspace", a
 
     assert.equal(response.status, 200);
     assert.match(response.json.authUrl, /accounts\.google\.com/);
+  } finally {
+    await server.close();
+  }
+});
+
+test("google disconnect route requires authenticated owner access", async () => {
+  let disconnectCalled = false;
+  const authError = new Error("Authentication required");
+  authError.statusCode = 401;
+  const server = await startServer(createApp(buildRouteDeps({
+    getAuthenticatedUser: async () => {
+      throw authError;
+    },
+    disconnectGoogleConnection: async () => {
+      disconnectCalled = true;
+      return { ok: true };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/google/disconnect", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+      }),
+    });
+
+    assert.equal(response.status, 401);
+    assert.equal(disconnectCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("google disconnect route is owner scoped and returns no token material", async () => {
+  let accessPayload = null;
+  let disconnectPayload = null;
+  const server = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async (_supabase, payload) => {
+      accessPayload = payload;
+      return {
+        id: payload.agentId,
+        businessId: "business-1",
+      };
+    },
+    disconnectGoogleConnection: async (_supabase, payload) => {
+      disconnectPayload = payload;
+      return {
+        ok: true,
+        status: "revoked",
+        account: {
+          id: "google-account-1",
+          provider: "google",
+          accountEmail: "owner@example.com",
+          lifecycleStatus: "revoked",
+          statusCopy: "Disconnected",
+          reconnectRequired: true,
+        },
+        connectedApp: {
+          id: "connection-1",
+          status: "revoked",
+        },
+        disabledEnablements: 1,
+        providerRevoke: "not_attempted_local_disconnect_only",
+      };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/google/disconnect", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-1",
+        connected_account_id: "google-account-1",
+      }),
+    });
+    const serialized = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(accessPayload.ownerUserId, "owner-1");
+    assert.equal(disconnectPayload.ownerUserId, "owner-1");
+    assert.equal(disconnectPayload.agentId, "agent-1");
+    assert.equal(disconnectPayload.connectedAccountId, "google-account-1");
+    assert.equal(response.json.connectedApp.status, "revoked");
+    assert.doesNotMatch(serialized, /access_token|refresh_token|oauth-code|client_secret|encrypted-token/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("google disconnect route does not call service when owner cannot access agent", async () => {
+  let disconnectCalled = false;
+  const accessError = new Error("Agent not found");
+  accessError.statusCode = 404;
+  const server = await startServer(createApp(buildRouteDeps({
+    requireActiveAgentAccess: async () => {
+      throw accessError;
+    },
+    disconnectGoogleConnection: async () => {
+      disconnectCalled = true;
+      return { ok: true };
+    },
+  })));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/agents/google/disconnect", {
+      method: "POST",
+      body: JSON.stringify({
+        agent_id: "agent-2",
+      }),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal(disconnectCalled, false);
   } finally {
     await server.close();
   }

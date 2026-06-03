@@ -58,9 +58,14 @@ test("dashboard connected apps surface reuses existing Google connect flow", () 
   const settingsShell = readSource("frontend/settings/SettingsShell.js");
 
   assert.match(settingsShell, /data-google-connect/);
+  assert.match(settingsShell, /data-google-disconnect/);
   assert.match(settingsShell, /Connect Google Calendar|Reconnect Google Calendar/);
+  assert.match(settingsShell, /Disconnect Google Calendar/);
+  assert.match(settingsShell, /needs reconnect/);
+  assert.match(settingsShell, /disconnected/);
   assert.match(settingsShell, /Uses existing Google connection flow/);
   assert.match(dashboard, /fetchJson\("\/agents\/google\/connect\/start"/);
+  assert.match(dashboard, /fetchJson\("\/agents\/google\/disconnect"/);
 });
 
 test("dashboard settings state routes connected apps hashes to the settings section", () => {

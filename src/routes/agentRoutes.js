@@ -138,6 +138,7 @@ import {
   createOperatorTask,
   createCampaignDraft,
   createGoogleConnectionStart,
+  disconnectGoogleConnection,
   draftCalendarAction,
   draftInboxReply,
   getOperatorWorkspaceSnapshot,
@@ -692,6 +693,8 @@ export function createAgentRouter(deps = {}) {
     deps.createGoogleConnectionStart || createGoogleConnectionStart;
   const completeGoogleConnectionImpl =
     deps.completeGoogleConnection || completeGoogleConnection;
+  const disconnectGoogleConnectionImpl =
+    deps.disconnectGoogleConnection || disconnectGoogleConnection;
   const draftInboxReplyImpl =
     deps.draftInboxReply || draftInboxReply;
   const sendInboxReplyImpl =
@@ -1289,6 +1292,38 @@ export function createAgentRouter(deps = {}) {
     }
   });
 
+  router.post("/agents/google/disconnect", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const agentId = req.body.agent_id || req.body.agentId;
+
+      const agent = await requireActiveAgentAccessImpl(supabase, {
+        agentId,
+        ownerUserId: user.id,
+        clientId: req.body.client_id || req.body.clientId,
+      });
+
+      const result = await disconnectGoogleConnectionImpl(supabase, {
+        agent: {
+          id: agent.id || agentId,
+          businessId: agent.businessId || agent.business_id || req.body.business_id || req.body.businessId,
+        },
+        agentId,
+        ownerUserId: user.id,
+        connectedAccountId: req.body.connected_account_id || req.body.connectedAccountId,
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error(err);
+      res.status(err.statusCode || 500).json({
+        error: err.message || "Something went wrong",
+        code: err.code || undefined,
+      });
+    }
+  });
+
   router.get("/google/oauth/callback", async (req, res) => {
     try {
       const result = await completeGoogleConnectionImpl(getSupabase(), {
@@ -1299,8 +1334,11 @@ export function createAgentRouter(deps = {}) {
 
       res.redirect(302, result.redirectUrl);
     } catch (err) {
-      console.error(err);
-      const message = encodeURIComponent(err.message || "google_connect_failed");
+      console.warn("[google oauth] callback failed", {
+        statusCode: err?.statusCode || 500,
+        code: err?.code || "google_oauth_callback_failed",
+      });
+      const message = encodeURIComponent("Google authorization could not be completed. Reconnect Google Calendar from Connected Apps.");
       res.redirect(302, `/dashboard?google=error&reason=${message}`);
     }
   });

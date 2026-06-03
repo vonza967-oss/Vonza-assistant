@@ -879,6 +879,60 @@ test("dashboard theme and background preferences persist and render Settings con
   assert.match(dashboardHtml, /dataset\.dashboardDensity/);
 });
 
+test("settings connected apps panel renders Google reconnect and disconnect lifecycle copy", () => {
+  const harness = createDashboardHarness();
+  harness.window.localStorage.setItem("vonza_dashboard_settings_section", "connected_apps");
+
+  const settingsPanel = harness.window.VonzaSettingsShell.buildSettingsPanel({
+    agent: {
+      id: "agent-1",
+      name: "Vonza",
+    },
+    setup: {},
+    connectedApps: {
+      capabilities: [
+        {
+          key: "google.calendar.read",
+          provider: "google",
+          appKey: "google.calendar",
+          label: "Google Calendar read",
+          publicChatCallable: false,
+        },
+      ],
+      connections: [
+        {
+          id: "connection-1",
+          provider: "google",
+          appKey: "google.calendar",
+          status: "needs_attention",
+          providerAccountLabel: "Owner Example <owner@example.com>",
+          capabilityKeys: ["google.calendar.read"],
+          scopesGranted: ["https://www.googleapis.com/auth/calendar.readonly"],
+          webhookStatus: "not_required",
+          metadata: {
+            googleConnectedAccountId: "google-account-1",
+          },
+        },
+      ],
+      enablements: [],
+      readiness: {
+        status: "blocked",
+        requirements: [],
+        summary: {},
+      },
+    },
+  });
+
+  assert.match(settingsPanel, /Google Calendar adapter/);
+  assert.match(settingsPanel, /needs reconnect/);
+  assert.match(settingsPanel, /Reconnect Google Calendar/);
+  assert.match(settingsPanel, /Disconnect Google Calendar/);
+  assert.match(settingsPanel, /data-google-disconnect/);
+  assert.match(settingsPanel, /google-account-1/);
+  assert.match(settingsPanel, /No chat execution/);
+  assert.doesNotMatch(settingsPanel, /public chat calendar execution/i);
+});
+
 test("dashboard appearance preferences reject invalid stored values safely", () => {
   const harness = createDashboardHarness({
     windowFlags: {

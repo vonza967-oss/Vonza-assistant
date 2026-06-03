@@ -147,8 +147,16 @@ function getNeedsAttentionReason({ status, capabilityKeys }) {
     return "calendar_scope_missing";
   }
 
-  if (status === "expired") {
+  if (status === "expired" || status === "stale") {
     return "google_connection_expired";
+  }
+
+  if (status === "refresh_failed" || status === "refresh-failed") {
+    return "google_token_refresh_failed";
+  }
+
+  if (status === "permission_missing" || status === "permission-missing") {
+    return "google_calendar_permission_missing";
   }
 
   if (status === "error" || status === "failed") {
@@ -173,7 +181,7 @@ function mapGoogleStatusToConnectedAppStatus(accountStatus, capabilityKeys = [])
     return "revoked";
   }
 
-  if (status === "connected" && capabilityKeys.length > 0) {
+  if ((status === "connected" || status === "active") && capabilityKeys.length > 0) {
     return "active";
   }
 

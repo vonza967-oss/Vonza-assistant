@@ -189,6 +189,39 @@ test("Google Calendar adapter maps existing attention states without raw provide
   assert.doesNotMatch(serialized, /accessTokenEncrypted|refreshTokenEncrypted|oauthCode/i);
 });
 
+test("Google Calendar adapter normalizes refresh and permission failures to needs attention", () => {
+  const stalePayload = buildGoogleCalendarConnectedAppConnectionPayload(googleAccount({
+    status: "stale",
+  }));
+  const refreshPayload = buildGoogleCalendarConnectedAppConnectionPayload(googleAccount({
+    status: "refresh_failed",
+  }));
+  const permissionPayload = buildGoogleCalendarConnectedAppConnectionPayload(googleAccount({
+    status: "permission_missing",
+  }));
+
+  assert.equal(stalePayload.status, "needs_attention");
+  assert.equal(stalePayload.needs_attention_reason, "google_connection_expired");
+  assert.equal(refreshPayload.status, "needs_attention");
+  assert.equal(refreshPayload.needs_attention_reason, "google_token_refresh_failed");
+  assert.equal(permissionPayload.status, "needs_attention");
+  assert.equal(permissionPayload.needs_attention_reason, "google_calendar_permission_missing");
+});
+
+test("Google Calendar adapter preserves disabled and revoked statuses", () => {
+  const disabledPayload = buildGoogleCalendarConnectedAppConnectionPayload(googleAccount({
+    status: "disabled",
+  }));
+  const revokedPayload = buildGoogleCalendarConnectedAppConnectionPayload(googleAccount({
+    status: "revoked",
+  }));
+
+  assert.equal(disabledPayload.status, "disabled");
+  assert.equal(disabledPayload.needs_attention_reason, null);
+  assert.equal(revokedPayload.status, "revoked");
+  assert.equal(revokedPayload.needs_attention_reason, null);
+});
+
 test("Google Calendar adapter creates and updates the generic connection row", async () => {
   const supabase = createAdapterSupabase();
   const created = await mirrorGoogleCalendarConnectedAppConnection(supabase, googleAccount(), {

@@ -25,6 +25,7 @@ import {
   OPERATOR_CAMPAIGN_RECIPIENT_TABLE,
   OPERATOR_CAMPAIGN_STEP_TABLE,
   OPERATOR_CAMPAIGN_TABLE,
+  AGENT_CONNECTED_APP_ENABLEMENT_TABLE,
   OPERATOR_CONTACT_TABLE,
   OPERATOR_INBOX_MESSAGE_TABLE,
   OPERATOR_INBOX_THREAD_TABLE,
@@ -143,6 +144,30 @@ const APPOINTMENT_REVIEW_RESOLUTIONS = new Set([
   "link_contact",
   "record_outcome",
   "no_action_needed",
+]);
+const GOOGLE_RECONNECT_ATTENTION_STATUSES = new Set([
+  "error",
+  "expired",
+  "failed",
+  "permission-missing",
+  "permission_missing",
+  "refresh-failed",
+  "refresh_failed",
+  "stale",
+]);
+const GOOGLE_OAUTH_SAFE_ERROR_REASONS = new Set([
+  "access_denied",
+  "admin_policy_enforced",
+  "consent_required",
+  "disallowed_useragent",
+  "invalid_request",
+  "invalid_scope",
+  "org_internal",
+  "redirect_uri_mismatch",
+  "server_error",
+  "temporarily_unavailable",
+  "unauthorized_client",
+  "unsupported_response_type",
 ]);
 const CALENDAR_SLOT_MINUTES = 60;
 const SLOT_SEARCH_DAYS = 5;
@@ -599,6 +624,112 @@ function normalizeEmail(value) {
   return match ? cleanText(match[0]).toLowerCase() : "";
 }
 
+function normalizeGoogleAccountStatus(value) {
+  return cleanText(value).toLowerCase().replace(/_/g, "-");
+}
+
+function getGoogleAccountLifecycleStatus(account = {}) {
+  const status = normalizeGoogleAccountStatus(account.status || "pending");
+  const capabilities = getAccountCapabilities(account);
+
+  if (status === "revoked") {
+    return "revoked";
+  }
+
+  if (status === "disabled") {
+    return "disabled";
+  }
+
+  if ((status === "connected" || status === "active") && capabilities.calendarRead) {
+    return "active";
+  }
+
+  return "needs_attention";
+}
+
+function getGoogleAccountNeedsAttentionReason(account = {}) {
+  const status = normalizeGoogleAccountStatus(account.status || "pending");
+  const capabilities = getAccountCapabilities(account);
+
+  if (getGoogleAccountLifecycleStatus(account) !== "needs_attention") {
+    return "";
+  }
+
+  if (capabilities.calendarRead === false) {
+    return "calendar_scope_missing";
+  }
+
+  if (status === "expired" || status === "stale") {
+    return "google_connection_expired";
+  }
+
+  if (status === "refresh-failed") {
+    return "google_token_refresh_failed";
+  }
+
+  if (status === "permission-missing") {
+    return "google_calendar_permission_missing";
+  }
+
+  if (GOOGLE_RECONNECT_ATTENTION_STATUSES.has(status)) {
+    return "google_connection_error";
+  }
+
+  if (status === "pending") {
+    return "google_connection_pending";
+  }
+
+  return cleanText(account.lastError) ? "google_connection_error" : "";
+}
+
+function getGoogleAccountStatusCopy(account = {}) {
+  const lifecycleStatus = getGoogleAccountLifecycleStatus(account);
+
+  if (lifecycleStatus === "active") {
+    return "Connected";
+  }
+
+  if (lifecycleStatus === "needs_attention") {
+    return "Needs reconnect";
+  }
+
+  return "Disconnected";
+}
+
+function sanitizeGoogleOAuthFailureReason(value, fallback = "google_oauth_failed") {
+  const normalized = cleanText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  if (
+    /(?:access|refresh|id)_?token|authorization_?code|oauth_?code|client_?secret|secret|bearer|code=|token=/i.test(normalized)
+  ) {
+    return fallback;
+  }
+
+  return GOOGLE_OAUTH_SAFE_ERROR_REASONS.has(normalized) ? normalized : fallback;
+}
+
+function buildSafeGoogleOAuthGuidance(reason = "google_oauth_failed") {
+  const safeReason = sanitizeGoogleOAuthFailureReason(reason);
+
+  if (safeReason === "access_denied") {
+    return "Google authorization was not completed. Reconnect Google Calendar when you are ready.";
+  }
+
+  if (safeReason === "invalid_scope") {
+    return "Google did not grant the required Calendar access. Reconnect Google Calendar without changing scopes.";
+  }
+
+  return "Google authorization could not be completed. Reconnect Google Calendar from Connected Apps.";
+}
+
 function normalizePhoneDigits(value) {
   const digits = String(value || "").replace(/\D/g, "");
   return digits.length >= 7 ? digits : "";
@@ -1001,8 +1132,7 @@ function mapConnectedAccountRow(row) {
 
   const scopes = normalizeArray(row.scopes);
   const capabilities = buildGoogleScopeCapabilities(scopes);
-
-  return {
+  const account = {
     id: cleanText(row.id),
     agentId: cleanText(row.agent_id),
     businessId: cleanText(row.business_id),
@@ -1025,6 +1155,14 @@ function mapConnectedAccountRow(row) {
     metadata: row.metadata && typeof row.metadata === "object" ? row.metadata : {},
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
+  };
+
+  return {
+    ...account,
+    lifecycleStatus: getGoogleAccountLifecycleStatus(account),
+    needsAttentionReason: getGoogleAccountNeedsAttentionReason(account),
+    statusCopy: getGoogleAccountStatusCopy(account),
+    reconnectRequired: getGoogleAccountLifecycleStatus(account) === "needs_attention",
   };
 }
 
@@ -1595,7 +1733,22 @@ export async function listConnectedAccounts(supabase, options = {}) {
 
 async function getPrimaryConnectedAccount(supabase, { agentId, ownerUserId }) {
   const accounts = await listConnectedAccountsInternal(supabase, { agentId, ownerUserId });
+  return getPrimaryConnectedAccountFromList(accounts);
+}
+
+function getPrimaryConnectedAccountFromList(accounts = []) {
   return accounts.find((account) => account.status === "connected") || accounts[0] || null;
+}
+
+function findReconnectTargetAccount(accounts = [], userInfo = {}) {
+  const providerAccountId = cleanText(userInfo.sub);
+  const accountEmail = normalizeEmail(userInfo.email);
+
+  return (accounts || []).find((account) =>
+    providerAccountId && cleanText(account.providerAccountId) === providerAccountId
+  ) || (accounts || []).find((account) =>
+    accountEmail && normalizeEmail(account.accountEmail) === accountEmail
+  ) || getPrimaryConnectedAccountFromList(accounts);
 }
 
 async function getOAuthStateRecord(supabase, stateToken) {
@@ -1611,6 +1764,50 @@ async function getOAuthStateRecord(supabase, stateToken) {
   }
 
   return data || null;
+}
+
+async function markGoogleOAuthStateFailed(supabase, stateRecord, options = {}) {
+  if (!stateRecord?.id) {
+    return null;
+  }
+
+  const safeReason = sanitizeGoogleOAuthFailureReason(options.reason);
+  const metadata = stateRecord.metadata && typeof stateRecord.metadata === "object"
+    ? stateRecord.metadata
+    : {};
+
+  const { error } = await supabase
+    .from(GOOGLE_OAUTH_STATE_TABLE)
+    .update({
+      status: "failed",
+      updated_at: new Date().toISOString(),
+      metadata: {
+        ...metadata,
+        oauthFailureReason: safeReason,
+        oauthFailureAt: new Date().toISOString(),
+        reconnectGuidance: "reconnect_google_calendar",
+      },
+    })
+    .eq("id", stateRecord.id);
+
+  if (error) {
+    throw error;
+  }
+
+  await writeAuditLog(supabase, {
+    agentId: cleanText(stateRecord.agent_id),
+    businessId: cleanText(stateRecord.business_id),
+    ownerUserId: cleanText(stateRecord.owner_user_id),
+    actorType: "google_callback",
+    actionType: cleanText(options.auditAction) || "google_oauth_failed",
+    targetType: "google_oauth_state",
+    targetId: cleanText(stateRecord.id),
+    details: {
+      reason: safeReason,
+    },
+  });
+
+  return safeReason;
 }
 
 async function markConnectedAccountConnectionIssue(supabase, account, options = {}) {
@@ -1690,16 +1887,10 @@ async function ensureFreshGoogleAccessToken(supabase, account, deps = {}) {
 
   try {
     refreshed = await googleApi.refreshAccessToken({ refreshToken });
-  } catch (error) {
-    const refreshMessage = cleanText(
-      error?.response?.data?.error_description
-      || error?.response?.data?.error
-      || error?.message
-    ) || "Google access token refresh failed.";
-
+  } catch {
     await markConnectedAccountConnectionIssue(supabase, account, {
-      status: "expired",
-      lastError: refreshMessage,
+      status: "refresh_failed",
+      lastError: "Google token refresh failed. Reconnect Google Calendar.",
       auditAction: "google_token_refresh_failed",
     });
 
@@ -1847,20 +2038,13 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
   const redirectPath = cleanText(stateRecord.redirect_path || "/dashboard");
 
   if (oauthError) {
-    await supabase
-      .from(GOOGLE_OAUTH_STATE_TABLE)
-      .update({
-        status: "failed",
-        updated_at: new Date().toISOString(),
-        metadata: {
-          ...(stateRecord.metadata && typeof stateRecord.metadata === "object" ? stateRecord.metadata : {}),
-          oauthError,
-        },
-      })
-      .eq("id", stateRecord.id);
+    const safeReason = await markGoogleOAuthStateFailed(supabase, stateRecord, {
+      reason: oauthError,
+      auditAction: "google_oauth_provider_error",
+    });
 
     return {
-      redirectUrl: `${redirectPath}${redirectPath.includes("?") ? "&" : "?"}google=error&reason=${encodeURIComponent(oauthError)}`,
+      redirectUrl: `${redirectPath}${redirectPath.includes("?") ? "&" : "?"}google=error&reason=${encodeURIComponent(buildSafeGoogleOAuthGuidance(safeReason))}`,
     };
   }
 
@@ -1876,19 +2060,35 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
     throw error;
   }
 
-  const tokenResponse = await googleApi.exchangeCode({
-    code,
-    redirectUri,
-  });
-  const userInfo = await googleApi.getUserInfo({
-    accessToken: cleanText(tokenResponse.access_token),
-  });
+  let tokenResponse;
+  let userInfo;
+
+  try {
+    tokenResponse = await googleApi.exchangeCode({
+      code,
+      redirectUri,
+    });
+    userInfo = await googleApi.getUserInfo({
+      accessToken: cleanText(tokenResponse.access_token),
+    });
+  } catch (_providerError) {
+    await markGoogleOAuthStateFailed(supabase, stateRecord, {
+      reason: "google_oauth_exchange_failed",
+      auditAction: "google_oauth_exchange_failed",
+    });
+    const error = new Error(buildSafeGoogleOAuthGuidance("google_oauth_exchange_failed"));
+    error.statusCode = 502;
+    error.code = "google_oauth_exchange_failed";
+    throw error;
+  }
+
   const encryptionSecret = getGoogleTokenEncryptionSecret();
   const scopes = uniqueText(cleanText(tokenResponse.scope).split(" "));
-  const existing = await getPrimaryConnectedAccount(supabase, {
+  const existingAccounts = await listConnectedAccountsInternal(supabase, {
     agentId: cleanText(stateRecord.agent_id),
     ownerUserId: cleanText(stateRecord.owner_user_id),
   });
+  const existing = findReconnectTargetAccount(existingAccounts, userInfo);
   const refreshTokenValue = cleanText(tokenResponse.refresh_token)
     || (existing?.refreshTokenEncrypted
       ? decryptSecret(existing.refreshTokenEncrypted, encryptionSecret)
@@ -2029,6 +2229,188 @@ export async function completeGoogleConnection(supabase, options = {}, deps = {}
   return {
     connectedAccount,
     redirectUrl: `${redirectPath}${redirectPath.includes("?") ? "&" : "?"}google=connected`,
+  };
+}
+
+async function disableGoogleCalendarConnectedAppEnablements(supabase, { ownerUserId, connectionId }) {
+  if (!cleanText(ownerUserId) || !cleanText(connectionId)) {
+    return {
+      skipped: true,
+      updated: 0,
+    };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(AGENT_CONNECTED_APP_ENABLEMENT_TABLE)
+      .update({
+        enabled: false,
+        approval_mode: "disabled",
+        metadata: {
+          disabledReason: "google_calendar_disconnected",
+          disconnectedAt: new Date().toISOString(),
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq("owner_user_id", ownerUserId)
+      .eq("connection_id", connectionId)
+      .select("id");
+
+    if (error) {
+      if (isMissingRelationError(error, AGENT_CONNECTED_APP_ENABLEMENT_TABLE)) {
+        return {
+          skipped: true,
+          updated: 0,
+        };
+      }
+
+      throw error;
+    }
+
+    return {
+      skipped: false,
+      updated: Array.isArray(data) ? data.length : 0,
+    };
+  } catch (error) {
+    if (isMissingRelationError(error, AGENT_CONNECTED_APP_ENABLEMENT_TABLE)) {
+      return {
+        skipped: true,
+        updated: 0,
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function disconnectGoogleConnection(supabase, options = {}) {
+  await assertOperatorWorkspaceMutationReady(supabase);
+  const agent = options.agent || {};
+  const agentId = cleanText(options.agentId || agent.id);
+  const ownerUserId = cleanText(options.ownerUserId);
+  const connectedAccountId = cleanText(options.connectedAccountId || options.connected_account_id);
+
+  if (!agentId || !ownerUserId) {
+    const error = new Error("agent and owner_user_id are required");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const accounts = await listConnectedAccountsInternal(supabase, {
+    agentId,
+    ownerUserId,
+  });
+  const account = connectedAccountId
+    ? accounts.find((candidate) => candidate.id === connectedAccountId)
+    : getPrimaryConnectedAccountFromList(accounts);
+
+  if (!account) {
+    const error = new Error("Google connection not found.");
+    error.statusCode = 404;
+    error.code = "google_connection_not_found";
+    throw error;
+  }
+
+  const now = new Date().toISOString();
+  const accountMetadata = account.metadata && typeof account.metadata === "object"
+    ? account.metadata
+    : {};
+  const { data, error } = await supabase
+    .from(CONNECTED_ACCOUNT_TABLE)
+    .update({
+      status: "revoked",
+      access_token_encrypted: null,
+      refresh_token_encrypted: null,
+      token_expires_at: null,
+      last_refreshed_at: null,
+      last_error: "Disconnected by owner. Reconnect Google Calendar to sync again.",
+      metadata: {
+        ...accountMetadata,
+        disconnectedAt: now,
+        disconnectReason: "owner_disconnect",
+        providerRevoke: "not_attempted_local_disconnect_only",
+      },
+      updated_at: now,
+    })
+    .eq("id", account.id)
+    .eq("agent_id", agentId)
+    .eq("owner_user_id", ownerUserId)
+    .select(CONNECTED_ACCOUNT_SELECT)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    const notFound = new Error("Google connection not found.");
+    notFound.statusCode = 404;
+    notFound.code = "google_connection_not_found";
+    throw notFound;
+  }
+
+  const disconnectedAccount = mapConnectedAccountRow(data);
+  const mirrorResult = await mirrorGoogleCalendarConnectionSafely(supabase, disconnectedAccount);
+  const connectionId = cleanText(mirrorResult?.connection?.id);
+  const enablementResult = await disableGoogleCalendarConnectedAppEnablements(supabase, {
+    ownerUserId,
+    connectionId,
+  });
+
+  await patchOperatorActivationState(supabase, {
+    agent: {
+      id: agentId,
+      businessId: cleanText(agent.businessId || disconnectedAccount.businessId),
+    },
+    ownerUserId,
+    changes: {
+      googleConnected: false,
+      inboxSynced: false,
+      calendarSynced: false,
+      metadata: {
+        googleDisconnectedAt: now,
+        googleDisconnectMode: "local_only",
+      },
+    },
+  }).catch((activationError) => {
+    console.warn("[operator] Google disconnect activation sync skipped:", {
+      message: cleanText(activationError?.message) || "Activation update failed.",
+    });
+  });
+
+  await writeAuditLog(supabase, {
+    agentId,
+    businessId: disconnectedAccount.businessId,
+    ownerUserId,
+    connectedAccountId: disconnectedAccount.id,
+    actorType: "owner",
+    actorId: ownerUserId,
+    actionType: "google_connection_disconnected",
+    targetType: "connected_account",
+    targetId: disconnectedAccount.id,
+    details: {
+      accountEmail: disconnectedAccount.accountEmail,
+      status: disconnectedAccount.status,
+      connectedAppStatus: mirrorResult?.connection?.status || "revoked",
+      providerRevoke: "not_attempted_local_disconnect_only",
+      disabledEnablements: enablementResult.updated,
+    },
+  });
+
+  return {
+    ok: true,
+    status: "revoked",
+    account: {
+      id: disconnectedAccount.id,
+      provider: disconnectedAccount.provider,
+      accountEmail: disconnectedAccount.accountEmail,
+      lifecycleStatus: getGoogleAccountLifecycleStatus(disconnectedAccount),
+      statusCopy: getGoogleAccountStatusCopy(disconnectedAccount),
+      reconnectRequired: true,
+    },
+    connectedApp: mirrorResult?.connection || null,
+    disabledEnablements: enablementResult.updated,
+    providerRevoke: "not_attempted_local_disconnect_only",
   };
 }
 
@@ -2894,6 +3276,10 @@ function detectCalendarConflicts(events = []) {
 
 function summarizeGoogleCapabilities(accounts = []) {
   return (accounts || []).reduce((summary, account) => {
+    if (getGoogleAccountLifecycleStatus(account) !== "active") {
+      return summary;
+    }
+
     const capabilities = getAccountCapabilities(account);
     return {
       identity: summary.identity || capabilities.identity,
@@ -4746,6 +5132,10 @@ export async function getOperatorWorkspaceSnapshot(supabase, options = {}, deps 
       id: account.id,
       provider: account.provider,
       status: account.status,
+      lifecycleStatus: account.lifecycleStatus,
+      needsAttentionReason: account.needsAttentionReason,
+      statusCopy: account.statusCopy,
+      reconnectRequired: account.reconnectRequired,
       accountEmail: account.accountEmail,
       displayName: account.displayName,
       selectedMailbox: account.selectedMailbox,

@@ -19,6 +19,7 @@ import {
 import {
   completeGoogleConnection,
   createGoogleConnectionStart,
+  disconnectGoogleConnection,
 } from "../src/services/operator/operatorWorkspaceService.js";
 import { clearChatRateLimitForTests } from "../src/utils/httpGuards.js";
 
@@ -2118,6 +2119,265 @@ test("Google OAuth callback completes and updates activation state", async () =>
     assert.equal(supabase.state.connected_app_connections[0].scopes_granted.includes("google.calendar.read"), false);
     assert.doesNotMatch(JSON.stringify(supabase.state.connected_app_connections[0]), /access_token_encrypted|refresh_token_encrypted|authorization_code/i);
     assert.equal(supabase.state.agent_connected_app_enablements?.length || 0, 0);
+  });
+});
+
+test("Google OAuth reconnect updates the existing account and downgrades write scope mirror", async () => {
+  await withEnv({
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+    GOOGLE_CLIENT_ID: "client-id",
+    GOOGLE_CLIENT_SECRET: "client-secret",
+    GOOGLE_OAUTH_REDIRECT_URI: "https://app.example/google/oauth/callback",
+    GOOGLE_TOKEN_ENCRYPTION_SECRET: "test-secret",
+  }, async () => {
+    const supabase = createFakeSupabase();
+    const firstStart = await createGoogleConnectionStart(supabase, {
+      agent: {
+        id: "agent-1",
+        businessId: "business-1",
+      },
+      ownerUserId: "owner-1",
+      scopes: [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar.events",
+      ],
+    });
+    const firstStateToken = new URL(firstStart.authUrl).searchParams.get("state");
+
+    await completeGoogleConnection(supabase, {
+      stateToken: firstStateToken,
+      code: "oauth-code-write",
+    }, {
+      exchangeCode: async () => ({
+        access_token: "access-token-write",
+        refresh_token: "refresh-token-write",
+        scope: "openid email profile https://www.googleapis.com/auth/calendar.events",
+        expires_in: 3600,
+      }),
+      getUserInfo: async () => ({
+        sub: "google-user-1",
+        email: "owner@example.com",
+        name: "Owner Example",
+        email_verified: true,
+      }),
+    });
+
+    const accountId = supabase.state.google_connected_accounts[0].id;
+    assert.deepEqual(supabase.state.connected_app_connections[0].capability_keys, [
+      "google.calendar.read",
+      "google.calendar.write",
+    ]);
+
+    const secondStart = await createGoogleConnectionStart(supabase, {
+      agent: {
+        id: "agent-1",
+        businessId: "business-1",
+      },
+      ownerUserId: "owner-1",
+    });
+    const secondStateToken = new URL(secondStart.authUrl).searchParams.get("state");
+
+    await completeGoogleConnection(supabase, {
+      stateToken: secondStateToken,
+      code: "oauth-code-read",
+    }, {
+      exchangeCode: async () => ({
+        access_token: "access-token-read",
+        scope: "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+        expires_in: 3600,
+      }),
+      getUserInfo: async () => ({
+        sub: "google-user-1",
+        email: "owner@example.com",
+        name: "Owner Example",
+        email_verified: true,
+      }),
+    });
+
+    assert.equal(supabase.state.google_connected_accounts.length, 1);
+    assert.equal(supabase.state.google_connected_accounts[0].id, accountId);
+    assert.equal(supabase.state.connected_app_connections.length, 1);
+    assert.deepEqual(supabase.state.connected_app_connections[0].capability_keys, ["google.calendar.read"]);
+    assert.deepEqual(supabase.state.connected_app_connections[0].scopes_granted, [
+      "https://www.googleapis.com/auth/calendar.readonly",
+    ]);
+    assert.doesNotMatch(
+      JSON.stringify(supabase.state.connected_app_connections[0]),
+      /access-token|refresh-token|oauth-code|authorization_code/i
+    );
+  });
+});
+
+test("Google OAuth provider failure stores safe reconnect guidance without raw codes or secrets", async () => {
+  await withEnv({
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+    GOOGLE_CLIENT_ID: "client-id",
+    GOOGLE_CLIENT_SECRET: "client-secret",
+    GOOGLE_OAUTH_REDIRECT_URI: "https://app.example/google/oauth/callback",
+    GOOGLE_TOKEN_ENCRYPTION_SECRET: "test-secret",
+  }, async () => {
+    const supabase = createFakeSupabase();
+    const start = await createGoogleConnectionStart(supabase, {
+      agent: {
+        id: "agent-1",
+        businessId: "business-1",
+      },
+      ownerUserId: "owner-1",
+    });
+    const stateToken = new URL(start.authUrl).searchParams.get("state");
+    const result = await completeGoogleConnection(supabase, {
+      stateToken,
+      oauthError: "access_denied code=oauth-code refresh_token=refresh-token client_secret=client-secret",
+    });
+    const serializedState = JSON.stringify(supabase.state.google_oauth_states[0]);
+
+    assert.match(result.redirectUrl, /google=error/);
+    assert.match(decodeURIComponent(result.redirectUrl), /Reconnect Google Calendar/);
+    assert.equal(supabase.state.google_oauth_states[0].status, "failed");
+    assert.equal(supabase.state.google_oauth_states[0].metadata.oauthFailureReason, "google_oauth_failed");
+    assert.equal(supabase.state.google_oauth_states[0].metadata.reconnectGuidance, "reconnect_google_calendar");
+    assert.doesNotMatch(serializedState, /oauth-code|refresh-token|client-secret|oauthError|access_token|refresh_token/i);
+    assert.doesNotMatch(result.redirectUrl, /oauth-code|refresh-token|client-secret|access_denied/i);
+  });
+});
+
+test("Google disconnect revokes local account state, clears tokens, and updates Connected Apps mirror", async () => {
+  await withEnv({
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+  }, async () => {
+    const supabase = createFakeSupabase({
+      google_connected_accounts: [
+        {
+          id: "google-account-1",
+          agent_id: "agent-1",
+          business_id: "business-1",
+          owner_user_id: "owner-1",
+          provider: "google",
+          provider_account_id: "google-user-1",
+          account_email: "owner@example.com",
+          display_name: "Owner Example",
+          selected_mailbox: "INBOX",
+          scopes: [
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/calendar.readonly",
+          ],
+          scope_audit: [],
+          status: "connected",
+          access_token_encrypted: "encrypted-access-token",
+          refresh_token_encrypted: "encrypted-refresh-token",
+          token_expires_at: "2026-06-03T12:00:00.000Z",
+          metadata: {},
+          created_at: "2026-06-03T10:00:00.000Z",
+          updated_at: "2026-06-03T10:00:00.000Z",
+        },
+      ],
+      connected_app_connections: [
+        {
+          id: "connection-1",
+          owner_user_id: "owner-1",
+          provider: "google",
+          app_key: "google.calendar",
+          capability_keys: ["google.calendar.read"],
+          status: "active",
+          provider_account_id: "google-user-1",
+          provider_account_label: "Owner Example <owner@example.com>",
+          scopes_granted: ["https://www.googleapis.com/auth/calendar.readonly"],
+          webhook_status: "not_required",
+          token_secret_ref: null,
+          metadata: {},
+          created_at: "2026-06-03T10:00:00.000Z",
+          updated_at: "2026-06-03T10:00:00.000Z",
+        },
+      ],
+      agent_connected_app_enablements: [
+        {
+          id: "enablement-1",
+          owner_user_id: "owner-1",
+          agent_id: "agent-1",
+          connection_id: "connection-1",
+          capability_keys: ["google.calendar.read"],
+          enabled: true,
+          approval_mode: "manual_review",
+          allowed_surfaces: ["operator"],
+          package_key: "front_desk_general",
+          metadata: {},
+          created_at: "2026-06-03T10:00:00.000Z",
+          updated_at: "2026-06-03T10:00:00.000Z",
+        },
+      ],
+      operator_calendar_events: [
+        {
+          id: "event-1",
+          connected_account_id: "google-account-1",
+          owner_user_id: "owner-1",
+          agent_id: "agent-1",
+        },
+      ],
+    });
+
+    const result = await disconnectGoogleConnection(supabase, {
+      agent: {
+        id: "agent-1",
+        businessId: "business-1",
+      },
+      ownerUserId: "owner-1",
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.status, "revoked");
+    assert.equal(supabase.state.google_connected_accounts[0].status, "revoked");
+    assert.equal(supabase.state.google_connected_accounts[0].access_token_encrypted, null);
+    assert.equal(supabase.state.google_connected_accounts[0].refresh_token_encrypted, null);
+    assert.equal(supabase.state.connected_app_connections[0].status, "revoked");
+    assert.equal(supabase.state.agent_connected_app_enablements[0].enabled, false);
+    assert.equal(supabase.state.agent_connected_app_enablements[0].approval_mode, "disabled");
+    assert.equal(supabase.state.operator_calendar_events.length, 1);
+    assert.doesNotMatch(JSON.stringify(result), /encrypted-access-token|encrypted-refresh-token|access_token|refresh_token/i);
+  });
+});
+
+test("Google disconnect cannot affect another owner's account", async () => {
+  await withEnv({
+    VONZA_OPERATOR_WORKSPACE_V1: "true",
+  }, async () => {
+    const supabase = createFakeSupabase({
+      google_connected_accounts: [
+        {
+          id: "google-account-1",
+          agent_id: "agent-1",
+          business_id: "business-1",
+          owner_user_id: "owner-2",
+          provider: "google",
+          provider_account_id: "google-user-2",
+          account_email: "other@example.com",
+          scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+          status: "connected",
+          access_token_encrypted: "encrypted-access-token",
+          refresh_token_encrypted: "encrypted-refresh-token",
+          created_at: "2026-06-03T10:00:00.000Z",
+        },
+      ],
+      connected_app_connections: [],
+      agent_connected_app_enablements: [],
+    });
+
+    await assert.rejects(
+      disconnectGoogleConnection(supabase, {
+        agent: {
+          id: "agent-1",
+          businessId: "business-1",
+        },
+        ownerUserId: "owner-1",
+      }),
+      (error) => error.statusCode === 404 && error.code === "google_connection_not_found"
+    );
+
+    assert.equal(supabase.state.google_connected_accounts[0].status, "connected");
+    assert.equal(supabase.state.google_connected_accounts[0].access_token_encrypted, "encrypted-access-token");
   });
 });
 

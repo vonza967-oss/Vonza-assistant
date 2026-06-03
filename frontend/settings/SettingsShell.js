@@ -3922,6 +3922,38 @@
     return normalized ? "Limited" : "Pending";
   }
 
+  function getGoogleCalendarDisplayStatus(connection = null) {
+    const status = defaultTrimText(connection?.status || "needs_setup").toLowerCase();
+
+    if (status === "active") {
+      return {
+        status,
+        label: "connected",
+        copy: "Google Calendar is connected. Reconnect Google Calendar if access changes, or disconnect Google Calendar from this workspace.",
+        buttonLabel: "Reconnect Google Calendar",
+        showDisconnect: true,
+      };
+    }
+
+    if (status === "needs_attention") {
+      return {
+        status,
+        label: "needs reconnect",
+        copy: "Google Calendar needs reconnect before Calendar sync can run again.",
+        buttonLabel: "Reconnect Google Calendar",
+        showDisconnect: true,
+      };
+    }
+
+    return {
+      status,
+      label: "disconnected",
+      copy: "Google Calendar is disconnected.",
+      buttonLabel: connection ? "Reconnect Google Calendar" : "Connect Google Calendar",
+      showDisconnect: Boolean(connection && status !== "revoked"),
+    };
+  }
+
   function getConnectedAppCapabilityMap(capabilities = []) {
     return new Map(
       capabilities
@@ -4050,6 +4082,8 @@
     const googleCalendarCapabilities = connectedApps.capabilities.filter(isGoogleCalendarCapability);
     const googleCalendarConnections = connectedApps.connections.filter(isGoogleCalendarConnection);
     const activeConnection = googleCalendarConnections.find((connection) => defaultTrimText(connection.status) === "active") || googleCalendarConnections[0] || null;
+    const displayStatus = getGoogleCalendarDisplayStatus(activeConnection);
+    const googleConnectedAccountId = defaultTrimText(activeConnection?.metadata?.googleConnectedAccountId);
     const enabledConnectionIds = new Set(
       connectedApps.enablements
         .filter((enablement) => enablement?.enabled === true)
@@ -4068,7 +4102,7 @@
             <h3 class="settings-shell-section-title">Google Calendar adapter</h3>
             <p class="settings-shell-section-copy">Google Calendar is mirrored from the existing Google operator connection into generic Connected Apps records. Uses existing Google connection flow. No chat execution. No provider action without approval.</p>
           </div>
-          <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
+          <span class="${getBadgeClass(connectedAppStatusTone(displayStatus.status))}">${escapeHtml(displayStatus.label)}</span>
         </div>
         <div class="settings-operational-summary settings-connected-app-summary" aria-label="Google Calendar connected app adapter">
           <article class="settings-operational-card">
@@ -4081,9 +4115,10 @@
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
               <span>Google connection</span>
-              <span class="${getBadgeClass(connectedAppStatusTone(activeConnection?.status || "needs_setup"))}">${escapeHtml(humanizeConnectedAppValue(activeConnection?.status || "needs_setup"))}</span>
+              <span class="${getBadgeClass(connectedAppStatusTone(displayStatus.status))}">${escapeHtml(displayStatus.label)}</span>
             </div>
-            <p>${escapeHtml(activeConnection?.providerAccountLabel || "Connect Google Calendar through the existing Google flow to populate the generic record.")}</p>
+            <p>${escapeHtml(activeConnection?.providerAccountLabel || displayStatus.copy)}</p>
+            <p>${escapeHtml(displayStatus.copy)}</p>
           </article>
           <article class="settings-operational-card">
             <div class="settings-operational-card-head">
@@ -4101,7 +4136,15 @@
             data-google-connect
             data-google-connect-status="Preparing Google Calendar connection..."
             data-google-connect-error="We couldn't start the Google Calendar connection."
-          >${escapeHtml(activeConnection ? "Reconnect Google Calendar" : "Connect Google Calendar")}</button>
+          >${escapeHtml(displayStatus.buttonLabel)}</button>
+          ${displayStatus.showDisconnect ? `
+            <button
+              class="ghost-button"
+              type="button"
+              data-google-disconnect
+              ${googleConnectedAccountId ? `data-google-connected-account-id="${escapeHtml(googleConnectedAccountId)}"` : ""}
+            >Disconnect Google Calendar</button>
+          ` : ""}
         </div>
       </section>
     `;
