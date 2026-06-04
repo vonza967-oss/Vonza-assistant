@@ -119,6 +119,25 @@ function renderQuoteDeskHuDashboardDocument(rootDir, { localFixture = false } = 
   return html;
 }
 
+function renderQuoteDeskHuSetupDocument(rootDir) {
+  const version = getDashboardAssetVersion();
+  let html = readFileSync(path.join(rootDir, "frontend", "qdh-setup.html"), "utf8");
+
+  [
+    "/qdh-product.css",
+    "/public-config.js",
+    "/supabase-auth.js",
+    "/qdh-setup.js",
+  ].forEach((assetPath) => {
+    html = html.replaceAll(
+      `${assetPath}"`,
+      `${assetPath}?v=${version}"`
+    );
+  });
+
+  return html;
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -179,6 +198,141 @@ function renderMarketingPricingSection(locale = "en") {
         </div>
       </section>
   `;
+}
+
+function renderQuoteDeskHuAcquisitionPage() {
+  return `<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Desk HU | Ajánlatkérési pult magyar vállalkozásoknak</title>
+  <meta name="description" content="Quote Desk HU strukturált ajánlatkérési intake és review felület magyar vállalkozásoknak.">
+  <link rel="stylesheet" href="/qdh-product.css">
+</head>
+<body>
+  <main class="qdh-site">
+    <header class="qdh-site-header">
+      <a class="qdh-site-brand" href="/qdh" aria-label="Quote Desk HU">
+        <span class="qdh-site-mark" aria-hidden="true">Q</span>
+        <span>
+          <strong>Quote Desk HU</strong>
+          <span>Ajánlatkérési pult</span>
+        </span>
+      </a>
+      <nav class="qdh-site-nav" aria-label="Quote Desk HU hozzáférés">
+        <a class="qdh-link" href="/qdh/dashboard">Belépés QDH fiókkal</a>
+        <a class="qdh-button qdh-button-primary" href="/qdh/setup">QDH indítása</a>
+      </nav>
+    </header>
+
+    <section class="qdh-hero">
+      <div class="qdh-hero-copy">
+        <h1>Ajánlatkérés, amit a csapatod tényleg fel tud dolgozni.</h1>
+        <p class="qdh-hero-text">A Quote Desk HU a statikus “Kérjen ajánlatot” űrlap helyett strukturált ügyféladatokat, hiányzó információs jelzéseket és külön tulajdonosi review dashboardot ad magyar vállalkozásoknak.</p>
+        <div class="qdh-hero-actions">
+          <a class="qdh-button qdh-button-primary" href="/qdh/setup">QDH indítása</a>
+          <a class="qdh-button" href="/qdh/dashboard">Belépés QDH fiókkal</a>
+        </div>
+        <div class="qdh-scope-note">
+          <strong>Request intake és review fázis.</strong>
+          <span>A QDH nem ígér automatikus végső árat, nem küld ajánlatot az ügyfélnek, és nem hív külső szolgáltatókat. A végső döntést a vállalkozás hozza meg.</span>
+        </div>
+      </div>
+      <div class="qdh-hero-panel" aria-label="Quote Desk HU működési előnézet">
+        <div class="qdh-panel-top">
+          <div class="qdh-panel-title">
+            <strong>QDH dashboard előnézet</strong>
+            <span>Beérkező ajánlatkérések review állapotban</span>
+          </div>
+          <span class="qdh-status-pill">Request-only</span>
+        </div>
+        <div class="qdh-request-preview">
+          ${[
+            ["Tetőjavítás", "Budapest XI. · beázás a kémény mellett, helyszíni felmérés szükséges", "Új"],
+            ["Klíma karbantartás", "Szeged · három beltéri egység, készüléktípus hiányzik", "Hiányzó adat"],
+            ["Weboldal átalakítás", "Pécs · szolgáltatási kör és határidő staff review alatt", "Ellenőrzés alatt"],
+          ].map(([title, copy, status]) => `
+            <div class="qdh-preview-row">
+              <div>
+                <strong>${escapeHtml(title)}</strong>
+                <span>${escapeHtml(copy)}</span>
+              </div>
+              <em>${escapeHtml(status)}</em>
+            </div>
+          `).join("")}
+        </div>
+        <div class="qdh-panel-footer" aria-label="QDH határok">
+          <span>Nincs végső árképzés</span>
+          <span>Nincs külső küldés</span>
+          <span>Owner-scoped review</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="qdh-content">
+      <section class="qdh-section">
+        <div>
+          <h2>Mi változik a régi ajánlatkérő űrlaphoz képest?</h2>
+          <p>A QDH a beérkező kéréseket nem egyetlen szabad szöveges mezőként kezeli. A tulajdonos olyan adatokat kap, amelyekből el lehet dönteni, mire kell visszakérdezni és mikor készülhet emberi ajánlat.</p>
+        </div>
+        <ul class="qdh-step-list">
+          ${[
+            ["Strukturált intake", "Szolgáltatás, helyszín, sürgősség, keret, kapcsolat és projektleírás külön mezőben."],
+            ["Biztonságos review állapotok", "Új, hiányzó adat, ellenőrzés alatt, elutasított vagy archivált kérés."],
+            ["Külön QDH dashboard", "A QDH nem a generikus Vonza dashboard egyik kártyája, hanem önálló termékfelület."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="qdh-section">
+        <div>
+          <h2>Hogyan indul az önkiszolgáló hozzáférés?</h2>
+          <p>A setup a minimális üzleti konfigurációt menti tulajdonosi auth alatt. Ez előkészíti a QDH dashboardot, miközben az éles assistant telepítés és üzleti összekötés külön kontrollált lépés marad.</p>
+        </div>
+        <ul class="qdh-step-list">
+          ${[
+            ["1. QDH hozzáférés", "Bejelentkezés, fiók indítása vagy varázslink a meglévő Supabase auth folyamaton keresztül."],
+            ["2. Setup adatok", "Vállalkozás neve, weboldal, szolgáltatási típus, terület, kezelési mód, email és szolgáltatások."],
+            ["3. QDH dashboard", "A tulajdonos a külön /qdh/dashboard felületre érkezik, ahol a kérések és setup állapot látszik."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="qdh-section">
+        <div>
+          <h2>Jelenlegi termékhatárok.</h2>
+          <p>A copy és a vezérlők nem állítanak olyat, amit a rendszer nem csinál. A QDH ebben a fázisban ajánlatkérést gyűjt és előkészít.</p>
+        </div>
+        <ul class="qdh-boundary-list">
+          ${[
+            ["Nem automatikus ajánlatképző", "Nem számol garantált végső árat és nem állítja, hogy ajánlatot küldött."],
+            ["Nem külső küldő rendszer", "Nincs email, WhatsApp vagy provider call a QDH önkiszolgáló setupban."],
+            ["Nem widget-függő", "A weboldali widget továbbra is másodlagos Vonza felület; a QDH külön útvonalon fut."],
+          ].map(([title, copy]) => `
+            <li><strong>${escapeHtml(title)}</strong><span>${escapeHtml(copy)}</span></li>
+          `).join("")}
+        </ul>
+      </section>
+
+      <section class="qdh-final">
+        <div>
+          <h2>Indíts QDH setupot a saját vállalkozásodra.</h2>
+          <p>A hozzáférés a meglévő auth rendszert használja, a setup pedig owner-scoped rekordként mentődik. A dashboard külön QDH termékfelület marad.</p>
+        </div>
+        <div class="qdh-final-actions">
+          <a class="qdh-button qdh-button-primary" href="/qdh/setup">QDH indítása</a>
+          <a class="qdh-button" href="/qdh/dashboard">Dashboard</a>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>`;
 }
 
 function renderAppImage({
@@ -1477,6 +1631,10 @@ export function createPublicRouter({ rootDir }) {
     res.type("html").send(renderMarketingPage(rootDir, "voiceAgent"));
   });
 
+  router.get(["/qdh", "/quote-desk-hu"], (_req, res) => {
+    res.type("html").send(renderQuoteDeskHuAcquisitionPage());
+  });
+
   router.get("/how-it-works", (_req, res) => {
     res.redirect(302, "/product");
   });
@@ -1545,6 +1703,11 @@ export function createPublicRouter({ rootDir }) {
   router.get(["/qdh/dashboard", "/quote-desk-hu/dashboard"], (_req, res) => {
     setDashboardNoStoreHeaders(res);
     res.type("html").send(renderQuoteDeskHuDashboardDocument(rootDir));
+  });
+
+  router.get(["/qdh/setup", "/quote-desk-hu/setup"], (_req, res) => {
+    setDashboardNoStoreHeaders(res);
+    res.type("html").send(renderQuoteDeskHuSetupDocument(rootDir));
   });
 
   router.get(["/qdh/dashboard-fixture", "/quote-desk-hu/dashboard-fixture"], (req, res) => {

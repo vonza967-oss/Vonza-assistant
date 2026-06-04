@@ -1100,6 +1100,34 @@ create index if not exists agent_quote_requests_owner_status_created_idx
 create index if not exists agent_quote_requests_agent_status_created_idx
   on public.agent_quote_requests (agent_id, status, created_at desc);
 
+create table if not exists public.qdh_owner_setups (
+  owner_user_id uuid primary key,
+  business_name text not null,
+  website_url text not null,
+  service_type text not null,
+  service_area text not null,
+  handling_preference text not null default 'staff_review',
+  owner_contact_email text not null,
+  services_offered text[] not null default '{}'::text[],
+  setup_status text not null default 'ready_for_review',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  constraint qdh_owner_setups_handling_preference_check
+    check (handling_preference in ('staff_review', 'email_review', 'phone_review')),
+  constraint qdh_owner_setups_setup_status_check
+    check (setup_status in ('ready_for_review')),
+  constraint qdh_owner_setups_business_name_nonblank_check
+    check (length(btrim(business_name)) > 0),
+  constraint qdh_owner_setups_website_url_nonblank_check
+    check (length(btrim(website_url)) > 0),
+  constraint qdh_owner_setups_services_offered_nonempty_check
+    check (array_length(services_offered, 1) > 0)
+);
+
+create index if not exists qdh_owner_setups_updated_at_idx
+  on public.qdh_owner_setups (updated_at desc);
+
 create table if not exists public.connected_app_connections (
   id uuid primary key default gen_random_uuid(),
   owner_user_id uuid not null,
@@ -2055,6 +2083,7 @@ alter table public.agent_conversion_outcomes enable row level security;
 alter table public.agent_booking_integrations enable row level security;
 alter table public.agent_booking_requests enable row level security;
 alter table public.agent_quote_requests enable row level security;
+alter table public.qdh_owner_setups enable row level security;
 alter table public.connected_app_connections enable row level security;
 alter table public.agent_connected_app_enablements enable row level security;
 alter table public.connected_app_inbound_events enable row level security;
@@ -2393,6 +2422,14 @@ create policy "Owners can read quote requests."
   for select
   to authenticated
   using ((select auth.uid()) is not null and owner_user_id = (select auth.uid()));
+
+drop policy if exists "Owners can manage QDH setup." on public.qdh_owner_setups;
+create policy "Owners can manage QDH setup."
+  on public.qdh_owner_setups
+  for all
+  to authenticated
+  using ((select auth.uid()) is not null and owner_user_id = (select auth.uid()))
+  with check ((select auth.uid()) is not null and owner_user_id = (select auth.uid()));
 
 drop policy if exists "Owners can read connected app connections." on public.connected_app_connections;
 create policy "Owners can read connected app connections."

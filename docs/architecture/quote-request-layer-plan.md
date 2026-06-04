@@ -110,7 +110,7 @@ The generic Vonza dashboard renders a compact "Quote requests" review card near 
 
 It does not expose casual "quote sent" or "accepted" buttons.
 
-Quote Desk HU Phase 1 adds a separate QDH dashboard at `/qdh/dashboard` and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a pipeline workspace, request detail panel, setup/readiness checklist, and QDH-specific authenticated API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
+Quote Desk HU adds separate QDH product routes at `/qdh`, `/quote-desk-hu`, `/qdh/setup`, `/quote-desk-hu/setup`, `/qdh/dashboard`, and `/quote-desk-hu/dashboard`. It reuses the same quote request service, but it is a distinct product experience with Hungarian-first copy, QDH navigation, a pipeline workspace, request detail panel, setup/readiness state, and QDH-specific authenticated API wrappers. It is not a generic `/dashboard` card and it is not presented as AI Front Desk.
 
 The QDH wrapper displays newly received requests plus current request-review statuses:
 
@@ -171,7 +171,11 @@ Required migration for this layer:
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
 
-QDH Phase 1 adds no new migration. It depends on the quote request table above.
+QDH self-serve setup also requires:
+
+- `supabase/migrations/20260604143000_qdh_owner_setups.sql`
+
+The setup table stores owner-scoped setup-readiness only. It does not create final quotes, send customer messages, call external providers, or activate a generic Vonza dashboard flow.
 
 Current adjacent engine migrations that must already be deployed before relying on their surfaces:
 

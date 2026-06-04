@@ -8,6 +8,10 @@ import {
   updateAgentQuoteRequestStatus,
 } from "../services/quotes/agentQuoteRequestService.js";
 import {
+  getQuoteDeskHuSetup,
+  saveQuoteDeskHuSetup,
+} from "../services/quotes/quoteDeskHuSetupService.js";
+import {
   getRequestId,
   logRouteError,
   sendJsonError,
@@ -112,6 +116,10 @@ export function createQuoteDeskHuRouter(deps = {}) {
     deps.listAgentQuoteRequests || listAgentQuoteRequests;
   const updateAgentQuoteRequestStatusImpl =
     deps.updateAgentQuoteRequestStatus || updateAgentQuoteRequestStatus;
+  const getQuoteDeskHuSetupImpl =
+    deps.getQuoteDeskHuSetup || getQuoteDeskHuSetup;
+  const saveQuoteDeskHuSetupImpl =
+    deps.saveQuoteDeskHuSetup || saveQuoteDeskHuSetup;
 
   const sendRouteError = (req, res, err, context = {}) => {
     const requestId = getRequestId(req);
@@ -152,6 +160,55 @@ export function createQuoteDeskHuRouter(deps = {}) {
       });
     } catch (err) {
       sendRouteError(req, res, err, { route: "/quote-desk-hu/requests" });
+    }
+  });
+
+  router.get("/quote-desk-hu/setup-state", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const setup = await getQuoteDeskHuSetupImpl(supabase, {
+        ownerUserId: user.id,
+      });
+
+      res.json({
+        ok: true,
+        product: "quote_desk_hu",
+        phase: "self_serve_setup_readiness",
+        setupComplete: Boolean(setup),
+        setup,
+        nextUrl: setup ? "/qdh/dashboard" : "/qdh/setup",
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/quote-desk-hu/setup-state" });
+    }
+  });
+
+  router.post("/quote-desk-hu/setup", async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const user = await authenticateUser(supabase, req);
+      const setup = await saveQuoteDeskHuSetupImpl(supabase, {
+        ownerUserId: user.id,
+        businessName: readBodyField(req.body, "business_name", "businessName"),
+        websiteUrl: readBodyField(req.body, "website_url", "websiteUrl"),
+        serviceType: readBodyField(req.body, "service_type", "serviceType"),
+        serviceArea: readBodyField(req.body, "service_area", "serviceArea"),
+        handlingPreference: readBodyField(req.body, "handling_preference", "handlingPreference"),
+        ownerContactEmail: readBodyField(req.body, "owner_contact_email", "ownerContactEmail"),
+        servicesOffered: req.body?.services_offered || req.body?.servicesOffered,
+      });
+
+      res.json({
+        ok: true,
+        product: "quote_desk_hu",
+        phase: "self_serve_setup_readiness",
+        setupComplete: true,
+        setup,
+        nextUrl: "/qdh/dashboard",
+      });
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/quote-desk-hu/setup" });
     }
   });
 

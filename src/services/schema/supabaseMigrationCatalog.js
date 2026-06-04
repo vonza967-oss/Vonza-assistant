@@ -424,6 +424,15 @@ export const SUPABASE_MIGRATIONS = Object.freeze([
     tier: "feature-gated",
     note: "Adds owner-scoped request-only quote intake persistence with owner-select RLS, service/internal writes, and no automatic pricing, final quote, provider, widget, or embed behavior.",
   }),
+  Object.freeze({
+    id: "qdh_owner_setups",
+    version: "20260604143000",
+    name: "qdh_owner_setups",
+    file: "supabase/migrations/20260604143000_qdh_owner_setups.sql",
+    legacySources: Object.freeze([]),
+    tier: "feature-gated",
+    note: "Adds owner-scoped Quote Desk HU setup-readiness persistence for self-serve access; no final quote calculation, external sends, provider calls, widget changes, or generic dashboard coupling.",
+  }),
 ]);
 
 export const SUPABASE_MIGRATION_FILE_BY_ID = Object.freeze(

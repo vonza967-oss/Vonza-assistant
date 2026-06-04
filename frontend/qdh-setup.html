@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quote Desk HU setup</title>
+  <meta name="description" content="Quote Desk HU önkiszolgáló beállítás magyar vállalkozásoknak.">
+  <link rel="stylesheet" href="/qdh-product.css">
+</head>
+<body>
+  <main class="qdh-setup-shell" data-qdh-setup-shell>
+    <aside class="qdh-setup-aside" aria-label="Quote Desk HU setup áttekintés">
+      <a class="qdh-setup-brand" href="/qdh" aria-label="Quote Desk HU">
+        <span class="qdh-setup-mark" aria-hidden="true">Q</span>
+        <span>
+          <strong>Quote Desk HU</strong>
+          <span>Önálló ajánlatkérési termék</span>
+        </span>
+      </a>
+      <div class="qdh-setup-copy">
+        <h1>QDH setup magyar ajánlatkérésekhez.</h1>
+        <p>Add meg a vállalkozás alapadatait és a request-review szabályokat. A mentés után a külön QDH dashboard nyílik meg.</p>
+        <div class="qdh-setup-boundary" aria-label="QDH jelenlegi határai">
+          <span>Nem készít automatikus végső árajánlatot.</span>
+          <span>Nem küld emailt, WhatsApp üzenetet vagy külső szolgáltatói kérést.</span>
+          <span>A végső árat és választ a vállalkozás erősíti meg.</span>
+        </div>
+      </div>
+    </aside>
+    <section class="qdh-setup-main">
+      <div class="qdh-setup-status" id="qdh-setup-status" role="status" aria-live="polite" aria-atomic="true"></div>
+      <div id="qdh-setup-root">
+        <section class="qdh-setup-empty" aria-label="QDH setup betöltése">
+          <h2>QDH hozzáférés ellenőrzése</h2>
+          <p>A biztonságos Supabase auth session és a setup állapot betöltése folyamatban.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script src="/public-config.js"></script>
+  <script src="/supabase-auth.js"></script>
+  <script src="/qdh-setup.js"></script>
+</body>
+</html>

@@ -230,3 +230,27 @@ test("generic quote request schema is present in canonical schema and migration"
     assert.doesNotMatch(sql, /on public\.agent_quote_requests\s+for update/i);
   });
 });
+
+test("QDH setup readiness schema is present in canonical schema and migration", () => {
+  const schemaSql = readFileSync("db/schema.sql", "utf8");
+  const migrationSql = readFileSync(
+    "supabase/migrations/20260604143000_qdh_owner_setups.sql",
+    "utf8"
+  );
+
+  [schemaSql, migrationSql].forEach((sql) => {
+    assert.match(sql, /create table if not exists public\.qdh_owner_setups/i);
+    assert.match(sql, /owner_user_id uuid primary key/i);
+    assert.match(sql, /business_name text not null/i);
+    assert.match(sql, /website_url text not null/i);
+    assert.match(sql, /service_type text not null/i);
+    assert.match(sql, /service_area text not null/i);
+    assert.match(sql, /handling_preference text not null default 'staff_review'/i);
+    assert.match(sql, /owner_contact_email text not null/i);
+    assert.match(sql, /services_offered text\[\] not null default '\{\}'::text\[\]/i);
+    assert.match(sql, /qdh_owner_setups_updated_at_idx/i);
+    assert.match(sql, /Owners can manage QDH setup/i);
+  });
+
+  assert.doesNotMatch(migrationSql, /to anon/i);
+});

@@ -12,15 +12,46 @@ QDH owns its product shell, dashboard route, visual language, copy, and workflow
 
 Current owner routes:
 
+- `/qdh`
+- `/quote-desk-hu`
+- `/qdh/setup`
+- `/quote-desk-hu/setup`
 - `/qdh/dashboard`
 - `/quote-desk-hu/dashboard`
 
 Current authenticated owner API routes:
 
+- `GET /quote-desk-hu/setup-state`
+- `POST /quote-desk-hu/setup`
 - `GET /quote-desk-hu/requests`
 - `POST /quote-desk-hu/requests/status`
 
-The public/customer product route is intentionally not expanded in this phase. Public quote request creation remains available only through the existing feature-flagged chat path controlled by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
+Public quote request creation remains available only through the existing feature-flagged chat path controlled by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
+
+## Phase 2 Self-Serve Access
+
+Phase 2 adds the missing acquisition, access, and onboarding layer while keeping QDH separate from the generic Vonza dashboard.
+
+Self-serve now:
+
+- `/qdh` and `/quote-desk-hu` serve a Hungarian-first QDH acquisition page.
+- `/qdh/setup` and `/quote-desk-hu/setup` serve a QDH-branded auth/setup page.
+- The setup page uses the existing Supabase browser auth configuration and supports email/password sign-in, email/password signup, and magic link.
+- Authenticated setup saves an owner-scoped `public.qdh_owner_setups` row through `POST /quote-desk-hu/setup`.
+- The QDH dashboard reads `GET /quote-desk-hu/setup-state` and clearly shows setup complete, setup incomplete, setup load failure, or missing migration states.
+- Successful setup routes the owner to `/qdh/dashboard`.
+
+The setup record collects:
+
+- business name;
+- website URL;
+- service type;
+- service area / city;
+- quote request handling preference;
+- owner contact email;
+- basic services offered.
+
+The setup record is intentionally a QDH setup-readiness record, not a final business/agent activation. It does not create final quotes, send customer messages, call external providers, or calculate prices.
 
 ## Phase 1 Scope
 
@@ -28,6 +59,9 @@ Phase 1 is request intake/review only.
 
 Implemented:
 
+- standalone public QDH acquisition page;
+- QDH-specific auth/setup route;
+- owner-scoped QDH setup-readiness persistence;
 - standalone Hungarian-first QDH dashboard shell;
 - overview counts from real returned quote request rows;
 - pipeline columns for `Új`, `Hiányzó adat`, `Ellenőrzés alatt`, and `Elutasítva / Archivált`;
@@ -46,6 +80,19 @@ Not implemented:
 - package activation enforcement;
 - widget/embed changes;
 - public create route outside the existing feature-flagged chat producer.
+- automatic assistant deployment from setup.
+- automatic business/agent creation from QDH setup.
+
+## Manual Steps That Remain
+
+The QDH setup flow prepares owner readiness only. These still require manual deploy/config or a future controlled activation flow:
+
+- applying `supabase/migrations/20260604143000_qdh_owner_setups.sql`;
+- ensuring `supabase/migrations/20260604120000_agent_quote_requests.sql` is applied and PostgREST schema cache is reloaded;
+- connecting the business website/customer-facing assistant path that will produce quote requests;
+- enabling `QUOTE_REQUESTS_FROM_CHAT_ENABLED` only where the quote request producer is intentionally activated;
+- package/product entitlement decisions;
+- any external email, WhatsApp, CRM, proposal, or provider integration.
 
 ## Engine Reuse
 
@@ -91,6 +138,10 @@ Proof-backed final states such as `quoted_externally` and `accepted_externally` 
 
 Required focused checks for QDH Phase 1:
 
+- QDH public acquisition route serves the correct product page.
+- QDH setup routes are separate from generic `/dashboard`.
+- Unauthenticated setup/dashboard access shows auth gate or returns auth-required safely.
+- Authenticated setup APIs preserve owner scope.
 - QDH dashboard route renders a separate shell.
 - QDH dashboard does not depend on the generic dashboard quote card.
 - QDH API routes require auth and preserve owner scope.
@@ -103,10 +154,14 @@ Required focused checks for QDH Phase 1:
 
 ## Deployment Notes
 
-No new migration is required for QDH Phase 1 because it reuses `public.agent_quote_requests`.
+QDH Phase 2 adds setup-readiness storage:
+
+- `supabase/migrations/20260604143000_qdh_owner_setups.sql`
 
 Before production rollout, ensure the quote request migration is deployed and visible through the configured Supabase/PostgREST target:
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
+
+The canonical schema is `db/schema.sql`; keep it aligned with both migrations.
 
 Render still deploys from `main`; production-ready QDH changes must land on `main`.

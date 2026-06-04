@@ -50,8 +50,10 @@ export function createApp({ rootDir }) {
         || normalizedPath.endsWith("/frontend/dashboardAnalytics.js")
         || normalizedPath.endsWith("/frontend/dashboardToday.js")
         || normalizedPath.endsWith("/frontend/i18n/dashboardI18n.js")
+        || normalizedPath.endsWith("/frontend/qdh-product.css")
         || normalizedPath.endsWith("/frontend/qdh-dashboard.css")
         || normalizedPath.endsWith("/frontend/qdh-dashboard.js")
+        || normalizedPath.endsWith("/frontend/qdh-setup.js")
         || normalizedPath.endsWith("/frontend/settings/SettingsShell.js")
         || normalizedPath.endsWith("/frontend/settings/settings.css")
       ) {

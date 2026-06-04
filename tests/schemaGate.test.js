@@ -18,6 +18,7 @@ test("schema hints cover recent required persistence tables", () => {
     "agent_action_requests",
     "agent_booking_requests",
     "agent_quote_requests",
+    "qdh_owner_setups",
     "connected_app_connections",
     "agent_connected_app_enablements",
     "connected_app_inbound_events",

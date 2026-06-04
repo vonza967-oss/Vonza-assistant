@@ -11,6 +11,10 @@
     summary: null,
     selectedId: "",
     loading: true,
+    setup: null,
+    setupLoaded: false,
+    setupError: null,
+    requestError: null,
   };
 
   const SAFE_STATUS_ACTIONS = [
@@ -139,7 +143,9 @@
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(data?.error || "A kérés nem sikerült.");
+      const error = new Error(data?.error || "A kérés nem sikerült.");
+      error.code = data?.code || "";
+      throw error;
     }
 
     return data;
@@ -300,6 +306,19 @@
         summary: fixture.summary,
         selectedId: fixture.records[0]?.id || "",
         loading: false,
+        setup: {
+          businessName: "Local QDH Fixture Kft.",
+          websiteUrl: "https://qdh-fixture.example",
+          serviceType: "helyi szolgáltatás",
+          serviceArea: "Budapest",
+          handlingPreference: "staff_review",
+          ownerContactEmail: "owner@example.invalid",
+          servicesOffered: ["Tetőjavítás", "Klíma karbantartás"],
+          setupStatus: "ready_for_review",
+        },
+        setupLoaded: true,
+        setupError: null,
+        requestError: null,
       };
       setStatus("Local-only QDH fixture. Production API gates are not bypassed.");
       renderDashboard();
@@ -307,16 +326,60 @@
     }
 
     setStatus("Ajánlatkérések betöltése...");
-    const data = await fetchJson("/quote-desk-hu/requests?limit=100");
-    const records = Array.isArray(data.records) ? data.records.map(normalizeRecord) : [];
+    const [setupResult, requestResult] = await Promise.allSettled([
+      fetchJson("/quote-desk-hu/setup-state"),
+      fetchJson("/quote-desk-hu/requests?limit=100"),
+    ]);
+
+    let setup;
+    let setupLoaded;
+    let setupError = null;
+    if (setupResult.status === "fulfilled") {
+      setup = setupResult.value.setup || null;
+      setupLoaded = true;
+    } else {
+      setupLoaded = false;
+      setupError = {
+        code: setupResult.reason?.code || "",
+        message: setupResult.reason?.message || "QDH setup állapot nem tölthető be.",
+      };
+    }
+
+    let records;
+    let summary;
+    let requestError = null;
+    if (requestResult.status === "fulfilled") {
+      records = Array.isArray(requestResult.value.records)
+        ? requestResult.value.records.map(normalizeRecord)
+        : [];
+      summary = requestResult.value.summary || buildSummary(records);
+    } else {
+      records = [];
+      summary = buildSummary(records);
+      requestError = {
+        code: requestResult.reason?.code || "",
+        message: requestResult.reason?.message || "Ajánlatkérések nem tölthetők be.",
+      };
+    }
+
     state = {
       ...state,
       records,
-      summary: data.summary || buildSummary(records),
+      summary,
       selectedId: state.selectedId || records[0]?.id || "",
       loading: false,
+      setup,
+      setupLoaded,
+      setupError,
+      requestError,
     };
-    setStatus(records.length ? "Ajánlatkérések betöltve." : "Még nincs beérkezett ajánlatkérés.");
+    if (requestError) {
+      setStatus(requestError.message);
+    } else if (setupError) {
+      setStatus(setupError.message);
+    } else {
+      setStatus(records.length ? "Ajánlatkérések betöltve." : "Még nincs beérkezett ajánlatkérés.");
+    }
     renderDashboard();
   }
 
@@ -530,20 +593,75 @@
   }
 
   function renderSetupPanel() {
+    if (state.setupError?.code === "qdh_setup_table_missing") {
+      return `
+        <section class="qdh-panel" id="setup" aria-label="QDH setup migráció">
+          <div class="qdh-panel-header">
+            <div>
+              <h2>Setup migráció szükséges</h2>
+              <p>${escapeHtml(state.setupError.message)}</p>
+            </div>
+            <a class="qdh-button" href="/qdh/setup">Setup oldal</a>
+          </div>
+          <div class="qdh-checklist">
+            <div class="qdh-check-row qdh-check-row-warning">
+              <span class="qdh-check-dot" aria-hidden="true"></span>
+              <span>qdh_owner_setups tábla</span>
+              <small>Hiányzik</small>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    if (!state.setup) {
+      return `
+        <section class="qdh-panel" id="setup" aria-label="QDH setup hiányzik">
+          <div class="qdh-panel-header">
+            <div>
+              <h2>Setup incomplete</h2>
+              <p>A QDH önkiszolgáló beállítás még nincs mentve ehhez a tulajdonoshoz.</p>
+            </div>
+            <a class="qdh-button qdh-button-primary" href="/qdh/setup">QDH setup</a>
+          </div>
+          <div class="qdh-checklist">
+            ${SETUP_ITEMS.map((item) => `
+              <div class="qdh-check-row">
+                <span class="qdh-check-dot" aria-hidden="true"></span>
+                <span>${escapeHtml(item)}</span>
+                <small>Hiányzik</small>
+              </div>
+            `).join("")}
+          </div>
+        </section>
+      `;
+    }
+
+    const setupRows = [
+      ["Vállalkozás", state.setup.businessName],
+      ["Weboldal", state.setup.websiteUrl],
+      ["Szolgáltatás típus", state.setup.serviceType],
+      ["Terület", state.setup.serviceArea],
+      ["Kezelési mód", state.setup.handlingPreference],
+      ["Tulajdonosi email", state.setup.ownerContactEmail],
+      ["Szolgáltatások", (state.setup.servicesOffered || []).join(", ")],
+    ];
+
     return `
       <section class="qdh-panel" id="setup" aria-label="QDH beállítási készenlét">
         <div class="qdh-panel-header">
           <div>
             <h2>Setup / readiness</h2>
-            <p>Ezeket a vállalkozás szabályai alapján kell ellenőrizni, nem automatikus minősítés.</p>
+            <p>Owner-scoped QDH setup rekord. Nem automatikus minősítés és nem árképzési szabály.</p>
           </div>
+          <a class="qdh-button" href="/qdh/setup">Szerkesztés</a>
         </div>
         <div class="qdh-checklist">
-          ${SETUP_ITEMS.map((item) => `
-            <div class="qdh-check-row">
+          ${setupRows.map(([label, value]) => `
+            <div class="qdh-check-row qdh-check-row-complete">
               <span class="qdh-check-dot" aria-hidden="true"></span>
-              <span>${escapeHtml(item)}</span>
-              <small>Ellenőrizendő</small>
+              <span><strong>${escapeHtml(label)}:</strong> ${escapeHtml(valueOrEmpty(value))}</span>
+              <small>Mentve</small>
             </div>
           `).join("")}
         </div>
@@ -592,6 +710,18 @@
           </div>
           <span>Request intake / review</span>
         </section>
+        ${state.requestError ? `
+          <section class="qdh-error-strip" aria-label="QDH ajánlatkérés betöltési hiba">
+            <strong>Ajánlatkérések nem tölthetők be.</strong>
+            <p>${escapeHtml(state.requestError.message)}</p>
+          </section>
+        ` : ""}
+        ${state.setupError && state.setupError.code !== "qdh_setup_table_missing" ? `
+          <section class="qdh-error-strip" aria-label="QDH setup betöltési hiba">
+            <strong>Setup állapot nem tölthető be.</strong>
+            <p>${escapeHtml(state.setupError.message)}</p>
+          </section>
+        ` : ""}
         ${renderMetrics(summary)}
         <div class="qdh-workspace">
           ${renderPipeline(records, selectedRecord)}
