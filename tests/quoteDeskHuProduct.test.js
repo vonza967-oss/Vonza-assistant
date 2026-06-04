@@ -10,6 +10,7 @@ import express from "express";
 
 import { createApp as createFullApp } from "../src/app/createApp.js";
 import { createQuoteDeskHuRouter } from "../src/routes/quoteDeskHuRoutes.js";
+import { generateQuoteDeskHuAssistantTurn } from "../src/services/quotes/quoteDeskHuIntakeAssistantService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -783,6 +784,135 @@ test("QDH AI intake assistant requires valid public routing context and rejects 
   } finally {
     await server.close();
   }
+});
+
+test("QDH assistant adapter calls shared chat layer with QDH prompt context", async () => {
+  let sharedOptions = null;
+  const result = await generateQuoteDeskHuAssistantTurn({
+    agent: {
+      id: "agent-1",
+      ownerUserId: "owner-1",
+      businessId: "business-1",
+      publicAgentKey: "valid-qdh-key",
+      accessStatus: "active",
+    },
+    businessContext: {
+      businessName: "Példa Kft.",
+      serviceType: "tetőfedés",
+      serviceArea: "Budapest",
+      servicesOffered: ["Tetőjavítás", "Bádogozás"],
+    },
+    message: "Milyen szolgáltatásokat vállaltok?",
+    conversation: [],
+    fields: {},
+  }, {
+    generateSharedChatAssistantTurn: async (options) => {
+      sharedOptions = options;
+      return {
+        usedSharedEngine: true,
+        reply: "Tetőjavítást és bádogozást látok biztosan.\n\nMelyik szolgáltatás érdekel?",
+      };
+    },
+  });
+
+  assert.equal(result.conversationMode, "business_question");
+  assert.equal(result.usedSharedChatEngine, true);
+  assert.equal(result.fields.locationText, "");
+  assert.match(result.assistantReply, /Tetőjavítást és bádogozást/i);
+  assert.equal(sharedOptions.conversationSource, "quote_desk_hu_intake");
+  assert.equal(sharedOptions.language, "Hungarian");
+  assert.equal(sharedOptions.agentPackage.key, "quote_desk_hu");
+  assert.match(sharedOptions.agentPackage.promptBlocks, /Quote Desk HU product layer/);
+  assert.match(sharedOptions.fallbackWebsiteContent.content, /Felsorolt szolgáltatások: Tetőjavítás, Bádogozás/);
+  assert.doesNotMatch(JSON.stringify(result), /owner-1|agent-1|business-1|package|policy|metadata|model|system prompt|developer message/i);
+});
+
+test("QDH business questions answer from safe setup context without forcing form completion", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({
+        agent_key: "valid-qdh-key",
+        message: "Milyen szolgáltatásokat vállaltok?",
+        fields: {},
+        conversation: [],
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.readyToSubmit, false);
+    assert.equal(response.json.request, null);
+    assert.match(response.json.assistant.reply, /Tetőjavítás, Bádogozás/);
+    assert.doesNotMatch(response.json.assistant.reply, /add meg még|hiányzik|staff review|request-only|qdh_ai_intake/i);
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH unsupported service-area question stays grounded and asks one practical detail", async () => {
+  const result = await generateQuoteDeskHuAssistantTurn({
+    businessContext: {
+      businessName: "Példa Kft.",
+      serviceType: "tetőfedés",
+      serviceArea: "Budapest",
+      servicesOffered: ["Tetőjavítás", "Bádogozás"],
+    },
+    message: "Szegeden is vállaltok tetőjavítást?",
+    conversation: [],
+    fields: {},
+  });
+
+  assert.equal(result.conversationMode, "business_question");
+  assert.equal(result.readyToSubmit, false);
+  assert.match(result.assistantReply, /Budapest/);
+  assert.match(result.assistantReply, /vállalkozás tudja megerősíteni|konkrét cím/i);
+  assert.doesNotMatch(result.assistantReply, /igen|természetesen|biztosan vállal/i);
+});
+
+test("QDH follow-up answers complete quote readiness from bounded conversation history", async () => {
+  const result = await generateQuoteDeskHuAssistantTurn({
+    businessContext: {
+      businessName: "Példa Kft.",
+      serviceType: "tetőfedés",
+      serviceArea: "Budapest",
+      servicesOffered: ["Tetőjavítás", "Bádogozás"],
+    },
+    message: "Kovács Anna vagyok, anna@customer.hu.",
+    conversation: [
+      {
+        role: "user",
+        content: "Tetőjavításra kérek ajánlatot Budapesten. Beázik a tető a kémény mellett, jövő héten lenne jó.",
+      },
+      {
+        role: "assistant",
+        content: "Kérem, adja meg a nevét és egy elérhetőséget.",
+      },
+      {
+        role: "user",
+        content: "Kovács Anna vagyok, anna@customer.hu.",
+      },
+    ],
+    fields: {},
+  });
+
+  assert.equal(result.readyToSubmit, true);
+  assert.deepEqual(result.missingFields, []);
+  assert.equal(result.fields.requestedService, "Tetőjavítás");
+  assert.match(result.fields.projectDetails, /Beázik a tető/i);
+  assert.equal(result.fields.locationText, "Budapest");
+  assert.equal(result.fields.urgency, "Jövő héten");
+  assert.equal(result.fields.customerName, "Kovács Anna");
+  assert.equal(result.fields.customerEmail, "anna@customer.hu");
 });
 
 test("QDH AI intake assistant extracts Hungarian details without public leaks", async () => {

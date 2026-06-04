@@ -437,6 +437,26 @@ function replyClaimsSpecificPolicy(reply = "") {
   return /\b(refunds? (?:are|is|within|after|before)|returns? (?:are|within|after|before)|cancel(?:lation)? (?:is|within|after|before|fee)|warrant(?:y|ies) (?:are|is|lasts?|cover)|discounts? (?:are|is|available|start)|coupons? (?:are|is|available)|available (?:today|tomorrow|on|at)|open(?:ing)? hours? (?:are|is)|book(?:ing)? (?:is|times? are|at|on)|appointment (?:times? are|is|at|on)|\b\d+\s?(?:day|days|hour|hours|business days)\b)/i.test(normalized);
 }
 
+function userRequestsSpecificBookingTime(message = "", history = []) {
+  const normalized = buildEffectiveUserText(message, history).toLowerCase();
+  const hasBookingIntent =
+    /\b(book|booking|appointment|schedule|reserve|reservation)\b|\b(időpont|idopont|foglal|foglalás|foglalas)\b/i.test(
+      normalized
+    );
+  const hasSpecificTime =
+    /\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:today|tomorrow|tonight)\b|\b\d{1,2}(?::\d{2})?\s?(?:am|pm)\b|\b(?:at|around)\s+\d{1,2}(?::\d{2})?\b|\b(?:january|february|march|april|may|june|july|august|september|october|november|december)\b|\b(?:hétfő|hetfo|kedd|szerda|csütörtök|csutortok|péntek|pentek|szombat|vasárnap|vasarnap|ma|holnap)\b|\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/i.test(
+      normalized
+    );
+
+  return hasBookingIntent && hasSpecificTime;
+}
+
+function replySaysRequestedBookingTimeIsUnconfirmed(reply = "") {
+  return /\b(?:not confirmed|cannot confirm|can't confirm|no time is confirmed|exact times? (?:are|is) not confirmed|business (?:will need to )?confirm|shop (?:will need to )?confirm)\b|\b(?:nem tudom megerősíteni|nem tudjuk megerősíteni|nincs megerősítve|nem végleges|a vállalkozás megerősíti)\b/i.test(
+    cleanText(reply)
+  );
+}
+
 function hasOnlyMissingServiceEvidence(context = "") {
   const normalized = extractTrustedFactText(context).toLowerCase();
   return /\b(?:does not|doesn't|do not|don't)\s+list\b.{0,140}\b(?:service|services|repair|repairs|diagnostic|diagnostics|installation|maintenance|scooter|motorcycle|bike|bicycle)\b/i.test(normalized)
@@ -480,6 +500,10 @@ export function getFactualReplyGuardrailIssues({
     issues.push("reply invents a policy, availability, discount, or booking detail that is not present in approved answers or business context");
   }
 
+  if (intent === "policy" && userRequestsSpecificBookingTime(userMessage, history) && !replySaysRequestedBookingTimeIsUnconfirmed(reply)) {
+    issues.push("reply must clearly say the requested booking or appointment time is not confirmed here and the business must confirm it");
+  }
+
   return issues;
 }
 
@@ -502,6 +526,7 @@ export function buildBusinessReplyRepairPrompt(language) {
 - If the website content is missing the requested detail, say that plainly instead of softening it with vague phrasing
 - Never invent prices, services, availability, policies, guarantees, timelines, discounts, booking times, or legal claims
 - If the reply contains a price, service, policy, availability, discount, or booking detail that is not in the approved answers or business context, remove it and say Front Desk does not have that detail
+- If the visitor asks for a specific booking or appointment time and there is no live confirmation, say the requested time is not confirmed here and the business must confirm it
 - Prefer owner-approved answers over weaker website context when they match the visitor's question
 - Keep any next-step suggestion short, natural, and helpful
 - If the reply can gently move the user toward a useful action, do it without sounding salesy or pushy

@@ -30,6 +30,7 @@ import {
   scoreWebCallEvalScenario,
 } from "../src/services/evals/webCallEvalRubric.js";
 import { LEAD_CAPTURE_STATES } from "../src/services/leads/liveLeadCaptureService.js";
+import { getFactualReplyGuardrailIssues } from "../src/services/chat/prompting.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTRACT_PATH = path.join(REPO_ROOT, "docs/architecture/booking-capability-contract.md");
@@ -96,6 +97,26 @@ test("Front Desk eval contract rejects confirmed wording for requested booking t
   assert.ok(unsafe.failedCriteria.includes("groundednessNoInventedFacts"));
   assert.ok(unsafe.failedCriteria.includes("riskyClaimsBackedByEvidence"));
   assert.equal(safe.passed, true);
+});
+
+test("Front Desk repair flags specific booking time replies without confirmation safety", () => {
+  const unsafeIssues = getFactualReplyGuardrailIssues({
+    userMessage: "Can you book me this Saturday at 10?",
+    reply: "Visitors can request a repair appointment online. Saturday appointments are by request. Please submit your request as soon as possible.",
+    businessContext: "Booking: visitors can request appointments online. Exact times are not confirmed until the shop replies.",
+  });
+  const safeIssues = getFactualReplyGuardrailIssues({
+    userMessage: "Can you book me this Saturday at 10?",
+    reply: "Saturday at 10 is not confirmed here. The shop must confirm the exact time after you send the request. What name and contact detail should they use?",
+    businessContext: "Booking: visitors can request appointments online. Exact times are not confirmed until the shop replies.",
+  });
+
+  assert.ok(
+    unsafeIssues.some((issue) => /requested booking or appointment time is not confirmed/i.test(issue))
+  );
+  assert.ok(
+    !safeIssues.some((issue) => /requested booking or appointment time is not confirmed/i.test(issue))
+  );
 });
 
 test("live availability claims stay unsupported without live booking evidence", () => {

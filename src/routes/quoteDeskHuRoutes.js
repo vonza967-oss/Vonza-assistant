@@ -20,6 +20,7 @@ import {
   QDH_AI_INTAKE_PHASE,
   QDH_AI_INTAKE_SOURCE_CHANNEL,
   analyzeQuoteDeskHuIntakeTurn,
+  generateQuoteDeskHuAssistantTurn,
   toQuoteDeskHuRequestPayloadFields,
 } from "../services/quotes/quoteDeskHuIntakeAssistantService.js";
 import {
@@ -632,7 +633,7 @@ function buildSafeAssistantResponse(analysis = {}, request = null) {
         }
       : null,
     message: request
-      ? "Az ajánlatkérést rögzítettük staff review-ra. Ez nem végleges vagy garantált árajánlat."
+      ? "Az ajánlatkérést rögzítettük. Ez nem végleges vagy garantált árajánlat."
       : "",
   };
 }
@@ -660,6 +661,8 @@ export function createQuoteDeskHuRouter(deps = {}) {
     deps.saveQuoteDeskHuSetup || saveQuoteDeskHuSetup;
   const analyzeQuoteDeskHuIntakeTurnImpl =
     deps.analyzeQuoteDeskHuIntakeTurn || analyzeQuoteDeskHuIntakeTurn;
+  const generateQuoteDeskHuAssistantTurnImpl =
+    deps.generateQuoteDeskHuAssistantTurn || generateQuoteDeskHuAssistantTurn;
   const limitQdhIntakeAssistant =
     deps.limitQdhIntakeAssistant || createRateLimitMiddleware("public_qdh_intake_assistant", {
       windowMs: 60_000,
@@ -767,13 +770,17 @@ export function createQuoteDeskHuRouter(deps = {}) {
         openai = null;
       }
 
-      const analysis = await analyzeQuoteDeskHuIntakeTurnImpl({
+      const analysis = await generateQuoteDeskHuAssistantTurnImpl({
+        supabase,
         openai,
+        agent,
         message: intakeTurn.message,
         conversation: intakeTurn.conversation,
         fields: intakeTurn.fields,
         businessContext: buildPublicQdhSetupContext(setup),
         confirmSubmit: intakeTurn.confirmSubmit,
+      }, {
+        analyzeQuoteDeskHuIntakeTurn: analyzeQuoteDeskHuIntakeTurnImpl,
       });
 
       if (!intakeTurn.confirmSubmit || analysis.readyToSubmit !== true) {

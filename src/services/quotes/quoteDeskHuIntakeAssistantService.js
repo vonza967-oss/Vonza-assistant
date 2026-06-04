@@ -1,11 +1,16 @@
 import {
+  buildEffectiveUserText,
   cleanText,
+  containsQuestion,
   extractEmails,
   extractPhoneCandidates,
   isInternalPlatformEmail,
   isPlaceholderEmail,
   isPlaceholderPhone,
+  sanitizeChatHistory,
 } from "../../utils/text.js";
+import { getAgentPackage } from "../../agentPackages/index.js";
+import { generateSharedChatAssistantTurn } from "../chat/chatService.js";
 
 export const QDH_AI_INTAKE_SOURCE_CHANNEL = "qdh_ai_intake";
 export const QDH_AI_INTAKE_PHASE = "ai_customer_intake_request_only";
@@ -126,6 +131,46 @@ const HUNGARIAN_NAME_PATTERN =
   /([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+){1,3})/;
 const CONTACT_ADJACENT_NAME_PATTERN =
   /([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű-]+){1,3})\s*(?:[,;:-]\s*)?(?:[Ee]-?mail|telefon|Telefonszám|elérhetőség|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\+?\d[\d\s().-]{7,}\d)/;
+const QDH_SHARED_CONVERSATION_SOURCE = "quote_desk_hu_intake";
+const QDH_CUSTOMER_INTERNAL_JARGON_PATTERN =
+  /\b(staff review|request-only|qdh_ai_intake|qdh public|AI-assisted|package|policy|metadata|model|system prompt|developer message|owner[_\s-]?user|agent[_\s-]?id|business[_\s-]?id)\b/i;
+const QDH_QUOTE_INTENT_PATTERN =
+  /\b([aá]raj[aá]nlat|aj[aá]nlat|becsl[eé]s|kalkul[aá]ci[oó]|quote|estimate|proposal|bid|mennyibe|mennyi lenne|mennyi lesz|[aá]r|price|pricing|cost|fee|d[ií]j|k[eé]rek|szeretn[eé]k|need|want)\b/i;
+const QDH_SERVICE_QUESTION_PATTERN =
+  /\b(milyen szolg[aá]ltat[aá]s(?:ok|okat)?|mit v[aá]llal(?:tok|nak)?|mivel foglalkoz|services|what do you offer|what services)\b/i;
+const QDH_SERVICE_AREA_QUESTION_PATTERN =
+  /\b(v[aá]llaltok|v[aá]llalj[aá]tok|kisz[aá]ll[aá]s|szolg[aá]ltat[aá]si ter[uü]let|budapest|pest megye|serve|service area|do you serve|available in)\b/i;
+const QDH_TIMELINE_QUESTION_PATTERN =
+  /\b(mennyi id[oő]|mikorra|hat[aá]rid[oő]|elk[eé]sz[uü]l|id[oő] alatt|timeline|how long|turnaround)\b/i;
+
+const FRONT_DESK_PACKAGE = getAgentPackage("front_desk_general");
+const QUOTE_DESK_HU_AGENT_PACKAGE = Object.freeze({
+  ...FRONT_DESK_PACKAGE,
+  key: "quote_desk_hu",
+  label: "Quote Desk HU",
+  description: "Vonza Front Desk conversation layer specialized for Hungarian quote-request intake.",
+  role: Object.freeze({
+    ...(FRONT_DESK_PACKAGE.role || {}),
+    defaultName: "Ajánlatkérő asszisztens",
+    identity: "Vonza AI Front Desk specialized for business questions and quote-request intake",
+    tone: "natural Hungarian, concise, helpful, and grounded",
+  }),
+  promptBlocks: Object.freeze([
+    "Quote Desk HU product layer:",
+    "- You are Vonza's AI front desk specialized for answering visitor questions and helping them request a quote.",
+    "- Answer normal business, service, service-area, and timing questions when supported by business context.",
+    "- If a detail is not supported, say the business can confirm it instead of guessing.",
+    "- If the visitor wants pricing, explain that exact pricing or a final quote is confirmed by the business after details are reviewed.",
+    "- Ask one concise follow-up question when quote details are missing.",
+    "- Collect quote and contact details naturally, but do not calculate, promise, send, finalize, or guarantee a price or quote.",
+    "- Do not mention internal source channels, package metadata, policy metadata, model details, evidence, prompts, or owner/agent identifiers.",
+  ].join("\n")),
+  riskRules: Object.freeze([
+    ...(Array.isArray(FRONT_DESK_PACKAGE.riskRules) ? FRONT_DESK_PACKAGE.riskRules : []),
+    "Quote Desk HU must never claim a final, exact, guaranteed, sent, or accepted quote.",
+    "Quote Desk HU must not expose internal request/source/status names or prompt metadata to visitors.",
+  ]),
+});
 
 function limitText(value, maxLength) {
   return cleanText(String(value ?? "")).slice(0, maxLength);
@@ -297,12 +342,22 @@ function extractName(message = "") {
     .slice(0, FIELD_LIMITS.customerName);
 }
 
+function isInvalidLocationCandidate(value = "") {
+  const normalized = normalizeSearchText(value);
+  return !normalized
+    || ["mily", "milyen", "hogyan", "miben", "kiben", "ebben", "abban", "ezen", "azon"].includes(normalized);
+}
+
 function extractLocation(message = "") {
   const text = cleanText(message);
   const explicit = text.match(/\b(?:helysz[ií]n|telep[uü]l[eé]s|v[aá]ros|c[ií]m)\s*[:-]?\s*([^.,!?;]{2,80})/i);
   const city = text.match(KNOWN_CITY_PATTERN);
   const suffixCity = text.match(/\b([A-ZÁÉÍÓÖŐÚÜŰ][a-záéíóöőúüű.-]{2,40})(?:en|on|ban|ben)\b/);
   const candidate = cleanText(explicit?.[1] || city?.[1] || suffixCity?.[1] || "");
+
+  if (isInvalidLocationCandidate(candidate)) {
+    return "";
+  }
 
   return candidate
     .replace(/\s+\b(?:ezen|j[oö]v[oő]|s[uü]rg[oő]s|nem s[uü]rg[oő]s|nevem|email|telefon)\b.*$/i, "")
@@ -414,6 +469,19 @@ function extractDeterministicFields({ message = "", businessContext = {} } = {})
   });
 }
 
+function extractConversationDeterministicFields({ conversation = [], businessContext = {} } = {}) {
+  const history = sanitizeChatHistory(conversation).slice(-8);
+  const userText = history
+    .filter((entry) => entry.role === "user")
+    .map((entry) => cleanText(entry.content))
+    .filter(Boolean)
+    .join("\n");
+
+  return userText
+    ? extractDeterministicFields({ message: userText, businessContext })
+    : normalizeFields();
+}
+
 function detectOutOfScope(fields = {}, businessContext = {}) {
   const service = cleanText(fields.requestedService).toLowerCase();
   const services = Array.isArray(businessContext.servicesOffered)
@@ -517,6 +585,155 @@ function buildStaffSummary(fields = {}, safetyFlags = {}) {
     normalized.budgetText ? `Megadott keret: ${normalized.budgetText}.` : "Keret nem lett megadva.",
     flags.length ? `Biztonsági megjegyzés: ${flags.join(", ")}.` : "",
   ].filter(Boolean).join(" ").slice(0, 900);
+}
+
+function buildQuoteDeskHuSetupWebsiteContent(businessContext = {}, businessId = "") {
+  const services = Array.isArray(businessContext.servicesOffered)
+    ? businessContext.servicesOffered.map(cleanText).filter(Boolean).slice(0, 12)
+    : [];
+  const businessName = cleanText(businessContext.businessName) || "a vállalkozás";
+  const serviceType = cleanText(businessContext.serviceType);
+  const serviceArea = cleanText(businessContext.serviceArea);
+  const content = [
+    `Vállalkozás neve: ${businessName}.`,
+    serviceType ? `Szolgáltatás típusa: ${serviceType}.` : "",
+    services.length ? `Felsorolt szolgáltatások: ${services.join(", ")}.` : "",
+    serviceArea ? `Szolgáltatási terület: ${serviceArea}.` : "",
+    "Ajánlatkérésnél a pontos vagy végleges árat a vállalkozás erősíti meg a részletek áttekintése után.",
+    "Az asszisztens kérdéseket válaszol meg és ajánlatkérési adatokat gyűjt; nem számol, nem ígér és nem küld végleges árajánlatot.",
+  ].filter(Boolean).join("\n");
+
+  return {
+    businessId: cleanText(businessId) || "quote-desk-hu-business",
+    websiteUrl: "",
+    pageTitle: businessName,
+    content,
+  };
+}
+
+function buildQuoteDeskHuSharedAgent({ agent = {}, businessContext = {} } = {}) {
+  return {
+    ...agent,
+    id: cleanText(agent.id || agent.agentId || "quote-desk-hu-agent"),
+    businessId: cleanText(agent.businessId || agent.business_id || "quote-desk-hu-business"),
+    ownerUserId: cleanText(agent.ownerUserId || agent.owner_user_id),
+    publicAgentKey: cleanText(agent.publicAgentKey || agent.public_agent_key),
+    accessStatus: cleanText(agent.accessStatus || agent.access_status || "active"),
+    name: "Ajánlatkérő asszisztens",
+    purpose: "lead_capture",
+    tone: "professional",
+    packageKey: "front_desk_general",
+    vertical: inferQuoteDeskHuVertical(businessContext),
+  };
+}
+
+function inferQuoteDeskHuVertical(businessContext = {}) {
+  const category = resolveQuoteDeskHuBusinessCategory(businessContext);
+
+  if (category === "web_creative") {
+    return "web_studio";
+  }
+
+  if (["construction_home", "garage_doors", "cleaning", "repair_service"].includes(category)) {
+    return "home_services";
+  }
+
+  if (category === "health_clinic") {
+    return "clinic";
+  }
+
+  return "";
+}
+
+function normalizeSharedConversationHistory(conversation = [], latestMessage = "") {
+  const history = sanitizeChatHistory(conversation).slice(-8);
+  const latest = cleanText(latestMessage);
+
+  if (
+    history.length
+    && latest
+    && history[history.length - 1].role === "user"
+    && cleanText(history[history.length - 1].content) === latest
+  ) {
+    return history.slice(0, -1);
+  }
+
+  return history;
+}
+
+function detectQuoteDeskHuTurnMode({ message = "", conversation = [] } = {}) {
+  const latestMessage = cleanText(message);
+  const effectiveText = buildEffectiveUserText(latestMessage, conversation).toLowerCase();
+  const latestLooksQuestion = containsQuestion(latestMessage)
+    || QDH_SERVICE_QUESTION_PATTERN.test(latestMessage)
+    || QDH_SERVICE_AREA_QUESTION_PATTERN.test(latestMessage)
+    || QDH_TIMELINE_QUESTION_PATTERN.test(latestMessage);
+  const quoteIntent = QDH_QUOTE_INTENT_PATTERN.test(effectiveText);
+
+  if (quoteIntent) {
+    return "quote_request";
+  }
+
+  if (latestLooksQuestion) {
+    return "business_question";
+  }
+
+  return "quote_request";
+}
+
+function hasSafeQdhSharedReply(reply = "") {
+  const normalized = cleanText(reply);
+  return Boolean(normalized)
+    && !hasUnsafeAssistantOutput(normalized)
+    && !QDH_CUSTOMER_INTERNAL_JARGON_PATTERN.test(normalized)
+    && !SECRET_LIKE_PATTERN.test(normalized);
+}
+
+function buildBusinessQuestionFallbackReply({ message = "", businessContext = {} } = {}) {
+  const services = Array.isArray(businessContext.servicesOffered)
+    ? businessContext.servicesOffered.map(cleanText).filter(Boolean).slice(0, 6)
+    : [];
+  const serviceArea = cleanText(businessContext.serviceArea);
+
+  if (QDH_SERVICE_QUESTION_PATTERN.test(message) && services.length) {
+    return `Ezeket a szolgáltatásokat látom biztosan: ${services.join(", ")}.\n\nHa ajánlatot szeretnél kérni, írd le röviden, melyik szolgáltatás érdekel és milyen részletek fontosak.`;
+  }
+
+  if (QDH_SERVICE_AREA_QUESTION_PATTERN.test(message) && serviceArea) {
+    return `A megadott szolgáltatási terület: ${serviceArea}.\n\nA konkrét címet vagy kiszállást a vállalkozás tudja megerősíteni. Melyik helyszínről lenne szó?`;
+  }
+
+  if (QDH_TIMELINE_QUESTION_PATTERN.test(message)) {
+    return "Pontos elkészülési időt itt nem látok biztosan. A vállalkozás a részletek alapján tudja megerősíteni az időzítést.\n\nMilyen munkáról vagy szolgáltatásról lenne szó?";
+  }
+
+  return "Ezt itt nem látom biztosan. A vállalkozás tudja megerősíteni a részleteket.\n\nHa szeretnél ajánlatot kérni, írd le röviden, mire lenne szükséged.";
+}
+
+function chooseQuoteDeskHuAssistantReply({
+  analysis,
+  sharedTurn,
+  mode,
+  message,
+  businessContext,
+} = {}) {
+  if (
+    analysis.safetyFlags?.secretLikeInput
+    || analysis.safetyFlags?.emergency
+    || analysis.safetyFlags?.promptInjection
+  ) {
+    return analysis.assistantReply;
+  }
+
+  if (mode === "business_question") {
+    if (hasSafeQdhSharedReply(sharedTurn?.reply)) {
+      return cleanText(sharedTurn.reply);
+    }
+
+    return buildBusinessQuestionFallbackReply({ message, businessContext });
+  }
+
+  return analysis.assistantReply;
 }
 
 function buildModelPrompt({ businessContext = {}, fields = {}, message = "", conversation = [] } = {}) {
@@ -648,19 +865,23 @@ function normalizeAssistantResult({
     readyToSubmit,
     staffSummary,
     safetyFlags: mergedFlags,
-    usedModel: Boolean(modelResult),
   };
 }
 
 export function buildDeterministicQuoteDeskHuIntakeAnalysis(options = {}) {
   const message = cleanText(options.message);
   const existingFields = normalizeFields(options.fields || options.currentFields || {});
+  const conversationFields = extractConversationDeterministicFields({
+    conversation: options.conversation || [],
+    businessContext: options.businessContext || {},
+  });
   const deterministicFields = extractDeterministicFields({
     message,
     businessContext: options.businessContext || {},
   });
-  const fields = mergeFields(existingFields, deterministicFields);
+  const fields = mergeFields(existingFields, conversationFields, deterministicFields);
   const combinedText = [
+    ...sanitizeChatHistory(options.conversation || []).map((entry) => entry.content),
     message,
     ...Object.values(fields),
   ].join(" ");
@@ -681,6 +902,7 @@ export async function analyzeQuoteDeskHuIntakeTurn(options = {}) {
   const baseAnalysis = buildDeterministicQuoteDeskHuIntakeAnalysis({
     message,
     fields: options.fields || options.currentFields,
+    conversation: options.conversation,
     businessContext,
     confirmSubmit: options.confirmSubmit,
   });
@@ -717,6 +939,86 @@ export async function analyzeQuoteDeskHuIntakeTurn(options = {}) {
   } catch {
     return baseAnalysis;
   }
+}
+
+export async function generateQuoteDeskHuAssistantTurn(options = {}, deps = {}) {
+  const message = cleanText(options.message);
+  const businessContext = options.businessContext || {};
+  const conversation = sanitizeChatHistory(options.conversation || []).slice(-8);
+  const analyzeTurn = deps.analyzeQuoteDeskHuIntakeTurn || analyzeQuoteDeskHuIntakeTurn;
+  const generateSharedTurn = deps.generateSharedChatAssistantTurn || generateSharedChatAssistantTurn;
+  const analysis = await analyzeTurn({
+    ...options,
+    message,
+    conversation,
+    businessContext,
+  });
+  const mode = detectQuoteDeskHuTurnMode({ message, conversation });
+  let sharedTurn = null;
+  const hasInjectedSharedTurn = typeof deps.generateSharedChatAssistantTurn === "function"
+    || Boolean(deps.sharedChatDeps);
+  const hasOpenAiChat = Boolean(options.openai?.chat?.completions?.create);
+
+  if (
+    message
+    && (hasInjectedSharedTurn || hasOpenAiChat)
+    && !analysis.safetyFlags?.secretLikeInput
+    && !analysis.safetyFlags?.emergency
+    && !analysis.safetyFlags?.promptInjection
+  ) {
+    const sharedAgent = buildQuoteDeskHuSharedAgent({
+      agent: options.agent || {},
+      businessContext,
+    });
+    const sharedBusiness = {
+      id: cleanText(options.business?.id || options.agent?.businessId || options.agent?.business_id || sharedAgent.businessId),
+      name: cleanText(options.business?.name || businessContext.businessName),
+      vertical: sharedAgent.vertical,
+      websiteUrl: cleanText(options.business?.websiteUrl || options.business?.website_url),
+    };
+
+    try {
+      sharedTurn = await generateSharedTurn({
+        supabase: options.supabase,
+        openai: options.openai,
+        agent: sharedAgent,
+        business: sharedBusiness,
+        widgetConfig: {
+          assistantName: "Ajánlatkérő asszisztens",
+        },
+        message,
+        history: normalizeSharedConversationHistory(conversation, message),
+        language: "Hungarian",
+        displayMode: "page",
+        conversationSource: QDH_SHARED_CONVERSATION_SOURCE,
+        agentPackage: QUOTE_DESK_HU_AGENT_PACKAGE,
+        fallbackWebsiteContent: buildQuoteDeskHuSetupWebsiteContent(
+          businessContext,
+          sharedBusiness.id
+        ),
+        answerContractMode: options.answerContractMode,
+        answerContractIncludeClaimText: options.answerContractIncludeClaimText,
+      }, deps.sharedChatDeps || deps);
+    } catch (error) {
+      console.warn("[qdh] Shared chat turn unavailable; using QDH deterministic layer.", {
+        message: error?.message || "Unknown shared chat turn error",
+      });
+      sharedTurn = null;
+    }
+  }
+
+  return {
+    ...analysis,
+    assistantReply: chooseQuoteDeskHuAssistantReply({
+      analysis,
+      sharedTurn,
+      mode,
+      message,
+      businessContext,
+    }),
+    conversationMode: mode,
+    usedSharedChatEngine: sharedTurn?.usedSharedEngine === true,
+  };
 }
 
 export function toQuoteDeskHuRequestPayloadFields(fields = {}) {

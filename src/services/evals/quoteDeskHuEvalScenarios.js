@@ -142,6 +142,24 @@ export const QUOTE_DESK_HU_EVAL_SCENARIOS = Object.freeze([
 
 export const QUOTE_DESK_HU_AI_INTAKE_EVAL_SCENARIOS = Object.freeze([
   Object.freeze({
+    id: "ai-conv-service-question-then-quote",
+    title: "Visitor asks a service question first, then completes a quote request",
+    conversation: [
+      {
+        role: "user",
+        content: "Milyen szolgáltatásokat vállaltok?",
+      },
+      {
+        role: "assistant",
+        content: "Tetőjavítás, klíma karbantartás és weboldal átalakítás látszik biztosan.",
+      },
+    ],
+    message: "Tetőjavításra kérek ajánlatot Budapesten. Beázik a tető a kémény mellett, jövő héten lenne jó. Kovács Anna vagyok, anna@customer.hu.",
+    expectReady: true,
+    expectHungarian: true,
+    expectedMissingFields: [],
+  }),
+  Object.freeze({
     id: "ai-hu-complete-roof-request",
     title: "Hungarian natural quote request with all required details",
     message: "Tetőjavításra kérek ajánlatot. Beázik a tető a kémény mellett Budapesten, ezen a héten lenne sürgős. A nevem Kovács Anna, email anna@customer.hu.",
@@ -177,6 +195,44 @@ export const QUOTE_DESK_HU_AI_INTAKE_EVAL_SCENARIOS = Object.freeze([
     expectHungarian: true,
     expectedMissingFields: ["urgency"],
     expectPricingBoundary: true,
+  }),
+  Object.freeze({
+    id: "ai-hu-service-area-budapest",
+    title: "Visitor asks whether the business serves Budapest",
+    message: "Vállaltok Budapesten?",
+    expectReady: false,
+    expectHungarian: true,
+    expectedMissingFields: [],
+    expectedReplyPattern: /Budapest/i,
+    forbiddenReplyPattern: /\b(Szeged|igen, biztosan|garant[aá]ltan)\b/i,
+  }),
+  Object.freeze({
+    id: "ai-hu-partial-follow-up-contact",
+    title: "Partial quote request is completed by a follow-up contact message",
+    conversation: [
+      {
+        role: "user",
+        content: "Klíma karbantartásra kérek ajánlatot Budapesten. Három beltéri egység tisztítása kell jövő héten.",
+      },
+      {
+        role: "assistant",
+        content: "Kérem, adja meg a nevét és egy elérhetőséget.",
+      },
+    ],
+    message: "Farkas Dóra vagyok, dora@customer.hu.",
+    expectReady: true,
+    expectHungarian: true,
+    expectedMissingFields: [],
+  }),
+  Object.freeze({
+    id: "ai-hu-question-outside-context",
+    title: "Question outside business context is not invented",
+    message: "Szegeden is vállaltok tetőjavítást?",
+    expectReady: false,
+    expectHungarian: true,
+    expectedMissingFields: [],
+    expectedReplyPattern: /Budapest|vállalkozás tudja megerősíteni/i,
+    forbiddenReplyPattern: /\b(igen|természetesen|biztosan vállal)\b/i,
   }),
   Object.freeze({
     id: "ai-hu-guaranteed-price-force",

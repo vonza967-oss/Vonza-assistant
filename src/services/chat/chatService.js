@@ -1214,7 +1214,8 @@ async function assembleChatKnowledge({
     businessContextLength: businessContext.length,
   });
 
-  const relevantApprovedAnswers = cleanText(agentWithBusinessContext.ownerUserId)
+  const canReadSupabase = typeof supabase?.from === "function";
+  const relevantApprovedAnswers = cleanText(agentWithBusinessContext.ownerUserId) && canReadSupabase
     ? await services.selectRelevantApprovedAnswers(supabase, {
       agentId: agent.id,
       ownerUserId: agentWithBusinessContext.ownerUserId,
@@ -1226,7 +1227,7 @@ async function assembleChatKnowledge({
     })
     : [];
   const approvedAnswersPrompt = buildApprovedAnswersPrompt(relevantApprovedAnswers);
-  const businessProfile = cleanText(agentWithBusinessContext.ownerUserId)
+  const businessProfile = cleanText(agentWithBusinessContext.ownerUserId) && canReadSupabase
     ? await services.getOperatorBusinessProfile(supabase, {
       agent: agentWithBusinessContext,
       ownerUserId: agentWithBusinessContext.ownerUserId,
@@ -1461,6 +1462,194 @@ function applyFinalReplySafetyValidation({
   }
 
   return finalReply;
+}
+
+function normalizeSharedChatTurnWebsiteContent(websiteContent, business = {}) {
+  if (!websiteContent || typeof websiteContent !== "object") {
+    return null;
+  }
+
+  const content = cleanText(websiteContent.content);
+  if (!content) {
+    return null;
+  }
+
+  return {
+    ...websiteContent,
+    businessId: cleanText(websiteContent.businessId || websiteContent.business_id || business.id),
+    websiteUrl: cleanText(websiteContent.websiteUrl || websiteContent.website_url || business.website_url || business.websiteUrl),
+    pageTitle: cleanText(websiteContent.pageTitle || websiteContent.page_title || business.name),
+    content,
+  };
+}
+
+function buildSharedChatTurnRequest({
+  message = "",
+  history = [],
+  language = "",
+  sessionKey = "",
+  displayMode = "page",
+  conversationSource = "",
+  visitorIdentity = null,
+  pageUrl = "",
+  origin = "",
+} = {}) {
+  const normalizedMessage = cleanText(message);
+  const sanitizedHistory = sanitizeChatHistory(history).slice(-8);
+
+  return {
+    message: normalizedMessage,
+    history: sanitizedHistory,
+    effectiveUserText: buildEffectiveUserText(normalizedMessage, sanitizedHistory),
+    normalizedMessage,
+    language: cleanText(language) || selectResponseLanguage(normalizedMessage, sanitizedHistory),
+    sessionKey: cleanText(sessionKey),
+    installId: "",
+    pageUrl: cleanText(pageUrl),
+    origin: cleanText(origin),
+    displayMode: normalizePublicDisplayMode(displayMode),
+    conversationSource: cleanText(conversationSource),
+    visitorIdentity: normalizeVisitorIdentity(visitorIdentity || {}),
+  };
+}
+
+async function loadSharedChatTurnWebsiteContent({
+  supabase,
+  business,
+  providedWebsiteContent,
+  fallbackWebsiteContent,
+  services,
+}) {
+  const provided = normalizeSharedChatTurnWebsiteContent(providedWebsiteContent, business);
+  if (provided) {
+    return provided;
+  }
+
+  const businessId = cleanText(business?.id);
+  if (businessId && typeof supabase?.from === "function") {
+    try {
+      const stored = await services.getStoredWebsiteContent(supabase, businessId);
+      const normalizedStored = normalizeSharedChatTurnWebsiteContent(stored, business);
+      if (normalizedStored) {
+        return normalizedStored;
+      }
+    } catch (error) {
+      console.warn("[chat] Shared turn website content lookup skipped.", {
+        businessId,
+        message: error?.message || "Unknown website content lookup error",
+      });
+    }
+  }
+
+  return normalizeSharedChatTurnWebsiteContent(fallbackWebsiteContent, business);
+}
+
+export async function generateSharedChatAssistantTurn(options = {}, deps = {}) {
+  const services = resolveChatServiceDependencies(deps);
+  const request = buildSharedChatTurnRequest(options);
+
+  if (!request.normalizedMessage) {
+    const error = new Error("message is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const agent = {
+    ...(options.agent || {}),
+    id: cleanText(options.agent?.id || options.agentId || "shared-chat-agent"),
+    ownerUserId: cleanText(options.agent?.ownerUserId || options.agent?.owner_user_id || options.ownerUserId),
+    publicAgentKey: cleanText(options.agent?.publicAgentKey || options.agent?.public_agent_key),
+    accessStatus: cleanText(options.agent?.accessStatus || options.agent?.access_status),
+  };
+  const business = {
+    ...(options.business || {}),
+    id: cleanText(options.business?.id || options.agent?.businessId || options.agent?.business_id || "shared-chat-business"),
+    name: cleanText(options.business?.name || options.business?.businessName || options.businessName),
+    vertical: cleanText(options.business?.vertical || options.agent?.vertical),
+  };
+  const widgetConfig = options.widgetConfig && typeof options.widgetConfig === "object"
+    ? options.widgetConfig
+    : {};
+  const agentWithBusinessContext = {
+    ...agent,
+    vertical: cleanText(business.vertical || agent.vertical),
+  };
+  const agentPackage = options.agentPackage || services.resolveAgentPackage(agentWithBusinessContext);
+  const publicContext = {
+    agent,
+    business,
+    widgetConfig,
+    webCallSession: null,
+    agentWithBusinessContext,
+    agentPackage,
+    conversationGuidance: services.buildConversationGuidance(request.message, request.history, {
+      agentPackage,
+      vertical: agentWithBusinessContext.vertical,
+    }),
+  };
+  const websiteContent = await loadSharedChatTurnWebsiteContent({
+    supabase: options.supabase,
+    business,
+    providedWebsiteContent: options.websiteContent,
+    fallbackWebsiteContent: options.fallbackWebsiteContent,
+    services,
+  });
+
+  if (!websiteContent) {
+    return {
+      reply: buildNoWebsiteContentFallbackReply(request.language),
+      usedSharedEngine: false,
+      fallbackReason: "missing_website_content",
+    };
+  }
+
+  if (hasLimitedKnowledge(websiteContent)) {
+    return {
+      reply: appendImageLines(
+        buildLimitedKnowledgeReply(
+          request.language,
+          agentWithBusinessContext.name || widgetConfig.assistantName,
+          websiteContent
+        ),
+        websiteContent,
+        request.message
+      ),
+      usedSharedEngine: false,
+      fallbackReason: "limited_website_content",
+    };
+  }
+
+  const capacityContext = {
+    websiteContent,
+    billingSnapshot: null,
+  };
+  const knowledge = await assembleChatKnowledge({
+    supabase: options.supabase,
+    openai: options.openai,
+    request,
+    publicContext,
+    websiteContent,
+    services,
+  });
+  const generatedReply = await generateRepairedChatReply({
+    supabase: options.supabase,
+    request,
+    publicContext,
+    capacityContext,
+    knowledge,
+    services,
+  });
+  const finalReply = applyFinalReplySafetyValidation({
+    reply: generatedReply,
+    request,
+    publicContext,
+    knowledge,
+  });
+
+  return {
+    reply: appendImageLines(finalReply, websiteContent, request.message),
+    usedSharedEngine: true,
+  };
 }
 
 async function resolveLeadCaptureAndDirectRouting({

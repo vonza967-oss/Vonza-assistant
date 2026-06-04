@@ -39,6 +39,33 @@ Current public customer-intake API routes:
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
 
+## Phase 8 Shared Front Desk Conversation Layer
+
+Phase 8 changes the QDH assistant from a standalone intake/extraction layer into a product layer on top of Vonza's shared AI Front Desk chat engine.
+
+The shared Front Desk engine handles:
+
+- business context from setup-derived content, stored website content, approved answers, business profile facts, RAG, evidence packs, and answer-contract/report-only checks where available;
+- language handling, prompt compilation, package prompt blocks, factuality repair, and safe missing-information behavior;
+- normal visitor questions about services, service area, timing, and business details when the answer is supported by available context.
+
+The QDH layer handles:
+
+- Hungarian quote-desk prompt instructions and product-specific fallback wording;
+- quote intent versus business-question distinction;
+- deterministic quote-readiness extraction and validation;
+- bounded, sanitized conversation history so follow-up answers can complete missing fields;
+- one-missing-detail follow-up behavior;
+- explicit request-only acknowledgement before creating `agent_quote_requests`;
+- safe customer DTOs for the custom intake UI.
+
+Request creation remains deterministic and confirmation-gated:
+
+- required fields are kért szolgáltatás, projekt részletei, város/helyszín, sürgősség, név, and email or phone;
+- `source_channel = 'qdh_ai_intake'` remains request-only;
+- no final quote, guaranteed price, exact quote calculation, external send, provider call, WhatsApp/email/CRM/proposal send, or accepted-quote state is created by QDH chat;
+- public responses do not expose owner IDs, agent IDs, business IDs, package metadata, policy metadata, evidence internals, prompts, model metadata, or raw shared-engine internals.
+
 ## Phase 7 Business-Specific Intake Copy
 
 Phase 7 polishes the customer-facing intake so the first-screen copy matches the business context instead of showing generic or mismatched examples.
