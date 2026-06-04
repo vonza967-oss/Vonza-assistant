@@ -39,6 +39,37 @@ Current public customer-intake API routes:
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
 
+## Phase 5 Customer AI Receptionist UX
+
+Phase 5 corrects the customer-facing AI intake experience from system/admin language to business-branded receptionist language.
+
+Customer page behavior:
+
+- the public intake first screen leads with natural Hungarian quote-request copy, not QDH/internal taxonomy;
+- the business name and service context are the primary visible context after the public intake link resolves;
+- QDH/source/status labels are hidden from the customer surface;
+- internal labels such as `Request-only`, `Staff review`, `AI-assisted Staff review`, `Hiányos`, `qdh_ai_intake`, package metadata, and policy metadata are not shown in the public intake HTML/JS copy;
+- visitors can type a natural Hungarian request first, with no warning wall of missing fields before they start;
+- captured details are shown as a calm progress panel;
+- the manual details form is available behind `Részletek szerkesztése`;
+- the final submit control appears only after required details are present;
+- success copy says `Köszönjük, továbbítottuk az ajánlatkérést.` and explains that the business reviews the request and confirms exact pricing.
+
+Assistant behavior:
+
+- missing-info replies ask for one next detail at a time while the structured response still returns the full `missingFields` array for validation and owner review;
+- exact/final/guaranteed price requests are refused in natural Hungarian;
+- customer-facing assistant replies avoid internal system labels while still preserving backend safety flags and request-only storage.
+
+Backend safety remains unchanged:
+
+- no final quote calculation;
+- no guaranteed pricing;
+- no automatic customer message send;
+- no email, WhatsApp, CRM, proposal, booking, or provider call;
+- no widget/embed behavior change;
+- no schema or migration change.
+
 ## Phase 4 AI Intake Assistant
 
 Phase 4 makes the customer intake page AI-assisted while keeping QDH request-only and staff-review-only.
@@ -282,7 +313,7 @@ Before production rollout, ensure the quote request migration is deployed and vi
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
 
-QDH Phase 4 does not add a new migration. It depends on:
+QDH Phase 4 and Phase 5 do not add a new migration. They depend on:
 
 - an applied `agent_quote_requests` migration;
 - an applied `qdh_owner_setups` migration;

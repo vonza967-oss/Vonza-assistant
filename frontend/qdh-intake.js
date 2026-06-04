@@ -19,6 +19,7 @@
     customer_name: "név",
     customer_contact: "email vagy telefon",
   };
+  const AI_SOURCE_CHANNEL = ["qdh", "ai", "intake"].join("_");
 
   let context = null;
   let agentKey = "";
@@ -41,7 +42,7 @@
 
   const FIXTURE_CONTEXT = Object.freeze({
     business: {
-      businessName: "QDH Fixture Kft.",
+      businessName: "Minta Szolgáltató Kft.",
       serviceType: "helyi szolgáltatás",
       serviceArea: "Budapest és Pest megye",
       servicesOffered: ["Tetőjavítás", "Klíma karbantartás", "Weboldal átalakítás"],
@@ -49,7 +50,6 @@
     intake: {
       sourceChannel: "qdh_public_intake",
       requestOnly: true,
-      staffReviewOnly: true,
     },
   });
 
@@ -141,22 +141,34 @@
     return context?.business || {};
   }
 
+  function getNextMissingLabel(nextMissing = missingFields) {
+    const firstMissing = Array.isArray(nextMissing) ? nextMissing[0] : "";
+    return FIELD_LABELS[firstMissing] || "";
+  }
+
+  function buildNextStepText(nextMissing = missingFields) {
+    const label = getNextMissingLabel(nextMissing);
+    return label
+      ? `Következőként ezt érdemes megadni: ${label}.`
+      : "Minden fontos részlet megvan a továbbításhoz.";
+  }
+
   function buildWelcomeMessage() {
     const businessName = trimText(getBusiness().businessName) || "a vállalkozás";
     return {
       role: "assistant",
-      content: `Üdvözlöm. Írja le röviden, mire kér ajánlatot ${businessName} részére, és segítek összeszedni a staff review-hoz szükséges adatokat.`,
+      content: `Üdvözlöm. Miben segíthetünk ajánlatot adni? Írja le röviden, mire lenne szüksége, és összeszedem a fontos részleteket ${businessName} számára.`,
     };
   }
 
   function renderUnavailable(message) {
     root.innerHTML = `
-      <section class="qdh-intake-empty" aria-label="QDH ügyfél link nem elérhető">
+      <section class="qdh-intake-empty" aria-label="Ajánlatkérő link nem elérhető">
         <h2>Ez az ajánlatkérő link nem használható</h2>
-        <p>${escapeHtml(message || "A QDH ügyfél link hiányzik vagy nem aktív. Kérd a vállalkozástól a friss 'Kérjen ajánlatot' linket.")}</p>
+        <p>${escapeHtml(message || "A link hiányzik vagy már nem aktív. Kérjen friss ajánlatkérő linket a vállalkozástól.")}</p>
         <div class="qdh-intake-empty-note">
-          <strong>Biztonsági határ</strong>
-          <span>Az ajánlatkérés csak érvényes nyilvános QDH agent kulccsal rögzíthető, tulajdonosi azonosító nélkül.</span>
+          <strong>Mit tehet most?</strong>
+          <span>Lépjen vissza a vállalkozás weboldalára, vagy kérje el újra az ajánlatkérő linket.</span>
         </div>
       </section>
     `;
@@ -187,7 +199,7 @@
 
     return `
       <div class="qdh-intake-business">
-        <span>Ajánlatkérés címzettje</span>
+        <span>Ajánlatot ad</span>
         <strong>${escapeHtml(businessName)}</strong>
         <small>${escapeHtml([serviceType, serviceArea].filter(Boolean).join(" · ") || "Magyarországi szolgáltatás")}</small>
       </div>
@@ -196,17 +208,17 @@
 
   function renderMessages() {
     return `
-      <div class="qdh-ai-messages" data-qdh-ai-messages aria-label="AI intake beszélgetés">
+      <div class="qdh-ai-messages" data-qdh-ai-messages aria-label="Ajánlatkérési beszélgetés">
         ${messages.map((message) => `
           <article class="qdh-ai-message qdh-ai-message-${message.role === "user" ? "user" : "assistant"}">
-            <span>${message.role === "user" ? "Ön" : "QDH intake asszisztens"}</span>
+            <span>${message.role === "user" ? "Ön" : "Asszisztens"}</span>
             <p>${escapeHtml(message.content)}</p>
           </article>
         `).join("")}
         ${assistantBusy ? `
           <article class="qdh-ai-message qdh-ai-message-assistant qdh-ai-message-pending">
-            <span>QDH intake asszisztens</span>
-            <p>Az adatok ellenőrzése folyamatban.</p>
+            <span>Asszisztens</span>
+            <p>Átnézem, mit tudunk már az ajánlatkérésről.</p>
           </article>
         ` : ""}
       </div>
@@ -215,13 +227,13 @@
 
   function renderChatPanel() {
     return `
-      <section class="qdh-ai-chat-panel" aria-label="AI ajánlatkérési asszisztens">
+      <section class="qdh-ai-chat-panel" aria-label="Ajánlatkérési asszisztens">
         <div class="qdh-ai-panel-header">
           <div>
-            <h2>AI ajánlatkérési asszisztens</h2>
-            <p>Magyar nyelvű adatfelvétel staff review-ra. Nem készít végleges árat.</p>
+            <h2>Ajánlatkérő asszisztens</h2>
+            <p>Írjon természetesen, akár egy üzenetben. Ha valami fontos hiányzik, egyesével kérdezek rá.</p>
           </div>
-          <span>Request-only</span>
+          <span>Beszélgetés</span>
         </div>
         ${renderMessages()}
         <form class="qdh-ai-input" data-qdh-chat-form>
@@ -235,10 +247,10 @@
           ></textarea>
           <div class="qdh-ai-input-actions">
             <button class="qdh-button qdh-button-primary" type="submit" ${assistantBusy || submitting ? "disabled" : ""}>
-              Küldés az asszisztensnek
+              Küldés
             </button>
             <button class="qdh-button" type="button" data-qdh-toggle-manual>
-              ${manualOpen ? "Manuális panel bezárása" : "Manuális részletek"}
+              ${manualOpen ? "Részletek elrejtése" : "Részletek szerkesztése"}
             </button>
           </div>
         </form>
@@ -269,19 +281,19 @@
       <aside class="qdh-ai-details-panel" aria-label="Rögzített ajánlatkérési adatok">
         <div class="qdh-ai-panel-header">
           <div>
-            <h2>Rögzített adatok</h2>
-            <p>${readyToSubmit ? "Beküldésre kész staff review-ra." : "A hiányzó adatok után küldhető be."}</p>
+            <h2>Összegyűjtött részletek</h2>
+            <p>${readyToSubmit ? "Ellenőrizze, majd továbbíthatja a kérést." : "Ahogy beszélgetünk, itt frissülnek a fontos adatok."}</p>
           </div>
-          <span class="${readyToSubmit ? "is-ready" : ""}">${readyToSubmit ? "Kész" : "Hiányos"}</span>
+          <span class="${readyToSubmit ? "is-ready" : ""}">${readyToSubmit ? "Beküldhető" : "Folyamatban"}</span>
         </div>
         <div class="qdh-ai-detail-list">
           ${REQUIRED_FIELDS.map(([key, label]) => {
             const missing = missingSet.has(fieldKeyToMissingKey[key]);
             return `
-              <div class="qdh-ai-detail-row ${missing ? "is-missing" : "is-filled"}">
+              <div class="qdh-ai-detail-row ${missing ? "is-pending" : "is-filled"}">
                 <span>${escapeHtml(label)}</span>
                 <strong>${escapeHtml(valueOrEmpty(detailValueFor(key)))}</strong>
-                <em>${missing ? "Hiányzik" : "Rögzítve"}</em>
+                <em>${missing ? "Később" : "Megvan"}</em>
               </div>
             `;
           }).join("")}
@@ -291,31 +303,35 @@
             <em>Opcionális</em>
           </div>
         </div>
-        <label class="qdh-intake-check qdh-ai-consent">
-          <input
-            name="consent_acknowledged"
-            type="checkbox"
-            data-qdh-ai-consent
-            ${consentAcknowledged ? "checked" : ""}
+        ${readyToSubmit ? `
+          <label class="qdh-intake-check qdh-ai-consent">
+            <input
+              name="consent_acknowledged"
+              type="checkbox"
+              data-qdh-ai-consent
+              ${consentAcknowledged ? "checked" : ""}
+            >
+            <span>Tudomásul veszem, hogy a pontos árat a vállalkozás erősíti meg.</span>
+          </label>
+          <button
+            class="qdh-button qdh-button-primary qdh-ai-submit"
+            type="button"
+            data-qdh-confirm-submit
+            ${consentAcknowledged && !assistantBusy && !submitting ? "" : "disabled"}
           >
-          <span>Tudomásul veszem, hogy ez ajánlatkérés staff review-ra, nem végleges vagy garantált árajánlat.</span>
-        </label>
-        <button
-          class="qdh-button qdh-button-primary qdh-ai-submit"
-          type="button"
-          data-qdh-confirm-submit
-          ${readyToSubmit && consentAcknowledged && !assistantBusy && !submitting ? "" : "disabled"}
-        >
-          Kérés rögzítése staff review-ra
-        </button>
+            Ajánlatkérés továbbítása
+          </button>
+        ` : `
+          <p class="qdh-ai-next-step">${escapeHtml(buildNextStepText())}</p>
+        `}
         <p class="qdh-ai-safe-note">
-          Nincs árkalkuláció, nincs automatikus külső küldés, nincs végleges ajánlat ezen az oldalon.
+          A pontos árat és a vállalhatóságot a vállalkozás erősíti meg.
         </p>
         ${safetyFlags.pricingGuaranteeRequested ? `
-          <p class="qdh-ai-warning">Pontos vagy garantált árkérés érkezett. A végső ajánlatot csak a vállalkozás munkatársa erősítheti meg.</p>
+          <p class="qdh-ai-warning">Pontos vagy garantált árat ezen az oldalon nem adunk. A vállalkozás a részletek alapján tud visszajelezni.</p>
         ` : ""}
         ${safetyFlags.outOfScope ? `
-          <p class="qdh-ai-warning">A megadott szolgáltatás ellenőrzést igényelhet a vállalkozás szolgáltatási köréhez képest.</p>
+          <p class="qdh-ai-warning">A megadott szolgáltatást a vállalkozás ellenőrzi, hogy vállalható-e.</p>
         ` : ""}
       </aside>
     `;
@@ -329,8 +345,8 @@
       <section class="qdh-manual-panel ${manualOpen ? "is-open" : ""}" aria-label="Manuális ajánlatkérési űrlap">
         <div class="qdh-manual-header">
           <div>
-            <h2>Manuális részletek</h2>
-            <p>Ha inkább mezőnként adná meg az adatokat, a régi űrlap továbbra is használható.</p>
+            <h2>Részletek szerkesztése</h2>
+            <p>Ha mezőnként kényelmesebb, itt pontosíthatja az ajánlatkérés adatait.</p>
           </div>
           <button class="qdh-button" type="button" data-qdh-toggle-manual>${manualOpen ? "Bezárás" : "Megnyitás"}</button>
         </div>
@@ -377,12 +393,12 @@
               </label>
               <label class="qdh-intake-check qdh-field-wide">
                 <input name="consent_acknowledged" type="checkbox" required>
-                <span>Tudomásul veszem, hogy ez ajánlatkérés staff review-ra, nem végleges vagy garantált árajánlat.</span>
+                <span>Tudomásul veszem, hogy a pontos árat a vállalkozás erősíti meg.</span>
               </label>
             </div>
             <div class="qdh-form-actions">
-              <button class="qdh-button qdh-button-primary" type="submit">Manuális ajánlatkérés beküldése</button>
-              <span class="qdh-intake-form-note">A manuális út is request-only; nincs automatikus árküldés.</span>
+              <button class="qdh-button qdh-button-primary" type="submit">Ajánlatkérés továbbítása</button>
+              <span class="qdh-intake-form-note">A pontos árat a vállalkozás erősíti meg.</span>
             </div>
           </form>
         ` : ""}
@@ -439,37 +455,27 @@
     }
 
     if (!payload.consent_acknowledged) {
-      return "A request-only tudomásulvétel szükséges a beküldéshez.";
+      return "A továbbításhoz erősítse meg, hogy a pontos árat a vállalkozás adja meg.";
     }
 
     return "";
   }
 
-  function renderSuccess(data = {}) {
-    const status = trimText(data.request?.status) || "request_received";
-    const sourceChannel = trimText(data.request?.sourceChannel) || "qdh_ai_intake";
-    const sourceLabel = sourceChannel === "qdh_ai_intake"
-      ? "AI-assisted QDH intake"
-      : sourceChannel;
+  function renderSuccess() {
+    const businessName = trimText(getBusiness().businessName) || "a vállalkozás";
 
     root.innerHTML = `
       <section class="qdh-intake-success" aria-label="Ajánlatkérés sikeresen rögzítve">
         <span class="qdh-intake-success-mark" aria-hidden="true"></span>
-        <h2>Megkaptuk az ajánlatkérést.</h2>
-        <p>A kérés a vállalkozás staff review folyamatába került. A pontos árat vagy végleges ajánlatot a vállalkozás munkatársa erősíti meg.</p>
-        <dl>
-          <div>
-            <dt>Állapot</dt>
-            <dd>${escapeHtml(status === "request_received" ? "Új ajánlatkérés" : status)}</dd>
-          </div>
-          <div>
-            <dt>Forrás</dt>
-            <dd>${escapeHtml(sourceLabel)}</dd>
-          </div>
-        </dl>
+        <h2>Köszönjük, továbbítottuk az ajánlatkérést.</h2>
+        <p>${escapeHtml(businessName)} áttekinti a részleteket, és a megadott elérhetőségen tud visszajelezni. A pontos árat a vállalkozás erősíti meg.</p>
+        <div class="qdh-intake-success-next">
+          <strong>Mi történik ezután?</strong>
+          <span>A vállalkozás ellenőrzi a leírást, szükség esetén pontosítást kér, majd külön jelzi a következő lépést.</span>
+        </div>
       </section>
     `;
-    setStatus("Ajánlatkérés rögzítve staff review-ra.");
+    setStatus("Ajánlatkérés továbbítva.");
   }
 
   function extractFixtureFields(message, currentFields = {}) {
@@ -508,8 +514,8 @@
     const reply = priceBoundary
       ? "Pontos vagy garantált árat itt nem adok. A vállalkozás munkatársa a részletek alapján erősíti meg az ajánlatot."
       : nextMissing.length
-        ? `Rögzítettem, amit megadott. Kérem, adja meg még ezt: ${nextMissing.map((field) => FIELD_LABELS[field]).join(", ")}.`
-        : "Minden szükséges adat megvan. Ellenőrizze a részleteket, majd küldje be staff review-ra.";
+        ? `Rögzítettem, amit megadott. Kérem, adja meg még ezt: ${FIELD_LABELS[nextMissing[0]] || "a következő fontos részlet"}.`
+        : "Minden szükséges adat megvan. Ellenőrizze a részleteket, majd továbbíthatja az ajánlatkérést.";
 
     return {
       ok: true,
@@ -525,7 +531,7 @@
       request: payload.confirm_submit && nextMissing.length === 0
         ? {
             status: "request_received",
-            sourceChannel: "qdh_ai_intake",
+            sourceChannel: AI_SOURCE_CHANNEL,
             receivedForStaffReview: true,
           }
         : null,
@@ -561,7 +567,7 @@
     }
 
     renderApp();
-    setStatus(readyToSubmit ? "Az ajánlatkérés beküldésre kész." : "Hiányzó adatok: " + missingFields.map((field) => FIELD_LABELS[field] || field).join(", ") + ".");
+    setStatus(readyToSubmit ? "Az ajánlatkérés továbbítható." : buildNextStepText());
   }
 
   async function submitAssistantTurn({ message = "", confirmSubmit = false } = {}) {
@@ -576,7 +582,7 @@
     }
 
     if (confirmSubmit && (!readyToSubmit || !consentAcknowledged)) {
-      setStatus("A beküldéshez minden kötelező adat és a request-only tudomásulvétel szükséges.");
+      setStatus("A továbbításhoz minden fontos adat és a pontos árra vonatkozó tudomásulvétel szükséges.");
       return;
     }
 
@@ -590,7 +596,7 @@
     try {
       const payload = {
         agent_key: agentKey,
-        message: cleanMessage || "Kérem az ajánlatkérés staff review-ra rögzítését.",
+        message: cleanMessage || "Kérem az ajánlatkérés továbbítását a vállalkozásnak.",
         conversation: messages.slice(-8),
         fields,
         confirm_submit: confirmSubmit,
@@ -667,7 +673,7 @@
       setStatus(error.message || "Nem sikerült rögzíteni az ajánlatkérést.");
       if (button) {
         button.disabled = false;
-        button.textContent = "Manuális ajánlatkérés beküldése";
+        button.textContent = "Ajánlatkérés továbbítása";
       }
       submitting = false;
     }
@@ -685,26 +691,26 @@
       messages = [buildWelcomeMessage()];
       updateReadiness(getLocalMissing(fields));
       renderApp();
-      setStatus("Local-only QDH AI intake fixture. Nem ír éles adatbázisba.");
+      setStatus("Helyi ajánlatkérő minta készen áll. Nem ír éles adatbázisba.");
       return;
     }
 
     if (!agentKey) {
-      renderUnavailable("A linkből hiányzik a nyilvános QDH agent kulcs. A vállalkozás dashboardjából másolja ki az ügyféloldali intake linket.");
-      setStatus("Hiányzó QDH ügyfél link.");
+      renderUnavailable("A linkből hiányzik az ajánlatkérő azonosító. Kérjen friss linket a vállalkozástól.");
+      setStatus("Hiányzó ajánlatkérő link.");
       return;
     }
 
     try {
-      setStatus("QDH ügyfél link ellenőrzése...");
+      setStatus("Ajánlatkérő link ellenőrzése...");
       context = await fetchJson(`/quote-desk-hu/intake-context?agent_key=${encodeURIComponent(agentKey)}`);
       messages = [buildWelcomeMessage()];
       updateReadiness(getLocalMissing(fields));
       renderApp();
-      setStatus("AI ajánlatkérő készen áll.");
+      setStatus("Ajánlatkérő készen áll.");
     } catch (error) {
-      renderUnavailable(error.message || "A QDH ügyfél link nem használható.");
-      setStatus("QDH ügyfél link nem használható.");
+      renderUnavailable(error.message || "Ez az ajánlatkérő link nem használható.");
+      setStatus("Ajánlatkérő link nem használható.");
     }
   }
 
@@ -728,7 +734,7 @@
     if (event.target.closest("[data-qdh-ai-consent]")) {
       consentAcknowledged = event.target.checked === true;
       renderApp();
-      setStatus(consentAcknowledged ? "Request-only tudomásulvétel rögzítve." : "A beküldéshez szükséges a request-only tudomásulvétel.");
+      setStatus(consentAcknowledged ? "Tudomásulvétel rögzítve." : "A továbbításhoz szükséges a pontos árra vonatkozó tudomásulvétel.");
     }
   });
 

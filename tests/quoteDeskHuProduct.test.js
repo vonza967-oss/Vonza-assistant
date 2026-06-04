@@ -211,10 +211,10 @@ test("QDH public intake routes serve standalone customer request UI", async () =
       assert.equal(response.status, 200);
       assert.match(response.headers.get("content-type") || "", /html/);
       assert.match(html, /<html lang="hu">/);
-      assert.match(html, /Quote Desk HU ajánlatkérés/);
-      assert.match(html, /Ügyféloldali ajánlatkérés/);
-      assert.match(html, /Staff review/);
-      assert.match(html, /nincs végleges ár ezen az oldalon/i);
+      assert.match(html, /<title>Ajánlatkérés<\/title>/);
+      assert.match(html, /Miben segíthetünk ajánlatot adni\?/);
+      assert.match(html, /A pontos árat a vállalkozás erősíti meg\./);
+      assert.doesNotMatch(html, /Request-only|Staff review|AI-assisted Staff review|Hiányos|qdh_ai_intake|package_key|package|policy|metadata/i);
       assert.match(html, /qdh-product\.css/);
       assert.match(html, /qdh-intake\.js/);
       assert.doesNotMatch(html, /qdh-dashboard\.js/);
@@ -242,14 +242,13 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.match(source, /\/quote-desk-hu\/setup-state/);
   assert.match(setupSource, /\/quote-desk-hu\/setup/);
   assert.match(setupSource, /\/qdh\/intake\?agent_key=/);
-  assert.match(intakeHtml, /Quote Desk HU ajánlatkérés/);
+  assert.match(intakeHtml, /Miben segíthetünk ajánlatot adni\?/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-context/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-assistant/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-requests/);
-  assert.match(intakeSource, /AI ajánlatkérési asszisztens/);
+  assert.match(intakeSource, /Ajánlatkérő asszisztens/);
   assert.match(intakeSource, /qdh_public_intake/);
-  assert.match(intakeSource, /qdh_ai_intake/);
-  assert.match(intakeSource, /nem végleges vagy garantált árajánlat/i);
+  assert.match(intakeSource, /a pontos árat a vállalkozás erősíti meg/i);
   assert.match(setupSource, /signInWithPassword/);
   assert.match(setupSource, /signInWithOtp/);
   assert.match(setupSource, /signUp/);
@@ -273,6 +272,7 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.doesNotMatch(intakeSource, /quoted_externally|accepted_externally/);
   assert.doesNotMatch(intakeSource, /Ár kiszámítása|Árajánlat elküldése|send final quote|provider call/i);
   assert.doesNotMatch(intakeSource, /\/widget|\/embed\.js|\/embed-lite\.js|assistant-embed/);
+  assert.doesNotMatch(`${intakeHtml}\n${intakeSource}`, /Request-only|Staff review|AI-assisted Staff review|Hiányos|qdh_ai_intake|package_key|package|policy|metadata/i);
   assert.doesNotMatch(intakeHtml, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|metadata|evidence|package_key|policy/i);
   assert.doesNotMatch(intakeSource, /owner_user_id|ownerUserId|agent_id|agentId|business_id|businessId|package_key|policy/i);
   assert.doesNotMatch(css, /orb|bokeh|hero/i);
@@ -733,6 +733,10 @@ test("QDH AI intake assistant asks for missing information instead of creating p
     assert.ok(response.json.missingFields.includes("urgency"));
     assert.ok(response.json.missingFields.includes("customer_contact"));
     assert.match(response.json.assistant.reply, /add meg|kérlek|kérem|hiányzó/i);
+    const mentionedMissingLabels = ["város vagy helyszín", "sürgősség", "email vagy telefon"]
+      .filter((label) => response.json.assistant.reply.toLowerCase().includes(label)).length;
+    assert.ok(mentionedMissingLabels <= 1);
+    assert.doesNotMatch(response.json.assistant.reply, /staff review|request-only|qdh_ai_intake|AI-assisted|Hiányos/i);
     assert.equal(response.json.request, null);
     assert.equal(createCalled, false);
   } finally {
