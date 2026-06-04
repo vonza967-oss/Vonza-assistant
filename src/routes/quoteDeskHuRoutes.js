@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import express from "express";
 
+import { getOpenAIClient } from "../clients/openaiClient.js";
 import { getSupabaseClient } from "../clients/supabaseClient.js";
 import { getAuthenticatedUser } from "../services/auth/authService.js";
 import { requireActiveAgentAccess } from "../services/agents/agentService.js";
@@ -16,10 +17,17 @@ import {
   saveQuoteDeskHuSetup,
 } from "../services/quotes/quoteDeskHuSetupService.js";
 import {
+  QDH_AI_INTAKE_PHASE,
+  QDH_AI_INTAKE_SOURCE_CHANNEL,
+  analyzeQuoteDeskHuIntakeTurn,
+  toQuoteDeskHuRequestPayloadFields,
+} from "../services/quotes/quoteDeskHuIntakeAssistantService.js";
+import {
   getRequestId,
   logRouteError,
   sendJsonError,
 } from "../utils/httpErrors.js";
+import { createRateLimitMiddleware } from "../utils/rateLimiter.js";
 import { cleanText } from "../utils/text.js";
 import { readBodyField } from "./agentRouteHelpers.js";
 
@@ -35,6 +43,7 @@ const QDH_VISIBLE_REQUEST_STATUSES = Object.freeze([
 ]);
 const QDH_PUBLIC_INTAKE_SOURCE_CHANNEL = "qdh_public_intake";
 const QDH_PUBLIC_INTAKE_PHASE = "customer_intake_request_only";
+const QDH_AI_INTAKE_DISPLAY_MODE = "qdh_ai_intake";
 const QDH_PUBLIC_INTAKE_ALLOWED_FIELDS = new Set([
   "agent_key",
   "agentKey",
@@ -60,6 +69,21 @@ const QDH_PUBLIC_INTAKE_ALLOWED_FIELDS = new Set([
   "consent_acknowledged",
   "consentAcknowledged",
   "acknowledgement",
+  "language",
+]);
+const QDH_PUBLIC_ASSISTANT_ALLOWED_FIELDS = new Set([
+  "agent_key",
+  "agentKey",
+  "message",
+  "conversation",
+  "history",
+  "fields",
+  "current_fields",
+  "currentFields",
+  "confirm_submit",
+  "confirmSubmit",
+  "consent_acknowledged",
+  "consentAcknowledged",
   "language",
 ]);
 const QDH_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN =
@@ -259,11 +283,72 @@ function assertPublicIntakeFieldSafety(body) {
   }
 }
 
+function assertNoUnsafeNestedAssistantKeys(value, depth = 0) {
+  if (depth > 5 || value === null || value === undefined) {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => assertNoUnsafeNestedAssistantKeys(item, depth + 1));
+    return;
+  }
+
+  if (typeof value !== "object") {
+    return;
+  }
+
+  Object.entries(value).forEach(([key, nested]) => {
+    if (QDH_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN.test(key)) {
+      throw buildQuoteDeskHuRouteError(
+        "Unsafe assistant field rejected.",
+        400,
+        "qdh_intake_field_not_allowed"
+      );
+    }
+    assertNoUnsafeNestedAssistantKeys(nested, depth + 1);
+  });
+}
+
+function assertPublicAssistantBodySafety(body) {
+  assertPlainIntakeBody(body);
+
+  Object.keys(body).forEach((key) => {
+    if (!QDH_PUBLIC_ASSISTANT_ALLOWED_FIELDS.has(key)) {
+      throw buildQuoteDeskHuRouteError(
+        QDH_PUBLIC_INTAKE_UNSAFE_FIELD_PATTERN.test(key)
+          ? "Unsafe assistant field rejected."
+          : "Unsupported assistant field.",
+        400,
+        "qdh_intake_field_not_allowed"
+      );
+    }
+  });
+
+  assertNoUnsafeNestedAssistantKeys(body);
+
+  const bodyText = collectBodyStrings(body).join(" ");
+  if (bodyText.length > 9000) {
+    throw buildQuoteDeskHuRouteError(
+      "Assistant intake payload is too long.",
+      413,
+      "qdh_intake_payload_too_large"
+    );
+  }
+
+  if (QDH_PUBLIC_INTAKE_UNSAFE_VALUE_PATTERN.test(bodyText)) {
+    throw buildQuoteDeskHuRouteError(
+      "Unsafe or secret-looking assistant value rejected.",
+      400,
+      "qdh_intake_unsafe_value_rejected"
+    );
+  }
+}
+
 function normalizePublicIntakeText(value, fieldName, {
   required = false,
   maxLength = 400,
 } = {}) {
-  const normalized = cleanText(value);
+  const normalized = cleanText(String(value ?? ""));
 
   if (required && !normalized) {
     throw buildQuoteDeskHuRouteError(
@@ -397,6 +482,75 @@ function normalizeQdhPublicIntakeBody(body = {}) {
   };
 }
 
+function normalizeBoolean(value) {
+  if (value === true) {
+    return true;
+  }
+
+  return ["1", "true", "yes", "igen", "acknowledged", "accepted"].includes(
+    cleanText(String(value ?? "")).toLowerCase()
+  );
+}
+
+function normalizeAssistantConversation(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      role: cleanText(String(entry.role ?? "")) === "assistant" ? "assistant" : "user",
+      content: cleanText(String(entry.content ?? "")).slice(0, 1200),
+    }))
+    .filter((entry) => entry.content)
+    .slice(-8);
+}
+
+function normalizeQdhAssistantBody(body = {}) {
+  assertPublicAssistantBodySafety(body);
+
+  const agentKey = normalizePublicIntakeText(
+    readAnyBodyField(body, ["agent_key", "agentKey"]),
+    "agent_key",
+    { maxLength: 180 }
+  );
+
+  if (!agentKey) {
+    throw buildQuoteDeskHuRouteError(
+      "agent_key is required for Quote Desk HU public intake.",
+      400,
+      "qdh_intake_agent_key_required"
+    );
+  }
+  const message = normalizePublicIntakeText(
+    readAnyBodyField(body, ["message"]),
+    "message",
+    { maxLength: 2000 }
+  );
+  const confirmSubmit = normalizeBoolean(readAnyBodyField(body, ["confirm_submit", "confirmSubmit"]));
+
+  if (!message && !confirmSubmit) {
+    throw buildQuoteDeskHuRouteError(
+      "message is required",
+      400,
+      "qdh_intake_message_required"
+    );
+  }
+
+  return {
+    agentKey,
+    message,
+    fields: readAnyBodyField(body, ["fields", "current_fields", "currentFields"]) || {},
+    conversation: normalizeAssistantConversation(readAnyBodyField(body, ["conversation", "history"])),
+    confirmSubmit,
+    consentAcknowledged: normalizeBoolean(readAnyBodyField(body, [
+      "consent_acknowledged",
+      "consentAcknowledged",
+    ])),
+  };
+}
+
 function buildQdhPublicIntakeIdempotencyKey(agent, intake) {
   const digest = createHash("sha256")
     .update([
@@ -410,6 +564,22 @@ function buildQdhPublicIntakeIdempotencyKey(agent, intake) {
     .slice(0, 32);
 
   return `qdh-intake:${digest}`;
+}
+
+function buildQdhAiIntakeIdempotencyKey(agent, intake) {
+  const digest = createHash("sha256")
+    .update([
+      cleanText(agent.id),
+      cleanText(intake.customerEmail || intake.customerPhone).toLowerCase(),
+      cleanText(intake.requestedService).toLowerCase(),
+      cleanText(intake.projectDetails).toLowerCase(),
+      cleanText(intake.locationText).toLowerCase(),
+      QDH_AI_INTAKE_SOURCE_CHANNEL,
+    ].join(":"))
+    .digest("hex")
+    .slice(0, 32);
+
+  return `qdh-ai-intake:${digest}`;
 }
 
 function buildSafePublicIntakeResponse(request = {}) {
@@ -426,9 +596,51 @@ function buildSafePublicIntakeResponse(request = {}) {
   };
 }
 
+function buildSafeAssistantResponse(analysis = {}, request = null) {
+  return {
+    ok: true,
+    product: "quote_desk_hu",
+    phase: QDH_AI_INTAKE_PHASE,
+    assistant: {
+      reply: cleanText(analysis.assistantReply),
+    },
+    extractedFields: {
+      requestedService: cleanText(analysis.fields?.requestedService),
+      projectDetails: cleanText(analysis.fields?.projectDetails),
+      locationText: cleanText(analysis.fields?.locationText),
+      urgency: cleanText(analysis.fields?.urgency),
+      budgetText: cleanText(analysis.fields?.budgetText),
+      customerName: cleanText(analysis.fields?.customerName),
+      customerEmail: cleanText(analysis.fields?.customerEmail),
+      customerPhone: cleanText(analysis.fields?.customerPhone),
+    },
+    missingFields: Array.isArray(analysis.missingFields)
+      ? analysis.missingFields.map(cleanText).filter(Boolean)
+      : [],
+    readyToSubmit: analysis.readyToSubmit === true,
+    safetyFlags: {
+      promptInjection: analysis.safetyFlags?.promptInjection === true,
+      emergency: analysis.safetyFlags?.emergency === true,
+      pricingGuaranteeRequested: analysis.safetyFlags?.pricingGuaranteeRequested === true,
+      outOfScope: analysis.safetyFlags?.outOfScope === true,
+    },
+    request: request
+      ? {
+          status: normalizeQdhStatus(request.status) || "request_received",
+          sourceChannel: cleanText(request.sourceChannel) || QDH_AI_INTAKE_SOURCE_CHANNEL,
+          receivedForStaffReview: true,
+        }
+      : null,
+    message: request
+      ? "Az ajánlatkérést rögzítettük staff review-ra. Ez nem végleges vagy garantált árajánlat."
+      : "",
+  };
+}
+
 export function createQuoteDeskHuRouter(deps = {}) {
   const router = express.Router();
   const getSupabase = deps.getSupabaseClient || getSupabaseClient;
+  const getOpenAI = deps.getOpenAIClient || getOpenAIClient;
   const authenticateUser = deps.getAuthenticatedUser || getAuthenticatedUser;
   const requireActiveAgentAccessImpl =
     deps.requireActiveAgentAccess || requireActiveAgentAccess;
@@ -446,6 +658,13 @@ export function createQuoteDeskHuRouter(deps = {}) {
     deps.resolveQuoteDeskHuPublicAgent || resolveQuoteDeskHuPublicAgent;
   const saveQuoteDeskHuSetupImpl =
     deps.saveQuoteDeskHuSetup || saveQuoteDeskHuSetup;
+  const analyzeQuoteDeskHuIntakeTurnImpl =
+    deps.analyzeQuoteDeskHuIntakeTurn || analyzeQuoteDeskHuIntakeTurn;
+  const limitQdhIntakeAssistant =
+    deps.limitQdhIntakeAssistant || createRateLimitMiddleware("public_qdh_intake_assistant", {
+      windowMs: 60_000,
+      max: 8,
+    });
 
   const sendRouteError = (req, res, err, context = {}) => {
     const requestId = getRequestId(req);
@@ -525,6 +744,101 @@ export function createQuoteDeskHuRouter(deps = {}) {
       res.status(201).json(buildSafePublicIntakeResponse(request));
     } catch (err) {
       sendRouteError(req, res, err, { route: "/quote-desk-hu/intake-requests" });
+    }
+  });
+
+  router.post("/quote-desk-hu/intake-assistant", limitQdhIntakeAssistant, async (req, res) => {
+    try {
+      const supabase = getSupabase();
+      const intakeTurn = normalizeQdhAssistantBody(req.body);
+      const agent = await resolveQuoteDeskHuPublicAgentImpl(supabase, {
+        agentKey: intakeTurn.agentKey,
+      });
+      const setup = await getQuoteDeskHuSetupImpl(supabase, {
+        ownerUserId: agent.ownerUserId,
+      });
+
+      assertQdhSetupAvailableForPublicIntake(setup);
+
+      let openai = null;
+      try {
+        openai = getOpenAI();
+      } catch {
+        openai = null;
+      }
+
+      const analysis = await analyzeQuoteDeskHuIntakeTurnImpl({
+        openai,
+        message: intakeTurn.message,
+        conversation: intakeTurn.conversation,
+        fields: intakeTurn.fields,
+        businessContext: buildPublicQdhSetupContext(setup),
+        confirmSubmit: intakeTurn.confirmSubmit,
+      });
+
+      if (!intakeTurn.confirmSubmit || analysis.readyToSubmit !== true) {
+        res.json(buildSafeAssistantResponse(analysis));
+        return;
+      }
+
+      if (!intakeTurn.consentAcknowledged) {
+        throw buildQuoteDeskHuRouteError(
+          "Request-only acknowledgement is required",
+          400,
+          "qdh_intake_acknowledgement_required"
+        );
+      }
+
+      const requestFields = toQuoteDeskHuRequestPayloadFields(analysis.fields);
+      assertSafePublicIntakeContact({
+        customerEmail: requestFields.customerEmail,
+        customerPhone: requestFields.customerPhone,
+      });
+
+      const request = await createAgentQuoteRequestImpl(supabase, {
+        ownerUserId: agent.ownerUserId,
+        agentId: agent.id,
+        businessId: agent.businessId,
+        sourceChannel: QDH_AI_INTAKE_SOURCE_CHANNEL,
+        displayMode: QDH_AI_INTAKE_DISPLAY_MODE,
+        requestedService: requestFields.requestedService,
+        projectDetails: requestFields.projectDetails,
+        locationText: requestFields.locationText,
+        urgency: requestFields.urgency,
+        budgetText: requestFields.budgetText,
+        customerName: requestFields.customerName,
+        customerEmail: requestFields.customerEmail,
+        customerPhone: requestFields.customerPhone,
+        language: "hu",
+        status: "request_received",
+        statusReason: "QDH AI-assisted intake request received for staff review only.",
+        evidence: {
+          proof_source_type: "request_only",
+          qdh_ai_intake: {
+            staff_summary_hu: cleanText(analysis.staffSummary),
+            safety_flags: {
+              prompt_injection: analysis.safetyFlags?.promptInjection === true,
+              emergency: analysis.safetyFlags?.emergency === true,
+              pricing_boundary_requested: analysis.safetyFlags?.pricingGuaranteeRequested === true,
+              out_of_scope: analysis.safetyFlags?.outOfScope === true,
+            },
+            missing_fields_at_submit: analysis.missingFields,
+          },
+        },
+        metadata: {
+          product: "quote_desk_hu",
+          phase: QDH_AI_INTAKE_PHASE,
+          source: QDH_AI_INTAKE_SOURCE_CHANNEL,
+          request_only: true,
+          consent_acknowledged: true,
+          assistant_version: "qdh_ai_intake_v1",
+        },
+        idempotencyKey: buildQdhAiIntakeIdempotencyKey(agent, requestFields),
+      });
+
+      res.status(201).json(buildSafeAssistantResponse(analysis, request));
+    } catch (err) {
+      sendRouteError(req, res, err, { route: "/quote-desk-hu/intake-assistant" });
     }
   });
 

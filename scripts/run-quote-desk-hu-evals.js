@@ -24,6 +24,11 @@ function parseArgs(argv = []) {
       continue;
     }
 
+    if (arg === "--answer-contract") {
+      options.answerContractMode = true;
+      continue;
+    }
+
     if (arg === "--scenario" || arg === "--scenario-id") {
       const value = argv[index + 1] || "";
       index += 1;

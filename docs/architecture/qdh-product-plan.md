@@ -34,9 +34,76 @@ Current authenticated owner API routes:
 Current public customer-intake API routes:
 
 - `GET /quote-desk-hu/intake-context?agent_key=<public_agent_key>`
+- `POST /quote-desk-hu/intake-assistant`
 - `POST /quote-desk-hu/intake-requests`
 
 Public QDH intake creation is server-mediated and requires an active public agent key plus a saved QDH setup for that agent owner. It does not grant anonymous database insert access and does not accept owner IDs, agent IDs, package metadata, policy metadata, or arbitrary public write scope. Public quote request creation from generic chat remains separately feature-flagged by `QUOTE_REQUESTS_FROM_CHAT_ENABLED`.
+
+## Phase 4 AI Intake Assistant
+
+Phase 4 makes the customer intake page AI-assisted while keeping QDH request-only and staff-review-only.
+
+Customer page behavior:
+
+- `/qdh/intake?agent_key=<public_agent_key>` and `/quote-desk-hu/intake?agent_key=<public_agent_key>` now open with a Hungarian conversational intake assistant;
+- the assistant helps visitors describe the project naturally in Hungarian and extracts structured fields into a visible details panel;
+- required fields are kért szolgáltatás, projekt részletei, város/helyszín, sürgősség, név, and email or phone;
+- körülbelüli keret remains optional;
+- the old structured form remains available as a manual details fallback;
+- the confirm button is enabled only after required fields are present and the visitor acknowledges that the request is staff-review-only.
+
+New AI endpoint:
+
+- `POST /quote-desk-hu/intake-assistant`
+- requires a valid public `agent_key`;
+- resolves only the safe QDH public setup context;
+- rate limited through `public_qdh_intake_assistant`;
+- rejects unsupported public fields, unsafe nested keys, and secret-looking values before model analysis;
+- returns only safe public fields: assistant reply, extracted fields, missing fields, readiness, safe public safety flags, and request status when created;
+- does not return owner IDs, agent IDs, business IDs, setup metadata, evidence, package/policy metadata, prompts, raw model output, usage, or model metadata.
+
+AI helper behavior:
+
+- implemented in `src/services/quotes/quoteDeskHuIntakeAssistantService.js`;
+- QDH-specific and separate from generic Front Desk prompt code;
+- uses deterministic Hungarian extraction for service, project details, location, urgency, budget, name, email, and phone;
+- may use the existing OpenAI client path when `OPENAI_API_KEY` is configured;
+- expects JSON output from the model, validates the object, recalculates readiness server-side, and falls back to deterministic extraction if the model output is invalid or unavailable;
+- never lets model output directly create a quote request;
+- never calculates final prices, guarantees pricing, sends quotes, calls WhatsApp/email/CRM/provider integrations, or changes widget/embed behavior.
+
+Quote request creation:
+
+- AI-assisted requests are created only after explicit confirmation and request-only acknowledgement;
+- source channel is `qdh_ai_intake`;
+- display mode is `qdh_ai_intake`;
+- initial status remains `request_received`;
+- evidence uses `proof_source_type = 'request_only'`;
+- safe staff summary and safe flags may be stored under `evidence.qdh_ai_intake` for owner review;
+- metadata remains request-only and avoids final quote or guaranteed price claims.
+
+Dashboard behavior:
+
+- `/qdh/dashboard` labels `qdh_ai_intake` as "AI-assisted QDH intake";
+- safe AI staff summaries are shown in the request details panel when present;
+- owner actions remain review-only: needs info, needs staff review, declined, archived, and note save;
+- no final quote, quote send, external send, or accepted-quote control is exposed.
+
+Safety boundaries:
+
+- Pricing questions receive intake guidance and staff-review wording, not a final price;
+- guaranteed/exact/fixed-price attempts are refused safely;
+- prompt injection attempts are ignored and do not expose prompts or internal metadata;
+- secret-looking content is rejected at the public route boundary;
+- emergency-like messages are not treated as normal quote requests;
+- out-of-scope services can be captured only for staff review and are flagged for owner confirmation.
+
+Environment/config:
+
+- `OPENAI_API_KEY` enables the existing OpenAI client path for QDH assistant JSON analysis;
+- `QDH_AI_INTAKE_MODEL` can override the default model for the QDH intake helper;
+- if OpenAI is unavailable or returns invalid output, deterministic extraction remains available and safe;
+- production should keep distributed rate limiting configured as described by the existing rate-limit readiness checks.
 
 ## Phase 3 Customer Intake
 
@@ -198,6 +265,9 @@ Required focused checks for QDH Phase 1:
 - Public customer intake create validates required request fields.
 - Public customer intake create writes request-only `agent_quote_requests` with `source_channel = 'qdh_public_intake'`.
 - Public customer intake responses do not expose owner IDs, agent IDs, setup metadata, policy metadata, package keys, evidence, or secrets.
+- QDH AI intake assistant requires valid public agent context and rejects unsafe/secret-looking public payloads.
+- QDH AI intake assistant asks for missing required fields and creates only confirmed request-only records with `source_channel = 'qdh_ai_intake'`.
+- QDH AI intake evals cover pricing boundary, prompt injection, secret-like input, missing location/contact, mixed Hungarian/English, urgent requests, and out-of-scope services.
 - Widget/embed files remain untouched.
 - No external provider calls are introduced.
 - Quote Desk HU evals still pass with the answer contract.
@@ -212,12 +282,14 @@ Before production rollout, ensure the quote request migration is deployed and vi
 
 - `supabase/migrations/20260604120000_agent_quote_requests.sql`
 
-QDH Phase 3 does not add a new migration. It depends on:
+QDH Phase 4 does not add a new migration. It depends on:
 
 - an applied `agent_quote_requests` migration;
 - an applied `qdh_owner_setups` migration;
 - an active owner-scoped agent row with a non-empty `public_agent_key`;
 - server-side Supabase service role availability for the mediated public create endpoint.
+- `OPENAI_API_KEY` when model-assisted JSON analysis is desired; deterministic fallback remains safe without it.
+- production-ready public rate limiting for `public_qdh_intake_assistant`.
 
 The canonical schema is `db/schema.sql`; keep it aligned with both migrations.
 

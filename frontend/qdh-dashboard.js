@@ -207,6 +207,8 @@
     switch (trimText(sourceChannel)) {
       case "qdh_public_intake":
         return "QDH ügyfél link";
+      case "qdh_ai_intake":
+        return "AI-assisted QDH intake";
       case "chat_quote_request":
       case "public_chat":
         return "Publikus chat";
@@ -238,10 +240,15 @@
         customerEmail: "anna@example.hu",
         customerPhone: "+36 30 000 0000",
         language: "hu",
-        sourceChannel: "qdh_public_intake",
+        sourceChannel: "qdh_ai_intake",
         status: "request_received",
         statusReason: "",
         staffNotes: "Visszakérdezni a tető típusára és a fotókra.",
+        evidence: {
+          qdh_ai_intake: {
+            staff_summary_hu: "AI intake összefoglaló: Kovács Anna tetőjavítási ajánlatkérést adott le Budapest XI. kerületre, ezen a hétre kért visszajelzéssel.",
+          },
+        },
         createdAt: "2026-06-04T08:30:00.000Z",
       },
       {
@@ -293,6 +300,11 @@
   }
 
   function normalizeRecord(record = {}) {
+    const evidence = record.evidence && typeof record.evidence === "object" ? record.evidence : {};
+    const aiSummary = evidence.qdh_ai_intake && typeof evidence.qdh_ai_intake === "object"
+      ? trimText(evidence.qdh_ai_intake.staff_summary_hu)
+      : "";
+
     return {
       id: trimText(record.id),
       requestedService: trimText(record.requestedService || record.requested_service),
@@ -308,6 +320,7 @@
       status: trimText(record.status || "request_received"),
       statusReason: trimText(record.statusReason || record.status_reason),
       staffNotes: trimText(record.staffNotes || record.staff_notes),
+      staffSummary: trimText(record.staffSummary || record.staff_summary || aiSummary),
       createdAt: record.createdAt || record.created_at || null,
     };
   }
@@ -587,6 +600,7 @@
             ${detailItem("Nyelv", record.language)}
             ${detailItem("Forrás csatorna", record.sourceChannel)}
             ${detailItem("Forrás megnevezése", sourceLabel(record.sourceChannel))}
+            ${record.staffSummary ? detailItem("AI staff összefoglaló", record.staffSummary) : ""}
             ${detailItem("Létrehozva", formatDateTime(record.createdAt))}
           </div>
           <label class="qdh-field">

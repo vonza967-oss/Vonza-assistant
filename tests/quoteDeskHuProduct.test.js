@@ -35,6 +35,7 @@ function createApiApp(deps = {}) {
       status: options.status || "request_received",
       sourceChannel: options.sourceChannel || "qdh_public_intake",
     }),
+    getOpenAIClient: () => null,
     getQuoteDeskHuSetup: async () => ({
       ownerUserId: "owner-1",
       businessName: "Példa Kft.",
@@ -76,6 +77,7 @@ function createApiApp(deps = {}) {
       statusReason: options.statusReason || null,
       staffNotes: options.staffNotes || null,
     }),
+    limitQdhIntakeAssistant: (_req, _res, next) => next(),
     ...deps,
   }));
   return app;
@@ -125,6 +127,19 @@ function buildValidQdhIntakePayload(overrides = {}) {
     customer_email: "anna@example.hu",
     customer_phone: "",
     consent_acknowledged: true,
+    ...overrides,
+  };
+}
+
+function buildCompleteQdhAiPayload(overrides = {}) {
+  return {
+    agent_key: "valid-qdh-key",
+    message: "Tetőjavításra kérek ajánlatot. Beázik a tető a kémény mellett Budapesten, ezen a héten lenne sürgős. A nevem Kovács Anna, email anna@customer.hu.",
+    fields: {},
+    conversation: [],
+    confirm_submit: false,
+    consent_acknowledged: false,
+    language: "hu",
     ...overrides,
   };
 }
@@ -229,8 +244,11 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.match(setupSource, /\/qdh\/intake\?agent_key=/);
   assert.match(intakeHtml, /Quote Desk HU ajánlatkérés/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-context/);
+  assert.match(intakeSource, /\/quote-desk-hu\/intake-assistant/);
   assert.match(intakeSource, /\/quote-desk-hu\/intake-requests/);
+  assert.match(intakeSource, /AI ajánlatkérési asszisztens/);
   assert.match(intakeSource, /qdh_public_intake/);
+  assert.match(intakeSource, /qdh_ai_intake/);
   assert.match(intakeSource, /nem végleges vagy garantált árajánlat/i);
   assert.match(setupSource, /signInWithPassword/);
   assert.match(setupSource, /signInWithOtp/);
@@ -241,6 +259,8 @@ test("QDH frontend stays request-review only and avoids generic dashboard/widget
   assert.match(source, /Elutasítva \/ Archivált/);
   assert.match(source, /végső árakat a vállalkozás erősíti meg/i);
   assert.match(source, /nem készít automatikus garantált ajánlatot/i);
+  assert.match(source, /AI-assisted QDH intake/);
+  assert.match(source, /AI staff összefoglaló/);
 
   assert.doesNotMatch(source, /\/agents\/quote-requests/);
   assert.doesNotMatch(source, /buildQuoteRequestReviewCard|data-quote-request-review/);
@@ -553,6 +573,267 @@ test("QDH public intake context exposes only safe business fields", async () => 
     assert.doesNotMatch(responseText, /owner-1|agent-1|business-1|valid-qdh-key/);
     assert.doesNotMatch(responseText, /ownerContactEmail|owner_contact_email|websiteUrl|website_url|metadata|evidence|package_key|policy/i);
     assert.doesNotMatch(responseText, /service_role|SUPABASE_SERVICE_ROLE|OPENAI_API_KEY|STRIPE_SECRET/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant requires valid public routing context and rejects unsafe input", async () => {
+  let setupCalled = false;
+  const server = await startServer(createApiApp({
+    getQuoteDeskHuSetup: async () => {
+      setupCalled = true;
+      return {
+        ownerUserId: "owner-1",
+        businessName: "Példa Kft.",
+        websiteUrl: "https://pelda.hu",
+        serviceType: "tetőfedés",
+        serviceArea: "Budapest",
+        handlingPreference: "staff_review",
+        ownerContactEmail: "owner@example.hu",
+        servicesOffered: ["Tetőjavítás", "Bádogozás"],
+        setupStatus: "ready_for_review",
+      };
+    },
+  }));
+
+  try {
+    const missingContext = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({ message: "Tetőjavítás érdekel." }),
+    });
+    const invalidContext = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({ agent_key: "bad-key" })),
+    });
+    const unsafeField = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify({
+        ...buildCompleteQdhAiPayload(),
+        owner_user_id: "owner-1",
+      }),
+    });
+    const unsafeNestedField = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        fields: { owner_user_id: "owner-1" },
+      })),
+    });
+    const unsafeValue = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        message: "OPENAI_API_KEY=sk-secretsecretsecretsecret",
+      })),
+    });
+
+    assert.equal(missingContext.status, 400);
+    assert.equal(missingContext.json.code, "qdh_intake_agent_key_required");
+    assert.equal(invalidContext.status, 404);
+    assert.equal(invalidContext.json.code, "qdh_intake_link_unavailable");
+    assert.equal(unsafeField.status, 400);
+    assert.equal(unsafeField.json.code, "qdh_intake_field_not_allowed");
+    assert.equal(unsafeNestedField.status, 400);
+    assert.equal(unsafeNestedField.json.code, "qdh_intake_field_not_allowed");
+    assert.equal(unsafeValue.status, 400);
+    assert.equal(unsafeValue.json.code, "qdh_intake_unsafe_value_rejected");
+    assert.equal(setupCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant extracts Hungarian details without public leaks", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload()),
+    });
+    const responseText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.product, "quote_desk_hu");
+    assert.equal(response.json.phase, "ai_customer_intake_request_only");
+    assert.match(response.json.assistant.reply, /Minden szükséges adat megvan|staff review/i);
+    assert.equal(response.json.extractedFields.requestedService, "Tetőjavítás");
+    assert.match(response.json.extractedFields.projectDetails, /Beázik a tető/i);
+    assert.equal(response.json.extractedFields.locationText, "Budapest");
+    assert.equal(response.json.extractedFields.urgency, "Ezen a héten");
+    assert.equal(response.json.extractedFields.customerName, "Kovács Anna");
+    assert.equal(response.json.extractedFields.customerEmail, "anna@customer.hu");
+    assert.deepEqual(response.json.missingFields, []);
+    assert.equal(response.json.readyToSubmit, true);
+    assert.equal(response.json.request, null);
+    assert.equal(createCalled, false);
+    assert.doesNotMatch(responseText, /owner-1|agent-1|business-1|valid-qdh-key|redacted-eval|request-1/);
+    assert.doesNotMatch(responseText, /metadata|evidence|package_key|policy|system prompt|developer message|model|OPENAI_API_KEY|STRIPE_SECRET|SUPABASE_SERVICE_ROLE/i);
+    assert.doesNotMatch(responseText, /végleges árat adok|garantált árat adok|árajánlat elküldve|whatsapp|provider/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant recognizes contact-adjacent Hungarian names", async () => {
+  const server = await startServer(createApiApp());
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        message: "Tetőjavításra kérek ajánlatot. Beázik a tető a kémény mellett Budapesten, ezen a héten lenne sürgős. Kovács Anna, anna@customer.hu.",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.extractedFields.customerName, "Kovács Anna");
+    assert.equal(response.json.extractedFields.customerEmail, "anna@customer.hu");
+    assert.deepEqual(response.json.missingFields, []);
+    assert.equal(response.json.readyToSubmit, true);
+    assert.equal(response.json.request, null);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant asks for missing information instead of creating prematurely", async () => {
+  let createCalled = false;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async () => {
+      createCalled = true;
+      return {};
+    },
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        message: "Tetőjavításra kérek ajánlatot. Beázik a tető a kémény mellett, a nevem Kovács Anna.",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.readyToSubmit, false);
+    assert.ok(response.json.missingFields.includes("location_text"));
+    assert.ok(response.json.missingFields.includes("urgency"));
+    assert.ok(response.json.missingFields.includes("customer_contact"));
+    assert.match(response.json.assistant.reply, /add meg|kérlek|kérem|hiányzó/i);
+    assert.equal(response.json.request, null);
+    assert.equal(createCalled, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant falls back safely when model output is invalid", async () => {
+  const server = await startServer(createApiApp({
+    getOpenAIClient: () => ({
+      chat: {
+        completions: {
+          create: async () => ({
+            choices: [
+              {
+                message: {
+                  content: "not-json",
+                },
+              },
+            ],
+          }),
+        },
+      },
+    }),
+  }));
+
+  try {
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload()),
+    });
+    const responseText = JSON.stringify(response.json);
+
+    assert.equal(response.status, 200);
+    assert.equal(response.json.readyToSubmit, true);
+    assert.equal(response.json.extractedFields.requestedService, "Tetőjavítás");
+    assert.match(response.json.assistant.reply, /Minden szükséges adat megvan|staff review/i);
+    assert.doesNotMatch(responseText, /not-json|model|metadata|system prompt|developer message/i);
+  } finally {
+    await server.close();
+  }
+});
+
+test("QDH AI intake assistant creates request-only records after explicit confirmation", async () => {
+  let createOptions = null;
+  const server = await startServer(createApiApp({
+    createAgentQuoteRequest: async (_supabase, options) => {
+      createOptions = options;
+      return {
+        id: "request-1",
+        ownerUserId: options.ownerUserId,
+        agentId: options.agentId,
+        businessId: options.businessId,
+        status: options.status,
+        sourceChannel: options.sourceChannel,
+      };
+    },
+  }));
+
+  try {
+    const missingConsent = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        confirm_submit: true,
+        consent_acknowledged: false,
+      })),
+    });
+    const response = await requestJson(server.baseUrl, "/quote-desk-hu/intake-assistant", {
+      method: "POST",
+      auth: false,
+      body: JSON.stringify(buildCompleteQdhAiPayload({
+        confirm_submit: true,
+        consent_acknowledged: true,
+      })),
+    });
+    const responseText = JSON.stringify(response.json);
+
+    assert.equal(missingConsent.status, 400);
+    assert.equal(missingConsent.json.code, "qdh_intake_acknowledgement_required");
+    assert.equal(response.status, 201);
+    assert.deepEqual(response.json.request, {
+      status: "request_received",
+      sourceChannel: "qdh_ai_intake",
+      receivedForStaffReview: true,
+    });
+    assert.equal(createOptions.ownerUserId, "owner-1");
+    assert.equal(createOptions.agentId, "agent-1");
+    assert.equal(createOptions.businessId, "business-1");
+    assert.equal(createOptions.sourceChannel, "qdh_ai_intake");
+    assert.equal(createOptions.displayMode, "qdh_ai_intake");
+    assert.equal(createOptions.status, "request_received");
+    assert.equal(createOptions.statusReason, "QDH AI-assisted intake request received for staff review only.");
+    assert.equal(createOptions.evidence.proof_source_type, "request_only");
+    assert.match(createOptions.evidence.qdh_ai_intake.staff_summary_hu, /AI intake összefoglaló|Tetőjavítás/i);
+    assert.equal(createOptions.metadata.source, "qdh_ai_intake");
+    assert.equal(createOptions.metadata.request_only, true);
+    assert.match(createOptions.idempotencyKey, /^qdh-ai-intake:[a-f0-9]{32}$/);
+    assert.doesNotMatch(JSON.stringify(createOptions.metadata), /final quote|guaranteed price|quote_sent/i);
+    assert.doesNotMatch(responseText, /owner-1|agent-1|business-1|request-1|metadata|evidence|package_key|policy/i);
   } finally {
     await server.close();
   }
